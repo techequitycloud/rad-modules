@@ -1,0 +1,10 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: bank-of-anthos
+  namespace: bank-of-anthos
+  labels:
+    app: bank-of-anthos
+spec:
+  domains:
+    - boa.34.8.104.208.sslip.io

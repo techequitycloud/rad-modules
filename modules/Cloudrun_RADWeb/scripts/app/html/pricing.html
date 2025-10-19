@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing | RAD - Rapid Application Deployment</title>
+    <meta name="description" content="Flexible pricing plans for RAD platform. Choose from Free, Professional, and Enterprise tiers with transparent pricing and no hidden fees.">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="images/icons/rad-logo.ico">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/cookie-consent.css">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container header-container">
+            <a href="index.html" class="logo">
+                <img src="images/rad-lab.png" alt="RAD Lab Logo" style="height: 50px;">
+            </a>
+            
+            <button class="mobile-menu-btn">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <nav>
+                <ul>
+                    <li><a href="platform.html">Platform</a></li>
+                    <li><a href="solutions.html">Solutions</a></li>
+                    <li><a href="roi.html">ROI</a></li>
+                    <li><a href="faq.html">FAQ</a></li>
+                    <li><a href="about.html">About</a></li>
+                    <li><a href="privacy.html">Privacy</a></li>
+                    <li><a href="contact.html">Contact Us</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <div class="page-header-content animate">
+                <h1>Simple, Transparent Pricing</h1>
+                <p>Choose the plan that's right for your organization with no hidden fees or surprises.</p>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Pricing Toggle -->
+    <section class="section pricing-toggle">
+        <div class="container text-center">
+            <div class="toggle-container animate">
+                <label id="monthly-label" class="toggle-label active">Monthly</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="pricing-toggle">
+                    <span class="slider"></span>
+                </div>
+                <label id="yearly-label" class="toggle-label">Annual <span class="save-badge">Save 20%</span></label>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Pricing Plans -->
+    <section class="section pricing-plans">
+        <div class="container">
+            <!-- Monthly Pricing -->
+            <div id="monthly-pricing" class="pricing-grid animate">
+                <!-- Free Plan -->
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3>Free</h3>
+                        <div class="pricing-price">
+                            <span class="price">$0</span>
+                            <span class="period">/month</span>
+                        </div>
+                        <p>Perfect for individuals and small projects</p>
+                    </div>
+                    
+                    <div class="pricing-features">
+                        <ul>
+                            <li><i class="fas fa-check"></i> 3 blueprints</li>
+                            <li><i class="fas fa-check"></i> Single cloud provider</li>
+                            <li><i class="fas fa-check"></i> Basic security controls</li>
+                            <li><i class="fas fa-check"></i> Community support</li>
+                            <li><i class="fas fa-check"></i> 5 deployments per month</li>
+                            <li class="disabled"><i class="fas fa-times"></i> Multi-cloud support</li>
+                            <li class="disabled"><i class="fas fa-times"></i> Custom blueprints</li>
+                            <li class="disabled"><i class="fas fa-times"></i> Team collaboration</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="pricing-cta">
+                        <a href="https://demo.techequity.cloud" class="btn btn-outline" target="_blank">Try it out</a>
+                    </div>
+                </div>
+                
+                <!-- Professional Plan -->
+                <div class="pricing-card popular">
+                    <div class="popular-badge">Most Popular</div>
+                    <div class="pricing-header">
+                        <h3>Professional</h3>
+                        <div class="pricing-price">
+                            <span class="price">$199</span>
+                            <span class="period">/month</span>
+                        </div>
+                        <p>For growing teams and businesses</p>
+                    </div>
+                    
+                    <div class="pricing-features">
+                        <ul>
+                            <li><i class="fas fa-check"></i> Unlimited blueprints</li>
+                            <li><i class="fas fa-check"></i> Multi-cloud support</li>
+                            <li><i class="fas fa-check"></i> Advanced security controls</li>
+                            <li><i class="fas fa-check"></i> Email support</li>
+                            <li><i class="fas fa-check"></i> Unlimited deployments</li>
+                            <li><i class="fas fa-check"></i> Custom blueprints</li>
+                            <li><i class="fas fa-check"></i> Team collaboration (up to 10)</li>
+                            <li class="disabled"><i class="fas fa-times"></i> Enterprise integrations</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="pricing-cta">
+                        <a href="https://demo.techequity.cloud" class="btn" target="_blank">Try it out</a>
+                    </div>
+                </div>
+                
+                <!-- Enterprise Plan -->
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3>Enterprise</h3>
+                        <div class="pricing-price">
+                            <span class="price">$2,999</span>
+                            <span class="period">/month</span>
+                        </div>
+                        <p>For organizations with advanced needs</p>
+                    </div>
+                    
+                    <div class="pricing-features">
+                        <ul>
+                            <li><i class="fas fa-check"></i> Everything in Professional</li>
+                            <li><i class="fas fa-check"></i> On-premise deployment option</li>
+                            <li><i class="fas fa-check"></i> Custom compliance frameworks</li>
+                            <li><i class="fas fa-check"></i> 24/7 priority support</li>
+                            <li><i class="fas fa-check"></i> Dedicated account manager</li>
+                            <li><i class="fas fa-check"></i> Enterprise integrations</li>
+                            <li><i class="fas fa-check"></i> Unlimited team members</li>
+                            <li><i class="fas fa-check"></i> Custom SLAs</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="pricing-cta">
+                        <a href="contact.html" class="btn btn-outline">Contact Us</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Yearly Pricing -->
+            <div id="yearly-pricing" class="pricing-grid animate" style="display: none;">
+                <!-- Free Plan -->
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3>Free</h3>
+                        <div class="pricing-price">
+                            <span class="price">$0</span>
+                            <span class="period">/year</span>
+                        </div>
+                        <p>Perfect for individuals and small projects</p>
+                    </div>
+                    
+                    <div class="pricing-features">
+                        <ul>
+                            <li><i class="fas fa-check"></i> 3 blueprints</li>
+                            <li><i class="fas fa-check"></i> Single cloud provider</li>
+                            <li><i class="fas fa-check"></i> Basic security controls</li>
+                            <li><i class="fas fa-check"></i> Community support</li>
+                            <li><i class="fas fa-check"></i> 5 deployments per month</li>
+                            <li class="disabled"><i class="fas fa-times"></i> Multi-cloud support</li>
+                            <li class="disabled"><i class="fas fa-times"></i> Custom blueprints</li>
+                            <li class="disabled"><i class="fas fa-times"></i> Team collaboration</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="pricing-cta">
+                        <a href="https://demo.techequity.cloud" class="btn btn-outline" target="_blank">Try it out</a>
+                    </div>
+                </div>
+                
+                <!-- Professional Plan -->
+                <div class="pricing-card popular">
+                    <div class="popular-badge">Most Popular</div>
+                    <div class="pricing-header">
+                        <h3>Professional</h3>
+                        <div class="pricing-price">
+                            <span class="price">$1,908</span>
+                            <span class="period">/year</span>
+                        </div>
+                        <p>For growing teams and businesses</p>
+                        <div class="savings-badge">Save $480</div>
+                    </div>
+                    
+                    <div class="pricing-features">
+                        <ul>
+                            <li><i class="fas fa-check"></i> Unlimited blueprints</li>
+                            <li><i class="fas fa-check"></i> Multi-cloud support</li>
+                            <li><i class="fas fa-check"></i> Advanced security controls</li>
+                            <li><i class="fas fa-check"></i> Email support</li>
+                            <li><i class="fas fa-check"></i> Unlimited deployments</li>
+                            <li><i class="fas fa-check"></i> Custom blueprints</li>
+                            <li><i class="fas fa-check"></i> Team collaboration (up to 10)</li>
+                            <li class="disabled"><i class="fas fa-times"></i> Enterprise integrations</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="pricing-cta">
+                        <a href="https://demo.techequity.cloud" class="btn" target="_blank">Try it out</a>
+                    </div>
+                </div>
+                
+                <!-- Enterprise Plan -->
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3>Enterprise</h3>
+                        <div class="pricing-price">
+                            <span class="price">$28,790</span>
+                            <span class="period">/year</span>
+                        </div>
+                        <p>For organizations with advanced needs</p>
+                        <div class="savings-badge">Save $7,198</div>
+                    </div>
+                    
+                    <div class="pricing-features">
+                        <ul>
+                            <li><i class="fas fa-check"></i> Everything in Professional</li>
+                            <li><i class="fas fa-check"></i> On-premise deployment option</li>
+                            <li><i class="fas fa-check"></i> Custom compliance frameworks</li>
+                            <li><i class="fas fa-check"></i> 24/7 priority support</li>
+                            <li><i class="fas fa-check"></i> Dedicated account manager</li>
+                            <li><i class="fas fa-check"></i> Enterprise integrations</li>
+                            <li><i class="fas fa-check"></i> Unlimited team members</li>
+                            <li><i class="fas fa-check"></i> Custom SLAs</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="pricing-cta">
+                        <a href="contact.html" class="btn btn-outline">Contact Us</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Credit System -->
+    <section class="section credit-system">
+        <div class="container">
+            <div class="section-header animate">
+                <h2>Flexible Credit-Based Consumption</h2>
+                <p>In addition to our subscription plans, RAD offers a unique credit-based system for cloud resource consumption that addresses the needs of global organizations.</p>
+            </div>
+            
+            <div class="credit-features animate delay-1">
+                <div class="credit-feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <h3>Pre-paid Credits</h3>
+                    <p>Purchase credits in advance to use for cloud resource consumption, making budgeting predictable and eliminating surprise bills.</p>
+                </div>
+                
+                <div class="credit-feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <h3>Local Payment Options</h3>
+                    <p>Pay using local payment methods including mobile money, bank transfers, and local cards without international transaction fees.</p>
+                </div>
+                
+                <div class="credit-feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>Volume Discounts</h3>
+                    <p>Receive automatic discounts when purchasing credits in bulk, with savings of up to 25% for larger organizations.</p>
+                </div>
+                
+                <div class="credit-feature">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>Budget Controls</h3>
+                    <p>Set spending limits and receive alerts when approaching thresholds to maintain complete control over your cloud costs.</p>
+                </div>
+            </div>
+            
+            <div class="credit-packages animate delay-2">
+                <h3>Credit Packages</h3>
+                <div class="credit-packages-grid">
+                    <div class="credit-package">
+                        <div class="credit-package-header">
+                            <h4>Starter</h4>
+                            <div class="credit-amount">1,000 credits</div>
+                        </div>
+                        <div class="credit-package-price">
+                            <span class="price">$100</span>
+                        </div>
+                        <div class="credit-package-savings">
+                            <span class="savings">No discount</span>
+                        </div>
+                        <div class="credit-package-features">
+                            <ul>
+                                <li><i class="fas fa-check"></i> Perfect for small projects</li>
+                                <li><i class="fas fa-check"></i> Basic cloud resources</li>
+                                <li><i class="fas fa-check"></i> No minimum commitment</li>
+                            </ul>
+                        </div>
+                        <a href="contact.html" class="btn btn-outline">Purchase Credits</a>
+                    </div>
+                    
+                    <div class="credit-package recommended">
+                        <div class="credit-package-badge">Most Popular</div>
+                        <div class="credit-package-header">
+                            <h4>Growth</h4>
+                            <div class="credit-amount">5,000 credits</div>
+                        </div>
+                        <div class="credit-package-price">
+                            <span class="price">$450</span>
+                            <span class="original-price">$500</span>
+                        </div>
+                        <div class="credit-package-savings">
+                            <span class="savings">Save 10%</span>
+                        </div>
+                        <div class="credit-package-features">
+                            <ul>
+                                <li><i class="fas fa-check"></i> Great for growing teams</li>
+                                <li><i class="fas fa-check"></i> Volume discount included</li>
+                                <li><i class="fas fa-check"></i> Priority support</li>
+                            </ul>
+                        </div>
+                        <a href="contact.html" class="btn">Purchase Credits</a>
+                    </div>
+                    
+                    <div class="credit-package">
+                        <div class="credit-package-header">
+                            <h4>Business</h4>
+                            <div class="credit-amount">10,000 credits</div>
+                        </div>
+                        <div class="credit-package-price">
+                            <span class="price">$850</span>
+                            <span class="original-price">$1,000</span>
+                        </div>
+                        <div class="credit-package-savings">
+                            <span class="savings">Save 15%</span>
+                        </div>
+                        <div class="credit-package-features">
+                            <ul>
+                                <li><i class="fas fa-check"></i> Ideal for businesses</li>
+                                <li><i class="fas fa-check"></i> Significant savings</li>
+                                <li><i class="fas fa-check"></i> Dedicated support</li>
+                            </ul>
+                        </div>
+                        <a href="contact.html" class="btn btn-outline">Purchase Credits</a>
+                    </div>
+                    
+                    <div class="credit-package enterprise">
+                        <div class="credit-package-header">
+                            <h4>Enterprise</h4>
+                            <div class="credit-amount">50,000+ credits</div>
+                        </div>
+                        <div class="credit-package-price">
+                            <span class="price">Custom</span>
+                        </div>
+                        <div class="credit-package-savings">
+                            <span class="savings">Save up to 25%</span>
+                        </div>
+                        <div class="credit-package-features">
+                            <ul>
+                                <li><i class="fas fa-check"></i> Maximum savings</li>
+                                <li><i class="fas fa-check"></i> Custom pricing</li>
+                                <li><i class="fas fa-check"></i> Enterprise support</li>
+                            </ul>
+                        </div>
+                        <a href="contact.html" class="btn btn-outline">Contact Us</a>
+                    </div>
+                </div>
+                <p class="credit-note">1 credit = approximately $0.10 of cloud resource consumption</p>
+            </div>
+        </div>
+    </section>
+    
+    <!-- FAQ -->
+    <section class="section faq">
+        <div class="container">
+            <div class="section-header animate">
+                <h2>Frequently Asked Questions</h2>
+                <p>Find answers to common questions about RAD pricing and plans.</p>
+            </div>
+            
+            <div class="faq-container animate delay-1">
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>What's included in the free plan?</h3>
+                        <span class="faq-icon"><i class="fas fa-plus"></i></span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>The free plan includes access to 3 pre-built blueprints, support for a single cloud provider, basic security controls, community support, and up to 5 deployments per month. It's perfect for individuals and small projects looking to get started with RAD.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>How does the credit system work?</h3>
+                        <span class="faq-icon"><i class="fas fa-plus"></i></span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>RAD's credit system allows you to pre-purchase credits that can be used for cloud resource consumption. One credit is approximately equivalent to $0.10 of cloud resources. Credits can be purchased in packages with volume discounts, and you can set budget controls to manage spending. This system provides predictable costs and eliminates surprise bills.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Can I change plans at any time?</h3>
+                        <span class="faq-icon"><i class="fas fa-plus"></i></span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes, you can upgrade or downgrade your plan at any time. When upgrading, the new features and capabilities will be immediately available. When downgrading, the changes will take effect at the start of your next billing cycle. There are no penalties for changing plans.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Do you offer educational or non-profit discounts?</h3>
+                        <span class="faq-icon"><i class="fas fa-plus"></i></span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes, we offer special pricing for educational institutions, non-profit organizations, and research facilities. Please contact our sales team to discuss your specific needs and eligibility for these discounts.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>What payment methods do you accept?</h3>
+                        <span class="faq-icon"><i class="fas fa-plus"></i></span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>We accept a wide range of payment methods including credit/debit cards, bank transfers, and mobile money services including digital wallets and regional payment systems. We also support local payment processors to minimize international transaction fees.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Is there a long-term commitment?</h3>
+                        <span class="faq-icon"><i class="fas fa-plus"></i></span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>No, our monthly plans are billed month-to-month with no long-term commitment required. Annual plans are pre-paid for the year and offer a 20% discount compared to monthly billing. You can cancel your subscription at any time.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Call to Action -->
+    <section class="section cta">
+        <div class="container text-center">
+            <div class="section-header animate">
+                <h2>Ready to Get Started?</h2>
+                <p>Join hundreds of organizations worldwide that are using RAD to simplify their cloud operations, reduce costs, and accelerate innovation.</p>
+            </div>
+            
+            <div class="animate delay-1">
+                <a href="https://demo.techequity.cloud" class="btn" target="_blank">Try it out</a>
+                <a href="contact.html" class="btn btn-outline mt-3 ml-3">Contact Sales</a>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-container">
+                <div class="footer-about">
+                    <div class="footer-logo">
+                        <img src="images/icons/rad-logo.ico" alt="RAD Logo">
+                    </div>
+                    <p>RAD is a cloud-agnostic web application that simplifies the deployment and management of enterprise-grade platforms for organizations worldwide.</p>
+                    <div class="social-links mt-3">
+                        <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+                
+                <div class="footer-links-container">
+                    <h4 class="footer-heading">Platform</h4>
+                    <ul class="footer-links">
+                        <li><a href="platform.html">Features</a></li>
+                        <li><a href="platform.html#multi-cloud">Multi-Cloud</a></li>
+                        <li><a href="platform.html#blueprints">Blueprints</a></li>
+                        <li><a href="platform.html#governance">Governance</a></li>
+                        <li><a href="platform.html#cost">Cost Optimization</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-links-container">
+                    <h4 class="footer-heading">Solutions</h4>
+                    <ul class="footer-links">
+                        <li><a href="solutions.html#developers">For Developers</a></li>
+                        <li><a href="solutions.html#platform-engineers">For Platform Engineers</a></li>
+                        <li><a href="solutions.html#it-leaders">For IT Leaders</a></li>
+                        <li><a href="solutions.html#education">For Education</a></li>
+                        <li><a href="solutions.html#startups">For Startups</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-links-container">
+                    <h4 class="footer-heading">Company</h4>
+                    <ul class="footer-links">
+                        <li><a href="about.html">About Us</a></li>
+                        <li><a href="about.html#team">Team</a></li>
+                        <li><a href="about.html#careers">Careers</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                        <li><a href="privacy.html">Privacy</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2025 TechEquity. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Cookie Consent Banner -->
+    <div id="cookie-consent-banner">
+        <p>This website uses cookies to enhance the user experience. <a href="privacy.html">Learn more</a>.</p>
+        <button id="accept-cookie-btn">Accept</button>
+        <button id="decline-cookie-btn">Decline</button>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/main.js"></script>
+    <script src="js/cookie-consent.js"></script>
+    
+    <script>
+        // FAQ Accordion
+        document.querySelectorAll('.faq-question').forEach(question => {
+            question.addEventListener('click', () => {
+                const faqItem = question.parentElement;
+                const isActive = faqItem.classList.contains('active');
+                
+                // Close all FAQ items
+                document.querySelectorAll('.faq-item').forEach(item => {
+                    item.classList.remove('active');
+                    const icon = item.querySelector('.faq-icon i');
+                    icon.className = 'fas fa-plus';
+                });
+                
+                // If the clicked item wasn't active, open it
+                if (!isActive) {
+                    faqItem.classList.add('active');
+                    const icon = question.querySelector('.faq-icon i');
+                    icon.className = 'fas fa-minus';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

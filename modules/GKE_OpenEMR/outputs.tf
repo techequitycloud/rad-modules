@@ -1,0 +1,68 @@
+# Copyright 2024 (c) Tech Equity Ltd
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+output "deployment_info" {
+  value = {
+    deployment_id  = var.deployment_id
+    region         = local.region
+    project_id     = local.project.project_id
+  }
+}
+
+output "cloud_sql_info" {
+  value = {
+    cloudsql_instance_ip = local.sql_server_exists ? local.db_internal_ip : "" 
+    cloud_sql_studio = var.configure_backups ? "https://console.cloud.google.com/sql/instances/${local.db_instance_name}/studio?project=${local.project.project_id}&supportedpurview=project,organizationId,folder" : ""
+    development_database_name  =  var.configure_nonproduction_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev" : ""
+    development_database_user = var.configure_nonproduction_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev" : ""
+    nonproduction_database_name = var.configure_nonproduction_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa" : ""
+    nonproduction_database_user = var.configure_nonproduction_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa" : ""
+    production_database_name = var.configure_nonproduction_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod" : ""
+    production_database_user = var.configure_nonproduction_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod" : ""
+  }
+}
+
+output "private_storage_info" {
+  value = {
+    gcs_private_backup_bucket  = var.create_cloud_storage ? local.backup_bucket_name : ""
+    gcs_private_data_bucket = var.create_cloud_storage ? local.data_bucket_name : "" 
+    gcs_private_restore_bucket = var.create_cloud_storage ? local.restore_bucket_name : ""
+  }
+}
+
+output "application_info" {
+  value = {
+    application_dev_url  = var.configure_development_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev.${google_compute_global_address.dev[0].address}.sslip.io" : ""
+    application_qa_url = var.configure_nonproduction_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa.${google_compute_global_address.qa[0].address}.sslip.io" : ""
+    application_prod_url = var.configure_production_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod.${google_compute_global_address.prod[0].address}.sslip.io" : ""
+    cloud_secret_manager = var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    cloud_scheduler = var.configure_backups ? "https://console.cloud.google.com/cloudscheduler?inv=1&invt=AbioeA&orgonly=true&${local.project.project_id}&supportedpurview=organizationId" : ""
+  }
+}
+
+output "gke_info" {
+  value = {
+    gke_app_dev_url  = var.configure_development_environment ? "https://console.cloud.google.com/kubernetes/statefulset/${local.gke_cluster_region}/${local.gke_cluster_name}/${var.application_name}${var.tenant_deployment_id}dev/app${var.application_name}${local.random_id}dev/details?project=${local.project.project_id}" : ""
+    gke_app_qa_url = var.configure_nonproduction_environment ? "https://console.cloud.google.com/kubernetes/statefulset/${local.gke_cluster_region}/${local.gke_cluster_name}/${var.application_name}${var.tenant_deployment_id}qa/app${var.application_name}${local.random_id}qa/details?project=${local.project.project_id}" : ""
+    gke_app_prod_url = var.configure_production_environment ? "https://console.cloud.google.com/kubernetes/statefulset/${local.gke_cluster_region}/${local.gke_cluster_name}/${var.application_name}${var.tenant_deployment_id}prod/app${var.application_name}${local.random_id}prod/details?project=${local.project.project_id}" : ""
+  }
+}
+
+output "cicd_info" {
+  value = {
+    github_repository = var.configure_continuous_integration ? "https://github.com/${var.application_git_organization}/${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}.git" : ""
+    cloud_build_trigger = var.configure_continuous_integration ? "https://console.cloud.google.com/cloud-build/triggers;region=${local.region}?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    cloud_artifact_registry = var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment ? "https://console.cloud.google.com/artifacts?inv=1&invt=AbioeA&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+  }
+}

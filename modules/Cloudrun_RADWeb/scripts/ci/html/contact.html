@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us | RAD - Rapid Application Deployment</title>
+    <meta name="description" content="Get in touch with the RAD team for demos, sales inquiries, or support. We're here to help you simplify your cloud platform.">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="images/icons/rad-logo.ico">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/cookie-consent.css">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container header-container">
+            <a href="index.html" class="logo">
+                <img src="images/rad-lab.png" alt="RAD Lab Logo" style="height: 50px;">
+            </a>
+            
+            <button class="mobile-menu-btn">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <nav>
+                <ul>
+                    <li><a href="platform.html">Platform</a></li>
+                    <li><a href="solutions.html">Solutions</a></li>
+                    <li><a href="roi.html">ROI</a></li>
+                    <li><a href="faq.html">FAQ</a></li>
+                    <li><a href="about.html">About</a></li>
+                    <li><a href="privacy.html">Privacy</a></li>
+                    <li><a href="contact.html" class="active">Contact Us</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero platform-hero">
+        <div class="container">
+            <div class="hero-content animate">
+                <h1>How to Contact Us and Learn About Rapid Application Deployment</h1>
+                <p>Our team is here to help you simplify your cloud platform deployments.</p>
+                <div class="hero-buttons">
+                    <a href="https://demo.techequity.cloud" class="btn" target="_blank">Try it out</a>
+                </div>
+            </div>
+            
+            <div class="hero-image animate delay-1">
+                <img src="images/dashboard.svg" alt="RAD Platform Dashboard">
+            </div>
+        </div>
+    </section>
+    
+    <!-- Contact Options -->
+    <section class="section contact-options">
+        <div class="container">
+            <div class="contact-options-grid animate">
+                <div class="contact-option">
+                    <h3><i class="fas fa-calendar-check"></i> Schedule a Demo</h3>
+                    <p>See RAD in action with a personalized demo tailored to your specific needs and use cases.</p>
+                    <a href="#demo-form" class="btn">Schedule a Demo</a>
+                </div>
+                <p><br> </p>
+                <div class="contact-option">
+                    <h3><i class="fas fa-comments"></i> Sales Inquiry</h3>
+                    <p>Talk to our sales team about pricing, enterprise plans, or custom requirements for your organization.</p>
+                    <a href="#contact-form" class="btn">Contact Sales</a>
+                </div>
+                <p><br> </p>
+                <div class="contact-option">
+                    <h3><i class="fas fa-headset"></i> Support</h3>
+                    <p>Get help with technical issues, account management, or general platform questions.</p>
+                    <a href="#support-form" class="btn">Get Support</a>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Contact Form -->
+    <section id="contact-form" class="section contact-form-section">
+        <div class="container">
+            <div class="section-header animate">
+                <h2>Contact Us</h2>
+                <p><br>Fill out the form below and our team will get back to you within 24 hours.</p>
+            </div>
+            
+            <div class="form-container animate delay-1">
+                <form id="contactForm" action="#" method="POST">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="firstName">First Name*</label>
+                            <input type="text" id="firstName" name="firstName" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="lastName">Last Name*</label>
+                            <input type="text" id="lastName" name="lastName" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="email">Email Address*</label>
+                            <input type="email" id="email" name="email" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="phone">Phone Number</label>
+                            <input type="tel" id="phone" name="phone">
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label for="company">Company Name*</label>
+                            <input type="text" id="company" name="company" required>
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label for="jobTitle">Job Title*</label>
+                            <input type="text" id="jobTitle" name="jobTitle" required>
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label for="inquiryType">Inquiry Type*</label>
+                            <select id="inquiryType" name="inquiryType" required>
+                                <option value="">Select an option</option>
+                                <option value="demo">Request a Demo</option>
+                                <option value="sales">Sales Inquiry</option>
+                                <option value="support">Technical Support</option>
+                                <option value="partnership">Partnership Opportunity</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label for="message">Message*</label>
+                            <textarea id="message" name="message" rows="5" required></textarea>
+                        </div>
+                        <p><br> </p>
+                        <div class="form-group full-width">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="consent" name="consent" required>
+                                <center><label for="consent">I agree to the <a href="privacy.html">Privacy Policy</a> and consent to being contacted by TechEquity regarding my inquiry.</label></center>
+                            </div>
+                        </div>
+                    </div>
+                    <p><br> </p>
+                    <center><button type="submit" class="btn">Submit</button></center>
+                </form>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Demo Form -->
+    <section id="demo-form" class="section demo-form-section">
+        <div class="container">
+            <div class="section-header animate">
+                <h2>Schedule a Demo</h2>
+                <p><br>See how RAD can transform your cloud platform with a personalized demonstration.</p>
+            </div>
+            
+            <div class="demo-container animate delay-1">
+                <div class="demo-content">
+                    <h3>What to Expect</h3>
+                    <ul class="demo-list">
+                            <div class="demo-list-content">
+                                <h4><i class="fas fa-check-circle"></i>  Personalized Walkthrough</h4>
+                                <p>We'll tailor the demo to your specific industry, use cases, and requirements.</p>
+                            </div>
+                        
+                            <div class="demo-list-content">
+                                <h4><i class="fas fa-check-circle"></i>  Live Deployment</h4>
+                                <p>See RAD in action as we deploy a complete cloud platform in minutes.</p>
+                            </div>
+                        
+                            <div class="demo-list-content">
+                                <h4><i class="fas fa-check-circle"></i>  Q&A Session</h4>
+                                <p>Get answers to your specific questions from our product experts.</p>
+                            </div>
+                        
+                            <div class="demo-list-content">
+                                <h4><i class="fas fa-check-circle"></i>  Custom Proposal</h4>
+                                <p>Receive a tailored solution proposal based on your organization's needs.</p>
+                            </div>
+                    </ul>
+                </div>
+                
+                <div class="demo-form-container">
+                    <form id="demoForm" action="#" method="POST">
+                        <div class="form-group">
+                            <label for="demoName">Full Name*</label>
+                            <input type="text" id="demoName" name="demoName" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="demoEmail">Email Address*</label>
+                            <input type="email" id="demoEmail" name="demoEmail" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="demoCompany">Company Name*</label>
+                            <input type="text" id="demoCompany" name="demoCompany" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="demoSize">Company Size*</label>
+                            <select id="demoSize" name="demoSize" required>
+                                <option value="">Select an option</option>
+                                <option value="1-10">1-10 employees</option>
+                                <option value="11-50">11-50 employees</option>
+                                <option value="51-200">51-200 employees</option>
+                                <option value="201-500">201-500 employees</option>
+                                <option value="501+">501+ employees</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="demoInterest">Primary Interest*</label>
+                            <select id="demoInterest" name="demoInterest" required>
+                                <option value="">Select an option</option>
+                                <option value="multi-cloud">Multi-Cloud Management</option>
+                                <option value="blueprints">Blueprint Development</option>
+                                <option value="governance">Governance & Compliance</option>
+                                <option value="cost">Cost Optimization</option>
+                                <option value="all">All Features</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="demoNotes">Additional Notes</label>
+                            <textarea id="demoNotes" name="demoNotes" rows="3"></textarea>
+                        </div>
+                        <p><br> </p>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="demoConsent" name="demoConsent" required>
+                                <center><label for="demoConsent">I agree to the <a href="privacy.html">Privacy Policy</a> and consent to being contacted by TechEquity regarding my demo request.</label></center>
+                            </div>
+                        </div>
+                        <p><br> </p>
+                        <center><button type="submit" class="btn">Schedule Demo</button></center>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Support Form -->
+    <section id="support-form" class="section support-form-section">
+        <div class="container">
+            <div class="section-header animate">
+                <h2>Get Support</h2>
+                <p><br>Need help with RAD? Our support team is ready to assist you.</p>
+            </div>
+            
+            <div class="support-container animate delay-1">
+                <div class="support-form-container">
+                    <h3>Submit a Support Request</h3>
+                    <form id="supportForm" action="#" method="POST">
+                        <div class="form-group">
+                            <label for="supportName">Full Name*</label>
+                            <input type="text" id="supportName" name="supportName" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="supportEmail">Email Address*</label>
+                            <input type="email" id="supportEmail" name="supportEmail" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="supportSubject">Subject*</label>
+                            <input type="text" id="supportSubject" name="supportSubject" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="supportCategory">Category*</label>
+                            <select id="supportCategory" name="supportCategory" required>
+                                <option value="">Select an option</option>
+                                <option value="account">Account Management</option>
+                                <option value="billing">Billing & Payments</option>
+                                <option value="technical">Technical Issue</option>
+                                <option value="feature">Feature Request</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="supportPriority">Priority*</label>
+                            <select id="supportPriority" name="supportPriority" required>
+                                <option value="">Select an option</option>
+                                <option value="low">Low - General Question</option>
+                                <option value="medium">Medium - Minor Issue</option>
+                                <option value="high">High - Significant Impact</option>
+                                <option value="critical">Critical - System Down</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="supportMessage">Description*</label>
+                            <textarea id="supportMessage" name="supportMessage" rows="5" required></textarea>
+                        </div>
+                        <p><br> </p>
+                        <center><button type="submit" class="btn">Submit Request</button></center>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Office Locations -->
+    <section class="section office-locations-section">
+        <div class="container">
+            <div class="section-header animate">
+                <h2>Our Offices</h2>
+                <p><br>Visit us at one of our locations worldwide.</p>
+            </div>
+            
+            <div class="locations-grid animate delay-1">         
+                <div class="location-card">
+                    <div class="location-details">
+                        <h3>London, United Kingdom</h3>
+                        <p>Europe Hub</p>
+                        <div class="location-contact">
+                            <p><i class="fas fa-phone"></i> +44 7903 485526</p>
+                            <p><i class="fas fa-envelope"></i> sales@techequity.cloud</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="location-card">
+                    <div class="location-details">
+                        <h3>Johannesburg, South Africa</h3>
+                        <p>Africa Hub</p>
+                        <div class="location-contact">
+                            <p><i class="fas fa-phone"></i> +27 82 570 4051</p>
+                            <p><i class="fas fa-envelope"></i> sales@techequity.cloud</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-container">
+                <div class="footer-about">
+                    <div class="footer-logo">
+                        <img src="images/rad-lab.png" alt="RAD Logo" style="width: 100%;">
+                    </div>
+                    <p>RAD is a cloud-agnostic web application that simplifies the deployment and management of enterprise-grade platforms for organizations worldwide.</p>
+                    <div class="social-links mt-3">
+                        <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+                
+                <div class="footer-links-container">
+                    <h4 class="footer-heading">Platform</h4>
+                    <ul class="footer-links">
+                        <li><a href="platform.html">Features</a></li>
+                        <li><a href="platform.html#multi-cloud">Multi-Cloud</a></li>
+                        <li><a href="platform.html#blueprints">Blueprints</a></li>
+                        <li><a href="platform.html#governance">Governance</a></li>
+                        <li><a href="platform.html#cost">Cost Optimization</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-links-container">
+                    <h4 class="footer-heading">Solutions</h4>
+                    <ul class="footer-links">
+                        <li><a href="solutions.html#developers">For Developers</a></li>
+                        <li><a href="solutions.html#platform-engineers">For Platform Engineers</a></li>
+                        <li><a href="solutions.html#it-leaders">For IT Leaders</a></li>
+                        <li><a href="solutions.html#education">For Education</a></li>
+                        <li><a href="solutions.html#startups">For Startups</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-links-container">
+                    <h4 class="footer-heading">Company</h4>
+                    <ul class="footer-links">
+                        <li><a href="about.html">About Us</a></li>
+                        <li><a href="about.html#team">Team</a></li>
+                        <li><a href="about.html#careers">Careers</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                        <li><a href="privacy.html">Privacy</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2025 TechEquity. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Cookie Consent Banner -->
+    <div id="cookie-consent-banner">
+        <p>This website uses cookies to enhance the user experience. <a href="privacy.html">Learn more</a>.</p>
+        <button id="accept-cookie-btn">Accept</button>
+        <button id="decline-cookie-btn">Decline</button>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/main.js"></script>
+    <script src="js/cookie-consent.js"></script>
+    
+    <script>
+        // Form submission handling
+        const handleFormSubmit = function(e) {
+            e.preventDefault();
+
+            const form = e.target;
+            const formContainer = form.closest('.form-container, .demo-form-container, .support-form-container');
+            const originalFormHTML = formContainer.innerHTML;
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.textContent;
+
+            const salesEndpoint = 'https://formspree.io/f/xanpaykn';
+            const supportEndpoint = 'https://formspree.io/f/mzzjybwg';
+
+            let actionURL;
+            const formId = form.getAttribute('id');
+
+            if (formId === 'contactForm') {
+                const inquiryType = document.getElementById('inquiryType').value;
+                if (inquiryType === 'demo' || inquiryType === 'support') {
+                    actionURL = supportEndpoint;
+                } else {
+                    actionURL = salesEndpoint;
+                }
+            } else { // This covers demoForm and supportForm
+                actionURL = supportEndpoint;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Submitting...';
+
+            const formData = new FormData(form);
+
+            fetch(actionURL, {
+                method: 'POST',
+                body: formData,
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(response => {
+                if (response.ok) {
+                    formContainer.innerHTML = `
+                        <div class="form-success">
+                            <h3>Thank You!</h3>
+                            <p>Your submission has been received. Our team will get back to you shortly.</p>
+                            <button class="btn btn-outline mt-4 reset-form">Submit Another</button>
+                        </div>
+                    `;
+                    formContainer.querySelector('.reset-form').addEventListener('click', () => {
+                        formContainer.innerHTML = originalFormHTML;
+                        // Re-attach event listener to the restored form
+                        const newForm = formContainer.querySelector('form');
+                        if (newForm) {
+                            newForm.addEventListener('submit', handleFormSubmit);
+                        }
+                    });
+                } else {
+                    response.json().then(data => {
+                        const errorMessage = data.errors ? data.errors.map(error => error.message).join(', ') : 'An unknown error occurred.';
+                        alert(`Oops! There was a problem: ${errorMessage}`);
+                        submitButton.disabled = false;
+                        submitButton.textContent = originalButtonText;
+                    }).catch(() => {
+                        alert('Oops! There was an error processing the response from the server.');
+                        submitButton.disabled = false;
+                        submitButton.textContent = originalButtonText;
+                    });
+                }
+            })
+            .catch(error => {
+                alert(`Oops! There was a problem submitting your form. Please check your network connection. Error: ${error}`);
+                submitButton.disabled = false;
+                submitButton.textContent = originalButtonText;
+            });
+        };
+
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', handleFormSubmit);
+        });
+        
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                if (this.getAttribute('href') !== '#') {
+                    e.preventDefault();
+                    
+                    const targetId = this.getAttribute('href');
+                    const targetElement = document.querySelector(targetId);
+                    
+                    if (targetElement) {
+                        window.scrollTo({
+                            top: targetElement.offsetTop - 100,
+                            behavior: 'smooth'
+                        });
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+steps:
+  - id: 'Clone Repository'
+    name: 'gcr.io/cloud-builders/git'
+    secretEnv: ['GIT_TOKEN']
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -x
+        if [ -z "${_GIT_REPO_URL}" ]; then
+          echo "Using default repository"
+        else
+          echo "Cloning repository from ${_GIT_REPO_URL}"
+          # The workspace is not empty, so we need to remove the existing files, including hidden ones.
+          find /workspace -mindepth 1 -delete
+          git clone "https://$$GIT_TOKEN@github.com/${_GIT_REPO_URL}.git" /workspace
+        fi
+        
+  - id: 'Initial File Upload'
+    name: 'gcr.io/cloud-builders/gsutil'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -x
+        echo "Creating tar.gz file for ${_MODULE_NAME}"
+        tar -czf ${_MODULE_NAME}.tar.gz -C /workspace/modules/${_MODULE_NAME} .
+        echo "Uploading ${_MODULE_NAME}.tar.gz to gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files"
+        gsutil -m cp ${_MODULE_NAME}.tar.gz gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files
+    dir: /workspace
+    
+  - id: 'Download TFVARS content'
+    name: 'gcr.io/cloud-builders/gsutil'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -x
+        echo "Downloading terraform.tfvars.json from gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/"
+        gsutil cp gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/terraform.tfvars.json ./terraform.tfvars.json
+        echo "Downloading backend.tf from gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/"
+        gsutil cp gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/backend.tf ./backend.tf
+    dir: /workspace/modules/${_MODULE_NAME}
+
+  - id: 'Init'
+    name: '${_TERRAFORM_IMAGE_NAME}'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -x
+        echo "Initializing Tofu with debug logging"
+        tofu init -reconfigure -upgrade
+    dir: /workspace/modules/${_MODULE_NAME}
+
+  - id: 'Apply'
+    name: '${_TERRAFORM_IMAGE_NAME}'
+    dir: /workspace/modules/${_MODULE_NAME}
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -x
+        tofu apply -auto-approve
+
+  - id: 'Refresh'
+    name: '${_TERRAFORM_IMAGE_NAME}'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -x
+        echo "Refreshing Tofu state with debug logging"
+        tofu apply -refresh-only -auto-approve
+    dir: /workspace/modules/${_MODULE_NAME}
+
+  - id: 'Output'
+    name: '${_TERRAFORM_IMAGE_NAME}'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -x
+        echo "Generating Tofu output in JSON format with debug logging"
+        tofu output -json > output.json
+        echo "Uploading output.json to gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/output/"
+        gsutil -m cp output.json gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/output/output.json
+    dir: /workspace/modules/${_MODULE_NAME}
+
+  - id: 'Upload Files'
+    name: 'gcr.io/cloud-builders/gsutil'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -x
+        echo "Creating tar.gz file for ${_MODULE_NAME}"
+        tar -czf ${_MODULE_NAME}.tar.gz -C /workspace/modules/${_MODULE_NAME} .
+        echo "Uploading ${_MODULE_NAME}.tar.gz to gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files"
+        gsutil -m cp ${_MODULE_NAME}.tar.gz gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files
+    dir: /workspace
+
+availableSecrets:
+  secretManager:
+  - versionName: projects/${PROJECT_ID}/secrets/git-access-token/versions/latest
+    env: 'GIT_TOKEN'
+
+options:
+  logging: GCS_ONLY
+  logStreamingOption: STREAM_ON
+  dynamic_substitutions: true
+
+substitutions:
+  _DEPLOYMENT_ID: "none"
+
+logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/logs'
+timeout: 7200s

@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+- ../../base/secondary
+images:
+- name: europe-west1-docker.pkg.dev/qwiklabs-gcp-00-184743bf2918/odoo-demo-390a/odoo
+  newName: europe-west1-docker.pkg.dev/qwiklabs-gcp-00-184743bf2918/odoo-demo-390a/odoo
+  newTag: latest-qa
+nameSuffix: qa
+patchesStrategicMerge:
+- deploy.yaml
