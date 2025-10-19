@@ -52,7 +52,7 @@ variable "deployment_id" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = "tecs-module-creator@tec-dev-ui-693c.iam.gserviceaccount.com"
+  default     = "tecs-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 # GROUP 2: Application Project
