@@ -18,8 +18,9 @@ resource "null_resource" "install_application_1" {
   count = var.deploy_application ? 1 : 0
 
   triggers = {
-    cluster_endpoint = module.gke_1.endpoint
-    always_run       = timestamp()
+    cluster = var.gke_cluster_1
+    region  = var.region_1
+    project = local.project.project_id
   }
 
   provisioner "local-exec" {
@@ -27,11 +28,11 @@ resource "null_resource" "install_application_1" {
       #!/bin/bash
       
       # Cleanup and clone
-      rm -rf ./scripts/app/bank-of-anthos/cluster1
-      mkdir -p ./scripts/app/bank-of-anthos/cluster1
+      rm -rf ${path.module}/scripts/app/bank-of-anthos/cluster1
+      mkdir -p ${path.module}/scripts/app/bank-of-anthos/cluster1
       sleep 5
       
-      if ! git clone --branch v0.6.6 --single-branch https://github.com/GoogleCloudPlatform/bank-of-anthos.git ./scripts/app/bank-of-anthos/cluster1; then
+      if ! git clone --branch v0.6.6 --single-branch https://github.com/GoogleCloudPlatform/bank-of-anthos.git ${path.module}/scripts/app/bank-of-anthos/cluster1; then
         echo "ERROR: Failed to clone repository"
         exit 1
       fi
