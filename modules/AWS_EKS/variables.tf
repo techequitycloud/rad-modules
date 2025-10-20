@@ -154,5 +154,5 @@ variable "trusted_users" {
 variable "owner_users" {
   description = "List of users that should be granted ownershop of the project. {{UIMeta group=1 order=406 updatesafe }}"
   type        = list(string)
-  default     = []
+  default     = [""]
 }
