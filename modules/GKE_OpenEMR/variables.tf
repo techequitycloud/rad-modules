@@ -26,7 +26,7 @@ variable "module_description" {
 - Automates the deployment process for different environments (development, QA, and production).
 - Includes features for patient demographics, scheduling, electronic billing, and more.
 
-**Dependencies:** This module requires the `Standalone Platform` module to be deployed first to prepare the Google Cloud project.
+**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
 EOT
 }
 

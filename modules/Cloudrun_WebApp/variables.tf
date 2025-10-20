@@ -26,7 +26,7 @@ variable "module_description" {
 - Sets up a complete environment for the application, including networking, security, and storage.
 - Automates the build and deployment process.
 
-**Dependencies:** This module requires the `Standalone Platform` module to be deployed first to prepare the Google Cloud project.
+**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
 EOT
 }
 

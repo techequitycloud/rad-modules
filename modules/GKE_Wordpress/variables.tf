@@ -26,7 +26,7 @@ variable "module_description" {
 - Provides a comprehensive solution for managing various business operations.
 - Includes security features to protect the application and its data.
 
-**Dependencies:** This module requires the `Standalone Platform` module to be deployed first to prepare the Google Cloud project.
+**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
 EOT
 }
 

@@ -25,7 +25,7 @@ variable "module_description" {
 - Sets up a complete and secure environment for the application, including a database, file storage, and networking.
 - Provides a platform for creating and managing websites, blogs, and other online content.
 
-**Dependencies:** This module requires the `Standalone Platform` module to be deployed first to prepare the Google Cloud project.
+**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
 EOT
 }
 

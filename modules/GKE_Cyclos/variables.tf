@@ -26,7 +26,7 @@ variable "module_description" {
 - Automates the build and deployment process, making it easier to manage and update the application.
 - Includes security features like a firewall to protect the application from common web attacks.
 
-**Dependencies:** This module requires the `Standalone Platform` module to be deployed first to prepare the Google Cloud project.
+**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
 EOT
 }
 
