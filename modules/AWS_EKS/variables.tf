@@ -130,7 +130,7 @@ variable "aws_secret_key" {
 }
 
 variable "trusted_users" {
-  description = "Email addresses of trusted admin users (e.g. `username@abc.com`). {{UIMeta group=1 order=404 updatesafe }}"
+  description = "Email addresses of cluster admin users (e.g. `username@abc.com`). At least one trusted user must be specified. {{UIMeta group=1 order=404 updatesafe }}"
   type        = set(string)
 
   validation {
@@ -147,12 +147,12 @@ variable "trusted_users" {
   
   validation {
     condition     = length(var.trusted_users) == length(distinct(var.trusted_users))
-    error_message = "Duplicate users are not allowed in the owner_users list."
+    error_message = "Duplicate users are not allowed in the trusted_users list."
   }
 }
 
 variable "owner_users" {
-  description = "List of users that should be granted ownershop of the project. {{UIMeta group=1 order=406 updatesafe }}"
+  description = "List of users that should be granted ownershop of the project. {{UIMeta group=0 order=406 updatesafe }}"
   type        = list(string)
-  default     = [""]
+  default     = []
 }
