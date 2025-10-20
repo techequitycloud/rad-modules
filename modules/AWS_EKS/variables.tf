@@ -20,14 +20,14 @@ variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
   default     = <<-EOT
-**Purpose:** This module allows you to manage an Amazon Web Services (AWS) Kubernetes cluster (EKS) from within your Google Cloud environment. This is useful for organizations that use both AWS and Google Cloud and want a unified way to manage their applications.
+**Purpose:** This module enables you to create and manage an AWS Kubernetes Service (EKS) cluster from your Google Cloud console. This is useful for organizations that use both AWS and Google Cloud and want a unified way to manage their applications.
 
 **What it does:**
-- Creates a new Kubernetes cluster on Amazon EKS.
-- Connects the EKS cluster to your Google Cloud project using a technology called Anthos.
-- Allows you to manage your AWS-based applications from the Google Cloud console.
+- Creates an EKS cluster on Azure.
+- Connects the EKS cluster to your Google Cloud project.
+- Enables you to manage AWS applications from the Google Cloud console.
 
-**Dependencies:** This module deploys into an existing Google Cloud project and requires an AWS account.
+**Dependencies:** This module deploys into an existing Google Cloud project and requires an AWS account. You are advised to delete deployed resources within your Azure AKS cluster prior to deleting this module.
 EOT
 }
 
