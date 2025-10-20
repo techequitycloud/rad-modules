@@ -73,7 +73,7 @@ variable "cluster_name_prefix" {
 variable "gcp_location" {
   description = "GCP resource location. {{UIMeta group=2 order=302 updatesafe }}"
   type        = string
-  default     = "us-west1"
+  default     = "us-central1"
 }
 
 variable "aws_region" {
