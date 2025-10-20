@@ -40,7 +40,7 @@ variable "module_dependency" {
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = string
-  default     = "250"
+  default     = "150"
 }
 
 variable "resource_creator_identity" {
