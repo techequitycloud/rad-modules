@@ -358,6 +358,7 @@ resource "null_resource" "install_application_2" {
   }
 
   depends_on = [
+    null_resource.install_application_2,
     null_resource.app_multicluster_ingress_1,
     google_container_cluster.gke_autopilot_cluster_2,
     google_container_cluster.gke_standard_cluster_2,
