@@ -18,14 +18,14 @@ variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
   default     = <<-EOT
-**Purpose:** This module is the foundation for all other modules in this repository. It prepares your Google Cloud project for the other applications.
+**Purpose:** This module configures foundation Google Cloud platform services for all other modules. It prepares your Google Cloud project by configuring services required by other applications.
 
 **What it does:**
 - Sets up your Google Cloud project.
-- Enables all the necessary technical services (APIs) that the other modules need to function.
-- Creates a secure, random password for databases.
+- Enables all the required services (APIs) that the other modules need to function.
+- Provides an opportunity for you to select the services required by your application.
 
-**Dependencies:** This module deploys into an existing Google Cloud project. It is a pre-requisite for other modules.
+**Dependencies:** This module deploys into an existing Google Cloud project. It is a pre-requisite for other modules, and can support multiple module deployments.
 EOT
 }
 
@@ -38,7 +38,7 @@ variable "module_dependency" {
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = string
-  default     = "500"
+  default     = "200"
 }
 
 variable "deployment_id" {
@@ -83,7 +83,7 @@ variable "network_name" {
 variable "availability_regions" {
   description = "The two regions where compute resources can be configured. The deployment might fail if sufficient resources not available in chosen region. {{UIMeta group=2 order=302 updatesafe }}"
   type        = list(string)
-  default     = ["us-west1", "us-west2"]
+  default     = ["us-central1"]
 }
 
 variable "gce_subnet_cidr_range" {
