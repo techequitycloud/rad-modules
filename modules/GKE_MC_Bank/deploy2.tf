@@ -404,6 +404,7 @@ resource "null_resource" "jwt_secret_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster2/extras/jwt/jwt-secret.yaml --timeout=5m
     EOF
@@ -426,6 +427,7 @@ resource "null_resource" "accounts_db_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster2/kubernetes-manifests/accounts-db.yaml --timeout=5m
     EOF
@@ -448,6 +450,7 @@ resource "null_resource" "balance_reader_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster2/kubernetes-manifests/balance-reader.yaml --timeout=5m
     EOF
@@ -470,6 +473,7 @@ resource "null_resource" "contacts_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster2/kubernetes-manifests/contacts.yaml --timeout=5m
     EOF
@@ -492,6 +496,7 @@ resource "null_resource" "frontend_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster2/kubernetes-manifests/frontend.yaml --timeout=5m
     EOF
@@ -514,6 +519,7 @@ resource "null_resource" "ledger_db_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster2/kubernetes-manifests/ledger-db.yaml --timeout=5m
     EOF
@@ -536,6 +542,7 @@ resource "null_resource" "ledger_writer_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster2/kubernetes-manifests/ledger-writer.yaml --timeout=5m
     EOF
@@ -558,6 +565,7 @@ resource "null_resource" "loadgenerator_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster2/kubernetes-manifests/loadgenerator.yaml --timeout=5m
     EOF
@@ -580,6 +588,7 @@ resource "null_resource" "transaction_history_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster2/kubernetes-manifests/transaction-history.yaml --timeout=5m
     EOF
@@ -602,6 +611,7 @@ resource "null_resource" "userservice_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster2/kubernetes-manifests/userservice.yaml --timeout=5m
     EOF
@@ -674,6 +684,7 @@ resource "null_resource" "app_configmap_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
     kubectl --context="$CONTEXT" apply -n istio-system -f ${path.module}/manifests/configmap.yaml --timeout=5m
     EOF
@@ -704,13 +715,14 @@ resource "null_resource" "app_frontend_config_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
-    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/managed_certificate.yaml --timeout=5m
+    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/frontend_config.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.app_frontend_config_2
+    null_resource.app_configmap_2,
   ]
 }
 
@@ -726,8 +738,8 @@ resource "null_resource" "app_managed_certificate_config_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/managed_certificate.yaml --timeout=5m
     EOF
   }
@@ -749,6 +761,7 @@ resource "null_resource" "app_backend_config_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/backend_config.yaml --timeout=5m
     EOF
@@ -771,6 +784,7 @@ resource "null_resource" "app_nodeport_service_2" {
   provisioner "local-exec" {
     command = <<EOF
     set -e
+    gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_2}_${var.gke_cluster_2}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/nodeport_service.yaml --timeout=5m
     EOF
@@ -810,3 +824,4 @@ resource "null_resource" "final_cleanup_2" {
     null_resource.pre_cleanup_2,
   ]
 }
+
