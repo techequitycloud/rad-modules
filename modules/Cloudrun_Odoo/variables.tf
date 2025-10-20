@@ -129,7 +129,7 @@ variable "configure_continuous_integration" {
 }
 
 variable "configure_continuous_deployment" {
-  description = "Select the checkbox to configure continous deployment pipeline. Implements a continuous delivery pipeline on the primary deployment region using Cloud Deploy. {{UIMeta group=0 order=600 updatesafe}}"
+  description = "Select the checkbox to configure continous deployment pipeline. Implements a continuous delivery pipeline on the primary deployment region using Cloud Deploy. {{UIMeta group=4 order=600 updatesafe}}"
   type        = bool
   default     = false
 }
