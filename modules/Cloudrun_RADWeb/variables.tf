@@ -78,7 +78,7 @@ variable "regions_list" {
 variable "application_name" {
   description = "Specify application name. The application name is used to identify configured resources alongside other attributes that ensures uniqueness. {{UIMeta group=0 order=501 updatesafe}}"
   type        = string
-  default     = "appname"
+  default     = "radweb"
 }
 
 variable "application_version" {
