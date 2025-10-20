@@ -24,7 +24,6 @@ resource "null_resource" "pre_cleanup_1" {
     cluster = var.gke_cluster_1
     region  = var.region_1
     project = local.project.project_id
-    timestamp = timestamp()
   }
 
   provisioner "local-exec" {
