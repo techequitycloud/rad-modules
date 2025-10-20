@@ -14,6 +14,106 @@
  * limitations under the License.
  */
 
+# ============================================
+# Pre-Cleanup Resource (NEW)
+# ============================================
+resource "null_resource" "pre_cleanup_1" {
+  count = var.deploy_application ? 1 : 0
+  
+  triggers = {
+    cluster = var.gke_cluster_1
+    region  = var.region_1
+    project = local.project.project_id
+    # Add a timestamp to ensure this runs on every destroy
+    timestamp = timestamp()
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOF
+      set -x
+      echo "======================================"
+      echo "Starting pre-cleanup for cluster ${self.triggers.cluster}"
+      echo "======================================"
+      
+      # Get cluster credentials
+      if ! gcloud container clusters get-credentials ${self.triggers.cluster} \
+          --region ${self.triggers.region} \
+          --project ${self.triggers.project} 2>/dev/null; then
+        echo "Warning: Could not get cluster credentials. Cluster may already be deleted."
+        exit 0
+      fi
+      
+      # Check if namespace exists
+      if ! kubectl get namespace bank-of-anthos 2>/dev/null; then
+        echo "Namespace bank-of-anthos does not exist. Skipping cleanup."
+        exit 0
+      fi
+      
+      echo "======================================"
+      echo "Step 1: Delete LoadBalancer services first (to release GCP resources)"
+      echo "======================================"
+      kubectl delete svc -n bank-of-anthos --field-selector spec.type=LoadBalancer --timeout=2m 2>/dev/null || true
+      
+      echo "======================================"
+      echo "Step 2: Delete Ingress resources (to release GCP load balancers)"
+      echo "======================================"
+      kubectl delete ingress -n bank-of-anthos --all --timeout=2m 2>/dev/null || true
+      
+      echo "======================================"
+      echo "Step 3: Delete MultiClusterIngress (if exists)"
+      echo "======================================"
+      kubectl delete multiclusteringress -n bank-of-anthos --all --timeout=2m 2>/dev/null || true
+      
+      echo "======================================"
+      echo "Step 4: Delete all deployments (to stop pods quickly)"
+      echo "======================================"
+      kubectl delete deployment -n bank-of-anthos --all --timeout=2m 2>/dev/null || true
+      
+      echo "======================================"
+      echo "Step 5: Delete all statefulsets"
+      echo "======================================"
+      kubectl delete statefulset -n bank-of-anthos --all --timeout=2m 2>/dev/null || true
+      
+      echo "======================================"
+      echo "Step 6: Force delete all pods"
+      echo "======================================"
+      kubectl delete pods -n bank-of-anthos --all --force --grace-period=0 --timeout=1m 2>/dev/null || true
+      
+      echo "======================================"
+      echo "Step 7: Delete PVCs (to release persistent disks)"
+      echo "======================================"
+      kubectl delete pvc -n bank-of-anthos --all --timeout=2m 2>/dev/null || true
+      
+      echo "======================================"
+      echo "Step 8: Remove finalizers from namespace"
+      echo "======================================"
+      kubectl patch namespace bank-of-anthos -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
+      
+      echo "======================================"
+      echo "Step 9: Delete the namespace"
+      echo "======================================"
+      kubectl delete namespace bank-of-anthos --timeout=3m 2>/dev/null || true
+      
+      echo "======================================"
+      echo "Step 10: Force delete namespace if still exists"
+      echo "======================================"
+      kubectl delete namespace bank-of-anthos --force --grace-period=0 2>/dev/null || true
+      
+      echo "======================================"
+      echo "Pre-cleanup completed successfully"
+      echo "======================================"
+      
+      exit 0
+    EOF
+  }
+
+  # This should run BEFORE any other cleanup
+  lifecycle {
+    create_before_destroy = false
+  }
+}
+
 resource "null_resource" "install_application_1" {
   count = var.deploy_application ? 1 : 0
 
