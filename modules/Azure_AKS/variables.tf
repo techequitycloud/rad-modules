@@ -124,7 +124,7 @@ variable "subscription_id" {
 }
 
 variable "trusted_users" {
-  description = "Email addresses of trusted admin users (e.g. `username@abc.com`). {{UIMeta group=0 order=404 updatesafe }}"
+  description = "Email addresses of trusted admin users (e.g. `username@abc.com`). {{UIMeta group=1 order=404 updatesafe }}"
   type        = set(string)
 
   validation {
