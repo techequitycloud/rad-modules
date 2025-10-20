@@ -99,7 +99,7 @@ variable "enable_monitoring" {
 }
 
 variable "deploy_application" {
-  description = "Deploy application. {{UIMeta group=0 order=511 }}"
+  description = "Deploy microservices banking application. {{UIMeta group=3 order=511 }}"
   type        = bool
   default     = true
 }
