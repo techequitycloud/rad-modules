@@ -27,7 +27,7 @@ variable "module_description" {
 - Utilizes advanced GKE features like Cloud Service Mesh for enhanced security and management.
 - Provides a centralized dashboard for managing banking services across clusters.
 
-**Dependencies:** This module deploys into an existing Google Cloud project. NB: You may encounter challenges deleting this module due to retained Cloud Service Mesh configurations. 
+**Dependencies:** This module deploys into an existing Google Cloud project. We recommend using the Google Cloud project exclusively for this deployment. NB: You may encounter challenges deleting this module due to retained Cloud Service Mesh configurations. 
 EOT
 }
 
