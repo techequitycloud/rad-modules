@@ -49,7 +49,7 @@ variable "deployment_id" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. {{UIMeta group=0 order=102 updatesafe }}"
   type        = string
-  default     = "tecs-module-creator@tebiz-system-ui-acaa.iam.gserviceaccount.com"
+  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "folder_id" {
@@ -83,7 +83,7 @@ variable "project_id_prefix" {
 }
 
 variable "trusted_users" {
-  description = "List of users with project trusted privileges. {{UIMeta group=1 order=201 updatesafe }}"
+  description = "List of users with project trusted privileges. {{UIMeta group=0 order=201 updatesafe }}"
   type        = set(string)
   default     = []
 }

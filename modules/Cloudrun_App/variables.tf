@@ -26,7 +26,7 @@ variable "module_description" {
 - Sets up a complete environment for the application, including networking, security, and storage.
 - Automates the build and deployment process.
 
-**Dependencies:** This module requires the `Standalone Platform` module to be deployed first to prepare the Google Cloud project.
+**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
 EOT
 }
 
@@ -51,11 +51,11 @@ variable "deployment_id" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = "tecs-module-creator@tebiz-system-ui-acaa.iam.gserviceaccount.com"
+  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "trusted_users" {
-  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=1 order=103 updatesafe }}"
+  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
   type        = set(string)
   default     = []
 }
