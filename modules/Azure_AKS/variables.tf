@@ -20,14 +20,14 @@ variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
   default     = <<-EOT
-**Purpose:** This module allows you to manage an Microsoft Azure Kubernetes Service (AKS) cluster from within your Google Cloud environment. This is useful for organizations that use both Azure and Google Cloud and want a unified way to manage their applications.
+**Purpose:** This module allows you to create a Microsoft Azure Kubernetes Service (AKS) cluster and manage it from your Google Cloud console. This is useful for organizations that use both Azure and Google Cloud and want a unified way to manage their applications.
 
 **What it does:**
-- Creates a new Kubernetes cluster on Azure AKS.
-- Connects the AKS cluster to your Google Cloud project using a technology called Anthos.
-- Allows you to manage your Azure-based applications from the Google Cloud console.
+- Creates an AKS cluster on Azure.
+- Connects the AKS cluster to your Google Cloud project.
+- Enables you to manage Azure applications from the Google Cloud console.
 
-**Dependencies:** This module deploys into an existing Google Cloud project and requires an Azure account.
+**Dependencies:** This module deploys into an existing Google Cloud project and requires an Azure account. You are advised to delete deployed resources within your Azure AKS cluster prior to deleting this module.
 EOT
 }
 
