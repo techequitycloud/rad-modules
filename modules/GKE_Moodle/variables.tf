@@ -54,7 +54,7 @@ variable "resource_creator_identity" {
 }
 
 variable "trusted_users" {
-  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=1 order=103 updatesafe }}"
+  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
   type        = set(string)
   default     = []
 }

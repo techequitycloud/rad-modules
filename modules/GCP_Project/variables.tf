@@ -83,7 +83,7 @@ variable "project_id_prefix" {
 }
 
 variable "trusted_users" {
-  description = "List of users with project trusted privileges. {{UIMeta group=1 order=201 updatesafe }}"
+  description = "List of users with project trusted privileges. {{UIMeta group=0 order=201 updatesafe }}"
   type        = set(string)
   default     = []
 }
