@@ -40,7 +40,7 @@ variable "module_dependency" {
 variable "credit_cost" {
   description = "Specify the module cost. {{UIMeta group=0 order=103 }}"
   type        = string
-  default     = "50"
+  default     = "100"
 }
 
 variable "deployment_id" {
