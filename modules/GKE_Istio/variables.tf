@@ -20,12 +20,12 @@ variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
   default     = <<-EOT
-**Purpose:** This module installs and configures Istio, a service mesh, on a Google Kubernetes Engine (GKE) cluster. A service mesh is a dedicated infrastructure layer for making service-to-service communication safe, fast, and reliable.
+**Purpose:** This module configures the Open Source Istio service mesh on a Google Kubernetes Engine (GKE) cluster. A service mesh is a dedicated infrastructure layer for making service-to-service communication safe, fast, and reliable.
 
 **What it does:**
-- Installs Istio on a GKE cluster.
-- Allows you to choose between two different modes of Istio: ambient mesh or sidecar mesh.
-- Provides advanced features for managing and securing your microservices, such as traffic management, security, and observability.
+- Creates a GKE cluster and configures Istio on the cluster.
+- Enables you to choose between two different modes of Istio: ambient mesh or sidecar mesh.
+- Demonstrates advanced features for managing and securing your microservices, such as traffic management, security, and observability.
 
 **Dependencies:** This module deploys into an existing Google Cloud project.
 EOT
