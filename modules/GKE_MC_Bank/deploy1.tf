@@ -15,7 +15,7 @@
  */
 
 # ============================================
-# Pre-Cleanup Resource (NEW)
+# Pre-Cleanup Resource
 # ============================================
 resource "null_resource" "pre_cleanup_1" {
   count = var.deploy_application ? 1 : 0
@@ -24,7 +24,6 @@ resource "null_resource" "pre_cleanup_1" {
     cluster = var.gke_cluster_1
     region  = var.region_1
     project = local.project.project_id
-    # Add a timestamp to ensure this runs on every destroy
     timestamp = timestamp()
   }
 
@@ -51,22 +50,22 @@ resource "null_resource" "pre_cleanup_1" {
       fi
       
       echo "======================================"
-      echo "Step 1: Delete LoadBalancer services first (to release GCP resources)"
+      echo "Step 1: Delete LoadBalancer services first"
       echo "======================================"
       kubectl delete svc -n bank-of-anthos --field-selector spec.type=LoadBalancer --timeout=2m 2>/dev/null || true
       
       echo "======================================"
-      echo "Step 2: Delete Ingress resources (to release GCP load balancers)"
+      echo "Step 2: Delete Ingress resources"
       echo "======================================"
       kubectl delete ingress -n bank-of-anthos --all --timeout=2m 2>/dev/null || true
       
       echo "======================================"
-      echo "Step 3: Delete MultiClusterIngress (if exists)"
+      echo "Step 3: Delete MultiClusterIngress"
       echo "======================================"
       kubectl delete multiclusteringress -n bank-of-anthos --all --timeout=2m 2>/dev/null || true
       
       echo "======================================"
-      echo "Step 4: Delete all deployments (to stop pods quickly)"
+      echo "Step 4: Delete all deployments"
       echo "======================================"
       kubectl delete deployment -n bank-of-anthos --all --timeout=2m 2>/dev/null || true
       
@@ -81,7 +80,7 @@ resource "null_resource" "pre_cleanup_1" {
       kubectl delete pods -n bank-of-anthos --all --force --grace-period=0 --timeout=1m 2>/dev/null || true
       
       echo "======================================"
-      echo "Step 7: Delete PVCs (to release persistent disks)"
+      echo "Step 7: Delete PVCs"
       echo "======================================"
       kubectl delete pvc -n bank-of-anthos --all --timeout=2m 2>/dev/null || true
       
@@ -108,12 +107,14 @@ resource "null_resource" "pre_cleanup_1" {
     EOF
   }
 
-  # This should run BEFORE any other cleanup
   lifecycle {
     create_before_destroy = false
   }
 }
 
+# ============================================
+# FIXED: Install Application with Proper Namespace Handling
+# ============================================
 resource "null_resource" "install_application_1" {
   count = var.deploy_application ? 1 : 0
 
@@ -126,93 +127,183 @@ resource "null_resource" "install_application_1" {
   provisioner "local-exec" {
     command = <<-EOF
       #!/bin/bash
+      set -e  # Exit on any error
+      
+      # Configuration
+      CLUSTER_NAME="${var.gke_cluster_1}"
+      REGION="${var.region_1}"
+      PROJECT_ID="${local.project.project_id}"
+      NAMESPACE="bank-of-anthos"
+      CONTEXT="gke_$${PROJECT_ID}_$${REGION}_$${CLUSTER_NAME}"
+      
+      # Colors for output
+      GREEN='\033[0;32m'
+      YELLOW='\033[1;33m'
+      RED='\033[0;31m'
+      NC='\033[0m'
+      
+      log_info() { echo -e "$${GREEN}✓$${NC} $1"; }
+      log_warn() { echo -e "$${YELLOW}⚠$${NC} $1"; }
+      log_error() { echo -e "$${RED}✗$${NC} $1"; }
       
       # Cleanup and clone
+      log_info "Cleaning up previous installations..."
       rm -rf ${path.module}/scripts/app/bank-of-anthos/cluster1
       mkdir -p ${path.module}/scripts/app/bank-of-anthos/cluster1
       sleep 5
       
-      if ! git clone --branch v0.6.6 --single-branch https://github.com/GoogleCloudPlatform/bank-of-anthos.git ${path.module}/scripts/app/bank-of-anthos/cluster1; then
-        echo "ERROR: Failed to clone repository"
+      log_info "Cloning bank-of-anthos repository..."
+      if ! git clone --branch v0.6.6 --single-branch \
+        https://github.com/GoogleCloudPlatform/bank-of-anthos.git \
+        ${path.module}/scripts/app/bank-of-anthos/cluster1 2>&1 | grep -v "detached HEAD"; then
+        log_error "Failed to clone repository"
         exit 1
       fi
 
       # Get cluster credentials
-      if ! gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}; then
-        echo "ERROR: Failed to get cluster credentials"
+      log_info "Getting cluster credentials..."
+      if ! gcloud container clusters get-credentials "$CLUSTER_NAME" \
+        --region "$REGION" \
+        --project "$PROJECT_ID" 2>&1 | grep -v "kubeconfig"; then
+        log_error "Failed to get cluster credentials"
         exit 1
       fi
-      
-      CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
 
       # Wait for cluster to be ready
-      echo "Waiting for cluster to be ready..."
+      log_info "Waiting for cluster API to be ready..."
       CLUSTER_READY=false
       for i in {1..60}; do
         if kubectl --context="$CONTEXT" get nodes &> /dev/null; then
-          echo "✓ Cluster is ready"
+          log_info "Cluster API is ready"
           CLUSTER_READY=true
           break
         fi
-        echo "  Waiting... (attempt $i/60)"
+        log_warn "Waiting for cluster API... (attempt $i/60)"
         sleep 10
       done
 
       if [ "$CLUSTER_READY" = false ]; then
-        echo "ERROR: Cluster not ready after 10 minutes"
+        log_error "Cluster not ready after 10 minutes"
         exit 1
       fi
 
-      # Create or verify namespace
-      echo "Setting up bank-of-anthos namespace..."
-      NAMESPACE_READY=false
+      # Delete namespace if exists (clean slate)
+      log_info "Ensuring clean namespace state..."
+      if kubectl --context="$CONTEXT" get namespace "$NAMESPACE" &> /dev/null; then
+        log_warn "Namespace '$NAMESPACE' exists, deleting for clean installation..."
+        kubectl --context="$CONTEXT" delete namespace "$NAMESPACE" --wait=true --timeout=120s || true
+        
+        # Wait for namespace to be fully deleted
+        for i in {1..30}; do
+          if ! kubectl --context="$CONTEXT" get namespace "$NAMESPACE" &> /dev/null; then
+            log_info "Namespace fully deleted"
+            break
+          fi
+          log_warn "Waiting for namespace deletion... (attempt $i/30)"
+          sleep 5
+        done
+      fi
+
+      # Create namespace with retry
+      log_info "Creating namespace '$NAMESPACE'..."
+      NAMESPACE_CREATED=false
       for i in {1..30}; do
-        if kubectl --context="$CONTEXT" get namespace bank-of-anthos &> /dev/null; then
-          echo "✓ Namespace 'bank-of-anthos' already exists"
-          NAMESPACE_READY=true
-          break
-        elif kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null; then
-          echo "✓ Namespace 'bank-of-anthos' created"
-          NAMESPACE_READY=true
+        if kubectl --context="$CONTEXT" create namespace "$NAMESPACE" 2>&1; then
+          log_info "Namespace '$NAMESPACE' created successfully"
+          NAMESPACE_CREATED=true
           break
         fi
-        echo "  Retrying namespace creation... (attempt $i/30)"
-        sleep 10
+        log_warn "Retrying namespace creation... (attempt $i/30)"
+        sleep 5
       done
 
-      if [ "$NAMESPACE_READY" = false ]; then
-        echo "ERROR: Failed to create namespace after 30 attempts"
+      if [ "$NAMESPACE_CREATED" = false ]; then
+        log_error "Failed to create namespace after 30 attempts"
         exit 1
       fi
 
-      # Label namespace
-      if ! kubectl --context="$CONTEXT" label namespace bank-of-anthos istio.io/rev=asm-managed --overwrite; then
-        echo "ERROR: Failed to label namespace"
+      # Wait for namespace to be fully ready
+      log_info "Waiting for namespace to be fully ready..."
+      for i in {1..30}; do
+        NS_STATUS=$(kubectl --context="$CONTEXT" get namespace "$NAMESPACE" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
+        if [ "$NS_STATUS" = "Active" ]; then
+          log_info "Namespace is Active and ready"
+          break
+        fi
+        if [ $i -eq 30 ]; then
+          log_error "Namespace not ready after 150 seconds"
+          kubectl --context="$CONTEXT" get namespace "$NAMESPACE" -o yaml
+          exit 1
+        fi
+        log_warn "Waiting for namespace to become Active... (attempt $i/30, status: $NS_STATUS)"
+        sleep 5
+      done
+
+      # Additional safety wait for API sync
+      log_info "Waiting for Kubernetes API to sync..."
+      sleep 10
+
+      # Label namespace with retry
+      log_info "Labeling namespace for Istio sidecar injection..."
+      LABEL_SUCCESS=false
+      for i in {1..10}; do
+        if kubectl --context="$CONTEXT" label namespace "$NAMESPACE" \
+          istio.io/rev=asm-managed --overwrite 2>&1; then
+          log_info "Namespace labeled successfully"
+          LABEL_SUCCESS=true
+          break
+        fi
+        log_warn "Retrying namespace labeling... (attempt $i/10)"
+        sleep 5
+      done
+
+      if [ "$LABEL_SUCCESS" = false ]; then
+        log_error "Failed to label namespace"
+        kubectl --context="$CONTEXT" get namespace "$NAMESPACE" -o yaml
         exit 1
       fi
-      echo "✓ Namespace labeled for sidecar injection"
+
+      # Verify label
+      LABEL_VALUE=$(kubectl --context="$CONTEXT" get namespace "$NAMESPACE" \
+        -o jsonpath='{.metadata.labels.istio\.io/rev}' 2>/dev/null || echo "")
+      if [ "$LABEL_VALUE" != "asm-managed" ]; then
+        log_error "Label verification failed. Expected 'asm-managed', got '$LABEL_VALUE'"
+        exit 1
+      fi
+      log_info "Label verified: istio.io/rev=$LABEL_VALUE"
 
       # Wait for istio-system
-      echo "Checking for istio-system namespace..."
+      log_info "Checking for istio-system namespace..."
       ISTIO_READY=false
       for i in {1..30}; do
         if kubectl --context="$CONTEXT" get namespace istio-system &> /dev/null; then
-          echo "✓ Namespace istio-system found"
+          log_info "istio-system namespace found"
           ISTIO_READY=true
           break
         fi
-        echo "  Waiting for istio-system... (attempt $i/30)"
+        log_warn "Waiting for istio-system... (attempt $i/30)"
         sleep 10
       done
 
       if [ "$ISTIO_READY" = false ]; then
-        echo "ERROR: istio-system namespace not found after 5 minutes"
+        log_error "istio-system namespace not found after 5 minutes"
         exit 1
       fi
 
+      # Final verification
+      log_info "Running final verification..."
       echo "======================================"
-      echo "✓ Installation preparation completed"
+      echo "Cluster nodes:"
+      kubectl --context="$CONTEXT" get nodes
+      echo ""
+      echo "Namespaces:"
+      kubectl --context="$CONTEXT" get namespaces
+      echo ""
+      echo "Bank-of-Anthos namespace details:"
+      kubectl --context="$CONTEXT" get namespace "$NAMESPACE" -o yaml
       echo "======================================"
+
+      log_info "Installation preparation completed successfully"
       exit 0
     EOF
   }
@@ -241,7 +332,6 @@ resource "null_resource" "config_1" {
     set -e
     gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/config.yaml --timeout=5m
     EOF
   }
@@ -264,7 +354,6 @@ resource "null_resource" "jwt_secret_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/extras/jwt/jwt-secret.yaml --timeout=5m
     EOF
   }
@@ -287,7 +376,6 @@ resource "null_resource" "accounts_db_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/accounts-db.yaml --timeout=5m
     EOF
   }
@@ -310,7 +398,6 @@ resource "null_resource" "balance_reader_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/balance-reader.yaml --timeout=5m
     EOF
   }
@@ -333,7 +420,6 @@ resource "null_resource" "contacts_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/contacts.yaml --timeout=5m
     EOF
   }
@@ -356,7 +442,6 @@ resource "null_resource" "frontend_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/frontend.yaml --timeout=5m
     EOF
   }
@@ -379,7 +464,6 @@ resource "null_resource" "ledger_db_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/ledger-db.yaml --timeout=5m
     EOF
   }
@@ -402,7 +486,6 @@ resource "null_resource" "ledger_writer_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/ledger-writer.yaml --timeout=5m
     EOF
   }
@@ -425,7 +508,6 @@ resource "null_resource" "loadgenerator_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/loadgenerator.yaml --timeout=5m
     EOF
   }
@@ -448,7 +530,6 @@ resource "null_resource" "transaction_history_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/transaction-history.yaml --timeout=5m
     EOF
   }
@@ -471,7 +552,6 @@ resource "null_resource" "userservice_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/userservice.yaml --timeout=5m
     EOF
   }
@@ -575,7 +655,6 @@ resource "null_resource" "app_frontend_config_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/frontend_config.yaml --timeout=5m
     EOF
   }
@@ -598,7 +677,6 @@ resource "null_resource" "app_managed_certificate_config_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/managed_certificate.yaml --timeout=5m
     EOF
   }
@@ -621,7 +699,6 @@ resource "null_resource" "app_backend_config_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/backend_config.yaml --timeout=5m
     EOF
   }
@@ -644,7 +721,6 @@ resource "null_resource" "app_nodeport_service_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/nodeport_service.yaml --timeout=5m
     EOF
   }
@@ -667,7 +743,6 @@ resource "null_resource" "app_multicluster_service_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/multicluster_service.yaml --timeout=5m
     EOF
   }
@@ -690,7 +765,6 @@ resource "null_resource" "app_multicluster_ingress_1" {
     command = <<EOF
     set -e
     CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" create namespace bank-of-anthos 2>/dev/null || true
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/multicluster_ingress.yaml --timeout=5m
     EOF
   }
@@ -701,13 +775,12 @@ resource "null_resource" "app_multicluster_ingress_1" {
 }
 
 # ============================================
-# Final Cleanup - Runs LAST on destroy
+# Final Cleanup
 # ============================================
 resource "null_resource" "final_cleanup_1" {
   count = var.deploy_application ? 1 : 0
   
   triggers = {
-    # Store the path for cleanup
     cleanup_path = "${path.module}/scripts/app/bank-of-anthos/cluster1"
   }
 
@@ -718,7 +791,6 @@ resource "null_resource" "final_cleanup_1" {
       echo "Final cleanup - removing local files"
       echo "======================================"
       
-      # Cleanup local files
       rm -rf ${self.triggers.cleanup_path}
       
       echo "Final cleanup completed"
