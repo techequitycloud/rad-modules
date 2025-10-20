@@ -24,7 +24,6 @@ resource "null_resource" "pre_cleanup_2" {
     cluster   = var.gke_cluster_2
     region    = var.region_2
     project   = local.project.project_id
-    timestamp = timestamp()  # FIX: Ensure runs on every destroy
   }
 
   provisioner "local-exec" {
