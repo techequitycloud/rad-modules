@@ -27,7 +27,7 @@ variable "module_description" {
 - Enables you to choose between two different modes of Istio: ambient mesh or sidecar mesh.
 - Demonstrates advanced features for managing and securing your microservices, such as traffic management, security, and observability.
 
-**Dependencies:** This module deploys into an existing Google Cloud project.
+**Dependencies:** This module deploys into an existing Google Cloud project. We recommend using the Google Cloud project exclusively for this deployment. 
 EOT
 }
 
