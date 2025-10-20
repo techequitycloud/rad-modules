@@ -94,7 +94,7 @@ variable "enable_config_management" {
 }*/
 
 variable "deploy_application" {
-  description = "Deploy microservices application. {{UIMeta group=4 order=509 }}"
+  description = "Deploy microservices banking application. {{UIMeta group=4 order=509 }}"
   type        = bool
   default     = true
 }
