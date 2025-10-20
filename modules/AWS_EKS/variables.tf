@@ -71,7 +71,7 @@ variable "cluster_name_prefix" {
 }
 
 variable "gcp_location" {
-  description = "GCP region where AWS resources will be registered and managed. List - https://cloud.google.com/compute/docs/regions-zones#available. {{UIMeta group=2 order=302 updatesafe }}"
+  description = "GCP region where AWS resources will be registered and managed. {{UIMeta group=2 order=302 updatesafe }}"
   type        = string
   default     = "us-central1"
 }
