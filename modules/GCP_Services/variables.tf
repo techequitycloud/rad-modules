@@ -215,5 +215,5 @@ variable "configure_cloud_service_mesh" {
 variable "configure_security_posture_service" {
   description = "Select to configure Security Posture Service. GKE cluster is required. {{UIMeta group=0 order=1406 updatesafe }}"
   type        = bool
-  default     = true
+  default     = false
 }
