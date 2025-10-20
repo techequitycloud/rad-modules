@@ -18,15 +18,14 @@ variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
   default     = <<-EOT
-**Purpose:** This module deploys the Odoo Enterprise Resource Planning (ERP) system on Google Kubernetes Engine (GKE). Odoo is a suite of business management software tools that includes CRM, e-commerce, billing, accounting, manufacturing, warehouse, and project management.
+**Purpose:** This module deploys the Odoo Enterprise Resource Planning (ERP) application on Google Kubernetes Engine (GKE). Odoo is a suite of business management software tools that includes CRM, e-commerce, billing, accounting, manufacturing, warehouse, and project management.
 
 **What it does:**
 - Deploys the Odoo ERP system on a GKE cluster.
 - Sets up a complete environment for the Odoo application, including networking, security, and databases.
 - Provides a comprehensive solution for managing various business operations.
-- Includes security features to protect the application and its data.
 
-**Dependencies:** This module deploys into an existing Google Cloud project with the `GCP Services` module as a pre-requisite.
+**Dependencies:** This module deploys into an existing Google Cloud project with the `GCP Services` module as a pre-requisite. You can deploy this module multiple times into the same Google Cloud project.
 EOT
 }
 
@@ -154,7 +153,7 @@ variable "configure_continuous_integration" {
 }
 
 variable "configure_continuous_deployment" {
-  description = "Select the checkbox to configure continous deployment pipeline. Implements a continuous delivery pipeline on the primary deployment region using Cloud Deploy. {{UIMeta group=0 order=601 updatesafe}}"
+  description = "Select the checkbox to configure continous deployment pipeline. Implements a continuous delivery pipeline on the primary deployment region using Cloud Deploy. {{UIMeta group=4 order=601 updatesafe}}"
   type        = bool
   default     = false
 }
