@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FAQ | RAD - Rapid Application Deployment</title>
     <meta name="description" content="Frequently asked questions about the RAD platform and how it compares to other solutions.">
+    <link rel="canonical" href="https://techequity.cloud/faq" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="FAQ | RAD - Rapid Application Deployment" />
+    <meta property="og:description" content="Frequently asked questions about the RAD platform and how it compares to other solutions." />
+    <meta property="og:image" content="https://techequity.cloud/images/rad-social-preview.png" />
+    <meta property="og:url" content="https://techequity.cloud/faq" />
+    <meta property="og:type" content="website" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FAQ | RAD - Rapid Application Deployment" />
+    <meta name="twitter:description" content="Frequently asked questions about the RAD platform and how it compares to other solutions." />
+    <meta name="twitter:image" content="https://techequity.cloud/images/rad-social-preview.png" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="images/icons/rad-logo.ico">
@@ -20,12 +34,94 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/cookie-consent.css">
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "Organization",
+                "name": "TechEquity",
+        "url": "https://techequity.cloud",
+                "logo": "https://techequity.cloud/images/rad-lab.png",
+                "sameAs": [
+                    "https://twitter.com/TechEquity",
+                    "https://www.linkedin.com/company/techequity"
+                ]
+            },
+            {
+                "@type": "WebSite",
+                "name": "RAD - Rapid Application Deployment",
+                "url": "https://techequity.cloud",
+                "potentialAction": {
+                    "@type": "SearchAction",
+                    "target": "https://techequity.cloud/search?q={search_term_string}",
+                    "query-input": "required name=search_term_string"
+                }
+            },
+            {
+                "@type": "FAQPage",
+                "mainEntity": [
+                    {
+                        "@type": "Question",
+                        "name": "How does RAD work with existing platforms?",
+                        "acceptedAnswer": {
+                            "@type": "Answer",
+                            "text": "RAD blueprints are implemented using terraform. Through a discovery process we can work with your team to map current resources to required or existing RAD blueprints. This allows you to gradually transition to a RAD-managed platform without disrupting your operations. The platform supports hybrid approaches where some resources are managed by RAD while others continue to be managed through your existing processes."
+                        }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "What cloud providers does RAD support?",
+                        "acceptedAnswer": {
+                            "@type": "Answer",
+                            "text": "RAD blueprints are deployed using OpenTofu, a cloud agnostic deployment platform that supports terraform. As a result, RAD supports public cloud platforms such as AWS, Microsoft Azure, Google Cloud Platform, as well as on-premise environments through VMware and OpenStack. We can support our customers and partners in developing blueprints for additional providers and technologies on request."
+                        }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "How does RAD ensure security and compliance?",
+                        "acceptedAnswer": {
+                            "@type": "Answer",
+                            "text": "RAD implements security and compliance through multiple layers: pre-configured blueprints with security best practices, policy-as-code enforcement during deployment, continuous compliance monitoring, and automated remediation of drift. RAD modules can be designed to include pre-built compliance frameworks for common standards like SOC 2, ISO 27001, HIPAA, PCI DSS, and GDPR. These frameworks can be applied to your platform modules with minimal configuration effort."
+                        }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "Can I customize the blueprints to meet my specific needs?",
+                        "acceptedAnswer": {
+                            "@type": "Answer",
+                            "text": "Our blueprints are fully customizable. You can modify parameters, add or remove components, and adapt the blueprints to your specific requirements. You can also create your own blueprints from scratch or clone and modify existing ones. You can implement customizations to maintain security and compliance controls."
+                        }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "How does RAD's pricing model work?",
+                        "acceptedAnswer": {
+                            "@type": "Answer",
+                            "text": "Our enterprise pricing is based on a usage based credit system, where credits purchased are redeemed against platform deployments. We also offer special pricing for cloud service providers and educational institutions that over RAD as a service to their clients. For more information, please contact us."
+                        }
+                    },
+                    {
+                        "@type": "Question",
+                        "name": "What kind of support do we provide?",
+                        "acceptedAnswer": {
+                            "@type": "Answer",
+                            "text": "All our clients receive support through email and chat. Enterprise customers can also benefit from dedicated support engineers and regular check-ins. We also offer professional services for implementation, training, and custom module development."
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+    </script>
 </head>
 <body>
     <!-- Header -->
     <header>
         <div class="container header-container">
-            <a href="index.html" class="logo">
+            <a href="index" class="logo">
                 <img src="images/rad-lab.png" alt="RAD Lab Logo" style="height: 50px;">
             </a>
 
@@ -35,14 +131,14 @@
 
             <nav>
                 <ul>
-                    <li><a href="platform.html">Platform</a></li>
-                    <li><a href="solutions.html">Solutions</a></li>
-                    <li><a href="roi.html">ROI</a></li>
-                    <li><a href="faq.html" class="active">FAQ</a></li>
-                    <li><a href="documentation.html">Documentation</a></li>
-                    <li><a href="about.html">About</a></li>
-                    <li><a href="privacy.html">Privacy</a></li>
-                    <li><a href="contact.html">Contact Us</a></li>
+                    <li><a href="platform">Platform</a></li>
+                    <li><a href="solutions">Solutions</a></li>
+                    <li><a href="roi">ROI</a></li>
+                    <li><a href="faq" class="active">FAQ</a></li>
+                    <li><a href="docs">Docs</a></li>
+                    <li><a href="about">About</a></li>
+                    <li><a href="privacy">Privacy</a></li>
+                    <li><a href="contact">Contact Us</a></li>
                 </ul>
             </nav>
         </div>
@@ -55,7 +151,7 @@
                 <h1>Frequently Asked Rapid Application Deployment Questions</h1>
                 <p>Get answers to common questions about the RAD platform.</p>
                 <div class="hero-buttons">
-                    <a href="https://demo.techequity.cloud" class="btn" target="_blank">Try it out</a>
+                    <a href="https://rad.techequity.cloud" class="btn" target="_blank">Try it out</a>
                 </div>
             </div>
             
@@ -218,33 +314,33 @@
                 <div class="footer-links-container">
                     <h4 class="footer-heading">Platform</h4>
                     <ul class="footer-links">
-                        <li><a href="platform.html">Features</a></li>
-                        <li><a href="platform.html#multi-cloud">Multi-Cloud</a></li>
-                        <li><a href="platform.html#blueprints">Blueprints</a></li>
-                        <li><a href="platform.html#governance">Governance</a></li>
-                        <li><a href="platform.html#cost">Cost Optimization</a></li>
+                        <li><a href="platform">Features</a></li>
+                        <li><a href="platform#multi-cloud">Multi-Cloud</a></li>
+                        <li><a href="platform#blueprints">Blueprints</a></li>
+                        <li><a href="platform#governance">Governance</a></li>
+                        <li><a href="platform#cost">Cost Optimization</a></li>
                     </ul>
                 </div>
 
                 <div class="footer-links-container">
                     <h4 class="footer-heading">Solutions</h4>
                     <ul class="footer-links">
-                        <li><a href="solutions.html#developers">For Developers</a></li>
-                        <li><a href="solutions.html#platform-engineers">For Platform Engineers</a></li>
-                        <li><a href="solutions.html#it-leaders">For IT Leaders</a></li>
-                        <li><a href="solutions.html#education">For Education</a></li>
-                        <li><a href="solutions.html#startups">For Startups</a></li>
+                        <li><a href="solutions#developers">For Developers</a></li>
+                        <li><a href="solutions#platform-engineers">For Platform Engineers</a></li>
+                        <li><a href="solutions#it-leaders">For IT Leaders</a></li>
+                        <li><a href="solutions#education">For Education</a></li>
+                        <li><a href="solutions#startups">For Startups</a></li>
                     </ul>
                 </div>
 
                 <div class="footer-links-container">
                     <h4 class="footer-heading">Company</h4>
                     <ul class="footer-links">
-                        <li><a href="about.html">About Us</a></li>
-                        <li><a href="about.html#team">Team</a></li>
-                        <li><a href="about.html#careers">Careers</a></li>
-                        <li><a href="contact.html">Contact</a></li>
-                        <li><a href="privacy.html">Privacy</a></li>
+                        <li><a href="about">About Us</a></li>
+                        <li><a href="about#team">Team</a></li>
+                        <li><a href="about#careers">Careers</a></li>
+                        <li><a href="contact">Contact</a></li>
+                        <li><a href="privacy">Privacy</a></li>
                     </ul>
                 </div>
             </div>
@@ -257,7 +353,7 @@
 
     <!-- Cookie Consent Banner -->
     <div id="cookie-consent-banner">
-        <p>This website uses cookies to enhance the user experience. <a href="privacy.html">Learn more</a>.</p>
+        <p>This website uses cookies to enhance the user experience. <a href="privacy">Learn more</a>.</p>
         <button id="accept-cookie-btn">Accept</button>
         <button id="decline-cookie-btn">Decline</button>
     </div>
