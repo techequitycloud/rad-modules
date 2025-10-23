@@ -43,6 +43,12 @@ variable "credit_cost" {
   default     = "100"
 }
 
+variable "require_credit_purchases" {
+  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
+  type        = bool
+  default     = false
+}
+
 variable "deployment_id" {
   description = "Unique ID suffix for resources. Leave blank to generate random ID."
   type        = string

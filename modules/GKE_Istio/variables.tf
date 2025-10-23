@@ -43,6 +43,12 @@ variable "credit_cost" {
   default     = "100"
 }
 
+variable "require_credit_purchases" {
+  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
+  type        = bool
+  default     = false
+}
+
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
