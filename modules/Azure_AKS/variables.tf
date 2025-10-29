@@ -37,6 +37,12 @@ variable "module_dependency" {
   default     = ["Azure Account", "GCP Project"]
 }
 
+variable "module_services" {
+  description = "Specify the module services. {{UIMeta group=0 order=102 }}"
+  type = list(string)
+  default = ["Azure", "AKS", "Resource Group", "GCP", "GKE Hub", "Anthos"]
+}
+
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = string
@@ -156,4 +162,3 @@ variable "owner_users" {
   type        = list(string)
   default     = []
 }
-

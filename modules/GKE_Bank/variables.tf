@@ -37,6 +37,12 @@ variable "module_dependency" {
   default     = ["GCP Project"]
 }
 
+variable "module_services" {
+  description = "Specify the module services. {{UIMeta group=0 order=102 }}"
+  type        = list(string)
+  default     = ["GCP", "GKE", "Anthos Service Mesh", "Anthos Config Management", "Cloud IAM", "Cloud Networking"]
+}
+
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = string
