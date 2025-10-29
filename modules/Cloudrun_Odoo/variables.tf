@@ -35,6 +35,12 @@ variable "module_dependency" {
   default     = ["GCP Project","GCP Services"]
 }
 
+variable "module_services" {
+  description = "Specify the module services. {{UIMeta group=0 order=102 }}"
+  type        = list(string)
+  default     = ["GCP", "Cloud Run", "Cloud Build", "Cloud Deploy", "Artifact Registry", "Cloud Storage", "Cloud SQL", "Cloud IAM", "Cloud Networking"]
+}
+
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = string
@@ -211,7 +217,7 @@ variable "application_backup_schedule" {
 }
 
 variable "application_backup_fileid" {
-  description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup files during deployment. {{UIMeta group=6 order=808 updatesafe}}"
+  description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup file during deployment. {{UIMeta group=6 order=808 updatesafe}}"
   type        = string
   default     = "1jolaJFFU8-qMUgI8XOfGNBHDLFYrJQQT"
 }

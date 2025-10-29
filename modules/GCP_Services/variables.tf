@@ -35,6 +35,12 @@ variable "module_dependency" {
   default     = ["GCP Project"]
 }
 
+variable "module_services" {
+  description = "Specify the module services. {{UIMeta group=0 order=102 }}"
+  type        = list(string)
+  default     = ["GCP", "GKE", "Cloud SQL", "Compute Engine", "Cloud IAM", "Cloud Networking", "Config Management", "Policy Controller", "Cloud Service Mesh", "Security Posture Service"]
+}
+
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = string
