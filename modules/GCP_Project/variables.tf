@@ -67,13 +67,13 @@ variable "resource_creator_identity" {
 variable "folder_id" {
   description = "RAD UI folder ID. {{UIMeta group=0 order=104 }}"
   type        = string
-  default     = "751583502914"
+  default     = "158723424265"
 }
 
 variable "module_folder_id" {
   description = "Specify the RAD folder ID. {{UIMeta group=0 order=104 }}"
   type        = string
-  default     = "862039768536"
+  default     = "785897258084"
 }
 
 variable "organization_id" {
