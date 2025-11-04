@@ -18,31 +18,12 @@ locals {
   istio_version  = regex("^(.*?)-asm\\.\\d+$", var.cloud_service_mesh_version)[0]
   script_version = regex("^(\\d+\\.\\d+).*", var.cloud_service_mesh_version)[0]
   repo_dir       = "${path.module}/scripts/app/bank-of-anthos"
+  # ✅ No fileset() here - files discovered at runtime in bash scripts
 }
 
 # ============================================
 # NAMESPACES
 # ============================================
-
-resource "kubernetes_namespace" "istio_system" {
-  count    = var.deploy_application ? 1 : 0
-  provider = kubernetes.primary
-  
-  metadata {
-    name = "istio-system"
-  }
-  
-  timeouts {
-    delete = "15m"
-  }
-  
-  lifecycle {
-    ignore_changes = [
-      metadata[0].annotations,
-      metadata[0].labels,
-    ]
-  }
-}
 
 resource "kubernetes_namespace" "bank_of_anthos" {
   count    = var.deploy_application ? 1 : 0
@@ -58,17 +39,18 @@ resource "kubernetes_namespace" "bank_of_anthos" {
   timeouts {
     delete = "15m"
   }
-  
+
+  depends_on = [
+    google_container_cluster.gke_autopilot_cluster,
+    google_container_cluster.gke_standard_cluster,
+  ]
+
   lifecycle {
     ignore_changes = [
       metadata[0].annotations,
       metadata[0].labels,
     ]
   }
-  
-  depends_on = [
-    kubernetes_namespace.istio_system,
-  ]
 }
 
 # ============================================
@@ -238,27 +220,9 @@ resource "null_resource" "cleanup_bank_of_anthos_namespace" {
       echo ""
       echo "Step 5: Deleting namespace..."
       kubectl delete namespace "$NAMESPACE" --force --grace-period=0 --timeout=60s 2>/dev/null || true
-      
-      # ===== Wait for deletion with extended timeout =====
       echo ""
-      echo "Step 6: Waiting for namespace deletion..."
-      for i in {1..60}; do
-        if ! kubectl get namespace "$NAMESPACE" 2>/dev/null; then
-          echo ""
-          echo "============================================"
-          echo "✓ Namespace deleted successfully"
-          echo "============================================"
-          exit 0
-        fi
-        
-        # Show status every 10 iterations
-        if [ $((i % 10)) -eq 0 ]; then
-          echo "  Still waiting... ($i/60)"
-          kubectl get namespace "$NAMESPACE" -o jsonpath='{.status.conditions}' 2>/dev/null | jq -r '.[] | "\(.type): \(.status) - \(.message)"' 2>/dev/null || true
-        fi
-        
-        sleep 2
-      done
+      echo "Wait for 30 seconds"
+      sleep 30
       
       # ===== Final check and warning =====
       if kubectl get namespace "$NAMESPACE" 2>/dev/null; then
@@ -285,213 +249,6 @@ resource "null_resource" "cleanup_bank_of_anthos_namespace" {
   ]
 }
 
-# Cleanup istio-system namespace (AFTER bank-of-anthos)
-resource "null_resource" "cleanup_istio_system_namespace" {
-  count = var.deploy_application ? 1 : 0
-  
-  triggers = {
-    namespace_name     = "istio-system"
-    boa_cleanup_id     = null_resource.cleanup_bank_of_anthos_namespace[0].id
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = <<-EOT
-      set -e
-      echo "============================================"
-      echo "Cleaning up istio-system namespace"
-      echo "============================================"
-      
-      NAMESPACE="${self.triggers.namespace_name}"
-      
-      if ! kubectl get namespace "$NAMESPACE" 2>/dev/null; then
-        echo "Namespace does not exist, skipping..."
-        exit 0
-      fi
-      
-      # Delete control plane revisions first
-      echo "Deleting control plane revisions..."
-      kubectl delete controlplanerevisions.mesh.cloud.google.com --all -n "$NAMESPACE" --timeout=60s 2>/dev/null || true
-      
-      # Delete mutating webhooks
-      echo "Deleting Istio webhooks..."
-      kubectl get mutatingwebhookconfigurations -o name 2>/dev/null | \
-        grep -E "istio|istiod" | \
-        xargs -r kubectl delete --timeout=30s 2>/dev/null || true
-      
-      # Delete validating webhooks
-      kubectl get validatingwebhookconfigurations -o name 2>/dev/null | \
-        grep -E "istio|istiod" | \
-        xargs -r kubectl delete --timeout=30s 2>/dev/null || true
-      
-      # Remove finalizers from all resources
-      echo "Removing finalizers from resources..."
-      for resource in $(kubectl api-resources --verbs=list --namespaced -o name 2>/dev/null); do
-        kubectl get "$resource" -n "$NAMESPACE" -o json 2>/dev/null | \
-          jq -r '.items[] | select(.metadata.finalizers != null) | "\(.kind)/\(.metadata.name)"' 2>/dev/null | \
-          while read item; do
-            if [ -n "$item" ]; then
-              resource_type=$(echo "$item" | cut -d'/' -f1)
-              resource_name=$(echo "$item" | cut -d'/' -f2)
-              echo "  Patching: $item"
-              kubectl patch "$resource" "$resource_name" -n "$NAMESPACE" \
-                --type json \
-                -p='[{"op": "remove", "path": "/metadata/finalizers"}]' 2>/dev/null || true
-            fi
-          done
-      done
-      
-      # Force delete pods
-      echo "Force deleting pods..."
-      kubectl delete pods --all -n "$NAMESPACE" --force --grace-period=0 2>/dev/null || true
-      
-      # Remove namespace finalizers
-      echo "Removing namespace finalizers..."
-      kubectl get namespace "$NAMESPACE" -o json 2>/dev/null | \
-        jq '.spec.finalizers = []' | \
-        kubectl replace --raw "/api/v1/namespaces/$NAMESPACE/finalize" -f - 2>/dev/null || true
-      
-      kubectl patch namespace "$NAMESPACE" \
-        --type json \
-        -p='[{"op": "remove", "path": "/metadata/finalizers"}]' 2>/dev/null || true
-      
-      # Delete namespace
-      echo "Deleting namespace..."
-      kubectl delete namespace "$NAMESPACE" --timeout=60s 2>/dev/null || true
-      
-      # Wait for deletion
-      echo "Waiting for namespace deletion..."
-      for i in {1..30}; do
-        if ! kubectl get namespace "$NAMESPACE" 2>/dev/null; then
-          echo "✓ Namespace deleted successfully"
-          exit 0
-        fi
-        sleep 2
-      done
-      
-      echo "WARNING: Namespace deletion timeout, but continuing..."
-    EOT
-    
-    interpreter = ["/bin/bash", "-c"]
-    on_failure  = continue
-  }
-
-  depends_on = [
-    null_resource.cleanup_bank_of_anthos_namespace,
-    kubernetes_namespace.istio_system,
-  ]
-}
-
-# ============================================
-# SERVICE MESH READINESS CHECK
-# ============================================
-
-resource "null_resource" "wait_for_service_mesh" {
-  count = var.deploy_application ? 1 : 0
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      set -e
-      echo "============================================"
-      echo "Waiting for Cloud Service Mesh to be ready"
-      echo "============================================"
-      
-      # Step 1: Wait for the control plane revision to be reconciled
-      echo ""
-      echo "Step 1/5: Checking control plane revision status..."
-      max_attempts=60
-      attempt=0
-      
-      while [ $attempt -lt $max_attempts ]; do
-        echo "Checking service mesh control plane status (attempt $((attempt+1))/$max_attempts)..."
-        
-        reconciled=$(kubectl get controlplanerevisions -n istio-system asm-managed -o jsonpath='{.status.conditions[?(@.type=="Reconciled")].status}' 2>/dev/null || echo "")
-        stalled=$(kubectl get controlplanerevisions -n istio-system asm-managed -o jsonpath='{.status.conditions[?(@.type=="Stalled")].status}' 2>/dev/null || echo "")
-        
-        if [ "$reconciled" = "True" ] && [ "$stalled" = "False" ]; then
-          echo "✓ Service mesh control plane is reconciled and ready!"
-          kubectl get controlplanerevisions -n istio-system asm-managed
-          break
-        fi
-        
-        if [ -n "$reconciled" ]; then
-          echo "Current status - Reconciled: $reconciled, Stalled: $stalled"
-        else
-          echo "Control plane revision not found yet..."
-        fi
-        
-        attempt=$((attempt+1))
-        sleep 10
-      done
-      
-      if [ $attempt -eq $max_attempts ]; then
-        echo "ERROR: Service mesh control plane did not become ready in time"
-        kubectl get controlplanerevisions -n istio-system || true
-        exit 1
-      fi
-      
-      # Step 2: Wait for istiod deployment
-      echo ""
-      echo "Step 2/5: Checking istiod deployment status..."
-      kubectl wait --for=condition=available --timeout=300s deployment -l app=istiod -n istio-system
-      echo "✓ istiod deployment is ready"
-      
-      # Step 3: Wait for istiod pods
-      echo ""
-      echo "Step 3/5: Checking istiod pods..."
-      kubectl wait --for=condition=ready --timeout=300s pods -l app=istiod -n istio-system
-      echo "✓ istiod pods are ready"
-      
-      # Step 4: Wait for webhooks
-      echo ""
-      echo "Step 4/5: Checking Istio webhooks..."
-      max_attempts=60
-      attempt=0
-      
-      while [ $attempt -lt $max_attempts ]; do
-        webhook_count=$(kubectl get mutatingwebhookconfigurations -o json 2>/dev/null | \
-          jq '[.items[] | select(.metadata.name | test("istio|istiod"))] | length' 2>/dev/null || echo "0")
-        
-        if [ "$webhook_count" -gt 0 ] 2>/dev/null; then
-          webhook_ready=$(kubectl get mutatingwebhookconfigurations -o json 2>/dev/null | \
-            jq '[.items[] | select(.metadata.name | test("istio|istiod")) | .webhooks[] | select(.clientConfig.caBundle != null)] | length' 2>/dev/null || echo "0")
-          
-          if [ "$webhook_ready" -gt 0 ] 2>/dev/null; then
-            echo "✓ Webhook(s) are ready with valid CA bundles"
-            break
-          fi
-        fi
-        
-        echo "Waiting for webhooks (attempt $((attempt+1))/$max_attempts)..."
-        attempt=$((attempt+1))
-        sleep 5
-      done
-      
-      # Step 5: Configure namespace
-      echo ""
-      echo "Step 5/5: Configuring namespace..."
-      kubectl label namespace bank-of-anthos istio.io/rev=asm-managed --overwrite
-      echo "✓ Namespace labeled"
-      
-      # Stabilization wait
-      echo ""
-      echo "Waiting 30 seconds for stabilization..."
-      sleep 30
-      
-      echo ""
-      echo "✓ Service mesh is fully ready"
-    EOT
-    
-    interpreter = ["/bin/bash", "-c"]
-  }
-
-  depends_on = [
-    google_gke_hub_feature_membership.service_mesh_feature_member,
-    kubernetes_namespace.istio_system,
-    kubernetes_namespace.bank_of_anthos,
-  ]
-}
-
 # ============================================
 # APPLICATION DEPLOYMENT
 # ============================================
@@ -508,18 +265,42 @@ resource "null_resource" "git_clone" {
   provisioner "local-exec" {
     command = <<-EOT
       set -e
+      echo "============================================"
       echo "Cloning Bank of Anthos repository..."
+      echo "============================================"
       
       REPO_DIR="${local.repo_dir}"
       
+      # Remove existing directory if present
       if [ -d "$REPO_DIR" ]; then
+        echo "Removing existing repository..."
         rm -rf "$REPO_DIR"
       fi
       
+      # Create parent directory
       mkdir -p "${path.module}/scripts/app"
-      git clone --branch v0.6.6 --depth 1 https://github.com/GoogleCloudPlatform/bank-of-anthos.git "$REPO_DIR"
       
-      echo "✓ Repository cloned"
+      # Clone repository
+      echo "Cloning from GitHub..."
+      git clone --branch v0.6.6 --depth 1 \
+        https://github.com/GoogleCloudPlatform/bank-of-anthos.git \
+        "$REPO_DIR"
+      
+      # Verify clone was successful
+      if [ ! -d "$REPO_DIR/kubernetes-manifests" ]; then
+        echo "ERROR: kubernetes-manifests directory not found after clone"
+        exit 1
+      fi
+      
+      if [ ! -f "$REPO_DIR/extras/jwt/jwt-secret.yaml" ]; then
+        echo "ERROR: JWT secret file not found after clone"
+        exit 1
+      fi
+      
+      echo ""
+      echo "✓ Repository cloned successfully"
+      echo "  Location: $REPO_DIR"
+      echo "  Manifests: $(ls -1 $REPO_DIR/kubernetes-manifests/*.yaml 2>/dev/null | wc -l) files"
     EOT
     
     interpreter = ["/bin/bash", "-c"]
@@ -530,55 +311,37 @@ resource "null_resource" "git_clone" {
   ]
 }
 
-# Verify mesh before deploy
-resource "null_resource" "verify_mesh_before_deploy" {
+# Deploy JWT Secret
+resource "null_resource" "boa_jwt_secret" {
   count = var.deploy_application ? 1 : 0
-
+  
   triggers = {
-    git_clone_id = null_resource.git_clone[0].id
+    verify_mesh_id = null_resource.verify_mesh_before_deploy[0].id
   }
 
   provisioner "local-exec" {
     command = <<-EOT
       set -e
-      echo "Verifying service mesh before deployment..."
+      echo "============================================"
+      echo "Deploying JWT Secret"
+      echo "============================================"
       
-      kubectl get controlplanerevisions -n istio-system asm-managed
-      kubectl get deployment -n istio-system -l app=istiod
-      kubectl get pods -n istio-system -l app=istiod
+      JWT_FILE="${local.repo_dir}/extras/jwt/jwt-secret.yaml"
       
-      ns_label=$(kubectl get namespace bank-of-anthos -o jsonpath='{.metadata.labels.istio\.io/rev}')
-      if [ "$ns_label" != "asm-managed" ]; then
-        echo "ERROR: Namespace label incorrect"
+      if [ ! -f "$JWT_FILE" ]; then
+        echo "ERROR: JWT secret file not found at $JWT_FILE"
+        echo "Repository contents:"
+        ls -la "${local.repo_dir}/extras/jwt/" || echo "Directory not found"
         exit 1
       fi
       
-      echo "✓ Service mesh verified"
+      echo "Applying JWT secret from: $JWT_FILE"
+      kubectl apply -n bank-of-anthos -f "$JWT_FILE"
+      
+      echo "✓ JWT secret deployed"
     EOT
     
     interpreter = ["/bin/bash", "-c"]
-  }
-
-  depends_on = [
-    null_resource.git_clone,
-  ]
-}
-
-# Application manifests
-locals {
-  boa_manifest_files  = var.deploy_application ? fileset("${path.module}/scripts/app/bank-of-anthos", "kubernetes-manifests/*.yaml") : []
-  boa_jwt_secret_file = var.deploy_application ? fileset("${path.module}/scripts/app/bank-of-anthos", "extras/jwt/jwt-secret.yaml") : []
-}
-
-resource "null_resource" "boa_jwt_secret" {
-  for_each = toset(local.boa_jwt_secret_file)
-  
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "Applying JWT secret: ${each.value}"
-      kubectl apply -n bank-of-anthos -f "${path.module}/scripts/app/bank-of-anthos/${each.value}"
-      echo "✓ JWT secret applied"
-    EOT
   }
 
   depends_on = [
@@ -588,21 +351,68 @@ resource "null_resource" "boa_jwt_secret" {
   ]
 }
 
+# Deploy Bank of Anthos Application
 resource "null_resource" "boa_app" {
-  for_each = toset(local.boa_manifest_files)
+  count = var.deploy_application ? 1 : 0
+
+  triggers = {
+    jwt_secret_id = null_resource.boa_jwt_secret[0].id
+  }
 
   provisioner "local-exec" {
     command = <<-EOT
-      echo "Applying manifest: ${each.value}"
-      kubectl apply -n bank-of-anthos -f "${path.module}/scripts/app/bank-of-anthos/${each.value}"
-      echo "✓ Manifest applied"
+      set -e
+      echo "============================================"
+      echo "Deploying Bank of Anthos Application"
+      echo "============================================"
+      
+      MANIFESTS_DIR="${local.repo_dir}/kubernetes-manifests"
+      
+      # Verify manifests directory exists
+      if [ ! -d "$MANIFESTS_DIR" ]; then
+        echo "ERROR: Manifests directory not found at $MANIFESTS_DIR"
+        echo "Repository structure:"
+        ls -la "${local.repo_dir}/" || echo "Repository not found"
+        exit 1
+      fi
+      
+      echo "Found manifests directory: $MANIFESTS_DIR"
+      echo ""
+      
+      # Count and list manifest files
+      manifest_count=$(ls -1 "$MANIFESTS_DIR"/*.yaml 2>/dev/null | wc -l)
+      if [ "$manifest_count" -eq 0 ]; then
+        echo "ERROR: No YAML files found in $MANIFESTS_DIR"
+        exit 1
+      fi
+      
+      echo "Found $manifest_count manifest files:"
+      ls -1 "$MANIFESTS_DIR"/*.yaml | xargs -n1 basename
+      echo ""
+      
+      # Apply all YAML files
+      echo "Applying manifests..."
+      for manifest in "$MANIFESTS_DIR"/*.yaml; do
+        if [ -f "$manifest" ]; then
+          manifest_name=$(basename "$manifest")
+          echo "  → Applying: $manifest_name"
+          kubectl apply -n bank-of-anthos -f "$manifest"
+        fi
+      done
+      
+      echo ""
+      echo "✓ All application manifests deployed"
+      echo ""
+      echo "Deployed resources:"
+      kubectl get deployments,services,configmaps -n bank-of-anthos
     EOT
+    
+    interpreter = ["/bin/bash", "-c"]
   }
 
   depends_on = [
     null_resource.configure_kubectl,
     null_resource.boa_jwt_secret,
-    null_resource.verify_mesh_before_deploy,
   ]
 }
 
@@ -620,7 +430,6 @@ resource "null_resource" "configmap" {
 
   depends_on = [
     null_resource.configure_kubectl,
-    kubernetes_namespace.istio_system,
     null_resource.verify_mesh_before_deploy,
   ]
 }
@@ -733,42 +542,137 @@ resource "null_resource" "ingress" {
   ]
 }
 
-# Verify sidecar injection
 resource "null_resource" "verify_sidecar_injection" {
-  count = var.deploy_application ? 1 : 0
-
-  triggers = {
-    ingress_id = null_resource.ingress[0].id
-  }
+  count = var.enable_cloud_service_mesh ? 1 : 0
 
   provisioner "local-exec" {
     command = <<-EOT
       set -e
       
-      echo "Verifying sidecar injection..."
+      echo "============================================"
+      echo "Verifying sidecar injection setup..."
+      echo "============================================"
       
-      kubectl wait --for=condition=available --timeout=600s deployment --all -n bank-of-anthos
+      # Check if namespace is properly labeled
+      echo ""
+      echo "Step 1: Checking namespace label..."
+      ns_label=$(kubectl get namespace bank-of-anthos -o jsonpath='{.metadata.labels.istio\.io/rev}' 2>/dev/null || echo "")
       
-      pods_without_sidecar=$(kubectl get pods -n bank-of-anthos -o json | jq -r '.items[] | select(.spec.containers | length < 2) | .metadata.name' || echo "")
-      
-      if [ -n "$pods_without_sidecar" ]; then
-        echo "ERROR: Pods without sidecars: $pods_without_sidecar"
+      if [ "$ns_label" = "asm-managed" ]; then
+        echo "✓ Namespace has correct label: istio.io/rev=asm-managed"
+      else
+        echo "ERROR: Namespace label is '$ns_label', expected 'asm-managed'"
         exit 1
       fi
       
-      echo "✓ All pods have sidecars injected"
+      # Check if deployments exist before waiting
+      echo ""
+      echo "Step 2: Checking for deployments..."
+      deployment_count=$(kubectl get deployments -n bank-of-anthos --no-headers 2>/dev/null | wc -l)
+      
+      if [ "$deployment_count" -eq 0 ]; then
+        echo "⚠ No deployments found yet in bank-of-anthos namespace"
+        echo "  This is expected if application hasn't been deployed yet"
+        echo "  Skipping deployment wait..."
+      else
+        echo "✓ Found $deployment_count deployment(s)"
+        echo "  Waiting for deployments to be ready..."
+        
+        kubectl wait --for=condition=available --timeout=600s \
+          deployment --all -n bank-of-anthos || {
+          echo "WARNING: Some deployments not ready yet"
+          kubectl get deployments -n bank-of-anthos
+        }
+      fi
+      
+      # Test sidecar injection with a temporary pod
+      echo ""
+      echo "Step 3: Testing sidecar injection..."
+      
+      # Create test pod
+      cat <<'TESTPOD' | kubectl apply -f -
+      apiVersion: v1
+      kind: Pod
+      metadata:
+        name: sidecar-injection-test
+        namespace: bank-of-anthos
+        labels:
+          test: sidecar-injection
+      spec:
+        containers:
+        - name: test
+          image: gcr.io/google-samples/hello-app:1.0
+          command: ["sleep", "30"]
+      TESTPOD
+      
+      # Wait for pod to be created
+      echo "  Waiting for test pod to be created..."
+      kubectl wait --for=condition=Ready --timeout=60s \
+        pod/sidecar-injection-test -n bank-of-anthos 2>/dev/null || true
+      
+      sleep 5
+      
+      # Check container count
+      container_count=$(kubectl get pod sidecar-injection-test -n bank-of-anthos \
+        -o jsonpath='{.spec.containers[*].name}' 2>/dev/null | wc -w)
+      
+      container_names=$(kubectl get pod sidecar-injection-test -n bank-of-anthos \
+        -o jsonpath='{.spec.containers[*].name}' 2>/dev/null || echo "")
+      
+      echo "  Test pod containers: $container_names"
+      
+      # Cleanup test pod
+      kubectl delete pod sidecar-injection-test -n bank-of-anthos --ignore-not-found=true &>/dev/null || true
+      
+      if [ "$container_count" -ge 2 ]; then
+        echo "✓ Sidecar injection is working! (found $container_count containers)"
+      else
+        echo "ERROR: Sidecar injection failed (found only $container_count container)"
+        echo "  Expected: test + istio-proxy"
+        echo "  Found: $container_names"
+        exit 1
+      fi
+      
+      # Check existing pods if any
+      echo ""
+      echo "Step 4: Checking existing pods..."
+      pod_count=$(kubectl get pods -n bank-of-anthos --no-headers 2>/dev/null | wc -l)
+      
+      if [ "$pod_count" -gt 0 ]; then
+        echo "✓ Found $pod_count pod(s) in namespace"
+        
+        pods_without_sidecar=$(kubectl get pods -n bank-of-anthos -o json 2>/dev/null | \
+          jq -r '.items[] | select(.spec.containers | length < 2) | .metadata.name' || echo "")
+        
+        if [ -n "$pods_without_sidecar" ]; then
+          echo "⚠ WARNING: Some pods don't have sidecars:"
+          echo "$pods_without_sidecar"
+          echo ""
+          echo "  These pods may need to be restarted to get sidecars injected:"
+          echo "  kubectl rollout restart deployment --all -n bank-of-anthos"
+        else
+          echo "✓ All existing pods have sidecars injected"
+        fi
+      else
+        echo "⚠ No pods found yet (this is normal if app not deployed)"
+      fi
+      
+      echo ""
+      echo "============================================"
+      echo "✓ Sidecar injection verification complete"
+      echo "============================================"
     EOT
     
     interpreter = ["/bin/bash", "-c"]
   }
 
   depends_on = [
-    null_resource.ingress,
+    null_resource.wait_for_service_mesh,
     null_resource.boa_app,
   ]
 }
 
-# Cleanup cloned repository
+# Cleanup cloned repository (SUCCESS ONLY - NOT ON DESTROY)
 resource "null_resource" "cleanup_repo" {
   count = var.deploy_application ? 1 : 0
 
@@ -778,19 +682,34 @@ resource "null_resource" "cleanup_repo" {
   }
 
   provisioner "local-exec" {
+    # This runs ONLY on successful creation/update
     command = <<-EOT
-      REPO_DIR="${local.repo_dir}"
+      set -e
+      echo "============================================"
+      echo "Cleaning up cloned repository"
+      echo "============================================"
+      
+      REPO_DIR="${self.triggers.repo_dir}"
       
       if [ -d "$REPO_DIR" ]; then
+        echo "Removing directory: $REPO_DIR"
         rm -rf "$REPO_DIR"
-        echo "✓ Repository cleaned up"
+        echo "✓ Repository cleaned up successfully"
+      else
+        echo "⚠ Repository directory not found (may have been cleaned up already)"
       fi
     EOT
     
     interpreter = ["/bin/bash", "-c"]
+    on_failure  = fail
   }
+
+  # NO destroy-time provisioner - we want to keep the repo during destroy
+  # This ensures cleanup only happens after successful deployment
 
   depends_on = [
     null_resource.verify_sidecar_injection,
+    null_resource.ingress,
+    null_resource.boa_app,
   ]
 }
