@@ -58,13 +58,13 @@ variable "require_credit_purchases" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = ""
+  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "trusted_users" {
   description = "List of trusted users (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
   type        = set(string)
-  default     = ["student-01-ecac4ffa5acb@qwiklabs.net"]
+  default     = []
 }
 
 variable "deployment_id" {
@@ -78,7 +78,6 @@ variable "deployment_id" {
 variable "existing_project_id" {
   description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
-  default     = "qwiklabs-gcp-02-bf011c6202c0"
 }
 
 variable "enable_services" {
