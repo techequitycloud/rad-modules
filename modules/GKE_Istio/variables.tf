@@ -173,5 +173,5 @@ variable "istio_version" {
 variable "install_ambient_mesh" {
   description = "Install ambient mesh. When deselected, sidecar mesh is configured. {{UIMeta group=3 order=502 }}"
   type        = bool
-  default     = false
+  default     = true
 }

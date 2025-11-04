@@ -75,3 +75,14 @@ resource "time_sleep" "wait_120_seconds" {
 
   create_duration = "240s" # Duration of the delay, set to 120 seconds.
 }
+
+# Resource to introduce a delay after changing Istio installation mode.
+# This is to allow the destroy provisioner of the old installation to complete before the new one starts.
+resource "time_sleep" "wait_for_istio_uninstall" {
+  create_duration = "180s"
+
+  triggers = {
+    # This trigger will cause the resource to be recreated when the value of install_ambient_mesh changes.
+    install_ambient_mesh = var.install_ambient_mesh
+  }
+}

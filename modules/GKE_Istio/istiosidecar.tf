@@ -18,14 +18,13 @@ resource "null_resource" "install_sidecar_mesh" {
   count = var.install_ambient_mesh ? 0 : 1
 
   triggers = {
-    # always_run                = timestamp()
     istio_path                = "$HOME/istio-${var.istio_version}"
     cluster_name              = var.gke_cluster
     region                    = var.region
     project_id                = local.project.project_id
     istio_release             = regex("^(\\d+\\.\\d+)", var.istio_version)[0]
     istio_version             = var.istio_version
-    resource_creator_identity = var.resource_creator_identity  # Added for destroy provisioner
+    resource_creator_identity = var.resource_creator_identity
   }
 
   provisioner "local-exec" {
@@ -33,66 +32,51 @@ resource "null_resource" "install_sidecar_mesh" {
     command = <<-EOF
     set -eo pipefail
     echo "=== Installing Istio ${var.istio_version} (Sidecar Mode) ==="
+
+    # Source the setup script to inherit environment variables
+    source "${path.module}/scripts/setup_istio.sh" "${var.istio_version}"
     
-    # Create local bin directory if it doesn't exist
-    mkdir -p $HOME/.local/bin
-    export PATH=$HOME/.local/bin:$PATH
-    
-    # Check if kubectl is available, if not install it
-    if ! command -v kubectl &> /dev/null; then
-      echo "kubectl not found, installing..."
-      # Detect OS and architecture for kubectl
-      OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-      ARCH=$(uname -m)
-      case $ARCH in
-        x86_64) ARCH="amd64" ;;
-        arm64|aarch64) ARCH="arm64" ;;
-        *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
-      esac
-      
-      # Download kubectl to local bin
-      curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/$OS/$ARCH/kubectl"
-      chmod +x kubectl
-      mv kubectl $HOME/.local/bin/
-      echo "kubectl installed to $HOME/.local/bin/"
-    fi
-    
-    # Verify kubectl is now available
-    if ! command -v kubectl &> /dev/null; then
-      echo "kubectl still not found in PATH. Current PATH: $PATH"
+    # Verify istioctl is now available
+    if ! command -v istioctl &> /dev/null; then
+      echo "ERROR: istioctl not found after setup"
+      echo "Current PATH: $PATH"
       exit 1
     fi
-    
-    # Detect OS and architecture for Istio
-    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-    ARCH=$(uname -m)
-    case $ARCH in
-      x86_64) ARCH="amd64" ;;
-      arm64|aarch64) ARCH="arm64" ;;
-      *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
-    esac
-    case $OS in
-      darwin) OS_SUFFIX="osx" ;;
-      linux) OS_SUFFIX="linux" ;;
-      *) echo "Unsupported OS: $OS"; exit 1 ;;
-    esac
 
-    # Download and extract Istio
-    echo "Downloading Istio ${var.istio_version} for $OS_SUFFIX-$ARCH..."
-    cd $HOME
-    curl -fL https://github.com/istio/istio/releases/download/${var.istio_version}/istio-${var.istio_version}-$OS_SUFFIX-$ARCH.tar.gz \
-      | tar xz || { echo "Failed to download/extract Istio"; exit 1; }
-      
-    export PATH=$HOME/istio-${var.istio_version}/bin:$PATH
-    cd $HOME/istio-${var.istio_version}
+    # Ensure gcloud is authenticated
+    echo "Verifying gcloud authentication..."
+    if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null | grep -q .; then
+      echo "ERROR: No active gcloud account found"
+      echo "Please ensure you are authenticated with gcloud"
+      exit 1
+    fi
 
-    # Configure GKE cluster access
+    ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format="value(account)")
+    echo "✓ Using gcloud account: $ACTIVE_ACCOUNT"
+
+    # Define impersonation flag
+    IMPERSONATE_FLAG=""
+    if [ -n "${var.resource_creator_identity}" ]; then
+      IMPERSONATE_FLAG="--impersonate-service-account=${var.resource_creator_identity}"
+      echo "Using service account impersonation: ${var.resource_creator_identity}"
+    fi
+
+    # Configure GKE cluster access with explicit project
     echo "Configuring cluster access..."
     gcloud container clusters get-credentials ${var.gke_cluster} \
       --region ${var.region} \
       --project ${local.project.project_id} \
-      ${var.resource_creator_identity != "" ? "--impersonate-service-account=${var.resource_creator_identity}" : ""} || \
+      $IMPERSONATE_FLAG || \
       { echo "Failed to get cluster credentials"; exit 1; }
+
+    # Verify kubectl can connect
+    echo "Verifying kubectl connectivity..."
+    if ! kubectl cluster-info &>/dev/null; then
+      echo "ERROR: Cannot connect to cluster"
+      kubectl cluster-info
+      exit 1
+    fi
+    echo "✓ kubectl connected to cluster"
 
     # Wait for cluster to be ready
     echo "Waiting for cluster to be ready..."
@@ -104,14 +88,101 @@ resource "null_resource" "install_sidecar_mesh" {
     echo "Creating istio-system namespace..."
     kubectl create namespace istio-system --dry-run=client -o yaml | kubectl apply -f -
 
-    # Install Istio with explicit configuration to avoid HPA naming issues
-    echo "Installing Istio with default profile..."
-    cat <<ISTIO_CONFIG | istioctl install -y -f -
+    # Step 1: Install ONLY the base (CRDs) using istioctl with explicit settings
+    echo "Step 1: Installing Istio CRDs (base component only)..."
+    
+    # Use a temporary IstioOperator manifest for base installation
+    cat <<BASE_CONFIG > /tmp/istio-base.yaml
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: istio-base
+  namespace: istio-system
+spec:
+  profile: minimal
+  components:
+    base:
+      enabled: true
+    pilot:
+      enabled: false
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: false
+    egressGateways:
+    - name: istio-egressgateway
+      enabled: false
+  values:
+    global:
+      istioNamespace: istio-system
+BASE_CONFIG
+
+    # Install base with explicit kubeconfig
+    istioctl install -y -f /tmp/istio-base.yaml --skip-confirmation || {
+      echo "ERROR: Failed to install Istio base/CRDs"
+      echo "Checking kubectl access..."
+      kubectl get nodes
+      kubectl get namespaces
+      exit 1
+    }
+
+    echo "✓ Istio base/CRDs installed successfully"
+
+    # Step 2: Wait for ALL CRDs to be established
+    echo "Step 2: Waiting for Istio CRDs to be fully established..."
+    CRDS=(
+      "destinationrules.networking.istio.io"
+      "virtualservices.networking.istio.io"
+      "gateways.networking.istio.io"
+      "serviceentries.networking.istio.io"
+      "workloadentries.networking.istio.io"
+      "workloadgroups.networking.istio.io"
+      "sidecars.networking.istio.io"
+      "envoyfilters.networking.istio.io"
+      "proxyconfigs.networking.istio.io"
+      "peerauthentications.security.istio.io"
+      "requestauthentications.security.istio.io"
+      "authorizationpolicies.security.istio.io"
+      "telemetries.telemetry.istio.io"
+      "wasmplugins.extensions.istio.io"
+    )
+
+    for crd in "$${CRDS[@]}"; do
+      echo "Waiting for CRD: $crd"
+      kubectl wait --for condition=established --timeout=120s crd/$crd || {
+        echo "ERROR: CRD $crd failed to establish"
+        kubectl get crd $crd -o yaml || true
+        exit 1
+      }
+    done
+
+    # Step 3: Verify CRDs are queryable
+    echo "Step 3: Verifying CRDs are queryable..."
+    sleep 10  # Give API server extra time
+    
+    for crd in "$${CRDS[@]}"; do
+      RESOURCE=$(echo $crd | cut -d. -f1)
+      APIGROUP=$(echo $crd | cut -d. -f2-)
+      echo "Testing query: $RESOURCE.$APIGROUP"
+      kubectl get $RESOURCE.$APIGROUP --all-namespaces 2>&1 | head -n 1 || {
+        echo "WARNING: CRD $crd not yet queryable, waiting longer..."
+        sleep 5
+      }
+    done
+
+    echo "✓ All CRDs are established and queryable"
+
+    # Step 4: Now install the control plane
+    echo "Step 4: Installing Istio control plane (without base)..."
+    cat <<ISTIO_CONFIG > /tmp/istio-control-plane.yaml
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
   name: control-plane
+  namespace: istio-system
 spec:
+  profile: minimal
+  hub: docker.io/istio
+  tag: ${var.istio_version}
   values:
     global:
       meshID: mesh1
@@ -119,12 +190,18 @@ spec:
         clusterName: cluster1
       network: network1
   components:
+    base:
+      enabled: false  # CRDs already installed in step 1
     pilot:
+      enabled: true
       k8s:
         resources:
           requests:
             cpu: 100m
             memory: 128Mi
+        env:
+        - name: PILOT_ENABLE_STATUS
+          value: "true"
     ingressGateways:
     - name: istio-ingressgateway
       enabled: true
@@ -147,33 +224,53 @@ spec:
                 averageUtilization: 80
 ISTIO_CONFIG
 
-    if [ $? -ne 0 ]; then
+    istioctl install -y -f /tmp/istio-control-plane.yaml --skip-confirmation || {
       echo "Istio installation with custom config failed, trying minimal installation..."
       istioctl install -y --set profile=minimal \
+        --set hub=docker.io/istio --set tag=${var.istio_version} \
+        --set "components.base.enabled=false" \
+        --set "components.pilot.enabled=true" \
         --set "components.ingressGateways[0].enabled=true" \
         --set "components.ingressGateways[0].name=istio-ingressgateway" \
         --set "components.ingressGateways[0].k8s.service.type=LoadBalancer" \
         --skip-confirmation || \
         { echo "Istio minimal installation also failed"; exit 1; }
-    fi
-
-    # Wait for Istio control plane to be ready
-    echo "Waiting for Istio control plane to be ready..."
-    kubectl wait --for=condition=Available deployment/istiod -n istio-system --timeout=300s || {
-      echo "Warning: Timeout waiting for istiod, continuing..."
     }
 
-    # Wait for ingress gateway to be ready
-    echo "Waiting for ingress gateway to be ready..."
+    # Clean up temp files
+    rm -f /tmp/istio-base.yaml /tmp/istio-control-plane.yaml
+
+    # Step 5: Wait for control plane to be ready
+    echo "Step 5: Waiting for Istio control plane to be ready..."
+    kubectl wait --for=condition=Available deployment/istiod -n istio-system --timeout=300s || {
+      echo "ERROR: Timeout waiting for istiod"
+      kubectl get pods -n istio-system
+      kubectl logs -n istio-system -l app=istiod --tail=100 || true
+      exit 1
+    }
+
+    # Check for CRD errors in logs
+    echo "Checking istiod logs for CRD errors..."
+    if kubectl logs -n istio-system -l app=istiod --tail=50 | grep -i "could not find the requested resource"; then
+      echo "ERROR: istiod still has CRD-related errors"
+      kubectl logs -n istio-system -l app=istiod --tail=100
+      exit 1
+    else
+      echo "✓ No CRD-related errors in istiod logs"
+    fi
+
+    # Step 6: Wait for ingress gateway to be ready
+    echo "Step 6: Waiting for ingress gateway to be ready..."
     kubectl wait --for=condition=Available deployment/istio-ingressgateway -n istio-system --timeout=300s || {
-      echo "Warning: Timeout waiting for ingress gateway, continuing..."
+      echo "Warning: Timeout waiting for ingress gateway"
+      kubectl get pods -n istio-system -l app=istio-ingressgateway
     }
 
     # Enable sidecar injection for default namespace
     echo "Enabling sidecar injection for default namespace..."
     kubectl label namespace default istio-injection=enabled --overwrite
 
-    # Install observability addons with retries
+    # Install observability addons
     echo "Installing observability addons..."
     ISTIO_RELEASE=$(echo "${var.istio_version}" | cut -d. -f1,2)
     for addon in prometheus jaeger grafana kiali; do
@@ -183,75 +280,70 @@ ISTIO_CONFIG
       sleep 5
     done
 
-    # Verify installation
+    # Final verification
     echo "Verifying Istio installation..."
     istioctl verify-install || echo "Warning: Istio verification had issues"
     
+    echo ""
+    echo "=========================================="
     echo "✓ Sidecar mesh installation completed successfully"
+    echo "=========================================="
+    echo "✓ Istio CRDs: $(kubectl get crd | grep istio.io | wc -l) installed"
     echo "✓ Istio control plane: $(kubectl get pods -n istio-system -l app=istiod --no-headers | wc -l) pods"
     echo "✓ Istio ingress gateway: $(kubectl get pods -n istio-system -l app=istio-ingressgateway --no-headers | wc -l) pods"
+    echo "=========================================="
     
     exit 0
     EOF
 
+    # Don't override KUBECONFIG - let it use the default with gcloud credentials
     environment = {
-      KUBECONFIG = ""  # Use default kubeconfig location
+      USE_GKE_GCLOUD_AUTH_PLUGIN = "True"
     }
   }
 
   provisioner "local-exec" {
     when = destroy
     command = <<-EOF
-      set +e  # Disable exit-on-error for the entire destroy phase
+      set +e
       echo "=== Uninstalling Istio Sidecar Mesh (Graceful Mode) ==="
       
-      # Set up environment
       export PATH=$HOME/.local/bin:$PATH
+      export USE_GKE_GCLOUD_AUTH_PLUGIN=True
       ISTIO_PATH="${self.triggers.istio_path}"
       ISTIO_RELEASE="${self.triggers.istio_release}"
       
-      # Configure cluster access for cleanup
+      IMPERSONATE_FLAG=""
+      if [ -n "${self.triggers.resource_creator_identity}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${self.triggers.resource_creator_identity}"
+      fi
+
       gcloud container clusters get-credentials ${self.triggers.cluster_name} \
         --region ${self.triggers.region} \
         --project ${self.triggers.project_id} \
-        ${self.triggers.resource_creator_identity != "" ? "--impersonate-service-account=${self.triggers.resource_creator_identity}" : ""} 2>/dev/null || \
+        $IMPERSONATE_FLAG || \
         echo "Warning: Failed to get cluster credentials for cleanup"
 
-      # Remove namespace labels (ignore missing namespace/label)
-      echo "Removing namespace labels..."
-      kubectl label namespace default istio-injection- --overwrite --ignore-not-found 2>/dev/null || \
+      kubectl label namespace default istio-injection- --overwrite --ignore-not-found || \
         echo "Warning: Failed to remove namespace labels"
 
-      # Remove addons (ignore missing manifests)
-      echo "Removing observability addons..."
       for addon in kiali grafana jaeger prometheus; do
         kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-$ISTIO_RELEASE/samples/addons/$addon.yaml \
-          --ignore-not-found --timeout=60s 2>/dev/null || \
+          --ignore-not-found --timeout=60s || \
           echo "Warning: Failed to remove $addon"
       done
 
-      # Cleanup Istio installation (ignore missing istioctl or failures)
       if [ -f "$ISTIO_PATH/bin/istioctl" ]; then
-        echo "Uninstalling Istio..."
-        $ISTIO_PATH/bin/istioctl uninstall --purge -y 2>/dev/null || \
-          echo "Warning: Istio uninstall encountered errors (possibly already uninstalled)"
-      else
-        echo "Warning: istioctl not found at $ISTIO_PATH/bin/istioctl"
+        $ISTIO_PATH/bin/istioctl uninstall --purge -y || \
+          echo "Warning: Istio uninstall encountered errors"
       fi
 
-      # Cleanup system resources (ignore missing namespace)
-      echo "Removing istio-system namespace..."
-      kubectl delete namespace istio-system --ignore-not-found --timeout=120s 2>/dev/null || \
+      kubectl delete namespace istio-system --ignore-not-found --timeout=120s || \
         echo "Warning: Failed to remove istio-system namespace"
 
-      # Remove Istio directory (ignore missing path)
-      if [ -d "$ISTIO_PATH" ]; then
-        echo "Removing Istio directory..."
-        rm -rf "$ISTIO_PATH" 2>/dev/null || \
-          echo "Warning: Failed to remove Istio directory (may not exist)"
-      fi
+      [ -d "$ISTIO_PATH" ] && rm -rf "$ISTIO_PATH" || true
       
-      echo "✓ Sidecar mesh uninstallation completed (gracefully)"
+      echo "✓ Sidecar mesh uninstallation completed"
       exit 0
     EOF
   }
@@ -259,33 +351,6 @@ ISTIO_CONFIG
   depends_on = [
     google_container_node_pool.preemptible_nodes,
     google_container_cluster.gke_standard_cluster,
+    time_sleep.wait_for_istio_uninstall,
   ]
-}
-
-# Output Istio ingress gateway external IP for sidecar mesh
-resource "null_resource" "get_sidecar_istio_ingress_ip" {
-  count = var.install_ambient_mesh ? 0 : 1
-  
-  depends_on = [null_resource.install_sidecar_mesh]
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "Waiting for Istio ingress gateway external IP..."
-      export PATH=$HOME/.local/bin:$PATH
-      
-      for i in {1..30}; do
-        EXTERNAL_IP=$(kubectl get svc istio-ingressgateway -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
-        if [ ! -z "$EXTERNAL_IP" ] && [ "$EXTERNAL_IP" != "null" ]; then
-          echo "Istio Ingress Gateway External IP: $EXTERNAL_IP"
-          break
-        fi
-        echo "Waiting for external IP... (attempt $i/30)"
-        sleep 10
-      done
-      
-      # Show sidecar mesh status
-      echo "=== Sidecar Mesh Status ==="
-      kubectl get namespace default --show-labels 2>/dev/null | grep istio-injection || echo "Default namespace not configured for sidecar injection"
-    EOT
-  }
 }

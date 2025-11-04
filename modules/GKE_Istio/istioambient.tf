@@ -33,59 +33,12 @@ resource "null_resource" "install_ambient_mesh" {
     command = <<-EOF
     set -eo pipefail
     echo "=== Installing Istio ${var.istio_version} (Ambient Mode) ==="
-    
-    # Create local bin directory if it doesn't exist
-    mkdir -p $HOME/.local/bin
-    export PATH=$HOME/.local/bin:$PATH
-    
-    # Check if kubectl is available, if not install it
-    if ! command -v kubectl &> /dev/null; then
-      echo "kubectl not found, installing..."
-      # Detect OS and architecture for kubectl
-      OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-      ARCH=$(uname -m)
-      case $ARCH in
-        x86_64) ARCH="amd64" ;;
-        arm64|aarch64) ARCH="arm64" ;;
-        *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
-      esac
-      
-      # Download kubectl to local bin
-      curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/$OS/$ARCH/kubectl"
-      chmod +x kubectl
-      mv kubectl $HOME/.local/bin/
-      echo "kubectl installed to $HOME/.local/bin/"
-    fi
-    
-    # Verify kubectl is now available
-    if ! command -v kubectl &> /dev/null; then
-      echo "kubectl still not found in PATH. Current PATH: $PATH"
-      exit 1
-    fi
-    
-    # Detect OS and architecture for Istio
-    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-    ARCH=$(uname -m)
-    case $ARCH in
-      x86_64) ARCH="amd64" ;;
-      arm64|aarch64) ARCH="arm64" ;;
-      *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
-    esac
-    case $OS in
-      darwin) OS_SUFFIX="osx" ;;
-      linux) OS_SUFFIX="linux" ;;
-      *) echo "Unsupported OS: $OS"; exit 1 ;;
-    esac
 
-    # Download and extract Istio
-    echo "Downloading Istio ${var.istio_version} for $OS_SUFFIX-$ARCH..."
-    cd $HOME
-    curl -fL https://github.com/istio/istio/releases/download/${var.istio_version}/istio-${var.istio_version}-$OS_SUFFIX-$ARCH.tar.gz \
-      | tar xz || { echo "Failed to download/extract Istio"; exit 1; }
-        
-    # Use actual extracted path, not trigger variable
+    # Call the setup script
+    "${path.module}/scripts/setup_istio.sh" "${var.istio_version}"
+
+    # Set PATH to include istioctl
     export PATH=$HOME/istio-${var.istio_version}/bin:$PATH
-    cd $HOME/istio-${var.istio_version}
 
     # Configure GKE cluster access with conditional impersonation
     echo "Configuring cluster access..."
@@ -201,33 +154,33 @@ EOS
       gcloud container clusters get-credentials ${self.triggers.cluster_name} \
         --region ${self.triggers.region} \
         --project ${self.triggers.project_id} \
-        ${self.triggers.resource_creator_identity != "" ? "--impersonate-service-account=${self.triggers.resource_creator_identity}" : ""} 2>/dev/null || \
+        ${self.triggers.resource_creator_identity != "" ? "--impersonate-service-account=${self.triggers.resource_creator_identity}" : ""} || \
         echo "Warning: Failed to get cluster credentials for cleanup"
       
       # Remove waypoints first (ignore failures)
       if [ -f "$ISTIO_PATH/bin/istioctl" ]; then
         echo "Removing waypoint proxies..."
-        $ISTIO_PATH/bin/istioctl waypoint delete --all -A 2>/dev/null || \
+        $ISTIO_PATH/bin/istioctl waypoint delete --all -A || \
           echo "Warning: Waypoint cleanup encountered errors"
       fi
 
       # Remove namespace labels (ignore missing resources)
       echo "Removing namespace labels..."
-      kubectl label namespace default istio.io/dataplane-mode- istio.io/use-waypoint- --overwrite --ignore-not-found 2>/dev/null || \
+      kubectl label namespace default istio.io/dataplane-mode- istio.io/use-waypoint- --overwrite || \
         echo "Warning: Failed to remove namespace labels"
 
       # Remove addons (ignore missing manifests)
       echo "Removing observability addons..."
       for addon in kiali grafana jaeger prometheus; do
         kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-$ISTIO_RELEASE/samples/addons/$addon.yaml \
-          --ignore-not-found --timeout=60s 2>/dev/null || \
+          --ignore-not-found --timeout=60s || \
           echo "Warning: Failed to remove $addon"
       done
 
       # Cleanup Istio installation (ignore failures)
       if [ -f "$ISTIO_PATH/bin/istioctl" ]; then
         echo "Uninstalling Istio..."
-        $ISTIO_PATH/bin/istioctl uninstall --purge -y 2>/dev/null || \
+        $ISTIO_PATH/bin/istioctl uninstall --purge -y || \
           echo "Warning: Istio uninstall encountered errors (possibly already removed)"
       else
         echo "Warning: istioctl not found at $ISTIO_PATH/bin/istioctl"
@@ -235,13 +188,13 @@ EOS
 
       # Cleanup system resources (ignore missing namespace)
       echo "Removing istio-system namespace..."
-      kubectl delete namespace istio-system --ignore-not-found --timeout=120s 2>/dev/null || \
+      kubectl delete namespace istio-system --ignore-not-found --timeout=120s || \
         echo "Warning: Failed to remove istio-system namespace"
       
       # Remove Istio directory
       if [ -d "$ISTIO_PATH" ]; then
         echo "Removing Istio directory..."
-        rm -rf "$ISTIO_PATH" 2>/dev/null || \
+        rm -rf "$ISTIO_PATH" || \
           echo "Warning: Failed to remove Istio directory (may not exist)"
       fi
       
@@ -253,6 +206,7 @@ EOS
   depends_on = [
     google_container_node_pool.preemptible_nodes,
     google_container_cluster.gke_standard_cluster,
+    time_sleep.wait_for_istio_uninstall,
   ]
 }
 
