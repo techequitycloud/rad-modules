@@ -289,7 +289,7 @@ resource "null_resource" "cleanup_before_membership_delete" {
           --member="serviceAccount:$FLEET_SA" \
           --role="$role" \
           --condition=None \
-          --quiet 2>/dev/null || true
+          --quiet --no-user-output-enabled 2>/dev/null || true
       done
       
       echo "Waiting 30 seconds for IAM propagation..."

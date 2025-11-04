@@ -57,6 +57,40 @@ resource "kubernetes_namespace" "bank_of_anthos" {
 # CLEANUP RESOURCES (DESTROY-TIME)
 # ============================================
 
+# Cleanup cloned repository during destroy
+resource "null_resource" "cleanup_repo_on_destroy" {
+  count = var.deploy_application ? 1 : 0
+  
+  triggers = {
+    repo_dir = local.repo_dir
+    # This ensures the resource is recreated on every apply
+    always_run = timestamp()
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      set -e
+      echo "============================================"
+      echo "Cleaning up cloned repository (destroy)"
+      echo "============================================"
+      
+      REPO_DIR="${self.triggers.repo_dir}"
+      
+      if [ -d "$REPO_DIR" ]; then
+        echo "Removing directory: $REPO_DIR"
+        rm -rf "$REPO_DIR"
+        echo "✓ Repository cleaned up successfully"
+      else
+        echo "⚠ Repository directory not found (may have been cleaned up already)"
+      fi
+    EOT
+    
+    interpreter = ["/bin/bash", "-c"]
+    on_failure  = continue
+  }
+}
+
 # Pre-cleanup: Remove all app resources BEFORE namespace deletion
 resource "null_resource" "pre_cleanup_app_resources" {
   count = var.deploy_application ? 1 : 0
@@ -253,13 +287,15 @@ resource "null_resource" "cleanup_bank_of_anthos_namespace" {
 # APPLICATION DEPLOYMENT
 # ============================================
 
-# Clone repository
+# Clone repository - runs every time with fresh clone
 resource "null_resource" "git_clone" {
   count = var.deploy_application ? 1 : 0
 
   triggers = {
     service_mesh_ready = null_resource.wait_for_service_mesh[0].id
     repo_dir           = local.repo_dir
+    # Force re-clone on every apply
+    always_run         = timestamp()
   }
 
   provisioner "local-exec" {
@@ -306,8 +342,32 @@ resource "null_resource" "git_clone" {
     interpreter = ["/bin/bash", "-c"]
   }
 
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      set -e
+      echo "============================================"
+      echo "Cleaning up cloned repository (from git_clone)"
+      echo "============================================"
+      
+      REPO_DIR="${self.triggers.repo_dir}"
+      
+      if [ -d "$REPO_DIR" ]; then
+        echo "Removing directory: $REPO_DIR"
+        rm -rf "$REPO_DIR"
+        echo "✓ Repository cleaned up successfully"
+      else
+        echo "⚠ Repository directory not found"
+      fi
+    EOT
+    
+    interpreter = ["/bin/bash", "-c"]
+    on_failure  = continue
+  }
+
   depends_on = [
     null_resource.wait_for_service_mesh,
+    null_resource.cleanup_repo_on_destroy,
   ]
 }
 
@@ -317,6 +377,7 @@ resource "null_resource" "boa_jwt_secret" {
   
   triggers = {
     verify_mesh_id = null_resource.verify_mesh_before_deploy[0].id
+    git_clone_id   = null_resource.git_clone[0].id
   }
 
   provisioner "local-exec" {
@@ -348,6 +409,7 @@ resource "null_resource" "boa_jwt_secret" {
     null_resource.configure_kubectl,
     kubernetes_namespace.bank_of_anthos,
     null_resource.verify_mesh_before_deploy,
+    null_resource.git_clone,
   ]
 }
 
@@ -357,6 +419,7 @@ resource "null_resource" "boa_app" {
 
   triggers = {
     jwt_secret_id = null_resource.boa_jwt_secret[0].id
+    git_clone_id  = null_resource.git_clone[0].id
   }
 
   provisioner "local-exec" {
@@ -413,6 +476,7 @@ resource "null_resource" "boa_app" {
   depends_on = [
     null_resource.configure_kubectl,
     null_resource.boa_jwt_secret,
+    null_resource.git_clone,
   ]
 }
 
@@ -668,48 +732,6 @@ resource "null_resource" "verify_sidecar_injection" {
 
   depends_on = [
     null_resource.wait_for_service_mesh,
-    null_resource.boa_app,
-  ]
-}
-
-# Cleanup cloned repository (SUCCESS ONLY - NOT ON DESTROY)
-resource "null_resource" "cleanup_repo" {
-  count = var.deploy_application ? 1 : 0
-
-  triggers = {
-    repo_dir            = local.repo_dir
-    verify_injection_id = null_resource.verify_sidecar_injection[0].id
-  }
-
-  provisioner "local-exec" {
-    # This runs ONLY on successful creation/update
-    command = <<-EOT
-      set -e
-      echo "============================================"
-      echo "Cleaning up cloned repository"
-      echo "============================================"
-      
-      REPO_DIR="${self.triggers.repo_dir}"
-      
-      if [ -d "$REPO_DIR" ]; then
-        echo "Removing directory: $REPO_DIR"
-        rm -rf "$REPO_DIR"
-        echo "✓ Repository cleaned up successfully"
-      else
-        echo "⚠ Repository directory not found (may have been cleaned up already)"
-      fi
-    EOT
-    
-    interpreter = ["/bin/bash", "-c"]
-    on_failure  = fail
-  }
-
-  # NO destroy-time provisioner - we want to keep the repo during destroy
-  # This ensures cleanup only happens after successful deployment
-
-  depends_on = [
-    null_resource.verify_sidecar_injection,
-    null_resource.ingress,
     null_resource.boa_app,
   ]
 }

@@ -58,13 +58,13 @@ variable "require_credit_purchases" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = ""
+  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "trusted_users" {
   description = "List of trusted users (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
   type        = set(string)
-  default     = ["student-01-4e35294abf03@qwiklabs.net"]
+  default     = []
 }
 
 variable "deployment_id" {
@@ -78,69 +78,65 @@ variable "deployment_id" {
 variable "existing_project_id" {
   description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
-  default     = "qwiklabs-gcp-03-419ed710e0d1"
 }
 
+variable "region" {
+  description = "The region where Compute Instance and VPCs will be deployed. Deployment may fail if sufficient resources are not available in region. List - https://cloud.google.com/compute/docs/regions-zones#available. {{UIMeta group=2 order=201 }}"
+  type        = string
+  default     = "us-central1"
+}
+
+// GROUP 4: Main
+
 variable "enable_services" {
-  description = "Enable project APIs.  When using an existing project, this is set to false. {{UIMeta group=0 order=506 }}"
+  description = "Enable project APIs.  When using an existing project, this is set to false. {{UIMeta group=0 order=401 }}"
   type        = bool
   default     = true
 }
 
 variable "enable_cloud_service_mesh" {
-  description = "Enable Cloud Service Mesh. {{UIMeta group=0 order=507 }}"
+  description = "Enable Cloud Service Mesh. {{UIMeta group=0 order=402 }}"
   type        = bool
   default     = true
 }
 
 variable "cloud_service_mesh_version" {
-  description = "Cloud Service Mesh version. {{UIMeta group=0 order=508 }}"
+  description = "Cloud Service Mesh version. {{UIMeta group=0 order=403 }}"
   type        = string
   default     = "1.23.4-asm.1"
 }
 
 variable "enable_config_management" {
-  description = "Enable Config Management. {{UIMeta group=0 order=509 }}"
+  description = "Enable Config Management. {{UIMeta group=0 order=404 }}"
   type        = bool
   default     = false
 }
 
 variable "config_management_version" {
-  description = "Anthos Config Management version. {{UIMeta group=0 order=510 }}"
+  description = "Anthos Config Management version. {{UIMeta group=0 order=405 }}"
   type        = string
   default     = "1.22.0"
 }
 
 variable "config_sync_repo" {
-  description = "The URL of the Git repository for Config Sync. {{UIMeta group=0 order=511 }}"
+  description = "The URL of the Git repository for Config Sync. {{UIMeta group=0 order=406 }}"
   type        = string
   default     = "https://github.com/GoogleCloudPlatform/anthos-config-management-samples"
 }
 
 variable "config_sync_policy_dir" {
-  description = "The directory within the Git repository for Config Sync. {{UIMeta group=0 order=512 }}"
+  description = "The directory within the Git repository for Config Sync. {{UIMeta group=0 order=407 }}"
   type        = string
   default     = "config-sync-quickstart/multirepo/root"
 }
 
+// GROUP 5: Network
+
 variable "enable_monitoring" {
-  description = "Enable Cloud monitoring. {{UIMeta group=0 order=513 }}"
+  description = "Enable Cloud monitoring. {{UIMeta group=0 order=501 }}"
   type        = bool
   default     = true
 }
-
-variable "deploy_application" {
-  description = "Deploy microservices banking application. {{UIMeta group=3 order=514 }}"
-  type        = bool
-  default     = true
-}
-
-variable "region" {
-  description = "The region where Compute Instance and VPCs will be deployed. Deployment may fail if sufficient resources are not available in region. List - https://cloud.google.com/compute/docs/regions-zones#available. {{UIMeta group=2 order=515 }}"
-  type        = string
-  default     = "us-central1"
-}
-
 // GROUP 6: Network
 
 variable "create_network" {
@@ -177,37 +173,45 @@ variable "gke_cluster" {
 }
 
 variable "create_autopilot_cluster" {
-  description = "Indicate if a GKE autopilot cluster is requred, otherwise a standard cluster will be created. {{UIMeta group=0 order=1103 }}"
+  description = "Indicate if a GKE autopilot cluster is requred, otherwise a standard cluster will be created. {{UIMeta group=0 order=1102 }}"
   type        = bool
   default     = true
 }
 
 variable "release_channel" {
-  description = "Enroll the GKE cluster in this release channel. {{UIMeta group=0 order=1104 }}"
+  description = "Enroll the GKE cluster in this release channel. {{UIMeta group=0 order=1103 }}"
   type        = string
   default     = "REGULAR"
 }
 
 variable "pod_ip_range" {
-  description = "Range name for the pod IP addresses. {{UIMeta group=0 order=1113 }}"
+  description = "Range name for the pod IP addresses. {{UIMeta group=0 order=1114 }}"
   type        = string
   default     = "pod-ip-range"
 }
 
 variable "pod_cidr_block" {
-  description = "CIDR block to be assigned to pods running in the GKE cluster. {{UIMeta group=0 order=1114 }}"
+  description = "CIDR block to be assigned to pods running in the GKE cluster. {{UIMeta group=0 order=1115 }}"
   type        = string
   default     = "10.62.128.0/17"
 }
 
 variable "service_ip_range" {
-  description = "Name for the IP range for services. {{UIMeta group=0 order=1115 }}"
+  description = "Name for the IP range for services. {{UIMeta group=0 order=1116 }}"
   type        = string
   default     = "service-ip-range"
 }
 
 variable "service_cidr_block" {
-  description = "CIDR block to be assigned to services running in the GKE cluster. {{UIMeta group=0 order=1116 }}"
+  description = "CIDR block to be assigned to services running in the GKE cluster. {{UIMeta group=0 order=1117 }}"
   type        = string
   default     = "10.64.128.0/20"
+}
+
+// GROUP 12: Application
+
+variable "deploy_application" {
+  description = "Deploy microservices banking application. {{UIMeta group=3 order=1201 }}"
+  type        = bool
+  default     = true
 }
