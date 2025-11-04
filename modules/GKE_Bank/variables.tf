@@ -58,13 +58,13 @@ variable "require_credit_purchases" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+  default     = ""
 }
 
 variable "trusted_users" {
   description = "List of trusted users (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
   type        = set(string)
-  default     = []
+  default     = ["student-01-ecac4ffa5acb@qwiklabs.net"]
 }
 
 variable "deployment_id" {
@@ -78,6 +78,7 @@ variable "deployment_id" {
 variable "existing_project_id" {
   description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
+  default     = "qwiklabs-gcp-02-bf011c6202c0"
 }
 
 variable "enable_services" {
@@ -93,31 +94,49 @@ variable "enable_cloud_service_mesh" {
 }
 
 variable "cloud_service_mesh_version" {
-  description = "Cloud Service Mesh version. {{UIMeta group=0 order=507 }}"
+  description = "Cloud Service Mesh version. {{UIMeta group=0 order=508 }}"
   type        = string
   default     = "1.23.4-asm.1"
 }
 
 variable "enable_config_management" {
-  description = "Enable Config Management. {{UIMeta group=0 order=508 }}"
+  description = "Enable Config Management. {{UIMeta group=0 order=509 }}"
   type        = bool
   default     = false
 }
 
+variable "config_management_version" {
+  description = "Anthos Config Management version. {{UIMeta group=0 order=510 }}"
+  type        = string
+  default     = "1.22.0"
+}
+
+variable "config_sync_repo" {
+  description = "The URL of the Git repository for Config Sync. {{UIMeta group=0 order=511 }}"
+  type        = string
+  default     = "https://github.com/GoogleCloudPlatform/anthos-config-management-samples"
+}
+
+variable "config_sync_policy_dir" {
+  description = "The directory within the Git repository for Config Sync. {{UIMeta group=0 order=512 }}"
+  type        = string
+  default     = "config-sync-quickstart/multirepo/root"
+}
+
 variable "enable_monitoring" {
-  description = "Enable Cloud monitoring. {{UIMeta group=0 order=509 }}"
+  description = "Enable Cloud monitoring. {{UIMeta group=0 order=513 }}"
   type        = bool
   default     = true
 }
 
 variable "deploy_application" {
-  description = "Deploy microservices banking application. {{UIMeta group=3 order=511 }}"
+  description = "Deploy microservices banking application. {{UIMeta group=3 order=514 }}"
   type        = bool
   default     = true
 }
 
 variable "region" {
-  description = "The region where Compute Instance and VPCs will be deployed. Deployment may fail if sufficient resources are not available in region. List - https://cloud.google.com/compute/docs/regions-zones#available. {{UIMeta group=2 order=512 }}"
+  description = "The region where Compute Instance and VPCs will be deployed. Deployment may fail if sufficient resources are not available in region. List - https://cloud.google.com/compute/docs/regions-zones#available. {{UIMeta group=2 order=515 }}"
   type        = string
   default     = "us-central1"
 }

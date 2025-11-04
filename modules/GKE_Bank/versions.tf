@@ -15,13 +15,27 @@
  */
 
 terraform {
+  required_version = ">= 1.5.7"
   required_providers {
     google = {
-      source = "hashicorp/google"
+      source  = "hashicorp/google"
+      version = "~> 5.36.0"
     }
     kubernetes = {
-      source = "hashicorp/kubernetes"
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.29.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6.2"
+    }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.11.1"
+    }
+    http = {
+      source  = "hashicorp/http"
+      version = "~> 3.4.2"
     }
   }
-  required_version = ">= 0.13"
 }

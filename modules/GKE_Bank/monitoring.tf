@@ -49,12 +49,6 @@ resource "google_monitoring_alert_policy" "alert_policy" {
   user_labels = {
     severity = "warning"
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 # Configuration for a notification channel in Google Cloud Monitoring.
@@ -74,10 +68,10 @@ resource "google_monitoring_notification_channel" "email" {
   force_delete = true
 
   # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
+  # depends_on = [
+  #   null_resource.get_external_ip,
+  #   time_sleep.wait_120_seconds
+  # ]
 }
 */
 
@@ -102,12 +96,6 @@ resource "google_monitoring_service" "accounts-db" {
       service_name   = "accounts-db"
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_slo" "accounts-db_slo_limit_utilization" {
@@ -129,12 +117,6 @@ resource "google_monitoring_slo" "accounts-db_slo_limit_utilization" {
       }
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_service" "balancereader" {
@@ -154,12 +136,6 @@ resource "google_monitoring_service" "balancereader" {
       service_name   = "balancereader"
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_slo" "balancereader_slo_limit_utilization" {
@@ -181,12 +157,6 @@ resource "google_monitoring_slo" "balancereader_slo_limit_utilization" {
       }
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_service" "contacts" {
@@ -206,12 +176,6 @@ resource "google_monitoring_service" "contacts" {
       service_name   = "contacts"
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_slo" "contacts_slo_limit_utilization" {
@@ -233,12 +197,6 @@ resource "google_monitoring_slo" "contacts_slo_limit_utilization" {
       }
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_service" "frontend" {
@@ -258,12 +216,6 @@ resource "google_monitoring_service" "frontend" {
       service_name   = "frontend"
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_slo" "frontend_slo_limit_utilization" {
@@ -285,12 +237,6 @@ resource "google_monitoring_slo" "frontend_slo_limit_utilization" {
       }
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_service" "ledger-db" {
@@ -310,12 +256,6 @@ resource "google_monitoring_service" "ledger-db" {
       service_name   = "ledger-db"
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_slo" "ledger-db_slo_limit_utilization" {
@@ -337,12 +277,6 @@ resource "google_monitoring_slo" "ledger-db_slo_limit_utilization" {
       }
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_service" "ledgerwriter" {
@@ -362,12 +296,6 @@ resource "google_monitoring_service" "ledgerwriter" {
       service_name   = "ledgerwriter"
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_slo" "ledgerwriter_slo_limit_utilization" {
@@ -389,12 +317,6 @@ resource "google_monitoring_slo" "ledgerwriter_slo_limit_utilization" {
       }
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_service" "loadgenerator" {
@@ -414,12 +336,6 @@ resource "google_monitoring_service" "loadgenerator" {
       service_name   = "loadgenerator"
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_slo" "loadgenerator_slo_limit_utilization" {
@@ -441,12 +357,6 @@ resource "google_monitoring_slo" "loadgenerator_slo_limit_utilization" {
       }
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_service" "transactionhistory" {
@@ -466,12 +376,6 @@ resource "google_monitoring_service" "transactionhistory" {
       service_name   = "transactionhistory"
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
 }
 
 resource "google_monitoring_slo" "transactionhistory_slo_limit_utilization" {
@@ -495,10 +399,10 @@ resource "google_monitoring_slo" "transactionhistory_slo_limit_utilization" {
   }
 
   # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
+  # depends_on = [
+  #   null_resource.get_external_ip,
+  #   time_sleep.wait_120_seconds
+  # ]
 }
 
 resource "google_monitoring_service" "userservice" {
@@ -520,10 +424,10 @@ resource "google_monitoring_service" "userservice" {
   }
 
   # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
+  # depends_on = [
+  #   null_resource.get_external_ip,
+  #   time_sleep.wait_120_seconds
+  # ]
 }
 
 resource "google_monitoring_slo" "userservice_slo_limit_utilization" {
@@ -547,10 +451,10 @@ resource "google_monitoring_slo" "userservice_slo_limit_utilization" {
   }
 
   # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
-  ]
+  # depends_on = [
+  #   null_resource.get_external_ip,
+  #   time_sleep.wait_120_seconds
+  # ]
 }
 
 /**
@@ -625,4 +529,3 @@ resource "google_monitoring_uptime_check_config" "bank-of-anthos_https" {
   ]
 }
 */
-

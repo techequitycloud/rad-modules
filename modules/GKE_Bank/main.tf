@@ -20,45 +20,31 @@ locals {
   random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
 
   # Select the project resource depending on whether a new project is created or an existing one is used
-  project = ((length(data.google_project.existing_project) > 0 
-        ? data.google_project.existing_project  # Return the first object if it exists
-        : null) # Return null if the count is 0
-  ) 
-
-  project_number = try(data.google_project.existing_project.number, null)
+  project        = try(data.google_project.existing_project, null)
+  project_number = try(local.project.number, null)
 
   # List of default APIs to enable on the Google Cloud project
   default_apis = [
     "iap.googleapis.com",
     "container.googleapis.com",
+    "compute.googleapis.com",
     "monitoring.googleapis.com",
     "logging.googleapis.com",
-    "networkmanagement.googleapis.com",
     "servicenetworking.googleapis.com",
-    "sqladmin.googleapis.com",
-    "secretmanager.googleapis.com",
-    "cloudbuild.googleapis.com",
     "containersecurity.googleapis.com",
     "iamcredentials.googleapis.com",
     "iam.googleapis.com",
-    "pubsub.googleapis.com",
     "artifactregistry.googleapis.com",
-    "containerscanning.googleapis.com",
     "storage.googleapis.com",
     "cloudtrace.googleapis.com",
     "anthos.googleapis.com",
-    "anthosgke.googleapis.com",
     "mesh.googleapis.com",
-    "meshconfig.googleapis.com",
     "gkeconnect.googleapis.com",
     "gkehub.googleapis.com",
     "anthospolicycontroller.googleapis.com",
     "anthosconfigmanagement.googleapis.com",
     "websecurityscanner.googleapis.com",
     "billingbudgets.googleapis.com",
-    // "multiclusterservicediscovery.googleapis.com",
-    // "multiclusteringress.googleapis.com",
-    // "kubernetesmetadata.googleapis.com"
  ]
 
   # Determine the list of APIs to enable based on whether additional services are requested
@@ -92,14 +78,4 @@ resource "google_project_service" "enabled_services" {
   # ✅ CRITICAL: Prevent APIs from being disabled during terraform destroy
   disable_dependent_services = false  # Changed from true
   disable_on_destroy         = false  # Changed from true
-}
-
-# Resource to introduce a delay in the Terraform apply operation.
-resource "time_sleep" "wait_120_seconds" {
-  # Specifies dependencies on organization policies and enabled services, ensuring they are applied before proceeding.
-  depends_on = [
-    google_project_service.enabled_services
-  ]
-
-  create_duration = "240s" # Duration of the delay, set to 120 seconds.
 }

@@ -25,14 +25,3 @@ output "project_id" {
   description = "Project ID"            # Description of what the project ID represents
   value       = local.project.project_id  # The value of the project ID from local variables
 }
-
-output "external_ip" {
-  description = "External IP"            # Description of what the External IP represents
-  value = fileexists("${path.module}/scripts/app/external_ip.txt") ? file("${path.module}/scripts/app/external_ip.txt") : "IP not available"
-}
-
-# Output the command to fetch Kubernetes cluster credentials.
-output "cluster_credentials_cmd" {
-  description = "Kubernetes credentials"
-  value = local.k8s_credentials_cmd
-}

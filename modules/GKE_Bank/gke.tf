@@ -15,37 +15,31 @@
  */
 
 locals {
-  cluster_name = var.create_autopilot_cluster ? google_container_cluster.gke_autopilot_cluster[0].name : google_container_cluster.gke_standard_cluster[0].name
-  cluster_location = var.create_autopilot_cluster ? google_container_cluster.gke_autopilot_cluster[0].location : google_container_cluster.gke_standard_cluster[0].location
+  created_cluster = var.create_autopilot_cluster ? google_container_cluster.gke_autopilot_cluster[0] : google_container_cluster.gke_standard_cluster[0]
 }
 
 # Configure kubernetes provider with Oauth2 access token.
 data "google_client_config" "gke_cluster" {
 }
 
-# Defer reading the cluster data until the GKE cluster exists.
-data "google_container_cluster" "gke_cluster" {
-  project    = local.project.project_id
-  name       = local.cluster_name
-  location   = local.cluster_location
-
-  depends_on = [
-    google_container_cluster.gke_autopilot_cluster,
-    google_container_cluster.gke_standard_cluster
-  ]
-}
-
 provider "kubernetes" {
   alias = "primary"
-  host  = "https://${data.google_container_cluster.gke_cluster.endpoint}"
+  host  = "https://${local.created_cluster.endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
-    data.google_container_cluster.gke_cluster.master_auth[0].cluster_ca_certificate,
+    local.created_cluster.master_auth[0].cluster_ca_certificate,
   )
 }
 
-locals {
-  k8s_credentials_cmd = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.region} --project ${local.project.project_id}"
+resource "null_resource" "configure_kubectl" {
+  depends_on = [
+    google_container_cluster.gke_autopilot_cluster,
+    google_container_cluster.gke_standard_cluster,
+  ]
+
+  provisioner "local-exec" {
+    command = "gcloud container clusters get-credentials ${local.created_cluster.name} --region ${local.created_cluster.location} --project ${local.project.project_id}"
+  }
 }
 
 # Module to create the GKE private cluster
@@ -104,22 +98,6 @@ resource "google_container_cluster" "gke_autopilot_cluster" {
   release_channel {
     channel = var.release_channel
   }
-
-/**
-
-  fleet {
-    project = local.project.project_id
-  }
-
-**/
-
-  depends_on = [
-    google_compute_network.vpc,
-    google_compute_subnetwork.subnetwork,
-    google_project_service.gke_hub_service,
-    google_gke_hub_feature.acm_feature,
-    google_gke_hub_feature.service_mesh,
-  ]
 }
 
 resource "google_service_account" "gke_standard" {
@@ -192,20 +170,11 @@ resource "google_container_cluster" "gke_standard_cluster" {
     channel = var.release_channel
   }
 
-/**
-
-  fleet {
-    project = local.project.project_id
-  }
-
-**/
-
   depends_on = [
     google_compute_network.vpc,
     google_compute_subnetwork.subnetwork,
-    google_project_service.gke_hub_service,
-    google_gke_hub_feature.acm_feature,
-    google_gke_hub_feature.service_mesh,
+    # google_gke_hub_feature.acm_feature,
+    # google_gke_hub_feature.service_mesh,
   ]
 }
 
@@ -218,7 +187,7 @@ resource "google_container_node_pool" "preemptible_nodes" {
   node_locations = data.google_compute_zones.available_zones.names  # Automatically retrieves valid zones
 
   node_config {
-    preemptible  = true
+    spot         = true
     machine_type = "e2-standard-2"
     disk_size_gb = 50
     disk_type    = "pd-ssd" 
@@ -244,7 +213,6 @@ locals {
     "roles/storage.objectAdmin",
     "roles/storage.objectViewer",
     "roles/artifactregistry.reader",
-    "roles/storage.admin",
     "roles/monitoring.metricWriter",
     "roles/monitoring.viewer",
     "roles/logging.logWriter",

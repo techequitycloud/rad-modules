@@ -118,7 +118,7 @@ resource "google_compute_firewall" "fw_allow_intra_vpc" {
   }
 
   # Define source ranges within the VPC that are allowed unrestricted access
-  source_ranges = var.ip_cidr_ranges
+  source_ranges = [var.pod_cidr_block]
   depends_on    = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
 }
 
@@ -135,7 +135,7 @@ resource "google_compute_firewall" "fw_allow_gce_nfs_tcp" {
   }
 
   # Define source ranges that are allowed to connect to NFS service
-  source_ranges = var.ip_cidr_ranges
+  source_ranges = tolist(var.ip_cidr_ranges)
 
   # Target tags used to apply this rule to instances with the 'nfs-server' tag
   target_tags   = ["nfs-server"]
@@ -155,7 +155,7 @@ resource "google_compute_firewall" "fw_allow_http_tcp" {
   }
 
   # Define source ranges that are allowed to connect to HTTP services
-  source_ranges = var.ip_cidr_ranges
+  source_ranges = tolist(var.ip_cidr_ranges)
 
   # Target tags used to apply this rule to instances with the 'http-server' tag
   target_tags   = ["http-server"]

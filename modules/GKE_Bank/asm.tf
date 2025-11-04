@@ -1,4 +1,3 @@
-
 /**
  * Copyright 2025 Tech Equity Ltd
  *
@@ -15,6 +14,17 @@
  * limitations under the License.
  */
 
+# ============================================
+# Wait for API Activation
+# ============================================
+resource "time_sleep" "await_for_gke_hub_api_activation" {
+  depends_on = [
+    google_project_service.enabled_services,
+  ]
+
+  create_duration = "5m"
+}
+
 resource "google_gke_hub_feature" "service_mesh" {
   count       = var.enable_cloud_service_mesh ? 1 : 0
   project     = local.project.project_id
@@ -27,17 +37,16 @@ resource "google_gke_hub_feature" "service_mesh" {
   }
 
   depends_on = [
-    google_project_service.gke_hub_service,
+    time_sleep.await_for_gke_hub_api_activation,
   ]
 }
 
 resource "google_gke_hub_feature_membership" "service_mesh_feature_member" {
-  count       = var.enable_cloud_service_mesh ? 1 : 0
-  project     = local.project.project_id
-  location    = "global"
-
-  feature     = google_gke_hub_feature.service_mesh[0].name
-  membership  = google_gke_hub_membership.gke_cluster.membership_id # local.project.project_id
+  count      = var.enable_cloud_service_mesh ? 1 : 0
+  project    = local.project.project_id
+  location   = "global"
+  feature    = google_gke_hub_feature.service_mesh[0].name
+  membership = google_gke_hub_membership.gke_cluster.membership_id
 
   mesh {
     management = "MANAGEMENT_AUTOMATIC"
@@ -46,18 +55,7 @@ resource "google_gke_hub_feature_membership" "service_mesh_feature_member" {
   depends_on = [
     google_container_cluster.gke_autopilot_cluster,
     google_container_cluster.gke_standard_cluster,
-    google_project_iam_member.service_mesh_service_agent
-  ]
-}
-
-resource "google_project_iam_member" "service_mesh_service_agent" {
-  count   = var.enable_cloud_service_mesh ? 1 : 0
-  project = local.project.project_id
-  role    = "roles/anthosservicemesh.serviceAgent"
-  member  = "serviceAccount:service-${local.project_number}@gcp-sa-servicemesh.iam.gserviceaccount.com"
-
-  depends_on = [
-    google_container_cluster.gke_autopilot_cluster,
-    google_container_cluster.gke_standard_cluster,
+    google_gke_hub_membership.gke_cluster,
+    google_gke_hub_feature.service_mesh,
   ]
 }
