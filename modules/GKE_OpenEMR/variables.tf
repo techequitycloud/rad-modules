@@ -42,10 +42,10 @@ variable "module_services" {
   default     = ["GCP", "GKE", "Cloud Build", "Cloud Deploy", "Artifact Registry", "Cloud Storage", "Cloud SQL", "Cloud IAM", "Cloud Networking"]
 }
 
-variable "credit_cost" {
+variable "credit" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
-  type        = string
-  default     = "250"
+  type        = number
+  default     = 250
 }
 
 variable "require_credit_purchases" {
@@ -68,7 +68,7 @@ variable "resource_creator_identity" {
 
 variable "trusted_users" {
   description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
-  type        = set(string)
+  type        = list(string)
   default     = []
 }
 

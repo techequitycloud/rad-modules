@@ -40,10 +40,10 @@ variable "module_services" {
   default     = ["GCP", "Cloud IAM"]
 }
 
-variable "credit_cost" {
+variable "credit" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
-  type        = string
-  default     = "50"
+  type        = number
+  default     = 50
 }
 
 variable "require_credit_purchases" {
@@ -96,7 +96,7 @@ variable "project_id_prefix" {
 
 variable "trusted_users" {
   description = "List of users with project trusted privileges. {{UIMeta group=0 order=201 updatesafe }}"
-  type        = set(string)
+  type        = list(string)
   default     = []
 }
 

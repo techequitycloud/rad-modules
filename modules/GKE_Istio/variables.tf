@@ -43,10 +43,10 @@ variable "module_services" {
   default     = ["GCP", "GKE", "Istio", "Cloud IAM", "Cloud Networking"]
 }
 
-variable "credit_cost" {
+variable "credit" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
-  type        = string
-  default     = "100"
+  type        = number
+  default     = 100
 }
 
 variable "require_credit_purchases" {
@@ -63,7 +63,7 @@ variable "resource_creator_identity" {
 
 variable "trusted_users" {
   description = "List of trusted users (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
-  type        = set(string)
+  type        = list(string)
   default     = []
 }
 

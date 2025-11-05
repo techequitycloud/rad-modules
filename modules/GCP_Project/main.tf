@@ -47,8 +47,8 @@ resource "google_project_service" "enabled_services" {
 }
 
 resource "google_project_iam_member" "role_trusted" {
-  for_each = toset(formatlist("user:%s", var.trusted_users))
-  member   = each.value
+  for_each = toset(var.trusted_users)
+  member   = "user:${each.value}"
   project  = google_project.project.project_id
   role     = "roles/viewer"
 }
