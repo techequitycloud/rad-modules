@@ -14,88 +14,36 @@
  * limitations under the License.
  */
 
-locals {
-  cluster_name_1 = var.create_autopilot_cluster ? google_container_cluster.gke_autopilot_cluster_1[0].name : google_container_cluster.gke_standard_cluster_1[0].name
-  cluster_location_1 = var.create_autopilot_cluster ? google_container_cluster.gke_autopilot_cluster_1[0].location : google_container_cluster.gke_standard_cluster_1[0].location
-  cluster_name_2 = var.create_autopilot_cluster ? google_container_cluster.gke_autopilot_cluster_2[0].name : google_container_cluster.gke_standard_cluster_2[0].name
-  cluster_location_2 = var.create_autopilot_cluster ? google_container_cluster.gke_autopilot_cluster_2[0].location : google_container_cluster.gke_standard_cluster_2[0].location
-}
-
-# Configure kubernetes provider with Oauth2 access token.
-data "google_client_config" "gke_cluster_1" {
-}
-
-# Defer reading the cluster data until the GKE cluster exists.
-data "google_container_cluster" "gke_cluster_1" {
-  project    = local.project.project_id
-  name       = local.cluster_name_1
-  location   = local.cluster_location_1
-
-  depends_on = [
-    google_container_cluster.gke_autopilot_cluster_1,
-    google_container_cluster.gke_standard_cluster_1
-  ]
-}
-
-# Defer reading the cluster data until the GKE cluster exists.
-data "google_container_cluster" "gke_cluster_2" {
-  project    = local.project.project_id
-  name       = local.cluster_name_2
-  location   = local.cluster_location_2
-
-  depends_on = [
-    google_container_cluster.gke_autopilot_cluster_2,
-    google_container_cluster.gke_standard_cluster_2
-  ]
-}
-
-provider "kubernetes" {
-  alias = "primary"
-  host  = "https://${data.google_container_cluster.gke_cluster_1.endpoint}"
-  token = data.google_client_config.gke_cluster_1.access_token
-  cluster_ca_certificate = base64decode(
-    data.google_container_cluster.gke_cluster_1.master_auth[0].cluster_ca_certificate,
-  )
-}
-
-provider "kubernetes" {
-  alias = "secondary"
-  host  = "https://${data.google_container_cluster.gke_cluster_2.endpoint}"
-  token = data.google_client_config.gke_cluster_2.access_token
-  cluster_ca_certificate = base64decode(
-    data.google_container_cluster.gke_cluster_2.master_auth[0].cluster_ca_certificate,
-  )
-}
-
-locals {
-  k8s_credentials_cmd_1 = "gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}"
-  k8s_credentials_cmd_2 = "gcloud container clusters get-credentials ${var.gke_cluster_2} --region ${var.region_2} --project ${local.project.project_id}"
-}
 
 # Module to create the GKE private cluster
-resource "google_container_cluster" "gke_autopilot_cluster_1" {
-  count                 = var.create_autopilot_cluster ? 1 : 0
+resource "google_container_cluster" "gke_cluster" {
+  for_each              = var.cluster_configs
   project               = local.project.project_id
-  enable_autopilot      = true
-  name                  = var.gke_cluster_1
-  location              = var.region_1
+  name                  = each.value.gke_cluster_name
+  location              = each.value.region
   deletion_protection   = false
   network               = google_compute_network.vpc.name
-  subnetwork            = google_compute_subnetwork.subnetwork_1.name
+  subnetwork            = google_compute_subnetwork.subnetwork[each.key].name
+
+  # Conditional attributes based on cluster type
+  enable_autopilot             = var.create_autopilot_cluster
+  
+  # Only set these for Standard clusters (not Autopilot)
+  remove_default_node_pool     = var.create_autopilot_cluster ? null : true
+  initial_node_count           = var.create_autopilot_cluster ? null : 1
 
   ip_allocation_policy {
-    cluster_secondary_range_name = var.pod_ip_range_1
+    cluster_secondary_range_name  = each.value.pod_ip_range
+    services_secondary_range_name = each.value.service_ip_range
   }
 
   addons_config {
     http_load_balancing {
       disabled = false
     }
-
     horizontal_pod_autoscaling {
       disabled = false
     }
-
     gcs_fuse_csi_driver_config {
       enabled = true
     }
@@ -109,8 +57,16 @@ resource "google_container_cluster" "gke_autopilot_cluster_1" {
     enabled = true
   }
 
+  # Workload Identity is only needed for Standard clusters
+  dynamic "workload_identity_config" {
+    for_each = var.create_autopilot_cluster ? [] : [1]
+    content {
+      workload_pool = "${local.project.project_id}.svc.id.goog"
+    }
+  }
+
   security_posture_config {
-    mode = "BASIC"
+    mode               = "BASIC"
     vulnerability_mode = "VULNERABILITY_BASIC"
   }
 
@@ -129,296 +85,54 @@ resource "google_container_cluster" "gke_autopilot_cluster_1" {
     channel = var.release_channel
   }
 
-/**
-
-  fleet {
-    project = local.project.project_id
-  }
-
-**/
-
   depends_on = [
     google_compute_network.vpc,
-    google_compute_subnetwork.subnetwork_1,
-    google_project_service.gke_hub_service,
-    // google_gke_hub_feature.acm_feature,,
-    google_gke_hub_feature.service_mesh,
+    google_compute_subnetwork.subnetwork,
   ]
 }
 
+# Service Account for Standard GKE cluster
 resource "google_service_account" "gke_standard" {
+  count        = var.create_autopilot_cluster ? 0 : 1
   project      = local.project.project_id
   account_id   = "gke-standard-sa"
   display_name = "GKE Standard Service Account"
 }
 
-# Module to create the GKE private cluster
-resource "google_container_cluster" "gke_autopilot_cluster_2" {
-  count                 = var.create_autopilot_cluster ? 1 : 0
-  project               = local.project.project_id
-  enable_autopilot      = true
-  name                  = var.gke_cluster_2
-  location              = var.region_2
-  deletion_protection   = false
-  network               = google_compute_network.vpc.name
-  subnetwork            = google_compute_subnetwork.subnetwork_2.name
-
-  ip_allocation_policy {
-    cluster_secondary_range_name = var.pod_ip_range_2
-  }
-
-  addons_config {
-    http_load_balancing {
-      disabled = false
-    }
-
-    horizontal_pod_autoscaling {
-      disabled = false
-    }
-
-    gcs_fuse_csi_driver_config {
-      enabled = true
-    }
-  }
-
-  gateway_api_config {
-    channel = "CHANNEL_STANDARD"
-  }
-  
-  cost_management_config {
-    enabled = true
-  }
-
-  security_posture_config {
-    mode = "BASIC"
-    vulnerability_mode = "VULNERABILITY_BASIC"
-  }
-
-  logging_config {
-    enable_components = ["SYSTEM_COMPONENTS", "WORKLOADS"]
-  }
-
-  monitoring_config {
-    enable_components = ["SYSTEM_COMPONENTS"]
-    managed_prometheus {
-      enabled = true
-    }
-  }
-
-  release_channel {
-    channel = var.release_channel
-  }
-
-/**
-
-  fleet {
-    project = local.project.project_id
-  }
-
-**/
-
-  depends_on = [
-    google_compute_network.vpc,
-    google_compute_subnetwork.subnetwork_2,
-    google_project_service.gke_hub_service,
-    // google_gke_hub_feature.acm_feature,,
-    google_gke_hub_feature.service_mesh,
-  ]
-}
-
-# Module to create the GKE private cluster
-resource "google_container_cluster" "gke_standard_cluster_1" {
-  count                     = var.create_autopilot_cluster ? 0 : 1
-  project                   = local.project.project_id
-  name                      = var.gke_cluster_1
-  location                  = var.region_1
-  initial_node_count        = 1
-  deletion_protection       = false
-  network                   = google_compute_network.vpc.name
-  subnetwork                = google_compute_subnetwork.subnetwork_1.name
-
-  ip_allocation_policy {
-    cluster_secondary_range_name = var.pod_ip_range_1
-    services_secondary_range_name = var.service_ip_range_1
-  }
-
-  addons_config {
-    http_load_balancing {
-      disabled = false
-    }
-
-    horizontal_pod_autoscaling {
-      disabled = false
-    }
-
-    gcs_fuse_csi_driver_config {
-      enabled = true
-    }
-  }
-
-  gateway_api_config {
-    channel = "CHANNEL_STANDARD"
-  }
-
-  cost_management_config {
-    enabled = true
-  }
-
-  workload_identity_config {
-    workload_pool = "${local.project.project_id}.svc.id.goog"
-  }
-
-  security_posture_config {
-    mode = "BASIC"
-    vulnerability_mode = "VULNERABILITY_BASIC"
-  }
-
-  logging_config {
-    enable_components = ["SYSTEM_COMPONENTS", "WORKLOADS"]
-  }
-
-  monitoring_config {
-    enable_components = ["SYSTEM_COMPONENTS"]
-    managed_prometheus {
-      enabled = true
-    }
-  }
-
-  release_channel {
-    channel = var.release_channel
-  }
-
-/**
-
-  fleet {
-    project = local.project.project_id
-  }
-
-**/
+# Node pool for Standard GKE cluster
+resource "google_container_node_pool" "preemptible_nodes" {
+  for_each   = var.create_autopilot_cluster ? {} : var.cluster_configs
+  project    = local.project.project_id
+  name       = "node-pool-${each.key}"
+  cluster    = google_container_cluster.gke_cluster[each.key].id
+  node_count = 2
+  node_locations = data.google_compute_zones.available_zones[each.key].names
 
   node_config {
-    preemptible  = true
+    spot         = true
     machine_type = "e2-standard-2"
+    disk_size_gb = 50
+    disk_type    = "pd-ssd"
 
-    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
-    service_account = google_service_account.gke_standard.email
+    service_account = google_service_account.gke_standard[0].email
     oauth_scopes    = [
       "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/logging.write",
-      "https://www.googleapis.com/auth/monitoring",    ]
+      "https://www.googleapis.com/auth/monitoring",
+    ]
   }
 
   depends_on = [
-    google_compute_network.vpc,
-    google_compute_subnetwork.subnetwork_1,
-    google_project_service.gke_hub_service,
-    // google_gke_hub_feature.acm_feature,,
-    google_gke_hub_feature.service_mesh,
     google_service_account.gke_standard,
   ]
 }
 
-# Module to create the GKE private cluster
-resource "google_container_cluster" "gke_standard_cluster_2" {
-  count                     = var.create_autopilot_cluster ? 0 : 1
-  project                   = local.project.project_id
-  name                      = var.gke_cluster_2
-  location                  = var.region_2
-  initial_node_count        = 1
-  deletion_protection       = false
-  network                   = google_compute_network.vpc.name
-  subnetwork                = google_compute_subnetwork.subnetwork_2.name
-
-  ip_allocation_policy {
-    cluster_secondary_range_name = var.pod_ip_range_2
-    services_secondary_range_name = var.service_ip_range_2
-  }
-
-  addons_config {
-    http_load_balancing {
-      disabled = false
-    }
-
-    horizontal_pod_autoscaling {
-      disabled = false
-    }
-
-    gcs_fuse_csi_driver_config {
-      enabled = true
-    }
-  }
-
-  gateway_api_config {
-    channel = "CHANNEL_STANDARD"
-  }
-  
-  cost_management_config {
-    enabled = true
-  }
-
-  workload_identity_config {
-    workload_pool = "${local.project.project_id}.svc.id.goog"
-  }
-
-  security_posture_config {
-    mode = "BASIC"
-    vulnerability_mode = "VULNERABILITY_BASIC"
-  }
-
-  logging_config {
-    enable_components = ["SYSTEM_COMPONENTS", "WORKLOADS"]
-  }
-
-  monitoring_config {
-    enable_components = ["SYSTEM_COMPONENTS"]
-    managed_prometheus {
-      enabled = true
-    }
-  }
-
-  release_channel {
-    channel = var.release_channel
-  }
-
-/**
-
-  fleet {
-    project = local.project.project_id
-  }
-
-**/
-
-  node_config {
-    preemptible  = true
-    machine_type = "e2-standard-2"
-
-    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
-    service_account = google_service_account.gke_standard.email
-    oauth_scopes    = [
-      "https://www.googleapis.com/auth/cloud-platform",
-      "https://www.googleapis.com/auth/logging.write",
-      "https://www.googleapis.com/auth/monitoring",    ]
-  }
-
-  depends_on = [
-    google_compute_network.vpc,
-    google_compute_subnetwork.subnetwork_2,
-    google_project_service.gke_hub_service,
-    // google_gke_hub_feature.acm_feature,,
-    google_gke_hub_feature.service_mesh,
-    google_service_account.gke_standard,
-  ]
-}
-
-
-# Local values that can be used throughout the Terraform configuration
+# Local values for IAM roles
 locals {
-  # List of roles assigned to the GKE service account within the project
   gke_sa_project_roles = [
     "roles/storage.objectAdmin",
     "roles/storage.objectViewer",
     "roles/artifactregistry.reader",
-    "roles/storage.admin",
     "roles/monitoring.metricWriter",
     "roles/monitoring.viewer",
     "roles/logging.logWriter",
@@ -428,15 +142,20 @@ locals {
   ]
 }
 
-# IAM permissions for GKE service account on the project
+# IAM permissions for GKE Standard service account
 resource "google_project_iam_member" "gke_standard_sa_role" {
-  for_each = toset(local.gke_sa_project_roles) # Looping over the set of roles
-  project  = local.project.project_id          # The project ID
-  member   = "serviceAccount:${google_service_account.gke_standard.email}" # The service account to assign the role to
-  role     = each.value                        # The role from the set to be assigned
+  for_each = var.create_autopilot_cluster ? [] : toset(local.gke_sa_project_roles)
+  project  = local.project.project_id
+  member   = "serviceAccount:${google_service_account.gke_standard[0].email}"
+  role     = each.value
 
-  # Ensures that this resource is created
-  depends_on   = [
+  depends_on = [
     google_service_account.gke_standard,
   ]
+}
+
+data "google_compute_zones" "available_zones" {
+  for_each = var.cluster_configs
+  project  = local.project.project_id
+  region   = each.value.region
 }

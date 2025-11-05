@@ -17,12 +17,12 @@
 # ============================================
 # Pre-Cleanup Resource
 # ============================================
-resource "null_resource" "pre_cleanup_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "pre_cleanup" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
@@ -114,12 +114,12 @@ resource "null_resource" "pre_cleanup_1" {
 # ============================================
 # FIXED: Install Application with Proper Namespace Handling
 # ============================================
-resource "null_resource" "install_application_1" {
-  count = var.deploy_application ? 1 : 0
+resource "null_resource" "install_application" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
 
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
@@ -129,8 +129,8 @@ resource "null_resource" "install_application_1" {
       set -e  # Exit on any error
       
       # Configuration
-      CLUSTER_NAME="${var.gke_cluster_1}"
-      REGION="${var.region_1}"
+      CLUSTER_NAME="${each.value.gke_cluster_name}"
+      REGION="${each.value.region}"
       PROJECT_ID="${local.project.project_id}"
       NAMESPACE="bank-of-anthos"
       CONTEXT="gke_$${PROJECT_ID}_$${REGION}_$${CLUSTER_NAME}"
@@ -147,14 +147,14 @@ resource "null_resource" "install_application_1" {
       
       # Cleanup and clone
       log_info "Cleaning up previous installations..."
-      rm -rf ${path.module}/scripts/app/bank-of-anthos/cluster1
-      mkdir -p ${path.module}/scripts/app/bank-of-anthos/cluster1
+      rm -rf ${path.module}/scripts/app/bank-of-anthos/${each.key}
+      mkdir -p ${path.module}/scripts/app/bank-of-anthos/${each.key}
       sleep 5
       
       log_info "Cloning bank-of-anthos repository..."
       if ! git clone --branch v0.6.6 --single-branch \
         https://github.com/GoogleCloudPlatform/bank-of-anthos.git \
-        ${path.module}/scripts/app/bank-of-anthos/cluster1 2>&1 | grep -v "detached HEAD"; then
+        ${path.module}/scripts/app/bank-of-anthos/${each.key} 2>&1 | grep -v "detached HEAD"; then
         log_error "Failed to clone repository"
         exit 1
       fi
@@ -308,274 +308,273 @@ resource "null_resource" "install_application_1" {
   }
 
   depends_on = [
-    google_container_cluster.gke_autopilot_cluster_1,
-    google_container_cluster.gke_standard_cluster_1,
-    time_sleep.allow_10_minutes_for_fleet_synchronization_1,
+    google_container_cluster.gke_cluster,
+    time_sleep.wait_for_fleet_registration,
   ]
 }
 
 # ============================================
 # Individual Resource Deployments
 # ============================================
-resource "null_resource" "config_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "config" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/config.yaml --timeout=5m
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
+    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/${each.key}/kubernetes-manifests/config.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.install_application_1,
+    null_resource.install_application,
   ]
 }
 
-resource "null_resource" "jwt_secret_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "jwt_secret" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/extras/jwt/jwt-secret.yaml --timeout=5m
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
+    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/${each.key}/extras/jwt/jwt-secret.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.config_1,
+    null_resource.config,
   ]
 }
 
-resource "null_resource" "accounts_db_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "accounts_db" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/accounts-db.yaml --timeout=5m
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
+    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/${each.key}/kubernetes-manifests/accounts-db.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.jwt_secret_1
+    null_resource.jwt_secret
   ]
 }
 
-resource "null_resource" "balance_reader_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "balance_reader" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/balance-reader.yaml --timeout=5m
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
+    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/${each.key}/kubernetes-manifests/balance-reader.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.accounts_db_1
+    null_resource.accounts_db
   ]
 }
 
-resource "null_resource" "contacts_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "contacts" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/contacts.yaml --timeout=5m
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
+    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/${each.key}/kubernetes-manifests/contacts.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.balance_reader_1
+    null_resource.balance_reader
   ]
 }
 
-resource "null_resource" "frontend_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "frontend" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/frontend.yaml --timeout=5m
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
+    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/${each.key}/kubernetes-manifests/frontend.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.contacts_1
+    null_resource.contacts
   ]
 }
 
-resource "null_resource" "ledger_db_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "ledger_db" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/ledger-db.yaml --timeout=5m
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
+    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/${each.key}/kubernetes-manifests/ledger-db.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.frontend_1
+    null_resource.frontend
   ]
 }
 
-resource "null_resource" "ledger_writer_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "ledger_writer" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/ledger-writer.yaml --timeout=5m
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
+    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/${each.key}/kubernetes-manifests/ledger-writer.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.ledger_db_1
+    null_resource.ledger_db
   ]
 }
 
-resource "null_resource" "loadgenerator_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "loadgenerator" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/loadgenerator.yaml --timeout=5m
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
+    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/${each.key}/kubernetes-manifests/loadgenerator.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.ledger_writer_1
+    null_resource.ledger_writer
   ]
 }
 
-resource "null_resource" "transaction_history_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "transaction_history" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/transaction-history.yaml --timeout=5m
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
+    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/${each.key}/kubernetes-manifests/transaction-history.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.loadgenerator_1
+    null_resource.loadgenerator
   ]
 }
 
-resource "null_resource" "userservice_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "userservice" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
-    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/cluster1/kubernetes-manifests/userservice.yaml --timeout=5m
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
+    kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/scripts/app/bank-of-anthos/${each.key}/kubernetes-manifests/userservice.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.transaction_history_1
+    null_resource.transaction_history
   ]
 }
 
-resource "null_resource" "get_external_ip_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "get_external_ip" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
@@ -584,8 +583,8 @@ resource "null_resource" "get_external_ip_1" {
       set -e
       attempt=0
       max_attempts=30
-      gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-      CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
+      gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+      CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
 
       while [ $attempt -lt $max_attempts ]; do
         EXISTS=$(kubectl --context="$CONTEXT" get svc frontend --namespace=bank-of-anthos --ignore-not-found)
@@ -616,31 +615,31 @@ resource "null_resource" "get_external_ip_1" {
   }
 
   depends_on = [
-    null_resource.config_1,
-    null_resource.frontend_1,
+    null_resource.config,
+    null_resource.frontend,
   ]
 }
 
-resource "null_resource" "app_configmap_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "app_configmap" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
     kubectl --context="$CONTEXT" apply -n istio-system -f ${path.module}/manifests/configmap.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.userservice_1,
+    null_resource.userservice,
     local_file.backend_config_yaml_output,
     local_file.configmap_yaml_output,
     local_file.frontend_config_yaml_output,
@@ -652,152 +651,152 @@ resource "null_resource" "app_configmap_1" {
   ]
 }
 
-resource "null_resource" "app_frontend_config_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "app_frontend_config" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/frontend_config.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.app_configmap_1,
+    null_resource.app_configmap,
   ]
 }
 
-resource "null_resource" "app_managed_certificate_config_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "app_managed_certificate_config" {
+  for_each = var.deploy_application ? { for k, v in var.cluster_configs : k => v if k == "cluster1" } : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/managed_certificate.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.app_frontend_config_1
+    null_resource.app_frontend_config
   ]
 }
 
-resource "null_resource" "app_backend_config_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "app_backend_config" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/backend_config.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.app_managed_certificate_config_1
+    null_resource.app_managed_certificate_config
   ]
 }
 
-resource "null_resource" "app_nodeport_service_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "app_nodeport_service" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/nodeport_service.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.app_backend_config_1,
+    null_resource.app_backend_config,
   ]
 }
 
-resource "null_resource" "app_multicluster_service_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "app_multicluster_service" {
+  for_each = var.deploy_application ? { for k, v in var.cluster_configs : k => v if k == "cluster1" } : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/multicluster_service.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.app_nodeport_service_1,
+    null_resource.app_nodeport_service,
   ]
 }
 
-resource "null_resource" "app_multicluster_ingress_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "app_multicluster_ingress" {
+  for_each = var.deploy_application ? { for k, v in var.cluster_configs : k => v if k == "cluster1" } : {}
+
   triggers = {
-    cluster = var.gke_cluster_1
-    region  = var.region_1
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
     project = local.project.project_id
   }
 
   provisioner "local-exec" {
     command = <<EOF
     set -e
-    gcloud container clusters get-credentials ${var.gke_cluster_1} --region ${var.region_1} --project ${local.project.project_id}
-    CONTEXT="gke_${local.project.project_id}_${var.region_1}_${var.gke_cluster_1}"
+    gcloud container clusters get-credentials ${each.value.gke_cluster_name} --region ${each.value.region} --project ${local.project.project_id}
+    CONTEXT="gke_${local.project.project_id}_${each.value.region}_${each.value.gke_cluster_name}"
     kubectl --context="$CONTEXT" apply -n bank-of-anthos -f ${path.module}/manifests/multicluster_ingress.yaml --timeout=5m
     EOF
   }
 
   depends_on = [
-    null_resource.app_multicluster_service_1,
+    null_resource.app_multicluster_service,
   ]
 }
 
 # ============================================
 # Final Cleanup
 # ============================================
-resource "null_resource" "final_cleanup_1" {
-  count = var.deploy_application ? 1 : 0
-  
+resource "null_resource" "final_cleanup" {
+  for_each = var.deploy_application ? var.cluster_configs : {}
+
   triggers = {
-    cleanup_path = "${path.module}/scripts/app/bank-of-anthos/cluster1"
+    cleanup_path = "${path.module}/scripts/app/bank-of-anthos/${each.key}"
   }
 
   provisioner "local-exec" {
@@ -814,7 +813,7 @@ resource "null_resource" "final_cleanup_1" {
   }
 
   depends_on = [
-    null_resource.app_multicluster_ingress_1,
-    null_resource.pre_cleanup_1,
+    null_resource.app_multicluster_ingress,
+    null_resource.pre_cleanup,
   ]
 }
