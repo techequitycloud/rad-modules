@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-output "gke_clusters" {
-  description = "The GKE cluster resources."
-  value       = { for k, v in google_container_cluster.gke_cluster : k => v }
+# Output the deployment ID used within the module.
+output "deployment_id" {
+  description = "Module Deployment ID"  # Description of what the deployment ID represents
+  value       = var.deployment_id       # The value of the deployment ID passed as a variable
 }
 
-output "gke_cluster_service_account" {
-  description = "The service account created for the GKE standard cluster."
-  value       = var.create_autopilot_cluster ? null : google_service_account.gke_standard[0]
+# Output the project ID for the configured project.
+output "project_id" {
+  description = "Project ID"            # Description of what the project ID represents
+  value       = local.project.project_id  # The value of the project ID from local variables
 }

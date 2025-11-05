@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bank-of-anthos
+  namespace: bank-of-anthos
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: bank-of-anthos
+    networking.gke.io/managed-certificates: bank-of-anthos
+spec:
+  rules:
+  - host: boa.136.110.128.154.sslip.io
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: bank-of-anthos
+            port:
+              number: 80
+  defaultBackend:
+    service:
+      name: bank-of-anthos
+      port:
+        number: 80

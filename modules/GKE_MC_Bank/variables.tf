@@ -58,7 +58,7 @@ variable "require_credit_purchases" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+  default     = ""
 }
 
 variable "trusted_users" {
@@ -78,6 +78,7 @@ variable "deployment_id" {
 variable "existing_project_id" {
   description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
+  default     = "qwiklabs-gcp-03-d53c099a0be5"
 }
 
 variable "enable_services" {
@@ -152,7 +153,7 @@ variable "cluster_configs" {
   default = {
     "cluster1" = {
       gke_cluster_name   = "gke-cluster-1"
-      region             = "us-central1"
+      region             = "europe-west1"
       ip_cidr_range      = "10.132.0.0/16"
       pod_ip_range       = "pod-ip-range-1"
       pod_cidr_block     = "10.62.128.0/17"
