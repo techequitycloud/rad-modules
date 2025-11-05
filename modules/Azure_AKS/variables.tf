@@ -43,10 +43,10 @@ variable "module_services" {
   default = ["Azure", "AKS", "Resource Group", "GCP", "GKE Hub", "Anthos"]
 }
 
-variable "credit_cost" {
+variable "credit" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
-  type        = string
-  default     = "50"
+  type        = number
+  default     = 50
 }
 
 variable "require_credit_purchases" {
@@ -65,12 +65,6 @@ variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
-}
-
-variable "trusted_users" {
-  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
-  type        = set(string)
-  default     = []
 }
 
 # GROUP 2: Application Project
@@ -149,7 +143,7 @@ variable "subscription_id" {
 
 variable "trusted_users" {
   description = "Email addresses of cluster admin users (e.g. `username@abc.com`). At least one trusted user must be specified. {{UIMeta group=1 order=404 updatesafe }}"
-  type        = set(string)
+  type        = list(string)
 
   validation {
     condition     = length(var.trusted_users) > 0
