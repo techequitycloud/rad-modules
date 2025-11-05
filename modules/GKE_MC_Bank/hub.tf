@@ -17,7 +17,7 @@
 # ============================================
 # Wait for API Activation
 # ============================================
-resource "time_sleep" "allow_10_minutes_for_gke_hub_api_activation" {
+resource "time_sleep" "wait_for_gke_hub_api" {
   depends_on = [
     google_project_service.enabled_services,
   ]
@@ -35,7 +35,7 @@ resource "google_project_service" "gke_hub_service" {
   disable_on_destroy = false
 
   depends_on = [
-    time_sleep.allow_10_minutes_for_gke_hub_api_activation
+    time_sleep.wait_for_gke_hub_api
   ]
 }
 
@@ -54,23 +54,22 @@ resource "google_project_iam_member" "gke_hub_service_account_roles" {
   role    = each.value
 
   depends_on = [
-    google_container_cluster.gke_autopilot_cluster_1,
-    google_container_cluster.gke_standard_cluster_1,
-    google_container_cluster.gke_autopilot_cluster_2,
-    google_container_cluster.gke_standard_cluster_2,
+    google_container_cluster.gke_cluster,
     google_project_service.gke_hub_service,
   ]
 }
 
 # ============================================
-# Pre-cleanup for Hub Membership 1
+# Pre-cleanup for Hub Membership
 # ============================================
-resource "null_resource" "pre_cleanup_hub_membership_1" {
+resource "null_resource" "pre_cleanup_hub_membership" {
+  for_each = var.cluster_configs
+
   triggers = {
-    cluster       = var.gke_cluster_1
-    region        = var.region_1
+    cluster       = each.value.gke_cluster_name
+    region        = each.value.region
     project       = local.project.project_id
-    membership_id = var.gke_cluster_1
+    membership_id = each.value.gke_cluster_name
   }
 
   provisioner "local-exec" {
@@ -104,61 +103,21 @@ resource "null_resource" "pre_cleanup_hub_membership_1" {
 }
 
 # ============================================
-# Pre-cleanup for Hub Membership 2
+# GKE Hub Membership
 # ============================================
-resource "null_resource" "pre_cleanup_hub_membership_2" {
-  triggers = {
-    cluster       = var.gke_cluster_2
-    region        = var.region_2
-    project       = local.project.project_id
-    membership_id = var.gke_cluster_2
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = <<-EOF
-      set -e
-      echo "======================================"
-      echo "Pre-cleanup for Hub Membership: ${self.triggers.membership_id}"
-      echo "======================================"
-      
-      # Try to unregister the membership
-      gcloud container fleet memberships unregister ${self.triggers.membership_id} \
-        --project=${self.triggers.project} \
-        --gke-cluster=${self.triggers.region}/${self.triggers.cluster} \
-        --quiet 2>/dev/null || true
-      
-      # Force delete if still exists
-      gcloud container fleet memberships delete ${self.triggers.membership_id} \
-        --project=${self.triggers.project} \
-        --quiet 2>/dev/null || true
-      
-      echo "Pre-cleanup completed for Hub Membership: ${self.triggers.membership_id}"
-      
-      exit 0
-    EOF
-  }
-
-  lifecycle {
-    create_before_destroy = false
-  }
-}
-
-# ============================================
-# GKE Hub Membership for Cluster 1
-# ============================================
-resource "google_gke_hub_membership" "gke_cluster_1" {
+resource "google_gke_hub_membership" "gke_cluster" {
+  for_each      = var.cluster_configs
   project       = local.project.project_id
-  membership_id = var.gke_cluster_1
+  membership_id = each.value.gke_cluster_name
   
   endpoint {
     gke_cluster {
-      resource_link = "//container.googleapis.com/projects/${local.project.project_id}/locations/${var.region_1}/clusters/${var.gke_cluster_1}"
+      resource_link = "//container.googleapis.com/projects/${local.project.project_id}/locations/${each.value.region}/clusters/${each.value.gke_cluster_name}"
     }
   }
   
   authority {
-    issuer = "https://container.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region_1}/clusters/${var.gke_cluster_1}"
+    issuer = "https://container.googleapis.com/v1/projects/${local.project.project_id}/locations/${each.value.region}/clusters/${each.value.gke_cluster_name}"
   }
 
   lifecycle {
@@ -166,67 +125,24 @@ resource "google_gke_hub_membership" "gke_cluster_1" {
   }
 
   depends_on = [
-    google_container_cluster.gke_autopilot_cluster_1,
-    google_container_cluster.gke_standard_cluster_1,
+    google_container_cluster.gke_cluster,
     google_project_iam_member.service_mesh_service_agent,
     google_project_iam_member.gke_hub_service_account_roles,
     google_project_service.gke_hub_service,
-    null_resource.pre_cleanup_hub_membership_1,
+    null_resource.pre_cleanup_hub_membership,
   ]
 }
 
 # ============================================
-# GKE Hub Membership for Cluster 2
+# Wait for Fleet Synchronization
 # ============================================
-resource "google_gke_hub_membership" "gke_cluster_2" {
-  project       = local.project.project_id
-  membership_id = var.gke_cluster_2
-  
-  endpoint {
-    gke_cluster {
-      resource_link = "//container.googleapis.com/projects/${local.project.project_id}/locations/${var.region_2}/clusters/${var.gke_cluster_2}"
-    }
-  }
-  
-  authority {
-    issuer = "https://container.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region_2}/clusters/${var.gke_cluster_2}"
-  }
-
-  lifecycle {
-    prevent_destroy = false
-  }
+resource "time_sleep" "wait_for_fleet_registration" {
+  for_each = var.cluster_configs
 
   depends_on = [
-    google_container_cluster.gke_autopilot_cluster_2,
-    google_container_cluster.gke_standard_cluster_2,
-    google_project_iam_member.service_mesh_service_agent,
-    google_project_iam_member.gke_hub_service_account_roles,
-    google_project_service.gke_hub_service,
-    null_resource.pre_cleanup_hub_membership_2,
-  ]
-}
-
-# ============================================
-# Wait for Fleet Synchronization - Cluster 1
-# ============================================
-resource "time_sleep" "allow_10_minutes_for_fleet_synchronization_1" {
-  depends_on = [
-    google_gke_hub_feature_membership.service_mesh_feature_member_1,
+    google_gke_hub_feature_membership.service_mesh_feature_member,
     google_gke_hub_feature.multicluster_ingress,
-    google_gke_hub_membership.gke_cluster_1,
-  ]
-
-  create_duration = "10m"
-}
-
-# ============================================
-# Wait for Fleet Synchronization - Cluster 2
-# ============================================
-resource "time_sleep" "allow_10_minutes_for_fleet_synchronization_2" {
-  depends_on = [
-    google_gke_hub_feature_membership.service_mesh_feature_member_2,
-    google_gke_hub_feature.multicluster_ingress,
-    google_gke_hub_membership.gke_cluster_2,
+    google_gke_hub_membership.gke_cluster,
   ]
 
   create_duration = "10m"

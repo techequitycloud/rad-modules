@@ -14,25 +14,12 @@
  * limitations under the License.
  */
 
-# Output the deployment ID used within the module.
-output "deployment_id" {
-  description = "Module Deployment ID"  # Description of what the deployment ID represents
-  value       = var.deployment_id       # The value of the deployment ID passed as a variable
+output "gke_clusters" {
+  description = "The GKE cluster resources."
+  value       = { for k, v in google_container_cluster.gke_cluster : k => v }
 }
 
-# Output the project ID for the configured project.
-output "project_id" {
-  description = "Project ID"            # Description of what the project ID represents
-  value       = local.project.project_id  # The value of the project ID from local variables
-}
-
-output "external_ip" {
-  description = "External IP"            # Description of what the External IP represents
-  value = fileexists("${path.module}/scripts/app/external_ip.txt") ? file("${path.module}/scripts/app/external_ip.txt") : "IP not available"
-}
-
-# Output the commands to fetch Kubernetes cluster credentials.
-output "cluster_credentials_cmd" {
-  description = "Kubernetes credentials"
-  value = "${local.k8s_credentials_cmd_1}, ${local.k8s_credentials_cmd_2}"
+output "gke_cluster_service_account" {
+  description = "The service account created for the GKE standard cluster."
+  value       = var.create_autopilot_cluster ? null : google_service_account.gke_standard[0]
 }

@@ -23,7 +23,7 @@ variable "module_description" {
 **Purpose:** This module deploys an advanced, microservice banking demo application on Google Kubernetes Engine (GKE). It is a reference implementation for financial institutions that need a highly scalable, secure, and feature-rich platform for their banking applications.
 
 **What it does:**
-- Deploys a microservices-based banking application on GKE across two clusters.
+- Deploys a microservices-based banking application on GKE across multiple clusters.
 - Utilizes advanced Cloud Service Mesh for enhanced security and multi-cluster management.
 - Provides a centralized dashboard for managing banking services across multiple clusters.
 
@@ -98,29 +98,10 @@ variable "cloud_service_mesh_version" {
   default     = "1.23.4-asm.1"
 }
 
-/**
-variable "enable_config_management" {
-  description = "Enable Config Management. {{UIMeta group=0 order=508 }}"
-  type        = bool
-  default     = false
-}*/
-
 variable "deploy_application" {
   description = "Deploy microservices banking application. {{UIMeta group=4 order=509 }}"
   type        = bool
   default     = true
-}
-
-variable "region_1" {
-  description = "The first region where cloud resources will be configured. Deployment may fail if sufficient resources are not available in region. List - https://cloud.google.com/compute/docs/regions-zones#available. {{UIMeta group=2 order=510 }}"
-  type        = string
-  default     = "us-central1"
-}
-
-variable "region_2" {
-  description = "The second region where cloud resources will be configured. Deployment may fail if sufficient resources are not available in region. List - https://cloud.google.com/compute/docs/regions-zones#available. {{UIMeta group=2 order=510 }}"
-  type        = string
-  default     = "us-east1"
 }
 
 // GROUP 6: Network
@@ -143,31 +124,7 @@ variable "subnet_name" {
   default     = "vpc-subnet"
 }
 
-variable "ip_cidr_ranges_1" {
-  description = "CIDR Range for subnet (if required). {{UIMeta group=0 order=606 }}"
-  type        = set(string)
-  default     = ["10.132.0.0/16","192.168.1.0/24"]
-}
-
-variable "ip_cidr_ranges_2" {
-  description = "CIDR Ranges for subnets in the GKE cluster. {{UIMeta group=0 order=607 }}"
-  type        = list(string)
-  default     = ["10.0.0.0/16", "172.16.0.0/12"]
-}
-
 // GROUP 11: GKE
-
-variable "gke_cluster_1" {
-  description = "Name that will be assigned to the first GKE cluster. {{UIMeta group=0 order=1101 }}"
-  type        = string
-  default     = "gke-cluster-1"
-}
-
-variable "gke_cluster_2" {
-  description = "Name that will be assigned to the second GKE cluster. {{UIMeta group=0 order=1101 }}"
-  type        = string
-  default     = "gke-cluster-2"
-}
 
 variable "create_autopilot_cluster" {
   description = "Select to configure GKE autopilot cluster. When deselected, a standard cluster is created. {{UIMeta group=3 order=1103 }}"
@@ -181,50 +138,35 @@ variable "release_channel" {
   default     = "REGULAR"
 }
 
-variable "pod_ip_range_1" {
-  description = "Range name for the pod IP addresses. {{UIMeta group=0 order=1113 }}"
-  type        = string
-  default     = "pod-ip-range-1"
-}
-
-variable "pod_ip_range_2" {
-  description = "Range name for the pod IP addresses. {{UIMeta group=0 order=1113 }}"
-  type        = string
-  default     = "pod-ip-range-2"
-}
-
-variable "pod_cidr_block_1" {
-  description = "CIDR block to be assigned to pods running in the GKE cluster. {{UIMeta group=0 order=1114 }}"
-  type        = string
-  default     = "10.62.128.0/17"
-}
-
-variable "pod_cidr_block_2" {
-  description = "CIDR block to be assigned to pods running in the GKE cluster. {{UIMeta group=0 order=1114 }}"
-  type        = string
-  default     = "10.63.128.0/17"
-}
-
-variable "service_ip_range_1" {
-  description = "Name for the IP range for services. {{UIMeta group=0 order=1115 }}"
-  type        = string
-  default     = "service-ip-range-1"
-}
-
-variable "service_ip_range_2" {
-  description = "Name for the IP range for services. {{UIMeta group=0 order=1115 }}"
-  type        = string
-  default     = "service-ip-range-2"
-}
-
-variable "service_cidr_block_1" {
-  description = "CIDR block to be assigned to services running in the GKE cluster. {{UIMeta group=0 order=1116 }}"
-  type        = string
-  default     = "10.64.128.0/20"
-}
-
-variable "service_cidr_block_2" {
-  description = "CIDR block to be assigned to services running in the GKE cluster. {{UIMeta group=0 order=1116 }}"
-  type        = string
-  default     = "10.64.16.0/20"
+variable "cluster_configs" {
+  description = "A map of GKE cluster configurations."
+  type = map(object({
+    gke_cluster_name   = string
+    region             = string
+    ip_cidr_range      = string
+    pod_ip_range       = string
+    pod_cidr_block     = string
+    service_ip_range   = string
+    service_cidr_block = string
+  }))
+  default = {
+    "cluster1" = {
+      gke_cluster_name   = "gke-cluster-1"
+      region             = "us-central1"
+      ip_cidr_range      = "10.132.0.0/16"
+      pod_ip_range       = "pod-ip-range-1"
+      pod_cidr_block     = "10.62.128.0/17"
+      service_ip_range   = "service-ip-range-1"
+      service_cidr_block = "10.64.128.0/20"
+    },
+    "cluster2" = {
+      gke_cluster_name   = "gke-cluster-2"
+      region             = "us-east1"
+      ip_cidr_range      = "10.0.0.0/16"
+      pod_ip_range       = "pod-ip-range-2"
+      pod_cidr_block     = "10.63.128.0/17"
+      service_ip_range   = "service-ip-range-2"
+      service_cidr_block = "10.64.16.0/20"
+    }
+  }
 }

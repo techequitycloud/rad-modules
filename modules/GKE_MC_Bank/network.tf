@@ -14,296 +14,136 @@
  * limitations under the License.
  */
 
-#########################################################################
-# vpc - VPC Network & Subnests
-#########################################################################
-
-# Resource definition for a VPC network
+# Creates the VPC network
 resource "google_compute_network" "vpc" {
-  project                  = local.project.project_id  # Sets the project in which the resource will be created
-  name                     = var.network_name          # The name of the network, referencing a variable
-  auto_create_subnetworks  = false                     # Disables the automatic creation of subnetworks
-  routing_mode             = "GLOBAL"                  # Sets the network routing mode to global
-  depends_on               = [google_project_service.enabled_services]  # Ensures services are enabled before creating the network
+  project                         = local.project.project_id
+  name                            = var.network_name
+  auto_create_subnetworks         = false
+  delete_default_routes_on_create = false
 }
 
-# Resource definition for a subnet within the VPC network
-resource "google_compute_subnetwork" "subnetwork_1" {
-  project                  = local.project.project_id      # Sets the project in which the resource will be created
-  name                     = "vpc-subnet-1"          # The name of the subnetwork
-  ip_cidr_range            = tolist(var.ip_cidr_ranges_1)[0] # The IP range for the subnet, taking the first element from a list variable
-  region                   = var.region_1            # The region where the subnet will be created
-  network                  = google_compute_network.vpc.name # Reference to the VPC network's name
-  private_ip_google_access = true                          # Enables instances in this subnet to access Google services without an external IP address
+# Creates the subnetwork
+resource "google_compute_subnetwork" "subnetwork" {
+  for_each      = var.cluster_configs
+  project       = local.project.project_id
+  name          = "${var.subnet_name}-${each.key}"
+  ip_cidr_range = each.value.ip_cidr_range
+  network       = google_compute_network.vpc.name
+  region        = each.value.region
 
-  # Adding a secondary range for pods in this subnet
   secondary_ip_range {
-    range_name    = var.pod_ip_range_1   # The name for the secondary range, referencing a variable
-    ip_cidr_range = var.pod_cidr_block_1      # The IP range for pods, referencing a variable
+    range_name    = each.value.pod_ip_range
+    ip_cidr_range = each.value.pod_cidr_block
   }
 
-  # Adding a secondary range for services in this subnet
   secondary_ip_range {
-    range_name    = var.service_ip_range_1   # The name for the service range, referencing a variable
-    ip_cidr_range = var.service_cidr_block_1      # The IP range for services, referencing a variable
+    range_name    = each.value.service_ip_range
+    ip_cidr_range = each.value.service_cidr_block
   }
-
-  depends_on      = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
 }
 
-# Resource definition for a subnet within the VPC network
-resource "google_compute_subnetwork" "subnetwork_2" {
-  project                  = local.project.project_id      # Sets the project in which the resource will be created
-  name                     = "vpc-subnet-2"          # The name of the subnetwork
-  ip_cidr_range            = tolist(var.ip_cidr_ranges_2)[0] # The IP range for the subnet, taking the first element from a list variable
-  region                   = var.region_2            # The region where the subnet will be created
-  network                  = google_compute_network.vpc.name # Reference to the VPC network's name
-  private_ip_google_access = true                          # Enables instances in this subnet to access Google services without an external IP address
-
-  # Adding a secondary range for pods in this subnet
-  secondary_ip_range {
-    range_name    = var.pod_ip_range_2   # The name for the secondary range, referencing a variable
-    ip_cidr_range = var.pod_cidr_block_2      # The IP range for pods, referencing a variable
-  }
-
-  # Adding a secondary range for services in this subnet
-  secondary_ip_range {
-    range_name    = var.service_ip_range_2   # The name for the service range, referencing a variable
-    ip_cidr_range = var.service_cidr_block_2      # The IP range for services, referencing a variable
-  }
-
-  depends_on      = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
-}
-
-#########################################################################
-# Firewall Rules in vpc
-#########################################################################
-
-# Firewall rule to allow Layer 7 Load Balancer health checks
-resource "google_compute_firewall" "fw_allow_lb_hc" {
-  project = local.project.project_id  # Project ID where the firewall rule will live
-  name    = "fw-allow-lb-hc"         # Descriptive name of the firewall rule
-  network = google_compute_network.vpc.name  # Reference to the VPC network
-
-  # Allow traffic for health checks
-  allow {
-    protocol = "tcp"   # Protocol used for health checks
-    ports    = ["80"]  # Port used for health checks
-  }
-
-  # Define source ranges that are allowed to perform health checks
-  source_ranges = ["35.191.0.0/16", "130.211.0.0/22"]
-  depends_on    = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
-}
-
-# Firewall rule to allow NFS health checks
-resource "google_compute_firewall" "fw_allow_nfs_hc" {
-  project = local.project.project_id   # Project ID where the firewall rule will live
-  name    = "fw-allow-nfs-hc"          # Descriptive name of the firewall rule
-  network = google_compute_network.vpc.name  # Reference to the VPC network
-
-  # Allow NFS traffic
-  allow {
-    protocol = "tcp"   # Protocol used for NFS
-    ports    = ["2049"] # NFS port to allow
-  }
-
-  # Define source ranges that are allowed to perform NFS health checks
-  source_ranges = ["35.191.0.0/16", "130.211.0.0/22"]
-  depends_on    = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
-}
-
-# Firewall rule to allow SSH connections via Identity-Aware Proxy (IAP)
-resource "google_compute_firewall" "fw_allow_iap_ssh" {
-  project = local.project.project_id   # Project ID where the firewall rule will live
-  name    = "fw-allow-iap-ssh"         # Descriptive name of the firewall rule
-  network = google_compute_network.vpc.name  # Reference to the VPC network
-
-  # Allow SSH traffic
-  allow {
-    protocol = "tcp"   # Protocol used for SSH
-    ports    = ["22"]   # SSH port to allow
-  }
-
-  # Define source ranges that are allowed to connect via IAP
-  source_ranges = ["35.235.240.0/20"]
-  depends_on    = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
-}
-
-# Firewall rule to allow all traffic within the VPC network
-resource "google_compute_firewall" "fw_allow_intra_vpc_1" {
-  project = local.project.project_id   # Project ID where the firewall rule will live
-  name    = "fw-allow-intra-vpc-1"       # Descriptive name of the firewall rule
-  network = google_compute_network.vpc.name  # Reference to the VPC network
-
-  # Allow all protocols and ports within the VPC
-  allow {
-    protocol = "all"
-  }
-
-  # Define source ranges within the VPC that are allowed unrestricted access
-  source_ranges = var.ip_cidr_ranges_1
-  depends_on    = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
-}
-
-# Firewall rule to allow all traffic within the VPC network
-resource "google_compute_firewall" "fw_allow_intra_vpc_2" {
-  project = local.project.project_id   # Project ID where the firewall rule will live
-  name    = "fw-allow-intra-vpc-2"       # Descriptive name of the firewall rule
-  network = google_compute_network.vpc.name  # Reference to the VPC network
-
-  # Allow all protocols and ports within the VPC
-  allow {
-    protocol = "all"
-  }
-
-  # Define source ranges within the VPC that are allowed unrestricted access
-  source_ranges = var.ip_cidr_ranges_2
-  depends_on    = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
-}
-
-# Firewall rule to allow NFS service traffic on TCP protocol
-resource "google_compute_firewall" "fw_allow_gce_nfs_tcp_1" {
-  project = local.project.project_id   # Project ID where the firewall rule will live
-  name    = "fw-allow-nfs-tcp-1"         # Descriptive name of the firewall rule
-  network = google_compute_network.vpc.name  # Reference to the VPC network
-
-  # Allow NFS traffic on TCP protocol
-  allow {
-    protocol = "tcp"
-    ports    = ["2049"]
-  }
-
-  # Define source ranges that are allowed to connect to NFS service
-  source_ranges = var.ip_cidr_ranges_1
-
-  # Target tags used to apply this rule to instances with the 'nfs-server' tag
-  target_tags   = ["nfs-server"]
-  depends_on    = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
-}
-
-# Firewall rule to allow NFS service traffic on TCP protocol
-resource "google_compute_firewall" "fw_allow_gce_nfs_tcp_2" {
-  project = local.project.project_id   # Project ID where the firewall rule will live
-  name    = "fw-allow-nfs-tcp-2"         # Descriptive name of the firewall rule
-  network = google_compute_network.vpc.name  # Reference to the VPC network
-
-  # Allow NFS traffic on TCP protocol
-  allow {
-    protocol = "tcp"
-    ports    = ["2049"]
-  }
-
-  # Define source ranges that are allowed to connect to NFS service
-  source_ranges = var.ip_cidr_ranges_2
-
-  # Target tags used to apply this rule to instances with the 'nfs-server' tag
-  target_tags   = ["nfs-server"]
-  depends_on    = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
-}
-
-# Firewall rule to allow HTTP and HTTPS service traffic on TCP protocol
-resource "google_compute_firewall" "fw_allow_http_tcp_1" {
-  project = local.project.project_id   # Project ID where the firewall rule will live
-  name    = "fw-allow-http-tcp-1"        # Descriptive name of the firewall rule
-  network = google_compute_network.vpc.name  # Reference to the VPC network
-
-  # Allow HTTP and HTTPS traffic on TCP protocol
-  allow {
-    protocol = "tcp"
-    ports    = ["80", "443"]
-  }
-
-  # Define source ranges that are allowed to connect to HTTP services
-  source_ranges = var.ip_cidr_ranges_1
-
-  # Target tags used to apply this rule to instances with the 'http-server' tag
-  target_tags   = ["http-server"]
-  depends_on    = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
-}
-
-# Firewall rule to allow HTTP and HTTPS service traffic on TCP protocol
-resource "google_compute_firewall" "fw_allow_http_tcp_2" {
-  project = local.project.project_id   # Project ID where the firewall rule will live
-  name    = "fw-allow-http-tcp-2"        # Descriptive name of the firewall rule
-  network = google_compute_network.vpc.name  # Reference to the VPC network
-
-  # Allow HTTP and HTTPS traffic on TCP protocol
-  allow {
-    protocol = "tcp"
-    ports    = ["80", "443"]
-  }
-
-  # Define source ranges that are allowed to connect to HTTP services
-  source_ranges = var.ip_cidr_ranges_2
-
-  # Target tags used to apply this rule to instances with the 'http-server' tag
-  target_tags   = ["http-server"]
-  depends_on    = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
-}
-
-#########################################################################
-# Creating Cloud NATs for Egress traffic from vpc
-#########################################################################
-
-# Define a Google Compute Router resource for the region
-resource "google_compute_router" "cr_region_1" {
-  project = local.project.project_id  # The project ID where the router will be created
-  name    = "cr1-${var.region_1}"        # The name of the router, including the region variable
-  region  = google_compute_subnetwork.subnetwork_1.region  # The region where the router will be located, taken from the subnet's region
-  network = google_compute_network.vpc.id                # The ID of the VPC network to which this router belongs
-
-  # BGP configuration block
+# Creates the Cloud Router
+resource "google_compute_router" "router" {
+  for_each  = var.cluster_configs
+  project   = local.project.project_id
+  name      = "router-${each.key}"
+  network   = google_compute_network.vpc.name
+  region    = each.value.region
   bgp {
-    asn = 64514  # The Autonomous System Number (ASN) for BGP
+    asn = 64514
   }
-  depends_on = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
 }
 
-# Define a Google Compute Router resource for the region
-resource "google_compute_router" "cr_region_2" {
-  project = local.project.project_id  # The project ID where the router will be created
-  name    = "cr2-${var.region_2}"        # The name of the router, including the region variable
-  region  = google_compute_subnetwork.subnetwork_2.region  # The region where the router will be located, taken from the subnet's region
-  network = google_compute_network.vpc.id                # The ID of the VPC network to which this router belongs
+# Creates the Cloud NAT
+resource "google_compute_router_nat" "nat" {
+  for_each                           = var.cluster_configs
+  project                            = local.project.project_id
+  name                               = "nat-${each.key}"
+  router                             = google_compute_router.router[each.key].name
+  region                             = each.value.region
+  source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
 
-  # BGP configuration block
-  bgp {
-    asn = 64514  # The Autonomous System Number (ASN) for BGP
+  subnetwork {
+    name                    = google_compute_subnetwork.subnetwork[each.key].id
+    source_ip_ranges_to_nat = ["ALL_IP_RANGES"]
   }
-  depends_on = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
-}
 
-# Define a Google Compute Router NAT for the region
-resource "google_compute_router_nat" "nat_gw_region_1" {
-  project                            = local.project.project_id  # The project ID where the NAT gateway will be created
-  name                               = "nat-gw1-${var.region_1}"    # The name of the NAT gateway, including the region variable
-  router                             = google_compute_router.cr_region_1.name  # The name of the router this NAT gateway is associated with
-  region                             = google_compute_router.cr_region_1.region  # The region where the NAT gateway will be located
-  nat_ip_allocate_option             = "AUTO_ONLY"               # NAT IP allocation mode set to automatically allocate IPs
-  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"  # NAT all IP ranges in all subnetworks
-
-  # Logging configuration block
   log_config {
-    enable = true              # Enable logging
-    filter = "ERRORS_ONLY"     # Log only errors
+    enable = true
+    filter = "ERRORS_ONLY"
   }
-  depends_on = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
 }
 
-# Define a Google Compute Router NAT for the region
-resource "google_compute_router_nat" "nat_gw_region_2" {
-  project                            = local.project.project_id  # The project ID where the NAT gateway will be created
-  name                               = "nat-gw1-${var.region_2}"    # The name of the NAT gateway, including the region variable
-  router                             = google_compute_router.cr_region_2.name  # The name of the router this NAT gateway is associated with
-  region                             = google_compute_router.cr_region_2.region  # The region where the NAT gateway will be located
-  nat_ip_allocate_option             = "AUTO_ONLY"               # NAT IP allocation mode set to automatically allocate IPs
-  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"  # NAT all IP ranges in all subnetworks
+# Creates the firewall rules
+resource "google_compute_firewall" "allow_ssh" {
+  project = local.project.project_id
+  name    = "allow-ssh"
+  network = google_compute_network.vpc.name
 
-  # Logging configuration block
-  log_config {
-    enable = true              # Enable logging
-    filter = "ERRORS_ONLY"     # Log only errors
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
   }
-  depends_on = [google_compute_network.vpc]  # Ensures services are enabled before creating the network
+
+  source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "allow_rdp" {
+  project = local.project.project_id
+  name    = "allow-rdp"
+  network = google_compute_network.vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["3389"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "allow_icmp" {
+  project = local.project.project_id
+  name    = "allow-icmp"
+  network = google_compute_network.vpc.name
+
+  allow {
+    protocol = "icmp"
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
+
+resource "google_compute_firewall" "allow_internal" {
+  project = local.project.project_id
+  name    = "allow-internal"
+  network = google_compute_network.vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["0-65535"]
+  }
+
+  allow {
+    protocol = "udp"
+    ports    = ["0-65535"]
+  }
+
+  allow {
+    protocol = "icmp"
+  }
+
+  source_ranges = [for config in var.cluster_configs : config.ip_cidr_range]
+}
+
+resource "google_compute_firewall" "allow_health_checks" {
+  project = local.project.project_id
+  name    = "allow-health-checks"
+  network = google_compute_network.vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["0-65535"]
+  }
+
+  source_ranges = ["35.191.0.0/16", "130.211.0.0/22"]
 }

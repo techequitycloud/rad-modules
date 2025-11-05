@@ -29,8 +29,7 @@ resource "local_file" "configmap_yaml_output" {
 
   # Dependencies for the local file resource.
   depends_on = [
-    time_sleep.allow_10_minutes_for_fleet_synchronization_1,
-    time_sleep.allow_10_minutes_for_fleet_synchronization_2,
+    time_sleep.wait_for_fleet_registration,
   ]
 }
 
@@ -46,8 +45,7 @@ resource "local_file" "frontend_config_yaml_output" {
 
   # Dependencies for the local file resource.
   depends_on = [
-    time_sleep.allow_10_minutes_for_fleet_synchronization_1,
-    time_sleep.allow_10_minutes_for_fleet_synchronization_2,
+    time_sleep.wait_for_fleet_registration,
   ]
 }
 
@@ -64,8 +62,7 @@ resource "local_file" "managed_certificate_yaml_output" {
 
   # Dependencies for the local file resource.
   depends_on = [
-    time_sleep.allow_10_minutes_for_fleet_synchronization_1,
-    time_sleep.allow_10_minutes_for_fleet_synchronization_2,
+    time_sleep.wait_for_fleet_registration,
   ]
 }
 
@@ -82,8 +79,7 @@ resource "local_file" "backend_config_yaml_output" {
 
   # Dependencies for the local file resource.
   depends_on = [
-    time_sleep.allow_10_minutes_for_fleet_synchronization_1,
-    time_sleep.allow_10_minutes_for_fleet_synchronization_2,
+    time_sleep.wait_for_fleet_registration,
     google_compute_global_address.glb,
   ]
 }
@@ -100,8 +96,7 @@ resource "local_file" "nodeport_service_yaml_output" {
 
   # Dependencies for the local file resource.
   depends_on = [
-    time_sleep.allow_10_minutes_for_fleet_synchronization_1,
-    time_sleep.allow_10_minutes_for_fleet_synchronization_2,
+    time_sleep.wait_for_fleet_registration,
   ]
 }
 
@@ -113,38 +108,46 @@ resource "local_file" "ingress_yaml_output" {
   content = templatefile("${path.module}/templates/ingress.yaml.tpl", {
     GCP_PROJECT               = local.project.project_id
     APPLICATION_NAME          = "bank-of-anthos"
-    APPLICATION_REGION        = var.region_1
+    APPLICATION_REGION        = var.cluster_configs["cluster1"].region
     APPLICATION_NAMESPACE     = "bank-of-anthos"
     APPLICATION_DOMAIN        = "boa.${google_compute_global_address.glb.address}.sslip.io"
   })
 
   # Dependencies for the local file resource.
   depends_on = [
-    time_sleep.allow_10_minutes_for_fleet_synchronization_1,
-    time_sleep.allow_10_minutes_for_fleet_synchronization_2,
+    time_sleep.wait_for_fleet_registration,
     google_compute_global_address.glb,
   ]
 }
 
 resource "local_file" "multicluster_service_yaml_output" {
-  count    = var.deploy_application ? 1 : 0 
+  count    = var.deploy_application ? 1 : 0
   filename = "${path.module}/manifests/multicluster_service.yaml"
-  
-  # Content is generated from a template file with variables substituted in.
-  content = templatefile("${path.module}/templates/multicluster_service.yaml.tpl", {
-    GCP_PROJECT               = local.project.project_id
-    APPLICATION_NAME          = "bank-of-anthos"
-    APPLICATION_NAMESPACE     = "bank-of-anthos"
-    APPLICATION_REGION_1      = var.region_1
-    APPLICATION_CLUSTER_1     = var.gke_cluster_1
-    APPLICATION_REGION_2      = var.region_2
-    APPLICATION_CLUSTER_2     = var.gke_cluster_2
-  })
 
-  # Dependencies for the local file resource.
+  content = <<-EOT
+apiVersion: networking.gke.io/v1
+kind: MultiClusterService
+metadata:
+  name: frontend
+  namespace: bank-of-anthos
+spec:
+  template:
+    spec:
+      selector:
+        app: frontend
+      ports:
+      - name: http
+        protocol: TCP
+        port: 80
+        targetPort: 8080
+  clusters:
+%{for key, cluster in var.cluster_configs ~}
+  - link: "projects/${local.project.project_id}/locations/${cluster.region}/clusters/${cluster.gke_cluster_name}"
+%{endfor ~}
+EOT
+
   depends_on = [
-    time_sleep.allow_10_minutes_for_fleet_synchronization_1,
-    time_sleep.allow_10_minutes_for_fleet_synchronization_2,
+    time_sleep.wait_for_fleet_registration,
     google_compute_global_address.glb,
   ]
 }
@@ -157,14 +160,13 @@ resource "local_file" "multicluster_ingress_yaml_output" {
   content = templatefile("${path.module}/templates/multicluster_ingress.yaml.tpl", {
     GCP_PROJECT               = local.project.project_id
     APPLICATION_NAME          = "bank-of-anthos"
-    APPLICATION_REGION        = var.region_1
+    APPLICATION_REGION        = var.cluster_configs["cluster1"].region
     APPLICATION_NAMESPACE     = "bank-of-anthos"
   })
 
   # Dependencies for the local file resource.
   depends_on = [
-    time_sleep.allow_10_minutes_for_fleet_synchronization_1,
-    time_sleep.allow_10_minutes_for_fleet_synchronization_2,
+    time_sleep.wait_for_fleet_registration,
     google_compute_global_address.glb,
   ]
 }

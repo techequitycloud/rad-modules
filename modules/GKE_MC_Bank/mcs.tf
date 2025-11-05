@@ -18,14 +18,12 @@
 # Pre-cleanup for MultiCluster Ingress Resources
 # ============================================
 resource "null_resource" "cleanup_mci_resources" {
-  count = var.deploy_application ? 1 : 0
+  for_each = var.deploy_application ? var.cluster_configs : {}
 
   triggers = {
-    project  = local.project.project_id
-    cluster1 = var.gke_cluster_1
-    region1  = var.region_1
-    cluster2 = var.gke_cluster_2
-    region2  = var.region_2
+    project = local.project.project_id
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
   }
 
   provisioner "local-exec" {
@@ -36,20 +34,19 @@ resource "null_resource" "cleanup_mci_resources" {
       echo "Cleaning up MultiCluster Ingress Resources"
       echo "======================================"
       
-      # Cleanup from cluster 1
-      echo "Cleaning up from cluster 1..."
-      if gcloud container clusters get-credentials ${self.triggers.cluster1} \
-          --region ${self.triggers.region1} \
+      echo "Cleaning up from cluster ${self.triggers.cluster}..."
+      if gcloud container clusters get-credentials ${self.triggers.cluster} \
+          --region ${self.triggers.region} \
           --project ${self.triggers.project} 2>/dev/null; then
         
-        echo "Deleting MultiClusterIngress resources from cluster 1..."
+        echo "Deleting MultiClusterIngress resources from cluster ${self.triggers.cluster}..."
         kubectl delete multiclusteringress --all --all-namespaces --timeout=3m 2>/dev/null || true
         
-        echo "Deleting MultiClusterService resources from cluster 1..."
+        echo "Deleting MultiClusterService resources from cluster ${self.triggers.cluster}..."
         kubectl delete multiclusterservice --all --all-namespaces --timeout=3m 2>/dev/null || true
         
         # Remove finalizers if resources are stuck
-        echo "Removing finalizers from cluster 1..."
+        echo "Removing finalizers from cluster ${self.triggers.cluster}..."
         for mci in $(kubectl get multiclusteringress --all-namespaces -o name 2>/dev/null); do
           kubectl patch $mci -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
         done
@@ -58,36 +55,9 @@ resource "null_resource" "cleanup_mci_resources" {
           kubectl patch $mcs -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
         done
         
-        echo "Cluster 1 cleanup completed"
+        echo "Cluster ${self.triggers.cluster} cleanup completed"
       else
-        echo "Could not connect to cluster 1, skipping cleanup"
-      fi
-      
-      # Cleanup from cluster 2
-      echo "Cleaning up from cluster 2..."
-      if gcloud container clusters get-credentials ${self.triggers.cluster2} \
-          --region ${self.triggers.region2} \
-          --project ${self.triggers.project} 2>/dev/null; then
-        
-        echo "Deleting MultiClusterIngress resources from cluster 2..."
-        kubectl delete multiclusteringress --all --all-namespaces --timeout=3m 2>/dev/null || true
-        
-        echo "Deleting MultiClusterService resources from cluster 2..."
-        kubectl delete multiclusterservice --all --all-namespaces --timeout=3m 2>/dev/null || true
-        
-        # Remove finalizers if resources are stuck
-        echo "Removing finalizers from cluster 2..."
-        for mci in $(kubectl get multiclusteringress --all-namespaces -o name 2>/dev/null); do
-          kubectl patch $mci -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
-        done
-        
-        for mcs in $(kubectl get multiclusterservice --all-namespaces -o name 2>/dev/null); do
-          kubectl patch $mcs -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
-        done
-        
-        echo "Cluster 2 cleanup completed"
-      else
-        echo "Could not connect to cluster 2, skipping cleanup"
+        echo "Could not connect to cluster ${self.triggers.cluster}, skipping cleanup"
       fi
       
       # Wait for cleanup to propagate
@@ -121,8 +91,7 @@ resource "google_gke_hub_feature" "multicluster_servicediscovery" {
   }
 
   depends_on = [
-    google_gke_hub_membership.gke_cluster_1,
-    google_gke_hub_membership.gke_cluster_2,
+    google_gke_hub_membership.gke_cluster,
     null_resource.cleanup_mci_resources,
   ]
 }
@@ -138,7 +107,7 @@ resource "google_gke_hub_feature" "multicluster_ingress" {
 
   spec {
     multiclusteringress {
-      config_membership = google_gke_hub_membership.gke_cluster_1.id
+      config_membership = google_gke_hub_membership.gke_cluster["cluster1"].id
     }
   }
 
@@ -147,8 +116,7 @@ resource "google_gke_hub_feature" "multicluster_ingress" {
   }
 
   depends_on = [
-    google_gke_hub_membership.gke_cluster_1,
-    google_gke_hub_membership.gke_cluster_2,
+    google_gke_hub_membership.gke_cluster,
     google_gke_hub_feature.multicluster_servicediscovery,
     null_resource.cleanup_mci_resources,
   ]

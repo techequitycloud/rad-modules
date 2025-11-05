@@ -1,4 +1,3 @@
-
 /**
  * Copyright 2025 Tech Equity Ltd
  *
@@ -31,40 +30,20 @@ resource "google_gke_hub_feature" "service_mesh" {
   ]
 }
 
-resource "google_gke_hub_feature_membership" "service_mesh_feature_member_1" {
-  count       = var.enable_cloud_service_mesh ? 1 : 0
+resource "google_gke_hub_feature_membership" "service_mesh_feature_member" {
+  for_each    = var.enable_cloud_service_mesh ? var.cluster_configs : {}
   project     = local.project.project_id
   location    = "global"
 
   feature     = google_gke_hub_feature.service_mesh[0].name
-  membership  = google_gke_hub_membership.gke_cluster_1.membership_id # local.project.project_id
+  membership  = google_gke_hub_membership.gke_cluster[each.key].membership_id
 
   mesh {
     management = "MANAGEMENT_AUTOMATIC"
   }
 
   depends_on = [
-    google_container_cluster.gke_autopilot_cluster_1,
-    google_container_cluster.gke_standard_cluster_1,
-    google_project_iam_member.service_mesh_service_agent
-  ]
-}
-
-resource "google_gke_hub_feature_membership" "service_mesh_feature_member_2" {
-  count       = var.enable_cloud_service_mesh ? 1 : 0
-  project     = local.project.project_id
-  location    = "global"
-
-  feature     = google_gke_hub_feature.service_mesh[0].name
-  membership  = google_gke_hub_membership.gke_cluster_2.membership_id # local.project.project_id
-
-  mesh {
-    management = "MANAGEMENT_AUTOMATIC"
-  }
-
-  depends_on = [
-    google_container_cluster.gke_autopilot_cluster_2,
-    google_container_cluster.gke_standard_cluster_2,
+    google_container_cluster.gke_cluster,
     google_project_iam_member.service_mesh_service_agent
   ]
 }
@@ -76,9 +55,6 @@ resource "google_project_iam_member" "service_mesh_service_agent" {
   member  = "serviceAccount:service-${local.project_number}@gcp-sa-servicemesh.iam.gserviceaccount.com"
 
   depends_on = [
-    google_container_cluster.gke_autopilot_cluster_1,
-    google_container_cluster.gke_standard_cluster_1,
-    google_container_cluster.gke_autopilot_cluster_2,
-    google_container_cluster.gke_standard_cluster_2,
+    google_container_cluster.gke_cluster,
   ]
 }
