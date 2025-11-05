@@ -15,31 +15,6 @@
  */
 
 # ============================================
-# Wait for API Activation
-# ============================================
-resource "time_sleep" "wait_for_gke_hub_api" {
-  depends_on = [
-    google_project_service.enabled_services,
-  ]
-
-  create_duration = "10m"
-}
-
-# ============================================
-# Enable GKE Hub Service
-# ============================================
-resource "google_project_service" "gke_hub_service" {
-  project = local.project.project_id
-  service = "gkehub.googleapis.com"
-
-  disable_on_destroy = false
-
-  depends_on = [
-    time_sleep.wait_for_gke_hub_api
-  ]
-}
-
-# ============================================
 # Grant roles to the GKE Hub service account
 # ============================================
 resource "google_project_iam_member" "gke_hub_service_account_roles" {
@@ -55,7 +30,6 @@ resource "google_project_iam_member" "gke_hub_service_account_roles" {
 
   depends_on = [
     google_container_cluster.gke_cluster,
-    google_project_service.gke_hub_service,
   ]
 }
 
@@ -128,22 +102,52 @@ resource "google_gke_hub_membership" "gke_cluster" {
     google_container_cluster.gke_cluster,
     google_project_iam_member.service_mesh_service_agent,
     google_project_iam_member.gke_hub_service_account_roles,
-    google_project_service.gke_hub_service,
     null_resource.pre_cleanup_hub_membership,
   ]
 }
 
 # ============================================
-# Wait for Fleet Synchronization
+# Wait for Fleet Registration
 # ============================================
-resource "time_sleep" "wait_for_fleet_registration" {
+resource "null_resource" "wait_for_fleet_registration" {
   for_each = var.cluster_configs
 
-  depends_on = [
-    google_gke_hub_feature_membership.service_mesh_feature_member,
-    google_gke_hub_feature.multicluster_ingress,
-    google_gke_hub_membership.gke_cluster,
-  ]
+  triggers = {
+    membership_id = google_gke_hub_membership.gke_cluster[each.key].membership_id
+    project_id    = local.project.project_id
+  }
 
-  create_duration = "10m"
+  provisioner "local-exec" {
+    command = <<-EOF
+      set -e
+      echo "Waiting for fleet registration to complete for ${self.triggers.membership_id}..."
+
+      # Loop until the fleet registration is active
+      for i in {1..60}; do
+        # Get the state of the fleet membership
+        STATE=$(gcloud container fleet memberships describe ${self.triggers.membership_id} \
+          --project=${self.triggers.project_id} \
+          --format='value(state.code)')
+
+        # Check if the state is ACTIVE
+        if [ "$STATE" == "READY" ]; then
+          echo "Fleet registration is active for ${self.triggers.membership_id}."
+          exit 0
+        fi
+
+        # Wait before retrying
+        echo "Current state is $STATE, waiting... (attempt $i/60)"
+        sleep 10
+      done
+
+      # If the loop completes without success, exit with an error
+      echo "Error: Fleet registration did not complete in 10 minutes for ${self.triggers.membership_id}."
+      exit 1
+    EOF
+  }
+
+  depends_on = [
+    google_gke_hub_membership.gke_cluster,
+    google_gke_hub_feature_membership.service_mesh_feature_member,
+  ]
 }

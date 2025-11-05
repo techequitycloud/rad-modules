@@ -89,12 +89,15 @@ resource "google_project_service" "enabled_services" {
   disable_on_destroy         = false  # Changed from true
 }
 
-# Resource to introduce a delay in the Terraform apply operation.
-resource "time_sleep" "wait_120_seconds" {
-  # Specifies dependencies on organization policies and enabled services, ensuring they are applied before proceeding.
-  depends_on = [
-    google_project_service.enabled_services
-  ]
+# ============================================
+# Service Identity for GKE Hub
+# ============================================
+resource "google_project_service_identity" "gke_hub_sa" {
+  provider = google-beta
+  project  = local.project.project_id
+  service  = "gkehub.googleapis.com"
 
-  create_duration = "240s" # Duration of the delay, set to 240 seconds.
+  depends_on = [
+    google_project_service.enabled_services,
+  ]
 }
