@@ -154,7 +154,7 @@ resource "google_service_account" "gke_sa" {
   display_name = "GKE Service Account"      # Display name for the service account
 
   depends_on = [
-    time_sleep.wait_120_seconds               # Dependency on a time delay, ensuring it's created after a certain time period
+    google_project_service.enabled_services
   ]
 }
 
