@@ -33,7 +33,7 @@ resource "google_compute_network" "vpc" {
 # Subnet resource - NO dependency on cleanup resource
 resource "google_compute_subnetwork" "subnetwork" {
   project                  = local.project.project_id
-  name                     = "vpc-subnet"
+  name                     = var.subnet_name
   ip_cidr_range            = tolist(var.ip_cidr_ranges)[0]
   region                   = var.region
   network                  = google_compute_network.vpc.name
@@ -50,6 +50,7 @@ resource "google_compute_subnetwork" "subnetwork" {
   }
 
   depends_on = [
+    google_project_service.enabled_services,
     google_compute_network.vpc,
   ]
 }
@@ -147,102 +148,6 @@ resource "google_compute_firewall" "fw_allow_http_tcp" {
   source_ranges = tolist(var.ip_cidr_ranges)
   target_tags   = ["http-server"]
   depends_on    = [google_compute_network.vpc]
-}
-
-#########################################################################
-# Cleanup GKE-created Firewall Rules (Destroy-time)
-#########################################################################
-
-# This resource ensures all GKE-created firewall rules are deleted before VPC deletion
-resource "null_resource" "cleanup_gke_firewall_rules" {
-  triggers = {
-    project_id   = local.project.project_id
-    network_name = var.network_name
-    # Trigger on VPC ID to ensure it runs when VPC is destroyed
-    vpc_id       = google_compute_network.vpc.id
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = <<-EOT
-      set -e
-      echo "============================================"
-      echo "Cleaning up GKE-created firewall rules"
-      echo "============================================"
-      
-      PROJECT_ID="${self.triggers.project_id}"
-      NETWORK_NAME="${self.triggers.network_name}"
-      
-      echo "Project: $PROJECT_ID"
-      echo "Network: $NETWORK_NAME"
-      echo ""
-      
-      # Get all firewall rules for this network
-      echo "Fetching firewall rules for network: $NETWORK_NAME"
-      
-      # List all GKE-created firewall rules (k8s-fw-*, gke-*, k8s-*)
-      gke_firewalls=$(gcloud compute firewall-rules list \
-        --project="$PROJECT_ID" \
-        --filter="network:$NETWORK_NAME AND (name~'^k8s-fw-' OR name~'^gke-' OR name~'^k8s-')" \
-        --format="value(name)" 2>/dev/null || echo "")
-      
-      if [ -z "$gke_firewalls" ]; then
-        echo "✓ No GKE-created firewall rules found"
-      else
-        echo "Found GKE-created firewall rules:"
-        echo "$gke_firewalls"
-        echo ""
-        
-        # Delete each firewall rule
-        echo "Deleting firewall rules..."
-        echo "$gke_firewalls" | while read -r fw_name; do
-          if [ -n "$fw_name" ]; then
-            echo "  → Deleting: $fw_name"
-            gcloud compute firewall-rules delete "$fw_name" \
-              --project="$PROJECT_ID" \
-              --quiet 2>/dev/null || {
-              echo "    ⚠ Failed to delete $fw_name (may already be deleted)"
-            }
-          fi
-        done
-        
-        echo ""
-        echo "✓ GKE firewall rules cleanup complete"
-      fi
-      
-      # Additional cleanup: Delete any remaining firewall rules on this network
-      echo ""
-      echo "Checking for any remaining firewall rules..."
-      
-      remaining_firewalls=$(gcloud compute firewall-rules list \
-        --project="$PROJECT_ID" \
-        --filter="network:$NETWORK_NAME" \
-        --format="value(name)" 2>/dev/null || echo "")
-      
-      if [ -n "$remaining_firewalls" ]; then
-        echo "Found remaining firewall rules (likely Terraform-managed):"
-        echo "$remaining_firewalls"
-        echo ""
-        echo "Note: Terraform-managed rules will be deleted by Terraform"
-      else
-        echo "✓ No remaining firewall rules found"
-      fi
-      
-      echo ""
-      echo "============================================"
-      echo "Firewall cleanup complete"
-      echo "============================================"
-    EOT
-    
-    interpreter = ["/bin/bash", "-c"]
-    on_failure  = continue
-  }
-
-  # The cleanup resource depends on VPC existing (for creation)
-  # But during destruction, it will run BEFORE VPC is destroyed
-  depends_on = [
-    google_compute_network.vpc,
-  ]
 }
 
 #########################################################################
