@@ -19,10 +19,10 @@ locals {
     "owner" = tolist(var.trusted_users)[0]
   }
 
-  random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
+  random_id = var.deployment_id != null ? var.deployment_id : random_id.default.hex
 
   # Use the existing project data source directly
-  project_id = data.google_project.existing_project.project_id
+  project_id     = data.google_project.existing_project.project_id
   project_number = data.google_project.existing_project.number
 
   # List of default APIs to enable on the Google Cloud project
@@ -42,8 +42,7 @@ locals {
 
 # Generate a random ID if a deployment ID is not provided
 resource "random_id" "default" {
-  count       = var.deployment_id == null ? 1 : 0 
-  byte_length = 2 
+  byte_length = 2
 }
 
 data "google_project" "existing_project" {
@@ -52,23 +51,29 @@ data "google_project" "existing_project" {
 
 # Resource to enable APIs on the selected Google Cloud project
 resource "google_project_service" "enabled_services" {
-  for_each                   = toset(local.default_apis)    # Iterate over each service in the set
-  project                    = local.project_id             # Apply to the selected project
-  service                    = each.value                   # The API service to enable
-  
+  for_each = toset(local.default_apis) # Iterate over each service in the set
+  project  = local.project_id         # Apply to the selected project
+  service  = each.value               # The API service to enable
+
   # These settings ensure that disabling or destroying this resource does not affect dependent services
-  disable_dependent_services = false 
-  disable_on_destroy         = false 
+  disable_dependent_services = false
+  disable_on_destroy         = false
 }
 
 resource "azurerm_resource_group" "aks" {
   name     = "${var.cluster_name_prefix}-rg"
   location = var.azure_region
-  tags     = merge(local.tags)
+  tags     = local.tags
+}
+
+resource "azurerm_role_assignment" "aks_network_contributor" {
+  scope                = azurerm_resource_group.aks.id
+  role_definition_name = "Network Contributor"
+  principal_id         = azurerm_kubernetes_cluster.aks.identity[0].principal_id
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
-  name                = "${var.cluster_name_prefix}"
+  name                = var.cluster_name_prefix
   location            = azurerm_resource_group.aks.location
   resource_group_name = azurerm_resource_group.aks.name
   dns_prefix          = "${var.cluster_name_prefix}-dns"
@@ -106,7 +111,7 @@ provider "helm" {
 module "attached_install_manifest" {
   source                         = "./modules/attached-install-manifest"
   attached_cluster_name          = var.cluster_name_prefix
-  attached_cluster_fleet_project = local.project_id  
+  attached_cluster_fleet_project = local.project_id
   gcp_location                   = var.gcp_location
   platform_version               = var.platform_version
   providers = {
@@ -114,13 +119,12 @@ module "attached_install_manifest" {
   }
   depends_on = [
     azurerm_kubernetes_cluster.aks,
-    time_sleep.wait_120_seconds,
   ]
 }
 
 resource "google_container_attached_cluster" "primary" {
   name             = var.cluster_name_prefix
-  project          = local.project_id 
+  project          = local.project_id
   location         = var.gcp_location
   description      = "AKS attached cluster example"
   distribution     = "aks"
@@ -153,15 +157,6 @@ resource "google_container_attached_cluster" "primary" {
 
   depends_on = [
     module.attached_install_manifest,
-    time_sleep.wait_120_seconds,
+    google_project_service.enabled_services,
   ]
-}
-
-# Resource to introduce a delay in the Terraform apply operation.
-resource "time_sleep" "wait_120_seconds" {
-  depends_on = [
-    google_project_service.enabled_services
-  ]
-
-  create_duration = "120s" 
 }

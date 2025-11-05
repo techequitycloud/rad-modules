@@ -32,8 +32,12 @@ resource "aws_iam_role" "eks" {
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
+data "aws_iam_policy" "AmazonEKSClusterPolicy" {
+  arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+
 resource "aws_iam_role_policy_attachment" "AmazonEKSClusterPolicy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  policy_arn = data.aws_iam_policy.AmazonEKSClusterPolicy.arn
   role       = aws_iam_role.eks.name
 }
 
@@ -52,17 +56,29 @@ resource "aws_iam_role" "node" {
   })
 }
 
+data "aws_iam_policy" "AmazonEKSWorkerNodePolicy" {
+  arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+}
+
 resource "aws_iam_role_policy_attachment" "AmazonEKSWorkerNodePolicy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+  policy_arn = data.aws_iam_policy.AmazonEKSWorkerNodePolicy.arn
   role       = aws_iam_role.node.name
+}
+
+data "aws_iam_policy" "AmazonEKS_CNI_Policy" {
+  arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
 resource "aws_iam_role_policy_attachment" "AmazonEKS_CNI_Policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  policy_arn = data.aws_iam_policy.AmazonEKS_CNI_Policy.arn
   role       = aws_iam_role.node.name
 }
 
+data "aws_iam_policy" "AmazonEC2ContainerRegistryReadOnly" {
+  arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
 resource "aws_iam_role_policy_attachment" "AmazonEC2ContainerRegistryReadOnly" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  policy_arn = data.aws_iam_policy.AmazonEC2ContainerRegistryReadOnly.arn
   role       = aws_iam_role.node.name
 }

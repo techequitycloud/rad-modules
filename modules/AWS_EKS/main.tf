@@ -78,7 +78,7 @@ resource "aws_eks_cluster" "eks" {
   role_arn = aws_iam_role.eks.arn
 
   vpc_config {
-    subnet_ids = aws_subnet.public[*].id
+    subnet_ids = var.enable_public_subnets ? [for s in aws_subnet.public : s.id] : [for s in aws_subnet.private : s.id]
   }
 
   version = var.k8s_version
@@ -87,7 +87,7 @@ resource "aws_eks_cluster" "eks" {
   # Otherwise, EKS will not be able to properly delete EKS managed EC2 infrastructure such as Security Groups.
   depends_on = [
     aws_iam_role_policy_attachment.AmazonEKSClusterPolicy,
-    time_sleep.wait_120_seconds,
+    google_project_service.enabled_services,
   ]
 }
 
@@ -99,12 +99,12 @@ resource "aws_eks_node_group" "node" {
   cluster_name    = aws_eks_cluster.eks.name
   node_group_name = "${var.cluster_name_prefix}-node-group"
   node_role_arn   = aws_iam_role.node.arn
-  subnet_ids      = aws_subnet.public[*].id
+  subnet_ids      = var.enable_public_subnets ? [for s in aws_subnet.public : s.id] : [for s in aws_subnet.private : s.id]
 
   scaling_config {
-    desired_size = 2
-    max_size     = 5
-    min_size     = 2
+    desired_size = var.node_group_desired_size
+    max_size     = var.node_group_max_size
+    min_size     = var.node_group_min_size
   }
 
   # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
@@ -113,7 +113,6 @@ resource "aws_eks_node_group" "node" {
     aws_iam_role_policy_attachment.AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.AmazonEC2ContainerRegistryReadOnly,
-    time_sleep.wait_120_seconds,
   ]
 }
 
@@ -141,7 +140,6 @@ module "attached_install_manifest" {
     aws_eks_node_group.node,
     aws_route.public_internet_gateway,
     aws_route_table_association.public,
-    time_sleep.wait_120_seconds,
   ]
 }
 
@@ -178,16 +176,5 @@ resource "google_container_attached_cluster" "primary" {
 
   depends_on = [
     module.attached_install_manifest,
-    time_sleep.wait_120_seconds,
   ]
-}
-
-# Resource to introduce a delay in the Terraform apply operation.
-resource "time_sleep" "wait_120_seconds" {
-  # Specifies dependencies on organization policies and enabled services, ensuring they are applied before proceeding.
-  depends_on = [
-    google_project_service.enabled_services
-  ]
-
-  create_duration = "120s" # Duration of the delay, set to 120 seconds.
 }

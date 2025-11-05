@@ -110,10 +110,26 @@ variable "public_subnet_cidr_blocks" {
   ]
 }
 
+variable "private_subnet_cidr_blocks" {
+  description = "CIDR blocks to use for private subnets. {{UIMeta group=0 order=306 updatesafe }}"
+  type        = list(string)
+  default = [
+    "10.0.1.0/24",
+    "10.0.2.0/24",
+    "10.0.3.0/24"
+  ]
+}
+
 variable "subnet_availability_zones" {
   description = "Availability zones to create subnets in. {{UIMeta group=2 order=307 updatesafe }}"
   type        = list(string)
   default     = ["us-west-2a", "us-west-2b", "us-west-2c"]
+}
+
+variable "enable_public_subnets" {
+  description = "Enable public subnets for the EKS cluster. If false, private subnets will be created."
+  type        = bool
+  default     = true
 }
 
 variable "platform_version" {
@@ -128,11 +144,30 @@ variable "k8s_version" {
   default     = "1.31"
 }
 
+variable "node_group_desired_size" {
+  description = "The desired number of nodes in the EKS node group."
+  type        = number
+  default     = 2
+}
+
+variable "node_group_max_size" {
+  description = "The maximum number of nodes in the EKS node group."
+  type        = number
+  default     = 5
+}
+
+variable "node_group_min_size" {
+  description = "The minimum number of nodes in the EKS node group."
+  type        = number
+  default     = 2
+}
+
 // GROUP 4: IAM
 
 variable "aws_access_key" {
   description = "AWS Access Key ID for programmatic access. {{UIMeta group=3 order=401 updatesafe }}"
   type        = string
+  sensitive   = true
 }
 
 variable "aws_secret_key" {
@@ -161,10 +196,4 @@ variable "trusted_users" {
     condition     = length(var.trusted_users) == length(distinct(var.trusted_users))
     error_message = "Duplicate users are not allowed in the trusted_users list."
   }
-}
-
-variable "owner_users" {
-  description = "List of users that should be granted ownershop of the project. {{UIMeta group=0 order=406 updatesafe }}"
-  type        = list(string)
-  default     = []
 }

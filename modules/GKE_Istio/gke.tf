@@ -34,15 +34,6 @@ data "google_container_cluster" "gke_cluster" {
   ]
 }
 
-provider "kubernetes" {
-  alias = "primary"
-  host  = "https://${data.google_container_cluster.gke_cluster.endpoint}"
-  token = data.google_client_config.gke_cluster.access_token
-  cluster_ca_certificate = base64decode(
-    data.google_container_cluster.gke_cluster.master_auth.cluster_ca_certificate,
-  )
-}
-
 locals {
   k8s_credentials_cmd = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.region} --project ${local.project.project_id}"
 }
@@ -53,8 +44,8 @@ resource "google_container_cluster" "gke_standard_cluster" {
   name                      = var.gke_cluster
   location                  = var.region
   allow_net_admin           = true
-  networking_mode           = "VPC_NATIVE" 
-  datapath_provider         = "LEGACY_DATAPATH" # disable dataplane v2
+  networking_mode           = "VPC_NATIVE"
+  datapath_provider         = "ADVANCED_DATAPATH" # enable dataplane v2
   remove_default_node_pool  = true
   initial_node_count        = 1
   deletion_protection       = false
@@ -128,23 +119,24 @@ resource "google_container_cluster" "gke_standard_cluster" {
 }
 
 resource "google_container_node_pool" "preemptible_nodes" {
+  for_each   = var.node_pools
   project    = local.project.project_id
-  name       = "node-pool"
+  name       = each.key
   cluster    = google_container_cluster.gke_standard_cluster.id
-  node_count = 2
+  node_count = each.value.node_count
   node_locations = data.google_compute_zones.available_zones.names  # Automatically retrieves valid zones
 
   node_config {
-    preemptible  = true
-    machine_type = "e2-standard-2"
-    disk_size_gb = 50
-    disk_type    = "pd-ssd" 
+    preemptible  = each.value.preemptible
+    machine_type = each.value.machine_type
+    disk_size_gb = each.value.disk_size_gb
+    disk_type    = each.value.disk_type
 
     service_account = google_service_account.gke_sa.email
     oauth_scopes    = [
       "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/logging.write",
-      "https://www.googleapis.com/auth/monitoring",    
+      "https://www.googleapis.com/auth/monitoring",
     ]
   }
 

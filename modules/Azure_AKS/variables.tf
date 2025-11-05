@@ -156,9 +156,3 @@ variable "trusted_users" {
     error_message = "Duplicate users are not allowed in the owner_users list."
   }
 }
-
-variable "owner_users" {
-  description = "List of users that should be granted ownershop of the project. {{UIMeta group=0 order=406 updatesafe }}"
-  type        = list(string)
-  default     = []
-}

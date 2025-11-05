@@ -58,7 +58,7 @@ variable "require_credit_purchases" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+  default     = ""
 }
 
 variable "trusted_users" {
@@ -126,6 +126,12 @@ variable "ip_cidr_ranges" {
 
 // GROUP 4: GKE
 
+variable "create_autopilot_cluster" {
+  description = "Set to true to create an Autopilot cluster, false for Standard cluster. {{UIMeta group=0 order=400 }}"
+  type        = bool
+  default     = true
+}
+
 variable "gke_cluster" {
   description = "Name that will be assigned to the GKE cluster. {{UIMeta group=0 order=401 }}"
   type        = string
@@ -160,6 +166,26 @@ variable "service_cidr_block" {
   description = "CIDR block to be assigned to services running in the GKE cluster. {{UIMeta group=0 order=407 }}"
   type        = string
   default     = "10.64.128.0/20"
+}
+
+variable "node_pools" {
+  description = "A map of node pool configurations. The keys of the map are the names of the node pools. {{UIMeta group=4 order=408 }}"
+  type = map(object({
+    node_count   = number
+    preemptible  = bool
+    machine_type = string
+    disk_size_gb = number
+    disk_type    = string
+  }))
+  default = {
+    "node-pool" = {
+      node_count   = 2
+      preemptible  = true
+      machine_type = "e2-standard-2"
+      disk_size_gb = 50
+      disk_type    = "pd-ssd"
+    }
+  }
 }
 
 // GROUP 5: GKE
