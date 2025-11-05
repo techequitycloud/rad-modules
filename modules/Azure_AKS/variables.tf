@@ -67,6 +67,12 @@ variable "resource_creator_identity" {
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
+variable "trusted_users" {
+  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
+  type        = set(string)
+  default     = []
+}
+
 # GROUP 2: Application Project
 
 variable "existing_project_id" {
