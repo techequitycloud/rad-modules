@@ -66,23 +66,3 @@ resource "google_project_service" "enabled_services" {
   disable_on_destroy         = true 
 }
 
-# Resource to introduce a delay in the Terraform apply operation.
-resource "time_sleep" "wait_120_seconds" {
-  # Specifies dependencies on organization policies and enabled services, ensuring they are applied before proceeding.
-  depends_on = [
-    google_project_service.enabled_services
-  ]
-
-  create_duration = "240s" # Duration of the delay, set to 120 seconds.
-}
-
-# Resource to introduce a delay after changing Istio installation mode.
-# This is to allow the destroy provisioner of the old installation to complete before the new one starts.
-resource "time_sleep" "wait_for_istio_uninstall" {
-  create_duration = "180s"
-
-  triggers = {
-    # This trigger will cause the resource to be recreated when the value of install_ambient_mesh changes.
-    install_ambient_mesh = var.install_ambient_mesh
-  }
-}

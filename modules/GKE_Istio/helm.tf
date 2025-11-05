@@ -43,6 +43,31 @@ resource "helm_release" "istio_base" {
   ]
 }
 
+resource "null_resource" "wait_for_istio_uninstall" {
+  triggers = {
+    install_ambient_mesh = var.install_ambient_mesh
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      gcloud container clusters get-credentials ${google_container_cluster.gke_standard_cluster.name} \
+        --region=${var.region} \
+        --project=${local.project.project_id}
+
+      echo "Waiting for Istio uninstall to complete..."
+      while kubectl get ns istio-system; do
+        echo "Istio namespace still exists, sleeping..."
+        sleep 10
+      done
+      echo "Istio uninstall complete."
+    EOT
+  }
+
+  depends_on = [
+    null_resource.wait_for_istio_uninstall
+  ]
+}
+
 resource "helm_release" "istiod" {
   name       = "istiod"
   repository = "https://istio-release.storage.googleapis.com/charts"
