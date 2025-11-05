@@ -15,14 +15,28 @@
  */
 
 # ============================================
-# Wait for API Activation
+# Verify GKE Hub API Activation
 # ============================================
-resource "time_sleep" "await_for_gke_hub_api_activation" {
+resource "null_resource" "verify_gke_hub_api_activation" {
   depends_on = [
     google_project_service.enabled_services,
   ]
-
-  create_duration = "5m"
+  provisioner "local-exec" {
+    command = <<EOT
+      set -e
+      end_time=$((SECONDS+300))
+      while [ $SECONDS -lt $end_time ]; do
+        if gcloud services list --project "${local.project.project_id}" --filter="gkehub.googleapis.com" --format="value(state)" | grep -q "ENABLED"; then
+          echo "GKE Hub API is enabled."
+          exit 0
+        fi
+        echo "Waiting for GKE Hub API to be enabled..."
+        sleep 10
+      done
+      echo "Timed out waiting for GKE Hub API to be enabled."
+      exit 1
+    EOT
+  }
 }
 
 resource "google_gke_hub_feature" "service_mesh" {
@@ -37,7 +51,7 @@ resource "google_gke_hub_feature" "service_mesh" {
   }
 
   depends_on = [
-    time_sleep.await_for_gke_hub_api_activation,
+    null_resource.verify_gke_hub_api_activation,
   ]
 }
 
@@ -63,11 +77,28 @@ resource "google_gke_hub_feature_membership" "service_mesh_feature_member" {
 # SERVICE MESH READINESS CHECK (MANAGED ASM)
 # ============================================
 
-resource "time_sleep" "wait_for_service_mesh" {
+resource "null_resource" "wait_for_service_mesh" {
   count = var.enable_cloud_service_mesh ? 1 : 0
   depends_on = [
     google_gke_hub_feature_membership.service_mesh_feature_member,
     kubernetes_namespace.bank_of_anthos,
   ]
-  create_duration = "5m"
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -e
+      echo "Waiting for ASM control plane to be ready..."
+      end_time=$((SECONDS+600))
+      while [ $SECONDS -lt $end_time ]; do
+        status=$(kubectl get controlplanerevision -n istio-system -o=jsonpath='{.items[?(@.spec.type=="managed")].status.conditions[?(@.type=="Reconciled")].status}')
+        if [ "$status" == "True" ]; then
+          echo "ASM control plane is ready."
+          exit 0
+        fi
+        sleep 15
+      done
+      echo "Timed out waiting for ASM control plane to be ready."
+      exit 1
+    EOT
+  }
 }
