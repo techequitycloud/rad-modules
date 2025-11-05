@@ -112,6 +112,12 @@ variable "platform_version" {
   default     = "1.31.0-gke.3"
 }
 
+variable "vm_size" {
+  description = "The size of the virtual machine for the AKS cluster nodes. {{UIMeta group=0 order=305 updatesafe }}"
+  type        = string
+  default     = "Standard_D2s_v3"
+}
+
 // GROUP 4: IAM
 
 variable "client_id" {
