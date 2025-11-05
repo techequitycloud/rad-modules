@@ -159,6 +159,6 @@ variable "trusted_users" {
   
   validation {
     condition     = length(var.trusted_users) == length(distinct(var.trusted_users))
-    error_message = "Duplicate users are not allowed in the owner_users list."
+    error_message = "Duplicate users are not allowed in the trusted_users list."
   }
 }
