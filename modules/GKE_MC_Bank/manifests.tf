@@ -26,11 +26,6 @@ resource "local_file" "configmap_yaml_output" {
   # Content is generated from a template file with variables substituted in.
   content = templatefile("${path.module}/templates/configmap.yaml.tpl", {
   })
-
-  # Dependencies for the local file resource.
-  depends_on = [
-    time_sleep.wait_for_fleet_registration,
-  ]
 }
 
 resource "local_file" "frontend_config_yaml_output" {
@@ -42,11 +37,6 @@ resource "local_file" "frontend_config_yaml_output" {
     APPLICATION_NAME          = "bank-of-anthos"
     APPLICATION_NAMESPACE     = "bank-of-anthos"
   })
-
-  # Dependencies for the local file resource.
-  depends_on = [
-    time_sleep.wait_for_fleet_registration,
-  ]
 }
 
 resource "local_file" "managed_certificate_yaml_output" {
@@ -59,11 +49,6 @@ resource "local_file" "managed_certificate_yaml_output" {
     APPLICATION_NAMESPACE     = "bank-of-anthos"
     APPLICATION_DOMAIN        = "boa.${google_compute_global_address.glb.address}.sslip.io"
   })
-
-  # Dependencies for the local file resource.
-  depends_on = [
-    time_sleep.wait_for_fleet_registration,
-  ]
 }
 
 resource "local_file" "backend_config_yaml_output" {
@@ -79,7 +64,6 @@ resource "local_file" "backend_config_yaml_output" {
 
   # Dependencies for the local file resource.
   depends_on = [
-    time_sleep.wait_for_fleet_registration,
     google_compute_global_address.glb,
   ]
 }
@@ -93,11 +77,6 @@ resource "local_file" "nodeport_service_yaml_output" {
     APPLICATION_NAME          = "bank-of-anthos"
     APPLICATION_NAMESPACE     = "bank-of-anthos"
   })
-
-  # Dependencies for the local file resource.
-  depends_on = [
-    time_sleep.wait_for_fleet_registration,
-  ]
 }
 
 resource "local_file" "ingress_yaml_output" {
@@ -115,7 +94,6 @@ resource "local_file" "ingress_yaml_output" {
 
   # Dependencies for the local file resource.
   depends_on = [
-    time_sleep.wait_for_fleet_registration,
     google_compute_global_address.glb,
   ]
 }
@@ -147,7 +125,6 @@ spec:
 EOT
 
   depends_on = [
-    time_sleep.wait_for_fleet_registration,
     google_compute_global_address.glb,
   ]
 }
@@ -166,7 +143,6 @@ resource "local_file" "multicluster_ingress_yaml_output" {
 
   # Dependencies for the local file resource.
   depends_on = [
-    time_sleep.wait_for_fleet_registration,
     google_compute_global_address.glb,
   ]
 }

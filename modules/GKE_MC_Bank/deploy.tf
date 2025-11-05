@@ -309,7 +309,7 @@ resource "null_resource" "install_application" {
 
   depends_on = [
     google_container_cluster.gke_cluster,
-    time_sleep.wait_for_fleet_registration,
+    null_resource.wait_for_fleet_registration,
   ]
 }
 

@@ -24,10 +24,6 @@ resource "google_gke_hub_feature" "service_mesh" {
       management = "MANAGEMENT_AUTOMATIC"
     }
   }
-
-  depends_on = [
-    google_project_service.gke_hub_service,
-  ]
 }
 
 resource "google_gke_hub_feature_membership" "service_mesh_feature_member" {

@@ -55,7 +55,6 @@ resource "google_monitoring_service" "gke_services" {
 
   depends_on = [
     null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
   ]
 }
 
@@ -88,6 +87,5 @@ resource "google_monitoring_slo" "gke_services_slo_limit_utilization" {
 
   depends_on = [
     null_resource.get_external_ip,
-    time_sleep.wait_120_seconds
   ]
 }
