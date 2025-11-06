@@ -69,6 +69,7 @@ resource "google_sql_database_instance" "postgres_instance" {
   depends_on = [
     null_resource.wait_for_dependencies,
     random_password.root_password,
+    google_sql_database_instance.mysql_instance,  # Wait for MySQL to complete first
   ]
 }
 
@@ -98,7 +99,8 @@ resource "google_secret_manager_secret" "pgsql_root_password" {
   }
 
   depends_on = [
-    time_sleep.wait_240_seconds
+    time_sleep.wait_240_seconds,
+    google_sql_database_instance.postgres_instance,
   ]
 }
 
@@ -109,7 +111,7 @@ resource "google_secret_manager_secret_version" "pgsql_root_password" {
   secret_data = random_password.root_password.result            
 
   depends_on = [
-    google_secret_manager_secret.pgsql_root_password
+    google_secret_manager_secret.pgsql_root_password,
   ]
 }
 
@@ -122,7 +124,7 @@ data "google_secret_manager_secret_version" "pgsql_root_password" {
   version  = "latest"  
 
   depends_on = [
-    time_sleep.pgsql_root_password
+    time_sleep.pgsql_root_password,
   ]
 }
 
@@ -130,8 +132,8 @@ data "google_secret_manager_secret_version" "pgsql_root_password" {
 resource "time_sleep" "pgsql_root_password" {
   count    = var.create_postgres ? 1 : 0
   
-  depends_on      = [
-    google_secret_manager_secret_version.pgsql_root_password
+  depends_on = [
+    google_secret_manager_secret_version.pgsql_root_password,
   ]
 
   create_duration = "90s"  
