@@ -165,13 +165,13 @@ variable "node_group_min_size" {
 // GROUP 4: IAM
 
 variable "aws_access_key" {
-  description = "AWS Access Key ID for programmatic access. {{UIMeta group=3 order=501 updatesafe }}"
+  description = "AWS Access Key ID for programmatic access. {{UIMeta group=4 order=501 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "aws_secret_key" {
-  description = "AWS Secret Access Key for programmatic access. {{UIMeta group=3 order=502 updatesafe }}"
+  description = "AWS Secret Access Key for programmatic access. {{UIMeta group=4 order=502 updatesafe }}"
   type        = string
   sensitive   = true  
 }
