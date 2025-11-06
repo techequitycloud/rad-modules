@@ -95,7 +95,7 @@ variable "azure_region" {
 }
 
 variable "node_count" {
-  description = "The number of nodes in the default node pool. {{UIMeta group=0 order=304 updatesafe }}"
+  description = "The number of nodes in the default node pool. {{UIMeta group=3 order=304 updatesafe }}"
   type        = number
   default     = 3
 }
@@ -113,7 +113,7 @@ variable "platform_version" {
 }
 
 variable "vm_size" {
-  description = "The size of the virtual machine for the AKS cluster nodes. {{UIMeta group=0 order=305 updatesafe }}"
+  description = "The size of the virtual machine for the AKS cluster nodes. {{UIMeta group=3 order=305 updatesafe }}"
   type        = string
   default     = "Standard_D2s_v3"
 }
@@ -121,23 +121,23 @@ variable "vm_size" {
 // GROUP 4: IAM
 
 variable "client_id" {
-  description = "Azure Client ID (Application ID). {{UIMeta group=3 order=401 updatesafe }}"
+  description = "Azure Client ID (Application ID). {{UIMeta group=4 order=401 updatesafe }}"
   type        = string
 }
 
 variable "client_secret" {
-  description = "Azure Client Secret. {{UIMeta group=3 order=402 updatesafe }}"
+  description = "Azure Client Secret. {{UIMeta group=4 order=402 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "tenant_id" {
-  description = "Azure Tenant ID. {{UIMeta group=3 order=403 updatesafe }}"
+  description = "Azure Tenant ID. {{UIMeta group=4 order=403 updatesafe }}"
   type        = string
 }
 
 variable "subscription_id" {
-  description = "Azure Subscription ID. {{UIMeta group=3 order=404 updatesafe }}"
+  description = "Azure Subscription ID. {{UIMeta group=4 order=404 updatesafe }}"
   type        = string
 }
 
