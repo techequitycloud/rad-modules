@@ -16,5 +16,6 @@ spec:
         port: 80
         targetPort: 8080
   clusters:
-  - link: "${APPLICATION_REGION_1}/${APPLICATION_CLUSTER_1}"
-  - link: "${APPLICATION_REGION_2}/${APPLICATION_CLUSTER_2}"
+  %{ for cluster in clusters ~}
+  - link: "${cluster.region}/${cluster.gke_cluster_name}"
+  %{ endfor ~}

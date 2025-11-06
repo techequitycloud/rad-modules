@@ -2,7 +2,7 @@
  * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not- use this file except in compliance with the License.
+ * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
@@ -14,10 +14,49 @@
  * limitations under the License.
  */
 
+# Configure kubernetes provider with Oauth2 access token.
+data "google_client_config" "gke_cluster" {
+}
+
+provider "kubernetes" {
+  alias    = "cluster1"
+  host     = "https://${google_container_cluster.gke_cluster["cluster1"].endpoint}"
+  token    = data.google_client_config.gke_cluster.access_token
+  cluster_ca_certificate = base64decode(
+    google_container_cluster.gke_cluster["cluster1"].master_auth[0].cluster_ca_certificate,
+  )
+}
+
+provider "kubernetes" {
+  alias    = "cluster2"
+  host     = "https://${google_container_cluster.gke_cluster["cluster2"].endpoint}"
+  token    = data.google_client_config.gke_cluster.access_token
+  cluster_ca_certificate = base64decode(
+    google_container_cluster.gke_cluster["cluster2"].master_auth[0].cluster_ca_certificate,
+  )
+}
+
+provider "kubernetes" {
+  alias    = "cluster3"
+  host     = "https://${google_container_cluster.gke_cluster["cluster3"].endpoint}"
+  token    = data.google_client_config.gke_cluster.access_token
+  cluster_ca_certificate = base64decode(
+    google_container_cluster.gke_cluster["cluster3"].master_auth[0].cluster_ca_certificate,
+  )
+}
+
+provider "kubernetes" {
+  alias    = "cluster4"
+  host     = "https://${google_container_cluster.gke_cluster["cluster4"].endpoint}"
+  token    = data.google_client_config.gke_cluster.access_token
+  cluster_ca_certificate = base64decode(
+    google_container_cluster.gke_cluster["cluster4"].master_auth[0].cluster_ca_certificate,
+  )
+}
 
 # Module to create the GKE private cluster
 resource "google_container_cluster" "gke_cluster" {
-  for_each              = var.cluster_configs
+  for_each              = local.cluster_configs
   project               = local.project.project_id
   name                  = each.value.gke_cluster_name
   location              = each.value.region
@@ -102,7 +141,7 @@ resource "google_service_account" "gke_standard" {
 
 # Node pool for Standard GKE cluster
 resource "google_container_node_pool" "preemptible_nodes" {
-  for_each   = var.create_autopilot_cluster ? {} : var.cluster_configs
+  for_each   = var.create_autopilot_cluster ? {} : local.cluster_configs
   project    = local.project.project_id
   name       = "node-pool-${each.key}"
   cluster    = google_container_cluster.gke_cluster[each.key].id
@@ -156,7 +195,7 @@ resource "google_project_iam_member" "gke_standard_sa_role" {
 }
 
 data "google_compute_zones" "available_zones" {
-  for_each = var.cluster_configs
+  for_each = local.cluster_configs
   project  = local.project.project_id
   region   = each.value.region
 }
