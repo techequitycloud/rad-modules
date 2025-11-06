@@ -177,7 +177,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
   depends_on = [
     null_resource.download_bank_of_anthos,
     kubernetes_namespace.bank_of_anthos,
-    time_sleep.wait_for_service_mesh,
+    null_resource.wait_for_mesh_feature,
   ]
 }
 

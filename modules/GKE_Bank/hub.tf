@@ -9,7 +9,7 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY, either express or implied.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
@@ -43,17 +43,17 @@ resource "null_resource" "wait_for_iam_propagation" {
   ]
 
   provisioner "local-exec" {
-    command = <<EOT
+    command = <<-EOT
       set -e
       ROLE_TO_CHECK="roles/gkehub.serviceAgent"
       MEMBER_TO_CHECK="serviceAccount:service-${local.project_number}@gcp-sa-gkehub.iam.gserviceaccount.com"
       PROJECT_ID="${local.project.project_id}"
 
       echo "Waiting for IAM propagation..."
-      end_time=$((SECONDS+120))
-      while [ $SECONDS -lt $end_time ]; do
-        if gcloud projects get-iam-policy "${PROJECT_ID}" --flatten="bindings[].members" --format="table(bindings.role)" --filter="bindings.members:${MEMBER_TO_CHECK} AND bindings.role:${ROLE_TO_CHECK}" | grep -q "${ROLE_TO_CHECK}"; then
-          echo "IAM policy for ${MEMBER_TO_CHECK} with role ${ROLE_TO_CHECK} has propagated."
+      end_time=$$((SECONDS+120))
+      while [ $$SECONDS -lt $$end_time ]; do
+        if gcloud projects get-iam-policy "$$PROJECT_ID" --flatten="bindings[].members" --format="table(bindings.role)" --filter="bindings.members:$$MEMBER_TO_CHECK AND bindings.role:$$ROLE_TO_CHECK" | grep -q "$$ROLE_TO_CHECK"; then
+          echo "IAM policy for $$MEMBER_TO_CHECK with role $$ROLE_TO_CHECK has propagated."
           exit 0
         fi
         sleep 5
