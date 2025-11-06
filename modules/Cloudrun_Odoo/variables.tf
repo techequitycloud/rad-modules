@@ -50,7 +50,7 @@ variable "credit_cost" {
 variable "require_credit_purchases" {
   description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "deployment_id" {
