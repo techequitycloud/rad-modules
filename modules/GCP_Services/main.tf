@@ -83,7 +83,7 @@ data "google_compute_zones" "available_zones" {
   status  = "UP" 
 
   depends_on = [
-    google_project_service.enabled_services
+    null_resource.api_poll
   ]
 }
 
@@ -112,12 +112,49 @@ resource "google_project_service" "enabled_services" {
 }
 
 # Resource to introduce a delay in the Terraform apply operation.
-resource "time_sleep" "wait_240_seconds" {
+resource "null_resource" "api_poll" {
   depends_on = [
     google_project_service.enabled_services
   ]
+  provisioner "local-exec" {
+    command = <<EOT
+      #!/bin/bash
+      MAX_RETRIES=24
+      RETRY_INTERVAL=10
+      ENABLED_APIS=()
+      APIS_TO_ENABLE=("${join("\" \"", local.project_services)}")
 
-  create_duration = "240s" 
+      for ((i=1; i<=MAX_RETRIES; i++)); do
+        ENABLED_APIS=($$(gcloud services list --enabled --project "${local.project.project_id}" --format="value(config.name)"))
+
+        ALL_ENABLED=true
+        for api in "$${APIS_TO_ENABLE[@]}"; do
+          FOUND=false
+          for enabled_api in "$${ENABLED_APIS[@]}"; do
+            if [[ "$api" == "$enabled_api" ]]; then
+              FOUND=true
+              break
+            fi
+          done
+          if [[ "$FOUND" == "false" ]]; then
+            ALL_ENABLED=false
+            break
+          fi
+        done
+
+        if [[ "$ALL_ENABLED" == "true" ]]; then
+          echo "All APIs are enabled."
+          exit 0
+        fi
+
+        echo "Waiting for APIs to be enabled... (Attempt $i/$MAX_RETRIES)"
+        sleep $RETRY_INTERVAL
+      done
+
+      echo "Timeout: APIs not enabled after $(($MAX_RETRIES * $RETRY_INTERVAL)) seconds."
+      exit 1
+EOT
+  }
 }
 
 #########################################################################
