@@ -14,6 +14,21 @@
  * limitations under the License.
  */
 
+locals {
+  available_regions = ["us-west1", "us-east1", "europe-west1", "asia-northeast1"]
+  cluster_configs = {
+    for i in range(var.cluster_size) : "cluster${i + 1}" => {
+      gke_cluster_name   = "gke-cluster-${i + 1}"
+      region             = local.available_regions[i]
+      ip_cidr_range      = cidrsubnet("10.0.0.0/8", 8, i)
+      pod_ip_range       = "pod-ip-range-${i + 1}"
+      pod_cidr_block     = cidrsubnet(cidrsubnet("10.0.0.0/8", 8, i), 8, 0)
+      service_ip_range   = "service-ip-range-${i + 1}"
+      service_cidr_block = cidrsubnet(cidrsubnet("10.0.0.0/8", 8, i), 8, 1)
+    }
+  }
+}
+
 // GROUP 1: Provider 
 
 variable "module_description" {
@@ -73,38 +88,76 @@ variable "deployment_id" {
   default     = null
 }
 
-// GROUP 5: Main 
+// GROUP 2: Main
 
 variable "existing_project_id" {
   description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
-  default     = "qwiklabs-gcp-03-d53c099a0be5"
 }
 
+variable "cluster_size" {
+  description = "The number of GKE clusters to create."
+  type        = number
+  default     = 2
+}
+
+// GROUP 4: Main
+
 variable "enable_services" {
-  description = "Enable project APIs.  When using an existing project, this is set to false. {{UIMeta group=0 order=506 }}"
+  description = "Enable project APIs.  When using an existing project, this is set to false. {{UIMeta group=0 order=401 }}"
   type        = bool
   default     = true
 }
 
+variable "domain" {
+  description = "The domain name to use for the application."
+  type        = string
+  default     = "example.com"
+}
+
 variable "enable_cloud_service_mesh" {
-  description = "Enable Cloud Service Mesh. {{UIMeta group=0 order=507 }}"
+  description = "Enable Cloud Service Mesh. {{UIMeta group=0 order=402 }}"
   type        = bool
   default     = true
 }
 
 variable "cloud_service_mesh_version" {
-  description = "Cloud Service Mesh version. {{UIMeta group=0 order=507 }}"
+  description = "Cloud Service Mesh version. {{UIMeta group=0 order=403 }}"
   type        = string
   default     = "1.23.4-asm.1"
 }
 
-variable "deploy_application" {
-  description = "Deploy microservices banking application. {{UIMeta group=4 order=509 }}"
+variable "enable_config_management" {
+  description = "Enable Config Management. {{UIMeta group=0 order=404 }}"
+  type        = bool
+  default     = false
+}
+
+variable "config_management_version" {
+  description = "Anthos Config Management version. {{UIMeta group=0 order=405 }}"
+  type        = string
+  default     = "1.22.0"
+}
+
+variable "config_sync_repo" {
+  description = "The URL of the Git repository for Config Sync. {{UIMeta group=0 order=406 }}"
+  type        = string
+  default     = "https://github.com/GoogleCloudPlatform/anthos-config-management-samples"
+}
+
+variable "config_sync_policy_dir" {
+  description = "The directory within the Git repository for Config Sync. {{UIMeta group=0 order=407 }}"
+  type        = string
+  default     = "config-sync-quickstart/multirepo/root"
+}
+
+// GROUP 5: Network
+
+variable "enable_monitoring" {
+  description = "Enable Cloud monitoring. {{UIMeta group=0 order=501 }}"
   type        = bool
   default     = true
 }
-
 // GROUP 6: Network
 
 variable "create_network" {
@@ -128,46 +181,21 @@ variable "subnet_name" {
 // GROUP 11: GKE
 
 variable "create_autopilot_cluster" {
-  description = "Select to configure GKE autopilot cluster. When deselected, a standard cluster is created. {{UIMeta group=3 order=1103 }}"
+  description = "Indicate if a GKE autopilot cluster is requred, otherwise a standard cluster will be created. {{UIMeta group=0 order=1102 }}"
   type        = bool
   default     = true
 }
 
 variable "release_channel" {
-  description = "Enroll the GKE cluster in this release channel. {{UIMeta group=0 order=1104 }}"
+  description = "Enroll the GKE cluster in this release channel. {{UIMeta group=0 order=1103 }}"
   type        = string
   default     = "REGULAR"
 }
 
-variable "cluster_configs" {
-  description = "A map of GKE cluster configurations."
-  type = map(object({
-    gke_cluster_name   = string
-    region             = string
-    ip_cidr_range      = string
-    pod_ip_range       = string
-    pod_cidr_block     = string
-    service_ip_range   = string
-    service_cidr_block = string
-  }))
-  default = {
-    "cluster1" = {
-      gke_cluster_name   = "gke-cluster-1"
-      region             = "europe-west1"
-      ip_cidr_range      = "10.132.0.0/16"
-      pod_ip_range       = "pod-ip-range-1"
-      pod_cidr_block     = "10.62.128.0/17"
-      service_ip_range   = "service-ip-range-1"
-      service_cidr_block = "10.64.128.0/20"
-    },
-    "cluster2" = {
-      gke_cluster_name   = "gke-cluster-2"
-      region             = "us-east1"
-      ip_cidr_range      = "10.0.0.0/16"
-      pod_ip_range       = "pod-ip-range-2"
-      pod_cidr_block     = "10.63.128.0/17"
-      service_ip_range   = "service-ip-range-2"
-      service_cidr_block = "10.64.16.0/20"
-    }
-  }
+// GROUP 12: Application
+
+variable "deploy_application" {
+  description = "Deploy microservices banking application. {{UIMeta group=3 order=1201 }}"
+  type        = bool
+  default     = true
 }
