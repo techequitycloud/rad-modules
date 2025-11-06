@@ -127,7 +127,7 @@ variable "subnet_availability_zones" {
 }
 
 variable "enable_public_subnets" {
-  description = "Enable public subnets for the EKS cluster. If false, private subnets will be created."
+  description = "Enable public subnets for the EKS cluster. If false, private subnets will be created. {{UIMeta group=3 order=401 updatesafe }}"
   type        = bool
   default     = true
 }
@@ -145,19 +145,19 @@ variable "k8s_version" {
 }
 
 variable "node_group_desired_size" {
-  description = "The desired number of nodes in the EKS node group."
+  description = "The desired number of nodes in the EKS node group. {{UIMeta group=3 order=402 updatesafe }}"
   type        = number
   default     = 2
 }
 
 variable "node_group_max_size" {
-  description = "The maximum number of nodes in the EKS node group."
+  description = "The maximum number of nodes in the EKS node group. {{UIMeta group=3 order=403 updatesafe }}"
   type        = number
   default     = 5
 }
 
 variable "node_group_min_size" {
-  description = "The minimum number of nodes in the EKS node group."
+  description = "The minimum number of nodes in the EKS node group. {{UIMeta group=3 order=404 updatesafe }}"
   type        = number
   default     = 2
 }
@@ -165,19 +165,19 @@ variable "node_group_min_size" {
 // GROUP 4: IAM
 
 variable "aws_access_key" {
-  description = "AWS Access Key ID for programmatic access. {{UIMeta group=3 order=401 updatesafe }}"
+  description = "AWS Access Key ID for programmatic access. {{UIMeta group=3 order=501 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "aws_secret_key" {
-  description = "AWS Secret Access Key for programmatic access. {{UIMeta group=3 order=402 updatesafe }}"
+  description = "AWS Secret Access Key for programmatic access. {{UIMeta group=3 order=502 updatesafe }}"
   type        = string
   sensitive   = true  
 }
 
 variable "trusted_users" {
-  description = "Email addresses of cluster admin users (e.g. `username@abc.com`). At least one trusted user must be specified. {{UIMeta group=1 order=404 updatesafe }}"
+  description = "Email addresses of cluster admin users (e.g. `username@abc.com`). At least one trusted user must be specified. {{UIMeta group=1 order=504 updatesafe }}"
   type        = list(string)
 
   validation {
