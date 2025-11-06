@@ -43,7 +43,7 @@ variable "module_services" {
   default = ["GCP", "GKE", "GKE Hub", "Compute Engine", "Cloud Load Balancing", "Cloud Firewall", "Filestore", "Cloud IAM", "Cloud Logging", "Cloud Monitoring"]
 }
 
-variable "credit" {
+variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = number
   default     = 250

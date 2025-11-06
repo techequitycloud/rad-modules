@@ -43,7 +43,7 @@ variable "module_services" {
   default = ["Azure", "AKS", "Resource Group", "GCP", "GKE Hub", "Anthos"]
 }
 
-variable "credit" {
+variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = number
   default     = 100

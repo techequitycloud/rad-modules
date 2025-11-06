@@ -41,7 +41,7 @@ variable "module_services" {
   default     = ["GCP", "GKE", "Cloud SQL", "Compute Engine", "Cloud IAM", "Cloud Networking", "Config Management", "Policy Controller", "Cloud Service Mesh", "Security Posture Service"]
 }
 
-variable "credit" {
+variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = number
   default     = 200
