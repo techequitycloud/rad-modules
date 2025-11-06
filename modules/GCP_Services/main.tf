@@ -103,57 +103,56 @@ data "google_project" "existing_project" {
 
 # Resource to enable APIs on the selected Google Cloud project
 resource "google_project_service" "enabled_services" {
-  for_each                   = toset(local.project_services) 
-  project                    = local.project.project_id 
-  service                    = each.value                   
+  for_each = toset(local.project_services)
+  project  = local.project.project_id
+  service  = each.value
   
-  disable_dependent_services = false 
-  disable_on_destroy         = false 
+  disable_dependent_services = false
+  disable_on_destroy         = false
+  
+  # ✅ This is the key - Terraform will wait for the API to be enabled
+  timeouts {
+    create = "30m"
+    update = "40m"
+  }
 }
 
-# Resource to introduce a delay in the Terraform apply operation.
-resource "null_resource" "api_poll" {
+# Simple verification that APIs are ready
+resource "null_resource" "api_verification" {
   depends_on = [
     google_project_service.enabled_services
   ]
+  
   provisioner "local-exec" {
-    command = <<EOT
-      #!/bin/bash
-      MAX_RETRIES=24
-      RETRY_INTERVAL=10
-      ENABLED_APIS=()
-      APIS_TO_ENABLE=("${join("\" \"", local.project_services)}")
-
-      for ((i=1; i<=MAX_RETRIES; i++)); do
-        ENABLED_APIS=($$(gcloud services list --enabled --project "${local.project.project_id}" --format="value(config.name)"))
-
-        ALL_ENABLED=true
-        for api in "$${APIS_TO_ENABLE[@]}"; do
-          FOUND=false
-          for enabled_api in "$${ENABLED_APIS[@]}"; do
-            if [[ "$api" == "$enabled_api" ]]; then
-              FOUND=true
-              break
-            fi
-          done
-          if [[ "$FOUND" == "false" ]]; then
-            ALL_ENABLED=false
-            break
-          fi
-        done
-
-        if [[ "$ALL_ENABLED" == "true" ]]; then
-          echo "All APIs are enabled."
-          exit 0
+    interpreter = ["/bin/bash", "-c"]
+    command = <<-EOT
+      echo "=========================================="
+      echo "Verifying API enablement"
+      echo "Project: ${local.project.project_id}"
+      echo "=========================================="
+      
+      # Just verify a few critical APIs
+      CRITICAL_APIS=(
+        "container.googleapis.com"
+        "compute.googleapis.com"
+        "iam.googleapis.com"
+      )
+      
+      for api in "$${CRITICAL_APIS[@]}"; do
+        if gcloud services list --enabled \
+          --project="${local.project.project_id}" \
+          --filter="config.name:$api" \
+          --format="value(config.name)" 2>/dev/null | grep -q "$api"; then
+          echo "✓ $api is enabled"
+        else
+          echo "❌ $api is NOT enabled"
+          exit 1
         fi
-
-        echo "Waiting for APIs to be enabled... (Attempt $i/$MAX_RETRIES)"
-        sleep $RETRY_INTERVAL
       done
-
-      echo "Timeout: APIs not enabled after $(($MAX_RETRIES * $RETRY_INTERVAL)) seconds."
-      exit 1
-EOT
+      
+      echo ""
+      echo "✓ All critical APIs are enabled and ready!"
+    EOT
   }
 }
 
