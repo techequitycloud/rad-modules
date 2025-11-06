@@ -113,7 +113,9 @@ resource "kubernetes_namespace" "bank_of_anthos" {
 # APPLICATION DEPLOYMENT
 # ============================================
 
-# Deploy Bank of Anthos application using kubectl
+# ============================================
+# Deploy Bank of Anthos Application
+# ============================================
 resource "null_resource" "deploy_bank_of_anthos" {
   count = var.deploy_application ? 1 : 0
 
@@ -121,9 +123,9 @@ resource "null_resource" "deploy_bank_of_anthos" {
     cluster_name     = google_container_cluster.gke_cluster.name
     cluster_endpoint = google_container_cluster.gke_cluster.endpoint
     version          = local.bank_of_anthos_version
-    namespace        = "bank-of-anthos"
+    namespace        = kubernetes_namespace.bank_of_anthos[0].metadata[0].name
     region           = var.region
-    project_id       = var.existing_project_id
+    project_id       = local.project.project_id
     manifests_path   = local.manifests_path
     jwt_secret_path  = local.jwt_secret_path
   }
@@ -132,29 +134,126 @@ resource "null_resource" "deploy_bank_of_anthos" {
     command = <<-EOT
       set -e
       
-      # Get cluster credentials
-      gcloud container clusters get-credentials ${self.triggers.cluster_name} \
-        --region=${self.triggers.region} \
-        --project=${self.triggers.project_id}
+      NAMESPACE="${self.triggers.namespace}"
+      CLUSTER_NAME="${self.triggers.cluster_name}"
+      REGION="${self.triggers.region}"
+      PROJECT_ID="${self.triggers.project_id}"
       
-      # Wait for namespace to be ready
-      echo "Waiting for namespace to be ready..."
-      kubectl wait --for=condition=Ready namespace/${self.triggers.namespace} --timeout=60s || true
+      echo "=========================================="
+      echo "Deploying Bank of Anthos Application"
+      echo "=========================================="
+      
+      # Get cluster credentials
+      echo "Getting cluster credentials..."
+      gcloud container clusters get-credentials "$CLUSTER_NAME" \
+        --region="$REGION" \
+        --project="$PROJECT_ID"
+      
+      # Verify namespace exists and is Active
+      echo ""
+      echo "Verifying namespace '$NAMESPACE'..."
+      end_time=$((SECONDS+60))
+      
+      while [ $SECONDS -lt $end_time ]; do
+        NAMESPACE_STATUS=$(kubectl get namespace "$NAMESPACE" \
+          -o jsonpath='{.status.phase}' 2>/dev/null || echo "NOT_FOUND")
+        
+        if [ "$NAMESPACE_STATUS" = "Active" ]; then
+          echo "✓ Namespace '$NAMESPACE' is Active"
+          break
+        elif [ "$NAMESPACE_STATUS" = "NOT_FOUND" ]; then
+          echo "⏳ Waiting for namespace to be created..."
+        else
+          echo "⏳ Namespace status: $NAMESPACE_STATUS"
+        fi
+        
+        sleep 5
+      done
+      
+      if [ "$NAMESPACE_STATUS" != "Active" ]; then
+        echo "❌ Namespace is not Active. Status: $NAMESPACE_STATUS"
+        exit 1
+      fi
+      
+      # Verify ASM injection label (if Service Mesh is enabled)
+      echo ""
+      echo "Checking ASM injection configuration..."
+      ASM_LABEL=$(kubectl get namespace "$NAMESPACE" \
+        -o jsonpath='{.metadata.labels.istio\.io/rev}' 2>/dev/null || echo "")
+      
+      if [ -n "$ASM_LABEL" ]; then
+        echo "✓ ASM injection label found: $ASM_LABEL"
+      else
+        echo "ℹ No ASM injection label (Service Mesh may not be enabled)"
+      fi
       
       # Apply JWT secret
-      echo "Applying JWT secret from: ${self.triggers.jwt_secret_path}"
-      kubectl apply -f ${self.triggers.jwt_secret_path} -n ${self.triggers.namespace}
+      echo ""
+      echo "Applying JWT secret..."
+      if [ -f "${self.triggers.jwt_secret_path}" ]; then
+        kubectl apply -f ${self.triggers.jwt_secret_path} -n "$NAMESPACE"
+        echo "✓ JWT secret applied"
+      else
+        echo "❌ JWT secret file not found: ${self.triggers.jwt_secret_path}"
+        exit 1
+      fi
       
       # Apply all manifests
-      echo "Applying Bank of Anthos manifests from: ${self.triggers.manifests_path}"
-      kubectl apply -f ${self.triggers.manifests_path} -n ${self.triggers.namespace}
+      echo ""
+      echo "Applying Bank of Anthos manifests..."
+      if [ -d "${self.triggers.manifests_path}" ]; then
+        kubectl apply -f ${self.triggers.manifests_path} -n "$NAMESPACE"
+        echo "✓ Manifests applied"
+      else
+        echo "❌ Manifests directory not found: ${self.triggers.manifests_path}"
+        exit 1
+      fi
       
       # Wait for deployments to be ready
-      echo "Waiting for deployments to be ready..."
-      kubectl wait --for=condition=available --timeout=300s \
-        deployment --all -n ${self.triggers.namespace} || true
+      echo ""
+      echo "Waiting for deployments to be ready (this may take several minutes)..."
       
-      echo "Bank of Anthos deployment complete!"
+      # Get list of deployments
+      DEPLOYMENTS=$(kubectl get deployments -n "$NAMESPACE" -o name 2>/dev/null || echo "")
+      
+      if [ -z "$DEPLOYMENTS" ]; then
+        echo "⚠ No deployments found in namespace $NAMESPACE"
+      else
+        echo "Found deployments:"
+        kubectl get deployments -n "$NAMESPACE" -o wide
+        
+        echo ""
+        echo "Waiting for all deployments to become available..."
+        if kubectl wait --for=condition=available --timeout=600s \
+          deployment --all -n "$NAMESPACE"; then
+          echo "✓ All deployments are ready!"
+        else
+          echo "⚠ Some deployments may not be ready yet"
+          echo "Current deployment status:"
+          kubectl get deployments -n "$NAMESPACE"
+          echo ""
+          echo "Pod status:"
+          kubectl get pods -n "$NAMESPACE"
+        fi
+      fi
+      
+      # Display final status
+      echo ""
+      echo "=========================================="
+      echo "Bank of Anthos Deployment Summary"
+      echo "=========================================="
+      echo "Namespace: $NAMESPACE"
+      echo ""
+      echo "Deployments:"
+      kubectl get deployments -n "$NAMESPACE" -o wide || true
+      echo ""
+      echo "Pods:"
+      kubectl get pods -n "$NAMESPACE" -o wide || true
+      echo ""
+      echo "Services:"
+      kubectl get services -n "$NAMESPACE" -o wide || true
+      echo ""
+      echo "✓ Bank of Anthos deployment complete!"
     EOT
   }
 
@@ -163,13 +262,42 @@ resource "null_resource" "deploy_bank_of_anthos" {
     command = <<-EOT
       set -e
       
-      # Get cluster credentials
-      gcloud container clusters get-credentials ${self.triggers.cluster_name} \
-        --region=${self.triggers.region} \
-        --project=${self.triggers.project_id} || true
+      NAMESPACE="${self.triggers.namespace}"
+      CLUSTER_NAME="${self.triggers.cluster_name}"
+      REGION="${self.triggers.region}"
+      PROJECT_ID="${self.triggers.project_id}"
       
-      # Delete the namespace (this will delete all resources in it)
-      kubectl delete namespace ${self.triggers.namespace} --ignore-not-found=true --timeout=300s || true
+      echo "=========================================="
+      echo "Cleaning up Bank of Anthos Application"
+      echo "=========================================="
+      
+      # Get cluster credentials (may fail if cluster is already deleted)
+      echo "Getting cluster credentials..."
+      if gcloud container clusters get-credentials "$CLUSTER_NAME" \
+        --region="$REGION" \
+        --project="$PROJECT_ID" 2>/dev/null; then
+        
+        echo "✓ Connected to cluster"
+        
+        # Check if namespace exists
+        if kubectl get namespace "$NAMESPACE" --no-headers 2>/dev/null; then
+          echo "Deleting namespace '$NAMESPACE' and all its resources..."
+          
+          # Delete the namespace (this will delete all resources in it)
+          if kubectl delete namespace "$NAMESPACE" --timeout=300s 2>/dev/null; then
+            echo "✓ Namespace deleted successfully"
+          else
+            echo "⚠ Namespace deletion timed out or failed, forcing deletion..."
+            kubectl delete namespace "$NAMESPACE" --grace-period=0 --force 2>/dev/null || true
+          fi
+        else
+          echo "ℹ Namespace '$NAMESPACE' not found (may already be deleted)"
+        fi
+      else
+        echo "⚠ Could not connect to cluster (may already be deleted)"
+      fi
+      
+      echo "✓ Cleanup complete"
     EOT
     on_failure = continue
   }
@@ -177,7 +305,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
   depends_on = [
     null_resource.download_bank_of_anthos,
     kubernetes_namespace.bank_of_anthos,
-    null_resource.wait_for_mesh_feature,
+    null_resource.wait_for_service_mesh,
   ]
 }
 

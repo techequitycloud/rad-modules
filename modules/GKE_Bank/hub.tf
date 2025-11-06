@@ -50,10 +50,14 @@ resource "null_resource" "wait_for_iam_propagation" {
       PROJECT_ID="${local.project.project_id}"
 
       echo "Waiting for IAM propagation..."
-      end_time=$$((SECONDS+120))
-      while [ $$SECONDS -lt $$end_time ]; do
-        if gcloud projects get-iam-policy "$$PROJECT_ID" --flatten="bindings[].members" --format="table(bindings.role)" --filter="bindings.members:$$MEMBER_TO_CHECK AND bindings.role:$$ROLE_TO_CHECK" | grep -q "$$ROLE_TO_CHECK"; then
-          echo "IAM policy for $$MEMBER_TO_CHECK with role $$ROLE_TO_CHECK has propagated."
+      end_time=$((SECONDS+120))
+      while [ $SECONDS -lt $end_time ]; do
+        if gcloud projects get-iam-policy "$PROJECT_ID" \
+           --flatten="bindings[].members" \
+           --format="table(bindings.role)" \
+           --filter="bindings.members:$MEMBER_TO_CHECK AND bindings.role:$ROLE_TO_CHECK" \
+           | grep -q "$ROLE_TO_CHECK"; then
+          echo "IAM policy for $MEMBER_TO_CHECK with role $ROLE_TO_CHECK has propagated."
           exit 0
         fi
         sleep 5
@@ -63,7 +67,6 @@ resource "null_resource" "wait_for_iam_propagation" {
     EOT
   }
 }
-
 
 # ============================================
 # GKE HUB MEMBERSHIP

@@ -28,10 +28,10 @@ resource "null_resource" "verify_gke_hub_api_activation" {
       PROJECT_ID="${local.project.project_id}"
       
       echo "Verifying GKE Hub API activation..."
-      end_time=$$((SECONDS+300))
+      end_time=$((SECONDS+300))
       
-      while [ $$SECONDS -lt $$end_time ]; do
-        if gcloud services list --enabled --project="$$PROJECT_ID" \
+      while [ $SECONDS -lt $end_time ]; do
+        if gcloud services list --enabled --project="$PROJECT_ID" \
            --filter="name:gkehub.googleapis.com" \
            --format="value(name)" | grep -q "gkehub.googleapis.com"; then
           echo "✓ GKE Hub API is enabled"
@@ -68,17 +68,17 @@ resource "null_resource" "verify_mesh_api_activation" {
       PROJECT_ID="${local.project.project_id}"
       
       echo "Verifying Service Mesh API activation..."
-      end_time=$$((SECONDS+300))
+      end_time=$((SECONDS+300))
       
-      while [ $$SECONDS -lt $$end_time ]; do
+      while [ $SECONDS -lt $end_time ]; do
         # Check mesh.googleapis.com
-        if gcloud services list --enabled --project="$$PROJECT_ID" \
+        if gcloud services list --enabled --project="$PROJECT_ID" \
            --filter="name:mesh.googleapis.com" \
            --format="value(name)" | grep -q "mesh.googleapis.com"; then
           echo "✓ Service Mesh API (mesh.googleapis.com) is enabled"
           
           # Also verify meshconfig.googleapis.com
-          if gcloud services list --enabled --project="$$PROJECT_ID" \
+          if gcloud services list --enabled --project="$PROJECT_ID" \
              --filter="name:meshconfig.googleapis.com" \
              --format="value(name)" | grep -q "meshconfig.googleapis.com"; then
             echo "✓ Mesh Config API (meshconfig.googleapis.com) is enabled"
@@ -139,29 +139,29 @@ resource "null_resource" "verify_mesh_feature_active" {
       PROJECT_ID="${local.project.project_id}"
       
       echo "Verifying Service Mesh feature is active..."
-      end_time=$$((SECONDS+300))
+      end_time=$((SECONDS+300))
       
-      while [ $$SECONDS -lt $$end_time ]; do
-        FEATURE_STATE=$$(gcloud container hub features describe servicemesh \
-          --project="$$PROJECT_ID" \
-          --format="value(state.state)" 2>/dev/null || echo "NOT_FOUND")
+      while [ $SECONDS -lt $end_time ]; do
+        FEATURE_STATE=$(gcloud container hub features describe servicemesh \
+          --project="$PROJECT_ID" \
+          --format="value(resourceState.state)" 2>/dev/null || echo "NOT_FOUND")
         
-        echo "Current feature state: $$FEATURE_STATE"
+        echo "Current feature state: $FEATURE_STATE"
         
-        if [ "$$FEATURE_STATE" = "ACTIVE" ]; then
+        if [ "$FEATURE_STATE" = "ACTIVE" ]; then
           echo "✓ Service Mesh feature is ACTIVE"
           exit 0
-        elif [ "$$FEATURE_STATE" = "NOT_FOUND" ]; then
+        elif [ "$FEATURE_STATE" = "NOT_FOUND" ] || [ "$FEATURE_STATE" = "" ]; then
           echo "Service Mesh feature not found yet, waiting..."
         else
-          echo "Service Mesh feature state: $$FEATURE_STATE (waiting for ACTIVE)"
+          echo "Service Mesh feature state: $FEATURE_STATE (waiting for ACTIVE)"
         fi
         
         sleep 15
       done
       
       echo "Timed out waiting for Service Mesh feature to be ACTIVE."
-      echo "Final state: $$FEATURE_STATE"
+      echo "Final state: $FEATURE_STATE"
       exit 1
     EOT
   }
@@ -210,25 +210,25 @@ resource "null_resource" "verify_hub_membership" {
       CLUSTER_NAME="${var.gke_cluster}"
       
       echo "Verifying GKE Hub membership registration..."
-      end_time=$$((SECONDS+180))
+      end_time=$((SECONDS+180))
       
-      while [ $$SECONDS -lt $$end_time ]; do
-        if gcloud container hub memberships list --project="$$PROJECT_ID" \
-           --format="value(name)" | grep -q "$$CLUSTER_NAME"; then
-          echo "✓ GKE Hub membership '$$CLUSTER_NAME' is registered"
+      while [ $SECONDS -lt $end_time ]; do
+        if gcloud container hub memberships list --project="$PROJECT_ID" \
+           --format="value(name)" | grep -q "$CLUSTER_NAME"; then
+          echo "✓ GKE Hub membership '$CLUSTER_NAME' is registered"
           
           # Also check membership state
-          MEMBERSHIP_STATE=$$(gcloud container hub memberships describe "$$CLUSTER_NAME" \
-            --project="$$PROJECT_ID" \
+          MEMBERSHIP_STATE=$(gcloud container hub memberships describe "$CLUSTER_NAME" \
+            --project="$PROJECT_ID" \
             --format="value(state.code)" 2>/dev/null || echo "UNKNOWN")
           
-          echo "Membership state: $$MEMBERSHIP_STATE"
+          echo "Membership state: $MEMBERSHIP_STATE"
           
-          if [ "$$MEMBERSHIP_STATE" = "READY" ] || [ "$$MEMBERSHIP_STATE" = "OK" ]; then
+          if [ "$MEMBERSHIP_STATE" = "READY" ] || [ "$MEMBERSHIP_STATE" = "OK" ]; then
             echo "✓ Membership is in ready state"
             exit 0
           else
-            echo "Waiting for membership to be ready (current: $$MEMBERSHIP_STATE)..."
+            echo "Waiting for membership to be ready (current: $MEMBERSHIP_STATE)..."
           fi
         else
           echo "Waiting for hub membership registration..."
@@ -249,7 +249,7 @@ resource "null_resource" "verify_hub_membership" {
 }
 
 # ============================================
-# Verify Mesh Status for Cluster
+# Verify Mesh Status for Cluster (FIXED v2)
 # ============================================
 resource "null_resource" "verify_mesh_status" {
   count = var.enable_cloud_service_mesh ? 1 : 0
@@ -264,35 +264,69 @@ resource "null_resource" "verify_mesh_status" {
       set -e
       PROJECT_ID="${local.project.project_id}"
       PROJECT_NUMBER="${local.project_number}"
-      REGION="${var.region}"
       CLUSTER_NAME="${var.gke_cluster}"
       
-      echo "Verifying Service Mesh status for cluster..."
-      end_time=$$((SECONDS+600))
+      # Construct the full membership path
+      MEMBERSHIP_PATH="projects/$PROJECT_NUMBER/locations/global/memberships/$CLUSTER_NAME"
       
-      while [ $$SECONDS -lt $$end_time ]; do
-        # Get the mesh state for this specific membership
-        MESH_STATE=$$(gcloud container hub features describe servicemesh \
-          --project="$$PROJECT_ID" \
-          --format="value(membershipStates.projects/$$PROJECT_NUMBER/locations/$$REGION/memberships/$$CLUSTER_NAME.state.code)" \
+      echo "Verifying Service Mesh configuration for cluster..."
+      echo "Membership Path: $MEMBERSHIP_PATH"
+      end_time=$((SECONDS+300))
+      
+      while [ $SECONDS -lt $end_time ]; do
+        # Use direct path access in format string (no flatten/filter needed)
+        CONTROL_PLANE_STATE=$(gcloud container hub features describe servicemesh \
+          --project="$PROJECT_ID" \
+          --format="value(membershipStates['$MEMBERSHIP_PATH'].servicemesh.controlPlaneManagement.state)" \
           2>/dev/null || echo "NOT_FOUND")
         
-        echo "Mesh state for cluster: $$MESH_STATE"
+        echo "Control Plane State: $CONTROL_PLANE_STATE"
         
-        if [ "$$MESH_STATE" = "OK" ] || [ "$$MESH_STATE" = "ACTIVE" ]; then
-          echo "✓ Service Mesh is ready for cluster $$CLUSTER_NAME"
+        # Check overall membership state
+        MEMBERSHIP_STATE=$(gcloud container hub features describe servicemesh \
+          --project="$PROJECT_ID" \
+          --format="value(membershipStates['$MEMBERSHIP_PATH'].state.code)" \
+          2>/dev/null || echo "NOT_FOUND")
+        
+        echo "Membership State: $MEMBERSHIP_STATE"
+        
+        # Check feature state
+        FEATURE_STATE=$(gcloud container hub features describe servicemesh \
+          --project="$PROJECT_ID" \
+          --format="value(resourceState.state)" \
+          2>/dev/null || echo "NOT_FOUND")
+        
+        echo "Feature State: $FEATURE_STATE"
+        
+        # Success condition: Control plane ACTIVE and membership OK
+        if [ "$CONTROL_PLANE_STATE" = "ACTIVE" ] && \
+           [ "$MEMBERSHIP_STATE" = "OK" ] && \
+           [ "$FEATURE_STATE" = "ACTIVE" ]; then
+          echo "✓ Service Mesh is fully configured and active!"
+          echo "  ✓ Control Plane: $CONTROL_PLANE_STATE"
+          echo "  ✓ Membership: $MEMBERSHIP_STATE"
+          echo "  ✓ Feature: $FEATURE_STATE"
           exit 0
-        elif [ "$$MESH_STATE" = "" ] || [ "$$MESH_STATE" = "NOT_FOUND" ]; then
-          echo "Mesh state not yet available, waiting..."
-        else
-          echo "Current mesh state: $$MESH_STATE (waiting for OK/ACTIVE)"
         fi
         
-        sleep 20
+        if [ "$CONTROL_PLANE_STATE" = "NOT_FOUND" ] || \
+           [ "$MEMBERSHIP_STATE" = "NOT_FOUND" ]; then
+          echo "Mesh configuration not yet available, waiting..."
+        else
+          echo "Waiting for all components to be ready..."
+        fi
+        
+        sleep 15
       done
       
-      echo "Timed out waiting for Service Mesh to be ready for cluster."
-      echo "Final mesh state: $$MESH_STATE"
+      echo "❌ Timed out waiting for Service Mesh configuration."
+      echo "Final states:"
+      echo "  Control Plane: $CONTROL_PLANE_STATE"
+      echo "  Membership: $MEMBERSHIP_STATE"
+      echo "  Feature: $FEATURE_STATE"
+      echo ""
+      echo "=== Full Feature Description ==="
+      gcloud container hub features describe servicemesh --project="$PROJECT_ID"
       exit 1
     EOT
   }
@@ -300,16 +334,14 @@ resource "null_resource" "verify_mesh_status" {
   triggers = {
     project_id     = local.project.project_id
     project_number = local.project_number
-    region         = var.region
     cluster_name   = var.gke_cluster
     membership_id  = google_gke_hub_membership.gke_cluster.membership_id
   }
 }
 
 # ============================================
-# SERVICE MESH READINESS CHECK (MANAGED ASM)
+# SERVICE MESH READINESS CHECK (FIXED v2)
 # ============================================
-
 resource "null_resource" "wait_for_service_mesh" {
   count = var.enable_cloud_service_mesh ? 1 : 0
   
@@ -323,73 +355,82 @@ resource "null_resource" "wait_for_service_mesh" {
       set -e
       
       PROJECT_ID="${local.project.project_id}"
+      PROJECT_NUMBER="${local.project_number}"
       REGION="${var.region}"
       CLUSTER_NAME="${var.gke_cluster}"
       
-      # Get cluster credentials
-      echo "Getting cluster credentials..."
-      gcloud container clusters get-credentials "$$CLUSTER_NAME" \
-        --region="$$REGION" \
-        --project="$$PROJECT_ID"
+      # Construct the full membership path
+      MEMBERSHIP_PATH="projects/$PROJECT_NUMBER/locations/global/memberships/$CLUSTER_NAME"
       
-      echo "Waiting for ASM control plane to be ready..."
-      end_time=$$((SECONDS+600))
+      echo "Waiting for ASM data plane to be ready..."
+      echo "Membership Path: $MEMBERSHIP_PATH"
+      end_time=$((SECONDS+900))  # 15 minutes
       
-      while [ $$SECONDS -lt $$end_time ]; do
-        # Check if istio-system namespace exists
-        if ! kubectl get namespace istio-system >/dev/null 2>&1; then
-          echo "Waiting for istio-system namespace to be created..."
-          sleep 15
-          continue
+      while [ $SECONDS -lt $end_time ]; do
+        # Check control plane state using direct map access
+        CONTROL_PLANE_STATE=$(gcloud container hub features describe servicemesh \
+          --project="$PROJECT_ID" \
+          --format="value(membershipStates['$MEMBERSHIP_PATH'].servicemesh.controlPlaneManagement.state)" \
+          2>/dev/null || echo "UNKNOWN")
+        
+        # Check data plane state
+        DATA_PLANE_STATE=$(gcloud container hub features describe servicemesh \
+          --project="$PROJECT_ID" \
+          --format="value(membershipStates['$MEMBERSHIP_PATH'].servicemesh.dataPlaneManagement.state)" \
+          2>/dev/null || echo "UNKNOWN")
+        
+        # Get control plane revision details
+        REVISION_DETAILS=$(gcloud container hub features describe servicemesh \
+          --project="$PROJECT_ID" \
+          --format="value(membershipStates['$MEMBERSHIP_PATH'].servicemesh.controlPlaneManagement.details[0].details)" \
+          2>/dev/null || echo "")
+        
+        echo "Control Plane: $CONTROL_PLANE_STATE | Data Plane: $DATA_PLANE_STATE"
+        if [ -n "$REVISION_DETAILS" ]; then
+          echo "Revision: $REVISION_DETAILS"
         fi
         
-        echo "✓ istio-system namespace exists"
-        
-        # Check for control plane revision
-        if ! kubectl get controlplanerevision -n istio-system >/dev/null 2>&1; then
-          echo "Waiting for control plane revision to be created..."
-          sleep 15
-          continue
-        fi
-        
-        # Get the reconciliation status
-        status=$$(kubectl get controlplanerevision -n istio-system \
-          -o=jsonpath='{.items[?(@.spec.type=="managed")].status.conditions[?(@.type=="Reconciled")].status}' 2>/dev/null || echo "")
-        
-        if [ "$$status" = "True" ]; then
-          echo "✓ ASM control plane is ready and reconciled"
+        # Success: Control plane is active
+        if [ "$CONTROL_PLANE_STATE" = "ACTIVE" ]; then
+          echo "✓ ASM Control Plane is ACTIVE!"
+          echo "  Control Plane: $CONTROL_PLANE_STATE"
+          echo "  Data Plane: $DATA_PLANE_STATE"
           
-          # Verify istiod deployment is ready
-          if kubectl get deployment -n istio-system -l app=istiod >/dev/null 2>&1; then
-            echo "✓ Istiod deployment found"
-            kubectl wait --for=condition=available --timeout=60s \
-              deployment -n istio-system -l app=istiod 2>/dev/null || true
+          # Check if data plane is also ready
+          if [ "$DATA_PLANE_STATE" = "ACTIVE" ] || [ "$DATA_PLANE_STATE" = "READY" ]; then
+            echo "✓ Data Plane is also ready!"
+          else
+            echo "ℹ Data Plane is $DATA_PLANE_STATE (will activate when workloads are deployed)"
           fi
           
           exit 0
-        else
-          echo "Control plane reconciliation status: $$status (waiting for True)"
         fi
         
-        sleep 15
+        if [ "$CONTROL_PLANE_STATE" = "PROVISIONING" ]; then
+          echo "⏳ Control plane is provisioning..."
+        elif [ "$CONTROL_PLANE_STATE" = "UNKNOWN" ] || [ "$CONTROL_PLANE_STATE" = "NOT_FOUND" ]; then
+          echo "⏳ Waiting for control plane to be created..."
+        fi
+        
+        sleep 20
       done
       
-      echo "Timed out waiting for ASM control plane to be ready."
-      echo "Current status: $$status"
-      
-      # Debug information
-      echo "=== Debug Information ==="
-      kubectl get all -n istio-system 2>/dev/null || echo "Could not get istio-system resources"
-      kubectl get controlplanerevision -n istio-system -o yaml 2>/dev/null || echo "Could not get control plane revision"
-      
+      echo "❌ Timed out waiting for ASM to be ready."
+      echo "Final states:"
+      echo "  Control Plane: $CONTROL_PLANE_STATE"
+      echo "  Data Plane: $DATA_PLANE_STATE"
+      echo ""
+      echo "=== Full Feature Description ==="
+      gcloud container hub features describe servicemesh --project="$PROJECT_ID"
       exit 1
     EOT
   }
 
   triggers = {
-    project_id   = local.project.project_id
-    region       = var.region
-    cluster_name = var.gke_cluster
-    namespace    = kubernetes_namespace.bank_of_anthos[0].metadata[0].name
+    project_id     = local.project.project_id
+    project_number = local.project_number
+    region         = var.region
+    cluster_name   = var.gke_cluster
+    namespace      = kubernetes_namespace.bank_of_anthos[0].metadata[0].name
   }
 }

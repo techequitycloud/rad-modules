@@ -58,13 +58,13 @@ variable "require_credit_purchases" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+  default     = ""
 }
 
 variable "trusted_users" {
   description = "List of trusted users (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
   type        = list(string)
-  default     = []
+  default     = ["student-01-eb742adca8fa@qwiklabs.net"]
 }
 
 variable "deployment_id" {
@@ -78,12 +78,13 @@ variable "deployment_id" {
 variable "existing_project_id" {
   description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
+  default     = "qwiklabs-gcp-04-670a94beaf5e"
 }
 
 variable "region" {
   description = "The region where Compute Instance and VPCs will be deployed. Deployment may fail if sufficient resources are not available in region. List - https://cloud.google.com/compute/docs/regions-zones#available. {{UIMeta group=2 order=201 }}"
   type        = string
-  default     = "us-central1"
+  default     = "us-west1"
 }
 
 // GROUP 4: Main
