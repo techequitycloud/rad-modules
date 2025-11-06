@@ -40,7 +40,7 @@ variable "module_services" {
   default     = ["GCP", "Cloud IAM"]
 }
 
-variable "credit" {
+variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = number
   default     = 50
