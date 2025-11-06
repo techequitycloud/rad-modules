@@ -106,7 +106,7 @@ resource "google_secret_manager_secret" "mysql_root_password" {
   }
 
   depends_on = [
-    time_sleep.wait_240_seconds
+    null_resource.api_poll
   ]
 }
 
@@ -130,17 +130,37 @@ data "google_secret_manager_secret_version" "mysql_root_password" {
   version  = "latest"  
 
   depends_on = [
-    time_sleep.mysql_root_password
+    null_resource.mysql_secret_poll
   ]
 }
 
 # Resource to introduce a delay after creating a secret version
-resource "time_sleep" "mysql_root_password" {
+resource "null_resource" "mysql_secret_poll" {
   count    = var.create_mysql ? 1 : 0
 
-  depends_on      = [
+  depends_on = [
     google_secret_manager_secret_version.mysql_root_password
   ]
 
-  create_duration = "90s"  
+  provisioner "local-exec" {
+    command = <<EOT
+      #!/bin/bash
+      MAX_RETRIES=18
+      RETRY_INTERVAL=5
+      SECRET_ID="${google_secret_manager_secret.mysql_root_password[0].secret_id}"
+      PROJECT_ID="${local.project.project_id}"
+
+      for ((i=1; i<=MAX_RETRIES; i++)); do
+        if gcloud secrets versions access latest --secret="$SECRET_ID" --project="$PROJECT_ID" &> /dev/null; then
+          echo "Secret is ready."
+          exit 0
+        fi
+        echo "Waiting for secret to be ready... (Attempt $i/$MAX_RETRIES)"
+        sleep $RETRY_INTERVAL
+      done
+
+      echo "Timeout: Secret not ready after $(($MAX_RETRIES * $RETRY_INTERVAL)) seconds."
+      exit 1
+EOT
+  }
 }

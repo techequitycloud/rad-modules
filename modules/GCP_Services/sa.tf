@@ -51,7 +51,7 @@ resource "google_service_account_iam_member" "trusted_user_token_creator_role" {
   service_account_id = local.project_sa_id
 
   depends_on = [
-    time_sleep.wait_240_seconds,
+    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -76,7 +76,7 @@ resource "google_service_account_iam_binding" "resource_creator_identity_token_c
   ]
 
   depends_on = [
-    time_sleep.wait_240_seconds,
+    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -100,7 +100,7 @@ resource "google_service_account" "project_sa_admin" {
   description  = "Service account for project-level administration"
 
   depends_on   = [
-    time_sleep.wait_240_seconds
+    null_resource.api_poll
   ]
 }
 
@@ -113,7 +113,7 @@ resource "google_project_iam_member" "project_sa_admin" {
   role     = each.key                          
 
   depends_on = [
-    time_sleep.wait_240_seconds,
+    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -161,7 +161,7 @@ resource "google_service_account" "cloud_build_sa_admin" {
   description  = "Service account for Cloud Build operations"
 
   depends_on   = [
-    time_sleep.wait_240_seconds
+    null_resource.api_poll
   ]
 }
 
@@ -174,7 +174,7 @@ resource "google_project_iam_member" "cloud_build_sa" {
   role     = each.key                          
 
   depends_on = [
-    time_sleep.wait_240_seconds,
+    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -221,7 +221,7 @@ resource "google_project_iam_member" "cloud_build_agent_sa" {
   role     = each.key                          
 
   depends_on = [
-    time_sleep.wait_240_seconds,
+    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -260,7 +260,7 @@ resource "google_service_account" "cloud_deploy_sa_admin" {
   description  = "Service account for Cloud Deploy operations"
 
   depends_on   = [
-    time_sleep.wait_240_seconds
+    null_resource.api_poll
   ]
 }
 
@@ -273,7 +273,7 @@ resource "google_project_iam_member" "cloud_deploy_sa" {
   role     = each.key                          
 
   depends_on = [
-    time_sleep.wait_240_seconds,
+    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -310,7 +310,7 @@ resource "google_service_account" "gke_sa_admin" {
   display_name = "GKE Service Account"      # Display name for the service account
 
   depends_on = [
-    time_sleep.wait_240_seconds               # Dependency on a time delay, ensuring it's created after a certain time period
+    null_resource.api_poll               # Dependency on a time delay, ensuring it's created after a certain time period
   ]
 }
 
@@ -323,7 +323,7 @@ resource "google_project_iam_member" "gke_sa" {
   role     = each.key                          
 
   depends_on = [
-    time_sleep.wait_240_seconds,
+    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -362,7 +362,7 @@ resource "google_service_account" "cloud_run_sa_admin" {
   description  = "Service account for Cloud Run operations"
 
   depends_on   = [
-    time_sleep.wait_240_seconds
+    null_resource.api_poll
   ]
 }
 
@@ -384,7 +384,7 @@ resource "google_project_iam_member" "cloud_run_sa" {
   role     = each.key                          
 
   depends_on = [
-    time_sleep.wait_240_seconds,
+    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -403,7 +403,7 @@ resource "google_project_iam_member" "cloudrun_agent_shared_vpc_access" {
   member  = "serviceAccount:service-${local.project_number}@serverless-robot-prod.iam.gserviceaccount.com"
 
   depends_on   = [
-    time_sleep.wait_240_seconds,
+    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -427,7 +427,7 @@ resource "google_service_account" "cloud_sql_sa_admin" {
 
   # This service account should be created after a certain delay to ensure dependencies are ready
   depends_on = [
-    time_sleep.wait_240_seconds
+    null_resource.api_poll
   ]
 }
 
@@ -447,7 +447,7 @@ resource "google_project_iam_member" "cloud_sql_sa" {
   role     = each.key                         
 
   depends_on = [
-    time_sleep.wait_240_seconds,
+    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -472,7 +472,7 @@ resource "google_service_account" "nfs_server_sa_admin" {
   
   # Ensures that creation of the service account waits for a specific time period
   depends_on  = [
-    time_sleep.wait_240_seconds
+    null_resource.api_poll
   ]
 }
 
@@ -494,7 +494,7 @@ resource "google_project_iam_member" "nfs_server_sa" {
 
   # Ensures that this resource is created
   depends_on = [
-    time_sleep.wait_240_seconds,
+    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -518,7 +518,7 @@ resource "google_service_account" "setup_server_sa_admin" {
 
   # This service account should be created after a certain delay to ensure dependencies are ready
   depends_on = [
-    time_sleep.wait_240_seconds
+    null_resource.api_poll
   ]
 }
 
@@ -547,7 +547,7 @@ resource "google_project_iam_member" "setup_server_sa" {
 
   # Ensures that this resource is created
   depends_on = [
-    time_sleep.wait_240_seconds,
+    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
