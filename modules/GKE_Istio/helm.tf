@@ -21,7 +21,7 @@ resource "null_resource" "gateway_api_crds" {
         --region=${var.region} \
         --project=${local.project.project_id}
       
-      kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.0.0/standard-install.yaml
+      kubectl apply -f ${path.module}/manifests/standard-install.yaml
     EOT
   }
 
@@ -55,17 +55,21 @@ resource "null_resource" "wait_for_istio_uninstall" {
         --project=${local.project.project_id}
 
       echo "Waiting for Istio uninstall to complete..."
-      while kubectl get ns istio-system; do
+      ATTEMPTS=0
+      MAX_ATTEMPTS=60
+      until ! kubectl get ns istio-system; do
+        if [ $ATTEMPTS -ge $MAX_ATTEMPTS ]; then
+          echo "Timed out waiting for Istio uninstall."
+          exit 1
+        fi
         echo "Istio namespace still exists, sleeping..."
-        sleep 10
+        sleep 5
+        ATTEMPTS=$((ATTEMPTS + 1))
       done
       echo "Istio uninstall complete."
     EOT
   }
 
-  depends_on = [
-    null_resource.wait_for_istio_uninstall
-  ]
 }
 
 resource "helm_release" "istiod" {
@@ -168,9 +172,8 @@ resource "null_resource" "install_observability_addons" {
         --region=${var.region} \
         --project=${local.project.project_id}
       
-      ISTIO_RELEASE=$(echo "${var.istio_version}" | cut -d. -f1,2)
       for addon in prometheus jaeger grafana kiali; do
-        kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-$ISTIO_RELEASE/samples/addons/$addon.yaml
+        kubectl apply -f ${path.module}/manifests/$addon.yaml
       done
     EOT
   }
