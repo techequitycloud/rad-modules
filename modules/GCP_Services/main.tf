@@ -118,7 +118,7 @@ resource "google_project_service" "enabled_services" {
 }
 
 # Simple verification that APIs are ready
-resource "null_resource" "api_verification" {
+resource "null_resource" "api_poll" {
   depends_on = [
     google_project_service.enabled_services
   ]
