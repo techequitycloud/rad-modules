@@ -25,9 +25,9 @@ steps:
     echo "Path: deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
     echo "----------------------------------------"
     
-    # Clean workspace first
-    echo "🧹 Cleaning workspace..."
-    rm -rf /workspace/* || echo "Workspace already clean"
+    # Clean module workspace first
+    echo "🧹 Cleaning module workspace..."
+    rm -rvf * || echo "Module orkspace already clean"
     
     # Check if GCS path exists before attempting deletion
     echo "🔍 Checking if GCS deployment files exist..."
@@ -40,7 +40,7 @@ steps:
     fi
     
     echo "🎯 GCS cleanup completed"
-  dir: /workspace
+  dir: ./modules/${_MODULE_NAME}
 
 - id: 'Delete Firestore Document'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -64,7 +64,7 @@ steps:
     fi
     
     echo "🎯 Firestore cleanup completed"
-  dir: /workspace
+  dir: ./modules/${_MODULE_NAME}
 
 - id: 'Cleanup Verification & Summary'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -102,7 +102,7 @@ steps:
     echo "🎉 Deployment purge operation completed!"
     echo "   Deployment '${_MODULE_NAME}_${_DEPLOYMENT_ID}' cleanup finished"
     echo "========================================"
-  dir: /workspace
+  dir: ./modules/${_MODULE_NAME}
 
 options:
   logging: GCS_ONLY

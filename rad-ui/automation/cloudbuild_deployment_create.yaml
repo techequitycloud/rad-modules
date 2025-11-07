@@ -37,7 +37,7 @@ steps:
         echo "[$(date +'%H:%M:%S')] $1"
     }
     
-    log "🧹 Preparing workspace..."
+    log "🧹 Preparing module workspace..."
     
     # Check if we need to clone from Git or use existing files
     if [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ]; then
@@ -71,7 +71,6 @@ steps:
     ls -la "/workspace/modules/${_MODULE_NAME}/" || true
     
     log "✅ Source code preparation completed"
-  dir: /workspace
 
 - id: 'Create Initial Archive and Download Configuration'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -360,7 +359,7 @@ options:
   logging: GCS_ONLY
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
-  machineType: 'E2_HIGHCPU_8'  # More power for complex deployments
+  # machineType: 'E2_HIGHCPU_8'  # More power for complex deployments
 
 substitutions:
   _DEPLOYMENT_ID: "none"

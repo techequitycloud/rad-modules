@@ -35,8 +35,8 @@ steps:
         echo "[$(date +'%H:%M:%S')] $1"
     }
     
-    log "🧹 Cleaning workspace..."
-    rm -rfv /workspace/* 2>/dev/null || log "Workspace already clean"
+    log "🧹 Cleaning module workspace..."
+    rm -rfv * 2>/dev/null || log "Module workspace already clean"
     
     # Define paths
     GCS_BASE_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files"
@@ -71,9 +71,7 @@ steps:
         log "✅ Initial deployment environment prepared"
     fi
     
-    log "📋 Workspace contents:"
-    ls -la /workspace/ || true
-  dir: /workspace
+  dir: ./modules/${_MODULE_NAME}
 
 - id: 'Initialize and Plan'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -102,7 +100,7 @@ steps:
     tofu plan -out=tfplan
     
     log "✅ Initialization and planning completed"
-  dir: /workspace/modules/${_MODULE_NAME}
+  dir: ./modules/${_MODULE_NAME}
 
 - id: 'Apply Infrastructure Changes'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -151,7 +149,7 @@ steps:
     apply_with_retry
     
     log "🎯 Infrastructure changes applied successfully"
-  dir: /workspace/modules/${_MODULE_NAME}
+  dir: ./modules/${_MODULE_NAME}
 
 - id: 'Refresh State and Generate Outputs'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -179,7 +177,7 @@ steps:
     tofu output || log "No outputs defined"
     
     log "✅ State refresh and output generation completed"
-  dir: /workspace/modules/${_MODULE_NAME}
+  dir: ./modules/${_MODULE_NAME}
 
 - id: 'Archive and Upload Deployment Files'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -218,7 +216,7 @@ steps:
     tar -tzf "${ARCHIVE_FILE}" | head -20
     
     log "✅ Deployment files archived and uploaded"
-  dir: /workspace
+    dir: ./modules
 
 - id: 'Deployment Summary'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -246,20 +244,20 @@ steps:
     echo "========================================"
     
     # Optional: Show final state summary
-    if [[ -f "/workspace/modules/${_MODULE_NAME}/terraform.tfstate" ]]; then
+    if [[ -f "./modules/${_MODULE_NAME}/terraform.tfstate" ]]; then
         echo "📊 Final State Summary:"
-        cd /workspace/modules/${_MODULE_NAME}
+        cd ./modules/${_MODULE_NAME}
         tofu show -json | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || echo "State summary unavailable"
     fi
     
     echo "========================================"
-  dir: /workspace
+    dir: ./modules
 
 options:
   logging: GCS_ONLY
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
-  machineType: 'E2_HIGHCPU_8'  # More power for Terraform operations
+  # machineType: 'E2_HIGHCPU_8'  # More power for Terraform operations
 
 substitutions:
   _DEPLOYMENT_ID: "none"
