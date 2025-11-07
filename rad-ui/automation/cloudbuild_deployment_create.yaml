@@ -47,7 +47,7 @@ steps:
         find /workspace -mindepth 1 -delete 2>/dev/null || true
         
         # Clone repository with error handling
-        if ! git clone "https://$$$$GIT_TOKEN@github.com/${_GIT_REPO_URL}.git" /workspace; then
+        if ! git clone "https://$$GIT_TOKEN@github.com/${_GIT_REPO_URL}.git" /workspace; then
             log "❌ Failed to clone repository"
             log "   Repository: ${_GIT_REPO_URL}"
             log "   Please check repository URL and access token"
