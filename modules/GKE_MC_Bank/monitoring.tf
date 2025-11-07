@@ -15,77 +15,60 @@
  */
 
 locals {
-  services = toset([
-    "accounts-db",
-    "balancereader",
+  services = [
+    "userservice",
     "contacts",
     "frontend",
-    "ledger-db",
-    "ledgerwriter",
     "loadgenerator",
-    "transactionhistory",
-    "userservice",
-  ])
+    "payments",
+    "currencyservice"
+  ]
 }
 
 resource "google_monitoring_service" "gke_services" {
-  for_each = {
-    for tuple in setproduct(local.services, keys(var.cluster_configs)) :
+  for_each = var.enable_monitoring ? {
+    for tuple in setproduct(local.services, keys(local.cluster_configs)) :
     "${tuple[0]}-${tuple[1]}" => {
-      service_name = tuple[0]
-      cluster_key  = tuple[1]
+      service_id  = tuple[0]
+      cluster_key = tuple[1]
     }
-  }
+  } : {}
 
-  service_id   = each.key
-  display_name = each.key
   project      = local.project.project_id
+  service_id   = each.value.service_id
+  display_name = each.value.service_id
 
   basic_service {
-    service_type = "GKE_SERVICE"
-
+    service_type = "gke_service"
     service_labels = {
-      cluster_name   = var.cluster_configs[each.value.cluster_key].gke_cluster_name
-      location       = var.cluster_configs[each.value.cluster_key].region
-      namespace_name = "bank-of-anthos"
       project_id     = local.project.project_id
-      service_name   = each.value.service_name
+      cluster_name   = local.cluster_configs[each.value.cluster_key].gke_cluster_name
+      location       = local.cluster_configs[each.value.cluster_key].region
+      namespace_name = "bank-of-anthos"
+      service_name   = each.value.service_id
     }
   }
 
   depends_on = [
-    null_resource.get_external_ip,
+    null_resource.deploy_bank_of_anthos,
   ]
 }
 
-resource "google_monitoring_slo" "gke_services_slo_limit_utilization" {
-  for_each = {
-    for tuple in setproduct(local.services, keys(var.cluster_configs)) :
-    "${tuple[0]}-${tuple[1]}" => {
-      service_name = tuple[0]
-      cluster_key  = tuple[1]
-    }
-  }
+resource "google_monitoring_slo" "login_slo" {
+  for_each = var.enable_monitoring ? toset(keys(local.cluster_configs)) : []
 
-  project         = local.project.project_id
-  service         = google_monitoring_service.gke_services[each.key].service_id
-  display_name    = "95.0% - CPU Limit Utilization Metric - Calendar day"
-  goal            = 0.95
+  project      = local.project.project_id
+  service      = google_monitoring_service.gke_services["frontend-${each.key}"].service_id
+  slo_id       = "login-slo-${each.key}"
+  display_name = "Login SLO for ${each.key}"
+
+  goal = 0.9
   calendar_period = "DAY"
 
-  windows_based_sli {
-    window_period = "300s"
-
-    metric_sum_in_range {
-      time_series = "metric.type=\"kubernetes.io/container/cpu/limit_utilization\" resource.type=\"k8s_container\" AND resource.label.\"namespace_name\"=\"bank-of-anthos\" AND resource.label.\"cluster_name\"=\"${var.cluster_configs[each.value.cluster_key].gke_cluster_name}\""
-      range {
-        min = -9007199254740991
-        max = 1
-      }
+  request_based_sli {
+    good_total_ratio {
+      good_service_filter = "metric.type=\"istio.io/service/server/request_count\" resource.type=\"istio_canonical_service\" resource.label.\"service_namespace\"=\"bank-of-anthos\" resource.label.\"destination_service_name\"=\"frontend\" metric.label.\"response_code\"!=\"500\""
+      total_service_filter = "metric.type=\"istio.io/service/server/request_count\" resource.type=\"istio_canonical_service\" resource.label.\"service_namespace\"=\"bank-of-anthos\" resource.label.\"destination_service_name\"=\"frontend\""
     }
   }
-
-  depends_on = [
-    null_resource.get_external_ip,
-  ]
 }

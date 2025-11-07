@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Tech Equity Ltd
+ * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,110 +14,40 @@
  * limitations under the License.
  */
 
-# ============================================
-# Pre-cleanup for MultiCluster Ingress Resources
-# ============================================
 resource "null_resource" "cleanup_mci_resources" {
-  for_each = var.deploy_application ? var.cluster_configs : {}
+  for_each = var.deploy_application ? local.cluster_configs : {}
 
   triggers = {
-    project = local.project.project_id
     cluster = each.value.gke_cluster_name
     region  = each.value.region
+    project = local.project.project_id
   }
 
   provisioner "local-exec" {
     when    = destroy
     command = <<-EOF
-      set -e
+      set -x
       echo "======================================"
-      echo "Cleaning up MultiCluster Ingress Resources"
+      echo "Starting MCI resource cleanup for cluster ${self.triggers.cluster}"
       echo "======================================"
       
-      echo "Cleaning up from cluster ${self.triggers.cluster}..."
-      if gcloud container clusters get-credentials ${self.triggers.cluster} \
+      # Get cluster credentials
+      if ! gcloud container clusters get-credentials ${self.triggers.cluster} \
           --region ${self.triggers.region} \
           --project ${self.triggers.project} 2>/dev/null; then
-        
-        echo "Deleting MultiClusterIngress resources from cluster ${self.triggers.cluster}..."
-        kubectl delete multiclusteringress --all --all-namespaces --timeout=3m 2>/dev/null || true
-        
-        echo "Deleting MultiClusterService resources from cluster ${self.triggers.cluster}..."
-        kubectl delete multiclusterservice --all --all-namespaces --timeout=3m 2>/dev/null || true
-        
-        # Remove finalizers if resources are stuck
-        echo "Removing finalizers from cluster ${self.triggers.cluster}..."
-        for mci in $(kubectl get multiclusteringress --all-namespaces -o name 2>/dev/null); do
-          kubectl patch $mci -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
-        done
-        
-        for mcs in $(kubectl get multiclusterservice --all-namespaces -o name 2>/dev/null); do
-          kubectl patch $mcs -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
-        done
-        
-        echo "Cluster ${self.triggers.cluster} cleanup completed"
-      else
-        echo "Could not connect to cluster ${self.triggers.cluster}, skipping cleanup"
+        echo "Warning: Could not get cluster credentials. Cluster may already be deleted."
+        exit 0
       fi
       
-      # Wait for cleanup to propagate
-      echo "Waiting 30 seconds for resources to be fully cleaned up..."
-      sleep 30
+      # Delete MultiClusterIngress and MultiClusterService
+      kubectl delete mci --all -n bank-of-anthos 2>/dev/null || true
+      kubectl delete mcs --all -n bank-of-anthos 2>/dev/null || true
       
       echo "======================================"
-      echo "MultiCluster Ingress Resources cleanup completed"
+      echo "MCI resource cleanup completed"
       echo "======================================"
       
       exit 0
     EOF
   }
-
-  lifecycle {
-    create_before_destroy = false
-  }
-}
-
-# ============================================
-# MultiCluster Service Discovery Feature
-# ============================================
-resource "google_gke_hub_feature" "multicluster_servicediscovery" {
-  count    = var.deploy_application ? 1 : 0
-  name     = "multiclusterservicediscovery"
-  location = "global"
-  project  = local.project.project_id
-
-  lifecycle {
-    prevent_destroy = false
-  }
-
-  depends_on = [
-    google_gke_hub_membership.gke_cluster,
-    null_resource.cleanup_mci_resources,
-  ]
-}
-
-# ============================================
-# MultiCluster Ingress Feature
-# ============================================
-resource "google_gke_hub_feature" "multicluster_ingress" {
-  count    = var.deploy_application ? 1 : 0
-  name     = "multiclusteringress"
-  location = "global"
-  project  = local.project.project_id
-
-  spec {
-    multiclusteringress {
-      config_membership = google_gke_hub_membership.gke_cluster["cluster1"].id
-    }
-  }
-
-  lifecycle {
-    prevent_destroy = false
-  }
-
-  depends_on = [
-    google_gke_hub_membership.gke_cluster,
-    google_gke_hub_feature.multicluster_servicediscovery,
-    null_resource.cleanup_mci_resources,
-  ]
 }

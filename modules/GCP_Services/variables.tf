@@ -62,13 +62,13 @@ variable "deployment_id" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+  default     = ""
 }
 
 variable "trusted_users" {
   description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
   type        = list(string)
-  default     = []
+  default     = ["student-01-c1ca3e087e0f@qwiklabs.net"]
 }
 
 # GROUP 2: Application Project
@@ -76,6 +76,7 @@ variable "trusted_users" {
 variable "existing_project_id" {
   description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
+  default     = "qwiklabs-gcp-04-c22d9353442d"
 }
 
 variable "enable_services" {
@@ -95,7 +96,7 @@ variable "network_name" {
 variable "availability_regions" {
   description = "The two regions where compute resources can be configured. The deployment might fail if sufficient resources not available in chosen region. {{UIMeta group=2 order=302 updatesafe }}"
   type        = list(string)
-  default     = ["us-central1"]
+  default     = ["us-east4"]
 }
 
 variable "gce_subnet_cidr_range" {

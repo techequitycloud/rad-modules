@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Tech Equity Ltd
+ * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,43 +14,37 @@
  * limitations under the License.
  */
 
-resource "google_gke_hub_feature" "service_mesh" {
-  count       = var.enable_cloud_service_mesh ? 1 : 0
-  project     = local.project.project_id
-  name        = "servicemesh"
-  location    = "global"
-  fleet_default_member_config {
-    mesh {
-      management = "MANAGEMENT_AUTOMATIC"
-    }
+resource "google_gke_hub_feature" "service_mesh_feature" {
+  count    = var.enable_cloud_service_mesh ? 1 : 0
+  provider = google-beta
+
+  project  = local.project.project_id
+  name     = "servicemesh"
+  location = "global"
+
+  # Keep the feature alive until all memberships are disabled
+  lifecycle {
+    prevent_destroy = true
   }
+
+  depends_on = [
+    google_project_service.enabled_services,
+  ]
 }
 
 resource "google_gke_hub_feature_membership" "service_mesh_feature_member" {
-  for_each    = var.enable_cloud_service_mesh ? var.cluster_configs : {}
+  for_each    = var.enable_cloud_service_mesh ? local.cluster_configs : {}
+  provider    = google-beta
   project     = local.project.project_id
-  location    = "global"
-
-  feature     = google_gke_hub_feature.service_mesh[0].name
-  membership  = google_gke_hub_membership.gke_cluster[each.key].membership_id
-
+  feature     = google_gke_hub_feature.service_mesh_feature[0].name
+  location    = google_gke_hub_feature.service_mesh_feature[0].location
+  membership  = google_gke_hub_membership.hub_membership[each.key].membership_id
   mesh {
     management = "MANAGEMENT_AUTOMATIC"
   }
 
   depends_on = [
-    google_container_cluster.gke_cluster,
-    google_project_iam_member.service_mesh_service_agent
-  ]
-}
-
-resource "google_project_iam_member" "service_mesh_service_agent" {
-  count   = var.enable_cloud_service_mesh ? 1 : 0
-  project = local.project.project_id
-  role    = "roles/anthosservicemesh.serviceAgent"
-  member  = "serviceAccount:service-${local.project_number}@gcp-sa-servicemesh.iam.gserviceaccount.com"
-
-  depends_on = [
-    google_container_cluster.gke_cluster,
+    google_gke_hub_feature.service_mesh_feature,
+    google_gke_hub_membership.hub_membership,
   ]
 }
