@@ -33,13 +33,12 @@ steps:
     
     # Delete deployment files from GCS
     echo "🗑️  Deleting deployment files from GCS..."
-    GCS_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
-    echo "   Target path: ${GCS_PATH}"
+    echo "   Target path: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
     
     # Simply try to delete - don't check first
     echo "📁 Attempting deletion..."
     set +e  # Disable exit on error temporarily
-    gsutil -m rm -r "${GCS_PATH}/**" 2>&1 | tee /tmp/gsutil_output.log
+    gsutil -m rm -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/**" 2>&1 | tee /tmp/gsutil_output.log
     EXIT_CODE=${PIPESTATUS[0]}
     set -e  # Re-enable exit on error
     
@@ -81,12 +80,12 @@ steps:
     echo "🔍 Final GCS verification..."
     
     set +e
-    FILE_COUNT=$(gsutil ls -r "${GCS_PATH}/**" 2>/dev/null | wc -l)
+    FILE_COUNT=$(gsutil ls -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/**" 2>/dev/null | wc -l)
     set -e
     
     if [ "$FILE_COUNT" -gt "0" ]; then
         echo "⚠️  Warning: Some GCS files may still exist ($FILE_COUNT files)"
-        gsutil ls -r "${GCS_PATH}/**" 2>/dev/null || true
+        gsutil ls -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/**" 2>/dev/null || true
     else
         echo "✅ GCS cleanup verified - no files found"
     fi

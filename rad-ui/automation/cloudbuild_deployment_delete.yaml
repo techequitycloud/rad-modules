@@ -41,15 +41,14 @@ steps:
     rm -rfv * 2>/dev/null || log "Module workspace already clean"
     
     # Define paths
-    GCS_BASE_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files"
     ARCHIVE_FILE="${_MODULE_NAME}.tar.gz"
     
     log "🔍 Checking for deployment files..."
     
     # Verify deployment exists before attempting destruction
-    if ! gsutil ls "${GCS_BASE_PATH}/${ARCHIVE_FILE}" > /dev/null 2>&1; then
+    if ! gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
         log "❌ ERROR: No deployment archive found!"
-        log "   Expected: ${GCS_BASE_PATH}/${ARCHIVE_FILE}"
+        log "   Expected: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
         log "   Cannot proceed with destruction without deployment files."
         exit 1
     fi
@@ -57,14 +56,14 @@ steps:
     log "📦 Deployment found - downloading files..."
     
     # Download all deployment files
-    gsutil -m cp -r "${GCS_BASE_PATH}/*" .
+    gsutil -m cp -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/*" .
     
     # Extract the module archive
     log "📂 Extracting deployment files..."
-    tar -xzf "${ARCHIVE_FILE}"
+    tar -xzf "${_MODULE_NAME}.tar.gz"
     
     # Clean up the archive file
-    rm -f "${ARCHIVE_FILE}"
+    rm -f "${_MODULE_NAME}.tar.gz"
     
     log "✅ Destruction environment prepared"
   dir: ./modules/${_MODULE_NAME}
