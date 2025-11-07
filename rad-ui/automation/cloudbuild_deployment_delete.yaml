@@ -238,7 +238,6 @@ options:
   logging: GCS_ONLY
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
-  machineType: 'E2_HIGHCPU_8'  # More power for complex destruction operations
 
 substitutions:
   _DEPLOYMENT_ID: "none"
