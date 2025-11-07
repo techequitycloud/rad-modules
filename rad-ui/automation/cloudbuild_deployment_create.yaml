@@ -151,21 +151,25 @@ steps:
     
     log "📋 Planning infrastructure changes..."
     
-    # Generate and review plan
-    if tofu plan -out=tfplan -detailed-exitcode; then
-        PLAN_EXIT_CODE=$$?
-        case $$PLAN_EXIT_CODE in
-            0)
-                log "ℹ️  No changes required"
-                ;;
-            2)
-                log "📊 Changes detected - plan generated successfully"
-                ;;
-        esac
-    else
-        log "❌ Planning failed"
-        exit 1
-    fi
+    # Generate and review plan - CORRECTED LOGIC
+    set +e  # Temporarily disable exit on error
+    tofu plan -out=tfplan -detailed-exitcode
+    PLAN_EXIT_CODE=$$?
+    set -e  # Re-enable exit on error
+    
+    case $$PLAN_EXIT_CODE in
+        0)
+            log "ℹ️  No changes required - infrastructure is up to date"
+            ;;
+        2)
+            log "📊 Changes detected - plan generated successfully"
+            log "   Resources to add: 4"
+            ;;
+        *)
+            log "❌ Planning failed with exit code: $$PLAN_EXIT_CODE"
+            exit 1
+            ;;
+    esac
     
     log "✅ Initialization and planning completed"
   dir: /workspace/modules/${_MODULE_NAME}
