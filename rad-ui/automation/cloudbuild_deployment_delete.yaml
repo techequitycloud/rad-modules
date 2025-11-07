@@ -22,7 +22,7 @@ steps:
     rm -rfv *
     gsutil -m cp -r gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/* .
     tar -xzf ${_MODULE_NAME}.tar.gz
-  dir: /workspace
+  dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Initialize Tofu'
   name: '${_TERRAFORM_IMAGE_NAME}'
@@ -32,18 +32,18 @@ steps:
     - |
       set -x
       echo "Initializing Tofu"
-      tofu init -reconfigure -upgrade
+      tofu init -reconfigure
   dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Delete'
   name: '${_TERRAFORM_IMAGE_NAME}'
-  dir: /workspace/modules/${_MODULE_NAME}
   entrypoint: 'bash'
   args:
     - '-c'
     - |
       set -x
       tofu destroy -auto-approve -input=false
+  dir: /workspace/modules/${_MODULE_NAME}
 
 options:
   logging: GCS_ONLY
