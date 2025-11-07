@@ -209,7 +209,7 @@ steps:
     tar -tzf "${_MODULE_NAME}.tar.gz" | head -20
     
     log "✅ Deployment files archived and uploaded"
-    dir: ./modules
+  dir: ./modules
 
 - id: 'Deployment Summary'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -244,7 +244,7 @@ steps:
     fi
     
     echo "========================================"
-    dir: ./modules
+  dir: ./modules
 
 options:
   logging: GCS_ONLY
