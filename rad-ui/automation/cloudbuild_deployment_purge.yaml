@@ -33,7 +33,7 @@ steps:
     
     # Check if GCS path exists before attempting deletion
     echo "🔍 Checking if GCS deployment files exist..."
-    if gsutil ls gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/ > /dev/null 2>&1; then
+    if gsutil ls gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/ ; then
         echo "📁 Found deployment files, proceeding with deletion..."
         gsutil -m rm -r gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/
         echo "✅ GCS deployment files deleted successfully"
@@ -59,7 +59,7 @@ steps:
     
     # Check if Firestore document exists before attempting deletion
     echo "🔍 Checking if Firestore document exists..."
-    if gcloud firestore documents describe deployments/${_DEPLOYMENT_ID} --project ${PROJECT_ID} --quiet > /dev/null 2>&1; then
+    if gcloud firestore documents describe deployments/${_DEPLOYMENT_ID} --project ${PROJECT_ID} --quiet ; then
         echo "📄 Found Firestore document, proceeding with deletion..."
         gcloud firestore documents delete deployments/${_DEPLOYMENT_ID} --project ${PROJECT_ID} --quiet
         echo "✅ Firestore document deleted successfully"
@@ -89,7 +89,7 @@ steps:
     
     # Verify GCS cleanup
     echo "🔍 Final GCS verification..."
-    if gsutil ls gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/ > /dev/null 2>&1; then
+    if gsutil ls gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/ ; then
         echo "⚠️  Warning: Some GCS files may still exist"
         gsutil ls gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/ || true
     else
@@ -98,7 +98,7 @@ steps:
     
     # Verify Firestore cleanup
     echo "🔍 Final Firestore verification..."
-    if gcloud firestore documents describe deployments/${_DEPLOYMENT_ID} --project ${PROJECT_ID} --quiet > /dev/null 2>&1; then
+    if gcloud firestore documents describe deployments/${_DEPLOYMENT_ID} --project ${PROJECT_ID} --quiet ; then
         echo "⚠️  Warning: Firestore document may still exist"
     else
         echo "✅ Firestore cleanup verified - document not found"
