@@ -37,27 +37,23 @@ steps:
     
     log "🧹 Cleaning module workspace..."
     rm -rfv * 2>/dev/null || log "Module workspace already clean"
-    
-    # Define paths
-    GCS_BASE_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files"
-    ARCHIVE_FILE="${_MODULE_NAME}.tar.gz"
-    
+        
     log "🔍 Checking deployment type..."
     
     # Check if this is an initial deployment or update
-    if gsutil ls "${GCS_BASE_PATH}/${ARCHIVE_FILE}" > /dev/null 2>&1; then
+    if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
         log "📦 Existing deployment detected - performing update"
         
         # Download all files for update
         log "⬇️  Downloading existing deployment files..."
-        gsutil -m cp -r "${GCS_BASE_PATH}/*" .
+        gsutil -m cp -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/*" .
         
         # Extract the module archive
         log "📂 Extracting module files..."
-        tar -xzf "${ARCHIVE_FILE}"
+        tar -xzf "${_MODULE_NAME}.tar.gz"
         
         # Clean up the archive file
-        rm -f "${ARCHIVE_FILE}"
+        rm -f "${_MODULE_NAME}.tar.gz"
         
         log "✅ Update environment prepared"
     else
@@ -65,8 +61,8 @@ steps:
         
         # Download only the required config files for initial deployment
         log "⬇️  Downloading configuration files..."
-        gsutil cp "${GCS_BASE_PATH}/terraform.tfvars.json" ./terraform.tfvars.json
-        gsutil cp "${GCS_BASE_PATH}/backend.tf" ./backend.tf
+        gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/terraform.tfvars.json" ./terraform.tfvars.json
+        gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/backend.tf" ./backend.tf
         
         log "✅ Initial deployment environment prepared"
     fi
@@ -170,8 +166,7 @@ steps:
     tofu output -json > output.json
     
     # Upload outputs to GCS
-    OUTPUT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/output"
-    gsutil -m cp output.json "${OUTPUT_PATH}/output.json"
+    gsutil -m cp output.json "s://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/output/output.json"
     
     log "📊 Output summary:"
     tofu output || log "No outputs defined"
@@ -194,26 +189,24 @@ steps:
     log "📦 Creating deployment archive..."
     
     # Create archive of the module directory
-    ARCHIVE_FILE="${_MODULE_NAME}.tar.gz"
-    tar -czf "${ARCHIVE_FILE}" -C "modules/${_MODULE_NAME}" .
+    tar -czf "${_MODULE_NAME}.tar.gz" -C "modules/${_MODULE_NAME}" .
     
     log "📤 Uploading deployment files..."
     
     # Upload the archive
-    FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files"
-    gsutil -m cp "${ARCHIVE_FILE}" "${FILES_PATH}/"
+    gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/"
     
     # Also backup current tfvars and backend config
     if [[ -f "terraform.tfvars.json" ]]; then
-        gsutil cp terraform.tfvars.json "${FILES_PATH}/terraform.tfvars.json"
+        gsutil cp terraform.tfvars.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/terraform.tfvars.json"
     fi
     
     if [[ -f "backend.tf" ]]; then
-        gsutil cp backend.tf "${FILES_PATH}/backend.tf"
+        gsutil cp backend.tf "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/backend.tf"
     fi
     
     log "📋 Archive contents:"
-    tar -tzf "${ARCHIVE_FILE}" | head -20
+    tar -tzf "${_MODULE_NAME}.tar.gz" | head -20
     
     log "✅ Deployment files archived and uploaded"
     dir: ./modules
