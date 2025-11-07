@@ -188,8 +188,8 @@ steps:
     
     log "📦 Creating deployment archive..."
     
-    # Create archive of the module directory
-    tar -czf "${_MODULE_NAME}.tar.gz" -C "modules/${_MODULE_NAME}" .
+    # Create archive of the current module directory
+    tar -czf "${_MODULE_NAME}.tar.gz" .
     
     log "📤 Uploading deployment files..."
     
@@ -209,7 +209,7 @@ steps:
     tar -tzf "${_MODULE_NAME}.tar.gz" | head -20
     
     log "✅ Deployment files archived and uploaded"
-  dir: ./modules
+  dir: ./modules/${_MODULE_NAME}
 
 - id: 'Deployment Summary'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -237,14 +237,13 @@ steps:
     echo "========================================"
     
     # Optional: Show final state summary
-    if [[ -f "./modules/${_MODULE_NAME}/terraform.tfstate" ]]; then
+    if [[ -f "terraform.tfstate" ]]; then
         echo "📊 Final State Summary:"
-        cd ./modules/${_MODULE_NAME}
         tofu show -json | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || echo "State summary unavailable"
     fi
     
     echo "========================================"
-  dir: ./modules
+  dir: ./modules/${_MODULE_NAME}
 
 options:
   logging: GCS_ONLY
