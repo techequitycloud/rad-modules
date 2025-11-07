@@ -34,7 +34,7 @@ steps:
     
     # Function to log with timestamp
     log() {
-        echo "[$(date +'%H:%M:%S')] $1"
+        echo "[$(date +'%H:%M:%S')] $$1"
     }
     
     log "🧹 Preparing module workspace..."
@@ -47,7 +47,7 @@ steps:
         find /workspace -mindepth 1 -delete 2>/dev/null || true
         
         # Clone repository with error handling
-        if ! git clone "https://$$GIT_TOKEN@github.com/${_GIT_REPO_URL}.git" /workspace; then
+        if ! git clone "https://$$$$GIT_TOKEN@github.com/${_GIT_REPO_URL}.git" /workspace; then
             log "❌ Failed to clone repository"
             log "   Repository: ${_GIT_REPO_URL}"
             log "   Please check repository URL and access token"
@@ -81,20 +81,16 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $1"
+        echo "[$(date +'%H:%M:%S')] $$1"
     }
     
     log "📦 Creating initial deployment archive..."
     
     # Create archive of the module
-    ARCHIVE_FILE="${_MODULE_NAME}.tar.gz"
-    tar -czf "${ARCHIVE_FILE}" -C "/workspace/modules/${_MODULE_NAME}" .
-    
-    # Upload initial archive
-    GCS_FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files"
-    
+    tar -czf "${_MODULE_NAME}.tar.gz" -C "/workspace/modules/${_MODULE_NAME}" .
+        
     log "📤 Uploading initial archive to GCS..."
-    gsutil -m cp "${ARCHIVE_FILE}" "${GCS_FILES_PATH}/"
+    gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/"
     
     # Navigate to module directory for configuration download
     cd "/workspace/modules/${_MODULE_NAME}"
@@ -102,14 +98,14 @@ steps:
     log "⬇️  Downloading deployment configuration..."
     
     # Download terraform.tfvars.json
-    if gsutil cp "${GCS_FILES_PATH}/terraform.tfvars.json" ./terraform.tfvars.json; then
+    if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/terraform.tfvars.json" ./terraform.tfvars.json; then
         log "✅ Downloaded terraform.tfvars.json"
     else
         log "⚠️  terraform.tfvars.json not found - proceeding without it"
     fi
     
     # Download backend.tf
-    if gsutil cp "${GCS_FILES_PATH}/backend.tf" ./backend.tf; then
+    if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/backend.tf" ./backend.tf; then
         log "✅ Downloaded backend.tf"
     else
         log "⚠️  backend.tf not found - proceeding without it"
@@ -130,7 +126,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $1"
+        echo "[$(date +'%H:%M:%S')] $$1"
     }
     
     log "🔧 Initializing Terraform/Tofu..."
@@ -157,8 +153,8 @@ steps:
     
     # Generate and review plan
     if tofu plan -out=tfplan -detailed-exitcode; then
-        PLAN_EXIT_CODE=$?
-        case $PLAN_EXIT_CODE in
+        PLAN_EXIT_CODE=$$?
+        case $$PLAN_EXIT_CODE in
             0)
                 log "ℹ️  No changes required"
                 ;;
@@ -183,7 +179,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $1"
+        echo "[$(date +'%H:%M:%S')] $$1"
     }
     
     log "🚀 Applying infrastructure changes..."
@@ -193,24 +189,24 @@ steps:
         local max_attempts=2
         local attempt=1
         
-        while [ $attempt -le $max_attempts ]; do
-            log "🔄 Apply attempt $attempt of $max_attempts"
+        while [ $$attempt -le $$max_attempts ]; do
+            log "🔄 Apply attempt $$attempt of $$max_attempts"
             
             if tofu apply -auto-approve; then
-                log "✅ Apply successful on attempt $attempt"
+                log "✅ Apply successful on attempt $$attempt"
                 return 0
             else
-                local exit_code=$?
-                log "❌ Apply failed on attempt $attempt (exit code: $exit_code)"
+                local exit_code=$$?
+                log "❌ Apply failed on attempt $$attempt (exit code: $$exit_code)"
                 
-                if [ $attempt -eq $max_attempts ]; then
+                if [ $$attempt -eq $$max_attempts ]; then
                     log "💥 All apply attempts failed"
                     
                     # Show current state for debugging
                     log "🔍 Current state summary:"
                     tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || log "Unable to show state"
                     
-                    return $exit_code
+                    return $$exit_code
                 fi
                 
                 log "⏳ Waiting 30 seconds before retry..."
@@ -239,7 +235,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $1"
+        echo "[$(date +'%H:%M:%S')] $$1"
     }
     
     log "🔄 Refreshing Terraform state..."
@@ -268,7 +264,7 @@ steps:
     # Upload outputs to GCS
     OUTPUT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/output"
     
-    if gsutil -m cp output.json "${OUTPUT_PATH}/output.json"; then
+    if gsutil -m cp output.json "$$OUTPUT_PATH/output.json"; then
         log "✅ Outputs uploaded to GCS"
     else
         log "⚠️  Failed to upload outputs to GCS"
@@ -286,29 +282,28 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $1"
+        echo "[$(date +'%H:%M:%S')] $$1"
     }
     
     log "📦 Creating final deployment archive..."
     
     # Create final archive with all state files
     cd /workspace
-    ARCHIVE_FILE="${_MODULE_NAME}.tar.gz"
-    tar -czf "${ARCHIVE_FILE}" -C "modules/${_MODULE_NAME}" .
+    tar -czf "${_MODULE_NAME}.tar.gz" -C "modules/${_MODULE_NAME}" .
     
     log "📤 Uploading final deployment files..."
     
     # Upload final archive
     FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files"
-    gsutil -m cp "${ARCHIVE_FILE}" "${FILES_PATH}/"
+    gsutil -m cp "${_MODULE_NAME}.tar.gz" "$$FILES_PATH/"
     
     # Create deployment completion marker
-    COMPLETION_MARKER="{\"deployed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"deployment_id\": \"${_DEPLOYMENT_ID}\", \"module\": \"${_MODULE_NAME}\", \"status\": \"completed\"}"
-    echo "$COMPLETION_MARKER" > deployment_complete.json
-    gsutil cp deployment_complete.json "${FILES_PATH}/"
+    COMPLETION_MARKER="{\"deployed_at\": \"$$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"deployment_id\": \"${_DEPLOYMENT_ID}\", \"module\": \"${_MODULE_NAME}\", \"status\": \"completed\"}"
+    echo "$$COMPLETION_MARKER" > deployment_complete.json
+    gsutil cp deployment_complete.json "$$FILES_PATH/"
     
     log "📋 Final archive contents:"
-    tar -tzf "${ARCHIVE_FILE}" | head -20
+    tar -tzf "${_MODULE_NAME}.tar.gz" | head -20
     
     log "✅ Final archive created and uploaded"
   dir: /workspace
@@ -320,7 +315,7 @@ steps:
   - '-c'
   - |
     log() {
-        echo "[$(date +'%H:%M:%S')] $1"
+        echo "[$(date +'%H:%M:%S')] $$1"
     }
     
     echo "========================================"
@@ -331,7 +326,7 @@ steps:
     echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
     echo "  • Project: ${PROJECT_ID}"
     echo "  • Repository: ${_GIT_REPO_URL:-'Local/Default'}"
-    echo "  • Completed: $(date)"
+    echo "  • Completed: $$(date)"
     echo "========================================"
     echo "📁 Deployment Artifacts:"
     echo "  • Archive: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
