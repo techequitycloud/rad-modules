@@ -19,6 +19,8 @@ steps:
   args:
   - '-c'
   - |
+    set -e
+    
     echo "🚀 Starting GCS cleanup for deployment: ${_MODULE_NAME}_${_DEPLOYMENT_ID}"
     echo "Project: ${PROJECT_ID}"
     echo "Bucket: gs://${_DEPLOYMENT_BUCKET_ID}"
@@ -48,6 +50,8 @@ steps:
   args:
   - '-c'
   - |
+    set -e
+    
     echo "🗄️  Starting Firestore cleanup for deployment: ${_DEPLOYMENT_ID}"
     echo "Project: ${PROJECT_ID}"
     echo "Document: deployments/${_DEPLOYMENT_ID}"
@@ -72,6 +76,8 @@ steps:
   args:
   - '-c'
   - |
+    set -e
+    
     echo "🔍 Verifying cleanup completion..."
     echo "========================================"
     echo "Deployment Details:"
