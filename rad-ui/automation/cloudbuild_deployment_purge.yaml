@@ -35,7 +35,7 @@ steps:
     echo "🔍 Checking if GCS deployment files exist..."
     if gsutil ls gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/ ; then
         echo "📁 Found deployment files, proceeding with deletion..."
-        gsutil -m rm -r gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/
+        # gsutil -m rm -r gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/
         echo "✅ GCS deployment files deleted successfully"
     else
         echo "ℹ️  No GCS deployment files found (may already be deleted)"
