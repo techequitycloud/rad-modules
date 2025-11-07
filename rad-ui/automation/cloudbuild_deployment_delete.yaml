@@ -37,8 +37,13 @@ steps:
 
 - id: 'Delete'
   name: '${_TERRAFORM_IMAGE_NAME}'
-  args: ['destroy', '-auto-approve', '-input=false']
   dir: /workspace/modules/${_MODULE_NAME}
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      set -x
+      tofu destroy -auto-approve -input=false
 
 options:
   logging: GCS_ONLY
