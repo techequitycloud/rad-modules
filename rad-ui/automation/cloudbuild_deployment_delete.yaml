@@ -89,8 +89,7 @@ steps:
     
     # Check if state file exists and has resources
     if tofu show -json > /dev/null 2>&1; then
-        RESOURCE_COUNT=$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "unknown")
-        log "📊 Found ${RESOURCE_COUNT} resources in state"
+        log "📊 Found $(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "unknown") resources in state"
         
         # Show what will be destroyed
         log "📋 Planning destruction..."
