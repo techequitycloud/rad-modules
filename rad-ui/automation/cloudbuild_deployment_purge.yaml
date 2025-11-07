@@ -13,34 +13,106 @@
 # limitations under the License.
 
 steps:
-- id: 'Delete Config Files from GCS bucket to Local'
-  name: 'gcr.io/cloud-builders/git'
+- id: 'Delete Config Files from GCS bucket'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    rm -rfv *
-    gsutil -m rm -r gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}
+    echo "🚀 Starting GCS cleanup for deployment: ${_MODULE_NAME}_${_DEPLOYMENT_ID}"
+    echo "Project: ${PROJECT_ID}"
+    echo "Bucket: gs://${_DEPLOYMENT_BUCKET_ID}"
+    echo "Path: deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
+    echo "----------------------------------------"
+    
+    # Clean workspace first
+    echo "🧹 Cleaning workspace..."
+    rm -rfv /workspace/* || echo "Workspace already clean"
+    
+    # Check if GCS path exists before attempting deletion
+    echo "🔍 Checking if GCS deployment files exist..."
+    if gsutil ls gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/ > /dev/null 2>&1; then
+        echo "📁 Found deployment files, proceeding with deletion..."
+        gsutil -m rm -r gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}
+        echo "✅ GCS deployment files deleted successfully"
+    else
+        echo "ℹ️  No GCS deployment files found (may already be deleted)"
+    fi
+    
+    echo "🎯 GCS cleanup completed"
   dir: /workspace
 
 - id: 'Delete Firestore Document'
-  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-  entrypoint: gcloud
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  entrypoint: 'bash'
   args:
-  - 'firestore'
-  - 'documents'
-  - 'delete'
-  - 'deployments/${_DEPLOYMENT_ID}'
-  - '--project'
-  - '${PROJECT_ID}'
+  - '-c'
+  - |
+    echo "🗄️  Starting Firestore cleanup for deployment: ${_DEPLOYMENT_ID}"
+    echo "Project: ${PROJECT_ID}"
+    echo "Document: deployments/${_DEPLOYMENT_ID}"
+    echo "----------------------------------------"
+    
+    # Check if Firestore document exists before attempting deletion
+    echo "🔍 Checking if Firestore document exists..."
+    if gcloud firestore documents describe deployments/${_DEPLOYMENT_ID} --project ${PROJECT_ID} --quiet > /dev/null 2>&1; then
+        echo "📄 Found Firestore document, proceeding with deletion..."
+        gcloud firestore documents delete deployments/${_DEPLOYMENT_ID} --project ${PROJECT_ID} --quiet
+        echo "✅ Firestore document deleted successfully"
+    else
+        echo "ℹ️  No Firestore document found (may already be deleted)"
+    fi
+    
+    echo "🎯 Firestore cleanup completed"
+  dir: /workspace
+
+- id: 'Cleanup Verification & Summary'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    echo "🔍 Verifying cleanup completion..."
+    echo "========================================"
+    echo "Deployment Details:"
+    echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
+    echo "  • Module Name: ${_MODULE_NAME}"
+    echo "  • Project: ${PROJECT_ID}"
+    echo "  • GCS Bucket: ${_DEPLOYMENT_BUCKET_ID}"
+    echo "========================================"
+    
+    # Verify GCS cleanup
+    echo "🔍 Final GCS verification..."
+    if gsutil ls gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/ > /dev/null 2>&1; then
+        echo "⚠️  Warning: Some GCS files may still exist"
+        gsutil ls gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/ || true
+    else
+        echo "✅ GCS cleanup verified - no files found"
+    fi
+    
+    # Verify Firestore cleanup
+    echo "🔍 Final Firestore verification..."
+    if gcloud firestore documents describe deployments/${_DEPLOYMENT_ID} --project ${PROJECT_ID} --quiet > /dev/null 2>&1; then
+        echo "⚠️  Warning: Firestore document may still exist"
+    else
+        echo "✅ Firestore cleanup verified - document not found"
+    fi
+    
+    echo "========================================"
+    echo "🎉 Deployment purge operation completed!"
+    echo "   Deployment '${_MODULE_NAME}_${_DEPLOYMENT_ID}' cleanup finished"
+    echo "========================================"
   dir: /workspace
 
 options:
   logging: GCS_ONLY
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
+  machineType: 'E2_MEDIUM'  # Sufficient for cleanup operations
+
 substitutions:
   _DEPLOYMENT_ID: "none"
-  _MODULE_NAME: "none"
+
 logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/logs'
-timeout: 7200s
+timeout: 1800s  # 30 minutes should be plenty for cleanup
+

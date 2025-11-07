@@ -13,43 +13,242 @@
 # limitations under the License.
 
 steps:
-- id: 'Copy the Config Files from GCS bucket to Local'
-  name: 'gcr.io/cloud-builders/git'
+- id: 'Prepare Destruction Environment'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    rm -rfv *
-    gsutil -m cp -r gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/* .
-    tar -xzf ${_MODULE_NAME}.tar.gz
-  dir: /workspace/modules/${_MODULE_NAME}
+    set -e
+    
+    echo "🔥 INFRASTRUCTURE DESTRUCTION INITIATED"
+    echo "========================================"
+    echo "Module: ${_MODULE_NAME}"
+    echo "Deployment ID: ${_DEPLOYMENT_ID}"
+    echo "Project: ${PROJECT_ID}"
+    echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
+    echo "Timestamp: $(date)"
+    echo "========================================"
+    echo "⚠️  WARNING: This will DESTROY all infrastructure!"
+    echo "========================================"
+    
+    # Function to log with timestamp
+    log() {
+        echo "[$(date +'%H:%M:%S')] $1"
+    }
+    
+    log "🧹 Cleaning workspace..."
+    rm -rfv /workspace/* 2>/dev/null || log "Workspace already clean"
+    
+    # Define paths
+    GCS_BASE_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files"
+    ARCHIVE_FILE="${_MODULE_NAME}.tar.gz"
+    
+    log "🔍 Checking for deployment files..."
+    
+    # Verify deployment exists before attempting destruction
+    if ! gsutil ls "${GCS_BASE_PATH}/${ARCHIVE_FILE}" > /dev/null 2>&1; then
+        log "❌ ERROR: No deployment archive found!"
+        log "   Expected: ${GCS_BASE_PATH}/${ARCHIVE_FILE}"
+        log "   Cannot proceed with destruction without deployment files."
+        exit 1
+    fi
+    
+    log "📦 Deployment found - downloading files..."
+    
+    # Download all deployment files
+    gsutil -m cp -r "${GCS_BASE_PATH}/*" .
+    
+    # Extract the module archive
+    log "📂 Extracting deployment files..."
+    tar -xzf "${ARCHIVE_FILE}"
+    
+    # Clean up the archive file
+    rm -f "${ARCHIVE_FILE}"
+    
+    log "📋 Workspace contents prepared:"
+    ls -la /workspace/ || true
+    
+    log "✅ Destruction environment prepared"
+  dir: /workspace
 
-- id: 'Initialize Tofu'
-  name: '${_TERRAFORM_IMAGE_NAME}'
+- id: 'Initialize and Validate State'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
   entrypoint: 'bash'
   args:
-    - '-c'
-    - |
-      set -x
-      echo "Initializing Tofu"
-      tofu init -reconfigure
+  - '-c'
+  - |
+    set -e
+    
+    log() {
+        echo "[$(date +'%H:%M:%S')] $1"
+    }
+    
+    log "🔧 Initializing Terraform/Tofu for destruction..."
+    
+    # Initialize with reconfigure to ensure clean state
+    tofu init -reconfigure
+    
+    log "🔍 Validating current state..."
+    
+    # Check if state file exists and has resources
+    if tofu show -json > /dev/null 2>&1; then
+        RESOURCE_COUNT=$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "unknown")
+        log "📊 Found ${RESOURCE_COUNT} resources in state"
+        
+        # Show what will be destroyed
+        log "📋 Planning destruction..."
+        tofu plan -destroy -out=destroy.tfplan
+        
+        log "⚠️  Resources to be destroyed:"
+        tofu show -json destroy.tfplan | jq -r '.resource_changes[]? | select(.change.actions[] == "delete") | .address' 2>/dev/null || log "Unable to parse destruction plan"
+    else
+        log "⚠️  No state file found or state is empty"
+        log "   This may indicate resources were already destroyed"
+    fi
+    
+    log "✅ State validation completed"
   dir: /workspace/modules/${_MODULE_NAME}
 
-- id: 'Delete'
-  name: '${_TERRAFORM_IMAGE_NAME}'
+- id: 'Destroy Infrastructure'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
   entrypoint: 'bash'
   args:
-    - '-c'
-    - |
-      set -x
-      tofu destroy -auto-approve -input=false
+  - '-c'
+  - |
+    set -e
+    
+    log() {
+        echo "[$(date +'%H:%M:%S')] $1"
+    }
+    
+    log "🔥 Starting infrastructure destruction..."
+    
+    # Destroy with retry logic for transient errors
+    destroy_with_retry() {
+        local max_attempts=3
+        local attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+            log "💥 Destruction attempt $attempt of $max_attempts"
+            
+            if tofu destroy -auto-approve -input=false; then
+                log "✅ Destruction successful on attempt $attempt"
+                return 0
+            else
+                local exit_code=$?
+                log "❌ Destruction failed on attempt $attempt (exit code: $exit_code)"
+                
+                if [ $attempt -eq $max_attempts ]; then
+                    log "💥 All destruction attempts failed"
+                    log "🔍 Checking for remaining resources..."
+                    
+                    # Try to show what's left
+                    if tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]?.address // empty' | head -10; then
+                        log "⚠️  Some resources may still exist in state"
+                    fi
+                    
+                    return $exit_code
+                fi
+                
+                log "⏳ Waiting 60 seconds before retry..."
+                sleep 60
+                
+                # Refresh state before retry
+                log "🔄 Refreshing state before retry..."
+                tofu refresh || log "State refresh failed, continuing with retry"
+            fi
+            
+            ((attempt++))
+        done
+    }
+    
+    destroy_with_retry
+    
+    log "🎯 Infrastructure destruction completed"
   dir: /workspace/modules/${_MODULE_NAME}
+
+- id: 'Verify Destruction and Cleanup'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -e
+    
+    log() {
+        echo "[$(date +'%H:%M:%S')] $1"
+    }
+    
+    log "🔍 Verifying destruction completion..."
+    
+    # Check final state
+    if tofu show -json > /dev/null 2>&1; then
+        REMAINING_RESOURCES=$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "0")
+        
+        if [ "$REMAINING_RESOURCES" = "0" ]; then
+            log "✅ All resources successfully destroyed"
+        else
+            log "⚠️  Warning: ${REMAINING_RESOURCES} resources may still exist"
+            log "📋 Remaining resources:"
+            tofu show -json | jq -r '.values.root_module.resources[]?.address // empty' 2>/dev/null || log "Unable to list remaining resources"
+        fi
+    else
+        log "✅ State is clean - no resources found"
+    fi
+    
+    # Optional: Generate final state output for verification
+    log "📤 Generating final state output..."
+    tofu output -json > final_output.json 2>/dev/null || echo "{}" > final_output.json
+    
+    # Upload final state for audit purposes
+    OUTPUT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction"
+    gsutil -m cp final_output.json "${OUTPUT_PATH}/final_output.json" || log "Failed to upload final output"
+    
+    # Create destruction completion marker
+    echo "{\"destroyed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"deployment_id\": \"${_DEPLOYMENT_ID}\", \"module\": \"${_MODULE_NAME}\"}" > destruction_complete.json
+    gsutil cp destruction_complete.json "${OUTPUT_PATH}/destruction_complete.json" || log "Failed to upload completion marker"
+    
+    log "✅ Destruction verification completed"
+  dir: /workspace/modules/${_MODULE_NAME}
+
+- id: 'Destruction Summary'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    log() {
+        echo "[$(date +'%H:%M:%S')] $1"
+    }
+    
+    echo "========================================"
+    log "🔥 INFRASTRUCTURE DESTRUCTION COMPLETED"
+    echo "========================================"
+    echo "Destruction Details:"
+    echo "  • Module: ${_MODULE_NAME}"
+    echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
+    echo "  • Project: ${PROJECT_ID}"
+    echo "  • Completed: $(date)"
+    echo "========================================"
+    echo "📁 Destruction Artifacts:"
+    echo "  • Final Output: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/final_output.json"
+    echo "  • Completion Marker: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/destruction_complete.json"
+    echo "  • Logs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/logs/"
+    echo "========================================"
+    echo "⚠️  IMPORTANT: Deployment files still exist in GCS"
+    echo "   Use the cleanup/purge pipeline to remove them completely"
+    echo "========================================"
+  dir: /workspace
 
 options:
   logging: GCS_ONLY
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
+  machineType: 'E2_HIGHCPU_8'  # More power for complex destruction operations
+
 substitutions:
   _DEPLOYMENT_ID: "none"
+
 logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/logs'
-timeout: 7200s
+timeout: 7200s  # Keep long timeout for complex infrastructure
