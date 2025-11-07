@@ -101,7 +101,7 @@ variable "trusted_users" {
 }
 
 variable "enable_services" {
-  description = "Enable project APIs. {{UIMeta group=0 order=202 updatesafe }}"
+  description = "Enable project APIs. {{UIMeta group=1 order=202 updatesafe }}"
   type        = bool
   default     = true
 }
