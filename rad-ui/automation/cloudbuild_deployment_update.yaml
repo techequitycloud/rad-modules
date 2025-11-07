@@ -188,8 +188,13 @@ steps:
     
     log "📦 Creating deployment archive..."
     
-    # Create archive of the current module directory
-    tar -czf "${_MODULE_NAME}.tar.gz" .
+    # Create archive of the current module directory, excluding the archive itself and other temp files
+    tar -czf "${_MODULE_NAME}.tar.gz" \
+      --exclude="${_MODULE_NAME}.tar.gz" \
+      --exclude="tfplan" \
+      --exclude="output.json" \
+      --exclude=".terraform.lock.hcl" \
+      .
     
     log "📤 Uploading deployment files..."
     
