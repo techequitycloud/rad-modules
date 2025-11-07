@@ -166,7 +166,7 @@ steps:
     tofu output -json > output.json
     
     # Upload outputs to GCS
-    gsutil -m cp output.json "s://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/output/output.json"
+    gsutil -m cp output.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/output/output.json"
     
     log "📊 Output summary:"
     tofu output || log "No outputs defined"
