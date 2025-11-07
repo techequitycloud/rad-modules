@@ -196,12 +196,11 @@ steps:
     tofu output -json > final_output.json 2>/dev/null || echo "{}" > final_output.json
     
     # Upload final state for audit purposes
-    OUTPUT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction"
-    gsutil -m cp final_output.json "${OUTPUT_PATH}/final_output.json" || log "Failed to upload final output"
+    gsutil -m cp final_output.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/final_output.json" || log "Failed to upload final output"
     
     # Create destruction completion marker
     echo "{\"destroyed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"deployment_id\": \"${_DEPLOYMENT_ID}\", \"module\": \"${_MODULE_NAME}\"}" > destruction_complete.json
-    gsutil cp destruction_complete.json "${OUTPUT_PATH}/destruction_complete.json" || log "Failed to upload completion marker"
+    gsutil cp destruction_complete.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/destruction_complete.json" || log "Failed to upload completion marker"
     
     log "✅ Destruction verification completed"
   dir: ./modules/${_MODULE_NAME}
