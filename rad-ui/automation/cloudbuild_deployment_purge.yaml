@@ -108,7 +108,6 @@ options:
   logging: GCS_ONLY
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
-  machineType: 'E2_MEDIUM'  # Sufficient for cleanup operations
 
 substitutions:
   _DEPLOYMENT_ID: "none"
