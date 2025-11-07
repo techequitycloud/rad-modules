@@ -13,7 +13,7 @@
 # limitations under the License.
 
 steps:
-- id: 'Delete Config Files from GCS bucket and Remove Bucket'
+- id: 'Delete Config Files from GCS bucket'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
   entrypoint: 'bash'
   args:
@@ -31,18 +31,33 @@ steps:
     echo "🧹 Cleaning module workspace..."
     rm -rvf * || echo "Module workspace already clean"
     
-    # Check if GCS path exists before attempting deletion
-    echo "🔍 Checking if GCS deployment files exist..."
-    if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" 2>/dev/null; then
-        echo "📁 Found deployment files, proceeding with deletion..."
-        gsutil -m rm -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/"
+    # Delete deployment files from GCS
+    echo "🗑️  Deleting deployment files from GCS..."
+    GCS_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
+    echo "   Target path: ${GCS_PATH}"
+    
+    # Simply try to delete - don't check first
+    echo "📁 Attempting deletion..."
+    set +e  # Disable exit on error temporarily
+    gsutil -m rm -r "${GCS_PATH}/**" 2>&1 | tee /tmp/gsutil_output.log
+    EXIT_CODE=${PIPESTATUS[0]}
+    set -e  # Re-enable exit on error
+    
+    # Check the result
+    if [ $EXIT_CODE -eq 0 ]; then
         echo "✅ GCS deployment files deleted successfully"
     else
-        echo "ℹ️  No GCS deployment files found at specified path (may already be deleted)"
+        # Check if it's because no files exist
+        if grep -q "No URLs matched" /tmp/gsutil_output.log || grep -q "NotFoundException" /tmp/gsutil_output.log; then
+            echo "ℹ️  No files found at path (may already be deleted) - this is OK"
+        else
+            echo "⚠️  Warning: Deletion encountered an issue, but continuing..."
+            cat /tmp/gsutil_output.log
+        fi
     fi
-  
+    
     echo "🎯 GCS cleanup completed"
-  dir: /workspace/modules/${_MODULE_NAME}
+  dir: /workspace
 
 - id: 'Cleanup Verification & Summary'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -62,10 +77,16 @@ steps:
     echo "========================================"
     
     # Verify GCS cleanup
+    GCS_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
     echo "🔍 Final GCS verification..."
-    if gsutil ls gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/ ; then
-        echo "⚠️  Warning: Some GCS files may still exist"
-        gsutil ls gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/ || true
+    
+    set +e
+    FILE_COUNT=$(gsutil ls -r "${GCS_PATH}/**" 2>/dev/null | wc -l)
+    set -e
+    
+    if [ "$FILE_COUNT" -gt "0" ]; then
+        echo "⚠️  Warning: Some GCS files may still exist ($FILE_COUNT files)"
+        gsutil ls -r "${GCS_PATH}/**" 2>/dev/null || true
     else
         echo "✅ GCS cleanup verified - no files found"
     fi
@@ -74,7 +95,7 @@ steps:
     echo "🎉 Deployment purge operation completed!"
     echo "   Deployment '${_MODULE_NAME}_${_DEPLOYMENT_ID}' cleanup finished"
     echo "========================================"
-  dir: /workspace/modules/${_MODULE_NAME}
+  dir: /workspace
 
 options:
   logging: GCS_ONLY
@@ -85,5 +106,4 @@ substitutions:
   _DEPLOYMENT_ID: "none"
 
 logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/logs'
-timeout: 1800s  # 30 minutes should be plenty for cleanup
-
+timeout: 1800s
