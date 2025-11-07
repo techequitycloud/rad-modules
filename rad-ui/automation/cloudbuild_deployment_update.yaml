@@ -67,7 +67,7 @@ steps:
         log "✅ Initial deployment environment prepared"
     fi
     
-  dir: ./modules/${_MODULE_NAME}
+  dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Initialize and Plan'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -96,7 +96,7 @@ steps:
     tofu plan -out=tfplan
     
     log "✅ Initialization and planning completed"
-  dir: ./modules/${_MODULE_NAME}
+  dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Apply Infrastructure Changes'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -145,7 +145,7 @@ steps:
     apply_with_retry
     
     log "🎯 Infrastructure changes applied successfully"
-  dir: ./modules/${_MODULE_NAME}
+  dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Refresh State and Generate Outputs'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -172,7 +172,7 @@ steps:
     tofu output || log "No outputs defined"
     
     log "✅ State refresh and output generation completed"
-  dir: ./modules/${_MODULE_NAME}
+  dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Archive and Upload Deployment Files'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -188,33 +188,29 @@ steps:
     
     log "📦 Creating deployment archive..."
     
-    # Create archive of the current module directory, excluding the archive itself and other temp files
-    tar -czf "${_MODULE_NAME}.tar.gz" \
-      --exclude="${_MODULE_NAME}.tar.gz" \
-      --exclude="tfplan" \
-      --exclude="output.json" \
-      --exclude=".terraform.lock.hcl" \
-      .
+    # Create archive from parent directory to avoid "file changed" error
+    cd /workspace
+    tar -czf "${_MODULE_NAME}.tar.gz" -C "modules/${_MODULE_NAME}" .
     
     log "📤 Uploading deployment files..."
     
     # Upload the archive
     gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/"
     
-    # Also backup current tfvars and backend config
-    if [[ -f "terraform.tfvars.json" ]]; then
-        gsutil cp terraform.tfvars.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/terraform.tfvars.json"
+    # Also backup current tfvars and backend config from the module directory
+    if [[ -f "modules/${_MODULE_NAME}/terraform.tfvars.json" ]]; then
+        gsutil cp "modules/${_MODULE_NAME}/terraform.tfvars.json" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/terraform.tfvars.json"
     fi
     
-    if [[ -f "backend.tf" ]]; then
-        gsutil cp backend.tf "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/backend.tf"
+    if [[ -f "modules/${_MODULE_NAME}/backend.tf" ]]; then
+        gsutil cp "modules/${_MODULE_NAME}/backend.tf" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/backend.tf"
     fi
     
     log "📋 Archive contents:"
     tar -tzf "${_MODULE_NAME}.tar.gz" | head -20
     
     log "✅ Deployment files archived and uploaded"
-  dir: ./modules/${_MODULE_NAME}
+  dir: /workspace
 
 - id: 'Deployment Summary'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -242,13 +238,14 @@ steps:
     echo "========================================"
     
     # Optional: Show final state summary
-    if [[ -f "terraform.tfstate" ]]; then
+    if [[ -f "/workspace/modules/${_MODULE_NAME}/terraform.tfstate" ]]; then
         echo "📊 Final State Summary:"
+        cd /workspace/modules/${_MODULE_NAME}
         tofu show -json | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || echo "State summary unavailable"
     fi
     
     echo "========================================"
-  dir: ./modules/${_MODULE_NAME}
+  dir: /workspace
 
 options:
   logging: GCS_ONLY
@@ -260,4 +257,4 @@ substitutions:
   _DEPLOYMENT_ID: "none"
 
 logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/logs'
-timeout: 7200s  # Keep the same timeout for complex deployments
+timeout: 7200s
