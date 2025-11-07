@@ -36,7 +36,7 @@ steps:
           gsutil cp gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/terraform.tfvars.json ./terraform.tfvars.json
           rm -rf ${_MODULE_NAME}.tar.gz
         fi
-    dir: ./modules/${_MODULE_NAME}
+    dir: /workspace
 
   # Tofu apply is run a second time in case the first run fails.  Sometimes Tofu runs into an internal error, in which case the pipeline
   # will try to apply the changes a second time.
@@ -54,7 +54,7 @@ steps:
         if ! tofu apply -auto-approve; then
           tofu apply -auto-approve
         fi
-    dir: ./modules/${_MODULE_NAME}
+    dir: /workspace/modules/${_MODULE_NAME}
 
   - id: 'Refresh'
     name: '${_TERRAFORM_IMAGE_NAME}'
@@ -69,7 +69,7 @@ steps:
       - |
         tofu output -json > output.json
         gsutil -m cp output.json gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/output/output.json
-    dir: ./modules/${_MODULE_NAME}
+    dir: /workspace/modules/${_MODULE_NAME}
 
   - id: 'Upload files'
     name: 'gcr.io/cloud-builders/gsutil'
@@ -79,7 +79,7 @@ steps:
       - |
         tar -czf ${_MODULE_NAME}.tar.gz -C ${_MODULE_NAME} .
         gsutil -m cp ${_MODULE_NAME}.tar.gz gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files
-    dir: ./modules
+    dir: /workspace
 
 options:
   logging: GCS_ONLY
