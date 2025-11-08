@@ -15,6 +15,75 @@
  */
 
 # ============================================
+# VERIFY GKE HUB API IS ENABLED
+# ============================================
+
+resource "null_resource" "verify_gke_hub_api_activation" {
+  depends_on = [
+    google_project_service.gkehub,
+    google_container_cluster.gke_cluster,
+  ]
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command = <<-EOT
+      set -e
+      PROJECT_ID="${local.project.project_id}"
+      
+      echo "Verifying GKE Hub API activation..."
+      end_time=$((SECONDS+300))
+      
+      while [ $SECONDS -lt $end_time ]; do
+        if gcloud services list --enabled --project="$PROJECT_ID" \
+           --filter="name:gkehub.googleapis.com" \
+           --format="value(name)" | grep -q "gkehub.googleapis.com"; then
+          echo "✓ GKE Hub API is enabled"
+          exit 0
+        fi
+        echo "Waiting for GKE Hub API to be enabled..."
+        sleep 10
+      done
+      
+      echo "Timed out waiting for GKE Hub API to be enabled."
+      exit 1
+    EOT
+  }
+}
+
+# ============================================
+# WAIT FOR GKE HUB SERVICE ACCOUNT CREATION
+# ============================================
+
+resource "null_resource" "wait_for_gke_hub_service_account" {
+  depends_on = [null_resource.verify_gke_hub_api_activation]
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command = <<-EOT
+      set -e
+      SERVICE_ACCOUNT="service-${local.project_number}@gcp-sa-gkehub.iam.gserviceaccount.com"
+      PROJECT_ID="${local.project.project_id}"
+      
+      echo "Waiting for GKE Hub service account to be created..."
+      end_time=$((SECONDS+180))
+      
+      while [ $SECONDS -lt $end_time ]; do
+        if gcloud iam service-accounts describe "$SERVICE_ACCOUNT" \
+           --project="$PROJECT_ID" &>/dev/null; then
+          echo "✓ GKE Hub service account exists: $SERVICE_ACCOUNT"
+          exit 0
+        fi
+        echo "Waiting for service account $SERVICE_ACCOUNT..."
+        sleep 10
+      done
+      
+      echo "Timed out waiting for GKE Hub service account."
+      exit 1
+    EOT
+  }
+}
+
+# ============================================
 # GKE HUB SERVICE ACCOUNT PERMISSIONS
 # ============================================
 
@@ -33,9 +102,13 @@ resource "google_project_iam_member" "gke_hub_service_account_roles" {
   role    = each.value
 
   depends_on = [
-    google_container_cluster.gke_cluster,
+    null_resource.wait_for_gke_hub_service_account,
   ]
 }
+
+# ============================================
+# WAIT FOR IAM PROPAGATION
+# ============================================
 
 resource "null_resource" "wait_for_iam_propagation" {
   depends_on = [
@@ -43,6 +116,7 @@ resource "null_resource" "wait_for_iam_propagation" {
   ]
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
       ROLE_TO_CHECK="roles/gkehub.serviceAgent"
@@ -51,17 +125,20 @@ resource "null_resource" "wait_for_iam_propagation" {
 
       echo "Waiting for IAM propagation..."
       end_time=$((SECONDS+120))
+      
       while [ $SECONDS -lt $end_time ]; do
         if gcloud projects get-iam-policy "$PROJECT_ID" \
            --flatten="bindings[].members" \
            --format="table(bindings.role)" \
            --filter="bindings.members:$MEMBER_TO_CHECK AND bindings.role:$ROLE_TO_CHECK" \
            | grep -q "$ROLE_TO_CHECK"; then
-          echo "IAM policy for $MEMBER_TO_CHECK with role $ROLE_TO_CHECK has propagated."
+          echo "✓ IAM policy for $MEMBER_TO_CHECK with role $ROLE_TO_CHECK has propagated."
           exit 0
         fi
+        echo "Checking IAM propagation..."
         sleep 5
       done
+      
       echo "Timed out waiting for IAM propagation."
       exit 1
     EOT
