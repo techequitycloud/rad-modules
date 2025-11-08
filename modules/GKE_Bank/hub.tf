@@ -20,7 +20,7 @@
 
 resource "null_resource" "verify_gke_hub_api_activation" {
   depends_on = [
-    google_project_service.gkehub,
+    google_project_service.enabled_services,
     google_container_cluster.gke_cluster,
   ]
 
