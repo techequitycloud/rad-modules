@@ -82,6 +82,7 @@ resource "null_resource" "init_git_repo" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command     = "chmod +x ./init_git_repo.sh && ./init_git_repo.sh && sleep 30"
     working_dir = "${path.module}/scripts/ci"
     
@@ -96,6 +97,7 @@ resource "null_resource" "init_git_repo" {
 
   # Add destroy-time provisioner to cleanup
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     when        = destroy
     command     = "rm -rf .git 2>/dev/null || true"
     working_dir = "${path.module}/scripts/ci"

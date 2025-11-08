@@ -60,6 +60,7 @@ resource "null_resource" "build_and_push_backup_image" {
   }
     
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     working_dir = "${path.module}/scripts/bkup"
     command     = "bash build-container.sh ${local.project.project_id} ${var.resource_creator_identity}"
   }

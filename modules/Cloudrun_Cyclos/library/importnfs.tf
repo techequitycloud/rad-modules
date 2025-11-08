@@ -81,13 +81,14 @@ resource "null_resource" "import_dev_nfs" {
   }
   
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
     timeout 600 bash -c '
     if [ "${var.resource_creator_identity}" = "" ];
     then
-        gcloud compute instances create setup-dev-nfs-vm --zone=${data.google_compute_zones.available_zones.names[0]} --project=${local.project.project_id} --machine-type=f1-micro --image-family=debian-11 --image-project=debian-cloud --network=${google_compute_network.vpc_network.id} --subnet=${google_compute_subnetwork.gce_subnetwork[local.region].id} --service-account=${google_service_account.setup_server_sa_admin.email} --scopes=cloud-platform --no-address --metadata=enable-oslogin=true --metadata-from-file=startup-script=${local_file.import_dev_nfs_script_output[count.index].filename}
+        gcloud compute instances create setup-dev-nfs-vm --zone=${data.google_compute_zones.available_zones.names[0]} --project=${local.project.project_id} --machine-type=f1-micro --image-family=debian-11 --image-project=debian-cloud --network=${google_compute_network.vpc_network.id} --subnet=${google_compute_subnetwork.gce_subnetwork[local.region].id} --service-account=${google_service_account.setup_server_sa_admin.email} --scopes=cloud-platform --no-address --metadata=enable-oslogin=true --metadata-from-file=${local_file.import_dev_nfs_script_output[count.index].filename}
     else
-        gcloud compute instances create setup-dev-nfs-vm --zone=${data.google_compute_zones.available_zones.names[0]} --project=${local.project.project_id} --machine-type=f1-micro --image-family=debian-11 --image-project=debian-cloud --network=${google_compute_network.vpc_network.id} --subnet=${google_compute_subnetwork.gce_subnetwork[local.region].id} --service-account=${google_service_account.setup_server_sa_admin.email} --scopes=cloud-platform --no-address --metadata=enable-oslogin=true --metadata-from-file=startup-script=${local_file.import_dev_nfs_script_output[count.index].filename} --impersonate-service-account=${var.resource_creator_identity}
+        gcloud compute instances create setup-dev-nfs-vm --zone=${data.google_compute_zones.available_zones.names[0]} --project=${local.project.project_id} --machine-type=f1-micro --image-family=debian-11 --image-project=debian-cloud --network=${google_compute_network.vpc_network.id} --subnet=${google_compute_subnetwork.gce_subnetwork[local.region].id} --service-account=${google_service_account.setup_server_sa_admin.email} --scopes=cloud-platform --no-address --metadata=enable-oslogin=true --metadata-from-file=${local_file.import_dev_nfs_script_output[count.index].filename} --impersonate-service-account=${var.resource_creator_identity}
     fi
     '
     EOT
@@ -109,13 +110,14 @@ resource "null_resource" "import_qa_nfs" {
   }
   
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
     timeout 600 bash -c '
     if [ "${var.resource_creator_identity}" = "" ];
     then
-        gcloud compute instances create setup-qa-nfs-vm --zone=${data.google_compute_zones.available_zones.names[0]} --project=${local.project.project_id} --machine-type=f1-micro --image-family=debian-11 --image-project=debian-cloud --network=${google_compute_network.vpc_network.id} --subnet=${google_compute_subnetwork.gce_subnetwork[local.region].id} --service-account=${google_service_account.setup_server_sa_admin.email} --scopes=cloud-platform --no-address --metadata=enable-oslogin=true --metadata-from-file=startup-script=${local_file.import_qa_nfs_script_output[count.index].filename}
+        gcloud compute instances create setup-qa-nfs-vm --zone=${data.google_compute_zones.available_zones.names[0]} --project=${local.project.project_id} --machine-type=f1-micro --image-family=debian-11 --image-project=debian-cloud --network=${google_compute_network.vpc_network.id} --subnet=${google_compute_subnetwork.gce_subnetwork[local.region].id} --service-account=${google_service_account.setup_server_sa_admin.email} --scopes=cloud-platform --no-address --metadata=enable-oslogin=true --metadata-from-file=${local_file.import_qa_nfs_script_output[count.index].filename}
     else
-        gcloud compute instances create setup-qa-nfs-vm --zone=${data.google_compute_zones.available_zones.names[0]} --project=${local.project.project_id} --machine-type=f1-micro --image-family=debian-11 --image-project=debian-cloud --network=${google_compute_network.vpc_network.id} --subnet=${google_compute_subnetwork.gce_subnetwork[local.region].id} --service-account=${google_service_account.setup_server_sa_admin.email} --scopes=cloud-platform --no-address --metadata=enable-oslogin=true --metadata-from-file=startup-script=${local_file.import_qa_nfs_script_output[count.index].filename} --impersonate-service-account=${var.resource_creator_identity}
+        gcloud compute instances create setup-qa-nfs-vm --zone=${data.google_compute_zones.available_zones.names[0]} --project=${local.project.project_id} --machine-type=f1-micro --image-family=debian-11 --image-project=debian-cloud --network=${google_compute_network.vpc_network.id} --subnet=${google_compute_subnetwork.gce_subnetwork[local.region].id} --service-account=${google_service_account.setup_server_sa_admin.email} --scopes=cloud-platform --no-address --metadata=enable-oslogin=true --metadata-from-file=${local_file.import_qa_nfs_script_output[count.index].filename} --impersonate-service-account=${var.resource_creator_identity}
     fi
     '
     EOT
@@ -138,13 +140,14 @@ resource "null_resource" "import_prod_nfs" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
     timeout 600 bash -c '
     if [ "${var.resource_creator_identity}" = "" ];
     then
-        gcloud compute instances create setup-prod-nfs-vm --zone=${data.google_compute_zones.available_zones.names[0]} --project=${local.project.project_id} --machine-type=f1-micro --image-family=debian-11 --image-project=debian-cloud --network=${google_compute_network.vpc_network.id} --subnet=${google_compute_subnetwork.gce_subnetwork[local.region].id} --service-account=${google_service_account.setup_server_sa_admin.email} --scopes=cloud-platform --no-address --metadata=enable-oslogin=true --metadata-from-file=startup-script=${local_file.import_prod_nfs_script_output[count.index].filename}
+        gcloud compute instances create setup-prod-nfs-vm --zone=${data.google_compute_zones.available_zones.names[0]} --project=${local.project.project_id} --machine-type=f1-micro --image-family=debian-11 --image-project=debian-cloud --network=${google_compute_network.vpc_network.id} --subnet=${google_compute_subnetwork.gce_subnetwork[local.region].id} --service-account=${google_service_account.setup_server_sa_admin.email} --scopes=cloud-platform --no-address --metadata=enable-oslogin=true --metadata-from-file=${local_file.import_prod_nfs_script_output[count.index].filename}
     else
-        gcloud compute instances create setup-prod-nfs-vm --zone=${data.google_compute_zones.available_zones.names[0]} --project=${local.project.project_id} --machine-type=f1-micro --image-family=debian-11 --image-project=debian-cloud --network=${google_compute_network.vpc_network.id} --subnet=${google_compute_subnetwork.gce_subnetwork[local.region].id} --service-account=${google_service_account.setup_server_sa_admin.email} --scopes=cloud-platform --no-address --metadata=enable-oslogin=true --metadata-from-file=startup-script=${local_file.import_prod_nfs_script_output[count.index].filename} --impersonate-service-account=${var.resource_creator_identity}
+        gcloud compute instances create setup-prod-nfs-vm --zone=${data.google_compute_zones.available_zones.names[0]} --project=${local.project.project_id} --machine-type=f1-micro --image-family=debian-11 --image-project=debian-cloud --network=${google_compute_network.vpc_network.id} --subnet=${google_compute_subnetwork.gce_subnetwork[local.region].id} --service-account=${google_service_account.setup_server_sa_admin.email} --scopes=cloud-platform --no-address --metadata=enable-oslogin=true --metadata-from-file=${local_file.import_prod_nfs_script_output[count.index].filename} --impersonate-service-account=${var.resource_creator_identity}
     fi
     '
     EOT
@@ -172,6 +175,7 @@ resource "time_sleep" "import_dev_nfs" {
 resource "null_resource" "delete_dev_nfs" {
   count    = var.create_network_filesystem ? 1 : 0  
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
     if [ "${var.resource_creator_identity}" = "" ];
     then
@@ -199,6 +203,7 @@ resource "time_sleep" "import_qa_nfs" {
 resource "null_resource" "delete_qa_nfs" {
   count    = var.create_network_filesystem ? 1 : 0  
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
     if [ "${var.resource_creator_identity}" = "" ];
     then
@@ -226,6 +231,7 @@ resource "time_sleep" "import_prod_nfs" {
 resource "null_resource" "delete_prod_nfs" {
   count    = var.create_network_filesystem ? 1 : 0  
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
     if [ "${var.resource_creator_identity}" = "" ];
     then
