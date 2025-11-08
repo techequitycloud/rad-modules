@@ -27,6 +27,7 @@ resource "null_resource" "run_abm_installation" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<EOT
       ssh                               \
       -o 'StrictHostKeyChecking no'     \
