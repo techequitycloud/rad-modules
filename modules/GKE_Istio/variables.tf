@@ -169,7 +169,7 @@ variable "service_cidr_block" {
 }
 
 variable "node_pools" {
-  description = "A map of node pool configurations. The keys of the map are the names of the node pools. {{UIMeta group=4 order=408 }}"
+  description = "A map of node pool configurations. The keys of the map are the names of the node pools. {{UIMeta group=0 order=408 }}"
   type = map(object({
     node_count   = number
     preemptible  = bool
