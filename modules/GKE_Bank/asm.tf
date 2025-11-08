@@ -23,6 +23,7 @@ resource "null_resource" "verify_gke_hub_api_activation" {
   ]
   
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
@@ -63,6 +64,7 @@ resource "null_resource" "verify_mesh_api_activation" {
   ]
   
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
@@ -134,6 +136,7 @@ resource "null_resource" "verify_mesh_feature_active" {
   ]
   
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
@@ -204,6 +207,7 @@ resource "null_resource" "verify_hub_membership" {
   ]
   
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
@@ -260,6 +264,7 @@ resource "null_resource" "verify_mesh_status" {
   ]
   
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
@@ -351,6 +356,7 @@ resource "null_resource" "wait_for_service_mesh" {
   ]
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
       

@@ -90,6 +90,7 @@ resource "null_resource" "import_dev_nfs" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       # Maximum number of attempts
       max_attempts=3
@@ -166,6 +167,7 @@ resource "null_resource" "import_qa_nfs" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       # Maximum number of attempts
       max_attempts=3
@@ -243,6 +245,7 @@ resource "null_resource" "import_prod_nfs" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       # Maximum number of attempts
       max_attempts=3

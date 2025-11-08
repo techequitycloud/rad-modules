@@ -41,6 +41,7 @@ resource "null_resource" "download_bank_of_anthos" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
       echo "Downloading Bank of Anthos ${local.bank_of_anthos_version}..."
@@ -72,6 +73,7 @@ resource "null_resource" "download_bank_of_anthos" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     when       = destroy
     command    = "rm -rf ${self.triggers.download_path}"
     on_failure = continue
@@ -131,6 +133,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
       
@@ -271,6 +274,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     when    = destroy
     command = <<-EOT
       set -e
@@ -327,6 +331,7 @@ resource "null_resource" "verify_deployment" {
   count = var.deploy_application ? 1 : 0
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       echo "Verifying Bank of Anthos deployment..."
       kubectl get pods -n bank-of-anthos
