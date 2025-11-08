@@ -35,12 +35,14 @@ resource "null_resource" "build_cloud_deploy_app_pipeline" {
 
   # Provisioner to execute a local script that builds and pushes the container image
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     working_dir = "${path.module}/scripts/cd/app"  # The directory where build scripts are located
     command = "bash ../setup-pipeline.sh \"${local.project.project_id}\" \"${local.region}\" \"${var.resource_creator_identity}\""
   }
 
   # Provisioner to execute a local script that deletes the database
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     when    = destroy
     working_dir = "${path.module}/scripts/cd/app" # The directory where build scripts are located
     command = "bash ../delete-pipeline.sh \"$PROJECT_ID\" \"$PIPELINE_NAME\" \"$TARGET_NAME\" \"$APP_NAME\" \"$APP_PREFIX\" \"$APP_REGION\" \"$CREATOR_SA\""

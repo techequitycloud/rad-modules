@@ -14,6 +14,43 @@
  * limitations under the License.
  */
 
+# ============================================
+# Verify GKE Hub API Activation
+# ============================================
+resource "null_resource" "verify_gke_hub_api_activation" {
+  depends_on = [
+    google_project_service.enabled_services,
+  ]
+  
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command = <<-EOT
+      set -e
+      PROJECT_ID="${local.project.project_id}"
+      
+      echo "Verifying GKE Hub API activation..."
+      end_time=$((SECONDS+300))
+      
+      while [ $SECONDS -lt $end_time ]; do
+        if gcloud services list --enabled --project="$PROJECT_ID" \
+           --filter="name:gkehub.googleapis.com" \
+           --format="value(name)" | grep -q "gkehub.googleapis.com"; then
+          echo "✓ GKE Hub API is enabled"
+          exit 0
+        fi
+        echo "Waiting for GKE Hub API to be enabled..."
+        sleep 10
+      done
+      
+      echo "Timed out waiting for GKE Hub API to be enabled."
+      exit 1
+    EOT
+  }
+
+  triggers = {
+    project_id = local.project.project_id
+  }
+}
 
 # ============================================
 # Verify Service Mesh API Activation
