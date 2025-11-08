@@ -19,6 +19,7 @@ resource "null_resource" "get_gke_credentials" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = local.k8s_credentials_cmd          
   }
 
