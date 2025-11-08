@@ -41,6 +41,7 @@ resource "null_resource" "download_bank_of_anthos" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
       echo "Downloading Bank of Anthos ${local.bank_of_anthos_version}..."
@@ -72,6 +73,7 @@ resource "null_resource" "download_bank_of_anthos" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     when       = destroy
     command    = "rm -rf ${self.triggers.download_path}"
     on_failure = continue
@@ -157,6 +159,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
 
@@ -308,6 +311,7 @@ resource "null_resource" "verify_deployment" {
   for_each = var.deploy_application ? local.cluster_configs : {}
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       echo "Verifying Bank of Anthos deployment on ${each.value.gke_cluster_name}..."
       gcloud container clusters get-credentials "${each.value.gke_cluster_name}" --region "${each.value.region}" --project "${google_container_cluster.gke_cluster[each.key].project}"
@@ -345,6 +349,7 @@ resource "null_resource" "app_multicluster_ingress" {
   count = var.deploy_application ? 1 : 0
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
       gcloud container clusters get-credentials "${local.cluster_configs["cluster1"].gke_cluster_name}" --region "${local.cluster_configs["cluster1"].region}" --project "${google_container_cluster.gke_cluster["cluster1"].project}"
