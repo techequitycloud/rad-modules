@@ -43,12 +43,14 @@ resource "null_resource" "import_dev_dump" {
   
   # Provisioner to execute a local script that creates the database
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     working_dir = "${path.module}/scripts/app" # The directory where build scripts are located
     command = "bash import-db-nfs.sh \"${local.project.project_id}\" \"${local.gce_instance_internalIP}\" \"${data.google_compute_zones.available_zones.names[0]}\" \"${local.project.project_id}-backups\" \"${var.application_backup_fileid}\" \"dev_${var.application_backup_file}\" \"${google_sql_database_instance.postgresql_instance[0].private_ip_address}\" \"app${var.application_database_name}${var.client_deployment_id}${local.random_id}dev\" \"app${var.application_database_name}${var.client_deployment_id}${local.random_id}dev\" \"${data.google_secret_manager_secret_version.dev_db_password[0].secret_data}\" \"${google_secret_manager_secret_version.postgres_password[0].secret_data}\" \"app${var.application_name}${var.client_deployment_id}${local.random_id}dev\" \"${join(",", local.regions)}\" \"${local.project.project_id}-restore\" \"${var.resource_creator_identity}\""
   }
 
   # Provisioner to execute a local script that deletes the database
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     when    = destroy
     working_dir = "${path.module}/scripts/app" # The directory where build scripts are located
     command = "bash delete-db-nfs.sh \"${self.triggers.project_id}\" \"${self.triggers.nfs_server}\" \"${self.triggers.zone}\" \"${self.triggers.bucket}\" \"${self.triggers.backup_dump}\" \"${self.triggers.db_ip}\" \"${self.triggers.db_name}\" \"${self.triggers.db_user}\" \"${self.triggers.db_pass}\" \"${self.triggers.pg_pass}\" \"${self.triggers.app_name}\" \"${self.triggers.app_regions}\" \"${self.triggers.creator_sa}\""
@@ -94,12 +96,14 @@ resource "null_resource" "import_qa_dump" {
   
   # Provisioner to execute a local script that creates the database
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     working_dir = "${path.module}/scripts/app" # The directory where build scripts are located
     command = "bash import-db-nfs.sh \"${local.project.project_id}\" \"${local.gce_instance_internalIP}\" \"${data.google_compute_zones.available_zones.names[0]}\" \"${local.project.project_id}-backups\" \"${var.application_backup_fileid}\" \"qa_${var.application_backup_file}\" \"${google_sql_database_instance.postgresql_instance[0].private_ip_address}\" \"app${var.application_database_name}${var.client_deployment_id}${local.random_id}qa\" \"app${var.application_database_name}${var.client_deployment_id}${local.random_id}qa\" \"${data.google_secret_manager_secret_version.qa_db_password[0].secret_data}\" \"${google_secret_manager_secret_version.postgres_password[0].secret_data}\" \"app${var.application_name}${var.client_deployment_id}${local.random_id}qa\" \"${join(",", local.regions)}\" \"${local.project.project_id}-restore\" \"${var.resource_creator_identity}\""
   }
 
   # Provisioner to execute a local script that deletes the database
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     when    = destroy
     working_dir = "${path.module}/scripts/app" # The directory where build scripts are located
     command = "bash delete-db-nfs.sh \"${self.triggers.project_id}\" \"${self.triggers.nfs_server}\" \"${self.triggers.zone}\" \"${self.triggers.bucket}\" \"${self.triggers.backup_dump}\" \"${self.triggers.db_ip}\" \"${self.triggers.db_name}\" \"${self.triggers.db_user}\" \"${self.triggers.db_pass}\" \"${self.triggers.pg_pass}\" \"${self.triggers.app_name}\" \"${self.triggers.app_regions}\" \"${self.triggers.creator_sa}\""
@@ -147,12 +151,14 @@ resource "null_resource" "import_prod_dump" {
   
   # Provisioner to execute a local script that creates the database
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     working_dir = "${path.module}/scripts/app"  # The directory where build scripts are located
     command = "bash import-db-nfs.sh \"${local.project.project_id}\" \"${local.gce_instance_internalIP}\" \"${data.google_compute_zones.available_zones.names[0]}\" \"${local.project.project_id}-backups\" \"${var.application_backup_fileid}\" \"prod_${var.application_backup_file}\" \"${google_sql_database_instance.postgresql_instance[0].private_ip_address}\" \"app${var.application_database_name}${var.client_deployment_id}${local.random_id}prod\" \"app${var.application_database_name}${var.client_deployment_id}${local.random_id}prod\" \"${data.google_secret_manager_secret_version.prod_db_password[0].secret_data}\" \"${google_secret_manager_secret_version.postgres_password[0].secret_data}\" \"app${var.application_name}${var.client_deployment_id}${local.random_id}prod\" \"${join(",", local.regions)}\" \"${local.project.project_id}-restore\" \"${var.resource_creator_identity}\""
   }
 
   # Provisioner to execute a local script that deletes the database
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     when    = destroy
     working_dir = "${path.module}/scripts/app" # The directory where build scripts are located
     command = "bash delete-db-nfs.sh \"${self.triggers.project_id}\" \"${self.triggers.nfs_server}\" \"${self.triggers.zone}\" \"${self.triggers.bucket}\" \"${self.triggers.backup_dump}\" \"${self.triggers.db_ip}\" \"${self.triggers.db_name}\" \"${self.triggers.db_user}\" \"${self.triggers.db_pass}\" \"${self.triggers.pg_pass}\" \"${self.triggers.app_name}\" \"${self.triggers.app_regions}\" \"${self.triggers.creator_sa}\""

@@ -91,6 +91,7 @@ resource "null_resource" "init_git_repo" {
 
   # Provisioner to execute the local script with environment variables
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = "chmod +x ./init_git_repo.sh && ./init_git_repo.sh && sleep 30"
     working_dir = "${path.module}/scripts/ci"
     environment = {
@@ -130,7 +131,6 @@ resource "google_cloudbuildv2_connection" "github_connection" {
       oauth_token_secret_version = google_secret_manager_secret_version.github-token-secret[count.index].id  # Reference to the secret version containing the OAuth token
     }
   }
-
   depends_on = [
     google_secret_manager_secret_iam_policy.policy,
   ]
