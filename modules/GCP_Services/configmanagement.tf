@@ -14,14 +14,31 @@
  * limitations under the License.
  */
 
-resource "time_sleep" "allow_10_minutes_for_config_management_api_activation" {
+resource "null_resource" "poll_for_config_management_api_activation" {
   count       = (var.create_google_kubernetes_engine && var.configure_config_management) ? 1 : 0
 
   depends_on = [
     google_project_service.enabled_services,
   ]
 
-  create_duration = "10m"
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command = <<-EOT
+      echo "Waiting for 'anthosconfigmanagement.googleapis.com' API to be enabled..."
+      MAX_ATTEMPTS=60
+      SLEEP_SECONDS=10
+      for i in $(seq 1 $MAX_ATTEMPTS); do
+        if gcloud services list --enabled --project="${local.project.project_id}" --filter="config.name:anthosconfigmanagement.googleapis.com" --format="value(config.name)" | grep -q "anthosconfigmanagement.googleapis.com"; then
+          echo "'anthosconfigmanagement.googleapis.com' API is enabled."
+          exit 0
+        fi
+        echo "Attempt $i of $MAX_ATTEMPTS: API not enabled yet. Retrying in $SLEEP_SECONDS seconds..."
+        sleep $SLEEP_SECONDS
+      done
+      echo "Error: Timeout waiting for 'anthosconfigmanagement.googleapis.com' API to be enabled."
+      exit 1
+    EOT
+  }
 }
 
 resource "google_gke_hub_feature" "config_management_feature" {
@@ -31,7 +48,7 @@ resource "google_gke_hub_feature" "config_management_feature" {
   location    = "global"
 
   depends_on = [
-    time_sleep.allow_10_minutes_for_config_management_api_activation
+    null_resource.poll_for_config_management_api_activation
   ]
 }
 
