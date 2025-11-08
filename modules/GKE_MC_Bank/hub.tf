@@ -28,6 +28,7 @@ resource "null_resource" "wait_for_fleet_registration" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
 
@@ -73,6 +74,7 @@ resource "null_resource" "pre_cleanup_hub_membership" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     when    = destroy
     command = <<-EOF
       set -x
@@ -131,6 +133,7 @@ resource "null_resource" "enable_asm" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
 
@@ -185,6 +188,7 @@ resource "null_resource" "wait_for_service_mesh" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
 
