@@ -143,6 +143,7 @@ resource "null_resource" "mysql_secret_poll" {
   ]
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<EOT
       #!/bin/bash
       MAX_RETRIES=18
