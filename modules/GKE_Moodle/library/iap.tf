@@ -17,6 +17,7 @@ resource "null_resource" "configure_dev_iap" {
   
   # Provisioner to execute a local script that builds and pushes the container image
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     working_dir = "${path.module}/scripts/iap"  # The directory where build scripts are located
     command = "./configure-iap.sh"
 
@@ -50,6 +51,7 @@ resource "null_resource" "configure_qa_iap" {
   
   # Provisioner to execute a local script that builds and pushes the container image
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     working_dir = "${path.module}/scripts/iap"  # The directory where build scripts are located
     command = "./configure-iap.sh"
 
@@ -83,6 +85,7 @@ resource "null_resource" "configure_prod_iap" {
   
   # Provisioner to execute a local script that builds and pushes the container image
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     working_dir = "${path.module}/scripts/iap"  # The directory where build scripts are located
     command = "./configure-iap.sh"
 

@@ -75,7 +75,8 @@ resource "google_sql_database_instance" "postgres_instance" {
 
 resource "null_resource" "wait_for_dependencies" {
   provisioner "local-exec" {
-    command = "sleep 60"  
+    interpreter = ["/bin/bash", "-c"]
+    command     = "sleep 60"
   }
 
   depends_on = [
@@ -137,6 +138,7 @@ resource "null_resource" "pgsql_secret_poll" {
   ]
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<EOT
       #!/bin/bash
       MAX_RETRIES=18

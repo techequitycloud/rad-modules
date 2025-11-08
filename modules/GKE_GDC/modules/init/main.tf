@@ -133,6 +133,7 @@ resource "null_resource" "exec_init_script" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<EOT
       ssh                               \
       -o 'StrictHostKeyChecking no'     \
