@@ -80,6 +80,7 @@ resource "null_resource" "init_git_repo" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = "chmod +x ./init_git_repo.sh && ./init_git_repo.sh && sleep 30"
     working_dir = "${path.module}/scripts/ci"
     environment = {

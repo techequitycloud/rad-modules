@@ -84,6 +84,7 @@ resource "null_resource" "import_dev_db" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       # Maximum number of attempts
       max_attempts=3
@@ -160,6 +161,7 @@ resource "null_resource" "import_qa_db" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       # Maximum number of attempts
       max_attempts=3
@@ -237,6 +239,7 @@ resource "null_resource" "import_prod_db" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
       # Maximum number of attempts
       max_attempts=3
