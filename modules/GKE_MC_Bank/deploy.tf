@@ -180,21 +180,33 @@ resource "null_resource" "deploy_bank_of_anthos" {
       echo "Verifying namespace '$NAMESPACE'..."
       end_time=$((SECONDS+60))
 
-      while [ $SECONDS -lt $end_time ]; do
+      max_retries=5
+      retry_count=0
+      
+      while [ $retry_count -lt $max_retries ]; do
         NAMESPACE_STATUS=$(kubectl get namespace "$NAMESPACE" \
           -o jsonpath='{.status.phase}' 2>/dev/null || echo "NOT_FOUND")
-
+      
         if [ "$NAMESPACE_STATUS" = "Active" ]; then
           echo "✓ Namespace '$NAMESPACE' is Active"
           break
         elif [ "$NAMESPACE_STATUS" = "NOT_FOUND" ]; then
-          echo "⏳ Waiting for namespace to be created..."
+          echo "⏳ Waiting for namespace to be created... (Attempt $((retry_count + 1))/$max_retries)"
         else
-          echo "⏳ Namespace status: $NAMESPACE_STATUS"
+          echo "⏳ Namespace status: $NAMESPACE_STATUS (Attempt $((retry_count + 1))/$max_retries)"
         fi
-
-        sleep 5
+      
+        retry_count=$((retry_count + 1))
+        
+        if [ $retry_count -lt $max_retries ]; then
+          sleep 5
+        fi
       done
+      
+      if [ "$NAMESPACE_STATUS" != "Active" ]; then
+        echo "❌ Failed to verify namespace after $max_retries attempts"
+        exit 1
+      fi
 
       if [ "$NAMESPACE_STATUS" != "Active" ]; then
         echo "❌ Namespace is not Active. Status: $NAMESPACE_STATUS"
