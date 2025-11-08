@@ -835,6 +835,7 @@ resource "null_resource" "add_html_folder_dev" {
   count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
   
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       cd ${path.module}/scripts/ci
       
@@ -1064,6 +1065,7 @@ resource "null_resource" "add_html_folder_qa" {
   count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_nonproduction_environment ? 1 : 0
   
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       cd ${path.module}/scripts/ci
       
@@ -1293,6 +1295,7 @@ resource "null_resource" "add_html_folder_prod" {
   count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_production_environment ? 1 : 0
   
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       cd ${path.module}/scripts/ci
       
