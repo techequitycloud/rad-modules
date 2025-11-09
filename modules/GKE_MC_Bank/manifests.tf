@@ -47,18 +47,26 @@ resource "local_file" "ingress_yaml_output" {
     APPLICATION_REGION        = local.cluster_configs["cluster1"].region,
     APPLICATION_NAME          = "bank-of-anthos",
     APPLICATION_NAMESPACE     = "bank-of-anthos",
-    APPLICATION_DOMAIN        = var.domain
+    APPLICATION_DOMAIN        = "boa.${google_compute_global_address.glb.address}.sslip.io"
   })
   filename = "${path.module}/manifests/ingress.yaml"
+
+  depends_on = [
+    google_compute_global_address.glb,
+  ]
 }
 
 resource "local_file" "managed_certificate_yaml_output" {
   content = templatefile("${path.module}/templates/managed_certificate.yaml.tpl", {
     APPLICATION_NAME      = "bank-of-anthos",
     APPLICATION_NAMESPACE = "bank-of-anthos",
-    APPLICATION_DOMAIN    = var.domain
+    APPLICATION_DOMAIN    = "boa.${google_compute_global_address.glb.address}.sslip.io"
   })
   filename = "${path.module}/manifests/managed_certificate.yaml"
+
+  depends_on = [
+    google_compute_global_address.glb,
+  ]
 }
 
 resource "local_file" "multicluster_service_yaml_output" {
@@ -80,9 +88,13 @@ resource "local_file" "multicluster_ingress_yaml_output" {
     APPLICATION_REGION        = local.cluster_configs["cluster1"].region,
     APPLICATION_NAME          = "bank-of-anthos",
     APPLICATION_NAMESPACE     = "bank-of-anthos",
-    APPLICATION_DOMAIN        = var.domain
+    APPLICATION_DOMAIN        = "boa.${google_compute_global_address.glb.address}.sslip.io"
   })
   filename = "${path.module}/manifests/multicluster_ingress.yaml"
+
+  depends_on = [
+    google_compute_global_address.glb,
+  ]
 }
 
 resource "local_file" "nodeport_service_yaml_output" {

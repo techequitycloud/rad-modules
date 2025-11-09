@@ -7,13 +7,16 @@
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law of agreed to in writing, software
+ * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 
+# ============================================
+# VPC Network
+# ============================================
 resource "google_compute_network" "vpc" {
   project                         = local.project.project_id
   name                            = var.network_name
@@ -22,6 +25,9 @@ resource "google_compute_network" "vpc" {
   mtu                             = 1500
 }
 
+# ============================================
+# Subnets (One per cluster)
+# ============================================
 resource "google_compute_subnetwork" "subnetwork" {
   for_each      = local.cluster_configs
   project       = local.project.project_id
@@ -39,32 +45,64 @@ resource "google_compute_subnetwork" "subnetwork" {
     range_name    = each.value.service_ip_range
     ip_cidr_range = each.value.service_cidr_block
   }
+
+  depends_on = [
+    google_compute_network.vpc,
+  ]
 }
 
+# ============================================
+# Cloud Router (One per cluster/region)
+# ============================================
 resource "google_compute_router" "router" {
-  for_each  = local.cluster_configs
-  project   = local.project.project_id
-  name      = "router-${each.key}"
-  region    = each.value.region
-  network   = google_compute_network.vpc.id
+  for_each = local.cluster_configs
+  project  = local.project.project_id
+  name     = "router-${each.key}"
+  region   = each.value.region
+  network  = google_compute_network.vpc.id
+  
   bgp {
     asn = 64514
   }
+
+  depends_on = [
+    google_compute_network.vpc,
+  ]
 }
 
+# ============================================
+# Cloud NAT (One per router, targeting specific subnet)
+# ============================================
 resource "google_compute_router_nat" "nat_gateway" {
-  for_each                               = local.cluster_configs
-  project                                = local.project.project_id
-  name                                   = "nat-gateway-${each.key}"
-  router                                 = google_compute_router.router[each.key].name
-  region                                 = google_compute_router.router[each.key].region
-  source_subnetwork_ip_ranges_to_nat     = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+  for_each = local.cluster_configs
+  project  = local.project.project_id
+  name     = "nat-gateway-${each.key}"
+  router   = google_compute_router.router[each.key].name
+  region   = google_compute_router.router[each.key].region
+
+  # Use LIST_OF_SUBNETWORKS to avoid conflicts
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
+
+  subnetwork {
+    name                    = google_compute_subnetwork.subnetwork[each.key].id
+    source_ip_ranges_to_nat = ["ALL_IP_RANGES"]
+  }
+
   log_config {
     enable = true
     filter = "ERRORS_ONLY"
   }
+
+  depends_on = [
+    google_compute_router.router,
+    google_compute_subnetwork.subnetwork,
+  ]
 }
 
+# ============================================
+# Static External IPs (One per cluster)
+# ============================================
 resource "google_compute_address" "static_ip" {
   for_each     = local.cluster_configs
   project      = local.project.project_id
@@ -73,58 +111,127 @@ resource "google_compute_address" "static_ip" {
   address_type = "EXTERNAL"
 }
 
+# ============================================
+# Firewall Rules
+# ============================================
+
+# Allow SSH access
 resource "google_compute_firewall" "allow_ssh" {
   project       = local.project.project_id
   name          = "allow-ssh"
   network       = google_compute_network.vpc.name
   direction     = "INGRESS"
+  priority      = 1000
   source_ranges = ["0.0.0.0/0"]
+
   allow {
     protocol = "tcp"
     ports    = ["22"]
   }
+
+  depends_on = [
+    google_compute_network.vpc,
+  ]
 }
 
+# Allow internal communication between subnets
 resource "google_compute_firewall" "allow_internal" {
   project       = local.project.project_id
   name          = "allow-internal"
   network       = google_compute_network.vpc.name
   direction     = "INGRESS"
-  source_ranges = [for config in local.cluster_configs : config.ip_cidr_range]
+  priority      = 1000
+  source_ranges = concat(
+    [for config in local.cluster_configs : config.ip_cidr_range],
+    [for config in local.cluster_configs : config.pod_cidr_block],
+    [for config in local.cluster_configs : config.service_cidr_block]
+  )
+
   allow {
     protocol = "tcp"
     ports    = ["0-65535"]
   }
+
   allow {
     protocol = "udp"
     ports    = ["0-65535"]
   }
+
   allow {
     protocol = "icmp"
   }
+
+  depends_on = [
+    google_compute_network.vpc,
+  ]
 }
 
+# Allow GKE control plane to communicate with nodes
 resource "google_compute_firewall" "allow_gke_masters" {
   project       = local.project.project_id
   name          = "allow-gke-masters"
   network       = google_compute_network.vpc.name
   direction     = "INGRESS"
-  source_ranges = ["172.16.0.0/28"] # GKE masters default range
+  priority      = 1000
+  source_ranges = ["172.16.0.0/28"] # GKE control plane default range
+
   allow {
     protocol = "tcp"
   }
+
   allow {
     protocol = "udp"
   }
+
+  allow {
+    protocol = "icmp"
+  }
+
+  depends_on = [
+    google_compute_network.vpc,
+  ]
 }
 
+# Allow Google Cloud health checks
 resource "google_compute_firewall" "allow_health_checks" {
   project       = local.project.project_id
   name          = "allow-health-checks"
   network       = google_compute_network.vpc.name
   direction     = "INGRESS"
-  source_ranges = ["35.191.0.0/16", "130.211.0.0/22"] # Google Cloud health checkers
+  priority      = 1000
+  source_ranges = [
+    "35.191.0.0/16",    # Google Cloud health checkers
+    "130.211.0.0/22",   # Google Cloud health checkers
+    "209.85.152.0/22",  # Google Cloud health checkers
+    "209.85.204.0/22"   # Google Cloud health checkers
+  ]
+
   allow {
     protocol = "tcp"
   }
+
+  depends_on = [
+    google_compute_network.vpc,
+  ]
+}
+
+# Allow webhook admission controllers (required for ASM/Istio)
+resource "google_compute_firewall" "allow_webhooks" {
+  project       = local.project.project_id
+  name          = "allow-webhooks"
+  network       = google_compute_network.vpc.name
+  direction     = "INGRESS"
+  priority      = 1000
+  source_ranges = [for config in local.cluster_configs : config.ip_cidr_range]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["443", "8443", "9443", "15017"]
+  }
+
+  target_tags = ["gke-node"]
+
+  depends_on = [
+    google_compute_network.vpc,
+  ]
 }
