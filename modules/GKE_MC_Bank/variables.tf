@@ -138,30 +138,6 @@ variable "cloud_service_mesh_version" {
   default     = "1.23.4-asm.1"
 }
 
-variable "enable_config_management" {
-  description = "Enable Config Management. {{UIMeta group=0 order=404 }}"
-  type        = bool
-  default     = false
-}
-
-variable "config_management_version" {
-  description = "Anthos Config Management version. {{UIMeta group=0 order=405 }}"
-  type        = string
-  default     = "1.22.0"
-}
-
-variable "config_sync_repo" {
-  description = "The URL of the Git repository for Config Sync. {{UIMeta group=0 order=406 }}"
-  type        = string
-  default     = "https://github.com/GoogleCloudPlatform/anthos-config-management-samples"
-}
-
-variable "config_sync_policy_dir" {
-  description = "The directory within the Git repository for Config Sync. {{UIMeta group=0 order=407 }}"
-  type        = string
-  default     = "config-sync-quickstart/multirepo/root"
-}
-
 // GROUP 6: Network
 
 variable "create_network" {

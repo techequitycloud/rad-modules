@@ -23,3 +23,6 @@ resource "google_compute_global_address" "glb" {
   project = local.project.project_id
   name = "bank-of-anthos"
 }
+
+
+
