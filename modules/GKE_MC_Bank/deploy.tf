@@ -38,37 +38,60 @@ resource "null_resource" "download_bank_of_anthos" {
   triggers = {
     version       = local.bank_of_anthos_version
     download_path = local.download_path
+    # Force re-download on every apply to ensure files are always present
+    always_run    = timestamp()
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
+      echo "=========================================="
       echo "Downloading Bank of Anthos ${local.bank_of_anthos_version}..."
+      echo "=========================================="
+      
+      # Create download directory
       mkdir -p ${local.download_path}
       
-      # Download only if not already downloaded
-      if [ ! -f ${local.download_path}/release.tar.gz ]; then
-        curl -L -o ${local.download_path}/release.tar.gz ${local.release_url}
-      fi
+      # Always download fresh copy to avoid stale files
+      echo "Downloading release archive..."
+      curl -L -o ${local.download_path}/release.tar.gz ${local.release_url}
       
       echo "Extracting archive..."
       # Remove old extraction if exists
       rm -rf ${local.extracted_path}
       tar -xzf ${local.download_path}/release.tar.gz -C ${local.download_path}
       
-      echo "Download and extraction complete!"
+      echo ""
+      echo "✓ Download and extraction complete!"
       echo "Files extracted to: ${local.extracted_path}"
+      echo ""
       
       # Verify extraction
-      if [ -d "${local.extracted_path}" ]; then
-        echo "✓ Extracted directory exists"
-        ls -la ${local.extracted_path}/extras/jwt/ || echo "JWT directory not found"
-        ls -la ${local.extracted_path}/kubernetes-manifests/ || echo "Manifests directory not found"
-      else
-        echo "✗ Extraction failed - directory not found"
+      echo "Verifying extracted files..."
+      if [ ! -d "${local.extracted_path}" ]; then
+        echo "❌ Extraction failed - directory not found"
         exit 1
       fi
+      
+      if [ ! -f "${local.extracted_path}/extras/jwt/jwt-secret.yaml" ]; then
+        echo "❌ JWT secret file not found after extraction"
+        ls -la ${local.extracted_path}/extras/jwt/ || echo "JWT directory not found"
+        exit 1
+      fi
+      
+      if [ ! -d "${local.extracted_path}/kubernetes-manifests" ]; then
+        echo "❌ Manifests directory not found after extraction"
+        exit 1
+      fi
+      
+      echo "✓ All required files verified:"
+      echo "  - JWT secret: ${local.extracted_path}/extras/jwt/jwt-secret.yaml"
+      echo "  - Manifests: ${local.extracted_path}/kubernetes-manifests"
+      ls -la ${local.extracted_path}/extras/jwt/
+      echo ""
+      echo "Manifest files:"
+      ls -la ${local.extracted_path}/kubernetes-manifests/ | head -10
     EOT
   }
 
@@ -156,6 +179,8 @@ resource "null_resource" "deploy_bank_of_anthos" {
     project_id       = google_container_cluster.gke_cluster[each.key].project
     manifests_path   = local.manifests_path
     jwt_secret_path  = local.jwt_secret_path
+    # Force re-deployment if download changes
+    download_id      = null_resource.download_bank_of_anthos[0].id
   }
 
   provisioner "local-exec" {
@@ -167,12 +192,36 @@ resource "null_resource" "deploy_bank_of_anthos" {
       CLUSTER_NAME="${self.triggers.cluster_name}"
       REGION="${self.triggers.region}"
       PROJECT_ID="${self.triggers.project_id}"
+      JWT_SECRET_PATH="${self.triggers.jwt_secret_path}"
+      MANIFESTS_PATH="${self.triggers.manifests_path}"
 
       echo "=========================================="
       echo "Deploying Bank of Anthos Application to ${self.triggers.cluster_name}"
       echo "=========================================="
+      
+      # Verify files exist BEFORE starting deployment
+      echo ""
+      echo "Pre-deployment verification..."
+      if [ ! -f "$JWT_SECRET_PATH" ]; then
+        echo "❌ CRITICAL: JWT secret file not found at: $JWT_SECRET_PATH"
+        echo "Current directory: $(pwd)"
+        echo "Listing .terraform directory:"
+        ls -la .terraform/ || echo "No .terraform directory"
+        ls -la .terraform/bank-of-anthos/ || echo "No bank-of-anthos directory"
+        exit 1
+      fi
+      
+      if [ ! -d "$MANIFESTS_PATH" ]; then
+        echo "❌ CRITICAL: Manifests directory not found at: $MANIFESTS_PATH"
+        exit 1
+      fi
+      
+      echo "✓ All required files verified"
+      echo "  - JWT secret: $JWT_SECRET_PATH"
+      echo "  - Manifests: $MANIFESTS_PATH"
 
       # Get cluster credentials
+      echo ""
       echo "Getting cluster credentials..."
       gcloud container clusters get-credentials "$CLUSTER_NAME" \
         --region="$REGION" \
@@ -181,8 +230,6 @@ resource "null_resource" "deploy_bank_of_anthos" {
       # Verify namespace exists and is Active
       echo ""
       echo "Verifying namespace '$NAMESPACE'..."
-      end_time=$((SECONDS+60))
-
       max_retries=5
       retry_count=0
       
@@ -211,11 +258,6 @@ resource "null_resource" "deploy_bank_of_anthos" {
         exit 1
       fi
 
-      if [ "$NAMESPACE_STATUS" != "Active" ]; then
-        echo "❌ Namespace is not Active. Status: $NAMESPACE_STATUS"
-        exit 1
-      fi
-
       # Verify ASM injection label (if Service Mesh is enabled)
       echo ""
       echo "Checking ASM injection configuration..."
@@ -231,28 +273,18 @@ resource "null_resource" "deploy_bank_of_anthos" {
       # Apply JWT secret (idempotent)
       echo ""
       echo "Applying JWT secret..."
-      if [ -f "./.terraform/bank-of-anthos/bank-of-anthos-0.6.7/extras/jwt/jwt-secret.yaml" ]; then
-        if kubectl get secret jwt-key -n "$NAMESPACE" &>/dev/null; then
-          echo "ℹ JWT secret already exists, skipping..."
-        else
-          kubectl apply -f ./.terraform/bank-of-anthos/bank-of-anthos-0.6.7/extras/jwt/jwt-secret.yaml -n "$NAMESPACE"
-          echo "✓ JWT secret applied"
-        fi
+      if kubectl get secret jwt-key -n "$NAMESPACE" &>/dev/null; then
+        echo "ℹ JWT secret already exists, skipping..."
       else
-        echo "❌ JWT secret file not found"
-        exit 1
+        kubectl apply -f "$JWT_SECRET_PATH" -n "$NAMESPACE"
+        echo "✓ JWT secret applied"
       fi
 
       # Apply all manifests
       echo ""
       echo "Applying Bank of Anthos manifests..."
-      if [ -d "${self.triggers.manifests_path}" ]; then
-        kubectl apply -f ${self.triggers.manifests_path} -n "$NAMESPACE"
-        echo "✓ Manifests applied"
-      else
-        echo "❌ Manifests directory not found: ${self.triggers.manifests_path}"
-        exit 1
-      fi
+      kubectl apply -f "$MANIFESTS_PATH" -n "$NAMESPACE"
+      echo "✓ Manifests applied"
 
       # Wait for deployments to be ready
       echo ""
