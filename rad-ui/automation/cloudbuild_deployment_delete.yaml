@@ -37,18 +37,19 @@ steps:
         echo "[$(date +'%H:%M:%S')] $1"
     }
     
-    log "🧹 Cleaning module workspace..."
-    rm -rfv * 2>/dev/null || log "Module workspace already clean"
+    log "🧹 Cleaning workspace..."
+    rm -rfv /workspace/* 2>/dev/null || log "Workspace already clean"
     
     # Define paths
+    GCS_BASE_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files"
     ARCHIVE_FILE="${_MODULE_NAME}.tar.gz"
     
     log "🔍 Checking for deployment files..."
     
     # Verify deployment exists before attempting destruction
-    if ! gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
+    if ! gsutil ls "${GCS_BASE_PATH}/${ARCHIVE_FILE}" > /dev/null 2>&1; then
         log "❌ ERROR: No deployment archive found!"
-        log "   Expected: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
+        log "   Expected: ${GCS_BASE_PATH}/${ARCHIVE_FILE}"
         log "   Cannot proceed with destruction without deployment files."
         exit 1
     fi
@@ -56,17 +57,20 @@ steps:
     log "📦 Deployment found - downloading files..."
     
     # Download all deployment files
-    gsutil -m cp -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/*" .
+    gsutil -m cp -r "${GCS_BASE_PATH}/*" .
     
     # Extract the module archive
     log "📂 Extracting deployment files..."
-    tar -xzf "${_MODULE_NAME}.tar.gz"
+    tar -xzf "${ARCHIVE_FILE}"
     
     # Clean up the archive file
-    rm -f "${_MODULE_NAME}.tar.gz"
+    rm -f "${ARCHIVE_FILE}"
+    
+    log "📋 Workspace contents prepared:"
+    ls -la /workspace/ || true
     
     log "✅ Destruction environment prepared"
-  dir: ./modules/${_MODULE_NAME}
+  dir: /workspace
 
 - id: 'Initialize and Validate State'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -89,7 +93,8 @@ steps:
     
     # Check if state file exists and has resources
     if tofu show -json > /dev/null 2>&1; then
-        log "📊 Found $(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "unknown") resources in state"
+        RESOURCE_COUNT=$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "unknown")
+        log "📊 Found ${RESOURCE_COUNT} resources in state"
         
         # Show what will be destroyed
         log "📋 Planning destruction..."
@@ -103,7 +108,7 @@ steps:
     fi
     
     log "✅ State validation completed"
-  dir: ./modules/${_MODULE_NAME}
+  dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Destroy Infrastructure'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -161,7 +166,7 @@ steps:
     destroy_with_retry
     
     log "🎯 Infrastructure destruction completed"
-  dir: ./modules/${_MODULE_NAME}
+  dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Verify Destruction and Cleanup'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -179,11 +184,12 @@ steps:
     
     # Check final state
     if tofu show -json > /dev/null 2>&1; then
+        REMAINING_RESOURCES=$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "0")
         
-        if [ "$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "0")" = "0" ]; then
+        if [ "$REMAINING_RESOURCES" = "0" ]; then
             log "✅ All resources successfully destroyed"
         else
-            log "⚠️  Warning: $(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "0") resources may still exist"
+            log "⚠️  Warning: ${REMAINING_RESOURCES} resources may still exist"
             log "📋 Remaining resources:"
             tofu show -json | jq -r '.values.root_module.resources[]?.address // empty' 2>/dev/null || log "Unable to list remaining resources"
         fi
@@ -196,14 +202,15 @@ steps:
     tofu output -json > final_output.json 2>/dev/null || echo "{}" > final_output.json
     
     # Upload final state for audit purposes
-    gsutil -m cp final_output.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/final_output.json" || log "Failed to upload final output"
+    OUTPUT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction"
+    gsutil -m cp final_output.json "${OUTPUT_PATH}/final_output.json" || log "Failed to upload final output"
     
     # Create destruction completion marker
     echo "{\"destroyed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"deployment_id\": \"${_DEPLOYMENT_ID}\", \"module\": \"${_MODULE_NAME}\"}" > destruction_complete.json
-    gsutil cp destruction_complete.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/destruction_complete.json" || log "Failed to upload completion marker"
+    gsutil cp destruction_complete.json "${OUTPUT_PATH}/destruction_complete.json" || log "Failed to upload completion marker"
     
     log "✅ Destruction verification completed"
-  dir: ./modules/${_MODULE_NAME}
+  dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Destruction Summary'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -232,7 +239,7 @@ steps:
     echo "⚠️  IMPORTANT: Deployment files still exist in GCS"
     echo "   Use the cleanup/purge pipeline to remove them completely"
     echo "========================================"
-  dir: ./modules/${_MODULE_NAME}
+  dir: /workspace
 
 options:
   logging: GCS_ONLY
