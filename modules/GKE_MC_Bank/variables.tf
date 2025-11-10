@@ -15,12 +15,16 @@
  */
 
 locals {
-  available_regions = ["us-west1", "us-west1"]
+  # Region assignments - maps cluster index to region
+  region_assignments = {
+    for i in range(var.cluster_size) : i => var.available_regions[i % length(var.available_regions)]
+  }
   
+  # Cluster configurations - references region assignments
   cluster_configs = {
     for i in range(var.cluster_size) : "cluster${i + 1}" => {
       gke_cluster_name   = "gke-cluster-${i + 1}"
-      region             = local.available_regions[i]
+      region             = local.region_assignments[i]
       
       # Primary subnet: 10.X.0.0/20 (4,096 IPs for nodes)
       ip_cidr_range      = cidrsubnet("10.0.0.0/8", 12, i * 4)
@@ -66,19 +70,19 @@ variable "module_services" {
 }
 
 variable "credit_cost" {
-  description = "Specify the module cost {{UIMeta group=0 order=103 }}"
+  description = "Specify the module cost {{UIMeta group=0 order=104 }}"
   type        = number
   default     = 150
 }
 
 variable "require_credit_purchases" {
-  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
+  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=105 }}"
   type        = bool
   default     = false
 }
 
 variable "enable_purge" {
-  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=105 }}"
+  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=106 }}"
   type        = bool
   default     = true
 }
@@ -90,7 +94,7 @@ variable "resource_creator_identity" {
 }
 
 variable "trusted_users" {
-  description = "List of trusted users (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
+  description = "List of trusted users (e.g. `username@abc.com`). {{UIMeta group=0 order=107 updatesafe }}"
   type        = list(string)
   default     = []
 }
@@ -108,10 +112,10 @@ variable "existing_project_id" {
   type        = string
 }
 
-variable "cluster_size" {
-  description = "The number of GKE clusters to create."
-  type        = number
-  default     = 2
+variable "available_regions" {
+  description = "Specify the available regions for cluster deployment. {{UIMeta group=2 order=201 }}"
+  type        = list(string)
+  default     = ["us-west1", "us-east1"]
 }
 
 // GROUP 4: Main
@@ -158,13 +162,6 @@ variable "config_sync_policy_dir" {
   default     = "config-sync-quickstart/multirepo/root"
 }
 
-// GROUP 5: Network
-
-variable "enable_monitoring" {
-  description = "Enable Cloud monitoring. {{UIMeta group=0 order=501 }}"
-  type        = bool
-  default     = true
-}
 // GROUP 6: Network
 
 variable "create_network" {
@@ -188,9 +185,15 @@ variable "subnet_name" {
 // GROUP 11: GKE
 
 variable "create_autopilot_cluster" {
-  description = "Indicate if a GKE autopilot cluster is requred, otherwise a standard cluster will be created. {{UIMeta group=0 order=1102 }}"
+  description = "Indicate if a GKE autopilot cluster is requred, otherwise a standard cluster will be created. {{UIMeta group=0 order=1101 }}"
   type        = bool
   default     = true
+}
+
+variable "cluster_size" {
+  description = "The number of GKE clusters to create. {{UIMeta group=0 order=1102 }}"
+  type        = number
+  default     = 2
 }
 
 variable "release_channel" {
