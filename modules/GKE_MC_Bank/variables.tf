@@ -15,16 +15,23 @@
  */
 
 locals {
-  available_regions = ["us-west1", "us-east1", "europe-west1", "asia-northeast1"]
+  available_regions = ["us-west1", "us-west1"]
+  
   cluster_configs = {
     for i in range(var.cluster_size) : "cluster${i + 1}" => {
       gke_cluster_name   = "gke-cluster-${i + 1}"
       region             = local.available_regions[i]
-      ip_cidr_range      = cidrsubnet("10.0.0.0/8", 8, i)
+      
+      # Primary subnet: 10.X.0.0/20 (4,096 IPs for nodes)
+      ip_cidr_range      = cidrsubnet("10.0.0.0/8", 12, i * 4)
+      
+      # Pod range: 10.X.16.0/20 (4,096 IPs for pods)
       pod_ip_range       = "pod-ip-range-${i + 1}"
-      pod_cidr_block     = cidrsubnet(cidrsubnet("10.0.0.0/8", 8, i), 8, 0)
+      pod_cidr_block     = cidrsubnet("10.0.0.0/8", 12, i * 4 + 1)
+      
+      # Service range: 10.X.32.0/20 (4,096 IPs for services)
       service_ip_range   = "service-ip-range-${i + 1}"
-      service_cidr_block = cidrsubnet(cidrsubnet("10.0.0.0/8", 8, i), 8, 1)
+      service_cidr_block = cidrsubnet("10.0.0.0/8", 12, i * 4 + 2)
     }
   }
 }
@@ -79,7 +86,7 @@ variable "enable_purge" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = ""
+  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "trusted_users" {
@@ -113,12 +120,6 @@ variable "enable_services" {
   description = "Enable project APIs.  When using an existing project, this is set to false. {{UIMeta group=0 order=401 }}"
   type        = bool
   default     = true
-}
-
-variable "domain" {
-  description = "The domain name to use for the application."
-  type        = string
-  default     = "example.com"
 }
 
 variable "enable_cloud_service_mesh" {

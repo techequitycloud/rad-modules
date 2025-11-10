@@ -8,7 +8,7 @@ metadata:
     networking.gke.io/managed-certificates: bank-of-anthos
 spec:
   rules:
-  - host: boa.136.110.128.154.sslip.io
+  - host: boa.34.144.196.163.sslip.io
     http:
       paths:
       - path: /

@@ -1,8 +1,10 @@
 apiVersion: networking.gke.io/v1
 kind: MultiClusterService
 metadata:
-  name: frontend
+  name: bank-of-anthos-mcs
   namespace: bank-of-anthos
+  labels:
+    app: bank-of-anthos
 spec:
   template:
     spec:
@@ -14,5 +16,6 @@ spec:
         port: 80
         targetPort: 8080
   clusters:
-  - link: "projects/qwiklabs-gcp-03-d53c099a0be5/locations/europe-west1/clusters/gke-cluster-1"
-  - link: "projects/qwiklabs-gcp-03-d53c099a0be5/locations/us-east1/clusters/gke-cluster-2"
+    - link: "us-west1/gke-cluster-1"
+    - link: "us-west1/gke-cluster-2"
+  

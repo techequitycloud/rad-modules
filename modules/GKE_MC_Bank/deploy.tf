@@ -228,14 +228,18 @@ resource "null_resource" "deploy_bank_of_anthos" {
         echo "ℹ No ASM injection label (Service Mesh may not be enabled)"
       fi
 
-      # Apply JWT secret
+      # Apply JWT secret (idempotent)
       echo ""
       echo "Applying JWT secret..."
-      if [ -f "${self.triggers.jwt_secret_path}" ]; then
-        kubectl apply -f ${self.triggers.jwt_secret_path} -n "$NAMESPACE"
-        echo "✓ JWT secret applied"
+      if [ -f "./.terraform/bank-of-anthos/bank-of-anthos-0.6.7/extras/jwt/jwt-secret.yaml" ]; then
+        if kubectl get secret jwt-key -n "$NAMESPACE" &>/dev/null; then
+          echo "ℹ JWT secret already exists, skipping..."
+        else
+          kubectl apply -f ./.terraform/bank-of-anthos/bank-of-anthos-0.6.7/extras/jwt/jwt-secret.yaml -n "$NAMESPACE"
+          echo "✓ JWT secret applied"
+        fi
       else
-        echo "❌ JWT secret file not found: ${self.triggers.jwt_secret_path}"
+        echo "❌ JWT secret file not found"
         exit 1
       fi
 
