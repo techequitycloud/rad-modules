@@ -57,7 +57,7 @@ resource "null_resource" "wait_for_istio_uninstall" {
       echo "Waiting for Istio uninstall to complete..."
       ATTEMPTS=0
       MAX_ATTEMPTS=60
-      until ! kubectl get ns istio-system; do
+      until ! kubectl get ns istio-system 2>/dev/null; do
         if [ $ATTEMPTS -ge $MAX_ATTEMPTS ]; then
           echo "Timed out waiting for Istio uninstall."
           exit 1
@@ -69,7 +69,6 @@ resource "null_resource" "wait_for_istio_uninstall" {
       echo "Istio uninstall complete."
     EOT
   }
-
 }
 
 resource "helm_release" "istiod" {
@@ -78,11 +77,32 @@ resource "helm_release" "istiod" {
   chart      = "istiod"
   namespace  = "istio-system"
 
-  values = [
-    <<-EOT
-    {
-      "profile": "${var.install_ambient_mesh ? "ambient" : "default"}"
+  # FIX: Remove profile setting for non-ambient, or use proper configuration
+  dynamic "set" {
+    for_each = var.install_ambient_mesh ? [1] : []
+    content {
+      name  = "profile"
+      value = "ambient"
     }
+  }
+
+  # Optional: Add specific configurations instead of profile
+  values = var.install_ambient_mesh ? [] : [
+    <<-EOT
+    pilot:
+      resources:
+        requests:
+          cpu: 500m
+          memory: 2048Mi
+    global:
+      proxy:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 2000m
+            memory: 1024Mi
     EOT
   ]
 
@@ -126,13 +146,10 @@ resource "helm_release" "istio_cni" {
   chart      = "cni"
   namespace  = "istio-system"
 
-  values = [
-    <<-EOT
-    {
-      "profile": "ambient"
-    }
-    EOT
-  ]
+  set {
+    name  = "profile"
+    value = "ambient"
+  }
 
   depends_on = [
     helm_release.istiod,
@@ -160,7 +177,6 @@ resource "helm_release" "istio_ingress" {
   namespace  = "istio-system"
 
   depends_on = [
-    helm_release.ztunnel,
     helm_release.istiod
   ]
 }
