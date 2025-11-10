@@ -14,6 +14,43 @@
  * limitations under the License.
  */
 
+
+# ============================================
+# Service Identity for GKE Hub
+# ============================================
+resource "google_project_service_identity" "gke_hub_sa" {
+  provider = google-beta
+  project  = local.project.project_id
+  service  = "gkehub.googleapis.com"
+
+  depends_on = [
+    google_project_service.enabled_services,
+  ]
+}
+
+# ============================================
+# IAM Bindings for GKE Hub Service Account
+# ============================================
+resource "google_project_iam_member" "hub_service_account_gke_access" {
+  project = local.project.project_id
+  role    = "roles/gkehub.serviceAgent"
+  member  = "serviceAccount:${google_project_service_identity.gke_hub_sa.email}"
+
+  depends_on = [
+    google_project_service_identity.gke_hub_sa
+  ]
+}
+
+resource "google_project_iam_member" "hub_service_account_container_viewer" {
+  project = local.project.project_id
+  role    = "roles/container.viewer"
+  member  = "serviceAccount:${google_project_service_identity.gke_hub_sa.email}"
+
+  depends_on = [
+    google_project_service_identity.gke_hub_sa
+  ]
+}
+
 # ============================================
 # GKE Hub Membership
 # ============================================
@@ -36,6 +73,8 @@ resource "google_gke_hub_membership" "hub_membership" {
 
   depends_on = [
     google_container_cluster.gke_cluster,
+    google_project_iam_member.hub_service_account_gke_access,
+    google_project_iam_member.hub_service_account_container_viewer,
   ]
 }
 
