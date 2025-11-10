@@ -70,6 +70,12 @@ variable "require_credit_purchases" {
   default     = false
 }
 
+variable "enable_purge" {
+  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=105 }}"
+  type        = bool
+  default     = true
+}
+
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string

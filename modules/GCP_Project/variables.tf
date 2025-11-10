@@ -52,6 +52,12 @@ variable "require_credit_purchases" {
   default     = false
 }
 
+variable "enable_purge" {
+  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=105 }}"
+  type        = bool
+  default     = true
+}
+
 variable "deployment_id" {
   description = "Unique ID suffix for resources. Leave blank to generate random ID."
   type        = string
