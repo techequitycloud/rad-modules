@@ -55,7 +55,7 @@ variable "require_credit_purchases" {
 variable "enable_purge" {
   description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=105 }}"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "deployment_id" {
