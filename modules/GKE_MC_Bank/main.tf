@@ -88,16 +88,3 @@ resource "google_project_service" "enabled_services" {
   disable_dependent_services = false  # Changed from true
   disable_on_destroy         = false  # Changed from true
 }
-
-# ============================================
-# Service Identity for GKE Hub
-# ============================================
-resource "google_project_service_identity" "gke_hub_sa" {
-  provider = google-beta
-  project  = local.project.project_id
-  service  = "gkehub.googleapis.com"
-
-  depends_on = [
-    google_project_service.enabled_services,
-  ]
-}
