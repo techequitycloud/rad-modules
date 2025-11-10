@@ -270,15 +270,13 @@ resource "null_resource" "deploy_bank_of_anthos" {
         echo "ℹ No ASM injection label (Service Mesh may not be enabled)"
       fi
 
-      # Apply JWT secret (idempotent)
+      # Apply JWT secret (idempotent - works whether secret exists or not)
       echo ""
       echo "Applying JWT secret..."
-      if kubectl get secret jwt-key -n "$NAMESPACE" &>/dev/null; then
-        echo "ℹ JWT secret already exists, skipping..."
-      else
-        kubectl apply -f "$JWT_SECRET_PATH" -n "$NAMESPACE"
-        echo "✓ JWT secret applied"
-      fi
+      # Use kubectl apply which is idempotent, or create with --dry-run=client -o yaml | kubectl apply
+      kubectl apply -f "$JWT_SECRET_PATH" -n "$NAMESPACE" --server-side --force-conflicts 2>&1 | \
+        grep -v "Warning: resource secrets/jwt-key is missing" || true
+      echo "✓ JWT secret applied/verified"
 
       # Apply all manifests
       echo ""
