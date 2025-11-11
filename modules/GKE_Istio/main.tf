@@ -80,8 +80,8 @@ resource "null_resource" "wait_for_container_api" {
 
       # Attempt to verify API activation, with retries
       for i in {1..20}; do
-        if gcloud services list --project "${local.project.project_id}" --format="value(serviceConfig.name)" \
-          --filter="serviceConfig.name=${self.triggers.api_service}" | grep -q "${self.triggers.api_service}"; then
+        if gcloud services list --project "${local.project.project_id}" --format="value(name)" \
+          --filter="name:${self.triggers.api_service}" | grep -q "${self.triggers.api_service}"; then
           echo "✓ Container API is enabled."
           exit 0
         fi
