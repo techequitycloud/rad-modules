@@ -22,11 +22,6 @@ resource "google_gke_hub_feature" "service_mesh_feature" {
   name     = "servicemesh"
   location = "global"
 
-  # Keep the feature alive until all memberships are disabled
-  lifecycle {
-    prevent_destroy = true
-  }
-
   depends_on = [
     google_project_service.enabled_services,
   ]
