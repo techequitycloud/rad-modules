@@ -52,6 +52,155 @@ resource "google_project_iam_member" "hub_service_account_container_viewer" {
 }
 
 # ============================================
+# Pre-cleanup ASM Configuration
+# ============================================
+resource "null_resource" "pre_cleanup_asm" {
+  for_each = var.enable_cloud_service_mesh ? local.cluster_configs : {}
+
+  triggers = {
+    cluster_name = each.value.gke_cluster_name
+    project_id   = local.project.project_id
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    when        = destroy
+    command = <<-EOF
+      set -e
+      
+      PROJECT_ID="${self.triggers.project_id}"
+      CLUSTER_NAME="${self.triggers.cluster_name}"
+
+      echo "=========================================="
+      echo "Disabling ASM for cluster: $CLUSTER_NAME"
+      echo "=========================================="
+
+      # Disable ASM on the specific membership
+      echo "Disabling ASM for membership..."
+      if gcloud container fleet mesh update \
+        --management manual \
+        --memberships "$CLUSTER_NAME" \
+        --project "$PROJECT_ID" \
+        --quiet 2>/dev/null; then
+        echo "✓ ASM disabled for membership '$CLUSTER_NAME'"
+      else
+        echo "⚠ Could not disable ASM (may already be disabled)"
+      fi
+
+      # Wait for ASM to be fully disabled
+      echo "Waiting for ASM to be fully disabled..."
+      sleep 30
+
+      echo "=========================================="
+      echo "ASM cleanup completed for: $CLUSTER_NAME"
+      echo "=========================================="
+    EOF
+    on_failure = continue
+  }
+}
+
+# ============================================
+# Pre-cleanup Hub Membership
+# ============================================
+resource "null_resource" "pre_cleanup_hub_membership" {
+  for_each = local.cluster_configs
+
+  triggers = {
+    cluster = each.value.gke_cluster_name
+    region  = each.value.region
+    project = local.project.project_id
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    when        = destroy
+    command = <<-EOF
+      set -e
+      
+      MEMBERSHIP_NAME="${self.triggers.cluster}"
+      PROJECT_ID="${self.triggers.project}"
+      REGION="${self.triggers.region}"
+
+      echo "======================================"
+      echo "Starting GKE Hub membership cleanup for $MEMBERSHIP_NAME"
+      echo "======================================"
+      
+      # Check if membership exists
+      if gcloud container fleet memberships describe "$MEMBERSHIP_NAME" \
+        --project="$PROJECT_ID" \
+        --location=global \
+        --quiet &>/dev/null; then
+        
+        echo "✓ Membership exists. Proceeding with cleanup..."
+        
+        # First, check and disable any ASM configuration
+        echo "Checking for ASM configuration..."
+        if gcloud container fleet mesh describe \
+          --project="$PROJECT_ID" \
+          --format='get(membershipStates)' 2>/dev/null | grep -q "$MEMBERSHIP_NAME"; then
+          
+          echo "Disabling ASM for this membership..."
+          gcloud container fleet mesh update \
+            --management manual \
+            --memberships "$MEMBERSHIP_NAME" \
+            --project="$PROJECT_ID" \
+            --quiet 2>/dev/null || echo "⚠ Could not disable ASM"
+          
+          sleep 15
+        fi
+        
+        # Unregister the cluster from the Fleet
+        echo "Unregistering cluster from Fleet..."
+        if gcloud container fleet memberships unregister "$MEMBERSHIP_NAME" \
+          --project="$PROJECT_ID" \
+          --gke-cluster="$REGION/$MEMBERSHIP_NAME" \
+          --quiet 2>/dev/null; then
+          echo "✓ Successfully initiated unregistration"
+        else
+          echo "⚠ Unregistration command failed or already unregistered"
+        fi
+        
+        # Wait for unregistration to propagate
+        echo "Waiting for unregistration to propagate..."
+        sleep 20
+        
+        # Delete the membership from the Hub
+        echo "Deleting membership from Hub..."
+        MAX_ATTEMPTS=5
+        for ((i=1; i<=MAX_ATTEMPTS; i++)); do
+          if gcloud container fleet memberships delete "$MEMBERSHIP_NAME" \
+            --project="$PROJECT_ID" \
+            --location=global \
+            --quiet 2>/dev/null; then
+            echo "✓ Successfully deleted membership (attempt $i)"
+            break
+          else
+            if [ $i -eq $MAX_ATTEMPTS ]; then
+              echo "⚠ Membership deletion failed after $MAX_ATTEMPTS attempts"
+            else
+              echo "⏳ Deletion attempt $i failed, retrying in 10s..."
+              sleep 10
+            fi
+          fi
+        done
+      else
+        echo "⚠ Membership $MEMBERSHIP_NAME not found. Skipping cleanup."
+      fi
+
+      echo "======================================"
+      echo "Hub membership cleanup completed for $MEMBERSHIP_NAME"
+      echo "======================================"
+      
+    EOF
+    on_failure = continue
+  }
+
+  depends_on = [
+    null_resource.pre_cleanup_asm,
+  ]
+}
+
+# ============================================
 # GKE Hub Membership
 # ============================================
 resource "google_gke_hub_membership" "hub_membership" {
@@ -76,6 +225,11 @@ resource "google_gke_hub_membership" "hub_membership" {
     google_project_iam_member.hub_service_account_gke_access,
     google_project_iam_member.hub_service_account_container_viewer,
   ]
+
+  lifecycle {
+    # Ensure cleanup happens before deletion
+    create_before_destroy = false
+  }
 }
 
 # ============================================
@@ -128,76 +282,6 @@ resource "null_resource" "wait_for_fleet_registration" {
   depends_on = [
     google_gke_hub_membership.hub_membership,
   ]
-}
-
-# ============================================
-# Pre-cleanup Hub Membership
-# ============================================
-resource "null_resource" "pre_cleanup_hub_membership" {
-  for_each = local.cluster_configs
-
-  triggers = {
-    cluster = each.value.gke_cluster_name
-    region  = each.value.region
-    project = local.project.project_id
-  }
-
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    when        = destroy
-    command = <<-EOF
-      set -x
-      MEMBERSHIP_NAME="${self.triggers.cluster}"
-      PROJECT_ID="${self.triggers.project}"
-      REGION="${self.triggers.region}"
-
-      echo "======================================"
-      echo "Starting GKE Hub membership cleanup for $MEMBERSHIP_NAME"
-      echo "======================================"
-      
-      # Check if membership exists
-      if gcloud container fleet memberships describe "$MEMBERSHIP_NAME" \
-        --project="$PROJECT_ID" \
-        --location=global \
-        --quiet &>/dev/null; then
-        
-        echo "Membership exists. Proceeding with cleanup..."
-        
-        # Unregister the cluster from the Fleet
-        echo "Unregistering cluster..."
-        if gcloud container fleet memberships unregister "$MEMBERSHIP_NAME" \
-          --project="$PROJECT_ID" \
-          --gke-cluster="$REGION/$MEMBERSHIP_NAME" \
-          --quiet 2>/dev/null; then
-          echo "✓ Successfully initiated unregistration"
-        else
-          echo "⚠ Unregistration command failed. Proceeding to delete..."
-        fi
-        
-        # Wait for unregistration to propagate
-        sleep 15
-        
-        # Delete the membership from the Hub
-        echo "Deleting membership..."
-        if gcloud container fleet memberships delete "$MEMBERSHIP_NAME" \
-          --project="$PROJECT_ID" \
-          --location=global \
-          --quiet; then
-          echo "✓ Successfully deleted membership"
-        else
-          echo "⚠ Membership deletion command failed."
-        fi
-      else
-        echo "⚠ Membership $MEMBERSHIP_NAME not found. Skipping cleanup."
-      fi
-
-      echo "======================================"
-      echo "Hub membership cleanup for $MEMBERSHIP_NAME completed"
-      echo "======================================"
-      
-    EOF
-    on_failure = continue
-  }
 }
 
 # ============================================
@@ -319,5 +403,61 @@ resource "null_resource" "wait_for_service_mesh" {
 
   depends_on = [
     null_resource.enable_asm,
+  ]
+}
+
+# ============================================
+# Cleanup Fleet-level ASM (runs last)
+# ============================================
+resource "null_resource" "cleanup_fleet_asm" {
+  count = var.enable_cloud_service_mesh ? 1 : 0
+
+  triggers = {
+    project_id = local.project.project_id
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    when        = destroy
+    command = <<-EOF
+      set -e
+      
+      PROJECT_ID="${self.triggers.project_id}"
+
+      echo "=========================================="
+      echo "Checking Fleet-level ASM status"
+      echo "=========================================="
+
+      # Check if any memberships still have ASM enabled
+      REMAINING_MEMBERS=$(gcloud container fleet mesh describe \
+        --project="$PROJECT_ID" \
+        --format='get(membershipStates)' 2>/dev/null | wc -l || echo "0")
+
+      if [ "$REMAINING_MEMBERS" = "0" ]; then
+        echo "No memberships with ASM found. Disabling Fleet-level ASM..."
+        
+        if gcloud container fleet mesh disable \
+          --project="$PROJECT_ID" \
+          --force \
+          --quiet 2>/dev/null; then
+          echo "✓ Fleet-level ASM disabled"
+        else
+          echo "⚠ Could not disable Fleet-level ASM (may already be disabled)"
+        fi
+      else
+        echo "⚠ $REMAINING_MEMBERS memberships still have ASM enabled"
+        echo "   Skipping Fleet-level ASM disable"
+      fi
+
+      echo "=========================================="
+      echo "Fleet-level ASM cleanup completed"
+      echo "=========================================="
+    EOF
+    on_failure = continue
+  }
+
+  depends_on = [
+    null_resource.pre_cleanup_asm,
+    null_resource.pre_cleanup_hub_membership,
   ]
 }
