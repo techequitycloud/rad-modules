@@ -108,7 +108,6 @@ resource "google_project_iam_member" "cloud_build_agent_sa" {
 
   depends_on = [
     null_resource.api_poll,
-    google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
@@ -160,7 +159,6 @@ resource "google_project_iam_member" "cloud_deploy_sa" {
 
   depends_on = [
     null_resource.api_poll,
-    google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
@@ -210,7 +208,6 @@ resource "google_project_iam_member" "gke_sa" {
 
   depends_on = [
     null_resource.api_poll,
-    google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
@@ -271,7 +268,6 @@ resource "google_project_iam_member" "cloud_run_sa" {
 
   depends_on = [
     null_resource.api_poll,
-    google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
@@ -290,7 +286,6 @@ resource "google_project_iam_member" "cloudrun_agent_shared_vpc_access" {
 
   depends_on   = [
     null_resource.api_poll,
-    google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
@@ -334,7 +329,6 @@ resource "google_project_iam_member" "cloud_sql_sa" {
 
   depends_on = [
     null_resource.api_poll,
-    google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
@@ -381,7 +375,6 @@ resource "google_project_iam_member" "nfs_server_sa" {
   # Ensures that this resource is created
   depends_on = [
     null_resource.api_poll,
-    google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
@@ -434,7 +427,6 @@ resource "google_project_iam_member" "setup_server_sa" {
   # Ensures that this resource is created
   depends_on = [
     null_resource.api_poll,
-    google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
