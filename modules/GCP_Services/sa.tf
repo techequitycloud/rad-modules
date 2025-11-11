@@ -18,7 +18,6 @@
 
 locals {
   # Service account references (existing or newly created)
-  project_sa_email      = "project-sa@${local.project.project_id}.iam.gserviceaccount.com"
   cloudbuild_sa_email  = "cloudbuild-sa@${local.project.project_id}.iam.gserviceaccount.com"
   clouddeploy_sa_email = "clouddeploy-sa@${local.project.project_id}.iam.gserviceaccount.com"
   gke_sa_email          = "gke-sa@${local.project.project_id}.iam.gserviceaccount.com"
@@ -28,7 +27,6 @@ locals {
   setupserver_sa_email = "setupserver-sa@${local.project.project_id}.iam.gserviceaccount.com"
   
   # Service account IDs for IAM bindings
-  project_sa_id      = "projects/${local.project.project_id}/serviceAccounts/${local.project_sa_email}"
   cloudbuild_sa_id   = "projects/${local.project.project_id}/serviceAccounts/${local.cloudbuild_sa_email}"
   clouddeploy_sa_id  = "projects/${local.project.project_id}/serviceAccounts/${local.clouddeploy_sa_email}"
   gke_sa_id          = "projects/${local.project.project_id}/serviceAccounts/${local.gke_sa_email}"
@@ -36,117 +34,6 @@ locals {
   cloudsql_sa_id     = "projects/${local.project.project_id}/serviceAccounts/${local.cloudsql_sa_email}"
   nfsserver_sa_id    = "projects/${local.project.project_id}/serviceAccounts/${local.nfsserver_sa_email}"
   setupserver_sa_id  = "projects/${local.project.project_id}/serviceAccounts/${local.setupserver_sa_email}"
-}
-
-########################################################################################
-# Grant Trusted user and creator service account permissions 
-########################################################################################
-
-resource "google_service_account_iam_member" "trusted_user_token_creator_role" {
-  for_each           = toset(concat(formatlist("user:%s", var.trusted_users)))
-  member             = each.value
-  role               = "roles/iam.serviceAccountTokenCreator"
-
-  # Use try() to handle the case when the resource doesn't exist
-  service_account_id = local.project_sa_id
-
-  depends_on = [
-    null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
-  ]
-}
-
-resource "google_service_account_iam_binding" "resource_creator_identity_token_creator_role" {
-  count = var.resource_creator_identity != null && var.resource_creator_identity != "" ? 1 : 0
-  
-  # Use try() to handle the case when the resource doesn't exist
-  service_account_id = local.project_sa_id
-                       
-  role = "roles/iam.serviceAccountTokenCreator"
-
-  members = [
-    "serviceAccount:${var.resource_creator_identity}"
-  ]
-
-  depends_on = [
-    null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
-  ]
-}
-
-########################################################################################
-# Grant Project service account permissions 
-########################################################################################
-
-# Create service account only if it doesn't exist
-resource "google_service_account" "project_sa_admin" {
-  project      = local.project.project_id
-  account_id   = "project-sa"
-  display_name = "Project Service Account Admin"
-  description  = "Service account for project-level administration"
-
-  depends_on   = [
-    null_resource.api_poll
-  ]
-}
-
-# IAM permissions for service account on the project (only if SA exists or was created)
-resource "google_project_iam_member" "project_sa_admin" {
-  for_each = toset(local.project_sa_roles)
-
-  project  = local.project.project_id          
-  member   = "serviceAccount:${local.project_sa_email}" 
-  role     = each.key                          
-
-  depends_on = [
-    null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
-  ]
-}
-
-locals {
-  project_sa_roles = [
-    "roles/serviceusage.serviceUsageConsumer",
-    "roles/secretmanager.secretAccessor",
-    "roles/cloudbuild.builds.editor",
-    "roles/owner",
-    "roles/storage.admin",
-    "roles/artifactregistry.reader",
-    "roles/binaryauthorization.attestorsViewer",
-    "roles/cloudkms.publicKeyViewer",
-    "roles/cloudkms.admin",
-    "roles/cloudkms.signerVerifier",
-    "roles/containeranalysis.admin",
-    "roles/container.developer",
-    "roles/iam.serviceAccountUser",
-    "roles/clouddeploy.operator",
-    "roles/clouddeploy.jobRunner",
-    "roles/clouddeploy.releaser",
-    "roles/logging.logWriter",
-    "roles/run.admin",
-    "roles/iam.serviceAccountTokenCreator",
-  ]
 }
 
 ########################################################################################
@@ -175,7 +62,6 @@ resource "google_project_iam_member" "cloud_build_sa" {
 
   depends_on = [
     null_resource.api_poll,
-    google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
