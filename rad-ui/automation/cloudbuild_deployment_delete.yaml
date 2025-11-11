@@ -179,7 +179,7 @@ steps:
     
     # Check final state
     if tofu show -json > /dev/null 2>&1; then        
-        if [ "$REMAINING_RESOURCES" = "0" ]; then
+        if [ "$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo \"0\")" = "0" ]; then
             log "✅ All resources successfully destroyed"
         else
             log "⚠️  Warning: $(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "0") resources may still exist"
