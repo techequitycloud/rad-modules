@@ -43,9 +43,9 @@ steps:
     log "🔍 Checking for deployment files..."
     
     # Verify deployment exists before attempting destruction
-    if ! gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz > /dev/null 2>&1; then
+    if ! gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
         log "❌ ERROR: No deployment archive found!"
-        log "   Expected: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz
+        log "   Expected: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
         log "   Cannot proceed with destruction without deployment files."
         exit 1
     fi
@@ -57,10 +57,10 @@ steps:
     
     # Extract the module archive
     log "📂 Extracting deployment files..."
-    tar -xzf "${_MODULE_NAME}.tar.gz
+    tar -xzf "${_MODULE_NAME}.tar.gz"
     
     # Clean up the archive file
-    rm -f "${_MODULE_NAME}.tar.gz
+    rm -f "${_MODULE_NAME}.tar.gz"
     
     log "📋 Workspace contents prepared:"
     ls -la /workspace/ || true
@@ -89,7 +89,7 @@ steps:
     
     # Check if state file exists and has resources
     if tofu show -json > /dev/null 2>&1; then
-        log "📊 Found $(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo \"unknown\") resources in state"
+        log "📊 Found $(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "unknown") resources in state"
         
         # Show what will be destroyed
         log "📋 Planning destruction..."
@@ -179,7 +179,7 @@ steps:
     
     # Check final state
     if tofu show -json > /dev/null 2>&1; then        
-        if [ "$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo \"0\")" = "0" ]; then
+        if [ "$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "0")" = "0" ]; then
             log "✅ All resources successfully destroyed"
         else
             log "⚠️  Warning: $(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "0") resources may still exist"
