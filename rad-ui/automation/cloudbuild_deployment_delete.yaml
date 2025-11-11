@@ -190,18 +190,35 @@ steps:
         log "✅ State is clean - no resources found"
     fi
     
-    # Optional: Generate final state output for verification
-    log "📤 Generating final state output..."
-    tofu output -json > final_output.json 2>/dev/null || echo "{}" > final_output.json
-    
-    # Upload final state for audit purposes
-    gsutil -m cp final_output.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/final_output.json" || log "Failed to upload final output"
-    
-    # Create destruction completion marker
-    echo "{\"destroyed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"deployment_id\": \"${_DEPLOYMENT_ID}\", \"module\": \"${_MODULE_NAME}\"}" > destruction_complete.json
-    gsutil cp destruction_complete.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/destruction_complete.json" || log "Failed to upload completion marker"
-    
     log "✅ Destruction verification completed"
+    
+    # ============================================
+    # Clean up deployment folder from GCS
+    # ============================================
+    log "🗑️  Removing deployment folder from Cloud Storage..."
+    
+    if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" > /dev/null 2>&1; then
+        log "📁 Found deployment folder: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
+        
+        # Remove the entire deployment folder
+        if gsutil -m rm -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" 2>&1; then
+            log "✅ Successfully removed deployment folder from Cloud Storage"
+        else
+            log "⚠️  Failed to remove deployment folder (may require manual cleanup)"
+            log "   Path: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
+        fi
+        
+        # Verify deletion
+        if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" > /dev/null 2>&1; then
+            log "❌ Warning: Deployment folder still exists after deletion attempt"
+        else
+            log "✅ Confirmed: Deployment folder has been removed"
+        fi
+    else
+        log "ℹ️  Deployment folder not found or already removed"
+    fi
+    
+    log "🎉 Complete cleanup finished!"
   dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Destruction Summary'
@@ -214,23 +231,17 @@ steps:
         echo "[$(date +'%H:%M:%S')] $1"
     }
     
-    echo "========================================"
+    echo "========================================="
     log "🔥 INFRASTRUCTURE DESTRUCTION COMPLETED"
-    echo "========================================"
+    echo "========================================="
     echo "Destruction Details:"
     echo "  • Module: ${_MODULE_NAME}"
     echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
     echo "  • Project: ${PROJECT_ID}"
     echo "  • Completed: $(date)"
-    echo "========================================"
-    echo "📁 Destruction Artifacts:"
-    echo "  • Final Output: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/final_output.json"
-    echo "  • Completion Marker: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/destruction_complete.json"
-    echo "  • Logs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/logs/"
-    echo "========================================"
-    echo "⚠️  IMPORTANT: Deployment files still exist in GCS"
-    echo "   Use the cleanup/purge pipeline to remove them completely"
-    echo "========================================"
+    echo "========================================="
+    echo "⚠️ IMPORTANT: Deployment deleted from GCS"
+    echo "========================================="
   dir: /workspace/modules/${_MODULE_NAME}
 
 options:
