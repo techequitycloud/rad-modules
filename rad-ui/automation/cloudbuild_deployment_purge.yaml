@@ -1,0 +1,115 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+steps:
+  # ============================================
+  # STEP 1: Delete Cloud Storage Bucket Content
+  # ============================================
+  - id: 'Delete Cloud Storage Bucket'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        
+        log() {
+            echo "[$(date +'%H:%M:%S')] $1"
+        }
+
+        # ============================================
+        # Clean up deployment folder from GCS
+        # ============================================
+        log "🗑️  Removing deployment folder from Cloud Storage..."
+        
+        if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" > /dev/null 2>&1; then
+            log "📁 Found deployment folder: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
+            
+            # List contents before deletion (for audit)
+            log "📋 Contents to be deleted:"
+            gsutil du -sh "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" || log "Unable to calculate size"
+            
+            # Remove the entire deployment folder
+            if gsutil -m rm -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" 2>&1; then
+                log "✅ Successfully removed deployment folder from Cloud Storage"
+            else
+                log "⚠️  Failed to remove deployment folder (may require manual cleanup)"
+                log "   Path: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
+            fi
+            
+            # Verify deletion
+            if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" > /dev/null 2>&1; then
+                log "❌ Warning: Deployment folder still exists after deletion attempt"
+            else
+                log "✅ Confirmed: Deployment folder has been removed"
+            fi
+        else
+            log "ℹ️  Deployment folder not found or already removed"
+        fi
+        
+        log "🎉 Cleanup finished!"
+
+  # ============================================
+  # STEP 2: Cleanup Summary
+  # ============================================
+  - id: 'Cleanup Summary'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        log() {
+            echo "[$(date +'%H:%M:%S')] $1"
+        }
+        
+        echo "========================================="
+        log "🗑️  CLOUD STORAGE CLEANUP COMPLETED"
+        echo "========================================="
+        echo "Cleanup Details:"
+        echo "  • Module: ${_MODULE_NAME}"
+        echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
+        echo "  • Bucket: ${_DEPLOYMENT_BUCKET_ID}"
+        echo "  • Path Removed: deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/"
+        echo "  • Project: ${PROJECT_ID}"
+        echo "  • Build ID: ${BUILD_ID}"
+        echo "  • Completed: $(date)"
+        echo "========================================="
+        log "✅ Cloud Storage cleanup successful"
+        echo "========================================="
+
+# ============================================
+# Build Options
+# ============================================
+options:
+  logging: GCS_ONLY
+  logStreamingOption: STREAM_ON
+  dynamic_substitutions: true
+
+# ============================================
+# Substitution Variables
+# ============================================
+substitutions:
+  _DEPLOYMENT_ID: "none"
+
+# ============================================
+# Logs Configuration
+# ============================================
+logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/cleanup/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
+
+# ============================================
+# Timeout
+# ============================================
+timeout: 600s  # 10 minutes should be enough for bucket cleanup
+
+
