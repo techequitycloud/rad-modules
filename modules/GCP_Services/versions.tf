@@ -14,7 +14,7 @@
 
 terraform {
   required_version = ">= 1.6.0"
-
+  
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -24,9 +24,22 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.33"
     }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = "~> 1.14"
+    }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.12"
+    }
+    http = {
+      source  = "hashicorp/http"
+      version = "~> 3.4"
+    }
     github = {
       source  = "integrations/github"
       version = "~> 6.0"
     }
   }
 }
+
