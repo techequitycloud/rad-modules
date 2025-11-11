@@ -16,7 +16,6 @@
 
 # Provider configuration for Google Cloud with impersonation capabilities.
 provider "google" {
-
   alias = "impersonated"  # Alias used to reference this specific provider configuration
 
   # Scopes define the level of access the provider will have. In this case, full access to cloud platform resources and user email.

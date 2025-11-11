@@ -45,20 +45,14 @@ variable "module_services" {
 
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
-  type        = number
-  default     = 100
+  type        = string
+  default     = "100"
 }
 
 variable "require_credit_purchases" {
   description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
   type        = bool
   default     = false
-}
-
-variable "enable_purge" {
-  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=105 }}"
-  type        = bool
-  default     = true
 }
 
 variable "resource_creator_identity" {
@@ -69,7 +63,7 @@ variable "resource_creator_identity" {
 
 variable "trusted_users" {
   description = "List of trusted users (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
-  type        = list(string)
+  type        = set(string)
   default     = []
 }
 
@@ -132,12 +126,6 @@ variable "ip_cidr_ranges" {
 
 // GROUP 4: GKE
 
-variable "create_autopilot_cluster" {
-  description = "Set to true to create an Autopilot cluster, false for Standard cluster. {{UIMeta group=0 order=400 }}"
-  type        = bool
-  default     = true
-}
-
 variable "gke_cluster" {
   description = "Name that will be assigned to the GKE cluster. {{UIMeta group=0 order=401 }}"
   type        = string
@@ -172,26 +160,6 @@ variable "service_cidr_block" {
   description = "CIDR block to be assigned to services running in the GKE cluster. {{UIMeta group=0 order=407 }}"
   type        = string
   default     = "10.64.128.0/20"
-}
-
-variable "node_pools" {
-  description = "A map of node pool configurations. The keys of the map are the names of the node pools. {{UIMeta group=0 order=408 }}"
-  type = map(object({
-    node_count   = number
-    preemptible  = bool
-    machine_type = string
-    disk_size_gb = number
-    disk_type    = string
-  }))
-  default = {
-    "node-pool" = {
-      node_count   = 2
-      preemptible  = true
-      machine_type = "e2-standard-2"
-      disk_size_gb = 50
-      disk_type    = "pd-ssd"
-    }
-  }
 }
 
 // GROUP 5: GKE
