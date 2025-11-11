@@ -77,16 +77,21 @@ resource "helm_release" "istiod" {
   chart      = "istiod"
   namespace  = "istio-system"
 
-  # FIX: Remove profile setting for non-ambient, or use proper configuration
+  # Set profile based on mesh type
+  set {
+    name  = "profile"
+    value = var.install_ambient_mesh ? "ambient" : "default"
+  }
+
+  # Explicitly enable sidecar injection for non-ambient
   dynamic "set" {
-    for_each = var.install_ambient_mesh ? [1] : []
+    for_each = var.install_ambient_mesh ? [] : [1]
     content {
-      name  = "profile"
-      value = "ambient"
+      name  = "sidecarInjectorWebhook.enableNamespacesByDefault"
+      value = "false"
     }
   }
 
-  # Optional: Add specific configurations instead of profile
   values = var.install_ambient_mesh ? [] : [
     <<-EOT
     pilot:
@@ -196,5 +201,30 @@ resource "null_resource" "install_observability_addons" {
 
   depends_on = [
     helm_release.istio_ingress
+  ]
+}
+
+resource "null_resource" "verify_sidecar_injection" {
+  count = var.install_ambient_mesh ? 0 : 1
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      gcloud container clusters get-credentials ${google_container_cluster.gke_standard_cluster.name} \
+        --region=${var.region} \
+        --project=${local.project.project_id}
+      
+      echo "Verifying sidecar injector webhook..."
+      kubectl get mutatingwebhookconfiguration istio-sidecar-injector -o yaml
+      
+      echo "Checking istiod deployment..."
+      kubectl get deployment istiod -n istio-system
+      
+      echo "Checking istiod logs for injection webhook..."
+      kubectl logs -n istio-system -l app=istiod --tail=50 | grep -i "injection"
+    EOT
+  }
+
+  depends_on = [
+    helm_release.istiod
   ]
 }
