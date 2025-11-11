@@ -179,7 +179,6 @@ resource "null_resource" "deploy_bank_of_anthos" {
     project_id       = google_container_cluster.gke_cluster[each.key].project
     manifests_path   = local.manifests_path
     jwt_secret_path  = local.jwt_secret_path
-    # Force re-deployment if download changes
     download_id      = null_resource.download_bank_of_anthos[0].id
   }
 
@@ -196,7 +195,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
       MANIFESTS_PATH="${self.triggers.manifests_path}"
 
       echo "=========================================="
-      echo "Deploying Bank of Anthos Application to ${self.triggers.cluster_name}"
+      echo "Deploying Bank of Anthos Application to $CLUSTER_NAME"
       echo "=========================================="
       
       # Verify files exist BEFORE starting deployment
@@ -204,10 +203,6 @@ resource "null_resource" "deploy_bank_of_anthos" {
       echo "Pre-deployment verification..."
       if [ ! -f "$JWT_SECRET_PATH" ]; then
         echo "❌ CRITICAL: JWT secret file not found at: $JWT_SECRET_PATH"
-        echo "Current directory: $(pwd)"
-        echo "Listing .terraform directory:"
-        ls -la .terraform/ || echo "No .terraform directory"
-        ls -la .terraform/bank-of-anthos/ || echo "No bank-of-anthos directory"
         exit 1
       fi
       
@@ -258,7 +253,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
         exit 1
       fi
 
-      # Verify ASM injection label (if Service Mesh is enabled)
+      # Verify ASM injection label
       echo ""
       echo "Checking ASM injection configuration..."
       ASM_LABEL=$(kubectl get namespace "$NAMESPACE" \
@@ -270,18 +265,16 @@ resource "null_resource" "deploy_bank_of_anthos" {
         echo "ℹ No ASM injection label (Service Mesh may not be enabled)"
       fi
 
-      # Apply JWT secret (idempotent - works whether secret exists or not)
+      # Apply JWT secret with server-side apply (idempotent)
       echo ""
       echo "Applying JWT secret..."
-      # Use kubectl apply which is idempotent, or create with --dry-run=client -o yaml | kubectl apply
-      kubectl apply -f "$JWT_SECRET_PATH" -n "$NAMESPACE" --server-side --force-conflicts 2>&1 | \
-        grep -v "Warning: resource secrets/jwt-key is missing" || true
+      kubectl apply -f "$JWT_SECRET_PATH" -n "$NAMESPACE" --server-side --force-conflicts
       echo "✓ JWT secret applied/verified"
 
-      # Apply all manifests
+      # Apply all manifests with server-side apply (idempotent)
       echo ""
       echo "Applying Bank of Anthos manifests..."
-      kubectl apply -f "$MANIFESTS_PATH" -n "$NAMESPACE"
+      kubectl apply -f "$MANIFESTS_PATH" -n "$NAMESPACE" --server-side --force-conflicts
       echo "✓ Manifests applied"
 
       # Wait for deployments to be ready
@@ -315,7 +308,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
       # Display final status
       echo ""
       echo "=========================================="
-      echo "Bank of Anthos Deployment Summary for ${self.triggers.cluster_name}"
+      echo "Bank of Anthos Deployment Summary for $CLUSTER_NAME"
       echo "=========================================="
       echo "Namespace: $NAMESPACE"
       echo ""
@@ -337,25 +330,6 @@ resource "null_resource" "deploy_bank_of_anthos" {
     kubernetes_namespace.bank_of_anthos_cluster1,
     kubernetes_namespace.bank_of_anthos_cluster2,
     null_resource.wait_for_service_mesh,
-  ]
-}
-
-# Output to verify deployment
-resource "null_resource" "verify_deployment" {
-  for_each = var.deploy_application ? local.cluster_configs : {}
-
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
-      echo "Verifying Bank of Anthos deployment on ${each.value.gke_cluster_name}..."
-      gcloud container clusters get-credentials "${each.value.gke_cluster_name}" --region "${each.value.region}" --project "${google_container_cluster.gke_cluster[each.key].project}"
-      kubectl get pods -n bank-of-anthos
-      kubectl get services -n bank-of-anthos
-    EOT
-  }
-
-  depends_on = [
-    null_resource.deploy_bank_of_anthos,
   ]
 }
 
@@ -386,19 +360,98 @@ resource "null_resource" "app_multicluster_ingress" {
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
-      gcloud container clusters get-credentials "${local.cluster_configs["cluster1"].gke_cluster_name}" --region "${local.cluster_configs["cluster1"].region}" --project "${google_container_cluster.gke_cluster["cluster1"].project}"
-      kubectl apply -n bank-of-anthos -f ${path.module}/manifests/multicluster_ingress.yaml --timeout=5m
-      kubectl apply -n bank-of-anthos -f ${path.module}/manifests/multicluster_service.yaml --timeout=5m
-      kubectl apply -n bank-of-anthos -f ${path.module}/manifests/nodeport_service.yaml --timeout=5m
-      kubectl apply -n bank-of-anthos -f ${path.module}/manifests/backend_config.yaml --timeout=5m
-      kubectl apply -n bank-of-anthos -f ${path.module}/manifests/managed_certificate.yaml --timeout=5m
-      kubectl apply -n bank-of-anthos -f ${path.module}/manifests/frontend_config.yaml --timeout=5m
-      kubectl apply -n istio-system -f ${path.module}/manifests/configmap.yaml --timeout=5m
+      gcloud container clusters get-credentials "${local.cluster_configs["cluster1"].gke_cluster_name}" \
+        --region "${local.cluster_configs["cluster1"].region}" \
+        --project "${google_container_cluster.gke_cluster["cluster1"].project}"
+      
+      # Apply all manifests with server-side apply for idempotency
+      kubectl apply -n bank-of-anthos -f ${path.module}/manifests/multicluster_ingress.yaml --server-side --force-conflicts --timeout=5m
+      kubectl apply -n bank-of-anthos -f ${path.module}/manifests/multicluster_service.yaml --server-side --force-conflicts --timeout=5m
+      kubectl apply -n bank-of-anthos -f ${path.module}/manifests/nodeport_service.yaml --server-side --force-conflicts --timeout=5m
+      kubectl apply -n bank-of-anthos -f ${path.module}/manifests/backend_config.yaml --server-side --force-conflicts --timeout=5m
+      kubectl apply -n bank-of-anthos -f ${path.module}/manifests/managed_certificate.yaml --server-side --force-conflicts --timeout=5m
+      kubectl apply -n bank-of-anthos -f ${path.module}/manifests/frontend_config.yaml --server-side --force-conflicts --timeout=5m
+      kubectl apply -n istio-system -f ${path.module}/manifests/configmap.yaml --server-side --force-conflicts --timeout=5m
+      
+      echo "✓ Multi-cluster ingress configuration applied"
     EOT
   }
 
   depends_on = [
     null_resource.deploy_bank_of_anthos,
     google_gke_hub_feature.multiclusteringress_feature,
+  ]
+}
+
+# ============================================
+# PRE-DESTROY CLEANUP FOR MULTICLUSTER INGRESS
+# ============================================
+
+resource "null_resource" "cleanup_multicluster_ingress" {
+  count = var.deploy_application ? 1 : 0
+
+  triggers = {
+    cluster_name = local.cluster_configs["cluster1"].gke_cluster_name
+    region       = local.cluster_configs["cluster1"].region
+    project_id   = google_container_cluster.gke_cluster["cluster1"].project
+    namespace    = "bank-of-anthos"
+  }
+
+  # This runs ONLY during destroy
+  provisioner "local-exec" {
+    when        = destroy
+    interpreter = ["/bin/bash", "-c"]
+    on_failure  = continue  # Don't fail destroy if cleanup fails
+    command = <<-EOT
+      set -e
+      
+      echo "=========================================="
+      echo "Cleaning up MultiCluster Ingress resources"
+      echo "=========================================="
+      
+      # Get cluster credentials
+      gcloud container clusters get-credentials "${self.triggers.cluster_name}" \
+        --region="${self.triggers.region}" \
+        --project="${self.triggers.project_id}" || {
+        echo "⚠ Could not get cluster credentials (cluster may already be deleted)"
+        exit 0
+      }
+      
+      # Check if namespace exists
+      if ! kubectl get namespace "${self.triggers.namespace}" &>/dev/null; then
+        echo "ℹ Namespace ${self.triggers.namespace} not found, skipping cleanup"
+        exit 0
+      fi
+      
+      echo ""
+      echo "Deleting MultiCluster Ingress resources..."
+      
+      # Delete in reverse order of creation
+      kubectl delete -n istio-system configmap istio-ingress-config --ignore-not-found=true --timeout=2m || true
+      kubectl delete -n "${self.triggers.namespace}" frontendconfig frontend-ingress-config --ignore-not-found=true --timeout=2m || true
+      kubectl delete -n "${self.triggers.namespace}" managedcertificate frontend-managed-cert --ignore-not-found=true --timeout=2m || true
+      kubectl delete -n "${self.triggers.namespace}" backendconfig backend-health-check --ignore-not-found=true --timeout=2m || true
+      kubectl delete -n "${self.triggers.namespace}" service frontend-nodeport --ignore-not-found=true --timeout=2m || true
+      kubectl delete -n "${self.triggers.namespace}" multiclusterservice frontend-mcs --ignore-not-found=true --timeout=2m || true
+      kubectl delete -n "${self.triggers.namespace}" multiclusteringress frontend-ingress --ignore-not-found=true --timeout=2m || true
+      kubectl delete -n "${self.triggers.namespace}" deployment gke-mcs-importer --ignore-not-found=true --timeout=2m || true
+      
+      echo ""
+      echo "Waiting for MultiClusterIngress to be fully deleted..."
+      # Wait up to 3 minutes for MCI to be deleted
+      timeout 180 bash -c '
+        while kubectl get multiclusteringress -n '"${self.triggers.namespace}"' 2>/dev/null | grep -q frontend-ingress; do
+          echo "⏳ Waiting for MultiClusterIngress deletion..."
+          sleep 5
+        done
+      ' || echo "⚠ Timeout waiting for MultiClusterIngress deletion"
+      
+      echo ""
+      echo "✓ MultiCluster Ingress cleanup complete"
+    EOT
+  }
+
+  depends_on = [
+    null_resource.app_multicluster_ingress,
   ]
 }
