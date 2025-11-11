@@ -66,12 +66,35 @@ resource "google_project_service" "enabled_services" {
   disable_on_destroy         = true 
 }
 
-# Resource to introduce a delay in the Terraform apply operation.
-resource "time_sleep" "wait_120_seconds" {
-  # Specifies dependencies on organization policies and enabled services, ensuring they are applied before proceeding.
+# Poll for Container API activation before proceeding.
+resource "null_resource" "wait_for_container_api" {
+  triggers = {
+    api_service = "container.googleapis.com"
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<-EOF
+      set -eo pipefail
+      echo "Waiting for the Container API to be enabled..."
+
+      # Attempt to verify API activation, with retries
+      for i in {1..20}; do
+        if gcloud services list --project "${local.project.project_id}" --format="value(serviceConfig.name)" \
+          --filter="serviceConfig.name=${self.triggers.api_service}" | grep -q "${self.triggers.api_service}"; then
+          echo "✓ Container API is enabled."
+          exit 0
+        fi
+        echo "Container API not yet enabled, waiting... (attempt $i/20)"
+        sleep 15
+      done
+
+      echo "Error: Timeout waiting for Container API to be enabled."
+      exit 1
+    EOF
+  }
+
   depends_on = [
     google_project_service.enabled_services
   ]
-
-  create_duration = "240s" # Duration of the delay, set to 120 seconds.
 }

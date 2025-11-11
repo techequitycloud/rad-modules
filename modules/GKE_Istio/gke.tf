@@ -23,23 +23,12 @@ locals {
 data "google_client_config" "gke_cluster" {
 }
 
-# Defer reading the cluster data until the GKE cluster exists.
-data "google_container_cluster" "gke_cluster" {
-  project    = local.project.project_id
-  name       = local.cluster_name
-  location   = local.cluster_location
-
-  depends_on = [
-    google_container_cluster.gke_standard_cluster
-  ]
-}
-
 provider "kubernetes" {
   alias = "primary"
-  host  = "https://${data.google_container_cluster.gke_cluster.endpoint}"
+  host  = "https://${google_container_cluster.gke_standard_cluster.endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
-    data.google_container_cluster.gke_cluster.master_auth.cluster_ca_certificate,
+    google_container_cluster.gke_standard_cluster.master_auth[0].cluster_ca_certificate
   )
 }
 
@@ -123,7 +112,7 @@ resource "google_container_cluster" "gke_standard_cluster" {
   depends_on = [
     google_compute_network.vpc,
     google_compute_subnetwork.subnetwork,
-    google_project_iam_member.gke_sa_role,
+    null_resource.wait_for_container_api
   ]
 }
 
@@ -148,10 +137,6 @@ resource "google_container_node_pool" "preemptible_nodes" {
     ]
   }
 
-  # Ensures that this resource is created
-  depends_on   = [
-    google_service_account.gke_sa,
-  ]
 }
 
 # Service account for GCP identity within Kubernetes
@@ -160,10 +145,6 @@ resource "google_service_account" "gke_sa" {
   account_id   = "gke-sa"        # Account ID for the service account
   description  = "GKE Service Account"      # Description of the service account
   display_name = "GKE Service Account"      # Display name for the service account
-
-  depends_on = [
-    time_sleep.wait_120_seconds               # Dependency on a time delay, ensuring it's created after a certain time period
-  ]
 }
 
 # Local values that can be used throughout the Terraform configuration
@@ -190,8 +171,4 @@ resource "google_project_iam_member" "gke_sa_role" {
   member   = "serviceAccount:${google_service_account.gke_sa.email}" # The service account to assign the role to
   role     = each.value                        # The role from the set to be assigned
 
-  # Ensures that this resource is created
-  depends_on   = [
-    google_service_account.gke_sa,
-  ]
 }
