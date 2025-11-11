@@ -38,7 +38,7 @@ steps:
     }
     
     log "🧹 Cleaning workspace..."
-    rm -rfv /workspace/* 2>/dev/null || log "Workspace already clean"
+    rm -rfv * 2>/dev/null || log "Workspace already clean"
         
     log "🔍 Checking for deployment files..."
     
@@ -63,10 +63,10 @@ steps:
     rm -f "${_MODULE_NAME}.tar.gz"
     
     log "📋 Workspace contents prepared:"
-    ls -la /workspace/ || true
+    ls -la /workspace/modules/${_MODULE_NAME} || true
     
     log "✅ Destruction environment prepared"
-  dir: /workspace
+  dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Initialize and Validate State'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -231,7 +231,7 @@ steps:
     echo "⚠️  IMPORTANT: Deployment files still exist in GCS"
     echo "   Use the cleanup/purge pipeline to remove them completely"
     echo "========================================"
-  dir: /workspace
+  dir: /workspace/modules/${_MODULE_NAME}
 
 options:
   logging: GCS_ONLY
