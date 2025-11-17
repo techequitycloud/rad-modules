@@ -362,6 +362,5 @@ options:
 
 substitutions:
   _DEPLOYMENT_ID: "none"
-
-logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/logs'
+logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
 timeout: 7200s
