@@ -69,23 +69,6 @@ variable "module_services" {
   default     = ["GCP", "GKE", "Anthos Service Mesh", "Cloud IAM", "Cloud Networking"]
 }
 
-variable "credit_cost" {
-  description = "Specify the module cost {{UIMeta group=0 order=104 }}"
-  type        = number
-  default     = 150
-}
-
-variable "require_credit_purchases" {
-  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=105 }}"
-  type        = bool
-  default     = false
-}
-
-variable "enable_purge" {
-  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=106 }}"
-  type        = bool
-  default     = true
-}
 
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"

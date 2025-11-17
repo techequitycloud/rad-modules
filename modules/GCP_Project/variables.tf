@@ -40,23 +40,6 @@ variable "module_services" {
   default     = ["GCP", "Cloud IAM"]
 }
 
-variable "credit_cost" {
-  description = "Specify the module cost {{UIMeta group=0 order=103 }}"
-  type        = number
-  default     = 50
-}
-
-variable "require_credit_purchases" {
-  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
-  type        = bool
-  default     = false
-}
-
-variable "enable_purge" {
-  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=105 }}"
-  type        = bool
-  default     = false
-}
 
 variable "deployment_id" {
   description = "Unique ID suffix for resources. Leave blank to generate random ID."

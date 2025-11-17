@@ -41,23 +41,6 @@ variable "module_services" {
   default     = ["GCP", "GKE", "Cloud SQL", "Compute Engine", "Cloud IAM", "Cloud Networking", "Config Management", "Policy Controller", "Cloud Service Mesh", "Security Posture Service"]
 }
 
-variable "credit_cost" {
-  description = "Specify the module cost {{UIMeta group=0 order=103 }}"
-  type        = number
-  default     = 500
-}
-
-variable "require_credit_purchases" {
-  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
-  type        = bool
-  default     = true
-}
-
-variable "enable_purge" {
-  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=105 }}"
-  type        = bool
-  default     = true
-}
 
 variable "deployment_id" {
   description = "Unique ID suffix for resources.  Leave blank to generate random ID."
