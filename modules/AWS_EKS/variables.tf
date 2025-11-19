@@ -61,6 +61,12 @@ variable "enable_purge" {
   default     = true
 }
 
+variable "public_access" {
+description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
+type = bool
+default = false
+}
+
 variable "deployment_id" {
   description = "Unique ID suffix for resources. Leave blank to generate random ID."
   type        = string

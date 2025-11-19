@@ -61,6 +61,12 @@ variable "enable_purge" {
   default     = true
 }
 
+variable "public_access" {
+description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
+type = bool
+default = false
+}
+
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
