@@ -105,7 +105,7 @@ substitutions:
 # ============================================
 # Logs Configuration
 # ============================================
-logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
+logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
 
 # ============================================
 # Timeout
