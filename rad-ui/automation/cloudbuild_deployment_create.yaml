@@ -90,7 +90,7 @@ steps:
     tar -czf "${_MODULE_NAME}.tar.gz" -C "/workspace/modules/${_MODULE_NAME}" .
         
     log "📤 Uploading initial archive to GCS..."
-    gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/"
+    gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
     
     # Navigate to module directory for configuration download
     cd "/workspace/modules/${_MODULE_NAME}"
@@ -98,14 +98,14 @@ steps:
     log "⬇️  Downloading deployment configuration..."
     
     # Download terraform.tfvars.json
-    if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/terraform.tfvars.json" ./terraform.tfvars.json; then
+    if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/terraform.tfvars.json" ./terraform.tfvars.json; then
         log "✅ Downloaded terraform.tfvars.json"
     else
         log "⚠️  terraform.tfvars.json not found - proceeding without it"
     fi
     
     # Download backend.tf
-    if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/backend.tf" ./backend.tf; then
+    if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/backend.tf" ./backend.tf; then
         log "✅ Downloaded backend.tf"
     else
         log "⚠️  backend.tf not found - proceeding without it"
@@ -266,7 +266,7 @@ steps:
     fi
     
     # Upload outputs to GCS
-    OUTPUT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/output"
+    OUTPUT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output"
     
     if gsutil -m cp output.json "$$OUTPUT_PATH/output.json"; then
         log "✅ Outputs uploaded to GCS"
@@ -298,7 +298,7 @@ steps:
     log "📤 Uploading final deployment files..."
     
     # Upload final archive
-    FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files"
+    FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
     gsutil -m cp "${_MODULE_NAME}.tar.gz" "$$FILES_PATH/"
     
     # Create deployment completion marker
@@ -333,10 +333,10 @@ steps:
     echo "  • Completed: $$(date)"
     echo "========================================"
     echo "📁 Deployment Artifacts:"
-    echo "  • Archive: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
-    echo "  • Outputs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/output/output.json"
-    echo "  • Completion Marker: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/deployment_complete.json"
-    echo "  • Logs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/logs/"
+    echo "  • Archive: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
+    echo "  • Outputs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output/output.json"
+    echo "  • Completion Marker: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/deployment_complete.json"
+    echo "  • Logs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/logs/"
     echo "========================================"
     
     # Optional: Show final resource summary
