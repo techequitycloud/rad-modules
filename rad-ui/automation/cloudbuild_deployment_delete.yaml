@@ -43,9 +43,9 @@ steps:
     log "🔍 Checking for deployment files..."
     
     # Verify deployment exists before attempting destruction
-    if ! gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
+    if ! gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
         log "❌ ERROR: No deployment archive found!"
-        log "   Expected: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
+        log "   Expected: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
         log "   Cannot proceed with destruction without deployment files."
         exit 1
     fi
@@ -53,7 +53,7 @@ steps:
     log "📦 Deployment found - downloading files..."
     
     # Download all deployment files
-    gsutil -m cp -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/*" .
+    gsutil -m cp -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/*" .
     
     # Extract the module archive
     log "📂 Extracting deployment files..."
@@ -109,8 +109,8 @@ steps:
         tofu show -json | jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' 2>/dev/null > /workspace/audit/pre_destruction_resources.txt || echo "No resources found" > /workspace/audit/pre_destruction_resources.txt
         
         # Upload audit files
-        gsutil -m cp /workspace/audit/pre_destruction_state.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/pre_destruction_state.json" || log "Failed to upload pre-destruction state"
-        gsutil -m cp /workspace/audit/pre_destruction_resources.txt "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/pre_destruction_resources.txt" || log "Failed to upload resource list"
+        gsutil -m cp /workspace/audit/pre_destruction_state.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destruction/pre_destruction_state.json" || log "Failed to upload pre-destruction state"
+        gsutil -m cp /workspace/audit/pre_destruction_resources.txt "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destruction/pre_destruction_resources.txt" || log "Failed to upload resource list"
         
         log "✅ Pre-destruction audit completed"
     else
@@ -120,7 +120,7 @@ steps:
         # Create empty audit record
         mkdir -p /workspace/audit
         echo '{"message": "No state found", "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /workspace/audit/pre_destruction_state.json
-        gsutil cp /workspace/audit/pre_destruction_state.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/pre_destruction_state.json" || log "Failed to upload empty state"
+        gsutil cp /workspace/audit/pre_destruction_state.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destruction/pre_destruction_state.json" || log "Failed to upload empty state"
     fi
     
     log "✅ State validation completed"
@@ -155,7 +155,7 @@ steps:
     EOF
     
     # Upload metadata
-    gsutil cp /workspace/audit/destruction_metadata.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/destruction_metadata.json" || log "Failed to upload metadata"
+    gsutil cp /workspace/audit/destruction_metadata.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destruction/destruction_metadata.json" || log "Failed to upload metadata"
     
     # Destroy with retry logic for transient errors
     destroy_with_retry() {
@@ -221,7 +221,7 @@ steps:
     }
     EOF
     
-    gsutil cp /workspace/audit/destruction_metadata.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/destruction_metadata.json" || log "Failed to upload final metadata"
+    gsutil cp /workspace/audit/destruction_metadata.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destruction/destruction_metadata.json" || log "Failed to upload final metadata"
     
     log "🎯 Infrastructure destruction completed"
     
@@ -284,15 +284,15 @@ steps:
     EOF
     
     # Upload verification report
-    gsutil cp /workspace/audit/destruction_verification.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/destruction_verification.json" || log "Failed to upload verification report"
+    gsutil cp /workspace/audit/destruction_verification.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destruction/destruction_verification.json" || log "Failed to upload verification report"
     
     # Upload post-destruction state if it exists
     if [ -f /workspace/audit/post_destruction_state.json ]; then
-        gsutil cp /workspace/audit/post_destruction_state.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/post_destruction_state.json" || log "Failed to upload post-destruction state"
+        gsutil cp /workspace/audit/post_destruction_state.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destruction/post_destruction_state.json" || log "Failed to upload post-destruction state"
     fi
     
     if [ -f /workspace/audit/remaining_resources.txt ]; then
-        gsutil cp /workspace/audit/remaining_resources.txt "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/remaining_resources.txt" || log "Failed to upload remaining resources list"
+        gsutil cp /workspace/audit/remaining_resources.txt "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destruction/remaining_resources.txt" || log "Failed to upload remaining resources list"
     fi
     
     log "✅ Destruction verification completed"
@@ -311,34 +311,34 @@ steps:
       "destroyed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
       "verification_status": "$(cat /workspace/audit/verification_status.txt)",
       "build_logs": "gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destruction/${_MODULE_NAME}/${_DEPLOYMENT_ID}/",
-      "audit_files": "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/"
+      "audit_files": "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destruction/"
     }
     EOF
     
-    gsutil cp /workspace/audit/destruction_complete.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/destruction/destruction_complete.json" || log "Failed to upload completion marker"
+    gsutil cp /workspace/audit/destruction_complete.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destruction/destruction_complete.json" || log "Failed to upload completion marker"
     
     # ============================================
     # Clean up deployment folder from GCS
     # ============================================
     log "🗑️  Removing deployment folder from Cloud Storage..."
     
-    if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" > /dev/null 2>&1; then
-        log "📁 Found deployment folder: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
+    if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/" > /dev/null 2>&1; then
+        log "📁 Found deployment folder: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
         
         # List contents before deletion (for audit)
         log "📋 Contents to be deleted:"
-        gsutil du -sh "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" || log "Unable to calculate size"
+        gsutil du -sh "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/" || log "Unable to calculate size"
         
         # Remove the entire deployment folder
-        if gsutil -m rm -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" 2>&1; then
+        if gsutil -m rm -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/" 2>&1; then
             log "✅ Successfully removed deployment folder from Cloud Storage"
         else
             log "⚠️  Failed to remove deployment folder (may require manual cleanup)"
-            log "   Path: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
+            log "   Path: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
         fi
         
         # Verify deletion
-        if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" > /dev/null 2>&1; then
+        if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/" > /dev/null 2>&1; then
             log "❌ Warning: Deployment folder still exists after deletion attempt"
         else
             log "✅ Confirmed: Deployment folder has been removed"
@@ -389,5 +389,5 @@ options:
 substitutions:
   _DEPLOYMENT_ID: "none"
 
-logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
+logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destruction/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
 timeout: 7200s  # Keep long timeout for complex infrastructure
