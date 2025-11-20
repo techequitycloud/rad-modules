@@ -33,23 +33,23 @@ steps:
         # ============================================
         log "🗑️  Removing deployment folder from Cloud Storage..."
         
-        if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" > /dev/null 2>&1; then
-            log "📁 Found deployment folder: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
+        if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/" > /dev/null 2>&1; then
+            log "📁 Found deployment folder: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
             
             # List contents before deletion (for audit)
             log "📋 Contents to be deleted:"
-            gsutil du -sh "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" || log "Unable to calculate size"
+            gsutil du -sh "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/" || log "Unable to calculate size"
             
             # Remove the entire deployment folder
-            if gsutil -m rm -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" 2>&1; then
+            if gsutil -m rm -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/" 2>&1; then
                 log "✅ Successfully removed deployment folder from Cloud Storage"
             else
                 log "⚠️  Failed to remove deployment folder (may require manual cleanup)"
-                log "   Path: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}"
+                log "   Path: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
             fi
             
             # Verify deletion
-            if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/" > /dev/null 2>&1; then
+            if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/" > /dev/null 2>&1; then
                 log "❌ Warning: Deployment folder still exists after deletion attempt"
             else
                 log "✅ Confirmed: Deployment folder has been removed"
@@ -80,7 +80,7 @@ steps:
         echo "  • Module: ${_MODULE_NAME}"
         echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
         echo "  • Bucket: ${_DEPLOYMENT_BUCKET_ID}"
-        echo "  • Path Removed: deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/"
+        echo "  • Path Removed: deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
         echo "  • Project: ${PROJECT_ID}"
         echo "  • Build ID: ${BUILD_ID}"
         echo "  • Completed: $(date)"
@@ -105,11 +105,9 @@ substitutions:
 # ============================================
 # Logs Configuration
 # ============================================
-logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
+logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
 
 # ============================================
 # Timeout
 # ============================================
 timeout: 600s  # 10 minutes should be enough for bucket cleanup
-
-
