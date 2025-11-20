@@ -41,12 +41,12 @@ steps:
     log "🔍 Checking deployment type..."
     
     # Check if this is an initial deployment or update
-    if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
+    if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
         log "📦 Existing deployment detected - performing update"
         
         # Download all files for update
         log "⬇️  Downloading existing deployment files..."
-        gsutil -m cp -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/*" .
+        gsutil -m cp -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/*" .
         
         # Extract the module archive
         log "📂 Extracting module files..."
@@ -61,8 +61,8 @@ steps:
         
         # Download only the required config files for initial deployment
         log "⬇️  Downloading configuration files..."
-        gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/terraform.tfvars.json" ./terraform.tfvars.json
-        gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/backend.tf" ./backend.tf
+        gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/terraform.tfvars.json" ./terraform.tfvars.json
+        gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/backend.tf" ./backend.tf
         
         log "✅ Initial deployment environment prepared"
     fi
@@ -166,7 +166,7 @@ steps:
     tofu output -json > output.json
     
     # Upload outputs to GCS
-    gsutil -m cp output.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/output/output.json"
+    gsutil -m cp output.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output/output.json"
     
     log "📊 Output summary:"
     tofu output || log "No outputs defined"
@@ -195,15 +195,15 @@ steps:
     log "📤 Uploading deployment files..."
     
     # Upload the archive
-    gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/"
+    gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
     
     # Also backup current tfvars and backend config from the module directory
     if [[ -f "modules/${_MODULE_NAME}/terraform.tfvars.json" ]]; then
-        gsutil cp "modules/${_MODULE_NAME}/terraform.tfvars.json" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/terraform.tfvars.json"
+        gsutil cp "modules/${_MODULE_NAME}/terraform.tfvars.json" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/terraform.tfvars.json"
     fi
     
     if [[ -f "modules/${_MODULE_NAME}/backend.tf" ]]; then
-        gsutil cp "modules/${_MODULE_NAME}/backend.tf" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/backend.tf"
+        gsutil cp "modules/${_MODULE_NAME}/backend.tf" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/backend.tf"
     fi
     
     log "📋 Archive contents:"
@@ -232,9 +232,9 @@ steps:
     echo "  • Completed: $(date)"
     echo "========================================"
     echo "📁 Deployment Files:"
-    echo "  • Archive: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
-    echo "  • Outputs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/output/output.json"
-    echo "  • Logs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}_${_DEPLOYMENT_ID}/logs/"
+    echo "  • Archive: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
+    echo "  • Outputs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output/output.json"
+    echo "  • Logs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/logs/"
     echo "========================================"
     
     # Optional: Show final state summary
@@ -256,5 +256,5 @@ options:
 substitutions:
   _DEPLOYMENT_ID: "none"
 
-logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
+logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/update/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
 timeout: 7200s
