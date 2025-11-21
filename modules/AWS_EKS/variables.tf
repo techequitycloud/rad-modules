@@ -86,11 +86,6 @@ variable "existing_project_id" {
   type        = string
 }
 
-variable "projectId" {
-  description = "RAD Project ID."
-  type        = string
-}
-
 # GROUP 3: Cluster
 
 variable "cluster_name_prefix" {
