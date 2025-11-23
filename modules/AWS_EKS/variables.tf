@@ -20,7 +20,7 @@ variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
   default     = <<-EOT
-**Purpose:** This module enables you to create and manage an Azure Kubernetes Service (AKS) cluster from your Google Cloud console. This is useful for organizations that use both AWS and Google Cloud and want a unified way to manage their applications.
+**Purpose:** This module enables you to create and manage an Azure Kubernetes Service (AKS) cluster from your Google Cloud console. This is useful for organizations that use both AWS and Google Cloud and want a unified way to manage their applications. This is a demo module for training purposes.
 
 **What it does:**
 - Creates an EKS cluster on Azure.
