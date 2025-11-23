@@ -172,8 +172,4 @@ resource "google_container_attached_cluster" "primary" {
     admin_users = var.trusted_users
   #   admin_groups = var.groups
   }
-
-  depends_on = [
-    module.attached_install_manifest,
-  ]
 }

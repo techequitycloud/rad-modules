@@ -20,10 +20,10 @@ variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
   default     = <<-EOT
-**Purpose:** This module enables you to create and manage an Azure Kubernetes Service (AKS) cluster from your Google Cloud console. This is useful for organizations that use both AWS and Google Cloud and want a unified way to manage their applications. This is a demo module for training purposes.
+**Purpose:** This module enables you to create and manage an AWS Elastic Kubernetes Service (EKS) cluster from your Google Cloud console. This is useful for organizations that use both AWS and Google Cloud and want a unified way to manage their applications. This is a demo module for training purposes.
 
 **What it does:**
-- Creates an EKS cluster on Azure.
+- Creates an EKS cluster on AWS.
 - Connects the EKS cluster to your Google Cloud project.
 - Enables you to manage AWS applications from the Google Cloud console.
 
@@ -145,13 +145,13 @@ variable "enable_public_subnets" {
 }
 
 variable "platform_version" {
-  description = "GKE cluster version. {{UIMeta group=0 order=308 updatesafe }}"
+  description = "The EKS platform version to use for the cluster. This should match the major.minor version of the EKS cluster. See the AWS documentation for a full list of valid versions. {{UIMeta group=0 order=308 updatesafe }}"
   type        = string
-  default     = "1.31.0-gke.3"
+  default     = "1.31"
 }
 
 variable "k8s_version" {
-  description = "Kubernetes version of the EKS cluster. {{UIMeta group=0 order=309 updatesafe }}"
+  description = "The Kubernetes version to use for the EKS cluster. This should be a major.minor version. See the AWS documentation for a full list of valid versions. {{UIMeta group=0 order=309 updatesafe }}"
   type        = string
   default     = "1.31"
 }
