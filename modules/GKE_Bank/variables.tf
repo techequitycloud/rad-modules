@@ -20,7 +20,7 @@ variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
   default     = <<-EOT
-**Purpose:** This module deploys an advanced, microservices banking portal on Google Kubernetes Engine (GKE). It is designed as a reference implementation for financial institutions that need a highly scalable, secure, and feature-rich platform for their banking applications.
+**Purpose:** This module deploys an advanced, microservices banking portal on Google Kubernetes Engine (GKE). It is designed as a reference implementation for financial institutions that need a highly scalable, secure, and feature-rich platform for their banking applications. This is a demo module for training purposes.
 
 **What it does:**
 - Deploys a microservices-based banking application on GKE.
