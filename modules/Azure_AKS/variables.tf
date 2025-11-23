@@ -73,12 +73,6 @@ variable "deployment_id" {
   default     = null
 }
 
-variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
-  type        = string
-  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
-}
-
 # GROUP 2: Application Project
 
 variable "existing_project_id" {
@@ -92,6 +86,11 @@ variable "cluster_name_prefix" {
   description = "Prefix to use for generating cluster resources. {{UIMeta group=0 order=301 updatesafe }}"
   type        = string
   default     = "azure-aks-cluster"
+
+  validation {
+    condition     = length(var.cluster_name_prefix) <= 10
+    error_message = "The cluster name prefix must be 10 characters or less."
+  }
 }
 
 variable "gcp_location" {

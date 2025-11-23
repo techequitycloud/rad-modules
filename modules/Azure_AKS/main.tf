@@ -66,9 +66,28 @@ resource "azurerm_resource_group" "aks" {
   tags     = local.tags
 }
 
+resource "azurerm_role_definition" "aks_custom_role" {
+  name        = "AKS Custom Role"
+  scope       = azurerm_resource_group.aks.id
+  description = "Custom role for AKS cluster"
+
+  permissions {
+    actions = [
+      "Microsoft.Network/virtualNetworks/subnets/join/action",
+      "Microsoft.Network/virtualNetworks/subnets/read",
+      "Microsoft.Network/virtualNetworks/read",
+    ]
+    not_actions = []
+  }
+
+  assignable_scopes = [
+    azurerm_resource_group.aks.id,
+  ]
+}
+
 resource "azurerm_role_assignment" "aks_network_contributor" {
   scope                = azurerm_resource_group.aks.id
-  role_definition_name = "Network Contributor"
+  role_definition_id   = azurerm_role_definition.aks_custom_role.id
   principal_id         = azurerm_kubernetes_cluster.aks.identity[0].principal_id
 }
 
@@ -108,20 +127,6 @@ provider "helm" {
   }
 }
 
-module "attached_install_manifest" {
-  source                         = "./modules/attached-install-manifest"
-  attached_cluster_name          = var.cluster_name_prefix
-  attached_cluster_fleet_project = local.project_id
-  gcp_location                   = var.gcp_location
-  platform_version               = var.platform_version
-  providers = {
-    helm = helm.bootstrap_installer
-  }
-  depends_on = [
-    azurerm_kubernetes_cluster.aks,
-  ]
-}
-
 resource "google_container_attached_cluster" "primary" {
   name             = var.cluster_name_prefix
   project          = local.project_id
@@ -154,9 +159,4 @@ resource "google_container_attached_cluster" "primary" {
   authorization {
     admin_users = var.trusted_users
   }
-
-  depends_on = [
-    module.attached_install_manifest,
-    google_project_service.enabled_services,
-  ]
 }
