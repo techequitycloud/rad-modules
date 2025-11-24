@@ -61,22 +61,44 @@ resource "google_project_service" "enabled_services" {
 }
 
 resource "azurerm_resource_group" "aks" {
-  name     = "${var.cluster_name_prefix}-rg"
+  name     = var.resource_group_name
   location = var.azure_region
   tags     = local.tags
 }
 
-resource "azurerm_role_assignment" "aks_network_contributor" {
-  scope                = azurerm_resource_group.aks.id
-  role_definition_name = "Network Contributor"
-  principal_id         = azurerm_kubernetes_cluster.aks.identity[0].principal_id
+resource "azurerm_role_definition" "aks_least_privilege" {
+  name        = "CustomRole_AKS_Contributor"
+  scope       = azurerm_resource_group.aks.id
+  description = "Custom role with least-privilege permissions for AKS"
+
+  permissions {
+    actions = [
+      "Microsoft.ContainerService/managedClusters/read",
+      "Microsoft.ContainerService/managedClusters/write",
+      "Microsoft.ContainerService/managedClusters/delete",
+      "Microsoft.Network/virtualNetworks/subnets/join/action",
+      "Microsoft.Network/virtualNetworks/subnets/read",
+      "Microsoft.Network/virtualNetworks/read"
+    ]
+    not_actions = []
+  }
+
+  assignable_scopes = [
+    azurerm_resource_group.aks.id
+  ]
+}
+
+resource "azurerm_role_assignment" "aks_least_privilege" {
+  scope              = azurerm_resource_group.aks.id
+  role_definition_id = azurerm_role_definition.aks_least_privilege.id
+  principal_id       = azurerm_kubernetes_cluster.aks.identity[0].principal_id
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
   name                = var.cluster_name_prefix
   location            = azurerm_resource_group.aks.location
   resource_group_name = azurerm_resource_group.aks.name
-  dns_prefix          = "${var.cluster_name_prefix}-dns"
+  dns_prefix          = var.dns_prefix
   kubernetes_version  = var.k8s_version
 
   # If not enabling the OIDC issuer, extra steps need to be taken to manually retrieve JWKs from the cluster.
@@ -94,32 +116,6 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   tags = local.tags
-}
-
-provider "helm" {
-  alias = "bootstrap_installer"
-  kubernetes {
-    host                   = azurerm_kubernetes_cluster.aks.kube_config[0].host
-    username               = azurerm_kubernetes_cluster.aks.kube_config[0].username
-    password               = azurerm_kubernetes_cluster.aks.kube_config[0].password
-    client_certificate     = base64decode(azurerm_kubernetes_cluster.aks.kube_config[0].client_certificate)
-    client_key             = base64decode(azurerm_kubernetes_cluster.aks.kube_config[0].client_key)
-    cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.aks.kube_config[0].cluster_ca_certificate)
-  }
-}
-
-module "attached_install_manifest" {
-  source                         = "./modules/attached-install-manifest"
-  attached_cluster_name          = var.cluster_name_prefix
-  attached_cluster_fleet_project = local.project_id
-  gcp_location                   = var.gcp_location
-  platform_version               = var.platform_version
-  providers = {
-    helm = helm.bootstrap_installer
-  }
-  depends_on = [
-    azurerm_kubernetes_cluster.aks,
-  ]
 }
 
 resource "google_container_attached_cluster" "primary" {
@@ -156,7 +152,6 @@ resource "google_container_attached_cluster" "primary" {
   }
 
   depends_on = [
-    module.attached_install_manifest,
     google_project_service.enabled_services,
   ]
 }

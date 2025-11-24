@@ -94,6 +94,12 @@ variable "cluster_name_prefix" {
   default     = "azure-aks-cluster"
 }
 
+variable "resource_group_name" {
+  description = "Name of the Azure resource group."
+  type        = string
+  default     = "azure-aks-rg"
+}
+
 variable "gcp_location" {
   description = "GCP region where Azure resources will be registered and managed. {{UIMeta group=2 order=302 updatesafe }}"
   type        = string
@@ -128,17 +134,28 @@ variable "vm_size" {
   description = "The size of the virtual machine for the AKS cluster nodes. {{UIMeta group=3 order=305 updatesafe }}"
   type        = string
   default     = "Standard_D2s_v3"
+
+  validation {
+    condition     = can(regex("^Standard_[A-Z][0-9]+s_v[0-9]+$", var.vm_size))
+    error_message = "The VM size must be a valid Azure VM size string (e.g., 'Standard_D2s_v3')."
+  }
+}
+
+variable "dns_prefix" {
+  description = "DNS prefix for the AKS cluster."
+  type        = string
+  default     = "azure-aks-dns"
 }
 
 // GROUP 4: IAM
 
 variable "client_id" {
-  description = "Azure Client ID (Application ID). {{UIMeta group=4 order=401 updatesafe }}"
+  description = "Azure Client ID (Application ID). This is used for the Azure provider to authenticate."
   type        = string
 }
 
 variable "client_secret" {
-  description = "Azure Client Secret. {{UIMeta group=4 order=402 updatesafe }}"
+  description = "Azure Client Secret. This is used for the Azure provider to authenticate."
   type        = string
   sensitive   = true
 }
