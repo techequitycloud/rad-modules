@@ -14,24 +14,26 @@
  * limitations under the License.
  */
 
-// ------------------------------------------------------------------
-// VPC Network
-// ------------------------------------------------------------------
+#########################################################################
+# vpc - VPC Network & Subnests
+#########################################################################
 
+# VPC resource - NO dependency on cleanup resource
 resource "google_compute_network" "vpc" {
-  project                 = local.project.project_id
-  name                    = "${var.network_name}-${local.random_id}"
-  auto_create_subnetworks = false
-  routing_mode            = "GLOBAL"
+  project                  = local.project.project_id
+  name                     = var.network_name
+  auto_create_subnetworks  = false
+  routing_mode             = "GLOBAL"
 
   depends_on = [
     google_project_service.enabled_services,
   ]
 }
 
+# Subnet resource - NO dependency on cleanup resource
 resource "google_compute_subnetwork" "subnetwork" {
   project                  = local.project.project_id
-  name                     = "${var.subnet_name}-${local.random_id}"
+  name                     = var.subnet_name
   ip_cidr_range            = tolist(var.ip_cidr_ranges)[0]
   region                   = var.region
   network                  = google_compute_network.vpc.name
@@ -53,90 +55,139 @@ resource "google_compute_subnetwork" "subnetwork" {
   ]
 }
 
-// ------------------------------------------------------------------
-// Firewall Rules
-// ------------------------------------------------------------------
+#########################################################################
+# Firewall Rules in vpc
+#########################################################################
 
-resource "google_compute_firewall" "allow_lb_health_checks" {
+# Firewall rule to allow Layer 7 Load Balancer health checks
+resource "google_compute_firewall" "fw_allow_lb_hc" {
   project = local.project.project_id
-  name    = "fw-allow-lb-hc-${local.random_id}"
+  name    = "fw-allow-lb-hc"
   network = google_compute_network.vpc.name
+
   allow {
     protocol = "tcp"
     ports    = ["80"]
   }
+
   source_ranges = ["35.191.0.0/16", "130.211.0.0/22"]
   depends_on    = [google_compute_network.vpc]
 }
 
-resource "google_compute_firewall" "allow_nfs_health_checks" {
+# Firewall rule to allow NFS health checks
+resource "google_compute_firewall" "fw_allow_nfs_hc" {
   project = local.project.project_id
-  name    = "fw-allow-nfs-hc-${local.random_id}"
+  name    = "fw-allow-nfs-hc"
   network = google_compute_network.vpc.name
+
   allow {
     protocol = "tcp"
     ports    = ["2049"]
   }
+
   source_ranges = ["35.191.0.0/16", "130.211.0.0/22"]
   depends_on    = [google_compute_network.vpc]
 }
 
-resource "google_compute_firewall" "allow_iap_ssh" {
+# Firewall rule to allow SSH connections via Identity-Aware Proxy (IAP)
+resource "google_compute_firewall" "fw_allow_iap_ssh" {
   project = local.project.project_id
-  name    = "fw-allow-iap-ssh-${local.random_id}"
+  name    = "fw-allow-iap-ssh"
   network = google_compute_network.vpc.name
+
   allow {
     protocol = "tcp"
     ports    = ["22"]
   }
+
   source_ranges = ["35.235.240.0/20"]
   depends_on    = [google_compute_network.vpc]
 }
 
-resource "google_compute_firewall" "allow_intra_vpc" {
+# Firewall rule to allow Bank of Anthos intra-pod communication
+resource "google_compute_firewall" "fw_allow_boa_intrapod" {
   project = local.project.project_id
-  name    = "fw-allow-intra-vpc-${local.random_id}"
+  name    = "fw-allow-boa-intrapod"
   network = google_compute_network.vpc.name
+
   allow {
     protocol = "tcp"
-    ports    = ["0-65535"]
+    ports    = ["8080", "5432"]
   }
+
   allow {
     protocol = "udp"
-    ports    = ["0-65535"]
+    ports    = ["53"]
   }
+
+  source_ranges      = [var.pod_cidr_block]
+  destination_ranges = [var.pod_cidr_block]
+  depends_on         = [google_compute_network.vpc]
+}
+
+# Firewall rule to allow NFS service traffic on TCP protocol
+resource "google_compute_firewall" "fw_allow_gce_nfs_tcp" {
+  project = local.project.project_id
+  name    = "fw-allow-nfs-tcp"
+  network = google_compute_network.vpc.name
+
   allow {
-    protocol = "icmp"
+    protocol = "tcp"
+    ports    = ["2049"]
   }
-  source_ranges = [var.pod_cidr_block]
+
+  source_ranges = tolist(var.ip_cidr_ranges)
+  target_tags   = ["nfs-server"]
   depends_on    = [google_compute_network.vpc]
 }
 
-// ------------------------------------------------------------------
-// Cloud NAT
-// ------------------------------------------------------------------
-
-resource "google_compute_router" "router" {
+# Firewall rule to allow HTTP and HTTPS service traffic on TCP protocol
+resource "google_compute_firewall" "fw_allow_http_tcp" {
   project = local.project.project_id
-  name    = "cr-${var.region}-${local.random_id}"
+  name    = "fw-allow-http-tcp"
+  network = google_compute_network.vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "443"]
+  }
+
+  source_ranges = tolist(var.ip_cidr_ranges)
+  target_tags   = ["http-server"]
+  depends_on    = [google_compute_network.vpc]
+}
+
+#########################################################################
+# Creating Cloud NATs for Egress traffic from vpc
+#########################################################################
+
+# Define a Google Compute Router resource for the region
+resource "google_compute_router" "cr_region" {
+  project = local.project.project_id
+  name    = "cr1-${var.region}"
   region  = google_compute_subnetwork.subnetwork.region
   network = google_compute_network.vpc.id
+
   bgp {
     asn = 64514
   }
+
   depends_on = [google_compute_network.vpc]
 }
 
-resource "google_compute_router_nat" "nat_gateway" {
+# Define a Google Compute Router NAT for the region
+resource "google_compute_router_nat" "nat_gw_region" {
   project                            = local.project.project_id
-  name                               = "nat-gw-${var.region}-${local.random_id}"
-  router                             = google_compute_router.router.name
-  region                             = google_compute_router.router.region
+  name                               = "nat-gw1-${var.region}"
+  router                             = google_compute_router.cr_region.name
+  region                             = google_compute_router.cr_region.region
   nat_ip_allocate_option             = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+
   log_config {
     enable = true
     filter = "ERRORS_ONLY"
   }
+
   depends_on = [google_compute_network.vpc]
 }

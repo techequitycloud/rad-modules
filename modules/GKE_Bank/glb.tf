@@ -14,11 +14,12 @@
  * limitations under the License.
  */
  
-// ------------------------------------------------------------------
-// Global Load Balancer IP Address
-// ------------------------------------------------------------------
+#########################################################################
+# Configure resources
+#########################################################################
 
-resource "google_compute_global_address" "bank_of_anthos_ip" {
+# Reserve a global IP address for the load balancer
+resource "google_compute_global_address" "glb" {
   project = local.project.project_id
-  name    = "bank-of-anthos-ip-${local.random_id}"
+  name = "bank-of-anthos"
 }
