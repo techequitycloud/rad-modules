@@ -194,22 +194,21 @@ else
     echo "Database already exists, skipping creation."
 fi
 
-# Attempt to download the backup file only if BACKUP_FILEID is not empty
-if [ -n "${BACKUP_FILEID}" ] ; then
-    echo "Attempting to download the backup file using gdown..."
-    echo "Using gdown from /root/.local/bin/gdown"
+# Attempt to download the backup file only if BACKUP_GCS_BUCKET and BACKUP_GCS_OBJECT are not empty
+if [ -n "${BACKUP_GCS_BUCKET}" ] && [ -n "${BACKUP_GCS_OBJECT}" ]; then
+    echo "Attempting to download the backup file from GCS..."
     
-    # Try downloading with full path if needed
-    if sudo /root/.local/bin/gdown ${BACKUP_FILEID} -O ${DB_NAME}.zip; then
+    # Try downloading with gsutil
+    if gsutil cp gs://${BACKUP_GCS_BUCKET}/${BACKUP_GCS_OBJECT} ${DB_NAME}.zip; then
         echo "Backup file downloaded successfully"
         if [ -f ${DB_NAME}.zip ]; then
             echo "Backup file exists and is $(du -h ${DB_NAME}.zip | cut -f1) in size"
         fi
     else
-        echo "Warning: Failed to download the backup file using /root/.local/bin/gdown."
+        echo "Warning: Failed to download the backup file from GCS."
     fi
 else
-    echo "Skipping download as BACKUP_FILEID is empty."
+    echo "Skipping download as BACKUP_GCS_BUCKET or BACKUP_GCS_OBJECT is empty."
 fi
 
 if [ -f "${DB_NAME}.zip" ]; then

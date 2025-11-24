@@ -22,7 +22,8 @@ resource "local_file" "import_dev_db_script_output" {
   filename = "${path.module}/scripts/app/dev/import-db.sh"
   content = templatefile("${path.module}/scripts/app/import_db.tpl", {
     PROJECT_ID          = local.project.project_id
-    BACKUP_FILEID       = "${var.application_backup_fileid}"
+    BACKUP_GCS_BUCKET   = var.application_backup_gcs_bucket
+    BACKUP_GCS_OBJECT   = var.application_backup_gcs_object
     DB_IP               = local.db_internal_ip
     DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
     DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
@@ -41,7 +42,8 @@ resource "local_file" "import_qa_db_script_output" {
   filename = "${path.module}/scripts/app/qa/import-db.sh"
   content = templatefile("${path.module}/scripts/app/import_db.tpl", {
     PROJECT_ID          = local.project.project_id
-    BACKUP_FILEID       = "${var.application_backup_fileid}"
+    BACKUP_GCS_BUCKET   = var.application_backup_gcs_bucket
+    BACKUP_GCS_OBJECT   = var.application_backup_gcs_object
     DB_IP               = local.db_internal_ip
     DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
     DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
@@ -60,7 +62,8 @@ resource "local_file" "import_prod_db_script_output" {
   filename = "${path.module}/scripts/app/prod/import-db.sh"
   content = templatefile("${path.module}/scripts/app/import_db.tpl", {
     PROJECT_ID          = local.project.project_id
-    BACKUP_FILEID       = "${var.application_backup_fileid}"
+    BACKUP_GCS_BUCKET   = var.application_backup_gcs_bucket
+    BACKUP_GCS_OBJECT   = var.application_backup_gcs_object
     DB_IP               = local.db_internal_ip
     DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
     DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"

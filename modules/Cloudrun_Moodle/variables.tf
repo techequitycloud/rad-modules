@@ -74,7 +74,6 @@ variable "deployment_id" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=103 updatesafe }}"
   type        = string
-  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "trusted_users" {
@@ -147,10 +146,15 @@ variable "configure_continuous_deployment" {
 }
 
 variable "application_git_token" {
-  description = "Specify a github classic token with following privileges needed to configure the code repository: delete_repo, read:org, repo. {{UIMeta group=4 order=602 updatesafe}}"
+  description = "Specify a GitHub classic token with the following privileges needed to configure the code repository: `delete_repo`, `read:org`, and `repo`. {{UIMeta group=4 order=602 updatesafe}}"
   type        = string
   default     = ""
   sensitive   = true
+
+  validation {
+    condition     = var.application_git_token != ""
+    error_message = "A GitHub token must be provided."
+  }
 }
 
 variable "application_git_usernames" {
@@ -162,19 +166,17 @@ variable "application_git_usernames" {
 variable "application_git_installation_id" {
   description = "Specify the application installation ID. {{UIMeta group=0 order=603 updatesafe}}"
   type        = string
-  default     = "38735316"
 }
 
 variable "application_git_organization" {
   description = "Specify the github organization. {{UIMeta group=0 order=604 updatesafe}}"
   type        = string
-  default     = "techequitycloud"
 }
 
 # GROUP 7: Tenant
 
 variable "tenant_deployment_id" {
-  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=3 order=701 updatesafe}}"
+  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=7 order=701 updatesafe}}"
   type        = string
 }
 
@@ -216,10 +218,16 @@ variable "application_backup_schedule" {
   default     = "0 0 * * *"
 }
 
-variable "application_backup_fileid" {
-  description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup file during deployment. {{UIMeta group=6 order=808 updatesafe}}"
+variable "application_backup_gcs_bucket" {
+  description = "Enter the application backup GCS bucket. When backups are enabled, Terraform attempts to download the backup file from the GCS bucket, and if found, imports the backup file during deployment. {{UIMeta group=6 order=808 updatesafe}}"
   type        = string
-  default     = "1WgtaSOIPs4MI50xtIkhDzp43fSv1hYGF"
+  default     = null
+}
+
+variable "application_backup_gcs_object" {
+  description = "Enter the application backup GCS object. When backups are enabled, Terraform attempts to download the backup file from the GCS object, and if found, imports the backup file during deployment. {{UIMeta group=6 order=809 updatesafe}}"
+  type        = string
+  default     = null
 }
 
 variable "configure_application_security" {
