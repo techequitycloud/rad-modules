@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-# Configure kubernetes provider with Oauth2 access token.
+// ------------------------------------------------------------------
+// Kubernetes Provider Configuration
+// ------------------------------------------------------------------
+
 data "google_client_config" "gke_cluster" {
 }
 
@@ -27,21 +30,22 @@ provider "kubernetes" {
   )
 }
 
-# Module to create the GKE private cluster
+// ------------------------------------------------------------------
+// GKE Cluster
+// ------------------------------------------------------------------
+
 resource "google_container_cluster" "gke_cluster" {
   project               = local.project.project_id
-  name                  = var.gke_cluster
+  name                  = "${var.gke_cluster}-${local.random_id}"
   location              = var.region
   deletion_protection   = false
   network               = google_compute_network.vpc.name
   subnetwork            = google_compute_subnetwork.subnetwork.name
 
-  # Conditional attributes based on cluster type
-  enable_autopilot             = var.create_autopilot_cluster
+  enable_autopilot = var.create_autopilot_cluster
   
-  # Only set these for Standard clusters (not Autopilot)
-  remove_default_node_pool     = var.create_autopilot_cluster ? null : true
-  initial_node_count           = var.create_autopilot_cluster ? null : 1
+  remove_default_node_pool = var.create_autopilot_cluster ? null : true
+  initial_node_count       = var.create_autopilot_cluster ? null : 1
 
   ip_allocation_policy {
     cluster_secondary_range_name  = var.pod_ip_range
@@ -68,7 +72,6 @@ resource "google_container_cluster" "gke_cluster" {
     enabled = true
   }
 
-  # Workload Identity is only needed for Standard clusters
   dynamic "workload_identity_config" {
     for_each = var.create_autopilot_cluster ? [] : [1]
     content {
@@ -102,30 +105,32 @@ resource "google_container_cluster" "gke_cluster" {
   ]
 }
 
-# Service Account for Standard GKE cluster
-resource "google_service_account" "gke_standard" {
+// ------------------------------------------------------------------
+// GKE Standard Cluster Configuration
+// ------------------------------------------------------------------
+
+resource "google_service_account" "gke_standard_sa" {
   count        = var.create_autopilot_cluster ? 0 : 1
   project      = local.project.project_id
-  account_id   = "gke-standard-sa"
+  account_id   = "gke-standard-sa-${local.random_id}"
   display_name = "GKE Standard Service Account"
 }
 
-# Node pool for Standard GKE cluster
-resource "google_container_node_pool" "preemptible_nodes" {
+resource "google_container_node_pool" "gke_node_pool" {
   count      = var.create_autopilot_cluster ? 0 : 1
   project    = local.project.project_id
-  name       = "node-pool"
+  name       = "node-pool-${local.random_id}"
   cluster    = google_container_cluster.gke_cluster.id
   node_count = 2
   node_locations = data.google_compute_zones.available_zones.names
 
   node_config {
     spot         = true
-    machine_type = "e2-standard-2"
-    disk_size_gb = 50
-    disk_type    = "pd-ssd" 
+    machine_type = var.machine_type
+    disk_size_gb = var.disk_size_gb
+    disk_type    = var.disk_type
     
-    service_account = google_service_account.gke_standard[0].email
+    service_account = google_service_account.gke_standard_sa[0].email
     oauth_scopes    = [
       "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/logging.write",
@@ -134,33 +139,37 @@ resource "google_container_node_pool" "preemptible_nodes" {
   }
 
   depends_on = [
-    google_service_account.gke_standard,
+    google_service_account.gke_standard_sa,
   ]
 }
 
-# Local values for IAM roles
-locals {
-  gke_sa_project_roles = [
-    "roles/storage.objectAdmin",
-    "roles/storage.objectViewer",
-    "roles/artifactregistry.reader",
-    "roles/monitoring.metricWriter",
-    "roles/monitoring.viewer",
-    "roles/logging.logWriter",
-    "roles/compute.networkViewer",
-    "roles/stackdriver.resourceMetadata.writer",
-    "roles/container.defaultNodeServiceAccount",
+resource "google_project_iam_custom_role" "gke_custom_role" {
+  count       = var.create_autopilot_cluster ? 0 : 1
+  project     = local.project.project_id
+  role_id     = "gkeNodeServiceAccountRole"
+  title       = "GKE Node Service Account Role"
+  description = "Custom role for GKE node service account with least-privilege permissions."
+  permissions = [
+    "storage.objects.list",
+    "storage.objects.get",
+    "artifactregistry.repositories.list",
+    "artifactregistry.repositories.get",
+    "monitoring.metricDescriptors.list",
+    "monitoring.timeSeries.list",
+    "logging.logEntries.create",
+    "compute.networks.get",
+    "stackdriver.resourceMetadata.write",
   ]
 }
 
-# IAM permissions for GKE Standard service account
-resource "google_project_iam_member" "gke_standard_sa_role" {
-  for_each = var.create_autopilot_cluster ? [] : toset(local.gke_sa_project_roles)
+resource "google_project_iam_member" "gke_standard_sa_custom_role" {
+  count    = var.create_autopilot_cluster ? 0 : 1
   project  = local.project.project_id
-  member   = "serviceAccount:${google_service_account.gke_standard[0].email}"
-  role     = each.value
+  member   = "serviceAccount:${google_service_account.gke_standard_sa[0].email}"
+  role     = google_project_iam_custom_role.gke_custom_role[0].id
 
   depends_on = [
-    google_service_account.gke_standard,
+    google_service_account.gke_standard_sa,
+    google_project_iam_custom_role.gke_custom_role,
   ]
 }

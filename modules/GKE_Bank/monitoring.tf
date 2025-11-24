@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+// ------------------------------------------------------------------
+// Locals
+// ------------------------------------------------------------------
+
 locals {
   monitoring_services = [
     "accounts-db",
@@ -28,11 +32,11 @@ locals {
   ]
 }
 
-#########################################################################
-# Configure resources
-#########################################################################
+// ------------------------------------------------------------------
+// Monitoring Services
+// ------------------------------------------------------------------
 
-resource "google_monitoring_service" "gke_services" {
+resource "google_monitoring_service" "gke_monitoring_services" {
   for_each = var.enable_monitoring ? toset(local.monitoring_services) : []
   
   service_id   = each.key
@@ -51,12 +55,16 @@ resource "google_monitoring_service" "gke_services" {
   }
 }
 
-resource "google_monitoring_slo" "gke_services_slo_limit_utilization" {
+// ------------------------------------------------------------------
+// Monitoring SLOs
+// ------------------------------------------------------------------
+
+resource "google_monitoring_slo" "gke_services_slo" {
   for_each = var.enable_monitoring ? toset(local.monitoring_services) : []
 
   project       = local.project.project_id
-  service       = google_monitoring_service.gke_services[each.key].service_id
-  display_name  = "95.0% - CPU Limit Utilization Metric - Calendar day"
+  service       = google_monitoring_service.gke_monitoring_services[each.key].service_id
+  display_name  = "95% CPU Limit Utilization"
   goal          = 0.95
   calendar_period = "DAY"
 
@@ -66,7 +74,7 @@ resource "google_monitoring_slo" "gke_services_slo_limit_utilization" {
     metric_sum_in_range {
       time_series = "metric.type=\"kubernetes.io/container/cpu/limit_utilization\" resource.type=\"k8s_container\" AND resource.label.\"namespace_name\"=\"bank-of-anthos\" AND resource.label.\"cluster_name\"=\"${var.gke_cluster}\" AND resource.label.\"container_name\"=\"${each.key}\""
       range {
-        min = -9007199254740991
+        min = 0
         max = 1
       }
     }

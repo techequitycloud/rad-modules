@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-// GROUP 1: Provider 
+// ------------------------------------------------------------------
+// GROUP 1: Module Metadata
+// ------------------------------------------------------------------
 
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
@@ -62,162 +64,200 @@ variable "enable_purge" {
 }
 
 variable "public_access" {
-description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
-type = bool
-default = false
+  description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
+  type        = bool
+  default     = false
 }
 
-variable "trusted_users" {
-  description = "List of trusted users (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
-  type        = list(string)
-  default     = []
-}
+// ------------------------------------------------------------------
+// GROUP 2: GCP Project
+// ------------------------------------------------------------------
 
-variable "deployment_id" {
-  description = "Unique ID suffix for resources.  Leave blank to generate random ID."
+variable "resource_creator_identity" {
+  description = "The Terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = null
+  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
-
-// GROUP 2: Main
 
 variable "existing_project_id" {
   description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
 }
 
+variable "deployment_id" {
+  description = "Unique ID suffix for resources. Leave blank to generate a random ID. {{UIMeta group=2 order=201 }}"
+  type        = string
+  default     = null
+}
+
 variable "region" {
-  description = "The region where Compute Instance and VPCs will be deployed. Deployment may fail if sufficient resources are not available in region. List - https://cloud.google.com/compute/docs/regions-zones#available. {{UIMeta group=2 order=201 }}"
+  description = "The region where Compute Instance and VPCs will be deployed. Deployment may fail if sufficient resources are not available in the region. List: https://cloud.google.com/compute/docs/regions-zones#available. {{UIMeta group=2 order=202 }}"
   type        = string
   default     = "us-west1"
 }
 
-// GROUP 4: Main
-
 variable "enable_services" {
-  description = "Enable project APIs.  When using an existing project, this is set to false. {{UIMeta group=0 order=401 }}"
+  description = "Enable project APIs. When using an existing project, this is set to false. {{UIMeta group=2 order=203 }}"
   type        = bool
   default     = true
 }
 
+// ------------------------------------------------------------------
+// GROUP 3: Anthos Service Mesh
+// ------------------------------------------------------------------
+
 variable "enable_cloud_service_mesh" {
-  description = "Enable Cloud Service Mesh. {{UIMeta group=0 order=402 }}"
+  description = "Enable Cloud Service Mesh. {{UIMeta group=3 order=301 }}"
   type        = bool
   default     = true
 }
 
 variable "cloud_service_mesh_version" {
-  description = "Cloud Service Mesh version. {{UIMeta group=0 order=403 }}"
+  description = "Cloud Service Mesh version. {{UIMeta group=3 order=302 }}"
   type        = string
   default     = "1.23.4-asm.1"
 }
 
+// ------------------------------------------------------------------
+// GROUP 4: Anthos Config Management
+// ------------------------------------------------------------------
+
 variable "enable_config_management" {
-  description = "Enable Config Management. {{UIMeta group=0 order=404 }}"
+  description = "Enable Config Management. {{UIMeta group=4 order=401 }}"
   type        = bool
   default     = false
 }
 
 variable "config_management_version" {
-  description = "Anthos Config Management version. {{UIMeta group=0 order=405 }}"
+  description = "Anthos Config Management version. {{UIMeta group=4 order=402 }}"
   type        = string
   default     = "1.22.0"
 }
 
 variable "config_sync_repo" {
-  description = "The URL of the Git repository for Config Sync. {{UIMeta group=0 order=406 }}"
+  description = "The URL of the Git repository for Config Sync. {{UIMeta group=4 order=403 }}"
   type        = string
   default     = "https://github.com/GoogleCloudPlatform/anthos-config-management-samples"
 }
 
 variable "config_sync_policy_dir" {
-  description = "The directory within the Git repository for Config Sync. {{UIMeta group=0 order=407 }}"
+  description = "The directory within the Git repository for Config Sync. {{UIMeta group=4 order=404 }}"
   type        = string
   default     = "config-sync-quickstart/multirepo/root"
 }
 
-// GROUP 5: Network
+// ------------------------------------------------------------------
+// GROUP 5: Monitoring
+// ------------------------------------------------------------------
 
 variable "enable_monitoring" {
-  description = "Enable Cloud monitoring. {{UIMeta group=0 order=501 }}"
+  description = "Enable Cloud Monitoring. {{UIMeta group=5 order=501 }}"
   type        = bool
   default     = true
 }
-// GROUP 6: Network
+
+// ------------------------------------------------------------------
+// GROUP 6: Networking
+// ------------------------------------------------------------------
 
 variable "create_network" {
-  description = "Indicate if the deployment has to use a network that already exists. {{UIMeta group=0 order=601 }}"
+  description = "Indicate if the deployment has to use a network that already exists. {{UIMeta group=6 order=601 }}"
   type        = bool
   default     = true
 }
 
 variable "network_name" {
-  description = "Name to be assigned to the network. {{UIMeta group=0 order=602 }}"
+  description = "Name to be assigned to the network. {{UIMeta group=6 order=602 }}"
   type        = string
-  default     = "vpc-network"
+  default     = "gke-network"
 }
 
 variable "subnet_name" {
-  description = "Name to be assigned to the subnet. {{UIMeta group=0 order=603 }}"
+  description = "Name to be assigned to the subnet. {{UIMeta group=6 order=603 }}"
   type        = string
-  default     = "vpc-subnet"
+  default     = "gke-subnet"
 }
 
-variable "ip_cidr_range" {
-  description = "CIDR Range for subnet (if required). {{UIMeta group=0 order=606 }}"
-  type        = string
-  default     = "10.132.0.0/16"
+variable "ip_cidr_ranges" {
+  description = "CIDR Range for the subnet. {{UIMeta group=6 order=604 }}"
+  type        = set(string)
+  default     = ["10.132.0.0/16", "192.168.1.0/24"]
 }
 
-// GROUP 11: GKE
-
+// ------------------------------------------------------------------
+// GROUP 7: GKE
+// ------------------------------------------------------------------
 
 variable "gke_cluster" {
-  description = "Name that will be assigned to the GKE cluster. {{UIMeta group=0 order=1101 }}"
+  description = "Name that will be assigned to the GKE cluster. {{UIMeta group=7 order=701 }}"
   type        = string
   default     = "gke-cluster"
 }
 
 variable "create_autopilot_cluster" {
-  description = "Indicate if a GKE autopilot cluster is requred, otherwise a standard cluster will be created. {{UIMeta group=0 order=1102 }}"
+  description = "Indicate if a GKE Autopilot cluster is required; otherwise, a standard cluster will be created. {{UIMeta group=7 order=702 }}"
   type        = bool
   default     = true
 }
 
 variable "release_channel" {
-  description = "Enroll the GKE cluster in this release channel. {{UIMeta group=0 order=1103 }}"
+  description = "Enroll the GKE cluster in this release channel. {{UIMeta group=7 order=703 }}"
   type        = string
   default     = "REGULAR"
+  validation {
+    condition     = contains(["STABLE", "REGULAR", "RAPID"], var.release_channel)
+    error_message = "The release channel must be one of: STABLE, REGULAR, RAPID."
+  }
+}
+
+variable "machine_type" {
+  description = "The machine type for the GKE nodes. {{UIMeta group=7 order=704 }}"
+  type        = string
+  default     = "e2-standard-2"
+}
+
+variable "disk_size_gb" {
+  description = "The disk size for the GKE nodes in GB. {{UIMeta group=7 order=705 }}"
+  type        = number
+  default     = 50
+}
+
+variable "disk_type" {
+  description = "The disk type for the GKE nodes. {{UIMeta group=7 order=706 }}"
+  type        = string
+  default     = "pd-ssd"
 }
 
 variable "pod_ip_range" {
-  description = "Range name for the pod IP addresses. {{UIMeta group=0 order=1114 }}"
+  description = "Range name for the pod IP addresses. {{UIMeta group=7 order=707 }}"
   type        = string
   default     = "pod-ip-range"
 }
 
 variable "pod_cidr_block" {
-  description = "CIDR block to be assigned to pods running in the GKE cluster. {{UIMeta group=0 order=1115 }}"
+  description = "CIDR block to be assigned to pods running in the GKE cluster. {{UIMeta group=7 order=708 }}"
   type        = string
   default     = "10.62.128.0/17"
 }
 
 variable "service_ip_range" {
-  description = "Name for the IP range for services. {{UIMeta group=0 order=1116 }}"
+  description = "Name for the IP range for services. {{UIMeta group=7 order=709 }}"
   type        = string
   default     = "service-ip-range"
 }
 
 variable "service_cidr_block" {
-  description = "CIDR block to be assigned to services running in the GKE cluster. {{UIMeta group=0 order=1117 }}"
+  description = "CIDR block to be assigned to services running in the GKE cluster. {{UIMeta group=7 order=710 }}"
   type        = string
   default     = "10.64.128.0/20"
 }
 
-// GROUP 12: Application
+// ------------------------------------------------------------------
+// GROUP 8: Application
+// ------------------------------------------------------------------
 
 variable "deploy_application" {
-  description = "Deploy microservices banking application. {{UIMeta group=3 order=1201 }}"
+  description = "Deploy the microservices banking application. {{UIMeta group=8 order=801 }}"
   type        = bool
   default     = true
 }

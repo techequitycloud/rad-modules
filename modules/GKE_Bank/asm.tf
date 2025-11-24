@@ -14,47 +14,10 @@
  * limitations under the License.
  */
 
-# ============================================
-# Verify GKE Hub API Activation
-# ============================================
-resource "null_resource" "verify_gke_hub_api_activation" {
-  depends_on = [
-    google_project_service.enabled_services,
-  ]
-  
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
-      set -e
-      PROJECT_ID="${local.project.project_id}"
-      
-      echo "Verifying GKE Hub API activation..."
-      end_time=$((SECONDS+300))
-      
-      while [ $SECONDS -lt $end_time ]; do
-        if gcloud services list --enabled --project="$PROJECT_ID" \
-           --filter="name:gkehub.googleapis.com" \
-           --format="value(name)" | grep -q "gkehub.googleapis.com"; then
-          echo "✓ GKE Hub API is enabled"
-          exit 0
-        fi
-        echo "Waiting for GKE Hub API to be enabled..."
-        sleep 10
-      done
-      
-      echo "Timed out waiting for GKE Hub API to be enabled."
-      exit 1
-    EOT
-  }
+// ------------------------------------------------------------------
+// API Activation Verification
+// ------------------------------------------------------------------
 
-  triggers = {
-    project_id = local.project.project_id
-  }
-}
-
-# ============================================
-# Verify Service Mesh API Activation
-# ============================================
 resource "null_resource" "verify_mesh_api_activation" {
   count = var.enable_cloud_service_mesh ? 1 : 0
   
@@ -73,13 +36,11 @@ resource "null_resource" "verify_mesh_api_activation" {
       end_time=$((SECONDS+300))
       
       while [ $SECONDS -lt $end_time ]; do
-        # Check mesh.googleapis.com
         if gcloud services list --enabled --project="$PROJECT_ID" \
            --filter="name:mesh.googleapis.com" \
            --format="value(name)" | grep -q "mesh.googleapis.com"; then
           echo "✓ Service Mesh API (mesh.googleapis.com) is enabled"
           
-          # Also verify meshconfig.googleapis.com
           if gcloud services list --enabled --project="$PROJECT_ID" \
              --filter="name:meshconfig.googleapis.com" \
              --format="value(name)" | grep -q "meshconfig.googleapis.com"; then
@@ -104,9 +65,10 @@ resource "null_resource" "verify_mesh_api_activation" {
   }
 }
 
-# ============================================
-# Service Mesh Feature
-# ============================================
+// ------------------------------------------------------------------
+// Service Mesh Feature
+// ------------------------------------------------------------------
+
 resource "google_gke_hub_feature" "service_mesh" {
   count    = var.enable_cloud_service_mesh ? 1 : 0
   project  = local.project.project_id
@@ -125,9 +87,6 @@ resource "google_gke_hub_feature" "service_mesh" {
   ]
 }
 
-# ============================================
-# Verify Service Mesh Feature is Active
-# ============================================
 resource "null_resource" "verify_mesh_feature_active" {
   count = var.enable_cloud_service_mesh ? 1 : 0
   
@@ -175,15 +134,12 @@ resource "null_resource" "verify_mesh_feature_active" {
   }
 }
 
-# ============================================
-# Service Mesh Feature Membership
-# ============================================
 resource "google_gke_hub_feature_membership" "service_mesh_feature_member" {
   count      = var.enable_cloud_service_mesh ? 1 : 0
   project    = local.project.project_id
   location   = "global"
   feature    = google_gke_hub_feature.service_mesh[0].name
-  membership = google_gke_hub_membership.gke_cluster.membership_id
+  membership = google_gke_hub_membership.gke_cluster_membership.membership_id
 
   mesh {
     management = "MANAGEMENT_AUTOMATIC"
@@ -191,19 +147,20 @@ resource "google_gke_hub_feature_membership" "service_mesh_feature_member" {
 
   depends_on = [
     google_container_cluster.gke_cluster,
-    google_gke_hub_membership.gke_cluster,
+    google_gke_hub_membership.gke_cluster_membership,
     null_resource.verify_mesh_feature_active,
   ]
 }
 
-# ============================================
-# Verify Hub Membership is Registered
-# ============================================
+// ------------------------------------------------------------------
+// Hub Membership Verification
+// ------------------------------------------------------------------
+
 resource "null_resource" "verify_hub_membership" {
   count = var.enable_cloud_service_mesh ? 1 : 0
   
   depends_on = [
-    google_gke_hub_membership.gke_cluster,
+    google_gke_hub_membership.gke_cluster_membership,
   ]
   
   provisioner "local-exec" {
@@ -221,7 +178,6 @@ resource "null_resource" "verify_hub_membership" {
            --format="value(name)" | grep -q "$CLUSTER_NAME"; then
           echo "✓ GKE Hub membership '$CLUSTER_NAME' is registered"
           
-          # Also check membership state
           MEMBERSHIP_STATE=$(gcloud container hub memberships describe "$CLUSTER_NAME" \
             --project="$PROJECT_ID" \
             --format="value(state.code)" 2>/dev/null || echo "UNKNOWN")
@@ -248,13 +204,14 @@ resource "null_resource" "verify_hub_membership" {
   triggers = {
     project_id   = local.project.project_id
     cluster_name = var.gke_cluster
-    membership_id = google_gke_hub_membership.gke_cluster.membership_id
+    membership_id = google_gke_hub_membership.gke_cluster_membership.membership_id
   }
 }
 
-# ============================================
-# Verify Mesh Status for Cluster (FIXED v2)
-# ============================================
+// ------------------------------------------------------------------
+// Service Mesh Status Verification
+// ------------------------------------------------------------------
+
 resource "null_resource" "verify_mesh_status" {
   count = var.enable_cloud_service_mesh ? 1 : 0
   
@@ -271,7 +228,6 @@ resource "null_resource" "verify_mesh_status" {
       PROJECT_NUMBER="${local.project_number}"
       CLUSTER_NAME="${var.gke_cluster}"
       
-      # Construct the full membership path
       MEMBERSHIP_PATH="projects/$PROJECT_NUMBER/locations/global/memberships/$CLUSTER_NAME"
       
       echo "Verifying Service Mesh configuration for cluster..."
@@ -279,7 +235,6 @@ resource "null_resource" "verify_mesh_status" {
       end_time=$((SECONDS+300))
       
       while [ $SECONDS -lt $end_time ]; do
-        # Use direct path access in format string (no flatten/filter needed)
         CONTROL_PLANE_STATE=$(gcloud container hub features describe servicemesh \
           --project="$PROJECT_ID" \
           --format="value(membershipStates['$MEMBERSHIP_PATH'].servicemesh.controlPlaneManagement.state)" \
@@ -287,7 +242,6 @@ resource "null_resource" "verify_mesh_status" {
         
         echo "Control Plane State: $CONTROL_PLANE_STATE"
         
-        # Check overall membership state
         MEMBERSHIP_STATE=$(gcloud container hub features describe servicemesh \
           --project="$PROJECT_ID" \
           --format="value(membershipStates['$MEMBERSHIP_PATH'].state.code)" \
@@ -295,7 +249,6 @@ resource "null_resource" "verify_mesh_status" {
         
         echo "Membership State: $MEMBERSHIP_STATE"
         
-        # Check feature state
         FEATURE_STATE=$(gcloud container hub features describe servicemesh \
           --project="$PROJECT_ID" \
           --format="value(resourceState.state)" \
@@ -303,14 +256,10 @@ resource "null_resource" "verify_mesh_status" {
         
         echo "Feature State: $FEATURE_STATE"
         
-        # Success condition: Control plane ACTIVE and membership OK
         if [ "$CONTROL_PLANE_STATE" = "ACTIVE" ] && \
            [ "$MEMBERSHIP_STATE" = "OK" ] && \
            [ "$FEATURE_STATE" = "ACTIVE" ]; then
           echo "✓ Service Mesh is fully configured and active!"
-          echo "  ✓ Control Plane: $CONTROL_PLANE_STATE"
-          echo "  ✓ Membership: $MEMBERSHIP_STATE"
-          echo "  ✓ Feature: $FEATURE_STATE"
           exit 0
         fi
         
@@ -325,13 +274,6 @@ resource "null_resource" "verify_mesh_status" {
       done
       
       echo "❌ Timed out waiting for Service Mesh configuration."
-      echo "Final states:"
-      echo "  Control Plane: $CONTROL_PLANE_STATE"
-      echo "  Membership: $MEMBERSHIP_STATE"
-      echo "  Feature: $FEATURE_STATE"
-      echo ""
-      echo "=== Full Feature Description ==="
-      gcloud container hub features describe servicemesh --project="$PROJECT_ID"
       exit 1
     EOT
   }
@@ -340,13 +282,10 @@ resource "null_resource" "verify_mesh_status" {
     project_id     = local.project.project_id
     project_number = local.project_number
     cluster_name   = var.gke_cluster
-    membership_id  = google_gke_hub_membership.gke_cluster.membership_id
+    membership_id  = google_gke_hub_membership.gke_cluster_membership.membership_id
   }
 }
 
-# ============================================
-# SERVICE MESH READINESS CHECK (FIXED v2)
-# ============================================
 resource "null_resource" "wait_for_service_mesh" {
   count = var.enable_cloud_service_mesh ? 1 : 0
   
@@ -365,27 +304,23 @@ resource "null_resource" "wait_for_service_mesh" {
       REGION="${var.region}"
       CLUSTER_NAME="${var.gke_cluster}"
       
-      # Construct the full membership path
       MEMBERSHIP_PATH="projects/$PROJECT_NUMBER/locations/global/memberships/$CLUSTER_NAME"
       
       echo "Waiting for ASM data plane to be ready..."
       echo "Membership Path: $MEMBERSHIP_PATH"
-      end_time=$((SECONDS+900))  # 15 minutes
+      end_time=$((SECONDS+900))
       
       while [ $SECONDS -lt $end_time ]; do
-        # Check control plane state using direct map access
         CONTROL_PLANE_STATE=$(gcloud container hub features describe servicemesh \
           --project="$PROJECT_ID" \
           --format="value(membershipStates['$MEMBERSHIP_PATH'].servicemesh.controlPlaneManagement.state)" \
           2>/dev/null || echo "UNKNOWN")
         
-        # Check data plane state
         DATA_PLANE_STATE=$(gcloud container hub features describe servicemesh \
           --project="$PROJECT_ID" \
           --format="value(membershipStates['$MEMBERSHIP_PATH'].servicemesh.dataPlaneManagement.state)" \
           2>/dev/null || echo "UNKNOWN")
         
-        # Get control plane revision details
         REVISION_DETAILS=$(gcloud container hub features describe servicemesh \
           --project="$PROJECT_ID" \
           --format="value(membershipStates['$MEMBERSHIP_PATH'].servicemesh.controlPlaneManagement.details[0].details)" \
@@ -396,13 +331,9 @@ resource "null_resource" "wait_for_service_mesh" {
           echo "Revision: $REVISION_DETAILS"
         fi
         
-        # Success: Control plane is active
         if [ "$CONTROL_PLANE_STATE" = "ACTIVE" ]; then
           echo "✓ ASM Control Plane is ACTIVE!"
-          echo "  Control Plane: $CONTROL_PLANE_STATE"
-          echo "  Data Plane: $DATA_PLANE_STATE"
           
-          # Check if data plane is also ready
           if [ "$DATA_PLANE_STATE" = "ACTIVE" ] || [ "$DATA_PLANE_STATE" = "READY" ]; then
             echo "✓ Data Plane is also ready!"
           else
@@ -422,12 +353,6 @@ resource "null_resource" "wait_for_service_mesh" {
       done
       
       echo "❌ Timed out waiting for ASM to be ready."
-      echo "Final states:"
-      echo "  Control Plane: $CONTROL_PLANE_STATE"
-      echo "  Data Plane: $DATA_PLANE_STATE"
-      echo ""
-      echo "=== Full Feature Description ==="
-      gcloud container hub features describe servicemesh --project="$PROJECT_ID"
       exit 1
     EOT
   }

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-# ============================================
-# LOCALS
-# ============================================
+// ------------------------------------------------------------------
+// Locals
+// ------------------------------------------------------------------
 
 locals {
   bank_of_anthos_version = "v0.6.7"
@@ -27,12 +27,11 @@ locals {
   jwt_secret_path        = "${local.extracted_path}/extras/jwt/jwt-secret.yaml"
 }
 
-# ============================================
-# DOWNLOAD AND EXTRACT RELEASE
-# ============================================
+// ------------------------------------------------------------------
+// Download and Extract Release
+// ------------------------------------------------------------------
 
-# Download and extract Bank of Anthos release
-resource "null_resource" "download_bank_of_anthos" {
+resource "null_resource" "download_and_extract_release" {
   count = var.deploy_application ? 1 : 0
 
   triggers = {
@@ -44,18 +43,18 @@ resource "null_resource" "download_bank_of_anthos" {
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
-      echo "Downloading Bank of Anthos v${local.bank_of_anthos_version}..."
-      mkdir -p "${local.download_path}"
+      echo "Downloading Bank of Anthos ${local.bank_of_anthos_version}..."
+      mkdir -p ${local.download_path}
       
-      if [ ! -f "${local.download_path}/release.tar.gz" ]; then
-        curl -L -o "${local.download_path}/release.tar.gz" "${local.release_url}"
+      if [ ! -f ${local.download_path}/release.tar.gz ]; then
+        curl -L -o ${local.download_path}/release.tar.gz ${local.release_url}
       fi
       
-      echo "Extracting Bank of Anthos..."
-      tar -xzf "${local.download_path}/release.tar.gz" -C "${local.download_path}"
+      rm -rf ${local.extracted_path}
+      tar -xzf ${local.download_path}/release.tar.gz -C ${local.download_path}
       
       if [ ! -d "${local.extracted_path}" ]; then
-        echo "Extraction failed: '${local.extracted_path}' not found" >&2
+        echo "Extraction failed - directory not found"
         exit 1
       fi
     EOT
@@ -69,9 +68,9 @@ resource "null_resource" "download_bank_of_anthos" {
   }
 }
 
-# ============================================
-# NAMESPACES
-# ============================================
+// ------------------------------------------------------------------
+// Kubernetes Namespace
+// ------------------------------------------------------------------
 
 resource "kubernetes_namespace" "bank_of_anthos" {
   count    = var.deploy_application ? 1 : 0
@@ -100,14 +99,11 @@ resource "kubernetes_namespace" "bank_of_anthos" {
   }
 }
 
-# ============================================
-# APPLICATION DEPLOYMENT
-# ============================================
+// ------------------------------------------------------------------
+// Application Deployment
+// ------------------------------------------------------------------
 
-# ============================================
-# Deploy Bank of Anthos Application
-# ============================================
-resource "null_resource" "deploy_bank_of_anthos" {
+resource "null_resource" "deploy_application" {
   count = var.deploy_application ? 1 : 0
 
   triggers = {
@@ -126,27 +122,22 @@ resource "null_resource" "deploy_bank_of_anthos" {
     command = <<-EOT
       set -e
       
-      # Get cluster credentials
-      gcloud container clusters get-credentials "${self.triggers.cluster_name}" \
-        --region "${self.triggers.region}" \
-        --project "${self.triggers.project_id}"
+      NAMESPACE="${self.triggers.namespace}"
+      CLUSTER_NAME="${self.triggers.cluster_name}"
+      REGION="${self.triggers.region}"
+      PROJECT_ID="${self.triggers.project_id}"
+      JWT_SECRET_PATH="${self.triggers.jwt_secret_path}"
+      MANIFESTS_PATH="${self.triggers.manifests_path}"
       
-      # Apply JWT secret and manifests
-      kubectl apply -f "${self.triggers.jwt_secret_path}" -n "${self.triggers.namespace}"
-      kubectl apply -f "${self.triggers.manifests_path}" -n "${self.triggers.namespace}"
+      gcloud container clusters get-credentials "$CLUSTER_NAME" \
+        --region="$REGION" \
+        --project="$PROJECT_ID"
       
-      # Wait for deployments to be ready
-      echo "Waiting for deployments to be ready..."
-      if ! kubectl wait --for=condition=available --timeout=600s deployment --all -n "${self.triggers.namespace}"; then
-        echo "Deployments did not become ready in time" >&2
-        
-        # Display debug information
-        kubectl get deployments -n "${self.triggers.namespace}"
-        kubectl get pods -n "${self.triggers.namespace}"
-        exit 1
-      fi
+      kubectl apply -f "$JWT_SECRET_PATH" -n "$NAMESPACE" --server-side --force-conflicts
+      kubectl apply -f "$MANIFESTS_PATH" -n "$NAMESPACE"
       
-      echo "Bank of Anthos deployment completed successfully."
+      kubectl wait --for=condition=available --timeout=600s \
+        deployment --all -n "$NAMESPACE"
     EOT
   }
 
@@ -156,24 +147,26 @@ resource "null_resource" "deploy_bank_of_anthos" {
     command = <<-EOT
       set -e
       
-      # Get cluster credentials
-      if gcloud container clusters get-credentials "${self.triggers.cluster_name}" \
-        --region "${self.triggers.region}" \
-        --project "${self.triggers.project_id}"; then
+      NAMESPACE="${self.triggers.namespace}"
+      CLUSTER_NAME="${self.triggers.cluster_name}"
+      REGION="${self.triggers.region}"
+      PROJECT_ID="${self.triggers.project_id}"
+
+      if gcloud container clusters get-credentials "$CLUSTER_NAME" \
+        --region="$REGION" \
+        --project="$PROJECT_ID" 2>/dev/null; then
         
-        # Delete namespace and all its resources
-        kubectl delete namespace "${self.triggers.namespace}" --ignore-not-found=true
-      else
-        echo "Could not connect to cluster, skipping namespace deletion."
+        if kubectl get namespace "$NAMESPACE" --no-headers 2>/dev/null; then
+          kubectl delete namespace "$NAMESPACE" --timeout=300s
+        fi
       fi
     EOT
     on_failure = continue
   }
 
   depends_on = [
-    null_resource.download_bank_of_anthos,
+    null_resource.download_and_extract_release,
     kubernetes_namespace.bank_of_anthos,
     null_resource.wait_for_service_mesh,
   ]
 }
-
