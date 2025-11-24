@@ -34,7 +34,7 @@ resource "google_compute_network" "vpc" {
 resource "google_compute_subnetwork" "subnetwork" {
   project                  = local.project.project_id
   name                     = var.subnet_name
-  ip_cidr_range            = tolist(var.ip_cidr_ranges)[0]
+  ip_cidr_range            = var.ip_cidr_range
   region                   = var.region
   network                  = google_compute_network.vpc.name
   private_ip_google_access = true
@@ -104,19 +104,10 @@ resource "google_compute_firewall" "fw_allow_iap_ssh" {
   depends_on    = [google_compute_network.vpc]
 }
 
-# Firewall rule to allow all traffic within the VPC network
-resource "google_compute_firewall" "fw_allow_intra_vpc" {
-  project = local.project.project_id
-  name    = "fw-allow-intra-vpc"
-  network = google_compute_network.vpc.name
-
-  allow {
-    protocol = "all"
-  }
-
-  source_ranges = [var.pod_cidr_block]
-  depends_on    = [google_compute_network.vpc]
-}
+# Note: The 'fw_allow_intra_vpc' rule, which previously allowed all traffic from the pod CIDR range,
+# has been removed. GKE's default networking configuration implicitly allows pod-to-pod communication
+# within the cluster, making this rule redundant and overly permissive.
+# For more details, see the GKE networking documentation: https://cloud.google.com/kubernetes-engine/docs/concepts/network-overview
 
 # Firewall rule to allow NFS service traffic on TCP protocol
 resource "google_compute_firewall" "fw_allow_gce_nfs_tcp" {
@@ -129,7 +120,7 @@ resource "google_compute_firewall" "fw_allow_gce_nfs_tcp" {
     ports    = ["2049"]
   }
 
-  source_ranges = tolist(var.ip_cidr_ranges)
+  source_ranges = [var.ip_cidr_range]
   target_tags   = ["nfs-server"]
   depends_on    = [google_compute_network.vpc]
 }
@@ -145,7 +136,7 @@ resource "google_compute_firewall" "fw_allow_http_tcp" {
     ports    = ["80", "443"]
   }
 
-  source_ranges = tolist(var.ip_cidr_ranges)
+  source_ranges = [var.ip_cidr_range]
   target_tags   = ["http-server"]
   depends_on    = [google_compute_network.vpc]
 }

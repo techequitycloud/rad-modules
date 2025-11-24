@@ -67,12 +67,6 @@ type = bool
 default = false
 }
 
-variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
-  type        = string
-  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
-}
-
 variable "trusted_users" {
   description = "List of trusted users (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
   type        = list(string)
@@ -169,10 +163,10 @@ variable "subnet_name" {
   default     = "vpc-subnet"
 }
 
-variable "ip_cidr_ranges" {
+variable "ip_cidr_range" {
   description = "CIDR Range for subnet (if required). {{UIMeta group=0 order=606 }}"
-  type        = set(string)
-  default     = ["10.132.0.0/16","192.168.1.0/24"]
+  type        = string
+  default     = "10.132.0.0/16"
 }
 
 // GROUP 11: GKE
