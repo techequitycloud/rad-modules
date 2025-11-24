@@ -96,6 +96,12 @@ resource "google_container_cluster" "gke_cluster" {
     channel = var.release_channel
   }
 
+  node_pool_defaults {
+    node_config_defaults {
+      logging_variant = var.logging_variant
+    }
+  }
+
   depends_on = [
     google_compute_network.vpc,
     google_compute_subnetwork.subnetwork,

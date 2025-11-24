@@ -193,7 +193,13 @@ variable "create_autopilot_cluster" {
 variable "release_channel" {
   description = "Enroll the GKE cluster in this release channel. {{UIMeta group=0 order=1103 }}"
   type        = string
-  default     = "REGULAR"
+  default     = "STABLE"
+}
+
+variable "logging_variant" {
+  description = "The logging variant to use for GKE nodes. Can be DEFAULT or MAX_THROUGHPUT. {{UIMeta group=0 order=1104 }}"
+  type        = string
+  default     = "DEFAULT"
 }
 
 variable "pod_ip_range" {
