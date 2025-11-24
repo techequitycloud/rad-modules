@@ -121,9 +121,10 @@ resource "google_container_node_pool" "preemptible_nodes" {
 
   node_config {
     spot         = true
-    machine_type = "e2-standard-2"
-    disk_size_gb = 50
-    disk_type    = "pd-ssd" 
+    machine_type = var.machine_type
+    disk_size_gb = var.disk_size_gb
+    disk_type    = var.disk_type
+    tags         = var.network_tags
     
     service_account = google_service_account.gke_standard[0].email
     oauth_scopes    = [
@@ -149,7 +150,9 @@ locals {
     "roles/logging.logWriter",
     "roles/compute.networkViewer",
     "roles/stackdriver.resourceMetadata.writer",
-    "roles/container.defaultNodeServiceAccount",
+    "roles/container.nodeServiceAccount",
+    "roles/container.clusterViewer",
+    "roles/container.developer",
   ]
 }
 

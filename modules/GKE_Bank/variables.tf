@@ -220,6 +220,32 @@ variable "service_cidr_block" {
   default     = "10.64.128.0/20"
 }
 
+// GROUP 11: GKE (Continued)
+
+variable "machine_type" {
+  description = "The machine type for the GKE nodes. {{UIMeta group=0 order=1118 }}"
+  type        = string
+  default     = "e2-standard-2"
+}
+
+variable "disk_size_gb" {
+  description = "The disk size for the GKE nodes in GB. {{UIMeta group=0 order=1119 }}"
+  type        = number
+  default     = 50
+}
+
+variable "disk_type" {
+  description = "The disk type for the GKE nodes. {{UIMeta group=0 order=1120 }}"
+  type        = string
+  default     = "pd-ssd"
+}
+
+variable "network_tags" {
+  description = "A list of network tags to apply to the GKE nodes. {{UIMeta group=0 order=1121 }}"
+  type        = list(string)
+  default     = []
+}
+
 // GROUP 12: Application
 
 variable "deploy_application" {
