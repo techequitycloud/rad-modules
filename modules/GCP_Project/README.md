@@ -1,24 +1,18 @@
-# GCP Project
+# GCP_Project Module
 
-This Terraform module creates a new Google Cloud project and configures a billing budget for it.
+## Problem Solved
 
-## Purpose
+The `GCP_Project` module provides a standardized and automated way to create new Google Cloud Platform projects. It ensures that new projects are set up with consistent configurations, including billing accounts, billing budgets, and essential APIs, from the moment of creation. This helps organizations maintain control over their cloud environments, prevent shadow IT, and streamline the project setup process.
 
-The main purpose of this module is to provide a standardized way to create new projects with budget controls in place from the start. This helps to prevent unexpected costs and ensures that all new projects adhere to the organization's spending policies.
+## Major Features and Capabilities
 
-## Usage
-
-To use this module, you need to provide the following information:
-
-- `project_id_prefix`: A prefix for the new project's ID.
-- `folder_id`: The ID of the folder where the project will be created.
-- `billing_account_id`: The ID of the billing account to associate with the project.
-
-You can also customize the budget by providing the following variables:
-
-- `billing_budget_amount`: The amount of the budget.
-- `billing_budget_alert_spent_percents`: A list of percentages of the budget at which to send alerts.
-- `billing_budget_notification_email_addresses`: A list of email addresses to receive budget alerts.
+*   **Project Creation:** The core feature of the module is to create a new GCP project. It can create a project within a specified folder or directly under the organization. The project ID is generated with a prefix and a random suffix to ensure uniqueness.
+*   **Billing Account Association:** It associates the newly created project with a specified billing account.
+*   **Billing Budget:** Configures a billing budget for the project to control costs.
+*   **API Enablement:** The module automatically enables a predefined list of essential APIs (`cloudresourcemanager.googleapis.com` and `serviceusage.googleapis.com`) on the new project. This can be toggled on or off.
+*   **IAM Permissions:** It can grant a list of specified users the "Viewer" role on the created project.
+*   **Deletion Policy:** The project is configured with a `DELETE` deletion policy, meaning the project will be deleted when the Terraform resource is destroyed.
+*   **Customizable Deployment ID:** Allows for a custom suffix for the project ID, or generates a random one if not provided.
 
 ## Inputs
 
@@ -35,14 +29,14 @@ You can also customize the budget by providing the following variables:
 | create\_project | Set to true if the module has to create a project. | `bool` | `true` | no |
 | deployment\_id | Unique ID suffix for resources. Leave blank to generate random ID. | `string` | `null` | no |
 | enable\_services | Enable the necessary APIs on the project. | `bool` | `true` | no |
-| folder\_id | Folder ID where the project should be created. | `string` | `""` | no |
-| organization\_id | Organization ID where GCP Resources need to get spin up. | `string` | `""` | no |
-| project\_id | The ID of the project. | `string` | `""` | no |
+| folder\_id | The ID of the folder where the project will be created. This is the recommended way to organize projects. | `string` | `""` | no |
+| module\_folder\_id | The ID of the RAD UI folder. This is used for RAD UI integration and should not be set manually. | `string` | `""` | no |
+| organization\_id | Organization ID where GCP Resources need to get spin up. Used if `folder_id` is not provided. | `string` | `""` | no |
 | project\_id\_prefix | If create\_project is true, this will be the prefix of the Project ID & name created. | `string` | `"project-with-budget"` | no |
+| trusted\_users | A list of user emails to be granted the "Viewer" role. | `list(string)` | `[]` | no |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
 | project\_id | The ID of the project |
-| billing\_budget\_budget\_id | Resource name of the budget. |
