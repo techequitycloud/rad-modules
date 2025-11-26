@@ -17,16 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-**Purpose:** This module deploys the Cyclos Banking System (CBS) on Google Cloud Run. This provides a serverless environment for the banking application, which means you don't have to manage servers.
-
-**What it does:**
-- Deploys the Cyclos application on Cloud Run.
-- Sets up a complete and secure environment for the application, including a database, file storage, and networking.
-- Automates the build and deployment process.
-
-**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
-EOT
+  default     = "This module deploys the Cyclos Banking System (CBS) on Google Cloud Run, providing a serverless, secure, and automated environment with a database, file storage, and networking."
 }
 
 variable "module_dependency" {

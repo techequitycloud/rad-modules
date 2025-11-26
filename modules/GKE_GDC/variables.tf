@@ -19,16 +19,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-**Purpose:** This module deploys an advanced, enterprise-grade banking portal on Google Kubernetes Engine (GKE) Enterprise Edition. It is designed for financial institutions that need a highly scalable, secure, and feature-rich platform for their banking applications.
-
-**What it does:**
-- Deploys a microservices-based banking application on GKE Enterprise.
-- Utilizes advanced GKE Enterprise features like Cloud Service Mesh, Config Management, and Policy Controller for enhanced security and management.
-- Provides a centralized dashboard for managing banking services across different environments (eg, cloud and on-premises).
-
-**Dependencies:** This module deploys into an existing Google Cloud project.
-EOT
+  default     = "This module deploys an advanced, enterprise-grade banking portal on Google Kubernetes Engine (GKE) Enterprise Edition, designed for financial institutions that require a highly scalable, secure, and feature-rich platform. It utilizes advanced GKE Enterprise features like Cloud Service Mesh, Config Management, and Policy Controller for enhanced security and management across different environments."
 }
 
 variable "module_dependency" {

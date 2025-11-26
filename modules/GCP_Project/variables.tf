@@ -17,15 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-**Purpose:** This module is used to create a Google Cloud project. It is the foundation for the `Standalone_Platform` used by other modules to deploy applications.
-
-**What it does:**
-- Creates a Google Cloud project.
-- Enables the APIs needed to configure budgets.
-
-**Dependencies:** None. This is the first module that should be deployed.
-EOT
+  default     = "This module creates a foundational Google Cloud project, enables the necessary APIs for budget configuration, and serves as the basis for deploying other application modules."
 }
 
 variable "module_dependency" {

@@ -17,16 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-**Purpose:** This module deploys Moodle, a popular open-source Learning Management System (LMS), on Google Kubernetes Engine (GKE).
-
-**What it does:**
-- Deploys the Moodle application on a GKE cluster.
-- Sets up a complete and secure environment for the LMS, including a database, file storage, and networking.
-- Provides a platform for creating and delivering online courses, managing users, and tracking their progress.
-
-**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
-EOT
+  default     = "This module deploys Moodle, a popular open-source Learning Management System (LMS), on Google Kubernetes Engine (GKE), providing a complete and secure environment with a database, file storage, and networking to create and deliver online courses."
 }
 
 variable "module_dependency" {

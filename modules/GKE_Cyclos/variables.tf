@@ -17,17 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-**Purpose:** This module deploys the Cyclos Banking System (CBS) on Google Kubernetes Engine (GKE). It provides a complete and standalone environment for the banking application.
-
-**What it does:**
-- Sets up a GKE cluster to run the Cyclos application.
-- Creates all the necessary infrastructure, including a PostgreSQL database, file storage, and networking.
-- Automates the build and deployment process, making it easier to manage and update the application.
-- Includes security features like a firewall to protect the application from common web attacks.
-
-**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
-EOT
+  default     = "This module deploys the Cyclos Banking System on Google Kubernetes Engine (GKE), providing a complete and standalone environment with automated build and deployment, a PostgreSQL database, file storage, networking, and security features."
 }
 
 variable "module_dependency" {

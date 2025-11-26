@@ -17,16 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-**Purpose:** This module deploys WordPress, a popular open-source Content Management System (CMS), on Google Cloud Run. This provides a serverless environment for your website, which means you don't have to manage servers.
-
-**What it does:**
-- Deploys the WordPress application on Cloud Run.
-- Sets up a complete and secure environment for the application, including a database, file storage, and networking.
-- Provides a platform for creating and managing websites, blogs, and other online content.
-
-**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
-EOT
+  default     = "This module deploys WordPress, a popular open-source Content Management System (CMS), on Google Cloud Run, providing a serverless, secure, and complete environment for your website with a database, file storage, and networking."
 }
 
 variable "module_dependency" {

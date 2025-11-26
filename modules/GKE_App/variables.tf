@@ -17,16 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-**Purpose:** This module deploys a digital banking application called "Cyclos" on the Google Kubernetes Engine (GKE). It's a comprehensive solution for financial institutions looking to offer online and mobile banking services.
-
-**What it does:**
-- Deploys the Cyclos banking portal on a GKE cluster.
-- Sets up a complete environment for the application, including networking, security, and databases.
-- Includes features for online payments, mobile banking, and microfinance services.
-
-**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
-EOT
+  default     = "This module deploys a digital banking application on the Google Kubernetes Engine (GKE), providing a comprehensive solution for financial institutions with features for online payments, mobile banking, and microfinance services in a secure and complete environment."
 }
 
 variable "module_dependency" {

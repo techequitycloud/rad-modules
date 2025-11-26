@@ -17,17 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-**Purpose:** This module deploys the Odoo Enterprise Resource Planning (ERP) system on Google Kubernetes Engine (GKE). Odoo is a suite of business management software tools that includes CRM, e-commerce, billing, accounting, manufacturing, warehouse, and project management.
-
-**What it does:**
-- Deploys the Odoo ERP system on a GKE cluster.
-- Sets up a complete environment for the Odoo application, including networking, security, and databases.
-- Provides a comprehensive solution for managing various business operations.
-- Includes security features to protect the application and its data.
-
-**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
-EOT
+  default     = "This module deploys Wordpress on Google Kubernetes Engine (GKE), providing a comprehensive and secure environment for managing your website."
 }
 
 variable "module_dependency" {

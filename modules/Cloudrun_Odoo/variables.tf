@@ -17,16 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-**Purpose:** This module deploys the Odoo Enterprise Resource Planning (ERP) application on Google Cloud Run. Odoo is a suite of business management software tools that includes CRM, e-commerce, billing, accounting, manufacturing, warehouse, and project management.
-
-**What it does:**
-- Deploys the Odoo ERP system on Cloud Run.
-- Sets up a complete environment for the Odoo application, including networking, security, and databases.
-- Provides a comprehensive solution for managing various business operations.
-
-**Dependencies:** This module deploys into an existing Google Cloud project with the `GCP Services` module as a pre-requisite. You can deploy this module multiple times into the same Google Cloud project.
-EOT
+  default     = "This module deploys the Odoo Enterprise Resource Planning (ERP) application on Google Cloud Run, providing a comprehensive suite of business management tools including CRM, e-commerce, billing, accounting, and more, in a complete and secure environment."
 }
 
 variable "module_dependency" {
