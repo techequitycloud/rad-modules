@@ -36,7 +36,8 @@ steps:
     }
     
     log "🧹 Cleaning module workspace..."
-    rm -rfv * 2>/dev/null || log "Module workspace already clean"
+    # Clean module directory safely
+    find /workspace/modules/${_MODULE_NAME} -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || log "Module workspace already clean"
         
     log "🔍 Checking deployment type..."
     
