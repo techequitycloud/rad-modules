@@ -38,7 +38,8 @@ steps:
     }
     
     log "🧹 Cleaning workspace..."
-    rm -rfv * 2>/dev/null || log "Workspace already clean"
+    # Clean module directory safely
+    find /workspace/modules/${_MODULE_NAME} -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || log "Workspace already clean"
         
     log "🔍 Checking for deployment files..."
     
@@ -79,7 +80,7 @@ steps:
     log() {
         echo "[$(date +'%H:%M:%S')] $1"
     }
-    
+
     log "🔧 Initializing Terraform/Tofu for destroy..."
     
     # Initialize with reconfigure to ensure clean state
@@ -137,7 +138,7 @@ steps:
     log() {
         echo "[$(date +'%H:%M:%S')] $1"
     }
-    
+
     log "🔥 Starting infrastructure destroy..."
     
     # Create destroy metadata
@@ -239,7 +240,7 @@ steps:
     log() {
         echo "[$(date +'%H:%M:%S')] $1"
     }
-    
+
     log "🔍 Verifying destroy completion..."
     
     mkdir -p /workspace/audit
@@ -359,7 +360,7 @@ steps:
     log() {
         echo "[$(date +'%H:%M:%S')] $1"
     }
-    
+
     echo "========================================="
     log "🔥 INFRASTRUCTURE DESTROY COMPLETED"
     echo "========================================="
