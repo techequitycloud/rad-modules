@@ -17,16 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-**Purpose:** This module configures foundation Google Cloud platform services for all other modules. It prepares your Google Cloud project by configuring services required by other applications.
-
-**What it does:**
-- Sets up your Google Cloud project.
-- Enables all the required services (APIs) that the other modules need to function.
-- Provides an opportunity for you to select the services required by your application.
-
-**Dependencies:** This module deploys into an existing Google Cloud project. It is a pre-requisite for other modules, and can support multiple module deployments.
-EOT
+  default     = "This module configures foundational Google Cloud platform services, preparing your project by enabling the necessary APIs and services required for other application modules to function correctly."
 }
 
 variable "module_dependency" {

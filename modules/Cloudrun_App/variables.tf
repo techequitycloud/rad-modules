@@ -17,17 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-**Purpose:** This module provides a template for deploying a serverless application on Google Cloud Run. Serverless means you don't have to manage servers, making it easier to deploy and scale your application.
-
-**What it does:**
-- Deploys a containerized application on Cloud Run.
-- Can be configured to use either a MySQL or PostgreSQL database.
-- Sets up a complete environment for the application, including networking, security, and storage.
-- Automates the build and deployment process.
-
-**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
-EOT
+  default     = "This module provides a template for deploying a serverless application on Google Cloud Run, with support for MySQL or PostgreSQL databases, a complete environment including networking, security, and storage, and an automated build and deployment process."
 }
 
 variable "module_dependency" {

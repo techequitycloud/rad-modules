@@ -17,16 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-**Purpose:** This module deploys OpenEMR, an open-source Electronic Medical Records (EMR) and practice management application, on Google Cloud Run. This provides a serverless environment for the EMR system.
-
-**What it does:**
-- Deploys the OpenEMR application on Cloud Run.
-- Sets up a complete and secure environment for the EMR system, including a database, file storage, and networking.
-- Includes features for patient demographics, scheduling, electronic billing, and more.
-
-**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
-EOT
+  default     = "This module deploys OpenEMR, an open-source Electronic Medical Records (EMR) and practice management application, on Google Cloud Run, providing a serverless and secure environment with a database, file storage, networking, and features for patient demographics, scheduling, and billing."
 }
 
 variable "module_dependency" {
