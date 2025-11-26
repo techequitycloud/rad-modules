@@ -19,16 +19,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-**Purpose:** This module deploys an advanced, microservices banking portal on Google Kubernetes Engine (GKE). It is designed as a reference implementation for financial institutions that need a highly scalable, secure, and feature-rich platform for their banking applications. This is a demo module for training purposes.
-
-**What it does:**
-- Deploys a microservices-based banking application on GKE.
-- Utilizes advanced GKE features like Cloud Service Mesh for enhanced security and management.
-- Provides a centralized dashboard for managing banking services across clusters.
-
-**Dependencies:** This module deploys into an existing Google Cloud project. We recommend using the Google Cloud project exclusively for this deployment. NB: You may encounter challenges deleting this module due to retained Cloud Service Mesh configurations. 
-EOT
+  default     = "This module deploys an advanced, microservice banking demo application on Google Kubernetes Engine (GKE), utilizing Cloud Service Mesh for enhanced security and multi-cluster management. It serves as a reference implementation for highly scalable, secure, and feature-rich banking platforms."
 }
 
 variable "module_dependency" {
