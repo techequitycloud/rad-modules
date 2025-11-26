@@ -34,25 +34,26 @@ steps:
     
     # Function to log with timestamp
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$(date +'%H:%M:%S')] $1"
     }
     
     log "🧹 Preparing module workspace..."
-    
+
     # Check if we need to clone from Git or use existing files
     if [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ]; then
         log "📥 Cloning repository from ${_GIT_REPO_URL}"
-        
-        # Clean workspace completely
-        find /workspace -mindepth 1 -delete 2>/dev/null || true
+
+        # Clean workspace safely (preserving hidden files and avoiding accidental deletion)
+        find /workspace -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.*' -exec rm -rf {} + 2>/dev/null || true
         
         # Clone repository with error handling
-        if ! git clone "https://$$GIT_TOKEN@github.com/${_GIT_REPO_URL}.git" /workspace; then
+        # Redirect stderr to prevent token leakage in error messages
+        GIT_TERMINAL_PROMPT=0 git clone "https://$$GIT_TOKEN@github.com/${_GIT_REPO_URL}.git" /workspace 2>&1 | sed "s/$$GIT_TOKEN/[REDACTED]/g" || {
             log "❌ Failed to clone repository"
             log "   Repository: ${_GIT_REPO_URL}"
             log "   Please check repository URL and access token"
             exit 1
-        fi
+        }
         
         log "✅ Repository cloned successfully"
     else
@@ -81,9 +82,9 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$(date +'%H:%M:%S')] $1"
     }
-    
+
     log "📦 Creating initial deployment archive..."
     
     # Create archive of the module
@@ -126,9 +127,9 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$(date +'%H:%M:%S')] $1"
     }
-    
+
     log "🔧 Initializing Terraform/Tofu..."
     
     # Initialize with comprehensive options
@@ -163,7 +164,8 @@ steps:
             ;;
         2)
             log "📊 Changes detected - plan generated successfully"
-            log "   Resources to add: 4"
+            # Show actual plan summary
+            tofu show -json tfplan 2>/dev/null | jq -r '.resource_changes[] | select(.change.actions[] == "create") | .address' | wc -l | xargs -I {} log "   Resources to add: {}"
             ;;
         *)
             log "❌ Planning failed with exit code: $$PLAN_EXIT_CODE"
@@ -183,9 +185,9 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$(date +'%H:%M:%S')] $1"
     }
-    
+
     log "🚀 Applying infrastructure changes..."
     
     # Apply with retry logic for transient errors
@@ -239,9 +241,9 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$(date +'%H:%M:%S')] $1"
     }
-    
+
     log "🔄 Refreshing Terraform state..."
     
     # Refresh state to ensure accuracy
@@ -286,9 +288,9 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$(date +'%H:%M:%S')] $1"
     }
-    
+
     log "📦 Creating final deployment archive..."
     
     # Create final archive with all state files
@@ -319,9 +321,9 @@ steps:
   - '-c'
   - |
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$(date +'%H:%M:%S')] $1"
     }
-    
+
     echo "========================================"
     log "🎉 TERRAFORM DEPLOYMENT COMPLETED SUCCESSFULLY"
     echo "========================================"
