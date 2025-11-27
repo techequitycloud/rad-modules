@@ -32,7 +32,7 @@ steps:
     
     # Function to log with timestamp
     log() {
-        echo "[$(date +'%H:%M:%S')] $1"
+        echo "[$(date +'%H:%M:%S')] $$1"
     }
     
     log "🧹 Cleaning module workspace..."
@@ -78,7 +78,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $1"
+        echo "[$(date +'%H:%M:%S')] $$1"
     }
     
     log "🔧 Initializing Terraform/Tofu..."
@@ -107,7 +107,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $1"
+        echo "[$(date +'%H:%M:%S')] $$1"
     }
     
     log "🚀 Applying infrastructure changes..."
@@ -117,15 +117,15 @@ steps:
         local max_attempts=2
         local attempt=1
         
-        while [ $attempt -le $max_attempts ]; do
-            log "🔄 Apply attempt $attempt of $max_attempts"
+        while [ $$attempt -le $$max_attempts ]; do
+            log "🔄 Apply attempt $$attempt of $$max_attempts"
             
             if tofu apply -auto-approve tfplan; then
-                log "✅ Apply successful on attempt $attempt"
+                log "✅ Apply successful on attempt $$attempt"
                 return 0
             else
-                log "❌ Apply failed on attempt $attempt"
-                if [ $attempt -eq $max_attempts ]; then
+                log "❌ Apply failed on attempt $$attempt"
+                if [ $$attempt -eq $$max_attempts ]; then
                     log "💥 All apply attempts failed"
                     return 1
                 fi
@@ -156,7 +156,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $1"
+        echo "[$(date +'%H:%M:%S')] $$1"
     }
     
     log "🔄 Refreshing Terraform state..."
@@ -183,7 +183,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $1"
+        echo "[$(date +'%H:%M:%S')] $$1"
     }
     
     log "📦 Creating deployment archive..."
@@ -219,7 +219,7 @@ steps:
   - '-c'
   - |
     log() {
-        echo "[$(date +'%H:%M:%S')] $1"
+        echo "[$(date +'%H:%M:%S')] $$1"
     }
     
     echo "========================================"
@@ -229,7 +229,7 @@ steps:
     echo "  • Module: ${_MODULE_NAME}"
     echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
     echo "  • Project: ${PROJECT_ID}"
-    echo "  • Completed: $(date)"
+    echo "  • Completed: $$(date)"
     echo "========================================"
     echo "📁 Deployment Files:"
     echo "  • Archive: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"

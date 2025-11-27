@@ -25,7 +25,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $1"
+            echo "[$(date +'%H:%M:%S')] $$1"
         }
 
         # ============================================
@@ -70,7 +70,7 @@ steps:
       - '-c'
       - |
         log() {
-            echo "[$(date +'%H:%M:%S')] $1"
+            echo "[$(date +'%H:%M:%S')] $$1"
         }
         
         echo "========================================="
@@ -83,7 +83,7 @@ steps:
         echo "  • Path Removed: deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
         echo "  • Project: ${PROJECT_ID}"
         echo "  • Build ID: ${BUILD_ID}"
-        echo "  • Completed: $(date)"
+        echo "  • Completed: $$(date)"
         echo "========================================="
         log "✅ Cloud Storage cleanup successful"
         echo "========================================="
