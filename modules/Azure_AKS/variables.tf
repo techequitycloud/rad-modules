@@ -126,6 +126,7 @@ variable "vm_size" {
 variable "client_id" {
   description = "Azure Client ID (Application ID). {{UIMeta group=4 order=401 updatesafe }}"
   type        = string
+  sensitive   = true
 }
 
 variable "client_secret" {
@@ -137,11 +138,13 @@ variable "client_secret" {
 variable "tenant_id" {
   description = "Azure Tenant ID. {{UIMeta group=4 order=403 updatesafe }}"
   type        = string
+  sensitive   = true
 }
 
 variable "subscription_id" {
   description = "Azure Subscription ID. {{UIMeta group=4 order=404 updatesafe }}"
   type        = string
+  sensitive   = true
 }
 
 variable "trusted_users" {
