@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module enables you to create and manage a Microsoft Azure Kubernetes Service (AKS) cluster from your Google Cloud console, providing a unified way for organizations using both Azure and Google Cloud to manage their applications."
+  default     = "This module enables you to create and manage a Microsoft Azure Kubernetes Service (AKS) cluster from your Google Cloud console, providing a unified way for organizations using both Azure and Google Cloud to manage their applications. This module is for demonstration purposes only."
 }
 
 variable "module_dependency" {
