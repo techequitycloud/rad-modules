@@ -35,7 +35,7 @@ resource "google_compute_network" "vpc" {
       # Clean up GKE firewall rules (starting with 'gke' and ending with 'mcsd')
       echo "🔍 Searching for GKE firewall rules (gke-*-mcsd)..."
       FIREWALLS=$(gcloud compute firewall-rules list \
-        --project=${self.project} \
+        --project=${local.project.project_id} \
         --filter="name~^gke-.* AND name~.*-mcsd$" \
         --format="value(name)" 2>/dev/null || echo "")
       
@@ -44,7 +44,7 @@ resource "google_compute_network" "vpc" {
         for FW in $FIREWALLS; do
           echo "  🗑️  Deleting firewall rule: $FW"
           gcloud compute firewall-rules delete $FW \
-            --project=${self.project} \
+            --project=${local.project.project_id} \
             --quiet 2>/dev/null || echo "  ⚠️  Failed to delete $FW (may already be deleted)"
         done
       else
@@ -54,7 +54,7 @@ resource "google_compute_network" "vpc" {
       # Clean up NEGs starting with 'gsmrsvd'
       echo "🔍 Searching for NEGs starting with 'gsmrsvd'..."
       
-      ZONES=$(gcloud compute zones list --project=${self.project} --format="value(name)" 2>/dev/null || echo "")
+      ZONES=$(gcloud compute zones list --project=${local.project.project_id} --format="value(name)" 2>/dev/null || echo "")
       
       if [ -z "$ZONES" ]; then
         echo "⚠️  Could not retrieve zones, skipping NEG cleanup"
@@ -62,7 +62,7 @@ resource "google_compute_network" "vpc" {
         NEG_FOUND=false
         for ZONE in $ZONES; do
           NEGS=$(gcloud compute network-endpoint-groups list \
-            --project=${self.project} \
+            --project=${local.project.project_id} \
             --zones=$ZONE \
             --filter="name~^gsmrsvd.*" \
             --format="value(name)" 2>/dev/null || echo "")
@@ -73,7 +73,7 @@ resource "google_compute_network" "vpc" {
             for NEG in $NEGS; do
               echo "  🗑️  Deleting NEG: $NEG"
               gcloud compute network-endpoint-groups delete $NEG \
-                --project=${self.project} \
+                --project=${local.project.project_id} \
                 --zone=$ZONE \
                 --quiet 2>/dev/null || echo "  ⚠️  Failed to delete $NEG (may already be deleted)"
             done
