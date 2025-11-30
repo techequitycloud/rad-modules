@@ -23,6 +23,71 @@ resource "google_compute_network" "vpc" {
   auto_create_subnetworks         = false
   delete_default_routes_on_create = false
   mtu                             = 1500
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      #!/bin/bash
+      set -e
+      
+      echo "🔍 Cleaning up resources blocking network deletion..."
+      
+      # Clean up GKE firewall rules (starting with 'gke' and ending with 'mcsd')
+      echo "🔍 Searching for GKE firewall rules (gke-*-mcsd)..."
+      FIREWALLS=$(gcloud compute firewall-rules list \
+        --project=${self.project} \
+        --filter="name~^gke-.* AND name~.*-mcsd$" \
+        --format="value(name)" 2>/dev/null || echo "")
+      
+      if [ -n "$FIREWALLS" ]; then
+        echo "🔥 Found GKE firewall rules:"
+        for FW in $FIREWALLS; do
+          echo "  🗑️  Deleting firewall rule: $FW"
+          gcloud compute firewall-rules delete $FW \
+            --project=${self.project} \
+            --quiet 2>/dev/null || echo "  ⚠️  Failed to delete $FW (may already be deleted)"
+        done
+      else
+        echo "✅ No GKE firewall rules found"
+      fi
+      
+      # Clean up NEGs starting with 'gsmrsvd'
+      echo "🔍 Searching for NEGs starting with 'gsmrsvd'..."
+      
+      ZONES=$(gcloud compute zones list --project=${self.project} --format="value(name)" 2>/dev/null || echo "")
+      
+      if [ -z "$ZONES" ]; then
+        echo "⚠️  Could not retrieve zones, skipping NEG cleanup"
+      else
+        NEG_FOUND=false
+        for ZONE in $ZONES; do
+          NEGS=$(gcloud compute network-endpoint-groups list \
+            --project=${self.project} \
+            --zones=$ZONE \
+            --filter="name~^gsmrsvd.*" \
+            --format="value(name)" 2>/dev/null || echo "")
+          
+          if [ -n "$NEGS" ]; then
+            NEG_FOUND=true
+            echo "📍 Found NEGs in zone $ZONE:"
+            for NEG in $NEGS; do
+              echo "  🗑️  Deleting NEG: $NEG"
+              gcloud compute network-endpoint-groups delete $NEG \
+                --project=${self.project} \
+                --zone=$ZONE \
+                --quiet 2>/dev/null || echo "  ⚠️  Failed to delete $NEG (may already be deleted)"
+            done
+          fi
+        done
+        
+        if [ "$NEG_FOUND" = false ]; then
+          echo "✅ No NEGs found"
+        fi
+      fi
+      
+      echo "✅ Cleanup completed, network should now be deletable"
+    EOT
+  }
 }
 
 # ============================================
