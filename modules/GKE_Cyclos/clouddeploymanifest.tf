@@ -19,7 +19,7 @@
 resource "local_file" "clouddeploy_backup_skaffold" {
   count = var.configure_continuous_deployment ? 1 : 0
     filename                  = "${path.module}/scripts/cd/backup/skaffold.yaml"
-    content                   = templatefile("${path.module}/scripts/backup/cd/skaffold.yaml.tpl", {
+    content                   = templatefile("${path.module}/scripts/cd/backup/skaffold.yaml.tpl", {
     PROJECT_ID                = local.project.project_id
     APP_NAME                  = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}"
     APP_REGION                = local.region
@@ -664,8 +664,8 @@ resource "local_file" "clouddeploy_skaffold" {
 # Resource for creating a local Cloud Build configuration file from a template.
 resource "local_file" "cicd_cloudbuild" {
     count                     = var.configure_continuous_deployment ? 1 : 0
-    filename                  = "${path.module}/scripts/app/cloudbuild.yaml"
-    content                   = templatefile("${path.module}/scripts/app/cloudbuild.yaml.tpl", {
+    filename                  = "${path.module}/scripts/cd/app/cloudbuild.yaml"
+    content                   = templatefile("${path.module}/scripts/cd/app/cloudbuild.yaml.tpl", {
     PROJECT_ID                = local.project.project_id
     IMAGE_REGION              = local.region
     IMAGE_NAME                = var.application_name
