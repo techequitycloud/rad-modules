@@ -43,7 +43,7 @@ resource "google_monitoring_service" "gke_services" {
     service_type = "GKE_SERVICE"
     service_labels = {
       cluster_name   = var.gke_cluster
-      location       = var.region
+      location       = var.gcp_region
       namespace_name = "bank-of-anthos"
       project_id     = local.project.project_id
       service_name   = each.key

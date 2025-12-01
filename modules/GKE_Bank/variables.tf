@@ -83,8 +83,8 @@ variable "existing_project_id" {
   type        = string
 }
 
-variable "region" {
-  description = "The region where Compute Instance and VPCs will be deployed. Deployment may fail if sufficient resources are not available in region. List - https://cloud.google.com/compute/docs/regions-zones#available. {{UIMeta group=2 order=201 }}"
+variable "gcp_region" {
+  description = "The region where Compute Instance and VPCs will be deployed. Deployment may fail if sufficient resources are not available in region. {{UIMeta group=2 order=201 }}"
   type        = string
   default     = "us-west1"
 }

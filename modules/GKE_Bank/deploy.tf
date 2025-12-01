@@ -149,7 +149,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
     cluster_endpoint = google_container_cluster.gke_cluster.endpoint
     version          = local.bank_of_anthos_version
     namespace        = kubernetes_namespace.bank_of_anthos[0].metadata[0].name
-    region           = var.region
+    region           = var.gcp_region
     project_id       = local.project.project_id
     manifests_path   = local.manifests_path
     jwt_secret_path  = local.jwt_secret_path
@@ -365,7 +365,7 @@ resource "null_resource" "verify_deployment" {
     command = <<-EOT
       echo "Verifying Bank of Anthos deployment..."
       gcloud container clusters get-credentials "${google_container_cluster.gke_cluster.name}" \
-        --region="${var.region}" \
+        --region="${var.gcp_region}" \
         --project="${local.project.project_id}"
       kubectl get pods -n bank-of-anthos
       kubectl get services -n bank-of-anthos

@@ -98,7 +98,7 @@ resource "google_compute_subnetwork" "subnetwork" {
   project                  = local.project.project_id
   name                     = var.subnet_name
   ip_cidr_range            = tolist(var.ip_cidr_ranges)[0]
-  region                   = var.region
+  region                   = var.gcp_region
   network                  = google_compute_network.vpc.name
   private_ip_google_access = true
 
@@ -220,7 +220,7 @@ resource "google_compute_firewall" "fw_allow_http_tcp" {
 # Define a Google Compute Router resource for the region
 resource "google_compute_router" "cr_region" {
   project = local.project.project_id
-  name    = "cr1-${var.region}"
+  name    = "cr1-${var.gcp_region}"
   region  = google_compute_subnetwork.subnetwork.region
   network = google_compute_network.vpc.id
 
@@ -234,7 +234,7 @@ resource "google_compute_router" "cr_region" {
 # Define a Google Compute Router NAT for the region
 resource "google_compute_router_nat" "nat_gw_region" {
   project                            = local.project.project_id
-  name                               = "nat-gw1-${var.region}"
+  name                               = "nat-gw1-${var.gcp_region}"
   router                             = google_compute_router.cr_region.name
   region                             = google_compute_router.cr_region.region
   nat_ip_allocate_option             = "AUTO_ONLY"

@@ -31,7 +31,7 @@ provider "kubernetes" {
 resource "google_container_cluster" "gke_cluster" {
   project               = local.project.project_id
   name                  = var.gke_cluster
-  location              = var.region
+  location              = var.gcp_region
   deletion_protection   = false
   network               = google_compute_network.vpc.name
   subnetwork            = google_compute_subnetwork.subnetwork.name
