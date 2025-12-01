@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module configures the Open Source Istio service mesh on a Google Kubernetes Engine (GKE) cluster, providing a dedicated infrastructure layer for secure, fast, and reliable service-to-service communication. You can choose between ambient or sidecar mesh and explore advanced features like traffic management, security, and observability."
+  default     = "This module configures the Open Source Istio service mesh on a Google Kubernetes Engine (GKE) cluster, providing a dedicated infrastructure layer for secure, fast, and reliable service-to-service communication. You can choose between ambient or sidecar mesh and explore advanced features like traffic management, security, and observability. This module is for educational purposes only."
 }
 
 variable "module_dependency" {
@@ -37,7 +37,7 @@ variable "module_services" {
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = number
-  default     = 50
+  default     = 100
 }
 
 variable "require_credit_purchases" {
