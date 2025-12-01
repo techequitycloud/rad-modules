@@ -545,7 +545,7 @@ resource "null_resource" "cleanup_multicluster_ingress" {
         --context="$CONTEXT_NAME" \
         --ignore-not-found=true --timeout=2m || true
       
-      kubectl delete -n "$NAMESPACE" deployment gke-mcs-importer \
+      kubectl delete -n gke-mcs deployment gke-mcs-importer \
         --context="$CONTEXT_NAME" \
         --ignore-not-found=true --timeout=2m || true
       
