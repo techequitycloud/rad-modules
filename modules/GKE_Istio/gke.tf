@@ -33,14 +33,14 @@ provider "kubernetes" {
 }
 
 locals {
-  k8s_credentials_cmd = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.region} --project ${local.project.project_id}"
+  k8s_credentials_cmd = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.gcp_region} --project ${local.project.project_id}"
 }
 
 # Module to create the GKE private cluster
 resource "google_container_cluster" "gke_standard_cluster" {
   project                   = local.project.project_id
   name                      = var.gke_cluster
-  location                  = var.region
+  location                  = var.gcp_region
   allow_net_admin           = true
   networking_mode           = "VPC_NATIVE" 
   datapath_provider         = "LEGACY_DATAPATH" # disable dataplane v2

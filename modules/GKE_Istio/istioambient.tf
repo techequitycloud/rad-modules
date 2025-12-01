@@ -21,7 +21,7 @@ resource "null_resource" "install_ambient_mesh" {
     # always_run                = timestamp()
     istio_path                = "$HOME/istio-${var.istio_version}"
     cluster_name              = var.gke_cluster
-    region                    = var.region
+    region                    = var.gcp_region
     project_id                = local.project.project_id
     istio_release             = regex("^(\\d+\\.\\d+)", var.istio_version)[0]
     istio_version             = var.istio_version
@@ -90,7 +90,7 @@ resource "null_resource" "install_ambient_mesh" {
     # Configure GKE cluster access with conditional impersonation
     echo "Configuring cluster access..."
     gcloud container clusters get-credentials ${var.gke_cluster} \
-      --region ${var.region} \
+      --region ${var.gcp_region} \
       --project ${local.project.project_id} \
       ${var.resource_creator_identity != "" ? "--impersonate-service-account=${var.resource_creator_identity}" : ""} || \
       { echo "Failed to get cluster credentials"; exit 1; }

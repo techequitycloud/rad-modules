@@ -112,7 +112,7 @@ variable "existing_project_id" {
 variable "available_regions" {
   description = "Specify the available regions for cluster deployment. {{UIMeta group=2 order=201 }}"
   type        = list(string)
-  default     = ["us-west1", "us-east1"]
+  default     = ["us-west1","us-east1"]
 }
 
 // GROUP 4: Main

@@ -95,8 +95,8 @@ variable "deploy_application" {
   default     = true
 }
 
-variable "region" {
-  description = "The region where Google Cloud resources will be deployed. Deployment may fail if sufficient resource quota is not available in selected region. List - https://cloud.google.com/compute/docs/regions-zones#available. {{UIMeta group=2 order=205 }}"
+variable "gcp_region" {
+  description = "The region where Google Cloud resources will be deployed. Deployment may fail if sufficient resource quota is not available in selected region. {{UIMeta group=2 order=205 }}"
   type        = string
   default     = "us-central1"
 }

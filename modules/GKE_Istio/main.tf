@@ -40,7 +40,7 @@ locals {
 # Data source to fetch the list of available compute zones in the region
 data "google_compute_zones" "available_zones" {
   project = local.project.project_id
-  region  = var.region
+  region  = var.gcp_region
   status  = "UP" # Filter for zones that are up and running
 }
 

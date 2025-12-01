@@ -32,7 +32,7 @@ resource "google_compute_subnetwork" "subnetwork" {
   project                  = local.project.project_id      # Sets the project in which the resource will be created
   name                     = "vpc-subnet"          # The name of the subnetwork
   ip_cidr_range            = tolist(var.ip_cidr_ranges)[0] # The IP range for the subnet, taking the first element from a list variable
-  region                   = var.region            # The region where the subnet will be created
+  region                   = var.gcp_region            # The region where the subnet will be created
   network                  = google_compute_network.vpc.name # Reference to the VPC network's name
   private_ip_google_access = true                          # Enables instances in this subnet to access Google services without an external IP address
 
@@ -169,7 +169,7 @@ resource "google_compute_firewall" "fw_allow_http_tcp" {
 # Define a Google Compute Router resource for the region
 resource "google_compute_router" "cr_region" {
   project = local.project.project_id  # The project ID where the router will be created
-  name    = "cr1-${var.region}"        # The name of the router, including the region variable
+  name    = "cr1-${var.gcp_region}"        # The name of the router, including the region variable
   region  = google_compute_subnetwork.subnetwork.region  # The region where the router will be located, taken from the subnet's region
   network = google_compute_network.vpc.id                # The ID of the VPC network to which this router belongs
 
@@ -183,7 +183,7 @@ resource "google_compute_router" "cr_region" {
 # Define a Google Compute Router NAT for the region
 resource "google_compute_router_nat" "nat_gw_region" {
   project                            = local.project.project_id  # The project ID where the NAT gateway will be created
-  name                               = "nat-gw1-${var.region}"    # The name of the NAT gateway, including the region variable
+  name                               = "nat-gw1-${var.gcp_region}"    # The name of the NAT gateway, including the region variable
   router                             = google_compute_router.cr_region.name  # The name of the router this NAT gateway is associated with
   region                             = google_compute_router.cr_region.region  # The region where the NAT gateway will be located
   nat_ip_allocate_option             = "AUTO_ONLY"               # NAT IP allocation mode set to automatically allocate IPs
