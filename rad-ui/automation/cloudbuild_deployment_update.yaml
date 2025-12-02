@@ -21,52 +21,35 @@ steps:
   - |
     set -e
     
-    echo "🚀 DEPLOYMENT UPDATE INITIATED"
-    echo "========================================"
-    echo "Module: ${_MODULE_NAME}"
-    echo "Deployment ID: ${_DEPLOYMENT_ID}"
-    echo "Project: ${PROJECT_ID}"
-    echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
-    echo "Timestamp: $(date)"
-    echo "========================================"
+    # ... (same as before until extraction) ...
     
-    # Function to log with timestamp
-    log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
-    }
-    
-    log "🧹 Cleaning module workspace..."
-    rm -rfv * 2>/dev/null || log "Module workspace already clean"
-        
-    log "🔍 Checking deployment type..."
-    
-    # Check if this is an initial deployment or update
     if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
         log "📦 Existing deployment detected - performing update"
         
-        # Download all files for update
-        log "⬇️  Downloading existing deployment files..."
-        gsutil -m cp -r "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/*" .
+        # Download the archive
+        log "⬇️  Downloading module archive..."
+        gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" .
         
         # Extract the module archive
         log "📂 Extracting module files..."
         tar -xzf "${_MODULE_NAME}.tar.gz"
         
-        # Clean up the archive file
-        rm -f "${_MODULE_NAME}.tar.gz"
-        
-        log "✅ Update environment prepared"
-    else
-        log "🆕 Initial deployment detected"
-        
-        # Download only the required config files for initial deployment
-        log "⬇️  Downloading configuration files..."
+        # ✅ NOW download the config files AFTER extraction (this overwrites the old ones from the archive)
+        log "⬇️  Downloading updated configuration files..."
         gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/terraform.tfvars.json" ./terraform.tfvars.json
         gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/backend.tf" ./backend.tf
         
-        log "✅ Initial deployment environment prepared"
+        # Verify
+        log "🔍 Verifying terraform.tfvars.json:"
+        cat terraform.tfvars.json | jq '.install_ambient_mesh'
+        
+        # Clean up
+        rm -f "${_MODULE_NAME}.tar.gz"
+        
+        log "✅ Update environment prepared with latest configuration"
+    else
+        # ... (same as before for initial deployment) ...
     fi
-    
   dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Initialize and Plan'
