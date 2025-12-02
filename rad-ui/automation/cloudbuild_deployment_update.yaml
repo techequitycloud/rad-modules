@@ -21,8 +21,26 @@ steps:
   - |
     set -e
     
-    # ... (same as before until extraction) ...
+    echo "🚀 DEPLOYMENT UPDATE INITIATED"
+    echo "========================================"
+    echo "Module: ${_MODULE_NAME}"
+    echo "Deployment ID: ${_DEPLOYMENT_ID}"
+    echo "Project: ${PROJECT_ID}"
+    echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
+    echo "Timestamp: $(date)"
+    echo "========================================"
     
+    # Function to log with timestamp
+    log() {
+        echo "[$(date +'%H:%M:%S')] $1"
+    }
+    
+    log "🧹 Cleaning module workspace..."
+    rm -rfv * 2>/dev/null || log "Module workspace already clean"
+        
+    log "🔍 Checking deployment type..."
+    
+    # Check if this is an initial deployment or update
     if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
         log "📦 Existing deployment detected - performing update"
         
@@ -48,8 +66,16 @@ steps:
         
         log "✅ Update environment prepared with latest configuration"
     else
-        # ... (same as before for initial deployment) ...
+        log "🆕 Initial deployment detected"
+        
+        # Download only the required config files for initial deployment
+        log "⬇️  Downloading configuration files..."
+        gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/terraform.tfvars.json" ./terraform.tfvars.json
+        gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/backend.tf" ./backend.tf
+        
+        log "✅ Initial deployment environment prepared"
     fi
+    
   dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Initialize and Plan'
@@ -61,7 +87,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$(date +'%H:%M:%S')] $1"
     }
     
     log "🔧 Initializing Terraform/Tofu..."
@@ -90,7 +116,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$(date +'%H:%M:%S')] $1"
     }
     
     log "🚀 Applying infrastructure changes..."
@@ -100,15 +126,15 @@ steps:
         local max_attempts=2
         local attempt=1
         
-        while [ $$attempt -le $$max_attempts ]; do
-            log "🔄 Apply attempt $$attempt of $$max_attempts"
+        while [ $attempt -le $max_attempts ]; do
+            log "🔄 Apply attempt $attempt of $max_attempts"
             
             if tofu apply -auto-approve tfplan; then
-                log "✅ Apply successful on attempt $$attempt"
+                log "✅ Apply successful on attempt $attempt"
                 return 0
             else
-                log "❌ Apply failed on attempt $$attempt"
-                if [ $$attempt -eq $$max_attempts ]; then
+                log "❌ Apply failed on attempt $attempt"
+                if [ $attempt -eq $max_attempts ]; then
                     log "💥 All apply attempts failed"
                     return 1
                 fi
@@ -139,7 +165,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$(date +'%H:%M:%S')] $1"
     }
     
     log "🔄 Refreshing Terraform state..."
@@ -166,7 +192,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$(date +'%H:%M:%S')] $1"
     }
     
     log "📦 Creating deployment archive..."
@@ -180,19 +206,15 @@ steps:
     # Upload the archive
     gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
     
-    # Also backup current tfvars and backend config from the module directory
-    if [[ -f "modules/${_MODULE_NAME}/terraform.tfvars.json" ]]; then
-        gsutil cp "modules/${_MODULE_NAME}/terraform.tfvars.json" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/terraform.tfvars.json"
-    fi
-    
-    if [[ -f "modules/${_MODULE_NAME}/backend.tf" ]]; then
-        gsutil cp "modules/${_MODULE_NAME}/backend.tf" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/backend.tf"
-    fi
+    # ✅ DON'T upload terraform.tfvars.json or backend.tf here anymore
+    # They are managed by Cloud Function and were already downloaded fresh in Step 0
+    # Uploading them would overwrite with stale versions from the archive
     
     log "📋 Archive contents:"
     tar -tzf "${_MODULE_NAME}.tar.gz" | head -20
     
     log "✅ Deployment files archived and uploaded"
+    log "Note: terraform.tfvars.json and backend.tf managed by Cloud Function"
   dir: /workspace
 
 - id: 'Deployment Summary'
@@ -202,7 +224,7 @@ steps:
   - '-c'
   - |
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$(date +'%H:%M:%S')] $1"
     }
     
     echo "========================================"
@@ -212,7 +234,7 @@ steps:
     echo "  • Module: ${_MODULE_NAME}"
     echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
     echo "  • Project: ${PROJECT_ID}"
-    echo "  • Completed: $$(date)"
+    echo "  • Completed: $(date)"
     echo "========================================"
     echo "📁 Deployment Files:"
     echo "  • Archive: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
