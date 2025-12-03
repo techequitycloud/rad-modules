@@ -62,8 +62,8 @@ resource "google_project_service" "enabled_services" {
   service                    = each.value                    # The API service to enable
   
   # These settings ensure that disabling or destroying this resource does not affect dependent services
-  disable_dependent_services = true 
-  disable_on_destroy         = true 
+  disable_dependent_services = false 
+  disable_on_destroy         = false 
 }
 
 # Poll for Container API activation before proceeding.
