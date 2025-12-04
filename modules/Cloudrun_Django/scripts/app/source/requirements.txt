@@ -1,0 +1,5 @@
+Django>=5.0,<6.0
+gunicorn
+psycopg2-binary
+django-storages[google]
+django-environ
