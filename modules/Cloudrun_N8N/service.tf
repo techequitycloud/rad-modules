@@ -89,6 +89,24 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         value = "true"
       }
 
+      # S3/GCS Storage Configuration
+      env {
+        name = "N8N_DEFAULT_BINARY_DATA_MODE"
+        value = "s3"
+      }
+      env {
+        name = "N8N_S3_BUCKET_NAME"
+        value = google_storage_bucket.dev_storage[0].name
+      }
+      env {
+        name = "N8N_S3_BUCKET_REGION"
+        value = local.region
+      }
+      env {
+        name = "N8N_S3_ENDPOINT"
+        value = "https://storage.googleapis.com"
+      }
+
       env {
         name = "DB_POSTGRESDB_PASSWORD"
         value_source {
@@ -104,6 +122,26 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         value_source {
           secret_key_ref {
             secret = google_secret_manager_secret.dev_encryption_key[0].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "N8N_S3_ACCESS_KEY"
+        value_source {
+          secret_key_ref {
+            secret = google_secret_manager_secret.storage_access_key.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "N8N_S3_ACCESS_SECRET"
+        value_source {
+          secret_key_ref {
+            secret = google_secret_manager_secret.storage_secret_key.secret_id
             version = "latest"
           }
         }
@@ -139,7 +177,10 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     google_sql_user.dev_user,
     google_secret_manager_secret_version.dev_db_password,
     google_secret_manager_secret_version.dev_encryption_key,
-    google_project_iam_member.cloudsql_client
+    google_project_iam_member.cloudsql_client,
+    google_storage_bucket.dev_storage,
+    google_secret_manager_secret_version.storage_access_key,
+    google_secret_manager_secret_version.storage_secret_key
   ]
 }
 
@@ -232,6 +273,24 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
         value = "true"
       }
 
+      # S3/GCS Storage Configuration
+      env {
+        name = "N8N_DEFAULT_BINARY_DATA_MODE"
+        value = "s3"
+      }
+      env {
+        name = "N8N_S3_BUCKET_NAME"
+        value = google_storage_bucket.qa_storage[0].name
+      }
+      env {
+        name = "N8N_S3_BUCKET_REGION"
+        value = local.region
+      }
+      env {
+        name = "N8N_S3_ENDPOINT"
+        value = "https://storage.googleapis.com"
+      }
+
       env {
         name = "DB_POSTGRESDB_PASSWORD"
         value_source {
@@ -247,6 +306,26 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
         value_source {
           secret_key_ref {
             secret = google_secret_manager_secret.qa_encryption_key[0].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "N8N_S3_ACCESS_KEY"
+        value_source {
+          secret_key_ref {
+            secret = google_secret_manager_secret.storage_access_key.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "N8N_S3_ACCESS_SECRET"
+        value_source {
+          secret_key_ref {
+            secret = google_secret_manager_secret.storage_secret_key.secret_id
             version = "latest"
           }
         }
@@ -282,7 +361,10 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
     google_sql_user.qa_user,
     google_secret_manager_secret_version.qa_db_password,
     google_secret_manager_secret_version.qa_encryption_key,
-    google_project_iam_member.cloudsql_client
+    google_project_iam_member.cloudsql_client,
+    google_storage_bucket.qa_storage,
+    google_secret_manager_secret_version.storage_access_key,
+    google_secret_manager_secret_version.storage_secret_key
   ]
 }
 
@@ -375,6 +457,24 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
         value = "true"
       }
 
+      # S3/GCS Storage Configuration
+      env {
+        name = "N8N_DEFAULT_BINARY_DATA_MODE"
+        value = "s3"
+      }
+      env {
+        name = "N8N_S3_BUCKET_NAME"
+        value = google_storage_bucket.prod_storage[0].name
+      }
+      env {
+        name = "N8N_S3_BUCKET_REGION"
+        value = local.region
+      }
+      env {
+        name = "N8N_S3_ENDPOINT"
+        value = "https://storage.googleapis.com"
+      }
+
       env {
         name = "DB_POSTGRESDB_PASSWORD"
         value_source {
@@ -390,6 +490,26 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
         value_source {
           secret_key_ref {
             secret = google_secret_manager_secret.prod_encryption_key[0].secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "N8N_S3_ACCESS_KEY"
+        value_source {
+          secret_key_ref {
+            secret = google_secret_manager_secret.storage_access_key.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "N8N_S3_ACCESS_SECRET"
+        value_source {
+          secret_key_ref {
+            secret = google_secret_manager_secret.storage_secret_key.secret_id
             version = "latest"
           }
         }
@@ -425,7 +545,10 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
     google_sql_user.prod_user,
     google_secret_manager_secret_version.prod_db_password,
     google_secret_manager_secret_version.prod_encryption_key,
-    google_project_iam_member.cloudsql_client
+    google_project_iam_member.cloudsql_client,
+    google_storage_bucket.prod_storage,
+    google_secret_manager_secret_version.storage_access_key,
+    google_secret_manager_secret_version.storage_secret_key
   ]
 }
 

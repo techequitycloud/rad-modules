@@ -96,3 +96,48 @@ resource "google_project_iam_member" "cloudsql_client" {
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${google_service_account.n8n_sa.email}"
 }
+
+# IAM member resource to grant the service account access to the storage keys in Secret Manager
+resource "google_secret_manager_secret_iam_member" "storage_access_key" {
+  project   = local.project.project_id
+  secret_id = google_secret_manager_secret.storage_access_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.n8n_sa.email}"
+
+  depends_on = [
+    google_secret_manager_secret.storage_access_key,
+  ]
+}
+
+resource "google_secret_manager_secret_iam_member" "storage_secret_key" {
+  project   = local.project.project_id
+  secret_id = google_secret_manager_secret.storage_secret_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.n8n_sa.email}"
+
+  depends_on = [
+    google_secret_manager_secret.storage_secret_key,
+  ]
+}
+
+# Grant Storage Object Admin role to Service Account for the buckets
+resource "google_storage_bucket_iam_member" "dev_storage" {
+  count  = var.configure_development_environment ? 1 : 0
+  bucket = google_storage_bucket.dev_storage[0].name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.n8n_sa.email}"
+}
+
+resource "google_storage_bucket_iam_member" "qa_storage" {
+  count  = var.configure_nonproduction_environment ? 1 : 0
+  bucket = google_storage_bucket.qa_storage[0].name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.n8n_sa.email}"
+}
+
+resource "google_storage_bucket_iam_member" "prod_storage" {
+  count  = var.configure_production_environment ? 1 : 0
+  bucket = google_storage_bucket.prod_storage[0].name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.n8n_sa.email}"
+}

@@ -21,3 +21,8 @@ resource "google_service_account" "n8n_sa" {
   display_name = "n8n Service Account"
   project      = local.project.project_id
 }
+
+resource "google_storage_hmac_key" "n8n_key" {
+  service_account_email = google_service_account.n8n_sa.email
+  project               = local.project.project_id
+}

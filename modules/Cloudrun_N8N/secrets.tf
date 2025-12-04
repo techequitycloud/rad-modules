@@ -155,3 +155,38 @@ resource "google_secret_manager_secret_version" "prod_encryption_key" {
   secret      = google_secret_manager_secret.prod_encryption_key[0].id
   secret_data = random_password.prod_encryption_key.result
 }
+
+#########################################################################
+# Secret Manager resources for Object Storage HMAC Key
+# These are shared across environments because the SA is shared.
+# If environments need isolation, multiple SAs or keys should be used,
+# but for this module scope, we use the single SA's key.
+#########################################################################
+
+resource "google_secret_manager_secret" "storage_access_key" {
+  project    = local.project.project_id
+  secret_id  = "n8n-storage-access-key-${var.tenant_deployment_id}-${local.random_id}"
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "storage_access_key" {
+  secret      = google_secret_manager_secret.storage_access_key.id
+  secret_data = google_storage_hmac_key.n8n_key.access_id
+}
+
+resource "google_secret_manager_secret" "storage_secret_key" {
+  project    = local.project.project_id
+  secret_id  = "n8n-storage-secret-key-${var.tenant_deployment_id}-${local.random_id}"
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "storage_secret_key" {
+  secret      = google_secret_manager_secret.storage_secret_key.id
+  secret_data = google_storage_hmac_key.n8n_key.secret
+}
