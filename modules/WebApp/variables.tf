@@ -94,7 +94,7 @@ variable "network_name" {
 variable "create_cloud_storage" {
   description = "Select to enable access to Cloud Storage. {{UIMeta group=0 order=501 updatesafe }}"
   type        = bool
-  default     = true  # Change to true to create the resource
+  default     = false  # Change to true to create the resource
 }
 
 variable "configure_database" {
