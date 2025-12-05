@@ -48,6 +48,44 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         }
       }
 
+      # Startup probe - gives n8n time to initialize
+      startup_probe {
+        http_get {
+          path = "/healthz"
+          port = 5678
+        }
+        initial_delay_seconds = 10
+        timeout_seconds = 3
+        period_seconds = 10
+        failure_threshold = 3
+      }
+
+      # Liveness probe - checks if n8n is running
+      liveness_probe {
+        http_get {
+          path = "/healthz"
+          port = 5678
+        }
+        initial_delay_seconds = 30
+        timeout_seconds = 5
+        period_seconds = 30
+        failure_threshold = 3
+      }
+
+      # Readiness probe - checks if n8n can accept traffic
+      # Note: /healthz/readiness may not be available in all n8n versions
+      # Falls back to /healthz if readiness endpoint doesn't exist
+      # readiness_probe {
+      #   http_get {
+      #     path = "/healthz/readiness"
+      #     port = 5678
+      #   }
+      #   initial_delay_seconds = 15
+      #   timeout_seconds = 3
+      #   period_seconds = 10
+      #   failure_threshold = 3
+      # }
+
       env {
         name = "N8N_PORT"
         value = "5678"
@@ -55,6 +93,14 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
       env {
         name = "N8N_PROTOCOL"
         value = "https"
+      }
+      env {
+        name = "N8N_DIAGNOSTICS_ENABLED"
+        value = "true"
+      }
+      env {
+        name = "N8N_METRICS"
+        value = "true"
       }
       env {
         name = "DB_TYPE"
@@ -231,6 +277,30 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
         }
       }
 
+      # Startup probe - gives n8n time to initialize
+      startup_probe {
+        http_get {
+          path = "/healthz"
+          port = 5678
+        }
+        initial_delay_seconds = 10
+        timeout_seconds = 3
+        period_seconds = 10
+        failure_threshold = 3
+      }
+
+      # Liveness probe - checks if n8n is running
+      liveness_probe {
+        http_get {
+          path = "/healthz"
+          port = 5678
+        }
+        initial_delay_seconds = 30
+        timeout_seconds = 5
+        period_seconds = 30
+        failure_threshold = 3
+      }
+
       env {
         name = "N8N_PORT"
         value = "5678"
@@ -238,6 +308,14 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
       env {
         name = "N8N_PROTOCOL"
         value = "https"
+      }
+      env {
+        name = "N8N_DIAGNOSTICS_ENABLED"
+        value = "true"
+      }
+      env {
+        name = "N8N_METRICS"
+        value = "true"
       }
       env {
         name = "DB_TYPE"
@@ -426,6 +504,30 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
         }
       }
 
+      # Startup probe - gives n8n time to initialize (more lenient for production)
+      startup_probe {
+        http_get {
+          path = "/healthz"
+          port = 5678
+        }
+        initial_delay_seconds = 15
+        timeout_seconds = 5
+        period_seconds = 10
+        failure_threshold = 5
+      }
+
+      # Liveness probe - checks if n8n is running (conservative settings for prod)
+      liveness_probe {
+        http_get {
+          path = "/healthz"
+          port = 5678
+        }
+        initial_delay_seconds = 60
+        timeout_seconds = 10
+        period_seconds = 60
+        failure_threshold = 3
+      }
+
       env {
         name = "N8N_PORT"
         value = "5678"
@@ -433,6 +535,14 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
       env {
         name = "N8N_PROTOCOL"
         value = "https"
+      }
+      env {
+        name = "N8N_DIAGNOSTICS_ENABLED"
+        value = "true"
+      }
+      env {
+        name = "N8N_METRICS"
+        value = "true"
       }
       env {
         name = "DB_TYPE"
