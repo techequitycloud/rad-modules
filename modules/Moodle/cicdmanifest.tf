@@ -1337,22 +1337,6 @@ resource "github_repository_file" "qa_cloudrun_entrypoint" {
   ]
 }
 
-# Resource definition for a GitHub repository file for the Cloud Build configuration
-resource "github_repository_file" "qa_cloudbuild" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_nonproduction_environment ? 1 : 0
-  repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "qa"
-  commit_message      = "Add file to repo"
-  overwrite_on_create = true
-  file                = "cloudbuild.yaml"
-  content             = local_file.qa_cloudbuild[count.index].content
-
-  depends_on = [
-    local_file.qa_cloudbuild,
-    null_resource.init_git_repo
-  ]
-}
-
 # Resource definition for a GitHub repository file for the Dockerfile
 resource "github_repository_file" "qa_dockerfile" {
   count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_nonproduction_environment ? 1 : 0
