@@ -195,9 +195,9 @@ variable "configure_production_environment" {
 # GROUP 8: Tenant
 
 variable "configure_monitoring" {
-  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring. {{UIMeta group=5 order=805 updatesafe}}"
+  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring. {{UIMeta group=0 order=805 updatesafe}}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "configure_backups" {
