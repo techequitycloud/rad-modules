@@ -128,7 +128,7 @@ variable "tenant_deployment_id" {
 variable "configure_development_environment" {
   description = "Select to configure development environment. {{UIMeta group=3 order=703 updatesafe }}"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "configure_nonproduction_environment" {
