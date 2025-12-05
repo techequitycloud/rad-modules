@@ -23,7 +23,7 @@ resource "google_cloud_run_v2_job" "dev_migrate" {
 
   template {
     template {
-      service_account = google_service_account.cloudrun_sa.email
+      service_account = local.cloud_run_sa_email
       containers {
         image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
         command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
@@ -61,7 +61,7 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
 
   template {
     template {
-      service_account = google_service_account.cloudrun_sa.email
+      service_account = local.cloud_run_sa_email
       containers {
         image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
 
@@ -154,7 +154,7 @@ resource "google_cloud_run_v2_job" "qa_migrate" {
 
   template {
     template {
-      service_account = google_service_account.cloudrun_sa.email
+      service_account = local.cloud_run_sa_email
       containers {
         image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
         command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
@@ -192,7 +192,7 @@ resource "google_cloud_run_v2_job" "qa_createuser" {
 
   template {
     template {
-      service_account = google_service_account.cloudrun_sa.email
+      service_account = local.cloud_run_sa_email
       containers {
         image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
 
@@ -284,7 +284,7 @@ resource "google_cloud_run_v2_job" "prod_migrate" {
 
   template {
     template {
-      service_account = google_service_account.cloudrun_sa.email
+      service_account = local.cloud_run_sa_email
       containers {
         image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
         command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
@@ -322,7 +322,7 @@ resource "google_cloud_run_v2_job" "prod_createuser" {
 
   template {
     template {
-      service_account = google_service_account.cloudrun_sa.email
+      service_account = local.cloud_run_sa_email
       containers {
         image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
 

@@ -14,7 +14,6 @@
 # limitations under the License.
 
 # set -x
-#!/bin/bash
 PROJECT_ID=$1
 DB_TYPE=$2
 SERVICE_ACCOUNT=$3

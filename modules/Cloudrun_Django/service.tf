@@ -21,7 +21,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
   ingress             = "INGRESS_TRAFFIC_ALL"
 
   template {
-    service_account = google_service_account.cloudrun_sa.email
+    service_account = local.cloud_run_sa_email
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
     labels = {
@@ -107,7 +107,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
   ingress             = "INGRESS_TRAFFIC_ALL"
 
   template {
-    service_account = google_service_account.cloudrun_sa.email
+    service_account = local.cloud_run_sa_email
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
     labels = {
@@ -193,7 +193,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
   ingress             = "INGRESS_TRAFFIC_ALL"
 
   template {
-    service_account = google_service_account.cloudrun_sa.email
+    service_account = local.cloud_run_sa_email
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
     labels = {
@@ -263,7 +263,7 @@ resource "null_resource" "prod_update_csrf_origin" {
       gcloud run services update ${google_cloud_run_v2_service.prod_app_service[0].name} \
         --region ${var.region} \
         --project ${local.project_id} \
-        --set-env-vars CLOUDRUN_SERVICE_URLS=$URL
+        --update-env-vars CLOUDRUN_SERVICE_URLS=$URL
     EOF
   }
   depends_on = [google_cloud_run_v2_service.prod_app_service]

@@ -22,5 +22,5 @@ resource "google_storage_bucket" "media" {
 resource "google_storage_bucket_iam_member" "sa_admin" {
   bucket = google_storage_bucket.media.name
   role   = "roles/storage.admin"
-  member = "serviceAccount:${google_service_account.cloudrun_sa.email}"
+  member = "serviceAccount:${local.cloud_run_sa_email}"
 }
