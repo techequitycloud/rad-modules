@@ -12,15 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resource "google_cloud_run_v2_job" "migrate" {
-  name     = "${var.application_name}-migrate-${local.random_id}"
+# --- Dev Jobs ---
+
+resource "google_cloud_run_v2_job" "dev_migrate" {
+  count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+  name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-migrate"
   location = var.region
   project  = local.project_id
   deletion_protection = false
 
   template {
     template {
-      service_account = google_service_account.cloudrun_sa.email
+      service_account = local.cloud_run_sa_email
       containers {
         image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
         command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
@@ -29,7 +32,7 @@ resource "google_cloud_run_v2_job" "migrate" {
           name = "APPLICATION_SETTINGS"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.application_settings.secret_id
+              secret = google_secret_manager_secret.dev_application_settings[0].secret_id
               version = "latest"
             }
           }
@@ -42,22 +45,23 @@ resource "google_cloud_run_v2_job" "migrate" {
       volumes {
         name = "cloudsql"
         cloud_sql_instance {
-          instances = [google_sql_database_instance.instance.connection_name]
+          instances = ["${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"]
         }
       }
     }
   }
 }
 
-resource "google_cloud_run_v2_job" "createuser" {
-  name     = "${var.application_name}-createuser-${local.random_id}"
+resource "google_cloud_run_v2_job" "dev_createuser" {
+  count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+  name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-createuser"
   location = var.region
   project  = local.project_id
   deletion_protection = false
 
   template {
     template {
-      service_account = google_service_account.cloudrun_sa.email
+      service_account = local.cloud_run_sa_email
       containers {
         image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
 
@@ -65,7 +69,7 @@ resource "google_cloud_run_v2_job" "createuser" {
             name = "DJANGO_SUPERUSER_PASSWORD"
             value_source {
                 secret_key_ref {
-                    secret = google_secret_manager_secret.superuser_password.secret_id
+                    secret = google_secret_manager_secret.dev_superuser_password[0].secret_id
                     version = "latest"
                 }
             }
@@ -74,7 +78,7 @@ resource "google_cloud_run_v2_job" "createuser" {
           name = "APPLICATION_SETTINGS"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.application_settings.secret_id
+              secret = google_secret_manager_secret.dev_application_settings[0].secret_id
               version = "latest"
             }
           }
@@ -98,7 +102,7 @@ resource "google_cloud_run_v2_job" "createuser" {
       volumes {
         name = "cloudsql"
         cloud_sql_instance {
-          instances = [google_sql_database_instance.instance.connection_name]
+          instances = ["${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"]
         }
       }
     }
@@ -106,33 +110,295 @@ resource "google_cloud_run_v2_job" "createuser" {
 }
 
 # Execute jobs
-resource "null_resource" "execute_migrate" {
+resource "null_resource" "dev_execute_migrate" {
+  count = var.configure_development_environment && local.sql_server_exists ? 1 : 0
   triggers = {
-    job_id = google_cloud_run_v2_job.migrate.id
+    job_id = google_cloud_run_v2_job.dev_migrate[0].id
   }
 
   provisioner "local-exec" {
-      command = "gcloud run jobs execute ${google_cloud_run_v2_job.migrate.name} --region ${var.region} --project ${local.project_id} --wait"
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.dev_migrate[0].name} --region ${var.region} --project ${local.project_id} --wait"
   }
   depends_on = [
-      google_cloud_run_v2_job.migrate,
+      google_cloud_run_v2_job.dev_migrate,
       null_resource.build_and_push_application_image,
-      google_sql_user.user,
-      google_sql_database.database
+      google_sql_user.dev_user,
+      google_sql_database.dev_db
   ]
 }
 
-resource "null_resource" "execute_createuser" {
+resource "null_resource" "dev_execute_createuser" {
+  count = var.configure_development_environment && local.sql_server_exists ? 1 : 0
   triggers = {
-    job_id = google_cloud_run_v2_job.createuser.id
+    job_id = google_cloud_run_v2_job.dev_createuser[0].id
   }
 
   provisioner "local-exec" {
       # Ignore failure if user already exists
-      command = "gcloud run jobs execute ${google_cloud_run_v2_job.createuser.name} --region ${var.region} --project ${local.project_id} --wait || true"
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.dev_createuser[0].name} --region ${var.region} --project ${local.project_id} --wait || true"
   }
   depends_on = [
-      null_resource.execute_migrate, # Run after migrate
-      google_cloud_run_v2_job.createuser
+      null_resource.dev_execute_migrate, # Run after migrate
+      google_cloud_run_v2_job.dev_createuser
+  ]
+}
+
+# --- QA Jobs ---
+
+resource "google_cloud_run_v2_job" "qa_migrate" {
+  count    = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
+  name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-migrate"
+  location = var.region
+  project  = local.project_id
+  deletion_protection = false
+
+  template {
+    template {
+      service_account = local.cloud_run_sa_email
+      containers {
+        image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
+
+        env {
+          name = "APPLICATION_SETTINGS"
+          value_source {
+            secret_key_ref {
+              secret = google_secret_manager_secret.qa_application_settings[0].secret_id
+              version = "latest"
+            }
+          }
+        }
+        volume_mounts {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
+        }
+      }
+      volumes {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = ["${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"]
+        }
+      }
+    }
+  }
+}
+
+resource "google_cloud_run_v2_job" "qa_createuser" {
+  count    = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
+  name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-createuser"
+  location = var.region
+  project  = local.project_id
+  deletion_protection = false
+
+  template {
+    template {
+      service_account = local.cloud_run_sa_email
+      containers {
+        image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+
+        env {
+            name = "DJANGO_SUPERUSER_PASSWORD"
+            value_source {
+                secret_key_ref {
+                    secret = google_secret_manager_secret.qa_superuser_password[0].secret_id
+                    version = "latest"
+                }
+            }
+        }
+        env {
+          name = "APPLICATION_SETTINGS"
+          value_source {
+            secret_key_ref {
+              secret = google_secret_manager_secret.qa_application_settings[0].secret_id
+              version = "latest"
+            }
+          }
+        }
+        env {
+            name = "DJANGO_SUPERUSER_USERNAME"
+            value = var.django_superuser_username
+        }
+        env {
+            name = "DJANGO_SUPERUSER_EMAIL"
+            value = var.django_superuser_email
+        }
+
+        command = ["python", "manage.py", "createsuperuser", "--noinput"]
+
+        volume_mounts {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
+        }
+      }
+      volumes {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = ["${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"]
+        }
+      }
+    }
+  }
+}
+
+resource "null_resource" "qa_execute_migrate" {
+  count = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
+  triggers = {
+    job_id = google_cloud_run_v2_job.qa_migrate[0].id
+  }
+
+  provisioner "local-exec" {
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.qa_migrate[0].name} --region ${var.region} --project ${local.project_id} --wait"
+  }
+  depends_on = [
+      google_cloud_run_v2_job.qa_migrate,
+      null_resource.build_and_push_application_image,
+      google_sql_user.qa_user,
+      google_sql_database.qa_db
+  ]
+}
+
+resource "null_resource" "qa_execute_createuser" {
+  count = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
+  triggers = {
+    job_id = google_cloud_run_v2_job.qa_createuser[0].id
+  }
+
+  provisioner "local-exec" {
+      # Ignore failure if user already exists
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.qa_createuser[0].name} --region ${var.region} --project ${local.project_id} --wait || true"
+  }
+  depends_on = [
+      null_resource.qa_execute_migrate, # Run after migrate
+      google_cloud_run_v2_job.qa_createuser
+  ]
+}
+
+# --- Prod Jobs ---
+
+resource "google_cloud_run_v2_job" "prod_migrate" {
+  count    = var.configure_production_environment && local.sql_server_exists ? 1 : 0
+  name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-migrate"
+  location = var.region
+  project  = local.project_id
+  deletion_protection = false
+
+  template {
+    template {
+      service_account = local.cloud_run_sa_email
+      containers {
+        image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
+
+        env {
+          name = "APPLICATION_SETTINGS"
+          value_source {
+            secret_key_ref {
+              secret = google_secret_manager_secret.prod_application_settings[0].secret_id
+              version = "latest"
+            }
+          }
+        }
+        volume_mounts {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
+        }
+      }
+      volumes {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = ["${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"]
+        }
+      }
+    }
+  }
+}
+
+resource "google_cloud_run_v2_job" "prod_createuser" {
+  count    = var.configure_production_environment && local.sql_server_exists ? 1 : 0
+  name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-createuser"
+  location = var.region
+  project  = local.project_id
+  deletion_protection = false
+
+  template {
+    template {
+      service_account = local.cloud_run_sa_email
+      containers {
+        image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+
+        env {
+            name = "DJANGO_SUPERUSER_PASSWORD"
+            value_source {
+                secret_key_ref {
+                    secret = google_secret_manager_secret.prod_superuser_password[0].secret_id
+                    version = "latest"
+                }
+            }
+        }
+        env {
+          name = "APPLICATION_SETTINGS"
+          value_source {
+            secret_key_ref {
+              secret = google_secret_manager_secret.prod_application_settings[0].secret_id
+              version = "latest"
+            }
+          }
+        }
+        env {
+            name = "DJANGO_SUPERUSER_USERNAME"
+            value = var.django_superuser_username
+        }
+        env {
+            name = "DJANGO_SUPERUSER_EMAIL"
+            value = var.django_superuser_email
+        }
+
+        command = ["python", "manage.py", "createsuperuser", "--noinput"]
+
+        volume_mounts {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
+        }
+      }
+      volumes {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = ["${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"]
+        }
+      }
+    }
+  }
+}
+
+resource "null_resource" "prod_execute_migrate" {
+  count = var.configure_production_environment && local.sql_server_exists ? 1 : 0
+  triggers = {
+    job_id = google_cloud_run_v2_job.prod_migrate[0].id
+  }
+
+  provisioner "local-exec" {
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.prod_migrate[0].name} --region ${var.region} --project ${local.project_id} --wait"
+  }
+  depends_on = [
+      google_cloud_run_v2_job.prod_migrate,
+      null_resource.build_and_push_application_image,
+      google_sql_user.prod_user,
+      google_sql_database.prod_db
+  ]
+}
+
+resource "null_resource" "prod_execute_createuser" {
+  count = var.configure_production_environment && local.sql_server_exists ? 1 : 0
+  triggers = {
+    job_id = google_cloud_run_v2_job.prod_createuser[0].id
+  }
+
+  provisioner "local-exec" {
+      # Ignore failure if user already exists
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.prod_createuser[0].name} --region ${var.region} --project ${local.project_id} --wait || true"
+  }
+  depends_on = [
+      null_resource.prod_execute_migrate, # Run after migrate
+      google_cloud_run_v2_job.prod_createuser
   ]
 }
