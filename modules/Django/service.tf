@@ -33,6 +33,11 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
       image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
 
       env {
+        name = "GS_BUCKET_NAME"
+        value = google_storage_bucket.dev_storage[0].name
+      }
+
+      env {
         name = "APPLICATION_SETTINGS"
         value_source {
           secret_key_ref {
@@ -126,6 +131,11 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
       image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
 
       env {
+        name = "GS_BUCKET_NAME"
+        value = google_storage_bucket.dev_storage[0].name
+      }
+
+      env {
         name = "APPLICATION_SETTINGS"
         value_source {
           secret_key_ref {
@@ -217,6 +227,11 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
 
     containers {
       image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+
+      env {
+        name = "GS_BUCKET_NAME"
+        value = google_storage_bucket.dev_storage[0].name
+      }
 
       env {
         name = "APPLICATION_SETTINGS"
