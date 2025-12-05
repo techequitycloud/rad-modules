@@ -81,13 +81,13 @@ variable "existing_project_id" {
 }
 
 variable "region" {
-  description = "The region to deploy to."
+  description = "The Google Cloud region. {{UIMeta group=0 order=201 updatesafe }}"
   type        = string
   default     = "us-central1"
 }
 
 variable "network_name" {
-  description = "The name of the VPC network. {{UIMeta group=2 order=201 updatesafe }}"
+  description = "The name of the VPC network. {{UIMeta group=0 order=202 updatesafe }}"
   type        = string
   default     = "vpc-network"
 }
@@ -146,25 +146,25 @@ variable "configure_production_environment" {
 # Django Specific Variables
 
 variable "db_tier" {
-  description = "The machine type to use for the database."
+  description = "The machine type to use for the database. {{UIMeta group=3 order=801 updatesafe }}"
   type        = string
   default     = "db-f1-micro"
 }
 
 variable "django_superuser_email" {
-  description = "Email for the Django superuser."
+  description = "Email for the Django superuser. {{UIMeta group=3 order=802 updatesafe }}"
   type        = string
   default     = "admin@example.com"
 }
 
 variable "django_superuser_username" {
-  description = "Username for the Django superuser."
+  description = "Username for the Django superuser. {{UIMeta group=3 order=803 updatesafe }}"
   type        = string
   default     = "admin"
 }
 
 variable "django_superuser_password" {
-  description = "Password for the Django superuser. If not provided, one will be generated."
+  description = "Password for the Django superuser. If not provided, one will be generated. {{UIMeta group=3 order=804 updatesafe }}"
   type        = string
   sensitive   = true
   default     = null
