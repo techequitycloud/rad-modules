@@ -91,6 +91,10 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
 
       # S3/GCS Storage Configuration
       env {
+        name = "N8N_AVAILABLE_BINARY_DATA_MODES"
+        value = "filesystem,s3"
+      }
+      env {
         name = "N8N_DEFAULT_BINARY_DATA_MODE"
         value = "s3"
       }
@@ -272,8 +276,24 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
         name = "QUEUE_HEALTH_CHECK_ACTIVE"
         value = "true"
       }
+      env {
+        name = "N8N_RUNNERS_ENABLED"
+        value = "true"
+      }
+      env {
+        name = "N8N_BLOCK_ENV_ACCESS_IN_NODE"
+        value = "false"
+      }
+      env {
+        name = "N8N_GIT_NODE_DISABLE_BARE_REPOS"
+        value = "true"
+      }
 
       # S3/GCS Storage Configuration
+      env {
+        name = "N8N_AVAILABLE_BINARY_DATA_MODES"
+        value = "filesystem,s3"
+      }
       env {
         name = "N8N_DEFAULT_BINARY_DATA_MODE"
         value = "s3"
@@ -456,8 +476,24 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
         name = "QUEUE_HEALTH_CHECK_ACTIVE"
         value = "true"
       }
+      env {
+        name = "N8N_RUNNERS_ENABLED"
+        value = "true"
+      }
+      env {
+        name = "N8N_BLOCK_ENV_ACCESS_IN_NODE"
+        value = "false"
+      }
+      env {
+        name = "N8N_GIT_NODE_DISABLE_BARE_REPOS"
+        value = "true"
+      }
 
       # S3/GCS Storage Configuration
+      env {
+        name = "N8N_AVAILABLE_BINARY_DATA_MODES"
+        value = "filesystem,s3"
+      }
       env {
         name = "N8N_DEFAULT_BINARY_DATA_MODE"
         value = "s3"
