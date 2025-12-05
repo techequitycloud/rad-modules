@@ -89,22 +89,14 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         value = "true"
       }
 
-      # S3/GCS Storage Configuration
+      # Storage Configuration
       env {
         name = "N8N_DEFAULT_BINARY_DATA_MODE"
-        value = "s3"
+        value = "filesystem"
       }
       env {
-        name = "N8N_S3_BUCKET_NAME"
-        value = google_storage_bucket.dev_storage[0].name
-      }
-      env {
-        name = "N8N_S3_BUCKET_REGION"
-        value = local.region
-      }
-      env {
-        name = "N8N_S3_ENDPOINT"
-        value = "https://storage.googleapis.com"
+        name = "N8N_BINARY_DATA_STORAGE_PATH"
+        value = "/files"
       }
 
       env {
@@ -127,29 +119,13 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         }
       }
 
-      env {
-        name = "N8N_S3_ACCESS_KEY"
-        value_source {
-          secret_key_ref {
-            secret = google_secret_manager_secret.storage_access_key.secret_id
-            version = "latest"
-          }
-        }
-      }
-
-      env {
-        name = "N8N_S3_ACCESS_SECRET"
-        value_source {
-          secret_key_ref {
-            secret = google_secret_manager_secret.storage_secret_key.secret_id
-            version = "latest"
-          }
-        }
-      }
-
       volume_mounts {
         name = "cloudsql"
         mount_path = "/cloudsql"
+      }
+      volume_mounts {
+        name = "gcs-data"
+        mount_path = "/files"
       }
     }
 
@@ -162,6 +138,14 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
       name = "cloudsql"
       cloud_sql_instance {
         instances = ["${local.project.project_id}:${local.region}:${local.db_instance_name}"]
+      }
+    }
+
+    volumes {
+      name = "gcs-data"
+      gcs {
+        bucket    = google_storage_bucket.dev_storage[0].name
+        read_only = false
       }
     }
   }
@@ -272,23 +256,27 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
         name = "QUEUE_HEALTH_CHECK_ACTIVE"
         value = "true"
       }
+      env {
+        name = "N8N_RUNNERS_ENABLED"
+        value = "true"
+      }
+      env {
+        name = "N8N_BLOCK_ENV_ACCESS_IN_NODE"
+        value = "false"
+      }
+      env {
+        name = "N8N_GIT_NODE_DISABLE_BARE_REPOS"
+        value = "true"
+      }
 
-      # S3/GCS Storage Configuration
+      # Storage Configuration
       env {
         name = "N8N_DEFAULT_BINARY_DATA_MODE"
-        value = "s3"
+        value = "filesystem"
       }
       env {
-        name = "N8N_S3_BUCKET_NAME"
-        value = google_storage_bucket.qa_storage[0].name
-      }
-      env {
-        name = "N8N_S3_BUCKET_REGION"
-        value = local.region
-      }
-      env {
-        name = "N8N_S3_ENDPOINT"
-        value = "https://storage.googleapis.com"
+        name = "N8N_BINARY_DATA_STORAGE_PATH"
+        value = "/files"
       }
 
       env {
@@ -311,29 +299,13 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
         }
       }
 
-      env {
-        name = "N8N_S3_ACCESS_KEY"
-        value_source {
-          secret_key_ref {
-            secret = google_secret_manager_secret.storage_access_key.secret_id
-            version = "latest"
-          }
-        }
-      }
-
-      env {
-        name = "N8N_S3_ACCESS_SECRET"
-        value_source {
-          secret_key_ref {
-            secret = google_secret_manager_secret.storage_secret_key.secret_id
-            version = "latest"
-          }
-        }
-      }
-
       volume_mounts {
         name = "cloudsql"
         mount_path = "/cloudsql"
+      }
+      volume_mounts {
+        name = "gcs-data"
+        mount_path = "/files"
       }
     }
 
@@ -346,6 +318,14 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
       name = "cloudsql"
       cloud_sql_instance {
         instances = ["${local.project.project_id}:${local.region}:${local.db_instance_name}"]
+      }
+    }
+
+    volumes {
+      name = "gcs-data"
+      gcs {
+        bucket    = google_storage_bucket.qa_storage[0].name
+        read_only = false
       }
     }
   }
@@ -456,23 +436,27 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
         name = "QUEUE_HEALTH_CHECK_ACTIVE"
         value = "true"
       }
+      env {
+        name = "N8N_RUNNERS_ENABLED"
+        value = "true"
+      }
+      env {
+        name = "N8N_BLOCK_ENV_ACCESS_IN_NODE"
+        value = "false"
+      }
+      env {
+        name = "N8N_GIT_NODE_DISABLE_BARE_REPOS"
+        value = "true"
+      }
 
-      # S3/GCS Storage Configuration
+      # Storage Configuration
       env {
         name = "N8N_DEFAULT_BINARY_DATA_MODE"
-        value = "s3"
+        value = "filesystem"
       }
       env {
-        name = "N8N_S3_BUCKET_NAME"
-        value = google_storage_bucket.prod_storage[0].name
-      }
-      env {
-        name = "N8N_S3_BUCKET_REGION"
-        value = local.region
-      }
-      env {
-        name = "N8N_S3_ENDPOINT"
-        value = "https://storage.googleapis.com"
+        name = "N8N_BINARY_DATA_STORAGE_PATH"
+        value = "/files"
       }
 
       env {
@@ -495,29 +479,13 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
         }
       }
 
-      env {
-        name = "N8N_S3_ACCESS_KEY"
-        value_source {
-          secret_key_ref {
-            secret = google_secret_manager_secret.storage_access_key.secret_id
-            version = "latest"
-          }
-        }
-      }
-
-      env {
-        name = "N8N_S3_ACCESS_SECRET"
-        value_source {
-          secret_key_ref {
-            secret = google_secret_manager_secret.storage_secret_key.secret_id
-            version = "latest"
-          }
-        }
-      }
-
       volume_mounts {
         name = "cloudsql"
         mount_path = "/cloudsql"
+      }
+      volume_mounts {
+        name = "gcs-data"
+        mount_path = "/files"
       }
     }
 
@@ -530,6 +498,14 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
       name = "cloudsql"
       cloud_sql_instance {
         instances = ["${local.project.project_id}:${local.region}:${local.db_instance_name}"]
+      }
+    }
+
+    volumes {
+      name = "gcs-data"
+      gcs {
+        bucket    = google_storage_bucket.prod_storage[0].name
+        read_only = false
       }
     }
   }
