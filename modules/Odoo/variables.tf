@@ -35,7 +35,7 @@ variable "module_services" {
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = number
-  default     = 250
+  default     = 150
 }
 
 variable "require_credit_purchases" {
@@ -138,26 +138,26 @@ variable "application_sha" {
 # GROUP 6: CICD
 
 variable "configure_continuous_integration" {
-  description = "Select the checkbox to configure GitHub continuous integration and continous delivery pipeline that supports single and multi-region deployment. {{UIMeta group=4 order=601 updatesafe}}"
+  description = "Select the checkbox to configure GitHub continuous integration and continous delivery pipeline that supports single and multi-region deployment. {{UIMeta group=0 order=601 updatesafe}}"
   type        = bool
   default     = false
 }
 
 variable "configure_continuous_deployment" {
-  description = "Select the checkbox to configure continous deployment pipeline. Implements a continuous delivery pipeline on the primary deployment region using Cloud Deploy. {{UIMeta group=4 order=600 updatesafe}}"
+  description = "Select the checkbox to configure continous deployment pipeline. Implements a continuous delivery pipeline on the primary deployment region using Cloud Deploy. {{UIMeta group=0 order=600 updatesafe}}"
   type        = bool
   default     = false
 }
 
 variable "application_git_token" {
-  description = "Specify a github classic token with following privileges needed to configure the code repository: delete_repo, read:org, repo. {{UIMeta group=4 order=602 updatesafe}}"
+  description = "Specify a github classic token with following privileges needed to configure the code repository: delete_repo, read:org, repo. {{UIMeta group=0 order=602 updatesafe}}"
   type        = string
   default     = ""
   sensitive   = true
 }
 
 variable "application_git_usernames" {
-  description = "Specify the usernames to add as collaborators to the git repo. {{UIMeta group=4 order=602 updatesafe}}"
+  description = "Specify the usernames to add as collaborators to the git repo. {{UIMeta group=0 order=602 updatesafe}}"
   type        = set(string)
   default     = []
 }
@@ -202,25 +202,25 @@ variable "configure_production_environment" {
 # GROUP 8: Tenant
 
 variable "configure_monitoring" {
-  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring for NFS virtual machine. {{UIMeta group=5 order=805 updatesafe}}"
+  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring for NFS virtual machine. {{UIMeta group=0 order=805 updatesafe}}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "configure_backups" {
-  description = "Select this checkbox to schedule daily application backups. Configures a Cloud Scheduler trigger to execute a Cloud Run backup job. {{UIMeta group=6 order=806 updatesafe }}"
+  description = "Select this checkbox to schedule daily application backups. Configures a Cloud Scheduler trigger to execute a Cloud Run backup job. {{UIMeta group=0 order=806 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "application_backup_schedule" {
-  description = "Enter the application backup schedule in cron format. This is used to configure the Cloud Scheduler cron job. {{UIMeta group=6 order=807 updatesafe }}"
+  description = "Enter the application backup schedule in cron format. This is used to configure the Cloud Scheduler cron job. {{UIMeta group=0 order=807 updatesafe }}"
   type        = string
   default     = "0 0 * * *"
 }
 
 variable "application_backup_fileid" {
-  description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup file during deployment. {{UIMeta group=6 order=808 updatesafe}}"
+  description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup file during deployment. {{UIMeta group=0 order=808 updatesafe}}"
   type        = string
   default     = "1jolaJFFU8-qMUgI8XOfGNBHDLFYrJQQT"
 }
