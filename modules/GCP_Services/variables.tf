@@ -17,7 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module configures foundational Google Cloud platform services, preparing your project by enabling the necessary APIs and services required for other application modules to function correctly."
+  default     = "This module configures foundational Google Cloud serverless platform services, preparing your project by enabling the necessary APIs and services required for other application modules to function correctly."
 }
 
 variable "module_dependency" {
@@ -35,7 +35,7 @@ variable "module_services" {
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = number
-  default     = 500
+  default     = 100
 }
 
 variable "require_credit_purchases" {
@@ -51,9 +51,9 @@ variable "enable_purge" {
 }
 
 variable "public_access" {
-description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
-type = bool
-default = false
+  description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
+  type = bool
+  default = false
 }
 
 variable "deployment_id" {
@@ -98,7 +98,7 @@ variable "network_name" {
 variable "availability_regions" {
   description = "The two regions where compute resources can be configured. The deployment might fail if sufficient resources not available in chosen region. {{UIMeta group=2 order=302 updatesafe }}"
   type        = list(string)
-  default     = ["us-east4"]
+  default     = ["us-central1"]
 }
 
 variable "gce_subnet_cidr_range" {
@@ -178,7 +178,7 @@ variable "mysql_tier" {
 # GROUP 6: NFS Service
 
 variable "create_network_filesystem" {
-  description = "Select to create NFS server using Compute Engine instances. {{UIMeta group=4 order=601 updatesafe}}"
+  description = "Select to create NFS server using Compute Engine instances. {{UIMeta group=0 order=601 updatesafe}}"
   type        = bool
   default     = true
 }
@@ -198,7 +198,7 @@ variable "network_filesystem_capacity" {
 # GROUP 14: GKE
 
 variable "create_google_kubernetes_engine" {
-  description = "Select to create GKE cluster {{UIMeta group=4 order=1401 updatesafe }}"
+  description = "Select to create GKE cluster {{UIMeta group=0 order=1401 updatesafe }}"
   type        = bool
   default     = false 
 }
