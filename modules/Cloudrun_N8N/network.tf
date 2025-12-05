@@ -20,7 +20,7 @@ data "external" "check_network" {
   program = ["bash", "-c", <<-EOT
     set -e
     PROJECT_ID="${local.project.project_id}"
-    NETWORK_NAME="vpc-network"
+    NETWORK_NAME="${var.network_name}"
 
     if [ -n "${var.resource_creator_identity}" ]; then
       SA_ARG="--impersonate-service-account=${var.resource_creator_identity}"
