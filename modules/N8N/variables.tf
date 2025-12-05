@@ -51,9 +51,9 @@ variable "enable_purge" {
 }
 
 variable "public_access" {
-description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
-type = bool
-default = true
+  description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
+  type = bool
+  default = false
 }
 
 variable "deployment_id" {
@@ -65,13 +65,13 @@ variable "deployment_id" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = ""
+  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "trusted_users" {
   description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
   type        = list(string)
-  default     = ["student-01-db9ef2e7104b@qwiklabs.net"]
+  default     = []
 }
 
 # GROUP 2: Application Project
@@ -79,7 +79,6 @@ variable "trusted_users" {
 variable "existing_project_id" {
   description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
-  default     = "qwiklabs-gcp-02-4385aedda3d7"
 }
 
 variable "network_name" {
@@ -119,13 +118,12 @@ variable "application_version" {
 variable "tenant_deployment_id" {
   description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=3 order=701 updatesafe}}"
   type        = string
-  default     = "demo"
 }
 
 variable "configure_development_environment" {
   description = "Select to configure development environment. {{UIMeta group=3 order=703 updatesafe }}"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "configure_nonproduction_environment" {
