@@ -178,7 +178,7 @@ variable "mysql_tier" {
 # GROUP 6: NFS Service
 
 variable "create_network_filesystem" {
-  description = "Select to create NFS server using Compute Engine instances. {{UIMeta group=4 order=601 updatesafe}}"
+  description = "Select to create NFS server using Compute Engine instances. {{UIMeta group=0 order=601 updatesafe}}"
   type        = bool
   default     = true
 }
