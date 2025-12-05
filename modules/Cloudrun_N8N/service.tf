@@ -102,6 +102,10 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         name = "N8N_BINARY_DATA_STORAGE_PATH"
         value = "/files"
       }
+      env {
+        name = "N8N_EXTERNAL_STORAGE_S3_BUCKET_NAME"
+        value = google_storage_bucket.dev_storage[0].name
+      }
 
       env {
         name = "DB_POSTGRESDB_PASSWORD"
@@ -130,6 +134,13 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
       volume_mounts {
         name = "gcs-data"
         mount_path = "/files"
+      }
+    }
+
+    vpc_access {
+      network_interfaces {
+        network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+        subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
       }
     }
 
@@ -286,7 +297,11 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
         name = "N8N_BINARY_DATA_STORAGE_PATH"
         value = "/files"
       }
-
+      env {
+        name = "N8N_EXTERNAL_STORAGE_S3_BUCKET_NAME"
+        value = google_storage_bucket.qa_storage[0].name
+      }
+      
       env {
         name = "DB_POSTGRESDB_PASSWORD"
         value_source {
@@ -314,6 +329,13 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
       volume_mounts {
         name = "gcs-data"
         mount_path = "/files"
+      }
+    }
+
+    vpc_access {
+      network_interfaces {
+        network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+        subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
       }
     }
 
@@ -470,6 +492,10 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
         name = "N8N_BINARY_DATA_STORAGE_PATH"
         value = "/files"
       }
+      env {
+        name = "N8N_EXTERNAL_STORAGE_S3_BUCKET_NAME"
+        value = google_storage_bucket.prod_storage[0].name
+      }
 
       env {
         name = "DB_POSTGRESDB_PASSWORD"
@@ -498,6 +524,13 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
       volume_mounts {
         name = "gcs-data"
         mount_path = "/files"
+      }
+    }
+
+    vpc_access {
+      network_interfaces {
+        network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+        subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
       }
     }
 
