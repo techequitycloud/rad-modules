@@ -15,18 +15,19 @@
 variable "project_id" {
   description = "The project ID to deploy to."
   type        = string
+  default     = "qwiklabs-gcp-02-539188a9446e"
 }
 
 variable "region" {
   description = "The region to deploy to."
   type        = string
-  default     = "us-central1"
+  default     = "us-west1"
 }
 
 variable "application_name" {
   description = "Name of the application."
   type        = string
-  default     = "django-cloudrun"
+  default     = "django"
 }
 
 variable "deployment_id" {
@@ -38,7 +39,7 @@ variable "deployment_id" {
 variable "resource_creator_identity" {
   description = "The identity creating the resources."
   type        = string
-  default     = null
+  default     = ""
 }
 
 variable "configure_development_environment" {
@@ -99,5 +100,5 @@ variable "existing_project_id" {
 variable "network_name" {
   description = "Name of the VPC network."
   type        = string
-  default     = "default"
+  default     = "vpc-network"
 }
