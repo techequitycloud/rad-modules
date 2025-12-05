@@ -82,7 +82,7 @@ variable "existing_project_id" {
 }
 
 variable "network_name" {
-  description = "The name of the VPC network. {{UIMeta group=2 order=201 updatesafe }}"
+  description = "The name of the VPC network. {{UIMeta group=0 order=201 updatesafe }}"
   type        = string
   default     = "vpc-network"
 }
