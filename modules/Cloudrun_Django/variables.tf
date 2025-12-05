@@ -76,16 +76,10 @@ variable "trusted_users" {
 
 # GROUP 2: Application Project
 
-variable "project_id" {
-  description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
-  type        = string
-  default     = "qwiklabs-gcp-02-539188a9446e"
-}
-
 variable "existing_project_id" {
   description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
-  default     = ""
+  default     = "qwiklabs-gcp-02-539188a9446e"
 }
 
 variable "region" {

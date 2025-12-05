@@ -42,6 +42,15 @@ resource "google_cloud_run_v2_job" "dev_migrate" {
           mount_path = "/cloudsql"
         }
       }
+
+
+      vpc_access {
+        network_interfaces {
+          network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
+        }
+      }
+
       volumes {
         name = "cloudsql"
         cloud_sql_instance {
@@ -99,6 +108,14 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
           mount_path = "/cloudsql"
         }
       }
+
+      vpc_access {
+        network_interfaces {
+          network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
+        }
+      }
+
       volumes {
         name = "cloudsql"
         cloud_sql_instance {
@@ -173,6 +190,14 @@ resource "google_cloud_run_v2_job" "qa_migrate" {
           mount_path = "/cloudsql"
         }
       }
+
+      vpc_access {
+        network_interfaces {
+          network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
+        }
+      }
+
       volumes {
         name = "cloudsql"
         cloud_sql_instance {
@@ -230,6 +255,14 @@ resource "google_cloud_run_v2_job" "qa_createuser" {
           mount_path = "/cloudsql"
         }
       }
+
+      vpc_access {
+        network_interfaces {
+          network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
+        }
+      }
+
       volumes {
         name = "cloudsql"
         cloud_sql_instance {
@@ -303,6 +336,14 @@ resource "google_cloud_run_v2_job" "prod_migrate" {
           mount_path = "/cloudsql"
         }
       }
+
+      vpc_access {
+        network_interfaces {
+          network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
+        }
+      }
+
       volumes {
         name = "cloudsql"
         cloud_sql_instance {
@@ -360,6 +401,14 @@ resource "google_cloud_run_v2_job" "prod_createuser" {
           mount_path = "/cloudsql"
         }
       }
+
+      vpc_access {
+        network_interfaces {
+          network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
+        }
+      }
+
       volumes {
         name = "cloudsql"
         cloud_sql_instance {

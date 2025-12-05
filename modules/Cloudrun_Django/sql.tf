@@ -1,4 +1,4 @@
-# Copyright 2024 Tech Equity Ltd
+# Copyright 2024 (c) Tech Equity Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

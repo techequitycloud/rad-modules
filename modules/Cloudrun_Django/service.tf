@@ -52,6 +52,13 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
       }
     }
 
+    vpc_access {
+      network_interfaces {
+        network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+        subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
+      }
+    }
+
     volumes {
       name = "cloudsql"
       cloud_sql_instance {
@@ -138,6 +145,13 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
       }
     }
 
+    vpc_access {
+      network_interfaces {
+        network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+        subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
+      }
+    }
+
     volumes {
       name = "cloudsql"
       cloud_sql_instance {
@@ -221,6 +235,13 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
       volume_mounts {
         name       = "cloudsql"
         mount_path = "/cloudsql"
+      }
+    }
+
+    vpc_access {
+      network_interfaces {
+        network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+        subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
       }
     }
 
