@@ -92,7 +92,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
       # Storage Configuration
       env {
         name = "N8N_AVAILABLE_BINARY_DATA_MODES"
-        value = "filesystem,s3"
+        value = "filesystem"
       }
       env {
         name = "N8N_DEFAULT_BINARY_DATA_MODE"
@@ -287,7 +287,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
       # Storage Configuration
       env {
         name = "N8N_AVAILABLE_BINARY_DATA_MODES"
-        value = "filesystem,s3"
+        value = "filesystem"
       }
       env {
         name = "N8N_DEFAULT_BINARY_DATA_MODE"
@@ -482,7 +482,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
       # Storage Configuration
       env {
         name = "N8N_AVAILABLE_BINARY_DATA_MODES"
-        value = "filesystem,s3"
+        value = "filesystem"
       }
       env {
         name = "N8N_DEFAULT_BINARY_DATA_MODE"
