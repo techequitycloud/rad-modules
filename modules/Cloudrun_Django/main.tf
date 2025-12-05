@@ -29,5 +29,5 @@ resource "random_id" "default" {
 }
 
 data "google_project" "existing_project" {
-  project_id = var.existing_project_id != "" ? trimspace(var.existing_project_id) : trimspace(var.project_id)
+  project_id = trimspace(var.existing_project_id)
 }

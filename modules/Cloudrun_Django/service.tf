@@ -91,7 +91,7 @@ resource "null_resource" "dev_update_csrf_origin" {
       gcloud run services update ${google_cloud_run_v2_service.dev_app_service[0].name} \
         --region ${var.region} \
         --project ${local.project_id} \
-        --update-env-vars CLOUDRUN_SERVICE_URLS=$URL
+        --set-env-vars CLOUDRUN_SERVICE_URLS=$URL
     EOF
   }
   depends_on = [google_cloud_run_v2_service.dev_app_service]
@@ -177,7 +177,7 @@ resource "null_resource" "qa_update_csrf_origin" {
       gcloud run services update ${google_cloud_run_v2_service.qa_app_service[0].name} \
         --region ${var.region} \
         --project ${local.project_id} \
-        --update-env-vars CLOUDRUN_SERVICE_URLS=$URL
+        --set-env-vars CLOUDRUN_SERVICE_URLS=$URL
     EOF
   }
   depends_on = [google_cloud_run_v2_service.qa_app_service]

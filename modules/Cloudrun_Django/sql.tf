@@ -25,7 +25,7 @@ data "external" "sql_instance_info" {
 #########################################################################
 
 locals {
-  sql_server_exists = try(data.external.sql_instance_info.result["sql_server_exists"], "") == "true"
+  sql_server_exists = try(data.external.sql_instance_info.result["sql_server_exists"], "")
   db_instance_name = try(data.external.sql_instance_info.result["instance_name"], "")
   db_instance_region = try(data.external.sql_instance_info.result["instance_region"], "")
   database_version = try(data.external.sql_instance_info.result["database_version"], "")
