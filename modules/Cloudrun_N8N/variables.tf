@@ -131,3 +131,9 @@ variable "configure_production_environment" {
   type        = bool
   default     = false
 }
+
+variable "network_name" {
+  description = "The name of the VPC network. {{UIMeta group=2 order=201 updatesafe }}"
+  type        = string
+  default     = "vpc-network"
+}
