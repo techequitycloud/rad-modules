@@ -12,17 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-output "service_url" {
-  value       = google_cloud_run_v2_service.default.uri
-  description = "The URL of the deployed Django service."
+output "dev_app_service_url" {
+  value = length(google_cloud_run_v2_service.dev_app_service) > 0 ? google_cloud_run_v2_service.dev_app_service[0].uri : null
 }
 
-output "admin_password" {
-  value       = local.superuser_password_value
-  description = "The password for the Django superuser."
-  sensitive   = true
+output "qa_app_service_url" {
+  value = length(google_cloud_run_v2_service.qa_app_service) > 0 ? google_cloud_run_v2_service.qa_app_service[0].uri : null
 }
 
-output "project_id" {
-  value = local.project_id
+output "prod_app_service_url" {
+  value = length(google_cloud_run_v2_service.prod_app_service) > 0 ? google_cloud_run_v2_service.prod_app_service[0].uri : null
+}
+
+output "sql_instance_info" {
+  value = {
+    instance_exists  = local.sql_server_exists
+    database_version = local.database_version
+    instance_name    = local.db_instance_name
+    instance_region  = local.db_instance_region
+    instance_ip      = local.db_internal_ip
+  }
 }
