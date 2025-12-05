@@ -21,10 +21,10 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
   ingress             = "INGRESS_TRAFFIC_ALL"
 
   template {
-    service_account = google_service_account.n8n_sa.email
-    session_affinity = true
+    service_account       = google_service_account.n8n_sa.email
+    session_affinity      = true
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
-    timeout = "300s"
+    timeout               = "300s"
 
     labels = {
       app = var.application_name,
@@ -32,16 +32,17 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     }
 
     containers {
-      image = "n8nio/n8n:${var.application_version}"
+      image   = "n8nio/n8n:${var.application_version}"
       command = ["/bin/sh"]
-      args = ["-c", "sleep 5; n8n start"]
+      args    = ["-c", "sleep 5; n8n start"]
+      
       ports {
         container_port = 5678
       }
 
       resources {
         startup_cpu_boost = true
-        cpu_idle = false
+        cpu_idle          = false
         limits = {
           cpu    = "1"
           memory = "2Gi"
@@ -55,9 +56,9 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
           port = 5678
         }
         initial_delay_seconds = 10
-        timeout_seconds = 3
-        period_seconds = 10
-        failure_threshold = 3
+        timeout_seconds       = 3
+        period_seconds        = 10
+        failure_threshold     = 3
       }
 
       # Liveness probe - checks if n8n is running
@@ -67,97 +68,83 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
           port = 5678
         }
         initial_delay_seconds = 30
-        timeout_seconds = 5
-        period_seconds = 30
-        failure_threshold = 3
+        timeout_seconds       = 5
+        period_seconds        = 30
+        failure_threshold     = 3
       }
 
-      # Readiness probe - checks if n8n can accept traffic
-      # Note: /healthz/readiness may not be available in all n8n versions
-      # Falls back to /healthz if readiness endpoint doesn't exist
-      # readiness_probe {
-      #   http_get {
-      #     path = "/healthz/readiness"
-      #     port = 5678
-      #   }
-      #   initial_delay_seconds = 15
-      #   timeout_seconds = 3
-      #   period_seconds = 10
-      #   failure_threshold = 3
-      # }
-
+      # n8n Configuration
       env {
-        name = "N8N_PORT"
+        name  = "N8N_PORT"
         value = "5678"
       }
       env {
-        name = "N8N_PROTOCOL"
+        name  = "N8N_PROTOCOL"
         value = "https"
       }
       env {
-        name = "N8N_DIAGNOSTICS_ENABLED"
+        name  = "N8N_DIAGNOSTICS_ENABLED"
         value = "true"
       }
       env {
-        name = "N8N_METRICS"
+        name  = "N8N_METRICS"
         value = "true"
       }
+
+      # Database Configuration
       env {
-        name = "DB_TYPE"
+        name  = "DB_TYPE"
         value = "postgresdb"
       }
       env {
-        name = "DB_POSTGRESDB_DATABASE"
+        name  = "DB_POSTGRESDB_DATABASE"
         value = google_sql_database.dev_db[0].name
       }
       env {
-        name = "DB_POSTGRESDB_USER"
+        name  = "DB_POSTGRESDB_USER"
         value = google_sql_user.dev_user[0].name
       }
       env {
-        name = "DB_POSTGRESDB_HOST"
+        name  = "DB_POSTGRESDB_HOST"
         value = "/cloudsql/${local.project.project_id}:${local.region}:${local.db_instance_name}"
       }
       env {
-        name = "DB_POSTGRESDB_PORT"
+        name  = "DB_POSTGRESDB_PORT"
         value = "5432"
       }
       env {
-        name = "DB_POSTGRESDB_SCHEMA"
+        name  = "DB_POSTGRESDB_SCHEMA"
         value = "public"
       }
       env {
-        name = "GENERIC_TIMEZONE"
+        name  = "GENERIC_TIMEZONE"
         value = "UTC"
       }
       env {
-        name = "QUEUE_HEALTH_CHECK_ACTIVE"
+        name  = "QUEUE_HEALTH_CHECK_ACTIVE"
         value = "true"
       }
 
-      # Storage Configuration
+      # Storage Configuration - Filesystem mode with GCS FUSE
       env {
-        name = "N8N_AVAILABLE_BINARY_DATA_MODES"
+        name  = "N8N_AVAILABLE_BINARY_DATA_MODES"
         value = "filesystem"
       }
       env {
-        name = "N8N_DEFAULT_BINARY_DATA_MODE"
+        name  = "N8N_DEFAULT_BINARY_DATA_MODE"
         value = "filesystem"
       }
       env {
-        name = "N8N_BINARY_DATA_STORAGE_PATH"
+        name  = "N8N_BINARY_DATA_STORAGE_PATH"
         value = "/files"
       }
-      env {
-        name = "N8N_EXTERNAL_STORAGE_S3_BUCKET_NAME"
-        value = google_storage_bucket.dev_storage[0].name
-      }
 
+      # Secrets
       env {
         name = "DB_POSTGRESDB_PASSWORD"
         value_source {
           secret_key_ref {
-            secret = google_secret_manager_secret.dev_db_password[0].secret_id
+            secret  = google_secret_manager_secret.dev_db_password[0].secret_id
             version = "latest"
           }
         }
@@ -167,18 +154,20 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         name = "N8N_ENCRYPTION_KEY"
         value_source {
           secret_key_ref {
-            secret = google_secret_manager_secret.dev_encryption_key[0].secret_id
+            secret  = google_secret_manager_secret.dev_encryption_key[0].secret_id
             version = "latest"
           }
         }
       }
 
+      # Volume Mounts
       volume_mounts {
-        name = "cloudsql"
+        name       = "cloudsql"
         mount_path = "/cloudsql"
       }
+      
       volume_mounts {
-        name = "gcs-data"
+        name       = "gcs-data"
         mount_path = "/files"
       }
     }
@@ -195,6 +184,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
       max_instance_count = 1
     }
 
+    # Volume Definitions
     volumes {
       name = "cloudsql"
       cloud_sql_instance {
@@ -212,8 +202,8 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
   }
 
   traffic {
-    type   = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
-    tag    = "latest"
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    tag     = "latest"
     percent = 100
   }
 
@@ -224,19 +214,18 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     google_secret_manager_secret_version.dev_encryption_key,
     google_project_iam_member.cloudsql_client,
     google_storage_bucket.dev_storage,
-    google_secret_manager_secret_version.storage_access_key,
-    google_secret_manager_secret_version.storage_secret_key
+    google_project_iam_member.storage_admin
   ]
 }
 
 resource "google_cloud_run_service_iam_binding" "dev" {
-  count  = var.configure_development_environment && local.sql_server_exists && var.public_access ? 1 : 0
+  count = var.configure_development_environment && local.sql_server_exists && var.public_access ? 1 : 0
 
   project  = local.project.project_id
   location = local.region
   service  = google_cloud_run_v2_service.dev_app_service[0].name
   role     = "roles/run.invoker"
-  members  = [
+  members = [
     "allUsers"
   ]
 }
@@ -250,10 +239,10 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
   ingress             = "INGRESS_TRAFFIC_ALL"
 
   template {
-    service_account = google_service_account.n8n_sa.email
-    session_affinity = true
+    service_account       = google_service_account.n8n_sa.email
+    session_affinity      = true
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
-    timeout = "300s"
+    timeout               = "300s"
 
     labels = {
       app = var.application_name,
@@ -261,130 +250,131 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
     }
 
     containers {
-      image = "n8nio/n8n:${var.application_version}"
+      image   = "n8nio/n8n:${var.application_version}"
       command = ["/bin/sh"]
-      args = ["-c", "sleep 5; n8n start"]
+      args    = ["-c", "sleep 5; n8n start"]
+      
       ports {
         container_port = 5678
       }
 
       resources {
         startup_cpu_boost = true
-        cpu_idle = false
+        cpu_idle          = false
         limits = {
           cpu    = "1"
           memory = "2Gi"
         }
       }
 
-      # Startup probe - gives n8n time to initialize
+      # Startup probe
       startup_probe {
         http_get {
           path = "/healthz"
           port = 5678
         }
         initial_delay_seconds = 10
-        timeout_seconds = 3
-        period_seconds = 10
-        failure_threshold = 3
+        timeout_seconds       = 3
+        period_seconds        = 10
+        failure_threshold     = 3
       }
 
-      # Liveness probe - checks if n8n is running
+      # Liveness probe
       liveness_probe {
         http_get {
           path = "/healthz"
           port = 5678
         }
         initial_delay_seconds = 30
-        timeout_seconds = 5
-        period_seconds = 30
-        failure_threshold = 3
+        timeout_seconds       = 5
+        period_seconds        = 30
+        failure_threshold     = 3
       }
 
+      # n8n Configuration
       env {
-        name = "N8N_PORT"
+        name  = "N8N_PORT"
         value = "5678"
       }
       env {
-        name = "N8N_PROTOCOL"
+        name  = "N8N_PROTOCOL"
         value = "https"
       }
       env {
-        name = "N8N_DIAGNOSTICS_ENABLED"
+        name  = "N8N_DIAGNOSTICS_ENABLED"
         value = "true"
       }
       env {
-        name = "N8N_METRICS"
-        value = "true"
-      }
-      env {
-        name = "DB_TYPE"
-        value = "postgresdb"
-      }
-      env {
-        name = "DB_POSTGRESDB_DATABASE"
-        value = google_sql_database.qa_db[0].name
-      }
-      env {
-        name = "DB_POSTGRESDB_USER"
-        value = google_sql_user.qa_user[0].name
-      }
-      env {
-        name = "DB_POSTGRESDB_HOST"
-        value = "/cloudsql/${local.project.project_id}:${local.region}:${local.db_instance_name}"
-      }
-      env {
-        name = "DB_POSTGRESDB_PORT"
-        value = "5432"
-      }
-      env {
-        name = "DB_POSTGRESDB_SCHEMA"
-        value = "public"
-      }
-      env {
-        name = "GENERIC_TIMEZONE"
-        value = "UTC"
-      }
-      env {
-        name = "QUEUE_HEALTH_CHECK_ACTIVE"
-        value = "true"
-      }
-      env {
-        name = "N8N_RUNNERS_ENABLED"
-        value = "true"
-      }
-      env {
-        name = "N8N_BLOCK_ENV_ACCESS_IN_NODE"
-        value = "false"
-      }
-      env {
-        name = "N8N_GIT_NODE_DISABLE_BARE_REPOS"
+        name  = "N8N_METRICS"
         value = "true"
       }
 
-      # Storage Configuration
+      # Database Configuration
       env {
-        name = "N8N_AVAILABLE_BINARY_DATA_MODES"
+        name  = "DB_TYPE"
+        value = "postgresdb"
+      }
+      env {
+        name  = "DB_POSTGRESDB_DATABASE"
+        value = google_sql_database.qa_db[0].name
+      }
+      env {
+        name  = "DB_POSTGRESDB_USER"
+        value = google_sql_user.qa_user[0].name
+      }
+      env {
+        name  = "DB_POSTGRESDB_HOST"
+        value = "/cloudsql/${local.project.project_id}:${local.region}:${local.db_instance_name}"
+      }
+      env {
+        name  = "DB_POSTGRESDB_PORT"
+        value = "5432"
+      }
+      env {
+        name  = "DB_POSTGRESDB_SCHEMA"
+        value = "public"
+      }
+      env {
+        name  = "GENERIC_TIMEZONE"
+        value = "UTC"
+      }
+      env {
+        name  = "QUEUE_HEALTH_CHECK_ACTIVE"
+        value = "true"
+      }
+      env {
+        name  = "N8N_RUNNERS_ENABLED"
+        value = "true"
+      }
+      env {
+        name  = "N8N_BLOCK_ENV_ACCESS_IN_NODE"
+        value = "false"
+      }
+      env {
+        name  = "N8N_GIT_NODE_DISABLE_BARE_REPOS"
+        value = "true"
+      }
+
+      # Storage Configuration - Filesystem mode with GCS FUSE
+      env {
+        name  = "N8N_AVAILABLE_BINARY_DATA_MODES"
         value = "filesystem"
       }
       env {
-        name = "N8N_DEFAULT_BINARY_DATA_MODE"
+        name  = "N8N_DEFAULT_BINARY_DATA_MODE"
         value = "filesystem"
       }
       env {
-        name = "N8N_BINARY_DATA_STORAGE_PATH"
+        name  = "N8N_BINARY_DATA_STORAGE_PATH"
         value = "/files"
       }
-      env {
-        name = "N8N_EXTERNAL_STORAGE_S3_BUCKET_NAME"
-        value = google_storage_bucket.qa_storage[0].name
-      }
-      
+
+      # Secrets
       env {
         name = "DB_POSTGRESDB_PASSWORD"
         value_source {
           secret_key_ref {
-            secret = google_secret_manager_secret.qa_db_password[0].secret_id
+            secret  = google_secret_manager_secret.qa_db_password[0].secret_id
             version = "latest"
           }
         }
@@ -394,18 +384,20 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
         name = "N8N_ENCRYPTION_KEY"
         value_source {
           secret_key_ref {
-            secret = google_secret_manager_secret.qa_encryption_key[0].secret_id
+            secret  = google_secret_manager_secret.qa_encryption_key[0].secret_id
             version = "latest"
           }
         }
       }
 
+      # Volume Mounts
       volume_mounts {
-        name = "cloudsql"
+        name       = "cloudsql"
         mount_path = "/cloudsql"
       }
+      
       volume_mounts {
-        name = "gcs-data"
+        name       = "gcs-data"
         mount_path = "/files"
       }
     }
@@ -422,6 +414,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
       max_instance_count = 1
     }
 
+    # Volume Definitions
     volumes {
       name = "cloudsql"
       cloud_sql_instance {
@@ -439,8 +432,8 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
   }
 
   traffic {
-    type   = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
-    tag    = "latest"
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    tag     = "latest"
     percent = 100
   }
 
@@ -451,19 +444,18 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
     google_secret_manager_secret_version.qa_encryption_key,
     google_project_iam_member.cloudsql_client,
     google_storage_bucket.qa_storage,
-    google_secret_manager_secret_version.storage_access_key,
-    google_secret_manager_secret_version.storage_secret_key
+    google_project_iam_member.storage_admin
   ]
 }
 
 resource "google_cloud_run_service_iam_binding" "qa" {
-  count  = var.configure_nonproduction_environment && local.sql_server_exists && var.public_access ? 1 : 0
+  count = var.configure_nonproduction_environment && local.sql_server_exists && var.public_access ? 1 : 0
 
   project  = local.project.project_id
   location = local.region
   service  = google_cloud_run_v2_service.qa_app_service[0].name
   role     = "roles/run.invoker"
-  members  = [
+  members = [
     "allUsers"
   ]
 }
@@ -477,10 +469,10 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
   ingress             = "INGRESS_TRAFFIC_ALL"
 
   template {
-    service_account = google_service_account.n8n_sa.email
-    session_affinity = true
+    service_account       = google_service_account.n8n_sa.email
+    session_affinity      = true
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
-    timeout = "300s"
+    timeout               = "300s"
 
     labels = {
       app = var.application_name,
@@ -488,130 +480,131 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
     }
 
     containers {
-      image = "n8nio/n8n:${var.application_version}"
+      image   = "n8nio/n8n:${var.application_version}"
       command = ["/bin/sh"]
-      args = ["-c", "sleep 5; n8n start"]
+      args    = ["-c", "sleep 5; n8n start"]
+      
       ports {
         container_port = 5678
       }
 
       resources {
         startup_cpu_boost = true
-        cpu_idle = false
+        cpu_idle          = false
         limits = {
           cpu    = "1"
           memory = "2Gi"
         }
       }
 
-      # Startup probe - gives n8n time to initialize (more lenient for production)
+      # Startup probe - more lenient for production
       startup_probe {
         http_get {
           path = "/healthz"
           port = 5678
         }
         initial_delay_seconds = 15
-        timeout_seconds = 5
-        period_seconds = 10
-        failure_threshold = 5
+        timeout_seconds       = 5
+        period_seconds        = 10
+        failure_threshold     = 5
       }
 
-      # Liveness probe - checks if n8n is running (conservative settings for prod)
+      # Liveness probe - conservative settings for prod
       liveness_probe {
         http_get {
           path = "/healthz"
           port = 5678
         }
         initial_delay_seconds = 60
-        timeout_seconds = 10
-        period_seconds = 60
-        failure_threshold = 3
+        timeout_seconds       = 10
+        period_seconds        = 60
+        failure_threshold     = 3
       }
 
+      # n8n Configuration
       env {
-        name = "N8N_PORT"
+        name  = "N8N_PORT"
         value = "5678"
       }
       env {
-        name = "N8N_PROTOCOL"
+        name  = "N8N_PROTOCOL"
         value = "https"
       }
       env {
-        name = "N8N_DIAGNOSTICS_ENABLED"
+        name  = "N8N_DIAGNOSTICS_ENABLED"
         value = "true"
       }
       env {
-        name = "N8N_METRICS"
+        name  = "N8N_METRICS"
         value = "true"
       }
+
+      # Database Configuration
       env {
-        name = "DB_TYPE"
+        name  = "DB_TYPE"
         value = "postgresdb"
       }
       env {
-        name = "DB_POSTGRESDB_DATABASE"
+        name  = "DB_POSTGRESDB_DATABASE"
         value = google_sql_database.prod_db[0].name
       }
       env {
-        name = "DB_POSTGRESDB_USER"
+        name  = "DB_POSTGRESDB_USER"
         value = google_sql_user.prod_user[0].name
       }
       env {
-        name = "DB_POSTGRESDB_HOST"
+        name  = "DB_POSTGRESDB_HOST"
         value = "/cloudsql/${local.project.project_id}:${local.region}:${local.db_instance_name}"
       }
       env {
-        name = "DB_POSTGRESDB_PORT"
+        name  = "DB_POSTGRESDB_PORT"
         value = "5432"
       }
       env {
-        name = "DB_POSTGRESDB_SCHEMA"
+        name  = "DB_POSTGRESDB_SCHEMA"
         value = "public"
       }
       env {
-        name = "GENERIC_TIMEZONE"
+        name  = "GENERIC_TIMEZONE"
         value = "UTC"
       }
       env {
-        name = "QUEUE_HEALTH_CHECK_ACTIVE"
+        name  = "QUEUE_HEALTH_CHECK_ACTIVE"
         value = "true"
       }
       env {
-        name = "N8N_RUNNERS_ENABLED"
+        name  = "N8N_RUNNERS_ENABLED"
         value = "true"
       }
       env {
-        name = "N8N_BLOCK_ENV_ACCESS_IN_NODE"
+        name  = "N8N_BLOCK_ENV_ACCESS_IN_NODE"
         value = "false"
       }
       env {
-        name = "N8N_GIT_NODE_DISABLE_BARE_REPOS"
+        name  = "N8N_GIT_NODE_DISABLE_BARE_REPOS"
         value = "true"
       }
 
-      # Storage Configuration
+      # Storage Configuration - Filesystem mode with GCS FUSE
       env {
-        name = "N8N_AVAILABLE_BINARY_DATA_MODES"
+        name  = "N8N_AVAILABLE_BINARY_DATA_MODES"
         value = "filesystem"
       }
       env {
-        name = "N8N_DEFAULT_BINARY_DATA_MODE"
+        name  = "N8N_DEFAULT_BINARY_DATA_MODE"
         value = "filesystem"
       }
       env {
-        name = "N8N_BINARY_DATA_STORAGE_PATH"
+        name  = "N8N_BINARY_DATA_STORAGE_PATH"
         value = "/files"
       }
-      env {
-        name = "N8N_EXTERNAL_STORAGE_S3_BUCKET_NAME"
-        value = google_storage_bucket.prod_storage[0].name
-      }
 
+      # Secrets
       env {
         name = "DB_POSTGRESDB_PASSWORD"
         value_source {
           secret_key_ref {
-            secret = google_secret_manager_secret.prod_db_password[0].secret_id
+            secret  = google_secret_manager_secret.prod_db_password[0].secret_id
             version = "latest"
           }
         }
@@ -621,18 +614,20 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
         name = "N8N_ENCRYPTION_KEY"
         value_source {
           secret_key_ref {
-            secret = google_secret_manager_secret.prod_encryption_key[0].secret_id
+            secret  = google_secret_manager_secret.prod_encryption_key[0].secret_id
             version = "latest"
           }
         }
       }
 
+      # Volume Mounts
       volume_mounts {
-        name = "cloudsql"
+        name       = "cloudsql"
         mount_path = "/cloudsql"
       }
+      
       volume_mounts {
-        name = "gcs-data"
+        name       = "gcs-data"
         mount_path = "/files"
       }
     }
@@ -649,6 +644,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
       max_instance_count = 1
     }
 
+    # Volume Definitions
     volumes {
       name = "cloudsql"
       cloud_sql_instance {
@@ -666,8 +662,8 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
   }
 
   traffic {
-    type   = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
-    tag    = "latest"
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    tag     = "latest"
     percent = 100
   }
 
@@ -678,19 +674,25 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
     google_secret_manager_secret_version.prod_encryption_key,
     google_project_iam_member.cloudsql_client,
     google_storage_bucket.prod_storage,
-    google_secret_manager_secret_version.storage_access_key,
-    google_secret_manager_secret_version.storage_secret_key
+    google_project_iam_member.storage_admin
   ]
 }
 
 resource "google_cloud_run_service_iam_binding" "prod" {
-  count  = var.configure_production_environment && local.sql_server_exists && var.public_access ? 1 : 0
+  count = var.configure_production_environment && local.sql_server_exists && var.public_access ? 1 : 0
 
   project  = local.project.project_id
   location = local.region
   service  = google_cloud_run_v2_service.prod_app_service[0].name
   role     = "roles/run.invoker"
-  members  = [
+  members = [
     "allUsers"
   ]
+}
+
+# IAM binding for GCS bucket access
+resource "google_project_iam_member" "storage_admin" {
+  project = local.project.project_id
+  role    = "roles/storage.objectAdmin"
+  member  = "serviceAccount:${google_service_account.n8n_sa.email}"
 }
