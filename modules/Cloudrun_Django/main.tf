@@ -14,7 +14,13 @@
 
 locals {
   random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
-  project_id = var.project_id
+
+  project = data.google_project.existing_project
+  project_id = local.project.project_id
+
+  region = var.region
+
+  project_number = try(data.google_project.existing_project.number, "")
 }
 
 resource "random_id" "default" {
@@ -22,6 +28,6 @@ resource "random_id" "default" {
   byte_length = 2
 }
 
-data "google_project" "project" {
-  project_id = var.project_id
+data "google_project" "existing_project" {
+  project_id = trimspace(var.existing_project_id)
 }

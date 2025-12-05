@@ -12,32 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resource "google_sql_database_instance" "instance" {
-  name             = "${var.application_name}-db-${local.random_id}"
-  database_version = "POSTGRES_14"
-  region           = var.region
-  project          = local.project_id
+#########################################################################
+# External data source to check for existing SQL instance
+#########################################################################
 
-  settings {
-    tier = var.db_tier
-  }
-  deletion_protection = false
+data "external" "sql_instance_info" {
+  program = ["bash", "${path.module}/scripts/app/get-sqlserver-info.sh", local.project.project_id, "POSTGRES", var.resource_creator_identity]
 }
 
-resource "google_sql_database" "database" {
-  name     = "${var.application_name}-db"
-  instance = google_sql_database_instance.instance.name
-  project  = local.project_id
-}
+#########################################################################
+# Local variables for SQL infrastructure
+#########################################################################
 
-resource "random_password" "db_password" {
-  length  = 30
-  special = false
-}
-
-resource "google_sql_user" "user" {
-  name     = "${var.application_name}-user"
-  instance = google_sql_database_instance.instance.name
-  password = random_password.db_password.result
-  project  = local.project_id
+locals {
+  sql_server_exists = try(data.external.sql_instance_info.result["sql_server_exists"], "")
+  db_instance_name = try(data.external.sql_instance_info.result["instance_name"], "")
+  db_instance_region = try(data.external.sql_instance_info.result["instance_region"], "")
+  database_version = try(data.external.sql_instance_info.result["database_version"], "")
+  db_internal_ip = try(data.external.sql_instance_info.result["instance_ip"], "")
+  db_root_password = try(data.external.sql_instance_info.result["root_password"], "")
 }

@@ -12,47 +12,160 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resource "random_password" "secret_key" {
+resource "random_password" "django_secret_key" {
   length  = 50
   special = false
 }
 
-resource "random_password" "superuser_password" {
-  length  = 30
+resource "random_password" "dev_superuser_password" {
+  count   = var.configure_development_environment ? 1 : 0
+  length  = 16
   special = false
 }
 
-locals {
-  superuser_password_value = var.django_superuser_password != null ? var.django_superuser_password : random_password.superuser_password.result
+resource "random_password" "qa_superuser_password" {
+  count   = var.configure_nonproduction_environment ? 1 : 0
+  length  = 16
+  special = false
 }
 
-resource "google_secret_manager_secret" "application_settings" {
-  secret_id = "${var.application_name}-settings-${local.random_id}"
-  project   = local.project_id
+resource "random_password" "prod_superuser_password" {
+  count   = var.configure_production_environment ? 1 : 0
+  length  = 16
+  special = false
+}
+
+# --- Dev Secrets ---
+
+resource "google_secret_manager_secret" "dev_application_settings" {
+  count     = var.configure_development_environment ? 1 : 0
+  secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-application-settings"
   replication {
-    auto {}
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
   }
+  project = local.project_id
 }
 
-resource "google_secret_manager_secret_version" "application_settings" {
-  secret      = google_secret_manager_secret.application_settings.id
-  secret_data = <<EOF
-DATABASE_URL="postgres://${google_sql_user.user.name}:${google_sql_user.user.password}@//cloudsql/${local.project_id}:${var.region}:${google_sql_database_instance.instance.name}/${google_sql_database.database.name}"
-GS_BUCKET_NAME="${google_storage_bucket.media.name}"
-SECRET_KEY="${random_password.secret_key.result}"
-DEBUG="True"
-EOF
+resource "google_secret_manager_secret_version" "dev_application_settings" {
+  count       = var.configure_development_environment ? 1 : 0
+  secret      = google_secret_manager_secret.dev_application_settings[0].id
+  secret_data = <<EOT
+DEBUG=True
+SECRET_KEY="${random_password.django_secret_key.result}"
+GS_BUCKET_NAME="${local.project_id}"
+DATABASE_URL="postgres://${google_sql_user.dev_user[0].name}:${google_sql_user.dev_user[0].password}@/${google_sql_database.dev_db[0].name}?host=/cloudsql/${local.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+EOT
 }
 
-resource "google_secret_manager_secret" "superuser_password" {
-  secret_id = "${var.application_name}-superuser-password-${local.random_id}"
-  project   = local.project_id
+resource "google_secret_manager_secret" "dev_superuser_password" {
+  count     = var.configure_development_environment ? 1 : 0
+  secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-superuser-password"
   replication {
-    auto {}
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
   }
+  project = local.project_id
 }
 
-resource "google_secret_manager_secret_version" "superuser_password" {
-  secret      = google_secret_manager_secret.superuser_password.id
-  secret_data = local.superuser_password_value
+resource "google_secret_manager_secret_version" "dev_superuser_password" {
+  count       = var.configure_development_environment ? 1 : 0
+  secret      = google_secret_manager_secret.dev_superuser_password[0].id
+  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.dev_superuser_password[0].result
+}
+
+# --- QA Secrets ---
+
+resource "google_secret_manager_secret" "qa_application_settings" {
+  count     = var.configure_nonproduction_environment ? 1 : 0
+  secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-application-settings"
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+  project = local.project_id
+}
+
+resource "google_secret_manager_secret_version" "qa_application_settings" {
+  count       = var.configure_nonproduction_environment ? 1 : 0
+  secret      = google_secret_manager_secret.qa_application_settings[0].id
+  secret_data = <<EOT
+DEBUG=False
+SECRET_KEY="${random_password.django_secret_key.result}"
+GS_BUCKET_NAME="${local.project_id}"
+DATABASE_URL="postgres://${google_sql_user.qa_user[0].name}:${google_sql_user.qa_user[0].password}@/${google_sql_database.qa_db[0].name}?host=/cloudsql/${local.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+EOT
+}
+
+resource "google_secret_manager_secret" "qa_superuser_password" {
+  count     = var.configure_nonproduction_environment ? 1 : 0
+  secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-superuser-password"
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+  project = local.project_id
+}
+
+resource "google_secret_manager_secret_version" "qa_superuser_password" {
+  count       = var.configure_nonproduction_environment ? 1 : 0
+  secret      = google_secret_manager_secret.qa_superuser_password[0].id
+  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.qa_superuser_password[0].result
+}
+
+# --- Prod Secrets ---
+
+resource "google_secret_manager_secret" "prod_application_settings" {
+  count     = var.configure_production_environment ? 1 : 0
+  secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-application-settings"
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+  project = local.project_id
+}
+
+resource "google_secret_manager_secret_version" "prod_application_settings" {
+  count       = var.configure_production_environment ? 1 : 0
+  secret      = google_secret_manager_secret.prod_application_settings[0].id
+  secret_data = <<EOT
+DEBUG=False
+SECRET_KEY="${random_password.django_secret_key.result}"
+GS_BUCKET_NAME="${local.project_id}"
+DATABASE_URL="postgres://${google_sql_user.prod_user[0].name}:${google_sql_user.prod_user[0].password}@/${google_sql_database.prod_db[0].name}?host=/cloudsql/${local.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+EOT
+}
+
+resource "google_secret_manager_secret" "prod_superuser_password" {
+  count     = var.configure_production_environment ? 1 : 0
+  secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-superuser-password"
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+  project = local.project_id
+}
+
+resource "google_secret_manager_secret_version" "prod_superuser_password" {
+  count       = var.configure_production_environment ? 1 : 0
+  secret      = google_secret_manager_secret.prod_superuser_password[0].id
+  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.prod_superuser_password[0].result
 }
