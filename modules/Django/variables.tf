@@ -17,7 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys a Django application on Google Cloud Run."
+  default     = "This module deploys a Django application on Google Cloud Run. Django is a high-level Python web framework that encourages rapid development and clean, pragmatic design."
 }
 
 variable "module_dependency" {
@@ -71,7 +71,7 @@ variable "resource_creator_identity" {
 variable "trusted_users" {
   description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
   type        = list(string)
-  default     = ["student-01-db9ef2e7104b@qwiklabs.net"]
+  default     = [""]
 }
 
 # GROUP 2: Application Project
@@ -79,13 +79,12 @@ variable "trusted_users" {
 variable "existing_project_id" {
   description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
-  default     = "qwiklabs-gcp-02-539188a9446e"
 }
 
 variable "region" {
   description = "The region to deploy to."
   type        = string
-  default     = "us-west1"
+  default     = "us-central1"
 }
 
 variable "network_name" {
@@ -105,7 +104,7 @@ variable "application_name" {
 variable "application_database_user" {
   description = "Specify application database user name. {{UIMeta group=0 order=502 updatesafe}}"
   type        = string
-  default     = "django-user"
+  default     = "django"
 }
 
 variable "application_database_name" {
@@ -125,7 +124,6 @@ variable "application_version" {
 variable "tenant_deployment_id" {
   description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=3 order=701 updatesafe}}"
   type        = string
-  default     = "demo"
 }
 
 variable "configure_development_environment" {
