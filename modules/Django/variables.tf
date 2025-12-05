@@ -146,25 +146,25 @@ variable "configure_production_environment" {
 # Django Specific Variables
 
 variable "db_tier" {
-  description = "The machine type to use for the database. {{UIMeta group=3 order=801 updatesafe }}"
+  description = "The machine type to use for the database. {{UIMeta group=0 order=801 updatesafe }}"
   type        = string
   default     = "db-f1-micro"
 }
 
 variable "django_superuser_email" {
-  description = "Email for the Django superuser. {{UIMeta group=3 order=802 updatesafe }}"
+  description = "Email for the Django superuser. {{UIMeta group=0 order=802 updatesafe }}"
   type        = string
   default     = "admin@example.com"
 }
 
 variable "django_superuser_username" {
-  description = "Username for the Django superuser. {{UIMeta group=3 order=803 updatesafe }}"
+  description = "Username for the Django superuser. {{UIMeta group=0 order=803 updatesafe }}"
   type        = string
   default     = "admin"
 }
 
 variable "django_superuser_password" {
-  description = "Password for the Django superuser. If not provided, one will be generated. {{UIMeta group=3 order=804 updatesafe }}"
+  description = "Password for the Django superuser. If not provided, one will be generated. {{UIMeta group=0 order=804 updatesafe }}"
   type        = string
   sensitive   = true
   default     = null
