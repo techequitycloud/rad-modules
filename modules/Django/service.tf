@@ -82,7 +82,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
 }
 
 resource "google_cloud_run_service_iam_binding" "dev" {
-  count    = var.configure_development_environment && local.sql_server_exists && var.public_access ? 1 : 0
+  count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
   location = var.region
   service  = google_cloud_run_v2_service.dev_app_service[0].name
   role     = "roles/run.invoker"
@@ -181,7 +181,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
 }
 
 resource "google_cloud_run_service_iam_binding" "qa" {
-  count    = var.configure_nonproduction_environment && local.sql_server_exists && var.public_access ? 1 : 0
+  count    = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
   location = var.region
   service  = google_cloud_run_v2_service.qa_app_service[0].name
   role     = "roles/run.invoker"
@@ -280,7 +280,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
 }
 
 resource "google_cloud_run_service_iam_binding" "prod" {
-  count    = var.configure_production_environment && local.sql_server_exists && var.public_access ? 1 : 0
+  count    = var.configure_production_environment && local.sql_server_exists ? 1 : 0
   location = var.region
   service  = google_cloud_run_v2_service.prod_app_service[0].name
   role     = "roles/run.invoker"
