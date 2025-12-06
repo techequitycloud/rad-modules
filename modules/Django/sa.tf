@@ -110,19 +110,19 @@ output "existing_service_accounts" {
 }
 
 resource "google_project_iam_member" "cloudsql_client" {
-  project = local.project_id
+  project = local.project.project_id
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${local.cloud_run_sa_email}"
 }
 
 resource "google_project_iam_member" "secret_accessor" {
-  project = local.project_id
+  project = local.project.project_id
   role    = "roles/secretmanager.secretAccessor"
   member  = "serviceAccount:${local.cloud_run_sa_email}"
 }
 
 resource "google_project_iam_member" "storage_admin" {
-  project = local.project_id
+  project = local.project.project_id
   role    = "roles/storage.admin"
   member  = "serviceAccount:${local.cloud_run_sa_email}"
 }

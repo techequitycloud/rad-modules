@@ -17,5 +17,5 @@ resource "google_artifact_registry_repository" "repo" {
   repository_id = "${var.application_name}-repo-${local.random_id}"
   description   = "Docker repository for ${var.application_name}"
   format        = "DOCKER"
-  project       = local.project_id
+  project       = local.project.project_id
 }

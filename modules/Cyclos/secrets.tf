@@ -36,6 +36,10 @@ resource "google_secret_manager_secret" "dev_db_password" {
   replication {
     auto {}  
   }
+
+  lifecycle {
+    ignore_changes = [labels]
+  }
 }
 
 # Resource for adding a version of the secret with the actual database password
@@ -43,34 +47,28 @@ resource "google_secret_manager_secret_version" "dev_db_password" {
   count       = local.sql_server_exists ? 1 : 0 
   secret      = google_secret_manager_secret.dev_db_password[0].id
   secret_data = random_password.additional_user_password.result       
-
-  depends_on = [
-    google_secret_manager_secret.dev_db_password,
-    random_password.additional_user_password,
-  ]
 }
 
 # Resource to introduce a delay after creating a secret version
 resource "time_sleep" "dev_db_password" {
+  count = local.sql_server_exists ? 1 : 0
+
   depends_on = [
     google_secret_manager_secret_version.dev_db_password
   ]
 
-  create_duration = "30s"  
+  create_duration = "10s"  
 }
 
 # Data source for accessing the latest version of the secret when it's ready
 data "google_secret_manager_secret_version" "dev_db_password" {
   count    = local.sql_server_exists ? 1 : 0  
   project  = local.project.project_id
-  provider = google  
 
-  secret   = google_secret_manager_secret.dev_db_password[0].id
-  version  = "latest"  
+  secret   = google_secret_manager_secret.dev_db_password[0].secret_id
 
   depends_on = [
-    time_sleep.dev_db_password,
-    google_secret_manager_secret.dev_db_password,
+    time_sleep.dev_db_password
   ]
 }
 
@@ -87,6 +85,10 @@ resource "google_secret_manager_secret" "qa_db_password" {
   replication {
     auto {}  
   }
+
+  lifecycle {
+    ignore_changes = [labels]
+  }
 }
 
 # Resource for adding a version of the secret with the actual database password
@@ -94,34 +96,28 @@ resource "google_secret_manager_secret_version" "qa_db_password" {
   count       = local.sql_server_exists ? 1 : 0 
   secret      = google_secret_manager_secret.qa_db_password[0].id
   secret_data = random_password.additional_user_password.result     
-
-  depends_on = [
-    google_secret_manager_secret.qa_db_password,
-    random_password.additional_user_password,
-  ]
 }
 
 # Resource to introduce a delay after creating a secret version
 resource "time_sleep" "qa_db_password" {
+  count = local.sql_server_exists ? 1 : 0
+
   depends_on = [
     google_secret_manager_secret_version.qa_db_password
   ]
 
-  create_duration = "30s"  
+  create_duration = "10s"  
 }
 
 # Data source for accessing the latest version of the secret when it's ready
 data "google_secret_manager_secret_version" "qa_db_password" {
   count    = local.sql_server_exists ? 1 : 0  
   project  = local.project.project_id
-  provider = google  
 
-  secret   = google_secret_manager_secret.qa_db_password[0].id
-  version  = "latest"  
+  secret   = google_secret_manager_secret.qa_db_password[0].secret_id
 
   depends_on = [
-    time_sleep.qa_db_password,
-    google_secret_manager_secret.qa_db_password,
+    time_sleep.qa_db_password
   ]
 }
 
@@ -138,6 +134,10 @@ resource "google_secret_manager_secret" "prod_db_password" {
   replication {
     auto {}  
   }
+
+  lifecycle {
+    ignore_changes = [labels]
+  }
 }
 
 # Resource for adding a version of the secret with the actual database password
@@ -145,33 +145,27 @@ resource "google_secret_manager_secret_version" "prod_db_password" {
   count       = local.sql_server_exists ? 1 : 0 
   secret      = google_secret_manager_secret.prod_db_password[0].id
   secret_data = random_password.additional_user_password.result       
-
-  depends_on = [
-    google_secret_manager_secret.prod_db_password,
-    random_password.additional_user_password,
-  ]
 }
 
 # Resource to introduce a delay after creating a secret version
 resource "time_sleep" "prod_db_password" {
+  count = local.sql_server_exists ? 1 : 0
+
   depends_on = [
     google_secret_manager_secret_version.prod_db_password
   ]
 
-  create_duration = "30s"  
+  create_duration = "10s"  
 }
 
 # Data source for accessing the latest version of the secret when it's ready
 data "google_secret_manager_secret_version" "prod_db_password" {
   count    = local.sql_server_exists ? 1 : 0  
   project  = local.project.project_id
-  provider = google  
 
-  secret   = google_secret_manager_secret.prod_db_password[0].id
-  version  = "latest"  
+  secret   = google_secret_manager_secret.prod_db_password[0].secret_id
 
   depends_on = [
-    time_sleep.prod_db_password,
-    google_secret_manager_secret.prod_db_password,
+    time_sleep.prod_db_password
   ]
 }

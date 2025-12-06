@@ -15,17 +15,25 @@
 locals {
   random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
 
-  project = data.google_project.existing_project
-  project_id = local.project.project_id
+  project = ((length(data.google_project.existing_project) > 0 
+        ? data.google_project.existing_project  
+        : null) 
+  ) 
 
-  region = var.region
-
+  region  = tolist(local.regions_list)[0]
+  regions = tolist(local.regions_list)
   project_number = try(data.google_project.existing_project.number, "")
 }
 
+data "google_compute_zones" "available_zones" {
+  project = local.project.project_id
+  region  = local.region
+  status  = "UP"
+}
+
 resource "random_id" "default" {
-  count       = var.deployment_id == null ? 1 : 0
-  byte_length = 2
+  count       = var.deployment_id == null ? 1 : 0 
+  byte_length = 2 
 }
 
 data "google_project" "existing_project" {

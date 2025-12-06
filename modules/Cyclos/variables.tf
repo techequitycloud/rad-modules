@@ -65,13 +65,13 @@ variable "deployment_id" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+  default     = ""
 }
 
 variable "trusted_users" {
   description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
   type        = list(string)
-  default     = []
+  default     = ["student-01-3b4ebd2819fc@qwiklabs.net"]
 }
 
 # GROUP 2: Application Project
@@ -79,6 +79,7 @@ variable "trusted_users" {
 variable "existing_project_id" {
   description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
+  default     = "qwiklabs-gcp-03-7d573707c8ae"
 }
 
 # GROUP 3: Network
@@ -126,6 +127,7 @@ variable "application_version" {
 variable "application_download_fileid" {
   description = "Enter the URL to download the application. {{UIMeta group=0 order=515 updatesafe }}"
   type        = string
+  default     = ""
 }
 
 # GROUP 6: CICD
@@ -172,12 +174,13 @@ variable "application_git_organization" {
 variable "tenant_deployment_id" {
   description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=3 order=701 updatesafe}}"
   type        = string
+  default     = "demo"
 }
 
 variable "configure_development_environment" {
   description = "Select to configure development environment. Code is committed to the dev branch in the github repository. {{UIMeta group=3 order=703 updatesafe }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "configure_nonproduction_environment" {
@@ -215,7 +218,7 @@ variable "application_backup_schedule" {
 variable "application_backup_fileid" {
   description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup files during deployment. {{UIMeta group=0 order=808 updatesafe}}"
   type        = string
-  default     = "1NWsxy_PHGKn9LJnXaQh5FFqp_WKjYEsJ"
+  default     = ""
 }
 
 variable "configure_application_security" {

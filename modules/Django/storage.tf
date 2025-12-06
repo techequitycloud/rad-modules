@@ -1,4 +1,4 @@
-# Copyright 2024 Tech Equity Ltd
+# Copyright 2024 (c) Tech Equity Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,15 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resource "google_storage_bucket" "media" {
-  name          = "${local.project_id}-${var.application_name}-media-${local.random_id}"
-  location      = var.region
-  force_destroy = true
-  project       = local.project_id
+#########################################################################
+# Cloud Storage Buckets for N8N Binary Data
+#########################################################################
+
+resource "google_storage_bucket" "dev_storage" {
+  count                       = var.configure_development_environment ? 1 : 0
+  name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev"
+  location                    = local.region
+  force_destroy               = false
+  uniform_bucket_level_access = true
+  project                     = local.project.project_id
 }
 
-resource "google_storage_bucket_iam_member" "sa_admin" {
-  bucket = google_storage_bucket.media.name
-  role   = "roles/storage.admin"
-  member = "serviceAccount:${local.cloud_run_sa_email}"
+resource "google_storage_bucket" "qa_storage" {
+  count                       = var.configure_nonproduction_environment ? 1 : 0
+  name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa"
+  location                    = local.region
+  force_destroy               = false
+  uniform_bucket_level_access = true
+  project                     = local.project.project_id
+}
+
+resource "google_storage_bucket" "prod_storage" {
+  count                       = var.configure_production_environment ? 1 : 0
+  name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod"
+  location                    = local.region
+  force_destroy               = false
+  uniform_bucket_level_access = true
+  project                     = local.project.project_id
 }

@@ -29,7 +29,7 @@ resource "null_resource" "build_and_push_application_image" {
     # However, to strictly follow the "omit Dockerfile" part of tutorial I should delete it, but I added it for robustness.
     # Let's use the Dockerfile as it is more standard for these modules.
     command = <<EOT
-      gcloud builds submit --tag ${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version} . --project ${local.project_id}
+      gcloud builds submit --tag ${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version} . --project ${local.project.project_id}
     EOT
   }
 

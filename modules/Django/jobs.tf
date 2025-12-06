@@ -18,14 +18,14 @@ resource "google_cloud_run_v2_job" "dev_migrate" {
   count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
   name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-migrate"
   location = var.region
-  project  = local.project_id
+  project  = local.project.project_id
   deletion_protection = false
 
   template {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
         command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
 
         env {
@@ -65,14 +65,14 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
   count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
   name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-createuser"
   location = var.region
-  project  = local.project_id
+  project  = local.project.project_id
   deletion_protection = false
 
   template {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
 
         env {
             name = "DJANGO_SUPERUSER_PASSWORD"
@@ -134,7 +134,7 @@ resource "null_resource" "dev_execute_migrate" {
   }
 
   provisioner "local-exec" {
-      command = "gcloud run jobs execute ${google_cloud_run_v2_job.dev_migrate[0].name} --region ${var.region} --project ${local.project_id} --wait"
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.dev_migrate[0].name} --region ${var.region} --project ${local.project.project_id} --wait"
   }
   depends_on = [
       google_cloud_run_v2_job.dev_migrate,
@@ -152,7 +152,7 @@ resource "null_resource" "dev_execute_createuser" {
 
   provisioner "local-exec" {
       # Ignore failure if user already exists
-      command = "gcloud run jobs execute ${google_cloud_run_v2_job.dev_createuser[0].name} --region ${var.region} --project ${local.project_id} --wait || true"
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.dev_createuser[0].name} --region ${var.region} --project ${local.project.project_id} --wait || true"
   }
   depends_on = [
       null_resource.dev_execute_migrate, # Run after migrate
@@ -166,14 +166,14 @@ resource "google_cloud_run_v2_job" "qa_migrate" {
   count    = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
   name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-migrate"
   location = var.region
-  project  = local.project_id
+  project  = local.project.project_id
   deletion_protection = false
 
   template {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
         command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
 
         env {
@@ -212,14 +212,14 @@ resource "google_cloud_run_v2_job" "qa_createuser" {
   count    = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
   name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-createuser"
   location = var.region
-  project  = local.project_id
+  project  = local.project.project_id
   deletion_protection = false
 
   template {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
 
         env {
             name = "DJANGO_SUPERUSER_PASSWORD"
@@ -280,7 +280,7 @@ resource "null_resource" "qa_execute_migrate" {
   }
 
   provisioner "local-exec" {
-      command = "gcloud run jobs execute ${google_cloud_run_v2_job.qa_migrate[0].name} --region ${var.region} --project ${local.project_id} --wait"
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.qa_migrate[0].name} --region ${var.region} --project ${local.project.project_id} --wait"
   }
   depends_on = [
       google_cloud_run_v2_job.qa_migrate,
@@ -298,7 +298,7 @@ resource "null_resource" "qa_execute_createuser" {
 
   provisioner "local-exec" {
       # Ignore failure if user already exists
-      command = "gcloud run jobs execute ${google_cloud_run_v2_job.qa_createuser[0].name} --region ${var.region} --project ${local.project_id} --wait || true"
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.qa_createuser[0].name} --region ${var.region} --project ${local.project.project_id} --wait || true"
   }
   depends_on = [
       null_resource.qa_execute_migrate, # Run after migrate
@@ -312,14 +312,14 @@ resource "google_cloud_run_v2_job" "prod_migrate" {
   count    = var.configure_production_environment && local.sql_server_exists ? 1 : 0
   name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-migrate"
   location = var.region
-  project  = local.project_id
+  project  = local.project.project_id
   deletion_protection = false
 
   template {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
         command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
 
         env {
@@ -358,14 +358,14 @@ resource "google_cloud_run_v2_job" "prod_createuser" {
   count    = var.configure_production_environment && local.sql_server_exists ? 1 : 0
   name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-createuser"
   location = var.region
-  project  = local.project_id
+  project  = local.project.project_id
   deletion_protection = false
 
   template {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${var.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
 
         env {
             name = "DJANGO_SUPERUSER_PASSWORD"
@@ -426,7 +426,7 @@ resource "null_resource" "prod_execute_migrate" {
   }
 
   provisioner "local-exec" {
-      command = "gcloud run jobs execute ${google_cloud_run_v2_job.prod_migrate[0].name} --region ${var.region} --project ${local.project_id} --wait"
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.prod_migrate[0].name} --region ${var.region} --project ${local.project.project_id} --wait"
   }
   depends_on = [
       google_cloud_run_v2_job.prod_migrate,
@@ -444,7 +444,7 @@ resource "null_resource" "prod_execute_createuser" {
 
   provisioner "local-exec" {
       # Ignore failure if user already exists
-      command = "gcloud run jobs execute ${google_cloud_run_v2_job.prod_createuser[0].name} --region ${var.region} --project ${local.project_id} --wait || true"
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.prod_createuser[0].name} --region ${var.region} --project ${local.project.project_id} --wait || true"
   }
   depends_on = [
       null_resource.prod_execute_migrate, # Run after migrate
