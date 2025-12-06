@@ -190,3 +190,26 @@ resource "google_secret_manager_secret_version" "storage_secret_key" {
   secret      = google_secret_manager_secret.storage_secret_key.id
   secret_data = google_storage_hmac_key.n8n_key.secret
 }
+
+# --- Additional Data Sources for Scripts (DB Passwords) ---
+
+data "google_secret_manager_secret_version" "dev_db_password" {
+  count   = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+  secret  = google_secret_manager_secret.dev_db_password[0].id
+  version = "latest"
+  depends_on = [google_secret_manager_secret_version.dev_db_password]
+}
+
+data "google_secret_manager_secret_version" "qa_db_password" {
+  count   = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
+  secret  = google_secret_manager_secret.qa_db_password[0].id
+  version = "latest"
+  depends_on = [google_secret_manager_secret_version.qa_db_password]
+}
+
+data "google_secret_manager_secret_version" "prod_db_password" {
+  count   = var.configure_production_environment && local.sql_server_exists ? 1 : 0
+  secret  = google_secret_manager_secret.prod_db_password[0].id
+  version = "latest"
+  depends_on = [google_secret_manager_secret_version.prod_db_password]
+}

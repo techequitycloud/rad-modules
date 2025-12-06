@@ -1,0 +1,18 @@
+#!/bin/bash
+read pid cmd state ppid pgrp session tty_nr tpgid rest < /proc/self/stat
+trap "kill -TERM -$pgrp; exit" EXIT TERM KILL SIGKILL SIGTERM SIGQUIT
+export APP_URL=https://$(echo "$APP_URL" | tr " " "\n"  | sed 's/^"//; s/"$//; s~^https\?://~~; s/:[0-9]\+$//')
+if grep -q "^export APP_URL=" /root/env.sh >/dev/null 2>&1; then
+    echo "Updating APP_URL variable in /root/env.sh to $APP_URL"
+    sed -i "s/^export APP_URL=.*/export APP_URL=$APP_URL/" /root/env.sh
+else
+    echo "Adding APP_URL variable $APP_URL in /root/env.sh"
+    echo "export APP_URL=$APP_URL" >> /root/env.sh
+fi
+echo "Setting max_input_vars variable in /etc/php/8.3/apache2/php.ini to 5000"
+sed -i "s/.*max_input_vars.*/max_input_vars = 5000/" /etc/php/8.3/apache2/php.ini
+echo | cat /root/env.sh
+/usr/sbin/cron
+source /etc/apache2/envvars
+tail -F /var/log/apache2/* 2>/dev/null &
+exec apache2 -D FOREGROUND

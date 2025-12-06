@@ -63,3 +63,32 @@ resource "google_storage_bucket_iam_member" "prod_storage_admin" {
   role   = "roles/storage.admin"
   member = "serviceAccount:${local.cloud_run_sa_email}"
 }
+
+# --- Backup Buckets ---
+
+resource "google_storage_bucket" "dev_backup_storage" {
+  count                       = var.configure_development_environment ? 1 : 0
+  name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-backups"
+  location                    = local.region
+  force_destroy               = false
+  uniform_bucket_level_access = false
+  project                     = local.project.project_id
+}
+
+resource "google_storage_bucket" "qa_backup_storage" {
+  count                       = var.configure_nonproduction_environment ? 1 : 0
+  name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-backups"
+  location                    = local.region
+  force_destroy               = false
+  uniform_bucket_level_access = false
+  project                     = local.project.project_id
+}
+
+resource "google_storage_bucket" "prod_backup_storage" {
+  count                       = var.configure_production_environment ? 1 : 0
+  name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-backups"
+  location                    = local.region
+  force_destroy               = false
+  uniform_bucket_level_access = false
+  project                     = local.project.project_id
+}
