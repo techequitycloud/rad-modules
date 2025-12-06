@@ -1,0 +1,49 @@
+# Copyright 2024 (c) Tech Equity Ltd
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#########################################################################
+# Get Server Instance Info
+#########################################################################
+
+data "external" "nfs_instance_info" {
+  program = ["bash", "${path.module}/scripts/app/get-nfsserver-info.sh", local.project.project_id, local.region, var.resource_creator_identity]
+}
+
+#########################################################################
+# Local variables for NFS infrastructure existence checks
+#########################################################################
+
+locals {
+  nfs_instance_name = try(data.external.nfs_instance_info.result["gce_instance_name"], "")
+  nfs_internal_ip = try(data.external.nfs_instance_info.result["gce_instance_internalIP"], "")
+  nfs_instance_zone = try(data.external.nfs_instance_info.result["gce_instance_zone"], "")
+
+  nfs_server_exists = (
+    local.nfs_instance_name != "" &&
+    local.nfs_internal_ip != "" &&
+    local.nfs_instance_zone != ""
+  )
+}
+
+########################################################################################
+# Local variables output
+########################################################################################
+
+output "nfs_instance_info" {
+  value = local.nfs_server_exists ? {
+    instance_name = local.nfs_instance_name
+    internal_ip   = local.nfs_internal_ip
+    instance_zone = local.nfs_instance_zone
+  } : null
+}

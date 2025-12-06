@@ -169,3 +169,89 @@ resource "google_secret_manager_secret_version" "prod_superuser_password" {
   secret      = google_secret_manager_secret.prod_superuser_password[0].id
   secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.prod_superuser_password[0].result
 }
+
+# --- Additional Database Password Secrets (Required for Scripts) ---
+
+resource "google_secret_manager_secret" "dev_db_password" {
+  count     = var.configure_development_environment ? 1 : 0
+  secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-db-password"
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+  project = local.project.project_id
+}
+
+resource "google_secret_manager_secret_version" "dev_db_password" {
+  count       = var.configure_development_environment ? 1 : 0
+  secret      = google_secret_manager_secret.dev_db_password[0].id
+  secret_data = random_password.dev_db_password[0].result
+
+  depends_on = [google_secret_manager_secret.dev_db_password]
+}
+
+data "google_secret_manager_secret_version" "dev_db_password" {
+  count   = var.configure_development_environment ? 1 : 0
+  secret  = google_secret_manager_secret.dev_db_password[0].id
+  version = "latest"
+  depends_on = [google_secret_manager_secret_version.dev_db_password]
+}
+
+resource "google_secret_manager_secret" "qa_db_password" {
+  count     = var.configure_nonproduction_environment ? 1 : 0
+  secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-db-password"
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+  project = local.project.project_id
+}
+
+resource "google_secret_manager_secret_version" "qa_db_password" {
+  count       = var.configure_nonproduction_environment ? 1 : 0
+  secret      = google_secret_manager_secret.qa_db_password[0].id
+  secret_data = random_password.qa_db_password[0].result
+
+  depends_on = [google_secret_manager_secret.qa_db_password]
+}
+
+data "google_secret_manager_secret_version" "qa_db_password" {
+  count   = var.configure_nonproduction_environment ? 1 : 0
+  secret  = google_secret_manager_secret.qa_db_password[0].id
+  version = "latest"
+  depends_on = [google_secret_manager_secret_version.qa_db_password]
+}
+
+resource "google_secret_manager_secret" "prod_db_password" {
+  count     = var.configure_production_environment ? 1 : 0
+  secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-db-password"
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+  project = local.project.project_id
+}
+
+resource "google_secret_manager_secret_version" "prod_db_password" {
+  count       = var.configure_production_environment ? 1 : 0
+  secret      = google_secret_manager_secret.prod_db_password[0].id
+  secret_data = random_password.prod_db_password[0].result
+
+  depends_on = [google_secret_manager_secret.prod_db_password]
+}
+
+data "google_secret_manager_secret_version" "prod_db_password" {
+  count   = var.configure_production_environment ? 1 : 0
+  secret  = google_secret_manager_secret.prod_db_password[0].id
+  version = "latest"
+  depends_on = [google_secret_manager_secret_version.prod_db_password]
+}
