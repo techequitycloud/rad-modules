@@ -35,7 +35,7 @@ variable "module_services" {
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = number
-  default     = 200
+  default     = 100
 }
 
 variable "require_credit_purchases" {
@@ -51,9 +51,9 @@ variable "enable_purge" {
 }
 
 variable "public_access" {
-description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
-type = bool
-default = false
+  description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
+  type = bool
+  default = false
 }
 
 variable "deployment_id" {
@@ -132,7 +132,7 @@ variable "application_sha" {
 # GROUP 6: CICD
 
 variable "configure_continuous_integration" {
-  description = "Select the checkbox to configure GitHub continuous integration and continous delivery pipeline that supports single and multi-region deployment. {{UIMeta group=4 order=601 updatesafe}}"
+  description = "Select the checkbox to configure GitHub continuous integration and continous delivery pipeline that supports single and multi-region deployment. {{UIMeta group=0 order=601 updatesafe}}"
   type        = bool
   default     = false
 }
@@ -144,14 +144,14 @@ variable "configure_continuous_deployment" {
 }
 
 variable "application_git_token" {
-  description = "Specify a github classic token with following privileges needed to configure the code repository: delete_repo, read:org, repo. {{UIMeta group=4 order=602 updatesafe}}"
+  description = "Specify a github classic token with following privileges needed to configure the code repository: delete_repo, read:org, repo. {{UIMeta group=0 order=602 updatesafe}}"
   type        = string
   default     = ""
   sensitive   = true
 }
 
 variable "application_git_usernames" {
-  description = "Specify the usernames to add as collaborators to the git repo. {{UIMeta group=4 order=602 updatesafe}}"
+  description = "Specify the usernames to add as collaborators to the git repo. {{UIMeta group=0 order=602 updatesafe}}"
   type        = set(string)
   default     = []
 }
@@ -173,6 +173,7 @@ variable "application_git_organization" {
 variable "tenant_deployment_id" {
   description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=3 order=701 updatesafe}}"
   type        = string
+  default     = ""
 }
 
 variable "configure_development_environment" {
@@ -196,9 +197,9 @@ variable "configure_production_environment" {
 # GROUP 8: Tenant
 
 variable "configure_monitoring" {
-  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring for NFS virtual machine. {{UIMeta group=5 order=805 updatesafe}}"
+  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring for NFS virtual machine. {{UIMeta group=0 order=805 updatesafe}}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "configure_backups" {

@@ -84,7 +84,6 @@ resource "local_file" "import_prod_nfs_script_output" {
 resource "null_resource" "import_dev_nfs" {
   count    = local.nfs_server_exists ? 1 : 0  
     
-  # Triggers that cause the resource to be updated/recreated
   triggers = {
     # always_run = "${timestamp()}"
   }
@@ -92,16 +91,11 @@ resource "null_resource" "import_dev_nfs" {
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
-      # Maximum number of attempts
       max_attempts=3
       attempt=0
 
-      # Loop until the NFS VM instance is in RUNNING status or max attempts reached
       while [ $attempt -lt $max_attempts ]; do
-        # Get the instance name using the internal IP address
         NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(NAME)")
-                
-        # Check the status of the instance
         status=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(status)")
                 
         if [ "$status" = "RUNNING" ]; then
@@ -109,7 +103,7 @@ resource "null_resource" "import_dev_nfs" {
           break
         else
           echo "Waiting for instance to be running... (Attempt $((attempt + 1)) of $max_attempts)"
-          sleep 10 # wait before retrying
+          sleep 10
         fi
                 
         attempt=$((attempt + 1))
@@ -120,10 +114,8 @@ resource "null_resource" "import_dev_nfs" {
         exit 1
       fi
 
-      # Ensure application directory is empty and execute the script
       for i in {1..5}; do
         if [ -z "${local.project_sa_email}" ] && [ -z "${var.resource_creator_identity}" ]; then
-        then
           if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/dev/import-nfs.sh; then
             echo "SSH command succeeded"
             break
@@ -141,7 +133,6 @@ resource "null_resource" "import_dev_nfs" {
           fi
         fi
 
-        # If the last attempt fails, exit with error
         if [ "$i" -eq 5 ]; then
           echo "SSH command failed after 5 attempts. Exiting..."
           exit 1
@@ -152,7 +143,6 @@ resource "null_resource" "import_dev_nfs" {
 
   depends_on = [
     local_file.import_dev_nfs_script_output,
-    # null_resource.build_and_push_application_image,
     null_resource.build_and_push_backup_image,
   ]
 }
@@ -161,7 +151,6 @@ resource "null_resource" "import_dev_nfs" {
 resource "null_resource" "import_qa_nfs" {
   count    = local.nfs_server_exists ? 1 : 0  
     
-  # Triggers that cause the resource to be updated/recreated
   triggers = {
     # always_run = "${timestamp()}"
   }
@@ -169,16 +158,11 @@ resource "null_resource" "import_qa_nfs" {
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
-      # Maximum number of attempts
       max_attempts=3
       attempt=0
 
-      # Loop until the NFS VM instance is in RUNNING status or max attempts reached
       while [ $attempt -lt $max_attempts ]; do
-        # Get the instance name using the internal IP address
         NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(NAME)")
-                
-        # Check the status of the instance
         status=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(status)")
                 
         if [ "$status" = "RUNNING" ]; then
@@ -186,7 +170,7 @@ resource "null_resource" "import_qa_nfs" {
           break
         else
           echo "Waiting for instance to be running... (Attempt $((attempt + 1)) of $max_attempts)"
-          sleep 10 # wait before retrying
+          sleep 10
         fi
                 
         attempt=$((attempt + 1))
@@ -197,10 +181,8 @@ resource "null_resource" "import_qa_nfs" {
         exit 1
       fi
 
-      # Ensure application directory is empty and execute the script
       for i in {1..5}; do
         if [ -z "${local.project_sa_email}" ] && [ -z "${var.resource_creator_identity}" ]; then
-        then
           if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/qa/import-nfs.sh; then
             echo "SSH command succeeded"
             break
@@ -218,7 +200,6 @@ resource "null_resource" "import_qa_nfs" {
           fi
         fi
 
-        # If the last attempt fails, exit with error
         if [ "$i" -eq 5 ]; then
           echo "SSH command failed after 5 attempts. Exiting..."
           exit 1
@@ -230,7 +211,6 @@ resource "null_resource" "import_qa_nfs" {
   depends_on = [
     local_file.import_qa_nfs_script_output,
     null_resource.import_dev_nfs,
-    # null_resource.build_and_push_application_image,
     null_resource.build_and_push_backup_image,
   ]
 }
@@ -239,7 +219,6 @@ resource "null_resource" "import_qa_nfs" {
 resource "null_resource" "import_prod_nfs" {
   count    = local.nfs_server_exists ? 1 : 0  
     
-  # Triggers that cause the resource to be updated/recreated
   triggers = {
     # always_run = "${timestamp()}"
   }
@@ -247,16 +226,11 @@ resource "null_resource" "import_prod_nfs" {
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
-      # Maximum number of attempts
       max_attempts=3
       attempt=0
 
-      # Loop until the NFS VM instance is in RUNNING status or max attempts reached
       while [ $attempt -lt $max_attempts ]; do
-        # Get the instance name using the internal IP address
         NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(NAME)")
-                
-        # Check the status of the instance
         status=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(status)")
                 
         if [ "$status" = "RUNNING" ]; then
@@ -264,7 +238,7 @@ resource "null_resource" "import_prod_nfs" {
           break
         else
           echo "Waiting for instance to be running... (Attempt $((attempt + 1)) of $max_attempts)"
-          sleep 10 # wait before retrying
+          sleep 10
         fi
                 
         attempt=$((attempt + 1))
@@ -275,10 +249,8 @@ resource "null_resource" "import_prod_nfs" {
         exit 1
       fi
 
-      # Ensure application directory is empty and execute the script
       for i in {1..5}; do
         if [ -z "${local.project_sa_email}" ] && [ -z "${var.resource_creator_identity}" ]; then
-        then
           if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/prod/import-nfs.sh; then
             echo "SSH command succeeded"
             break
@@ -296,7 +268,6 @@ resource "null_resource" "import_prod_nfs" {
           fi
         fi
 
-        # If the last attempt fails, exit with error
         if [ "$i" -eq 5 ]; then
           echo "SSH command failed after 5 attempts. Exiting..."
           exit 1
@@ -308,8 +279,6 @@ resource "null_resource" "import_prod_nfs" {
   depends_on = [
     local_file.import_prod_nfs_script_output,
     null_resource.import_qa_nfs,
-    # null_resource.build_and_push_application_image,
     null_resource.build_and_push_backup_image,
   ]
 }
-
