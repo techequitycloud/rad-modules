@@ -188,6 +188,27 @@ variable "configure_production_environment" {
   default     = false
 }
 
+# Moodle Specific Variables
+
+variable "moodle_admin_email" {
+  description = "Email for the Moodle admin user. {{UIMeta group=0 order=802 updatesafe }}"
+  type        = string
+  default     = "admin@example.com"
+}
+
+variable "moodle_admin_username" {
+  description = "Username for the Moodle admin user. {{UIMeta group=0 order=803 updatesafe }}"
+  type        = string
+  default     = "admin"
+}
+
+variable "moodle_admin_password" {
+  description = "Password for the Moodle admin user. If not provided, one will be generated. {{UIMeta group=0 order=804 updatesafe }}"
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
 # GROUP 8: Tenant
 
 variable "configure_monitoring" {

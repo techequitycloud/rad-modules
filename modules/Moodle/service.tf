@@ -142,10 +142,9 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
   depends_on = [
     null_resource.import_dev_db,
     null_resource.import_dev_nfs,
-    null_resource.build_and_push_backup_image,
     null_resource.build_and_push_application_image,
     google_secret_manager_secret_version.dev_db_password,
-    null_resource.build_and_push_application_image,
+    null_resource.dev_execute_install,
   ]
 }
 
@@ -294,11 +293,10 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
   depends_on = [
     null_resource.import_qa_db,
     null_resource.import_qa_nfs,
-    null_resource.build_and_push_backup_image,
     google_cloud_run_v2_service.dev_app_service,
     null_resource.build_and_push_application_image,
     google_secret_manager_secret_version.qa_db_password,
-    null_resource.build_and_push_application_image,
+    null_resource.qa_execute_install,
   ]
 }
 
@@ -447,11 +445,10 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
   depends_on = [
     null_resource.import_prod_db,
     null_resource.import_prod_nfs,
-    null_resource.build_and_push_backup_image,
     google_cloud_run_v2_service.qa_app_service,
     null_resource.build_and_push_application_image,
     google_secret_manager_secret_version.prod_db_password,
-    null_resource.build_and_push_application_image,
+    null_resource.prod_execute_install,
   ]
 }
 

@@ -23,6 +23,12 @@ resource "random_password" "additional_user_password" {
   override_special = "_%@"       
 }
 
+resource "random_password" "moodle_admin_password" {
+  length           = 16
+  special          = true
+  override_special = "_%@"
+}
+
 #########################################################################
 # Secret Manager resources for Dev environment
 #########################################################################
