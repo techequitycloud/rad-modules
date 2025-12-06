@@ -120,9 +120,3 @@ resource "google_project_iam_member" "secret_accessor" {
   role    = "roles/secretmanager.secretAccessor"
   member  = "serviceAccount:${local.cloud_run_sa_email}"
 }
-
-resource "google_project_iam_member" "storage_admin" {
-  project = local.project.project_id
-  role    = "roles/storage.admin"
-  member  = "serviceAccount:${local.cloud_run_sa_email}"
-}

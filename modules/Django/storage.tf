@@ -25,6 +25,13 @@ resource "google_storage_bucket" "dev_storage" {
   project                     = local.project.project_id
 }
 
+resource "google_storage_bucket_iam_member" "dev_storage_admin" {
+  count  = var.configure_development_environment ? 1 : 0
+  bucket = google_storage_bucket.dev_storage[0].name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${local.cloud_run_sa_email}"
+}
+
 resource "google_storage_bucket" "qa_storage" {
   count                       = var.configure_nonproduction_environment ? 1 : 0
   name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa"
@@ -34,6 +41,13 @@ resource "google_storage_bucket" "qa_storage" {
   project                     = local.project.project_id
 }
 
+resource "google_storage_bucket_iam_member" "qa_storage_admin" {
+  count  = var.configure_nonproduction_environment ? 1 : 0
+  bucket = google_storage_bucket.qa_storage[0].name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${local.cloud_run_sa_email}"
+}
+
 resource "google_storage_bucket" "prod_storage" {
   count                       = var.configure_production_environment ? 1 : 0
   name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod"
@@ -41,4 +55,11 @@ resource "google_storage_bucket" "prod_storage" {
   force_destroy               = false
   uniform_bucket_level_access = false
   project                     = local.project.project_id
+}
+
+resource "google_storage_bucket_iam_member" "prod_storage_admin" {
+  count  = var.configure_production_environment ? 1 : 0
+  bucket = google_storage_bucket.prod_storage[0].name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${local.cloud_run_sa_email}"
 }
