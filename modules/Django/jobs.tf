@@ -59,6 +59,10 @@ resource "google_cloud_run_v2_job" "dev_migrate" {
       }
     }
   }
+
+  depends_on = [
+      null_resource.build_and_push_application_image
+  ]
 }
 
 resource "google_cloud_run_v2_job" "dev_createuser" {
@@ -100,6 +104,10 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
             name = "DJANGO_SUPERUSER_EMAIL"
             value = var.django_superuser_email
         }
+        env {
+          name = "GS_BUCKET_NAME"
+          value = google_storage_bucket.dev_storage[0].name
+        }
 
         command = ["python", "manage.py", "createsuperuser", "--noinput"]
 
@@ -124,6 +132,10 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
       }
     }
   }
+
+  depends_on = [
+      null_resource.build_and_push_application_image
+  ]
 }
 
 # Execute jobs
@@ -206,6 +218,10 @@ resource "google_cloud_run_v2_job" "qa_migrate" {
       }
     }
   }
+
+  depends_on = [
+      null_resource.build_and_push_application_image
+  ]
 }
 
 resource "google_cloud_run_v2_job" "qa_createuser" {
@@ -247,6 +263,10 @@ resource "google_cloud_run_v2_job" "qa_createuser" {
             name = "DJANGO_SUPERUSER_EMAIL"
             value = var.django_superuser_email
         }
+        env {
+          name = "GS_BUCKET_NAME"
+          value = google_storage_bucket.qa_storage[0].name
+        }
 
         command = ["python", "manage.py", "createsuperuser", "--noinput"]
 
@@ -271,6 +291,10 @@ resource "google_cloud_run_v2_job" "qa_createuser" {
       }
     }
   }
+
+  depends_on = [
+      null_resource.build_and_push_application_image
+  ]
 }
 
 resource "null_resource" "qa_execute_migrate" {
@@ -352,6 +376,10 @@ resource "google_cloud_run_v2_job" "prod_migrate" {
       }
     }
   }
+
+  depends_on = [
+      null_resource.build_and_push_application_image
+  ]
 }
 
 resource "google_cloud_run_v2_job" "prod_createuser" {
@@ -393,6 +421,10 @@ resource "google_cloud_run_v2_job" "prod_createuser" {
             name = "DJANGO_SUPERUSER_EMAIL"
             value = var.django_superuser_email
         }
+        env {
+          name = "GS_BUCKET_NAME"
+          value = google_storage_bucket.prod_storage[0].name
+        }
 
         command = ["python", "manage.py", "createsuperuser", "--noinput"]
 
@@ -417,6 +449,10 @@ resource "google_cloud_run_v2_job" "prod_createuser" {
       }
     }
   }
+
+  depends_on = [
+      null_resource.build_and_push_application_image
+  ]
 }
 
 resource "null_resource" "prod_execute_migrate" {

@@ -1,4 +1,3 @@
-
 import io
 import os
 from urllib.parse import urlparse
@@ -40,7 +39,12 @@ if os.getenv("USE_CLOUD_SQL_AUTH_PROXY", None):
     DATABASES["default"]["PORT"] = 5432
 
 # Define static storage via django-storages[google]
-GS_BUCKET_NAME = env("GS_BUCKET_NAME")
+# FIXED: Read from OS environment first, then fall back to APPLICATION_SETTINGS
+GS_BUCKET_NAME = os.environ.get("GS_BUCKET_NAME") or env("GS_BUCKET_NAME", default=None)
+
+if not GS_BUCKET_NAME:
+    raise ValueError("GS_BUCKET_NAME environment variable is not set")
+
 STATICFILES_DIRS = []
 GS_DEFAULT_ACL = "publicRead"
 STORAGES = {

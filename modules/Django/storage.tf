@@ -21,7 +21,7 @@ resource "google_storage_bucket" "dev_storage" {
   name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev"
   location                    = local.region
   force_destroy               = false
-  uniform_bucket_level_access = true
+  uniform_bucket_level_access = false
   project                     = local.project.project_id
 }
 
@@ -30,7 +30,7 @@ resource "google_storage_bucket" "qa_storage" {
   name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa"
   location                    = local.region
   force_destroy               = false
-  uniform_bucket_level_access = true
+  uniform_bucket_level_access = false
   project                     = local.project.project_id
 }
 
@@ -39,6 +39,6 @@ resource "google_storage_bucket" "prod_storage" {
   name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod"
   location                    = local.region
   force_destroy               = false
-  uniform_bucket_level_access = true
+  uniform_bucket_level_access = false
   project                     = local.project.project_id
 }

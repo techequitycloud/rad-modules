@@ -167,6 +167,7 @@ variable "application_git_organization" {
 variable "tenant_deployment_id" {
   description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=3 order=701 updatesafe}}"
   type        = string
+  default     = ""
 }
 
 variable "configure_development_environment" {
@@ -210,7 +211,7 @@ variable "application_backup_schedule" {
 variable "application_backup_fileid" {
   description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup file during deployment. {{UIMeta group=0 order=808 updatesafe}}"
   type        = string
-  default     = "1WgtaSOIPs4MI50xtIkhDzp43fSv1hYGF"
+  default     = ""
 }
 
 variable "configure_application_security" {

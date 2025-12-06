@@ -77,6 +77,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     google_secret_manager_secret_version.dev_application_settings,
     google_project_iam_member.secret_accessor,
     google_project_iam_member.cloudsql_client,
+    google_storage_bucket.dev_storage,
   ]
 }
 
@@ -132,7 +133,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
 
       env {
         name = "GS_BUCKET_NAME"
-        value = google_storage_bucket.dev_storage[0].name
+        value = google_storage_bucket.qa_storage[0].name  # FIXED: Changed from dev_storage to qa_storage
       }
 
       env {
@@ -175,6 +176,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
     google_secret_manager_secret_version.qa_application_settings,
     google_project_iam_member.secret_accessor,
     google_project_iam_member.cloudsql_client,
+    google_storage_bucket.qa_storage,
   ]
 }
 
@@ -230,7 +232,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
 
       env {
         name = "GS_BUCKET_NAME"
-        value = google_storage_bucket.dev_storage[0].name
+        value = google_storage_bucket.prod_storage[0].name  # FIXED: Changed from dev_storage to prod_storage
       }
 
       env {
@@ -273,6 +275,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
     google_secret_manager_secret_version.prod_application_settings,
     google_project_iam_member.secret_accessor,
     google_project_iam_member.cloudsql_client,
+    google_storage_bucket.prod_storage,
   ]
 }
 
@@ -299,7 +302,7 @@ resource "null_resource" "prod_update_csrf_origin" {
       gcloud run services update ${google_cloud_run_v2_service.prod_app_service[0].name} \
         --region ${var.region} \
         --project ${local.project.project_id} \
-        --update-env-vars CLOUDRUN_SERVICE_URLS=$URL
+        --set-env-vars CLOUDRUN_SERVICE_URLS=$URL
     EOF
   }
   depends_on = [google_cloud_run_v2_service.prod_app_service]

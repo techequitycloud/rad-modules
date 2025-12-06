@@ -56,7 +56,7 @@ resource "google_secret_manager_secret_version" "dev_application_settings" {
   secret_data = <<EOT
 DEBUG=True
 SECRET_KEY="${random_password.django_secret_key.result}"
-GS_BUCKET_NAME=google_storage_bucket.dev_storage[0].name
+GS_BUCKET_NAME="${google_storage_bucket.dev_storage[0].name}"
 DATABASE_URL="postgres://${google_sql_user.dev_user[0].name}:${google_sql_user.dev_user[0].password}@/${google_sql_database.dev_db[0].name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
 }
@@ -101,7 +101,7 @@ resource "google_secret_manager_secret_version" "qa_application_settings" {
   secret_data = <<EOT
 DEBUG=False
 SECRET_KEY="${random_password.django_secret_key.result}"
-GS_BUCKET_NAME=google_storage_bucket.qa_storage[0].name
+GS_BUCKET_NAME="${google_storage_bucket.qa_storage[0].name}"
 DATABASE_URL="postgres://${google_sql_user.qa_user[0].name}:${google_sql_user.qa_user[0].password}@/${google_sql_database.qa_db[0].name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
 }
@@ -146,7 +146,7 @@ resource "google_secret_manager_secret_version" "prod_application_settings" {
   secret_data = <<EOT
 DEBUG=False
 SECRET_KEY="${random_password.django_secret_key.result}"
-GS_BUCKET_NAME=google_storage_bucket.prod_storage[0].name
+GS_BUCKET_NAME="${google_storage_bucket.prod_storage[0].name}"
 DATABASE_URL="postgres://${google_sql_user.prod_user[0].name}:${google_sql_user.prod_user[0].password}@/${google_sql_database.prod_db[0].name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
 }
