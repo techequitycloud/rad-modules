@@ -108,3 +108,31 @@ output "existing_service_accounts" {
     } : sa_name if exists
   ]
 }
+
+#########################################################################
+# Create Service Account
+#########################################################################
+
+resource "google_service_account" "odoo_sa" {
+  account_id   = "odoo-sa-${var.tenant_deployment_id}"
+  display_name = "Odoo Service Account"
+  project      = local.project.project_id
+}
+
+resource "google_project_iam_member" "cloudsql_client" {
+  project = local.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.odoo_sa.email}"
+}
+
+resource "google_project_iam_member" "secret_accessor" {
+  project = local.project.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.odoo_sa.email}"
+}
+
+resource "google_project_iam_member" "storage_admin" {
+  project = local.project.project_id
+  role    = "roles/storage.objectAdmin"
+  member  = "serviceAccount:${google_service_account.odoo_sa.email}"
+}
