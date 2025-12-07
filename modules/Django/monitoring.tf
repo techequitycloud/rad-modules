@@ -84,7 +84,7 @@ resource "google_monitoring_service" "dev_cloud_run" {
     service_type  = "CLOUD_RUN"
     service_labels = {
       location = local.regions[count.index]
-      service_name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+      service_name = google_cloud_run_v2_service.dev_app_service[count.index].name
     }
   }
 
@@ -161,7 +161,7 @@ resource "google_monitoring_uptime_check_config" "dev_https" {
     type = "cloud_run_revision"
     labels = {
       project_id = local.project.project_id
-      service_name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+      service_name = google_cloud_run_v2_service.dev_app_service[count.index].name
       location = local.regions[count.index]
     }
   }
@@ -199,7 +199,7 @@ resource "google_monitoring_service" "qa_cloud_run" {
     service_type  = "CLOUD_RUN"
     service_labels = {
       location = local.regions[count.index]
-      service_name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
+      service_name = google_cloud_run_v2_service.qa_app_service[count.index].name
     }
   }
 
@@ -276,7 +276,7 @@ resource "google_monitoring_uptime_check_config" "qa_https" {
     type = "cloud_run_revision"
     labels = {
       project_id = local.project.project_id
-      service_name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
+      service_name = google_cloud_run_v2_service.qa_app_service[count.index].name
       location = local.regions[count.index]
     }
   }
@@ -314,7 +314,7 @@ resource "google_monitoring_service" "prod_cloud_run" {
     service_type  = "CLOUD_RUN"
     service_labels = {
       location = local.regions[count.index]
-      service_name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
+      service_name = google_cloud_run_v2_service.prod_app_service[count.index].name
     }
   }
 
@@ -391,7 +391,7 @@ resource "google_monitoring_uptime_check_config" "prod_https" {
     type = "cloud_run_revision"
     labels = {
       project_id = local.project.project_id
-      service_name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
+      service_name = google_cloud_run_v2_service.prod_app_service[count.index].name
       location = local.regions[count.index]
     }
   }

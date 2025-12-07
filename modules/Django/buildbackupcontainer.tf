@@ -16,11 +16,11 @@
 # Create config files
 #########################################################################
 
-# Resource for creating a Dockerfile from a template, which will be used to build the application's container image.
+# Resource for creating a dockerfile from a template, which will be used to build the application's container image.
 resource "local_file" "dockerfile" {
   count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
     filename = "${path.module}/scripts/bkup/dockerfile"
-    content         = templatefile("${path.module}/scripts/bkup/Dockerfile.tpl", {
+    content         = templatefile("${path.module}/scripts/bkup/dockerfile.tpl", {
     BACKUP_SCRIPT   = "backup.sh"
   })
 
@@ -39,7 +39,7 @@ resource "local_file" "cloudbuild" {
     IMAGE_NAME      = "backup"
     IMAGE_VERSION   = "${var.application_version}"
     DOCKERFILE      = "dockerfile"
-    REPO_NAME       = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+    REPO_NAME       = google_artifact_registry_repository.repo.name
   })
 
   depends_on = [

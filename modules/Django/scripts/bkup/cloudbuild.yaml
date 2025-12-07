@@ -15,11 +15,11 @@
 
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'us-central1-docker.pkg.dev/qwiklabs-gcp-03-7d573707c8ae/django-demo-16a6/backup:5.0.0', '-f', 'Dockerfile', '.']
+  args: ['build', '-t', 'us-central1-docker.pkg.dev/qwiklabs-gcp-02-9f7942837ab3/django-repo-9a54/backup:latest', '-f', 'dockerfile', '.']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['tag', 'us-central1-docker.pkg.dev/qwiklabs-gcp-03-7d573707c8ae/django-demo-16a6/backup:5.0.0', 'us-central1-docker.pkg.dev/qwiklabs-gcp-03-7d573707c8ae/django-demo-16a6/backup:5.0.0']
+  args: ['tag', 'us-central1-docker.pkg.dev/qwiklabs-gcp-02-9f7942837ab3/django-repo-9a54/backup:latest', 'us-central1-docker.pkg.dev/qwiklabs-gcp-02-9f7942837ab3/django-repo-9a54/backup:latest']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'us-central1-docker.pkg.dev/qwiklabs-gcp-03-7d573707c8ae/django-demo-16a6/backup:5.0.0']
-serviceAccount: 'projects/qwiklabs-gcp-03-7d573707c8ae/serviceAccounts/cloudbuild-sa@qwiklabs-gcp-03-7d573707c8ae.iam.gserviceaccount.com'
+  args: ['push', 'us-central1-docker.pkg.dev/qwiklabs-gcp-02-9f7942837ab3/django-repo-9a54/backup:latest']
+serviceAccount: 'projects/qwiklabs-gcp-02-9f7942837ab3/serviceAccounts/cloudbuild-sa@qwiklabs-gcp-02-9f7942837ab3.iam.gserviceaccount.com'
 options:
   logging: CLOUD_LOGGING_ONLY
