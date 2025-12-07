@@ -213,6 +213,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     google_secret_manager_secret_version.dev_db_password,
     google_secret_manager_secret_version.dev_encryption_key,
     google_project_iam_member.cloudsql_client,
+    google_project_iam_member.secret_accessor,
     google_storage_bucket.dev_storage,
     google_project_iam_member.storage_admin
   ]
@@ -228,6 +229,24 @@ resource "google_cloud_run_service_iam_binding" "dev" {
   members = [
     "allUsers"
   ]
+}
+
+resource "null_resource" "dev_update_webhook_url" {
+  count = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+  triggers = {
+    service_id = google_cloud_run_v2_service.dev_app_service[0].id
+  }
+
+  provisioner "local-exec" {
+    command = <<EOF
+      URL=$(gcloud run services describe ${google_cloud_run_v2_service.dev_app_service[0].name} --region ${local.region} --project ${local.project.project_id} --format 'value(uri)')
+      gcloud run services update ${google_cloud_run_v2_service.dev_app_service[0].name} \
+        --region ${local.region} \
+        --project ${local.project.project_id} \
+        --update-env-vars WEBHOOK_URL=$URL,CLOUDRUN_SERVICE_URLS=$URL
+    EOF
+  }
+  depends_on = [google_cloud_run_v2_service.dev_app_service]
 }
 
 resource "google_cloud_run_v2_service" "qa_app_service" {
@@ -443,6 +462,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
     google_secret_manager_secret_version.qa_db_password,
     google_secret_manager_secret_version.qa_encryption_key,
     google_project_iam_member.cloudsql_client,
+    google_project_iam_member.secret_accessor,
     google_storage_bucket.qa_storage,
     google_project_iam_member.storage_admin
   ]
@@ -458,6 +478,24 @@ resource "google_cloud_run_service_iam_binding" "qa" {
   members = [
     "allUsers"
   ]
+}
+
+resource "null_resource" "qa_update_webhook_url" {
+  count = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
+  triggers = {
+    service_id = google_cloud_run_v2_service.qa_app_service[0].id
+  }
+
+  provisioner "local-exec" {
+    command = <<EOF
+      URL=$(gcloud run services describe ${google_cloud_run_v2_service.qa_app_service[0].name} --region ${local.region} --project ${local.project.project_id} --format 'value(uri)')
+      gcloud run services update ${google_cloud_run_v2_service.qa_app_service[0].name} \
+        --region ${local.region} \
+        --project ${local.project.project_id} \
+        --update-env-vars WEBHOOK_URL=$URL,CLOUDRUN_SERVICE_URLS=$URL
+    EOF
+  }
+  depends_on = [google_cloud_run_v2_service.qa_app_service]
 }
 
 resource "google_cloud_run_v2_service" "prod_app_service" {
@@ -673,6 +711,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
     google_secret_manager_secret_version.prod_db_password,
     google_secret_manager_secret_version.prod_encryption_key,
     google_project_iam_member.cloudsql_client,
+    google_project_iam_member.secret_accessor,
     google_storage_bucket.prod_storage,
     google_project_iam_member.storage_admin
   ]
@@ -688,6 +727,24 @@ resource "google_cloud_run_service_iam_binding" "prod" {
   members = [
     "allUsers"
   ]
+}
+
+resource "null_resource" "prod_update_webhook_url" {
+  count = var.configure_production_environment && local.sql_server_exists ? 1 : 0
+  triggers = {
+    service_id = google_cloud_run_v2_service.prod_app_service[0].id
+  }
+
+  provisioner "local-exec" {
+    command = <<EOF
+      URL=$(gcloud run services describe ${google_cloud_run_v2_service.prod_app_service[0].name} --region ${local.region} --project ${local.project.project_id} --format 'value(uri)')
+      gcloud run services update ${google_cloud_run_v2_service.prod_app_service[0].name} \
+        --region ${local.region} \
+        --project ${local.project.project_id} \
+        --update-env-vars WEBHOOK_URL=$URL,CLOUDRUN_SERVICE_URLS=$URL
+    EOF
+  }
+  depends_on = [google_cloud_run_v2_service.prod_app_service]
 }
 
 # IAM binding for GCS bucket access
