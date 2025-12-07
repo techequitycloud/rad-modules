@@ -25,37 +25,87 @@ The repository uses **OpenTofu** (`tofu`) as the Infrastructure as Code (IaC) to
 
 Variables in `variables.tf` follow specific conventions to support both the Terraform logic and a UI layer.
 
-### Common Variable Groups
-
-Most application modules share a set of standard variables:
-
-*   **Deployment Meta**:
-    *   `module_description`: A description of what the module does.
-    *   `module_dependency`: List of modules that must be deployed before this one.
-    *   `resource_creator_identity`: The Service Account email used to create resources.
-    *   `trusted_users`: List of user emails with elevated privileges.
-*   **Application Config**:
-    *   `application_name`: Base name for the application (used in resource naming).
-    *   `tenant_deployment_id`: A suffix or ID to uniqueness across deployments.
-    *   `existing_project_id`: The GCP Project ID where resources will be deployed.
-    *   `region`: GCP region (default often `us-central1`).
-*   **Environment Flags**:
-    *   `configure_development_environment`: Boolean to enable Dev resources.
-    *   `configure_nonproduction_environment`: Boolean to enable QA/Staging resources.
-    *   `configure_production_environment`: Boolean to enable Prod resources.
-*   **CI/CD**:
-    *   `configure_continuous_integration`: Enable CI pipelines (often GitHub Actions).
-    *   `configure_continuous_deployment`: Enable CD pipelines (Cloud Deploy).
-    *   `application_git_token`: (Sensitive) GitHub token for repo management.
-
 ### UI Metadata Tags
 
 Variable descriptions often contain a special tag format: `{{UIMeta group=<int> order=<int> updatesafe }}`.
+
 *   `group`: Grouping identifier for the UI.
+    *   **Group 0**: Variables in group 0 are **not exposed** to the end user.
+    *   **Group > 0**: Variables in any other group are displayed to the end user during the creation of a deployment, organized by the group number.
 *   `order`: Sort order within the group.
 *   `updatesafe`: Indicates the variable can be safely modified after initial deployment.
 
 **Do not remove these tags** when modifying variable descriptions.
+
+### Guidelines
+
+*   **Minimize Exposed Variables**: The number of variables exposed to users (Groups > 0) should be minimized to keep the UI clean and simple.
+
+### Mandatory Variables
+
+The following variables **must** be included in the `variables.tf` file of every module. The default values below are examples and should be replaced with appropriate values for the specific module.
+
+```hcl
+variable "module_description" {
+  description = "The description of the module. {{UIMeta group=0 order=100 }}"
+  type        = string
+  default     = "This module deploys a Django application on Google Cloud Run. Django is a high-level Python web framework that encourages rapid development and clean, pragmatic design."
+}
+
+variable "module_dependency" {
+  description = "The list of dependent modules, listed in the order in which they should be deployed. {{UIMeta group=0 order=101 }}"
+  type        = list(string)
+  default     = ["GCP Project","GCP Services"]
+}
+
+variable "module_services" {
+  description = "The list of module services. {{UIMeta group=0 order=102 }}"
+  type = list(string)
+  default = ["GCP", "Cloud Run", "Cloud SQL", "Secret Manager", "Cloud IAM"]
+}
+
+variable "credit_cost" {
+  description = "The credits needed to deploy the module {{UIMeta group=0 order=103 }}"
+  type        = number
+  default     = 100
+}
+
+variable "require_credit_purchases" {
+  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
+  type        = bool
+  default     = false
+}
+
+variable "enable_purge" {
+  description = "Set to true to grant users the ability to purge the configuration of the module without deleting cloud resources. {{UIMeta group=0 order=105 }}"
+  type        = bool
+  default     = true
+}
+
+variable "public_access" {
+  description = "Set to true to enable the module to accessible to all platform users. {{UIMeta group=0 order=106 }}"
+  type = bool
+  default = true
+}
+
+variable "deployment_id" {
+  description = "Unique ID suffix for resources. Leave blank to enable the platform to generate a random ID."
+  type        = string
+  default     = null
+}
+
+variable "resource_creator_identity" {
+  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=200 updatesafe }}"
+  type        = string
+  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+}
+
+variable "trusted_users" {
+  description = "List of email addresses of trusted users permitted to receive deployment notifications. {{UIMeta group=1 order=201 updatesafe }}"
+  type        = list(string)
+  default     = []
+}
+```
 
 ## Resource Patterns
 
