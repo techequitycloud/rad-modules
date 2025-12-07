@@ -27,7 +27,7 @@ resource "google_storage_bucket" "dev_storage" {
 resource "google_storage_bucket_iam_member" "dev_storage_admin" {
   bucket = google_storage_bucket.dev_storage.name
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${local.app_sa_email}"
+  member = "serviceAccount:${local.cloud_run_sa_email}"
 }
 
 resource "google_storage_bucket" "qa_storage" {
@@ -41,7 +41,7 @@ resource "google_storage_bucket" "qa_storage" {
 resource "google_storage_bucket_iam_member" "qa_storage_admin" {
   bucket = google_storage_bucket.qa_storage.name
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${local.app_sa_email}"
+  member = "serviceAccount:${local.cloud_run_sa_email}"
 }
 
 resource "google_storage_bucket" "prod_storage" {
@@ -55,7 +55,7 @@ resource "google_storage_bucket" "prod_storage" {
 resource "google_storage_bucket_iam_member" "prod_storage_admin" {
   bucket = google_storage_bucket.prod_storage.name
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${local.app_sa_email}"
+  member = "serviceAccount:${local.cloud_run_sa_email}"
 }
 
 # --- Backup Buckets ---

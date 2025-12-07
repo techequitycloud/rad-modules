@@ -81,13 +81,12 @@ locals {
   cloud_build_sa_email  = "cloudbuild-sa@${local.project.project_id}.iam.gserviceaccount.com"
   cloud_deploy_sa_email = "clouddeploy-sa@${local.project.project_id}.iam.gserviceaccount.com"
   gke_sa_email          = "gke-sa@${local.project.project_id}.iam.gserviceaccount.com"
+  cloud_run_sa_email    = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
   cloud_sql_sa_email    = "cloudsql-sa@${local.project.project_id}.iam.gserviceaccount.com"
   nfs_server_sa_email   = "nfsserver-sa@${local.project.project_id}.iam.gserviceaccount.com"
   setup_server_sa_email = "setupserver-sa@${local.project.project_id}.iam.gserviceaccount.com"
 
   project_sa_id           = "projects/${local.project.project_id}/serviceAccounts/project-sa@${local.project.project_id}.iam.gserviceaccount.com"
-
-  app_sa_email = google_service_account.app_sa.email
 }
 
 ########################################################################################
@@ -110,20 +109,14 @@ output "existing_service_accounts" {
   ]
 }
 
-resource "google_service_account" "app_sa" {
-  project      = local.project.project_id
-  account_id   = "${var.application_name}-sa"
-  display_name = "Service Account for ${var.application_name}"
-}
-
 resource "google_project_iam_member" "cloudsql_client" {
   project = local.project.project_id
   role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${local.app_sa_email}"
+  member  = "serviceAccount:${local.cloud_run_sa_email}"
 }
 
 resource "google_project_iam_member" "secret_accessor" {
   project = local.project.project_id
   role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:${local.app_sa_email}"
+  member  = "serviceAccount:${local.cloud_run_sa_email}"
 }
