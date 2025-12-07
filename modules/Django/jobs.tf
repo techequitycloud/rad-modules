@@ -490,7 +490,7 @@ resource "null_resource" "prod_execute_createuser" {
 # Backup Jobs
 
 resource "google_cloud_run_v2_job" "dev_backup_service" {
-  count      = var.configure_backups && var.configure_development_environment ? 1 : 0
+  count      = var.configure_backups && var.configure_development_environment && local.nfs_server_exists ? 1 : 0
   project    = local.project.project_id
   name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
   location   = local.region
@@ -583,7 +583,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 }
 
 resource "google_cloud_run_v2_job" "qa_backup_service" {
-  count      = var.configure_backups && var.configure_nonproduction_environment ? 1 : 0
+  count      = var.configure_backups && var.configure_nonproduction_environment && local.nfs_server_exists ? 1 : 0
   project    = local.project.project_id
   name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
   location   = local.region
@@ -676,7 +676,7 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
 }
 
 resource "google_cloud_run_v2_job" "prod_backup_service" {
-  count      = var.configure_backups && var.configure_production_environment ? 1 : 0
+  count      = var.configure_backups && var.configure_production_environment && local.nfs_server_exists ? 1 : 0
   project    = local.project.project_id
   name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
   location   = local.region

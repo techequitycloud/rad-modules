@@ -14,7 +14,7 @@
 
 # define a Cloud Scheduler cron job
 resource "google_cloud_scheduler_job" "dev_backup" {
-  count            = var.configure_development_environment ? 1 : 0
+  count            = var.configure_backups && var.configure_development_environment && local.nfs_server_exists ? 1 : 0
   paused           = false
   name             = "${var.application_name}-backup-${var.tenant_deployment_id}-${local.random_id}dev"
   project          = local.project.project_id
@@ -50,7 +50,7 @@ resource "google_cloud_scheduler_job" "dev_backup" {
 
 # define a Cloud Scheduler cron job
 resource "google_cloud_scheduler_job" "qa_backup" {
-  count            = var.configure_nonproduction_environment ? 1 : 0
+  count            = var.configure_backups && var.configure_nonproduction_environment && local.nfs_server_exists ? 1 : 0
   paused           = false
   name             = "${var.application_name}-backup-${var.tenant_deployment_id}-${local.random_id}qa"
   project          = local.project.project_id
@@ -86,7 +86,7 @@ resource "google_cloud_scheduler_job" "qa_backup" {
 
 # define a Cloud Scheduler cron job
 resource "google_cloud_scheduler_job" "prod_backup" {
-  count            = var.configure_production_environment ? 1 : 0
+  count            = var.configure_backups && var.configure_production_environment && local.nfs_server_exists ? 1 : 0
   paused           = false
   name             = "${var.application_name}-backup-${var.tenant_deployment_id}-${local.random_id}prod"
   project          = local.project.project_id
