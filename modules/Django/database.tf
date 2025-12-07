@@ -17,64 +17,55 @@
 #########################################################################
 
 resource "google_sql_database" "dev_db" {
-  count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
   name     = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}-dev"
   instance = local.db_instance_name
   project  = local.project.project_id
 }
 
 resource "random_password" "dev_db_password" {
-  count   = var.configure_development_environment && local.sql_server_exists ? 1 : 0
   length  = 30
   special = false
 }
 
 resource "google_sql_user" "dev_user" {
-  count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
   name     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-dev"
   instance = local.db_instance_name
   project  = local.project.project_id
-  password = random_password.dev_db_password[0].result
+  password = random_password.dev_db_password.result
 }
 
 resource "google_sql_database" "qa_db" {
-  count    = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
   name     = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}-qa"
   instance = local.db_instance_name
   project  = local.project.project_id
 }
 
 resource "random_password" "qa_db_password" {
-  count   = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
   length  = 30
   special = false
 }
 
 resource "google_sql_user" "qa_user" {
-  count    = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
   name     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-qa"
   instance = local.db_instance_name
   project  = local.project.project_id
-  password = random_password.qa_db_password[0].result
+  password = random_password.qa_db_password.result
 }
 
 resource "google_sql_database" "prod_db" {
-  count    = var.configure_production_environment && local.sql_server_exists ? 1 : 0
   name     = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}-prod"
   instance = local.db_instance_name
   project  = local.project.project_id
 }
 
 resource "random_password" "prod_db_password" {
-  count   = var.configure_production_environment && local.sql_server_exists ? 1 : 0
   length  = 30
   special = false
 }
 
 resource "google_sql_user" "prod_user" {
-  count    = var.configure_production_environment && local.sql_server_exists ? 1 : 0
   name     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-prod"
   instance = local.db_instance_name
   project  = local.project.project_id
-  password = random_password.prod_db_password[0].result
+  password = random_password.prod_db_password.result
 }

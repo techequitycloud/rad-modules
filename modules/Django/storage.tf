@@ -17,7 +17,6 @@
 #########################################################################
 
 resource "google_storage_bucket" "dev_storage" {
-  count                       = var.configure_development_environment ? 1 : 0
   name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev"
   location                    = local.region
   force_destroy               = false
@@ -26,14 +25,12 @@ resource "google_storage_bucket" "dev_storage" {
 }
 
 resource "google_storage_bucket_iam_member" "dev_storage_admin" {
-  count  = var.configure_development_environment ? 1 : 0
-  bucket = google_storage_bucket.dev_storage[0].name
+  bucket = google_storage_bucket.dev_storage.name
   role   = "roles/storage.admin"
   member = "serviceAccount:${local.cloud_run_sa_email}"
 }
 
 resource "google_storage_bucket" "qa_storage" {
-  count                       = var.configure_nonproduction_environment ? 1 : 0
   name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa"
   location                    = local.region
   force_destroy               = false
@@ -42,14 +39,12 @@ resource "google_storage_bucket" "qa_storage" {
 }
 
 resource "google_storage_bucket_iam_member" "qa_storage_admin" {
-  count  = var.configure_nonproduction_environment ? 1 : 0
-  bucket = google_storage_bucket.qa_storage[0].name
+  bucket = google_storage_bucket.qa_storage.name
   role   = "roles/storage.admin"
   member = "serviceAccount:${local.cloud_run_sa_email}"
 }
 
 resource "google_storage_bucket" "prod_storage" {
-  count                       = var.configure_production_environment ? 1 : 0
   name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod"
   location                    = local.region
   force_destroy               = false
@@ -58,8 +53,7 @@ resource "google_storage_bucket" "prod_storage" {
 }
 
 resource "google_storage_bucket_iam_member" "prod_storage_admin" {
-  count  = var.configure_production_environment ? 1 : 0
-  bucket = google_storage_bucket.prod_storage[0].name
+  bucket = google_storage_bucket.prod_storage.name
   role   = "roles/storage.admin"
   member = "serviceAccount:${local.cloud_run_sa_email}"
 }
@@ -67,7 +61,6 @@ resource "google_storage_bucket_iam_member" "prod_storage_admin" {
 # --- Backup Buckets ---
 
 resource "google_storage_bucket" "dev_backup_storage" {
-  count                       = var.configure_development_environment ? 1 : 0
   name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-backups"
   location                    = local.region
   force_destroy               = false
@@ -76,7 +69,6 @@ resource "google_storage_bucket" "dev_backup_storage" {
 }
 
 resource "google_storage_bucket" "qa_backup_storage" {
-  count                       = var.configure_nonproduction_environment ? 1 : 0
   name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-backups"
   location                    = local.region
   force_destroy               = false
@@ -85,7 +77,6 @@ resource "google_storage_bucket" "qa_backup_storage" {
 }
 
 resource "google_storage_bucket" "prod_backup_storage" {
-  count                       = var.configure_production_environment ? 1 : 0
   name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-backups"
   location                    = local.region
   force_destroy               = false

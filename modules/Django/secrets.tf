@@ -18,19 +18,16 @@ resource "random_password" "django_secret_key" {
 }
 
 resource "random_password" "dev_superuser_password" {
-  count   = var.configure_development_environment ? 1 : 0
   length  = 16
   special = false
 }
 
 resource "random_password" "qa_superuser_password" {
-  count   = var.configure_nonproduction_environment ? 1 : 0
   length  = 16
   special = false
 }
 
 resource "random_password" "prod_superuser_password" {
-  count   = var.configure_production_environment ? 1 : 0
   length  = 16
   special = false
 }
@@ -38,7 +35,6 @@ resource "random_password" "prod_superuser_password" {
 # --- Dev Secrets ---
 
 resource "google_secret_manager_secret" "dev_application_settings" {
-  count     = var.configure_development_environment ? 1 : 0
   secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-application-settings"
   replication {
     user_managed {
@@ -51,18 +47,16 @@ resource "google_secret_manager_secret" "dev_application_settings" {
 }
 
 resource "google_secret_manager_secret_version" "dev_application_settings" {
-  count       = var.configure_development_environment ? 1 : 0
-  secret      = google_secret_manager_secret.dev_application_settings[0].id
+  secret      = google_secret_manager_secret.dev_application_settings.id
   secret_data = <<EOT
 DEBUG=True
 SECRET_KEY="${random_password.django_secret_key.result}"
-GS_BUCKET_NAME="${google_storage_bucket.dev_storage[0].name}"
-DATABASE_URL="postgres://${google_sql_user.dev_user[0].name}:${google_sql_user.dev_user[0].password}@/${google_sql_database.dev_db[0].name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+GS_BUCKET_NAME="${google_storage_bucket.dev_storage.name}"
+DATABASE_URL="postgres://${google_sql_user.dev_user.name}:${google_sql_user.dev_user.password}@/${google_sql_database.dev_db.name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
 }
 
 resource "google_secret_manager_secret" "dev_superuser_password" {
-  count     = var.configure_development_environment ? 1 : 0
   secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-superuser-password"
   replication {
     user_managed {
@@ -75,15 +69,13 @@ resource "google_secret_manager_secret" "dev_superuser_password" {
 }
 
 resource "google_secret_manager_secret_version" "dev_superuser_password" {
-  count       = var.configure_development_environment ? 1 : 0
-  secret      = google_secret_manager_secret.dev_superuser_password[0].id
-  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.dev_superuser_password[0].result
+  secret      = google_secret_manager_secret.dev_superuser_password.id
+  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.dev_superuser_password.result
 }
 
 # --- QA Secrets ---
 
 resource "google_secret_manager_secret" "qa_application_settings" {
-  count     = var.configure_nonproduction_environment ? 1 : 0
   secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-application-settings"
   replication {
     user_managed {
@@ -96,18 +88,16 @@ resource "google_secret_manager_secret" "qa_application_settings" {
 }
 
 resource "google_secret_manager_secret_version" "qa_application_settings" {
-  count       = var.configure_nonproduction_environment ? 1 : 0
-  secret      = google_secret_manager_secret.qa_application_settings[0].id
+  secret      = google_secret_manager_secret.qa_application_settings.id
   secret_data = <<EOT
 DEBUG=False
 SECRET_KEY="${random_password.django_secret_key.result}"
-GS_BUCKET_NAME="${google_storage_bucket.qa_storage[0].name}"
-DATABASE_URL="postgres://${google_sql_user.qa_user[0].name}:${google_sql_user.qa_user[0].password}@/${google_sql_database.qa_db[0].name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+GS_BUCKET_NAME="${google_storage_bucket.qa_storage.name}"
+DATABASE_URL="postgres://${google_sql_user.qa_user.name}:${google_sql_user.qa_user.password}@/${google_sql_database.qa_db.name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
 }
 
 resource "google_secret_manager_secret" "qa_superuser_password" {
-  count     = var.configure_nonproduction_environment ? 1 : 0
   secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-superuser-password"
   replication {
     user_managed {
@@ -120,15 +110,13 @@ resource "google_secret_manager_secret" "qa_superuser_password" {
 }
 
 resource "google_secret_manager_secret_version" "qa_superuser_password" {
-  count       = var.configure_nonproduction_environment ? 1 : 0
-  secret      = google_secret_manager_secret.qa_superuser_password[0].id
-  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.qa_superuser_password[0].result
+  secret      = google_secret_manager_secret.qa_superuser_password.id
+  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.qa_superuser_password.result
 }
 
 # --- Prod Secrets ---
 
 resource "google_secret_manager_secret" "prod_application_settings" {
-  count     = var.configure_production_environment ? 1 : 0
   secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-application-settings"
   replication {
     user_managed {
@@ -141,18 +129,16 @@ resource "google_secret_manager_secret" "prod_application_settings" {
 }
 
 resource "google_secret_manager_secret_version" "prod_application_settings" {
-  count       = var.configure_production_environment ? 1 : 0
-  secret      = google_secret_manager_secret.prod_application_settings[0].id
+  secret      = google_secret_manager_secret.prod_application_settings.id
   secret_data = <<EOT
 DEBUG=False
 SECRET_KEY="${random_password.django_secret_key.result}"
-GS_BUCKET_NAME="${google_storage_bucket.prod_storage[0].name}"
-DATABASE_URL="postgres://${google_sql_user.prod_user[0].name}:${google_sql_user.prod_user[0].password}@/${google_sql_database.prod_db[0].name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+GS_BUCKET_NAME="${google_storage_bucket.prod_storage.name}"
+DATABASE_URL="postgres://${google_sql_user.prod_user.name}:${google_sql_user.prod_user.password}@/${google_sql_database.prod_db.name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
 }
 
 resource "google_secret_manager_secret" "prod_superuser_password" {
-  count     = var.configure_production_environment ? 1 : 0
   secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-superuser-password"
   replication {
     user_managed {
@@ -165,15 +151,13 @@ resource "google_secret_manager_secret" "prod_superuser_password" {
 }
 
 resource "google_secret_manager_secret_version" "prod_superuser_password" {
-  count       = var.configure_production_environment ? 1 : 0
-  secret      = google_secret_manager_secret.prod_superuser_password[0].id
-  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.prod_superuser_password[0].result
+  secret      = google_secret_manager_secret.prod_superuser_password.id
+  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.prod_superuser_password.result
 }
 
 # --- Additional Database Password Secrets (Required for Scripts) ---
 
 resource "google_secret_manager_secret" "dev_db_password" {
-  count     = var.configure_development_environment ? 1 : 0
   secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-db-password"
   replication {
     user_managed {
@@ -186,22 +170,19 @@ resource "google_secret_manager_secret" "dev_db_password" {
 }
 
 resource "google_secret_manager_secret_version" "dev_db_password" {
-  count       = var.configure_development_environment ? 1 : 0
-  secret      = google_secret_manager_secret.dev_db_password[0].id
-  secret_data = random_password.dev_db_password[0].result
+  secret      = google_secret_manager_secret.dev_db_password.id
+  secret_data = random_password.dev_db_password.result
 
   depends_on = [google_secret_manager_secret.dev_db_password]
 }
 
 data "google_secret_manager_secret_version" "dev_db_password" {
-  count   = var.configure_development_environment ? 1 : 0
-  secret  = google_secret_manager_secret.dev_db_password[0].id
+  secret  = google_secret_manager_secret.dev_db_password.id
   version = "latest"
   depends_on = [google_secret_manager_secret_version.dev_db_password]
 }
 
 resource "google_secret_manager_secret" "qa_db_password" {
-  count     = var.configure_nonproduction_environment ? 1 : 0
   secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-db-password"
   replication {
     user_managed {
@@ -214,22 +195,19 @@ resource "google_secret_manager_secret" "qa_db_password" {
 }
 
 resource "google_secret_manager_secret_version" "qa_db_password" {
-  count       = var.configure_nonproduction_environment ? 1 : 0
-  secret      = google_secret_manager_secret.qa_db_password[0].id
-  secret_data = random_password.qa_db_password[0].result
+  secret      = google_secret_manager_secret.qa_db_password.id
+  secret_data = random_password.qa_db_password.result
 
   depends_on = [google_secret_manager_secret.qa_db_password]
 }
 
 data "google_secret_manager_secret_version" "qa_db_password" {
-  count   = var.configure_nonproduction_environment ? 1 : 0
-  secret  = google_secret_manager_secret.qa_db_password[0].id
+  secret  = google_secret_manager_secret.qa_db_password.id
   version = "latest"
   depends_on = [google_secret_manager_secret_version.qa_db_password]
 }
 
 resource "google_secret_manager_secret" "prod_db_password" {
-  count     = var.configure_production_environment ? 1 : 0
   secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-db-password"
   replication {
     user_managed {
@@ -242,16 +220,14 @@ resource "google_secret_manager_secret" "prod_db_password" {
 }
 
 resource "google_secret_manager_secret_version" "prod_db_password" {
-  count       = var.configure_production_environment ? 1 : 0
-  secret      = google_secret_manager_secret.prod_db_password[0].id
-  secret_data = random_password.prod_db_password[0].result
+  secret      = google_secret_manager_secret.prod_db_password.id
+  secret_data = random_password.prod_db_password.result
 
   depends_on = [google_secret_manager_secret.prod_db_password]
 }
 
 data "google_secret_manager_secret_version" "prod_db_password" {
-  count   = var.configure_production_environment ? 1 : 0
-  secret  = google_secret_manager_secret.prod_db_password[0].id
+  secret  = google_secret_manager_secret.prod_db_password.id
   version = "latest"
   depends_on = [google_secret_manager_secret_version.prod_db_password]
 }

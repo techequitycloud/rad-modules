@@ -34,14 +34,14 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
 
       env {
         name = "GS_BUCKET_NAME"
-        value = google_storage_bucket.dev_storage[0].name
+        value = google_storage_bucket.dev_storage.name
       }
 
       env {
         name = "APPLICATION_SETTINGS"
         value_source {
           secret_key_ref {
-            secret = google_secret_manager_secret.dev_application_settings[0].secret_id
+            secret = google_secret_manager_secret.dev_application_settings.secret_id
             version = "latest"
           }
         }
@@ -133,14 +133,14 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
 
       env {
         name = "GS_BUCKET_NAME"
-        value = google_storage_bucket.qa_storage[0].name  # FIXED: Changed from dev_storage to qa_storage
+        value = google_storage_bucket.qa_storage.name  # FIXED: Changed from dev_storage to qa_storage
       }
 
       env {
         name = "APPLICATION_SETTINGS"
         value_source {
           secret_key_ref {
-            secret = google_secret_manager_secret.qa_application_settings[0].secret_id
+            secret = google_secret_manager_secret.qa_application_settings.secret_id
             version = "latest"
           }
         }
@@ -232,14 +232,14 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
 
       env {
         name = "GS_BUCKET_NAME"
-        value = google_storage_bucket.prod_storage[0].name  # FIXED: Changed from dev_storage to prod_storage
+        value = google_storage_bucket.prod_storage.name  # FIXED: Changed from dev_storage to prod_storage
       }
 
       env {
         name = "APPLICATION_SETTINGS"
         value_source {
           secret_key_ref {
-            secret = google_secret_manager_secret.prod_application_settings[0].secret_id
+            secret = google_secret_manager_secret.prod_application_settings.secret_id
             version = "latest"
           }
         }

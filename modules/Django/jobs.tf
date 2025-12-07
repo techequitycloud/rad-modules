@@ -32,7 +32,7 @@ resource "google_cloud_run_v2_job" "dev_migrate" {
           name = "APPLICATION_SETTINGS"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.dev_application_settings[0].secret_id
+              secret = google_secret_manager_secret.dev_application_settings.secret_id
               version = "latest"
             }
           }
@@ -82,7 +82,7 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
             name = "DJANGO_SUPERUSER_PASSWORD"
             value_source {
                 secret_key_ref {
-                    secret = google_secret_manager_secret.dev_superuser_password[0].secret_id
+                    secret = google_secret_manager_secret.dev_superuser_password.secret_id
                     version = "latest"
                 }
             }
@@ -91,7 +91,7 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
           name = "APPLICATION_SETTINGS"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.dev_application_settings[0].secret_id
+              secret = google_secret_manager_secret.dev_application_settings.secret_id
               version = "latest"
             }
           }
@@ -106,7 +106,7 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
         }
         env {
           name = "GS_BUCKET_NAME"
-          value = google_storage_bucket.dev_storage[0].name
+          value = google_storage_bucket.dev_storage.name
         }
 
         command = ["python", "manage.py", "createsuperuser", "--noinput"]
@@ -192,7 +192,7 @@ resource "google_cloud_run_v2_job" "qa_migrate" {
           name = "APPLICATION_SETTINGS"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.qa_application_settings[0].secret_id
+              secret = google_secret_manager_secret.qa_application_settings.secret_id
               version = "latest"
             }
           }
@@ -241,7 +241,7 @@ resource "google_cloud_run_v2_job" "qa_createuser" {
             name = "DJANGO_SUPERUSER_PASSWORD"
             value_source {
                 secret_key_ref {
-                    secret = google_secret_manager_secret.qa_superuser_password[0].secret_id
+                    secret = google_secret_manager_secret.qa_superuser_password.secret_id
                     version = "latest"
                 }
             }
@@ -250,7 +250,7 @@ resource "google_cloud_run_v2_job" "qa_createuser" {
           name = "APPLICATION_SETTINGS"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.qa_application_settings[0].secret_id
+              secret = google_secret_manager_secret.qa_application_settings.secret_id
               version = "latest"
             }
           }
@@ -265,7 +265,7 @@ resource "google_cloud_run_v2_job" "qa_createuser" {
         }
         env {
           name = "GS_BUCKET_NAME"
-          value = google_storage_bucket.qa_storage[0].name
+          value = google_storage_bucket.qa_storage.name
         }
 
         command = ["python", "manage.py", "createsuperuser", "--noinput"]
@@ -350,7 +350,7 @@ resource "google_cloud_run_v2_job" "prod_migrate" {
           name = "APPLICATION_SETTINGS"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.prod_application_settings[0].secret_id
+              secret = google_secret_manager_secret.prod_application_settings.secret_id
               version = "latest"
             }
           }
@@ -399,7 +399,7 @@ resource "google_cloud_run_v2_job" "prod_createuser" {
             name = "DJANGO_SUPERUSER_PASSWORD"
             value_source {
                 secret_key_ref {
-                    secret = google_secret_manager_secret.prod_superuser_password[0].secret_id
+                    secret = google_secret_manager_secret.prod_superuser_password.secret_id
                     version = "latest"
                 }
             }
@@ -408,7 +408,7 @@ resource "google_cloud_run_v2_job" "prod_createuser" {
           name = "APPLICATION_SETTINGS"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.prod_application_settings[0].secret_id
+              secret = google_secret_manager_secret.prod_application_settings.secret_id
               version = "latest"
             }
           }
@@ -423,7 +423,7 @@ resource "google_cloud_run_v2_job" "prod_createuser" {
         }
         env {
           name = "GS_BUCKET_NAME"
-          value = google_storage_bucket.prod_storage[0].name
+          value = google_storage_bucket.prod_storage.name
         }
 
         command = ["python", "manage.py", "createsuperuser", "--noinput"]
@@ -515,19 +515,19 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 
         env {
           name  = "DB_USER"
-          value = google_sql_user.dev_user[0].name
+          value = google_sql_user.dev_user.name
         }
 
         env {
           name  = "DB_NAME"
-          value = google_sql_database.dev_db[0].name
+          value = google_sql_database.dev_db.name
         }
 
         env {
           name = "DB_PASSWORD"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.dev_db_password[0].secret_id
+              secret = google_secret_manager_secret.dev_db_password.secret_id
               version = "latest"
             }
           }
@@ -560,7 +560,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
       volumes {
         name = "gcs-backup-volume"
         gcs {
-          bucket = google_storage_bucket.dev_backup_storage[0].name
+          bucket = google_storage_bucket.dev_backup_storage.name
         }
       }
 
@@ -608,19 +608,19 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
 
         env {
           name  = "DB_USER"
-          value = google_sql_user.qa_user[0].name
+          value = google_sql_user.qa_user.name
         }
 
         env {
           name  = "DB_NAME"
-          value = google_sql_database.qa_db[0].name
+          value = google_sql_database.qa_db.name
         }
 
         env {
           name = "DB_PASSWORD"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.qa_db_password[0].secret_id
+              secret = google_secret_manager_secret.qa_db_password.secret_id
               version = "latest"
             }
           }
@@ -653,7 +653,7 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
       volumes {
         name = "gcs-backup-volume"
         gcs {
-          bucket = google_storage_bucket.qa_backup_storage[0].name
+          bucket = google_storage_bucket.qa_backup_storage.name
         }
       }
 
@@ -701,19 +701,19 @@ resource "google_cloud_run_v2_job" "prod_backup_service" {
 
         env {
           name  = "DB_USER"
-          value = google_sql_user.prod_user[0].name
+          value = google_sql_user.prod_user.name
         }
 
         env {
           name  = "DB_NAME"
-          value = google_sql_database.prod_db[0].name
+          value = google_sql_database.prod_db.name
         }
 
         env {
           name = "DB_PASSWORD"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.prod_db_password[0].secret_id
+              secret = google_secret_manager_secret.prod_db_password.secret_id
               version = "latest"
             }
           }
@@ -746,7 +746,7 @@ resource "google_cloud_run_v2_job" "prod_backup_service" {
       volumes {
         name = "gcs-backup-volume"
         gcs {
-          bucket = google_storage_bucket.prod_backup_storage[0].name
+          bucket = google_storage_bucket.prod_backup_storage.name
         }
       }
 
