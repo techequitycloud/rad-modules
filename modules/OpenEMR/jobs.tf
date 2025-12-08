@@ -352,41 +352,48 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
             mount_path = "/mnt/sites"
         }
 
-        command = ["/bin/bash", "-c"]
+        command = ["/bin/sh", "-c"]
         args = [<<EOT
           set -e
           echo "Checking /mnt/sites..."
-          # If /mnt/sites/default/sqlconf.php does not exist, we initialize.
+          # Create directory if it doesn't exist (it's a mount point so it exists, but 'default' subdir might not)
+          mkdir -p /mnt/sites/default
+
           if [ ! -f /mnt/sites/default/sqlconf.php ]; then
             echo "Populating /mnt/sites..."
-            # Check if /mnt/sites is empty, if so copy all. If not empty but missing sqlconf, copy might fail or be partial.
-            # Assuming if sqlconf missing, it's safe to copy.
-            cp -rn /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || true
-
-            echo "Configuring sqlconf.php..."
-            SQLCONF="/mnt/sites/default/sqlconf.php"
-
-            if [ -f "$SQLCONF" ]; then
-              sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${local.db_internal_ip}'/" "$SQLCONF"
-              sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF"
-              sed -i "s/\$login\s*=\s*'[^']*'/\$login = '$MYSQL_USER'/" "$SQLCONF"
-              sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '$MYSQL_PASS'/" "$SQLCONF"
-              sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = '$MYSQL_DATABASE'/" "$SQLCONF"
-
-              # Add rootpass only if it's not there, though usually it's not needed in sqlconf.php for runtime but import_nfs does it.
-              # We will add it to be consistent with import_nfs.tpl
-              if ! grep -q "\$rootpass" "$SQLCONF"; then
-                 sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '$MYSQL_ROOT_PASS';" "$SQLCONF"
-              fi
-
-              # Fix permissions
-              chown -R 1000:1000 /mnt/sites
-              chmod -R 755 /mnt/sites
-              echo "Configuration done."
+            # Copy all files from image to /mnt/sites
+            # Use -R and ensure source exists.
+            if [ -d /var/www/localhost/htdocs/openemr/sites ]; then
+               cp -R /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || echo "Copy failed or partial"
             else
-               echo "Error: sqlconf.php not found after copy."
-               exit 1
+               echo "Source directory not found!"
             fi
+
+            # Ensure default directory exists again just in case cp failed
+            mkdir -p /mnt/sites/default
+
+            echo "Creating sqlconf.php..."
+            cat <<PHP_CONFIG > /mnt/sites/default/sqlconf.php
+<?php
+//  OpenEMR
+//  MySQL Config
+//  Refer to openemr/library/sqlconf.php.dist for instructions
+
+\$host = '${local.db_internal_ip}';
+\$port = '3306';
+\$login = '$MYSQL_USER';
+\$pass = '$MYSQL_PASS';
+\$dbase = '$MYSQL_DATABASE';
+\$rootpass = '$MYSQL_ROOT_PASS';
+
+// \$config = 1; // uncomment to disable Setup.php
+?>
+PHP_CONFIG
+
+            # Fix permissions
+            chown -R 1000:1000 /mnt/sites || true
+            chmod -R 755 /mnt/sites || true
+            echo "Configuration done."
           else
             echo "/mnt/sites/default/sqlconf.php exists. Skipping initialization."
           fi
@@ -498,35 +505,48 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
             mount_path = "/mnt/sites"
         }
 
-        command = ["/bin/bash", "-c"]
+        command = ["/bin/sh", "-c"]
         args = [<<EOT
           set -e
           echo "Checking /mnt/sites..."
+          # Create directory if it doesn't exist (it's a mount point so it exists, but 'default' subdir might not)
+          mkdir -p /mnt/sites/default
+
           if [ ! -f /mnt/sites/default/sqlconf.php ]; then
             echo "Populating /mnt/sites..."
-            cp -rn /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || true
-
-            echo "Configuring sqlconf.php..."
-            SQLCONF="/mnt/sites/default/sqlconf.php"
-
-            if [ -f "$SQLCONF" ]; then
-              sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${local.db_internal_ip}'/" "$SQLCONF"
-              sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF"
-              sed -i "s/\$login\s*=\s*'[^']*'/\$login = '$MYSQL_USER'/" "$SQLCONF"
-              sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '$MYSQL_PASS'/" "$SQLCONF"
-              sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = '$MYSQL_DATABASE'/" "$SQLCONF"
-
-              if ! grep -q "\$rootpass" "$SQLCONF"; then
-                 sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '$MYSQL_ROOT_PASS';" "$SQLCONF"
-              fi
-
-              chown -R 1000:1000 /mnt/sites
-              chmod -R 755 /mnt/sites
-              echo "Configuration done."
+            # Copy all files from image to /mnt/sites
+            # Use -R and ensure source exists.
+            if [ -d /var/www/localhost/htdocs/openemr/sites ]; then
+               cp -R /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || echo "Copy failed or partial"
             else
-               echo "Error: sqlconf.php not found after copy."
-               exit 1
+               echo "Source directory not found!"
             fi
+
+            # Ensure default directory exists again just in case cp failed
+            mkdir -p /mnt/sites/default
+
+            echo "Creating sqlconf.php..."
+            cat <<PHP_CONFIG > /mnt/sites/default/sqlconf.php
+<?php
+//  OpenEMR
+//  MySQL Config
+//  Refer to openemr/library/sqlconf.php.dist for instructions
+
+\$host = '${local.db_internal_ip}';
+\$port = '3306';
+\$login = '$MYSQL_USER';
+\$pass = '$MYSQL_PASS';
+\$dbase = '$MYSQL_DATABASE';
+\$rootpass = '$MYSQL_ROOT_PASS';
+
+// \$config = 1; // uncomment to disable Setup.php
+?>
+PHP_CONFIG
+
+            # Fix permissions
+            chown -R 1000:1000 /mnt/sites || true
+            chmod -R 755 /mnt/sites || true
+            echo "Configuration done."
           else
             echo "/mnt/sites/default/sqlconf.php exists. Skipping initialization."
           fi
@@ -637,35 +657,48 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
             mount_path = "/mnt/sites"
         }
 
-        command = ["/bin/bash", "-c"]
+        command = ["/bin/sh", "-c"]
         args = [<<EOT
           set -e
           echo "Checking /mnt/sites..."
+          # Create directory if it doesn't exist (it's a mount point so it exists, but 'default' subdir might not)
+          mkdir -p /mnt/sites/default
+
           if [ ! -f /mnt/sites/default/sqlconf.php ]; then
             echo "Populating /mnt/sites..."
-            cp -rn /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || true
-
-            echo "Configuring sqlconf.php..."
-            SQLCONF="/mnt/sites/default/sqlconf.php"
-
-            if [ -f "$SQLCONF" ]; then
-              sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${local.db_internal_ip}'/" "$SQLCONF"
-              sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF"
-              sed -i "s/\$login\s*=\s*'[^']*'/\$login = '$MYSQL_USER'/" "$SQLCONF"
-              sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '$MYSQL_PASS'/" "$SQLCONF"
-              sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = '$MYSQL_DATABASE'/" "$SQLCONF"
-
-              if ! grep -q "\$rootpass" "$SQLCONF"; then
-                 sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '$MYSQL_ROOT_PASS';" "$SQLCONF"
-              fi
-
-              chown -R 1000:1000 /mnt/sites
-              chmod -R 755 /mnt/sites
-              echo "Configuration done."
+            # Copy all files from image to /mnt/sites
+            # Use -R and ensure source exists.
+            if [ -d /var/www/localhost/htdocs/openemr/sites ]; then
+               cp -R /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || echo "Copy failed or partial"
             else
-               echo "Error: sqlconf.php not found after copy."
-               exit 1
+               echo "Source directory not found!"
             fi
+
+            # Ensure default directory exists again just in case cp failed
+            mkdir -p /mnt/sites/default
+
+            echo "Creating sqlconf.php..."
+            cat <<PHP_CONFIG > /mnt/sites/default/sqlconf.php
+<?php
+//  OpenEMR
+//  MySQL Config
+//  Refer to openemr/library/sqlconf.php.dist for instructions
+
+\$host = '${local.db_internal_ip}';
+\$port = '3306';
+\$login = '$MYSQL_USER';
+\$pass = '$MYSQL_PASS';
+\$dbase = '$MYSQL_DATABASE';
+\$rootpass = '$MYSQL_ROOT_PASS';
+
+// \$config = 1; // uncomment to disable Setup.php
+?>
+PHP_CONFIG
+
+            # Fix permissions
+            chown -R 1000:1000 /mnt/sites || true
+            chmod -R 755 /mnt/sites || true
+            echo "Configuration done."
           else
             echo "/mnt/sites/default/sqlconf.php exists. Skipping initialization."
           fi
