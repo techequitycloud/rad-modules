@@ -54,15 +54,7 @@ resource "google_service_account_iam_member" "trusted_user_token_creator_role" {
   service_account_id = local.project_sa_id
 
   depends_on = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
   ]
 }
 
@@ -77,15 +69,7 @@ resource "google_service_account_iam_binding" "resource_creator_identity_token_c
   ]
 
   depends_on = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
   ]
 }
 
@@ -110,20 +94,8 @@ resource "google_project_iam_member" "project_sa_admin" {
   for_each = toset(local.project_sa_roles)
 
   project  = local.project.project_id          
-  member   = "serviceAccount:${local.project_sa_email}" 
+  member   = google_service_account.project_sa_admin.member
   role     = each.key                          
-
-  depends_on = [
-    null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
-  ]
 }
 
 locals {
@@ -171,20 +143,8 @@ resource "google_project_iam_member" "cloud_build_sa" {
   for_each = toset(local.cloud_build_sa_project_roles)
 
   project  = local.project.project_id          
-  member   = "serviceAccount:${local.cloudbuild_sa_email}" 
+  member   = google_service_account.cloud_build_sa_admin.member
   role     = each.key                          
-
-  depends_on = [
-    null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
-  ]
 }
 
 locals {
@@ -192,7 +152,7 @@ locals {
     "roles/secretmanager.secretAccessor",
     "roles/cloudbuild.builds.editor",
     "roles/viewer",
-    "roles/storage.admin",
+    "roles/storage.objectAdmin",
     "roles/artifactregistry.reader",
     "roles/artifactregistry.writer",
     "roles/binaryauthorization.attestorsViewer",
@@ -223,14 +183,6 @@ resource "google_project_iam_member" "cloud_build_agent_sa" {
 
   depends_on = [
     null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
   ]
 }
 
@@ -270,20 +222,8 @@ resource "google_project_iam_member" "cloud_deploy_sa" {
   for_each = toset(local.cloud_deploy_sa_project_roles)
 
   project  = local.project.project_id          
-  member   = "serviceAccount:${local.clouddeploy_sa_email}" 
+  member   = google_service_account.cloud_deploy_sa_admin.member
   role     = each.key                          
-
-  depends_on = [
-    null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
-  ]
 }
 
 locals {
@@ -320,20 +260,8 @@ resource "google_project_iam_member" "gke_sa" {
   for_each = toset(local.gke_sa_project_roles) 
 
   project  = local.project.project_id          
-  member   = "serviceAccount:${local.gke_sa_email}" 
+  member   = google_service_account.gke_sa_admin.member
   role     = each.key                          
-
-  depends_on = [
-    null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
-  ]
 }
 
 locals {
@@ -341,11 +269,9 @@ locals {
     "roles/storage.objectAdmin",
     "roles/storage.objectViewer",
     "roles/artifactregistry.reader",
-    "roles/storage.admin",
     "roles/monitoring.viewer",
     "roles/logging.logWriter",
     "roles/stackdriver.resourceMetadata.writer",
-    "roles/container.defaultNodeServiceAccount",
     "roles/monitoring.metricWriter",
     "roles/compute.networkUser",
   ]
@@ -381,20 +307,8 @@ resource "google_project_iam_member" "cloud_run_sa" {
   for_each = toset(local.cloud_run_sa_project_roles)
 
   project  = local.project.project_id          
-  member   = "serviceAccount:${local.cloudrun_sa_email}" 
+  member   = google_service_account.cloud_run_sa_admin.member
   role     = each.key                          
-
-  depends_on = [
-    null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
-  ]
 }
 
 # Grant the Cloud Run service agent access to the Shared VPC (always enabled as this is for default SA)
@@ -405,14 +319,6 @@ resource "google_project_iam_member" "cloudrun_agent_shared_vpc_access" {
 
   depends_on   = [
     null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
   ]
 }
 
@@ -444,20 +350,8 @@ resource "google_project_iam_member" "cloud_sql_sa" {
   for_each = toset(local.cloud_sql_sa_project_roles)
 
   project  = local.project.project_id          
-  member   = "serviceAccount:${local.cloudsql_sa_email}" 
+  member   = google_service_account.cloud_sql_sa_admin.member
   role     = each.key                         
-
-  depends_on = [
-    null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
-  ]
 }
 
 #########################################################################
@@ -480,7 +374,7 @@ resource "google_service_account" "nfs_server_sa_admin" {
 # List of roles assigned to the NFS service account within the project
 locals {
   nfs_server_sa_project_roles = [
-    "roles/storage.admin",
+    "roles/storage.objectAdmin",
     "roles/logging.logWriter",
   ]
 }
@@ -490,21 +384,8 @@ resource "google_project_iam_member" "nfs_server_sa" {
   for_each = toset(local.nfs_server_sa_project_roles)
 
   project  = local.project.project_id          # The project ID
-  member   = "serviceAccount:${local.nfsserver_sa_email}" # Adjusted to reference the first service account
+  member   = google_service_account.nfs_server_sa_admin.member
   role     = each.key                          # Use each.key instead of each.value
-
-  # Ensures that this resource is created
-  depends_on = [
-    null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.setup_server_sa_admin,
-  ]
 }
 
 #########################################################################
@@ -543,19 +424,6 @@ resource "google_project_iam_member" "setup_server_sa" {
   for_each = toset(local.setup_server_sa_project_roles)
 
   project  = local.project.project_id          # The project ID
-  member   = "serviceAccount:${local.setupserver_sa_email}" # Adjusted to reference the first service account
+  member   = google_service_account.setup_server_sa_admin.member
   role     = each.key                          # Use each.key instead of each.value
-
-  # Ensures that this resource is created
-  depends_on = [
-    null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.setup_server_sa_admin,
-  ]
 }
