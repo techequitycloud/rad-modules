@@ -92,8 +92,8 @@ RUN apt-get update -y && apt-get install -y tini \
     && apt-get clean
     
 # Install Odoo
-RUN curl -o odoo.deb -sSL http://nightly.odoo.com/${APP_VERSION}/nightly/deb/odoo_${APP_VERSION}.${APP_RELEASE}_all.deb \
-    && echo "${APP_SHA} odoo.deb" | sha1sum -c - \
+RUN curl -o odoo.deb -sSL https://nightly.odoo.com/${APP_VERSION}/nightly/deb/odoo_${APP_VERSION}.${APP_RELEASE}_all.deb \
+    && echo "${APP_SHA} odoo.deb" | sha256sum -c - \
     && apt-get update \
     && apt-get -y install --no-install-recommends ./odoo.deb \
     && rm -rf /var/lib/apt/lists/* odoo.deb

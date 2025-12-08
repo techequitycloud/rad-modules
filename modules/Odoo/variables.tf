@@ -132,7 +132,7 @@ variable "application_release" {
 variable "application_sha" {
   description = "Enter application SHA. This value can be updated from the docker files at https://hub.docker.com/_/odoo {{UIMeta group=0 order=506 updatesafe}}"
   type        = string
-  default     = "c15a8eb3791e805b9cd3078f2dd4e0d78130b1c2"
+  default     = "39d5925b28cd0d75a5b296dbc80b8e6f5fbb0b6c6e4ca66307bb8ab6bef96d00"
 }
 
 # GROUP 6: CICD

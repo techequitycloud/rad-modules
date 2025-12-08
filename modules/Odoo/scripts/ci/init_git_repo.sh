@@ -15,7 +15,10 @@
 
 export GIT_REPO=$GIT_REPO
 export GIT_ORG=$GIT_ORG
-export GITHUB_TOKEN=$GITHUB_TOKEN
+if [ -z "$GITHUB_TOKEN" ]; then
+  read -r GITHUB_TOKEN
+  export GITHUB_TOKEN
+fi
 export TRUSTED_USERS=$GIT_USERNAMES
 
 check_and_install_gh() {

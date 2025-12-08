@@ -84,12 +84,11 @@ resource "null_resource" "init_git_repo" {
   # Provisioner to execute the local script with environment variables
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = "chmod +x ./init_git_repo.sh && ./init_git_repo.sh && sleep 30"
+    command = "chmod +x ./init_git_repo.sh && echo \"${var.application_git_token}\" | ./init_git_repo.sh && sleep 30"
     working_dir = "${path.module}/scripts/ci"
     environment = {
       GIT_REPO      = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
       GIT_ORG       = var.application_git_organization
-      GITHUB_TOKEN  = var.application_git_token
       GIT_USERNAMES = "${join(",", var.application_git_usernames)}"
     }
   }
@@ -178,17 +177,17 @@ resource "google_cloudbuild_trigger" "dev_repo_trigger" {
 
   # Dependencies ensure that all the specified GitHub repository files are created before this trigger
   depends_on = [
-    github_repository_file.primary_dev_overlay_kustomization,
-    github_repository_file.primary_dev_base_kustomization,
-    github_repository_file.primary_dev_overlay_deploy,
-    github_repository_file.primary_dev_base_deploy,
-    github_repository_file.secondary_dev_overlay_kustomization,
-    github_repository_file.secondary_dev_base_kustomization,
-    github_repository_file.secondary_dev_overlay_deploy,
-    github_repository_file.secondary_dev_base_deploy,
-    github_repository_file.dev_cloudbuild,
-    github_repository_file.dev_dockerfile,
-    github_repository_file.dev_skaffold,
+    github_repository_file.primary_overlay_kustomization,
+    github_repository_file.primary_base_kustomization,
+    github_repository_file.primary_overlay_deploy,
+    github_repository_file.primary_base_deploy,
+    github_repository_file.secondary_overlay_kustomization,
+    github_repository_file.secondary_base_kustomization,
+    github_repository_file.secondary_overlay_deploy,
+    github_repository_file.secondary_base_deploy,
+    github_repository_file.cloudbuild,
+    github_repository_file.dockerfile,
+    github_repository_file.skaffold,
     google_cloud_run_v2_service.dev_app_service
   ]
 }
@@ -226,17 +225,17 @@ resource "google_cloudbuild_trigger" "qa_repo_trigger" {
 
   # Dependencies ensure that all the specified GitHub repository files are created before this trigger
   depends_on = [
-    github_repository_file.primary_qa_overlay_kustomization,
-    github_repository_file.primary_qa_base_kustomization,
-    github_repository_file.primary_qa_overlay_deploy,
-    github_repository_file.primary_qa_base_deploy,
-    github_repository_file.secondary_qa_overlay_kustomization,
-    github_repository_file.secondary_qa_base_kustomization,
-    github_repository_file.secondary_qa_overlay_deploy,
-    github_repository_file.secondary_qa_base_deploy,
-    github_repository_file.qa_cloudbuild,
-    github_repository_file.qa_dockerfile,
-    github_repository_file.qa_skaffold,
+    github_repository_file.primary_overlay_kustomization,
+    github_repository_file.primary_base_kustomization,
+    github_repository_file.primary_overlay_deploy,
+    github_repository_file.primary_base_deploy,
+    github_repository_file.secondary_overlay_kustomization,
+    github_repository_file.secondary_base_kustomization,
+    github_repository_file.secondary_overlay_deploy,
+    github_repository_file.secondary_base_deploy,
+    github_repository_file.cloudbuild,
+    github_repository_file.dockerfile,
+    github_repository_file.skaffold,
     google_cloud_run_v2_service.qa_app_service
   ]
 }
@@ -274,17 +273,17 @@ resource "google_cloudbuild_trigger" "prod_repo_trigger" {
 
   # Dependencies ensure that all the specified GitHub repository files are created before this trigger
   depends_on = [
-    github_repository_file.primary_prod_overlay_kustomization,
-    github_repository_file.primary_prod_base_kustomization,
-    github_repository_file.primary_prod_overlay_deploy,
-    github_repository_file.primary_prod_base_deploy,
-    github_repository_file.secondary_prod_overlay_kustomization,
-    github_repository_file.secondary_prod_base_kustomization,
-    github_repository_file.secondary_prod_overlay_deploy,
-    github_repository_file.secondary_prod_base_deploy,
-    github_repository_file.prod_cloudbuild,
-    github_repository_file.prod_dockerfile,
-    github_repository_file.prod_skaffold,
+    github_repository_file.primary_overlay_kustomization,
+    github_repository_file.primary_base_kustomization,
+    github_repository_file.primary_overlay_deploy,
+    github_repository_file.primary_base_deploy,
+    github_repository_file.secondary_overlay_kustomization,
+    github_repository_file.secondary_base_kustomization,
+    github_repository_file.secondary_overlay_deploy,
+    github_repository_file.secondary_base_deploy,
+    github_repository_file.cloudbuild,
+    github_repository_file.dockerfile,
+    github_repository_file.skaffold,
     google_cloud_run_v2_service.prod_app_service
   ]
 }
