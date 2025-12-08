@@ -109,7 +109,7 @@ resource "null_resource" "import_dev_db" {
       fi
 
       for i in {1..5}; do
-        if [ -z "${local.project_sa_email}" ] && [ -z "${var.resource_creator_identity}" ]; then
+        if [ -z "${local.project_sa_email}" ] || [ -z "${var.resource_creator_identity}" ]; then
           if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/dev/import-db.sh; then
             echo "SSH command succeeded"
             break
@@ -178,7 +178,7 @@ resource "null_resource" "import_qa_db" {
       fi
 
       for i in {1..5}; do
-        if [ -z "${local.project_sa_email}" ] && [ -z "${var.resource_creator_identity}" ]; then
+        if [ -z "${local.project_sa_email}" ] || [ -z "${var.resource_creator_identity}" ]; then
           if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/qa/import-db.sh; then
             echo "SSH command succeeded"
             break
@@ -248,7 +248,7 @@ resource "null_resource" "import_prod_db" {
       fi
 
       for i in {1..5}; do
-        if [ -z "${local.project_sa_email}" ] && [ -z "${var.resource_creator_identity}" ]; then
+        if [ -z "${local.project_sa_email}" ] || [ -z "${var.resource_creator_identity}" ]; then
           if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/prod/import-db.sh; then
             echo "SSH command succeeded"
             break

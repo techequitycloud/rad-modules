@@ -17,7 +17,7 @@
 #########################################################################
 
 data "external" "sql_instance_info" {
-  program = ["bash", "${path.module}/scripts/app/get-sqlserver-info.sh", local.project.project_id, "POSTGRES", var.resource_creator_identity]
+  program = ["bash", "${path.module}/scripts/app/get-sqlserver-info.sh", local.project.project_id, "MYSQL", var.resource_creator_identity]
 }
 
 #########################################################################
