@@ -14,7 +14,7 @@
 
 resource "google_cloud_run_v2_job" "dev_backup_service" {
   count      = var.configure_backups && var.configure_development_environment ? 1 : 0  # Updated count condition
-  project    = local.project.project_id
+  project    = local.project.project_id  
   name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
   location   = local.region
   deletion_protection = false
@@ -106,7 +106,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 
 resource "google_cloud_run_v2_job" "qa_backup_service" {
   count      = var.configure_backups && var.configure_nonproduction_environment ? 1 : 0  # Updated count condition
-  project    = local.project.project_id
+  project    = local.project.project_id  
   name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
   location   = local.region
   deletion_protection = false
@@ -200,7 +200,7 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
 
 resource "google_cloud_run_v2_job" "prod_backup_service" {
   count      = var.configure_backups && var.configure_production_environment ? 1 : 0  # Updated count condition
-  project    = local.project.project_id
+  project    = local.project.project_id  
   name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
   location   = local.region
   deletion_protection = false
@@ -303,7 +303,7 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
     template {
       service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
       max_retries     = 0
-
+      
       containers {
         image = "openemr/openemr:7.0.3"
 
@@ -346,13 +346,13 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
             name  = "MYSQL_PORT"
             value = "3306"
         }
-
+        
         volume_mounts {
             name       = "nfs-data-volume"
             mount_path = "/mnt/sites"
         }
 
-        command = ["/bin/bash", "-c"]
+        command = ["/bin/sh", "-c"]
         args = [<<EOT
           set -e
           echo "Checking /mnt/sites..."
@@ -361,27 +361,27 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
             echo "Populating /mnt/sites..."
             # Check if /mnt/sites is empty, if so copy all. If not empty but missing sqlconf, copy might fail or be partial.
             # Assuming if sqlconf missing, it's safe to copy.
-            cp -rn /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || true
-
+            cp -R /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || true
+            
             echo "Configuring sqlconf.php..."
             SQLCONF="/mnt/sites/default/sqlconf.php"
-
+            
             if [ -f "$SQLCONF" ]; then
               sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${local.db_internal_ip}'/" "$SQLCONF"
               sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF"
               sed -i "s/\$login\s*=\s*'[^']*'/\$login = '$MYSQL_USER'/" "$SQLCONF"
               sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '$MYSQL_PASS'/" "$SQLCONF"
               sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = '$MYSQL_DATABASE'/" "$SQLCONF"
-
+              
               # Add rootpass only if it's not there, though usually it's not needed in sqlconf.php for runtime but import_nfs does it.
               # We will add it to be consistent with import_nfs.tpl
               if ! grep -q "\$rootpass" "$SQLCONF"; then
                  sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '$MYSQL_ROOT_PASS';" "$SQLCONF"
               fi
-
+              
               # Fix permissions
-              chown -R 1000:1000 /mnt/sites
-              chmod -R 755 /mnt/sites
+              chown -R 1000:1000 /mnt/sites || true
+              chmod -R 755 /mnt/sites || true
               echo "Configuration done."
             else
                echo "Error: sqlconf.php not found after copy."
@@ -393,7 +393,7 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
         EOT
         ]
       }
-
+      
       vpc_access {
         network_interfaces {
           network = "projects/${local.project.project_id}/global/networks/${var.network_name}"
@@ -411,7 +411,7 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
       }
     }
   }
-
+  
   depends_on = [
     null_resource.import_dev_nfs
   ]
@@ -431,7 +431,7 @@ resource "null_resource" "execute_dev_init_job" {
       gcloud run jobs execute ${google_cloud_run_v2_job.dev_init_job[0].name} --region ${local.region} --project ${local.project.project_id} --wait
     EOT
   }
-
+  
   depends_on = [
     google_cloud_run_v2_job.dev_init_job
   ]
@@ -449,7 +449,7 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
     template {
       service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
       max_retries     = 0
-
+      
       containers {
         image = "openemr/openemr:7.0.3"
 
@@ -492,36 +492,36 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
             name  = "MYSQL_PORT"
             value = "3306"
         }
-
+        
         volume_mounts {
             name       = "nfs-data-volume"
             mount_path = "/mnt/sites"
         }
 
-        command = ["/bin/bash", "-c"]
+        command = ["/bin/sh", "-c"]
         args = [<<EOT
           set -e
           echo "Checking /mnt/sites..."
           if [ ! -f /mnt/sites/default/sqlconf.php ]; then
             echo "Populating /mnt/sites..."
-            cp -rn /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || true
-
+            cp -R /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || true
+            
             echo "Configuring sqlconf.php..."
             SQLCONF="/mnt/sites/default/sqlconf.php"
-
+            
             if [ -f "$SQLCONF" ]; then
               sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${local.db_internal_ip}'/" "$SQLCONF"
               sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF"
               sed -i "s/\$login\s*=\s*'[^']*'/\$login = '$MYSQL_USER'/" "$SQLCONF"
               sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '$MYSQL_PASS'/" "$SQLCONF"
               sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = '$MYSQL_DATABASE'/" "$SQLCONF"
-
+              
               if ! grep -q "\$rootpass" "$SQLCONF"; then
                  sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '$MYSQL_ROOT_PASS';" "$SQLCONF"
               fi
-
-              chown -R 1000:1000 /mnt/sites
-              chmod -R 755 /mnt/sites
+              
+              chown -R 1000:1000 /mnt/sites || true
+              chmod -R 755 /mnt/sites || true
               echo "Configuration done."
             else
                echo "Error: sqlconf.php not found after copy."
@@ -533,7 +533,7 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
         EOT
         ]
       }
-
+      
       vpc_access {
         network_interfaces {
           network = "projects/${local.project.project_id}/global/networks/${var.network_name}"
@@ -551,7 +551,7 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
       }
     }
   }
-
+  
   depends_on = [
     null_resource.import_qa_nfs
   ]
@@ -570,7 +570,7 @@ resource "null_resource" "execute_qa_init_job" {
       gcloud run jobs execute ${google_cloud_run_v2_job.qa_init_job[0].name} --region ${local.region} --project ${local.project.project_id} --wait
     EOT
   }
-
+  
   depends_on = [
     google_cloud_run_v2_job.qa_init_job
   ]
@@ -588,7 +588,7 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
     template {
       service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
       max_retries     = 0
-
+      
       containers {
         image = "openemr/openemr:7.0.3"
 
@@ -631,36 +631,36 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
             name  = "MYSQL_PORT"
             value = "3306"
         }
-
+        
         volume_mounts {
             name       = "nfs-data-volume"
             mount_path = "/mnt/sites"
         }
 
-        command = ["/bin/bash", "-c"]
+        command = ["/bin/sh", "-c"]
         args = [<<EOT
           set -e
           echo "Checking /mnt/sites..."
           if [ ! -f /mnt/sites/default/sqlconf.php ]; then
             echo "Populating /mnt/sites..."
-            cp -rn /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || true
-
+            cp -R /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || true
+            
             echo "Configuring sqlconf.php..."
             SQLCONF="/mnt/sites/default/sqlconf.php"
-
+            
             if [ -f "$SQLCONF" ]; then
               sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${local.db_internal_ip}'/" "$SQLCONF"
               sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF"
               sed -i "s/\$login\s*=\s*'[^']*'/\$login = '$MYSQL_USER'/" "$SQLCONF"
               sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '$MYSQL_PASS'/" "$SQLCONF"
               sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = '$MYSQL_DATABASE'/" "$SQLCONF"
-
+              
               if ! grep -q "\$rootpass" "$SQLCONF"; then
                  sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '$MYSQL_ROOT_PASS';" "$SQLCONF"
               fi
-
-              chown -R 1000:1000 /mnt/sites
-              chmod -R 755 /mnt/sites
+              
+              chown -R 1000:1000 /mnt/sites || true
+              chmod -R 755 /mnt/sites || true
               echo "Configuration done."
             else
                echo "Error: sqlconf.php not found after copy."
@@ -672,7 +672,7 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
         EOT
         ]
       }
-
+      
       vpc_access {
         network_interfaces {
           network = "projects/${local.project.project_id}/global/networks/${var.network_name}"
@@ -690,7 +690,7 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
       }
     }
   }
-
+  
   depends_on = [
     null_resource.import_prod_nfs
   ]
@@ -709,7 +709,7 @@ resource "null_resource" "execute_prod_init_job" {
       gcloud run jobs execute ${google_cloud_run_v2_job.prod_init_job[0].name} --region ${local.region} --project ${local.project.project_id} --wait
     EOT
   }
-
+  
   depends_on = [
     google_cloud_run_v2_job.prod_init_job
   ]
