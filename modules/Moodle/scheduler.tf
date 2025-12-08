@@ -12,111 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# define a Cloud Scheduler cron job
-resource "google_cloud_scheduler_job" "dev_backup" {
-  count            = var.configure_development_environment ? 1 : 0
-  paused           = false 
-  name             = "${var.application_name}-backup-${var.tenant_deployment_id}-${local.random_id}dev"
-  project          = local.project.project_id
-  region           = local.region
-  schedule         = "${var.application_backup_schedule}" 
-  time_zone        = "Europe/London"
-  attempt_deadline = "180s"
+#########################################################################
+# Create a cron job to trigger the backup
+#########################################################################
 
-  retry_config {
-    max_doublings        = 5
-    max_retry_duration   = "0s"
-    max_backoff_duration = "3600s"
-    min_backoff_duration = "5s"
-  }
+resource "google_cloud_scheduler_job" "backup_job" {
+  for_each = var.configure_backups ? local.enabled_envs : toset([])
+
+  project     = local.project.project_id
+  region      = local.region
+  name        = "job${var.application_name}${var.tenant_deployment_id}${local.random_id}${each.key}-backup"
+  description = "Trigger Cloud Run job for backup"
+  schedule    = var.application_backup_schedule
+  time_zone   = "Etc/UTC"
 
   http_target {
     http_method = "POST"
-    uri = "https://${local.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${local.project.project_id}/jobs/bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}dev:run"
-    headers = {
-      "User-Agent"   = "Google-Cloud-Scheduler"
-    }
+    uri         = "https://${local.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${local.project.project_id}/jobs/bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}${each.key}:run"
+
     oauth_token {
-      scope                 = "https://www.googleapis.com/auth/cloud-platform"
-      service_account_email = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+      service_account_email = local.cloud_run_sa_email
     }
   }
 
   depends_on = [
-    null_resource.import_dev_db,
-    null_resource.import_dev_nfs,
+    google_cloud_run_v2_job.backup_service,
+    google_cloud_run_v2_job.db_import_job, # Replaced null_resource dep
   ]
 }
-
-# define a Cloud Scheduler cron job
-resource "google_cloud_scheduler_job" "qa_backup" {
-  count            = var.configure_nonproduction_environment ? 1 : 0
-  paused           = false 
-  name             = "${var.application_name}-backup-${var.tenant_deployment_id}-${local.random_id}qa"
-  project          = local.project.project_id
-  region           = local.region
-  schedule         = "${var.application_backup_schedule}" 
-  time_zone        = "Europe/London"
-  attempt_deadline = "180s"
-
-  retry_config {
-    max_doublings        = 5
-    max_retry_duration   = "0s"
-    max_backoff_duration = "3600s"
-    min_backoff_duration = "5s"
-  }
-
-  http_target {
-    http_method = "POST"
-    uri = "https://${local.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${local.project.project_id}/jobs/bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}qa:run"
-    headers = {
-      "User-Agent"   = "Google-Cloud-Scheduler"
-    }
-    oauth_token {
-      scope                 = "https://www.googleapis.com/auth/cloud-platform"
-      service_account_email = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
-    }
-  }
-
-  depends_on = [
-    null_resource.import_qa_db,
-    null_resource.import_qa_nfs,
-  ]
-}
-
-# define a Cloud Scheduler cron job
-resource "google_cloud_scheduler_job" "prod_backup" {
-  count            = var.configure_production_environment ? 1 : 0
-  paused           = false 
-  name             = "${var.application_name}-backup-${var.tenant_deployment_id}-${local.random_id}prod"
-  project          = local.project.project_id
-  region           = local.region
-  schedule         = "${var.application_backup_schedule}" 
-  time_zone        = "Europe/London"
-  attempt_deadline = "180s"
-
-  retry_config {
-    max_doublings        = 5
-    max_retry_duration   = "0s"
-    max_backoff_duration = "3600s"
-    min_backoff_duration = "5s"
-  }
-
-  http_target {
-    http_method = "POST"
-    uri = "https://${local.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${local.project.project_id}/jobs/bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}prod:run"
-    headers = {
-      "User-Agent"   = "Google-Cloud-Scheduler"
-    }
-    oauth_token {
-      scope                 = "https://www.googleapis.com/auth/cloud-platform"
-      service_account_email = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
-    }
-  }
-
-  depends_on = [
-    null_resource.import_prod_db,
-    null_resource.import_prod_nfs,
-  ]
-}
-

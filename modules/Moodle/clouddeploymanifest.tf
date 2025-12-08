@@ -18,6 +18,26 @@
 
 # Resource for creating a local Skaffold configuration file from a template.
 # Skaffold is a tool that facilitates continuous development for Kubernetes applications.
+resource "local_file" "backup_manifest" {
+  count = var.configure_continuous_deployment ? 1 : 0
+    filename                  = "${path.module}/scripts/cd/backup/manifest.yaml"
+    content                   = templatefile("${path.module}/scripts/cd/manifest.yaml.tpl", {
+    PROJECT_ID                = local.project.project_id
+    APP_NAME                  = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+    APP_REGION                = local.region
+  })
+}
+
+resource "local_file" "backup_skaffold_manifest" {
+  count = var.configure_continuous_deployment ? 1 : 0
+    filename                  = "${path.module}/scripts/cd/backup/skaffold.yaml"
+    content                   = templatefile("${path.module}/scripts/cd/skaffold.yaml.tpl", {
+    PROJECT_ID                = local.project.project_id
+    APP_NAME                  = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+    APP_REGION                = local.region
+  })
+}
+
 resource "local_file" "clouddeploy_app_skaffold" {
   count = var.configure_continuous_deployment ? 1 : 0
     filename                  = "${path.module}/scripts/cd/app/skaffold.yaml"

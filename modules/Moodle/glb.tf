@@ -37,10 +37,6 @@ resource "google_compute_backend_service" "dev_default" {
       group = google_compute_region_network_endpoint_group.dev_default[backend.key].id
     }
   }
-
-  depends_on = [
-    google_cloud_run_v2_service.dev_app_service
-  ]
 }
 
 resource "google_compute_url_map" "dev_default" {
@@ -61,10 +57,6 @@ resource "google_compute_url_map" "dev_default" {
       }
     }
   }
-
-  depends_on = [
-    google_cloud_run_v2_service.dev_app_service
-  ]
 }
 
 resource "google_compute_managed_ssl_certificate" "dev_default" {
@@ -76,10 +68,6 @@ resource "google_compute_managed_ssl_certificate" "dev_default" {
   managed {
     domains = ["app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev.${google_compute_global_address.dev[count.index].address}.nip.io"]
   }
-
-  depends_on = [
-    google_cloud_run_v2_service.dev_app_service
-  ]
 }
 
 resource "google_compute_target_https_proxy" "dev_default" {
@@ -116,15 +104,16 @@ resource "google_compute_region_network_endpoint_group" "dev_default" {
   count                 = length(local.regions) >= 2 && var.configure_development_environment ? length(local.regions) : 0
   project               = local.project.project_id
   provider              = google-beta
-  name                  = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-neg"
+  name                  = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-neg-${count.index}"
   network_endpoint_type = "SERVERLESS"
   region                = local.regions[count.index]
   cloud_run {
-    service = google_cloud_run_v2_service.dev_app_service[local.regions[count.index]].name
+    # Construct the key for the for_each map in service.tf: "dev-<region>"
+    service = google_cloud_run_v2_service.app_service["dev-${local.regions[count.index]}"].name
   }
 
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -139,10 +128,6 @@ resource "google_compute_url_map" "dev_https" {
     https_redirect         = true
     strip_query            = false
   }
-
-  depends_on = [
-    google_cloud_run_v2_service.dev_app_service
-  ]
 }
 
 resource "google_compute_target_http_proxy" "dev_https" {
@@ -196,10 +181,6 @@ resource "google_compute_backend_service" "qa_default" {
       group = google_compute_region_network_endpoint_group.qa_default[backend.key].id
     }
   }
-
-  depends_on = [
-    google_cloud_run_v2_service.qa_app_service
-  ]
 }
 
 resource "google_compute_url_map" "qa_default" {
@@ -220,10 +201,6 @@ resource "google_compute_url_map" "qa_default" {
       }
     }
   }
-
-  depends_on = [
-    google_cloud_run_v2_service.qa_app_service
-  ]
 }
 
 resource "google_compute_managed_ssl_certificate" "qa_default" {
@@ -235,10 +212,6 @@ resource "google_compute_managed_ssl_certificate" "qa_default" {
   managed {
     domains = ["app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa.${google_compute_global_address.qa[count.index].address}.nip.io"]
   }
-
-  depends_on = [
-    google_cloud_run_v2_service.qa_app_service
-  ]
 }
 
 resource "google_compute_target_https_proxy" "qa_default" {
@@ -275,15 +248,15 @@ resource "google_compute_region_network_endpoint_group" "qa_default" {
   count                 = length(local.regions) >= 2 && var.configure_nonproduction_environment ? length(local.regions) : 0
   project               = local.project.project_id
   provider              = google-beta
-  name                  = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa-neg"
+  name                  = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa-neg-${count.index}"
   network_endpoint_type = "SERVERLESS"
   region                = local.regions[count.index]
   cloud_run {
-    service = google_cloud_run_v2_service.qa_app_service[local.regions[count.index]].name
+    service = google_cloud_run_v2_service.app_service["qa-${local.regions[count.index]}"].name
   }
 
   depends_on = [
-    google_cloud_run_v2_service.qa_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -298,10 +271,6 @@ resource "google_compute_url_map" "qa_https" {
     https_redirect         = true
     strip_query            = false
   }
-
-  depends_on = [
-    google_cloud_run_v2_service.qa_app_service
-  ]
 }
 
 resource "google_compute_target_http_proxy" "qa_https" {
@@ -354,10 +323,6 @@ resource "google_compute_backend_service" "prod_default" {
       group = google_compute_region_network_endpoint_group.prod_default[backend.key].id
     }
   }
-
-  depends_on = [
-    google_cloud_run_v2_service.prod_app_service
-  ]
 }
 
 resource "google_compute_url_map" "prod_default" {
@@ -378,10 +343,6 @@ resource "google_compute_url_map" "prod_default" {
       }
     }
   }
-
-  depends_on = [
-    google_cloud_run_v2_service.prod_app_service
-  ]
 }
 
 resource "google_compute_managed_ssl_certificate" "prod_default" {
@@ -393,10 +354,6 @@ resource "google_compute_managed_ssl_certificate" "prod_default" {
   managed {
     domains = ["app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod.${google_compute_global_address.prod[count.index].address}.nip.io"]
   }
-
-  depends_on = [
-    google_cloud_run_v2_service.prod_app_service
-  ]
 }
 
 resource "google_compute_target_https_proxy" "prod_default" {
@@ -433,15 +390,15 @@ resource "google_compute_region_network_endpoint_group" "prod_default" {
   count                 = length(local.regions) >= 2 && var.configure_production_environment ? length(local.regions) : 0
   project               = local.project.project_id
   provider              = google-beta
-  name                  = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod-neg"
+  name                  = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod-neg-${count.index}"
   network_endpoint_type = "SERVERLESS"
   region                = local.regions[count.index]
   cloud_run {
-    service = google_cloud_run_v2_service.prod_app_service[local.regions[count.index]].name
+    service = google_cloud_run_v2_service.app_service["prod-${local.regions[count.index]}"].name
   }
 
   depends_on = [
-    google_cloud_run_v2_service.prod_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -456,10 +413,6 @@ resource "google_compute_url_map" "prod_https" {
     https_redirect         = true
     strip_query            = false
   }
-
-  depends_on = [
-    google_cloud_run_v2_service.prod_app_service
-  ]
 }
 
 resource "google_compute_target_http_proxy" "prod_https" {

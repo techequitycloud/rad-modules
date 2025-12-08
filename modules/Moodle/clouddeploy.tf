@@ -11,126 +11,179 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
- 
+
 #########################################################################
-# Configure cloud deploy pipeline
+# Create Cloud Deploy resources
 #########################################################################
 
-# Resource to configure cloud deploy pipeline
-resource "null_resource" "build_cloud_deploy_app_pipeline" {
-  count = var.configure_continuous_deployment && var.configure_development_environment ? 1 : 0
+# Resource for creating a Cloud Deploy delivery pipeline
+resource "google_clouddeploy_delivery_pipeline" "primary" {
+  count      = var.configure_continuous_deployment ? 1 : 0
+  location    = local.region          # The location/region where the pipeline will be created
+  name        = "${var.application_name}-pipeline-${var.tenant_deployment_id}-${local.random_id}"  # The name of the pipeline
+  description = "Application pipeline"  # Description of the pipeline
+  project     = local.project.project_id        # The project ID where the pipeline will be created
 
-  triggers = {
-    project_id    = local.project.project_id
-    nfs_ip        = local.nfs_internal_ip
-    zone          = data.google_compute_zones.available_zones.names[0]
-    pipeline_name = "app${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-    target_name   = "app${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-    app_name      = "${var.application_name}"
-    app_prefix    = "app${var.tenant_deployment_id}${local.random_id}"
-    app_region    = local.region
-    creator_sa    = "${var.resource_creator_identity}"
-    script_hash   = filesha256("${path.module}/scripts/cd/setup-pipeline.sh")
-    # always_run    = "${timestamp()}"
-  }
+  # Configuration block for serial pipeline stages
+  serial_pipeline {
+    stages {
+      profiles  = []            # Profiles to use for the stage
+      target_id = "dev"         # The target ID for the development stage
+    }
 
-  # Provisioner to execute a local script that builds and pushes the container image
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    working_dir = "${path.module}/scripts/cd/app"  # The directory where build scripts are located
-    command = "bash ../setup-pipeline.sh \"${local.project.project_id}\" \"${local.region}\" \"${var.resource_creator_identity}\""
-  }
+    stages {
+      profiles  = []            # Profiles to use for the stage
+      target_id = "qa"          # The target ID for the QA stage
+    }
 
-  # Provisioner to execute a local script that deletes the database
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    when    = destroy
-    working_dir = "${path.module}/scripts/cd/app" # The directory where build scripts are located
-    command = "bash ../delete-pipeline.sh \"$PROJECT_ID\" \"$NFS_IP\" \"$ZONE\" \"$PIPELINE_NAME\" \"$TARGET_NAME\" \"$APP_NAME\" \"$APP_PREFIX\" \"$APP_REGION\" \"$CREATOR_SA\""
-
-    # Environment variables available to the command execution
-    environment = {
-      PROJECT_ID    = self.triggers.project_id
-      NFS_IP        = self.triggers.nfs_ip
-      ZONE          = self.triggers.zone
-      PIPELINE_NAME = self.triggers.pipeline_name
-      TARGET_NAME   = self.triggers.target_name
-      APP_NAME      = self.triggers.app_name
-      APP_PREFIX    = self.triggers.app_prefix
-      APP_REGION    = self.triggers.app_region
-      CREATOR_SA    = self.triggers.creator_sa
+    stages {
+      profiles  = []            # Profiles to use for the stage
+      target_id = "prod"        # The target ID for the production stage
     }
   }
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    local_file.clouddeploy_dockerfile,
-    local_file.clouddeploy_app_deploy_dev,
-    local_file.clouddeploy_app_deploy_qa,
-    local_file.clouddeploy_app_deploy_prod,
-    local_file.clouddeploy_app_cloudbuild,
-    local_file.clouddeploy_app_skaffold,
-    null_resource.build_and_push_application_image,
-    null_resource.import_prod_db,
-    google_cloud_run_v2_job.dev_backup_service,
-    google_cloud_run_v2_service.dev_app_service,
-  ]
 }
 
-resource "null_resource" "build_cloud_deploy_backup_pipeline" {
-  count = var.configure_continuous_deployment && var.configure_development_environment ? 1 : 0
+# Resource for creating a Cloud Deploy target for the development environment
+resource "google_clouddeploy_target" "dev" {
+  count      = var.configure_continuous_deployment ? 1 : 0
+  location          = local.region      # The location/region where the target will be created
+  name              = "dev"             # The name of the target
+  description       = "dev environment" # Description of the target
+  project           = local.project.project_id    # The project ID where the target will be created
+  require_approval  = false             # Whether approval is required for deployment to this target
 
-  triggers = {
-    project_id    = local.project.project_id
-    nfs_ip        = local.nfs_internal_ip
-    zone          = data.google_compute_zones.available_zones.names[0]
-    pipeline_name = "bkup${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-    target_name   = "bkup${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-    app_name      = "${var.application_name}"
-    app_prefix    = "bkup${var.tenant_deployment_id}${local.random_id}"
-    app_region    = local.region
-    creator_sa    = "${var.resource_creator_identity}"
-    script_hash   = filesha256("${path.module}/scripts/cd/setup-pipeline.sh")
-    # always_run    = "${timestamp()}" # Trigger to always run on apply
+  # Configuration block for Cloud Run target
+  run {
+    location = "projects/${local.project.project_id}/locations/${local.region}"  # The Cloud Run location
   }
-  
-  # Provisioner to execute a local script that builds and pushes the container image
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    working_dir = "${path.module}/scripts/cd/backup"  # The directory where build scripts are located
-    command = "bash ../setup-pipeline.sh \"${local.project.project_id}\" \"${local.region}\" \"${var.resource_creator_identity}\""
+}
+
+# Resource for creating a Cloud Deploy target for the QA environment
+resource "google_clouddeploy_target" "qa" {
+  count      = var.configure_continuous_deployment ? 1 : 0
+  location          = local.region      # The location/region where the target will be created
+  name              = "qa"              # The name of the target
+  description       = "qa environment"  # Description of the target
+  project           = local.project.project_id    # The project ID where the target will be created
+  require_approval  = false             # Whether approval is required for deployment to this target
+
+  # Configuration block for Cloud Run target
+  run {
+    location = "projects/${local.project.project_id}/locations/${local.region}"  # The Cloud Run location
   }
+}
 
-  # Provisioner to execute a local script that deletes the database
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    when    = destroy
-    working_dir = "${path.module}/scripts/cd/backup" # The directory where build scripts are located
-    command = "bash ../delete-pipeline.sh \"$PROJECT_ID\" \"$NFS_IP\" \"$ZONE\" \"$PIPELINE_NAME\" \"$TARGET_NAME\" \"$APP_NAME\" \"$APP_PREFIX\" \"$APP_REGION\" \"$CREATOR_SA\""
+# Resource for creating a Cloud Deploy target for the production environment
+resource "google_clouddeploy_target" "prod" {
+  count      = var.configure_continuous_deployment ? 1 : 0
+  location          = local.region      # The location/region where the target will be created
+  name              = "prod"            # The name of the target
+  description       = "prod environment" # Description of the target
+  project           = local.project.project_id    # The project ID where the target will be created
+  require_approval  = true              # Whether approval is required for deployment to this target
 
-    # Environment variables available to the command execution
-    environment = {
-      PROJECT_ID    = self.triggers.project_id
-      NFS_IP        = self.triggers.nfs_ip
-      ZONE          = self.triggers.zone
-      PIPELINE_NAME = self.triggers.pipeline_name
-      APP_NAME      = self.triggers.app_name
-      TARGET_NAME   = self.triggers.target_name
-      APP_PREFIX    = self.triggers.app_prefix
-      APP_REGION    = self.triggers.app_region
-      CREATOR_SA    = self.triggers.creator_sa
+  # Configuration block for Cloud Run target
+  run {
+    location = "projects/${local.project.project_id}/locations/${local.region}"  # The Cloud Run location
+  }
+}
+
+#########################################################################
+# Create Cloud Deploy resources for backup
+#########################################################################
+
+# Resource for creating a Cloud Deploy delivery pipeline for backups
+resource "google_clouddeploy_delivery_pipeline" "backup_pipeline" {
+  count      = var.configure_backups && var.configure_continuous_deployment ? 1 : 0
+  location    = local.region          # The location/region where the pipeline will be created
+  name        = "${var.application_name}-backup-pipeline-${var.tenant_deployment_id}-${local.random_id}"  # The name of the pipeline
+  description = "Application backup pipeline"  # Description of the pipeline
+  project     = local.project.project_id        # The project ID where the pipeline will be created
+
+  # Configuration block for serial pipeline stages
+  serial_pipeline {
+    stages {
+      profiles  = []            # Profiles to use for the stage
+      target_id = "dev-backup"  # The target ID for the development backup stage
+    }
+
+    stages {
+      profiles  = []            # Profiles to use for the stage
+      target_id = "qa-backup"   # The target ID for the QA backup stage
+    }
+
+    stages {
+      profiles  = []            # Profiles to use for the stage
+      target_id = "prod-backup" # The target ID for the production backup stage
     }
   }
+}
 
-  # Dependencies to ensure resources are created in the correct order
+# Resource for creating a Cloud Deploy target for the development backup environment
+resource "google_clouddeploy_target" "dev_backup" {
+  count      = var.configure_backups && var.configure_continuous_deployment ? 1 : 0
+  location          = local.region      # The location/region where the target will be created
+  name              = "dev-backup"      # The name of the target
+  description       = "dev backup environment" # Description of the target
+  project           = local.project.project_id    # The project ID where the target will be created
+  require_approval  = false             # Whether approval is required for deployment to this target
+
+  # Configuration block for Cloud Run target
+  run {
+    location = "projects/${local.project.project_id}/locations/${local.region}"  # The Cloud Run location
+  }
+}
+
+# Resource for creating a Cloud Deploy target for the QA backup environment
+resource "google_clouddeploy_target" "qa_backup" {
+  count      = var.configure_backups && var.configure_continuous_deployment ? 1 : 0
+  location          = local.region      # The location/region where the target will be created
+  name              = "qa-backup"       # The name of the target
+  description       = "qa backup environment"  # Description of the target
+  project           = local.project.project_id    # The project ID where the target will be created
+  require_approval  = false             # Whether approval is required for deployment to this target
+
+  # Configuration block for Cloud Run target
+  run {
+    location = "projects/${local.project.project_id}/locations/${local.region}"  # The Cloud Run location
+  }
+}
+
+# Resource for creating a Cloud Deploy target for the production backup environment
+resource "google_clouddeploy_target" "prod_backup" {
+  count      = var.configure_backups && var.configure_continuous_deployment ? 1 : 0
+  location          = local.region      # The location/region where the target will be created
+  name              = "prod-backup"     # The name of the target
+  description       = "prod backup environment" # Description of the target
+  project           = local.project.project_id    # The project ID where the target will be created
+  require_approval  = true              # Whether approval is required for deployment to this target
+
+  # Configuration block for Cloud Run target
+  run {
+    location = "projects/${local.project.project_id}/locations/${local.region}"  # The Cloud Run location
+  }
+}
+
+# Null resource to build the Cloud Deploy backup pipeline
+resource "null_resource" "build_cloud_deploy_backup_pipeline" {
+  count      = var.configure_backups && var.configure_continuous_deployment ? 1 : 0
+  triggers = {
+    # always_run = "${timestamp()}" # Trigger to always run on apply
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = "gcloud deploy releases create release-$(date +%Y%m%d%H%M%S) --project=${local.project.project_id} --region=${local.region} --delivery-pipeline=${google_clouddeploy_delivery_pipeline.backup_pipeline[count.index].name} --skaffold-file=skaffold_backup.yaml"
+    working_dir = "${path.module}/scripts/cd"
+  }
+
   depends_on = [
-    local_file.clouddeploy_dockerfile,
-    local_file.clouddeploy_backup_deploy_dev,
-    local_file.clouddeploy_backup_deploy_qa,
-    local_file.clouddeploy_backup_deploy_prod,
-    local_file.clouddeploy_backup_cloudbuild,
-    local_file.clouddeploy_backup_skaffold,
-    google_cloud_run_v2_job.dev_backup_service,
-    null_resource.import_prod_db,
+    local_file.backup_manifest,
+    local_file.backup_skaffold_manifest,
+    google_clouddeploy_delivery_pipeline.backup_pipeline,
+    google_clouddeploy_target.dev_backup,
+    google_clouddeploy_target.qa_backup,
+    google_clouddeploy_target.prod_backup,
+    google_cloud_run_v2_job.backup_service # Updated dependency
   ]
 }

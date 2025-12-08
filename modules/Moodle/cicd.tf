@@ -103,9 +103,7 @@ resource "null_resource" "init_git_repo" {
   }
 
   depends_on = [
-    google_secret_manager_secret.dev_db_password,
-    google_secret_manager_secret.qa_db_password,
-    google_secret_manager_secret.prod_db_password,
+    google_secret_manager_secret.db_password, # Updated dependency
     google_cloudbuildv2_repository.github_repository,
     google_secret_manager_secret_version.github-token-secret
   ]
@@ -197,7 +195,7 @@ resource "google_cloudbuild_trigger" "dev_repo_trigger" {
     github_repository_file.dev_cloudbuild,
     github_repository_file.dev_dockerfile,
     github_repository_file.dev_skaffold,
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service # Updated dep
   ]
 }
 
@@ -245,7 +243,7 @@ resource "google_cloudbuild_trigger" "qa_repo_trigger" {
     github_repository_file.qa_cloudbuild,
     github_repository_file.qa_dockerfile,
     github_repository_file.qa_skaffold,
-    google_cloud_run_v2_service.qa_app_service
+    google_cloud_run_v2_service.app_service # Updated dep
   ]
 }
 
@@ -293,6 +291,6 @@ resource "google_cloudbuild_trigger" "prod_repo_trigger" {
     github_repository_file.prod_cloudbuild,
     github_repository_file.prod_dockerfile,
     github_repository_file.prod_skaffold,
-    google_cloud_run_v2_service.prod_app_service
+    google_cloud_run_v2_service.app_service # Updated dep
   ]
 }
