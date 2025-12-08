@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+ 
 #########################################################################
 # Create config files
 #########################################################################
@@ -20,7 +20,7 @@
 resource "local_file" "dockerfile" {
   count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
     filename = "${path.module}/scripts/bkup/dockerfile"
-    content         = templatefile("${path.module}/scripts/bkup/Dockerfile.tpl", {
+    content         = templatefile("${path.module}/scripts/bkup/dockerfile.tpl", {
     BACKUP_SCRIPT   = "backup.sh"
   })
 
@@ -57,7 +57,7 @@ resource "null_resource" "build_and_push_backup_image" {
   triggers = {
     # always_run    = "${timestamp()}" # Trigger to always run on apply
   }
-
+    
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     working_dir = "${path.module}/scripts/bkup"
@@ -68,7 +68,7 @@ resource "null_resource" "build_and_push_backup_image" {
   depends_on = [
     local_file.cloudbuild,
     local_file.dockerfile,
-    google_artifact_registry_repository.repo,
+    google_artifact_registry_repository.application_image,
     github_repository.project_private_repo,
   ]
 }

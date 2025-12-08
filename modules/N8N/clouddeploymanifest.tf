@@ -57,8 +57,8 @@ resource "local_file" "clouddeploy_app_deploy_dev" {
     DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
     DATABASE_HOST     = local.db_internal_ip
     DATABASE_INSTANCE = local.db_instance_name
-    BACKUP_BUCKET     = try(google_storage_bucket.dev_backup_storage[0].name, "")
-    DATA_BUCKET       = try(google_storage_bucket.dev_storage[0].name, "")
+    BACKUP_BUCKET     = try(google_storage_bucket.dev_backup_storage.name, "")
+    DATA_BUCKET       = try(google_storage_bucket.dev_storage.name, "")
     NETWORK_NAME      = "${var.network_name}"
     HOST_PROJECT_ID   = "${local.project.project_id}"
   })
@@ -82,8 +82,8 @@ resource "local_file" "clouddeploy_app_deploy_qa" {
     DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}qa-password-${var.tenant_deployment_id}-${local.random_id}"
     DATABASE_HOST     = local.db_internal_ip
     DATABASE_INSTANCE = local.db_instance_name
-    BACKUP_BUCKET     = try(google_storage_bucket.qa_backup_storage[0].name, "")
-    DATA_BUCKET       = try(google_storage_bucket.qa_storage[0].name, "")
+    BACKUP_BUCKET     = try(google_storage_bucket.qa_backup_storage.name, "")
+    DATA_BUCKET       = try(google_storage_bucket.qa_storage.name, "")
     NETWORK_NAME      = "${var.network_name}"
     HOST_PROJECT_ID   = "${local.project.project_id}"
   })
@@ -107,8 +107,8 @@ resource "local_file" "clouddeploy_app_deploy_prod" {
     DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}prod-password-${var.tenant_deployment_id}-${local.random_id}"
     DATABASE_HOST     = local.db_internal_ip
     DATABASE_INSTANCE = local.db_instance_name
-    BACKUP_BUCKET     = try(google_storage_bucket.prod_backup_storage[0].name, "")
-    DATA_BUCKET       = try(google_storage_bucket.prod_storage[0].name, "")
+    BACKUP_BUCKET     = try(google_storage_bucket.prod_backup_storage.name, "")
+    DATA_BUCKET       = try(google_storage_bucket.prod_storage.name, "")
     NETWORK_NAME      = "${var.network_name}"
     HOST_PROJECT_ID   = "${local.project.project_id}"
   })
@@ -132,8 +132,8 @@ resource "local_file" "clouddeploy_backup_deploy_dev" {
     DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
     DATABASE_HOST     = local.db_internal_ip
     DATABASE_INSTANCE = local.db_instance_name
-    BACKUP_BUCKET     = try(google_storage_bucket.dev_backup_storage[0].name, "")
-    DATA_BUCKET       = try(google_storage_bucket.dev_storage[0].name, "")
+    BACKUP_BUCKET     = try(google_storage_bucket.dev_backup_storage.name, "")
+    DATA_BUCKET       = try(google_storage_bucket.dev_storage.name, "")
     NETWORK_NAME      = "${var.network_name}"
     HOST_PROJECT_ID   = "${local.project.project_id}"
   })
@@ -156,8 +156,8 @@ resource "local_file" "clouddeploy_backup_deploy_qa" {
     DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}qa-password-${var.tenant_deployment_id}-${local.random_id}"
     DATABASE_HOST     = local.db_internal_ip
     DATABASE_INSTANCE = local.db_instance_name
-    BACKUP_BUCKET     = try(google_storage_bucket.qa_backup_storage[0].name, "")
-    DATA_BUCKET       = try(google_storage_bucket.qa_storage[0].name, "")
+    BACKUP_BUCKET     = try(google_storage_bucket.qa_backup_storage.name, "")
+    DATA_BUCKET       = try(google_storage_bucket.qa_storage.name, "")
     NETWORK_NAME      = "${var.network_name}"
     HOST_PROJECT_ID   = "${local.project.project_id}"
   })
@@ -180,8 +180,8 @@ resource "local_file" "clouddeploy_backup_deploy_prod" {
     DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}prod-password-${var.tenant_deployment_id}-${local.random_id}"
     DATABASE_HOST     = local.db_internal_ip
     DATABASE_INSTANCE = local.db_instance_name
-    BACKUP_BUCKET     = try(google_storage_bucket.prod_backup_storage[0].name, "")
-    DATA_BUCKET       = try(google_storage_bucket.prod_storage[0].name, "")
+    BACKUP_BUCKET     = try(google_storage_bucket.prod_backup_storage.name, "")
+    DATA_BUCKET       = try(google_storage_bucket.prod_storage.name, "")
     NETWORK_NAME      = "${var.network_name}"
     HOST_PROJECT_ID   = "${local.project.project_id}"
   })
@@ -248,7 +248,7 @@ resource "local_file" "backup_clouddeploy" {
 resource "local_file" "clouddeploy_dockerfile" {
   count = var.configure_continuous_deployment ? 1 : 0
   filename        = "${path.module}/scripts/app/Dockerfile"
-  content         = templatefile("${path.module}/scripts/app/Dockerfile.tpl", {
+  content         = templatefile("${path.module}/scripts/app/dockerfile.tpl", {
     APP_VERSION  = "${var.application_version}"
   })
 }

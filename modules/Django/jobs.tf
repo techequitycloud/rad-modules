@@ -25,7 +25,7 @@ resource "google_cloud_run_v2_job" "dev_migrate" {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
         command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
 
         env {
@@ -76,7 +76,7 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
 
         env {
             name = "DJANGO_SUPERUSER_PASSWORD"
@@ -185,7 +185,7 @@ resource "google_cloud_run_v2_job" "qa_migrate" {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
         command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
 
         env {
@@ -235,7 +235,7 @@ resource "google_cloud_run_v2_job" "qa_createuser" {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
 
         env {
             name = "DJANGO_SUPERUSER_PASSWORD"
@@ -343,7 +343,7 @@ resource "google_cloud_run_v2_job" "prod_migrate" {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
         command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
 
         env {
@@ -393,7 +393,7 @@ resource "google_cloud_run_v2_job" "prod_createuser" {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+        image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
 
         env {
             name = "DJANGO_SUPERUSER_PASSWORD"
@@ -511,7 +511,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/backup:${var.application_version}"
+        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/backup:${var.application_version}"
 
         env {
           name  = "DB_USER"
@@ -604,7 +604,7 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/backup:${var.application_version}"
+        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/backup:${var.application_version}"
 
         env {
           name  = "DB_USER"
@@ -697,7 +697,7 @@ resource "google_cloud_run_v2_job" "prod_backup_service" {
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/backup:${var.application_version}"
+        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/backup:${var.application_version}"
 
         env {
           name  = "DB_USER"

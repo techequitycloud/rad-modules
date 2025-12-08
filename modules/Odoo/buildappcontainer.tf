@@ -20,7 +20,7 @@
 resource "local_file" "app_dockerfile" {
   count          = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
   filename       = "${path.module}/scripts/app/Dockerfile"
-  content        = templatefile("${path.module}/scripts/app/Dockerfile.tpl", {
+  content        = templatefile("${path.module}/scripts/app/dockerfile.tpl", {
     APP_VERSION  = "${var.application_version}"
     APP_RELEASE  = "${var.application_release}"
     APP_SHA      = "${var.application_sha}"

@@ -81,12 +81,6 @@ variable "existing_project_id" {
   type        = string
 }
 
-variable "region" {
-  description = "The Google Cloud region. {{UIMeta group=0 order=201 updatesafe }}"
-  type        = string
-  default     = "us-central1"
-}
-
 variable "network_name" {
   description = "The name of the VPC network. {{UIMeta group=0 order=202 a   }}"
   type        = string

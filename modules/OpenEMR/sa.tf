@@ -22,7 +22,7 @@ data "external" "check_service_accounts" {
     if [ -n "${var.resource_creator_identity}" ]; then
       SA_ARG="--impersonate-service-account=${var.resource_creator_identity}"
     fi
-    
+
     # Function to check if service account exists
     check_sa() {
       local sa_id="$1"
@@ -32,7 +32,7 @@ data "external" "check_service_accounts" {
         echo "false"
       fi
     }
-    
+
     # Check all service accounts
     PROJECT_SA_EXISTS=$(check_sa "${local.project.project_id}")
     CLOUD_BUILD_SA_EXISTS=$(check_sa "cloudbuild-sa")
@@ -42,7 +42,7 @@ data "external" "check_service_accounts" {
     CLOUD_SQL_SA_EXISTS=$(check_sa "cloudsql-sa")
     NFS_SERVER_SA_EXISTS=$(check_sa "nfsserver-sa")
     SETUP_SERVER_SA_EXISTS=$(check_sa "setupserver-sa")
-    
+
     # Output JSON
     cat <<EOF
 {
@@ -107,4 +107,16 @@ output "existing_service_accounts" {
       "setupserver-sa"  = local.setup_server_sa_exists
     } : sa_name if exists
   ]
+}
+
+resource "google_project_iam_member" "cloudsql_client" {
+  project = local.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${local.cloud_run_sa_email}"
+}
+
+resource "google_project_iam_member" "secret_accessor" {
+  project = local.project.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${local.cloud_run_sa_email}"
 }

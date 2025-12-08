@@ -98,11 +98,11 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
       }
       env {
         name  = "DB_POSTGRESDB_DATABASE"
-        value = google_sql_database.dev_db[0].name
+        value = google_sql_database.dev_db.name
       }
       env {
         name  = "DB_POSTGRESDB_USER"
-        value = google_sql_user.dev_user[0].name
+        value = google_sql_user.dev_user.name
       }
       env {
         name  = "DB_POSTGRESDB_HOST"
@@ -144,7 +144,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         name = "DB_POSTGRESDB_PASSWORD"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.dev_db_password[0].secret_id
+            secret  = google_secret_manager_secret.dev_db_password.secret_id
             version = "latest"
           }
         }
@@ -154,7 +154,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         name = "N8N_ENCRYPTION_KEY"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.dev_encryption_key[0].secret_id
+            secret  = google_secret_manager_secret.dev_encryption_key.secret_id
             version = "latest"
           }
         }
@@ -195,7 +195,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     volumes {
       name = "gcs-data"
       gcs {
-        bucket    = google_storage_bucket.dev_storage[0].name
+        bucket    = google_storage_bucket.dev_storage.name
         read_only = false
       }
     }
@@ -316,11 +316,11 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
       }
       env {
         name  = "DB_POSTGRESDB_DATABASE"
-        value = google_sql_database.qa_db[0].name
+        value = google_sql_database.qa_db.name
       }
       env {
         name  = "DB_POSTGRESDB_USER"
-        value = google_sql_user.qa_user[0].name
+        value = google_sql_user.qa_user.name
       }
       env {
         name  = "DB_POSTGRESDB_HOST"
@@ -374,7 +374,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
         name = "DB_POSTGRESDB_PASSWORD"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.qa_db_password[0].secret_id
+            secret  = google_secret_manager_secret.qa_db_password.secret_id
             version = "latest"
           }
         }
@@ -384,7 +384,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
         name = "N8N_ENCRYPTION_KEY"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.qa_encryption_key[0].secret_id
+            secret  = google_secret_manager_secret.qa_encryption_key.secret_id
             version = "latest"
           }
         }
@@ -425,7 +425,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
     volumes {
       name = "gcs-data"
       gcs {
-        bucket    = google_storage_bucket.qa_storage[0].name
+        bucket    = google_storage_bucket.qa_storage.name
         read_only = false
       }
     }
@@ -546,11 +546,11 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
       }
       env {
         name  = "DB_POSTGRESDB_DATABASE"
-        value = google_sql_database.prod_db[0].name
+        value = google_sql_database.prod_db.name
       }
       env {
         name  = "DB_POSTGRESDB_USER"
-        value = google_sql_user.prod_user[0].name
+        value = google_sql_user.prod_user.name
       }
       env {
         name  = "DB_POSTGRESDB_HOST"
@@ -604,7 +604,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
         name = "DB_POSTGRESDB_PASSWORD"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.prod_db_password[0].secret_id
+            secret  = google_secret_manager_secret.prod_db_password.secret_id
             version = "latest"
           }
         }
@@ -614,7 +614,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
         name = "N8N_ENCRYPTION_KEY"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.prod_encryption_key[0].secret_id
+            secret  = google_secret_manager_secret.prod_encryption_key.secret_id
             version = "latest"
           }
         }
@@ -655,7 +655,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
     volumes {
       name = "gcs-data"
       gcs {
-        bucket    = google_storage_bucket.prod_storage[0].name
+        bucket    = google_storage_bucket.prod_storage.name
         read_only = false
       }
     }

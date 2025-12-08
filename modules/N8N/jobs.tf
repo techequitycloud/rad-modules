@@ -1,7 +1,20 @@
+# Copyright 2024 (c) Tech Equity Ltd
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 # Backup Jobs
 
 resource "google_cloud_run_v2_job" "dev_backup_service" {
-  count      = var.configure_backups && var.configure_development_environment ? 1 : 0
+  count      = var.configure_backups && var.configure_development_environment && local.nfs_server_exists ? 1 : 0
   project    = local.project.project_id
   name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
   location   = local.region
@@ -22,23 +35,23 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/backup:${var.application_version}"
+        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/backup:${var.application_version}"
 
         env {
           name  = "DB_USER"
-          value = google_sql_user.dev_user[0].name
+          value = google_sql_user.dev_user.name
         }
 
         env {
           name  = "DB_NAME"
-          value = google_sql_database.dev_db[0].name
+          value = google_sql_database.dev_db.name
         }
 
         env {
           name = "DB_PASSWORD"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.dev_db_password[0].secret_id
+              secret = google_secret_manager_secret.dev_db_password.secret_id
               version = "latest"
             }
           }
@@ -71,7 +84,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
       volumes {
         name = "gcs-backup-volume"
         gcs {
-          bucket = google_storage_bucket.dev_backup_storage[0].name
+          bucket = google_storage_bucket.dev_backup_storage.name
         }
       }
 
@@ -94,7 +107,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 }
 
 resource "google_cloud_run_v2_job" "qa_backup_service" {
-  count      = var.configure_backups && var.configure_nonproduction_environment ? 1 : 0
+  count      = var.configure_backups && var.configure_nonproduction_environment && local.nfs_server_exists ? 1 : 0
   project    = local.project.project_id
   name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
   location   = local.region
@@ -115,23 +128,23 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/backup:${var.application_version}"
+        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/backup:${var.application_version}"
 
         env {
           name  = "DB_USER"
-          value = google_sql_user.qa_user[0].name
+          value = google_sql_user.qa_user.name
         }
 
         env {
           name  = "DB_NAME"
-          value = google_sql_database.qa_db[0].name
+          value = google_sql_database.qa_db.name
         }
 
         env {
           name = "DB_PASSWORD"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.qa_db_password[0].secret_id
+              secret = google_secret_manager_secret.qa_db_password.secret_id
               version = "latest"
             }
           }
@@ -164,7 +177,7 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
       volumes {
         name = "gcs-backup-volume"
         gcs {
-          bucket = google_storage_bucket.qa_backup_storage[0].name
+          bucket = google_storage_bucket.qa_backup_storage.name
         }
       }
 
@@ -187,7 +200,7 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
 }
 
 resource "google_cloud_run_v2_job" "prod_backup_service" {
-  count      = var.configure_backups && var.configure_production_environment ? 1 : 0
+  count      = var.configure_backups && var.configure_production_environment && local.nfs_server_exists ? 1 : 0
   project    = local.project.project_id
   name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
   location   = local.region
@@ -208,23 +221,23 @@ resource "google_cloud_run_v2_job" "prod_backup_service" {
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/backup:${var.application_version}"
+        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/backup:${var.application_version}"
 
         env {
           name  = "DB_USER"
-          value = google_sql_user.prod_user[0].name
+          value = google_sql_user.prod_user.name
         }
 
         env {
           name  = "DB_NAME"
-          value = google_sql_database.prod_db[0].name
+          value = google_sql_database.prod_db.name
         }
 
         env {
           name = "DB_PASSWORD"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.prod_db_password[0].secret_id
+              secret = google_secret_manager_secret.prod_db_password.secret_id
               version = "latest"
             }
           }
@@ -257,7 +270,7 @@ resource "google_cloud_run_v2_job" "prod_backup_service" {
       volumes {
         name = "gcs-backup-volume"
         gcs {
-          bucket = google_storage_bucket.prod_backup_storage[0].name
+          bucket = google_storage_bucket.prod_backup_storage.name
         }
       }
 

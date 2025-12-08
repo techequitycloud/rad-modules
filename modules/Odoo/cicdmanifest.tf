@@ -199,7 +199,7 @@ resource "local_file" "dev_wait_for_psql" {
 resource "local_file" "dev_dockerfile" {
   count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
   filename        = "${path.module}/scripts/ci/Dockerfile"
-  content         = templatefile("${path.module}/scripts/ci/Dockerfile.tpl", {
+  content         = templatefile("${path.module}/scripts/ci/dockerfile.tpl", {
     APP_VERSION  = "${var.application_version}"
     APP_RELEASE  = "${var.application_release}"
     APP_SHA      = "${var.application_sha}"
@@ -484,7 +484,7 @@ resource "local_file" "qa_wait_for_psql" {
 resource "local_file" "qa_dockerfile" {
   count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_nonproduction_environment ? 1 : 0
   filename        = "${path.module}/scripts/ci/Dockerfile"
-  content         = templatefile("${path.module}/scripts/ci/Dockerfile.tpl", {
+  content         = templatefile("${path.module}/scripts/ci/dockerfile.tpl", {
     APP_VERSION  = "${var.application_version}"
     APP_RELEASE  = "${var.application_release}"
     APP_SHA      = "${var.application_sha}"
@@ -769,7 +769,7 @@ resource "local_file" "prod_wait_for_psql" {
 resource "local_file" "prod_dockerfile" {
   count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_production_environment ? 1 : 0
   filename        = "${path.module}/scripts/ci/Dockerfile"
-  content         = templatefile("${path.module}/scripts/ci/Dockerfile.tpl", {
+  content         = templatefile("${path.module}/scripts/ci/dockerfile.tpl", {
     APP_VERSION  = "${var.application_version}"
     APP_RELEASE  = "${var.application_release}"
     APP_SHA      = "${var.application_sha}"

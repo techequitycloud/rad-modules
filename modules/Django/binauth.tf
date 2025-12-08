@@ -44,32 +44,19 @@ locals {
 }
 
 #########################################################################
-# KMS Key Ring - Check for Existing or Create New
+# KMS Key Ring - Always Create with Unique Name
 #########################################################################
 
-# Try to get existing key ring
-data "google_kms_key_ring" "existing_keyring" {
-  count    = 1
-  name     = local.key_ring_name
-  location = "global"
-  project  = local.project.project_id
-}
-
-# Create key ring only if it doesn't exist
+# Creates a key ring to organize cryptographic keys.
 resource "google_kms_key_ring" "keyring" {
-  count    = length(data.google_kms_key_ring.existing_keyring) == 0 ? 1 : 0
   project  = local.project.project_id
   name     = local.key_ring_name
   location = "global"
 
   lifecycle {
     prevent_destroy = false
+    ignore_changes  = [name]
   }
-}
-
-# Reference the key ring (either existing or newly created)
-locals {
-  keyring_id = length(data.google_kms_key_ring.existing_keyring) > 0 ? data.google_kms_key_ring.existing_keyring[0].id : google_kms_key_ring.keyring[0].id
 }
 
 #########################################################################
@@ -77,7 +64,7 @@ locals {
 #########################################################################
 
 resource "google_kms_key_ring_iam_binding" "keyring_owner" {
-  key_ring_id = local.keyring_id
+  key_ring_id = google_kms_key_ring.keyring.id
   role        = "roles/owner"
 
   members = [
@@ -92,7 +79,7 @@ resource "google_kms_key_ring_iam_binding" "keyring_owner" {
 # Creates a cryptographic key for signing attestations
 resource "google_kms_crypto_key" "crypto_key" {
   name     = local.crypto_key_name
-  key_ring = local.keyring_id
+  key_ring = google_kms_key_ring.keyring.id
   purpose  = "ASYMMETRIC_SIGN"
 
   version_template {
@@ -100,8 +87,9 @@ resource "google_kms_crypto_key" "crypto_key" {
   }
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy       = false
     create_before_destroy = true
+    ignore_changes        = [name]
   }
 }
 
@@ -228,4 +216,69 @@ resource "google_binary_authorization_attestor_iam_member" "member" {
   member   = each.value
 
   depends_on = [google_binary_authorization_attestor.attestor]
+}
+
+#########################################################################
+# Cleanup for KMS resources on destroy
+#########################################################################
+
+resource "null_resource" "cleanup_kms_resources" {
+  triggers = {
+    key_ring    = google_kms_key_ring.keyring.name
+    crypto_key  = google_kms_crypto_key.crypto_key.name
+    location    = "global"
+    project     = local.project.project_id
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      echo "========================================="
+      echo "KMS Cleanup Information"
+      echo "========================================="
+      echo "Note: KMS Key Rings cannot be deleted immediately."
+      echo "They are scheduled for deletion after 24 hours."
+      echo ""
+      echo "Key Ring: ${self.triggers.key_ring}"
+      echo "Crypto Key: ${self.triggers.crypto_key}"
+      echo "Location: ${self.triggers.location}"
+      echo "Project: ${self.triggers.project}"
+      echo ""
+      echo "Attempting to schedule crypto key version for destruction..."
+      
+      # List and schedule all crypto key versions for destruction
+      gcloud kms keys versions list \
+        --key="${self.triggers.crypto_key}" \
+        --keyring="${self.triggers.key_ring}" \
+        --location="${self.triggers.location}" \
+        --project="${self.triggers.project}" \
+        --format="value(name)" 2>/dev/null | while read version; do
+        if [ -n "$version" ]; then
+          echo "Scheduling version $version for destruction..."
+          gcloud kms keys versions destroy "$version" \
+            --key="${self.triggers.crypto_key}" \
+            --keyring="${self.triggers.key_ring}" \
+            --location="${self.triggers.location}" \
+            --project="${self.triggers.project}" \
+            --quiet 2>/dev/null || echo "Version already scheduled or destroyed"
+        fi
+      done
+      
+      echo ""
+      echo "KMS resources have been scheduled for deletion."
+      echo "They will be permanently removed after 24 hours."
+      echo "========================================="
+    EOT
+    on_failure = continue
+  }
+
+  depends_on = [
+    google_kms_crypto_key.crypto_key,
+    google_kms_key_ring.keyring,
+    google_binary_authorization_attestor.attestor
+  ]
+
+  lifecycle {
+    create_before_destroy = false
+  }
 }

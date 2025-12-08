@@ -26,7 +26,7 @@ resource "local_file" "import_dev_db_script_output" {
     DB_IP               = local.db_internal_ip
     DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
     DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    DB_PASS             = data.google_secret_manager_secret_version.dev_db_password[count.index].secret_data
+    DB_PASS             = data.google_secret_manager_secret_version.dev_db_password.secret_data
     PG_PASS             = local.db_root_password
     APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
     APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
@@ -45,7 +45,7 @@ resource "local_file" "import_qa_db_script_output" {
     DB_IP               = local.db_internal_ip
     DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
     DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
-    DB_PASS             = data.google_secret_manager_secret_version.qa_db_password[count.index].secret_data
+    DB_PASS             = data.google_secret_manager_secret_version.qa_db_password.secret_data
     PG_PASS             = local.db_root_password
     APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
     APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
@@ -64,7 +64,7 @@ resource "local_file" "import_prod_db_script_output" {
     DB_IP               = local.db_internal_ip
     DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
     DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
-    DB_PASS             = data.google_secret_manager_secret_version.prod_db_password[count.index].secret_data
+    DB_PASS             = data.google_secret_manager_secret_version.prod_db_password.secret_data
     PG_PASS             = local.db_root_password
     APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
     APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""

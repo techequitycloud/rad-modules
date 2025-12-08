@@ -17,27 +17,12 @@
 #########################################################################
 
 # Resource for creating a random password for database user
-resource "random_password" "dev_db_password" {
-  length           = 16
-  special          = false
-}
-
 resource "random_password" "dev_encryption_key" {
   length           = 16
   special          = false
 }
 
-resource "random_password" "qa_db_password" {
-  length           = 16
-  special          = false
-}
-
 resource "random_password" "qa_encryption_key" {
-  length           = 16
-  special          = false
-}
-
-resource "random_password" "prod_db_password" {
   length           = 16
   special          = false
 }
@@ -52,7 +37,6 @@ resource "random_password" "prod_encryption_key" {
 #########################################################################
 
 resource "google_secret_manager_secret" "dev_db_password" {
-  count      = var.configure_development_environment && local.sql_server_exists ? 1 : 0
   project    = local.project.project_id
   secret_id  = "n8n-db-password-${var.tenant_deployment_id}-${local.random_id}-dev"
 
@@ -62,13 +46,11 @@ resource "google_secret_manager_secret" "dev_db_password" {
 }
 
 resource "google_secret_manager_secret_version" "dev_db_password" {
-  count       = var.configure_development_environment && local.sql_server_exists ? 1 : 0
-  secret      = google_secret_manager_secret.dev_db_password[0].id
+  secret      = google_secret_manager_secret.dev_db_password.id
   secret_data = random_password.dev_db_password.result
 }
 
 resource "google_secret_manager_secret" "dev_encryption_key" {
-  count      = var.configure_development_environment && local.sql_server_exists ? 1 : 0
   project    = local.project.project_id
   secret_id  = "n8n-encryption-key-${var.tenant_deployment_id}-${local.random_id}-dev"
 
@@ -78,8 +60,7 @@ resource "google_secret_manager_secret" "dev_encryption_key" {
 }
 
 resource "google_secret_manager_secret_version" "dev_encryption_key" {
-  count       = var.configure_development_environment && local.sql_server_exists ? 1 : 0
-  secret      = google_secret_manager_secret.dev_encryption_key[0].id
+  secret      = google_secret_manager_secret.dev_encryption_key.id
   secret_data = random_password.dev_encryption_key.result
 }
 
@@ -89,7 +70,6 @@ resource "google_secret_manager_secret_version" "dev_encryption_key" {
 #########################################################################
 
 resource "google_secret_manager_secret" "qa_db_password" {
-  count      = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
   project    = local.project.project_id
   secret_id  = "n8n-db-password-${var.tenant_deployment_id}-${local.random_id}-qa"
 
@@ -99,13 +79,11 @@ resource "google_secret_manager_secret" "qa_db_password" {
 }
 
 resource "google_secret_manager_secret_version" "qa_db_password" {
-  count       = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
-  secret      = google_secret_manager_secret.qa_db_password[0].id
+  secret      = google_secret_manager_secret.qa_db_password.id
   secret_data = random_password.qa_db_password.result
 }
 
 resource "google_secret_manager_secret" "qa_encryption_key" {
-  count      = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
   project    = local.project.project_id
   secret_id  = "n8n-encryption-key-${var.tenant_deployment_id}-${local.random_id}-qa"
 
@@ -115,8 +93,7 @@ resource "google_secret_manager_secret" "qa_encryption_key" {
 }
 
 resource "google_secret_manager_secret_version" "qa_encryption_key" {
-  count       = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
-  secret      = google_secret_manager_secret.qa_encryption_key[0].id
+  secret      = google_secret_manager_secret.qa_encryption_key.id
   secret_data = random_password.qa_encryption_key.result
 }
 
@@ -125,7 +102,6 @@ resource "google_secret_manager_secret_version" "qa_encryption_key" {
 #########################################################################
 
 resource "google_secret_manager_secret" "prod_db_password" {
-  count      = var.configure_production_environment && local.sql_server_exists ? 1 : 0
   project    = local.project.project_id
   secret_id  = "n8n-db-password-${var.tenant_deployment_id}-${local.random_id}-prod"
 
@@ -135,13 +111,11 @@ resource "google_secret_manager_secret" "prod_db_password" {
 }
 
 resource "google_secret_manager_secret_version" "prod_db_password" {
-  count       = var.configure_production_environment && local.sql_server_exists ? 1 : 0
-  secret      = google_secret_manager_secret.prod_db_password[0].id
+  secret      = google_secret_manager_secret.prod_db_password.id
   secret_data = random_password.prod_db_password.result
 }
 
 resource "google_secret_manager_secret" "prod_encryption_key" {
-  count      = var.configure_production_environment && local.sql_server_exists ? 1 : 0
   project    = local.project.project_id
   secret_id  = "n8n-encryption-key-${var.tenant_deployment_id}-${local.random_id}-prod"
 
@@ -151,8 +125,7 @@ resource "google_secret_manager_secret" "prod_encryption_key" {
 }
 
 resource "google_secret_manager_secret_version" "prod_encryption_key" {
-  count       = var.configure_production_environment && local.sql_server_exists ? 1 : 0
-  secret      = google_secret_manager_secret.prod_encryption_key[0].id
+  secret      = google_secret_manager_secret.prod_encryption_key.id
   secret_data = random_password.prod_encryption_key.result
 }
 
@@ -194,22 +167,19 @@ resource "google_secret_manager_secret_version" "storage_secret_key" {
 # --- Additional Data Sources for Scripts (DB Passwords) ---
 
 data "google_secret_manager_secret_version" "dev_db_password" {
-  count   = var.configure_development_environment && local.sql_server_exists ? 1 : 0
-  secret  = google_secret_manager_secret.dev_db_password[0].id
+  secret  = google_secret_manager_secret.dev_db_password.id
   version = "latest"
   depends_on = [google_secret_manager_secret_version.dev_db_password]
 }
 
 data "google_secret_manager_secret_version" "qa_db_password" {
-  count   = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
-  secret  = google_secret_manager_secret.qa_db_password[0].id
+  secret  = google_secret_manager_secret.qa_db_password.id
   version = "latest"
   depends_on = [google_secret_manager_secret_version.qa_db_password]
 }
 
 data "google_secret_manager_secret_version" "prod_db_password" {
-  count   = var.configure_production_environment && local.sql_server_exists ? 1 : 0
-  secret  = google_secret_manager_secret.prod_db_password[0].id
+  secret  = google_secret_manager_secret.prod_db_password.id
   version = "latest"
   depends_on = [google_secret_manager_secret_version.prod_db_password]
 }

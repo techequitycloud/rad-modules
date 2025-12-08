@@ -11,19 +11,41 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Generate a random ID for unique naming (moved to top for better dependency management)
 
+#########################################################################
+# Random ID Generation
+#########################################################################
+
+# Generate a random ID for unique naming (moved to top for better dependency management)
 resource "random_id" "note_id" {
   byte_length = 8 # Adjust the byte length as needed for uniqueness
 }
 
+# Add a suffix to ensure unique names if keys are scheduled for destruction
+resource "random_id" "key_suffix" {
+  byte_length = 2
+  keepers = {
+    # Force new ID if we detect a destroyed key
+    timestamp = timestamp()
+  }
+}
+
+#########################################################################
+# Local Values
+#########################################################################
+
 # Local values for better resource reference management
 locals {
-  attestor_name = "${var.tenant_deployment_id}-attestor-${local.random_id}"
-  note_name = "attestor-note-${var.tenant_deployment_id}-${local.random_id}"
-  key_ring_name = "key-ring-${var.tenant_deployment_id}-${local.random_id}"
-  crypto_key_name = "key-${var.tenant_deployment_id}-${local.random_id}"
+  attestor_name   = "${var.tenant_deployment_id}-attestor-${local.random_id}"
+  note_name       = "attestor-note-${var.tenant_deployment_id}-${local.random_id}"
+  key_ring_name   = "key-ring-${var.tenant_deployment_id}-${local.random_id}"
+  # Add suffix to crypto key name to avoid conflicts with destroyed keys
+  crypto_key_name = "key-${var.tenant_deployment_id}-${local.random_id}-${random_id.key_suffix.hex}"
 }
+
+#########################################################################
+# KMS Key Ring - Always Create with Unique Name
+#########################################################################
 
 # Creates a key ring to organize cryptographic keys.
 resource "google_kms_key_ring" "keyring" {
@@ -33,8 +55,13 @@ resource "google_kms_key_ring" "keyring" {
 
   lifecycle {
     prevent_destroy = false
+    ignore_changes  = [name]
   }
 }
+
+#########################################################################
+# KMS Key Ring IAM
+#########################################################################
 
 resource "google_kms_key_ring_iam_binding" "keyring_owner" {
   key_ring_id = google_kms_key_ring.keyring.id
@@ -45,7 +72,11 @@ resource "google_kms_key_ring_iam_binding" "keyring_owner" {
   ]
 }
 
-# Creates a cryptographic key for signing attestations.
+#########################################################################
+# KMS Crypto Key - Always Create New with Unique Name
+#########################################################################
+
+# Creates a cryptographic key for signing attestations
 resource "google_kms_crypto_key" "crypto_key" {
   name     = local.crypto_key_name
   key_ring = google_kms_key_ring.keyring.id
@@ -55,8 +86,16 @@ resource "google_kms_crypto_key" "crypto_key" {
     algorithm = "RSA_SIGN_PKCS1_4096_SHA512"
   }
 
-  depends_on = [google_kms_key_ring.keyring]
+  lifecycle {
+    prevent_destroy       = false
+    create_before_destroy = true
+    ignore_changes        = [name]
+  }
 }
+
+#########################################################################
+# KMS Crypto Key IAM
+#########################################################################
 
 resource "google_kms_crypto_key_iam_binding" "crypto_key_owner" {
   crypto_key_id = google_kms_crypto_key.crypto_key.id
@@ -67,12 +106,20 @@ resource "google_kms_crypto_key_iam_binding" "crypto_key_owner" {
   ]
 }
 
+#########################################################################
+# KMS Crypto Key Version
+#########################################################################
+
 # Retrieves the latest version of a specified CryptoKey.
 data "google_kms_crypto_key_version" "version" {
   crypto_key = google_kms_crypto_key.crypto_key.id
 
   depends_on = [google_kms_crypto_key.crypto_key]
 }
+
+#########################################################################
+# Container Analysis Note
+#########################################################################
 
 # Creates a note for storing metadata about the binary authorization attestor.
 resource "google_container_analysis_note" "note" {
@@ -89,6 +136,10 @@ resource "google_container_analysis_note" "note" {
     prevent_destroy = false
   }
 }
+
+#########################################################################
+# Binary Authorization Attestor
+#########################################################################
 
 # Represents an entity that can verify container images' attestations.
 resource "google_binary_authorization_attestor" "attestor" {
@@ -115,6 +166,10 @@ resource "google_binary_authorization_attestor" "attestor" {
   ]
 }
 
+#########################################################################
+# Binary Authorization Policy
+#########################################################################
+
 # Defines a policy to enforce container image attestations before deployment.
 resource "google_binary_authorization_policy" "policy" {
   project = local.project.project_id
@@ -137,9 +192,12 @@ resource "google_binary_authorization_policy" "policy" {
     google_binary_authorization_attestor.attestor,
     google_container_analysis_note.note,
     google_kms_crypto_key.crypto_key,
-    google_kms_key_ring.keyring,
   ]
 }
+
+#########################################################################
+# Binary Authorization Attestor IAM
+#########################################################################
 
 # Retrieves the IAM policy for a specified attestor.
 data "google_binary_authorization_attestor_iam_policy" "policy" {
@@ -158,4 +216,69 @@ resource "google_binary_authorization_attestor_iam_member" "member" {
   member   = each.value
 
   depends_on = [google_binary_authorization_attestor.attestor]
+}
+
+#########################################################################
+# Cleanup for KMS resources on destroy
+#########################################################################
+
+resource "null_resource" "cleanup_kms_resources" {
+  triggers = {
+    key_ring    = google_kms_key_ring.keyring.name
+    crypto_key  = google_kms_crypto_key.crypto_key.name
+    location    = "global"
+    project     = local.project.project_id
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      echo "========================================="
+      echo "KMS Cleanup Information"
+      echo "========================================="
+      echo "Note: KMS Key Rings cannot be deleted immediately."
+      echo "They are scheduled for deletion after 24 hours."
+      echo ""
+      echo "Key Ring: ${self.triggers.key_ring}"
+      echo "Crypto Key: ${self.triggers.crypto_key}"
+      echo "Location: ${self.triggers.location}"
+      echo "Project: ${self.triggers.project}"
+      echo ""
+      echo "Attempting to schedule crypto key version for destruction..."
+      
+      # List and schedule all crypto key versions for destruction
+      gcloud kms keys versions list \
+        --key="${self.triggers.crypto_key}" \
+        --keyring="${self.triggers.key_ring}" \
+        --location="${self.triggers.location}" \
+        --project="${self.triggers.project}" \
+        --format="value(name)" 2>/dev/null | while read version; do
+        if [ -n "$version" ]; then
+          echo "Scheduling version $version for destruction..."
+          gcloud kms keys versions destroy "$version" \
+            --key="${self.triggers.crypto_key}" \
+            --keyring="${self.triggers.key_ring}" \
+            --location="${self.triggers.location}" \
+            --project="${self.triggers.project}" \
+            --quiet 2>/dev/null || echo "Version already scheduled or destroyed"
+        fi
+      done
+      
+      echo ""
+      echo "KMS resources have been scheduled for deletion."
+      echo "They will be permanently removed after 24 hours."
+      echo "========================================="
+    EOT
+    on_failure = continue
+  }
+
+  depends_on = [
+    google_kms_crypto_key.crypto_key,
+    google_kms_key_ring.keyring,
+    google_binary_authorization_attestor.attestor
+  ]
+
+  lifecycle {
+    create_before_destroy = false
+  }
 }

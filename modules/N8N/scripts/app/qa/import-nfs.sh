@@ -11,7 +11,7 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License. 
+# limitations under the License.
 
 # set -x
 
@@ -29,11 +29,11 @@ while [ $attempt -lt $max_attempts ]; do
   services_found=false # Flag to track if any services were found
 
   # Check and delete service in APP_REGION_1
-  if gcloud run services describe "appmoodledemo16a6dev" --project="qwiklabs-gcp-03-7d573707c8ae" --region="$APP_REGION_1" 2>/dev/null; then
+  if gcloud run services describe "appn8ndemo05dcqa" --project="qwiklabs-gcp-02-9f7942837ab3" --region="$APP_REGION_1" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
-    
+
     # Try to delete the service
-    if gcloud run services delete "appmoodledemo16a6dev" --project="qwiklabs-gcp-03-7d573707c8ae" --region="$APP_REGION_1" --quiet; then
+    if gcloud run services delete "appn8ndemo05dcqa" --project="qwiklabs-gcp-02-9f7942837ab3" --region="$APP_REGION_1" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_1."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -46,11 +46,11 @@ while [ $attempt -lt $max_attempts ]; do
   fi
 
   # Check and delete service in APP_REGION_2
-  if gcloud run services describe "appmoodledemo16a6dev" --project="qwiklabs-gcp-03-7d573707c8ae" --region="$APP_REGION_2" 2>/dev/null; then
+  if gcloud run services describe "appn8ndemo05dcqa" --project="qwiklabs-gcp-02-9f7942837ab3" --region="$APP_REGION_2" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
-    
+
     # Try to delete the service
-    if gcloud run services delete "appmoodledemo16a6dev" --project="qwiklabs-gcp-03-7d573707c8ae" --region="$APP_REGION_2" --quiet; then
+    if gcloud run services delete "appn8ndemo05dcqa" --project="qwiklabs-gcp-02-9f7942837ab3" --region="$APP_REGION_2" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_2."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -75,18 +75,18 @@ while [ $attempt -lt $max_attempts ]; do
 done
 
 # Ensure application directory is empty
-sudo mkdir -p /share/appmoodledemo16a6dev && sudo rm -rf /share/appmoodledemo16a6dev/* && sudo chown -R www-data:www-data /share/appmoodledemo16a6dev && sudo chmod 775 /share/appmoodledemo16a6dev
+sudo mkdir -p /share/appn8ndemo05dcqa && sudo rm -rf /share/appn8ndemo05dcqa/* && sudo chown -R www-data:www-data /share/appn8ndemo05dcqa && sudo chmod 775 /share/appn8ndemo05dcqa
 
 # Attempt to download the backup file only if BACKUP_FILEID is not empty
-if [ -n "1WgtaSOIPs4MI50xtIkhDzp43fSv1hYGF" ] ; then
+if [ -n "" ] ; then
     echo "Attempting to download the backup file using gdown..."
     echo "Using gdown from /root/.local/bin/gdown"
-    
+
     # Try downloading with full path if needed
-    if sudo /root/.local/bin/gdown 1WgtaSOIPs4MI50xtIkhDzp43fSv1hYGF -O appmoodledemo16a6dev.zip; then
+    if sudo /root/.local/bin/gdown  -O appn8ndemo05dcqa.zip; then
         echo "Backup file downloaded successfully"
-        if [ -f appmoodledemo16a6dev.zip ]; then
-            echo "Backup file exists and is $(du -h appmoodledemo16a6dev.zip | cut -f1) in size"
+        if [ -f appn8ndemo05dcqa.zip ]; then
+            echo "Backup file exists and is $(du -h appn8ndemo05dcqa.zip | cut -f1) in size"
         fi
     else
         echo "Warning: Failed to download the backup file using /root/.local/bin/gdown."
@@ -96,27 +96,26 @@ else
 fi
 
 # Check if the backup file exists locally
-if [ -f "appmoodledemo16a6dev.zip" ]; then
+if [ -f "appn8ndemo05dcqa.zip" ]; then
     echo "Backup file exists locally."
-    
+
     # Extract the backup file and set  permissions
-    sudo mkdir -p appmoodledemo16a6dev && sudo rm -rf appmoodledemo16a6dev/* && sudo unzip appmoodledemo16a6dev.zip -d appmoodledemo16a6dev
+    sudo mkdir -p appn8ndemo05dcqa && sudo rm -rf appn8ndemo05dcqa/* && sudo unzip appn8ndemo05dcqa.zip -d appn8ndemo05dcqa
 
     # Update the application URL
-    sed -i -E 's|https://[^ ]+\.run\.app|https://appmoodledemo16a6dev-321066860616.us-central1.run.app|g' /share/appmoodledemo16a6dev/dump.sql
-    
+    sed -i -E 's|https://[^ ]+\.run\.app|https://appn8ndemo05dcqa-870960104436.us-central1.run.app|g' /share/appn8ndemo05dcqa/dump.sql
+
     # Move directory
-    sudo rm -rf /share/appmoodledemo16a6dev/* && sudo mv appmoodledemo16a6dev/* /share/appmoodledemo16a6dev/
+    sudo rm -rf /share/appn8ndemo05dcqa/* && sudo mv appn8ndemo05dcqa/* /share/appn8ndemo05dcqa/
 
     # Change ownership
-    sudo chmod -R 0777 /share/appmoodledemo16a6dev && sudo chown -R www-data:www-data /share/appmoodledemo16a6dev
+    sudo chmod -R 0777 /share/appn8ndemo05dcqa && sudo chown -R www-data:www-data /share/appn8ndemo05dcqa
 
     # Delete Backup from bastion host
-    sudo rm -rf appmoodledemo16a6dev.zip && sudo rm -rf appmoodledemo16a6dev
+    sudo rm -rf appn8ndemo05dcqa.zip && sudo rm -rf appn8ndemo05dcqa
 fi
 
 # Check if the shared directory exists
-if [ ! -d /share/appmoodledemo16a6dev ]; then echo 'Error: /share/appmoodledemo16a6dev does not exist.'; exit 1; fi
+if [ ! -d /share/appn8ndemo05dcqa ]; then echo 'Error: /share/appn8ndemo05dcqa does not exist.'; exit 1; fi
 
 echo "Script completed successfully!"
-

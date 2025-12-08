@@ -20,7 +20,7 @@
 resource "local_file" "dockerfile" {
   count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
     filename = "${path.module}/scripts/bkup/dockerfile"
-    content         = templatefile("${path.module}/scripts/bkup/Dockerfile.tpl", {
+    content         = templatefile("${path.module}/scripts/bkup/dockerfile.tpl", {
     BACKUP_SCRIPT   = "backup.sh"
   })
 

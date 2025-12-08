@@ -245,7 +245,7 @@ resource "local_file" "backup_clouddeploy" {
 resource "local_file" "clouddeploy_dockerfile" {
   count = var.configure_continuous_deployment ? 1 : 0
   filename        = "${path.module}/scripts/app/Dockerfile"
-  content         = templatefile("${path.module}/scripts/app/Dockerfile.tpl", {
+  content         = templatefile("${path.module}/scripts/app/dockerfile.tpl", {
     APP_VERSION  = "${var.application_version}"
     APP_RELEASE  = "${var.application_release}"
     APP_SHA      = "${var.application_sha}"

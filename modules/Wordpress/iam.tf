@@ -20,7 +20,7 @@
 resource "google_secret_manager_secret_iam_member" "dev_db_password" {
   count = var.configure_development_environment ? 1 : 0
   project   = local.project.project_id
-  secret_id = google_secret_manager_secret.dev_db_password[0].secret_id
+  secret_id = google_secret_manager_secret.dev_db_password.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
 
@@ -34,7 +34,7 @@ resource "google_secret_manager_secret_iam_member" "dev_db_password" {
 resource "google_secret_manager_secret_iam_member" "qa_db_password" {
   count = var.configure_nonproduction_environment ? 1 : 0
   project   = local.project.project_id
-  secret_id = google_secret_manager_secret.qa_db_password[0].secret_id
+  secret_id = google_secret_manager_secret.qa_db_password.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
 
@@ -48,7 +48,7 @@ resource "google_secret_manager_secret_iam_member" "qa_db_password" {
 resource "google_secret_manager_secret_iam_member" "prod_db_password" {
   count = var.configure_production_environment ? 1 : 0
   project   = local.project.project_id
-  secret_id = google_secret_manager_secret.prod_db_password[0].secret_id
+  secret_id = google_secret_manager_secret.prod_db_password.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
 

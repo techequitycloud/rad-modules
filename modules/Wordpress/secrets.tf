@@ -29,7 +29,6 @@ resource "random_password" "additional_user_password" {
 
 # Resource for creating a secret in Google Secret Manager to store the database password
 resource "google_secret_manager_secret" "dev_db_password" {
-  count      = local.sql_server_exists ? 1 : 0  
   project    = local.project.project_id  
   secret_id  = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}" 
 
@@ -40,8 +39,7 @@ resource "google_secret_manager_secret" "dev_db_password" {
 
 # Resource for adding a version of the secret with the actual database password
 resource "google_secret_manager_secret_version" "dev_db_password" {
-  count       = local.sql_server_exists ? 1 : 0 
-  secret      = google_secret_manager_secret.dev_db_password[0].id
+  secret      = google_secret_manager_secret.dev_db_password.id
   secret_data = random_password.additional_user_password.result       
 
   depends_on = [
@@ -61,11 +59,10 @@ resource "time_sleep" "dev_db_password" {
 
 # Data source for accessing the latest version of the secret when it's ready
 data "google_secret_manager_secret_version" "dev_db_password" {
-  count    = local.sql_server_exists ? 1 : 0  
   project  = local.project.project_id
   provider = google  
 
-  secret   = google_secret_manager_secret.dev_db_password[0].id
+  secret   = google_secret_manager_secret.dev_db_password.id
   version  = "latest"  
 
   depends_on = [
@@ -80,7 +77,6 @@ data "google_secret_manager_secret_version" "dev_db_password" {
 
 # Resource for creating a secret in Google Secret Manager to store the database password
 resource "google_secret_manager_secret" "qa_db_password" {
-  count      = local.sql_server_exists ? 1 : 0  
   project    = local.project.project_id  
   secret_id  = "${local.db_instance_name}-${var.application_database_name}qa-password-${var.tenant_deployment_id}-${local.random_id}"             
 
@@ -91,8 +87,7 @@ resource "google_secret_manager_secret" "qa_db_password" {
 
 # Resource for adding a version of the secret with the actual database password
 resource "google_secret_manager_secret_version" "qa_db_password" {
-  count       = local.sql_server_exists ? 1 : 0 
-  secret      = google_secret_manager_secret.qa_db_password[0].id
+  secret      = google_secret_manager_secret.qa_db_password.id
   secret_data = random_password.additional_user_password.result     
 
   depends_on = [
@@ -112,11 +107,10 @@ resource "time_sleep" "qa_db_password" {
 
 # Data source for accessing the latest version of the secret when it's ready
 data "google_secret_manager_secret_version" "qa_db_password" {
-  count    = local.sql_server_exists ? 1 : 0  
   project  = local.project.project_id
   provider = google  
 
-  secret   = google_secret_manager_secret.qa_db_password[0].id
+  secret   = google_secret_manager_secret.qa_db_password.id
   version  = "latest"  
 
   depends_on = [
@@ -131,7 +125,6 @@ data "google_secret_manager_secret_version" "qa_db_password" {
 
 # Resource for creating a secret in Google Secret Manager to store the database password
 resource "google_secret_manager_secret" "prod_db_password" {
-  count      = local.sql_server_exists ? 1 : 0  
   project    = local.project.project_id  
   secret_id  = "${local.db_instance_name}-${var.application_database_name}prod-password-${var.tenant_deployment_id}-${local.random_id}"             
 
@@ -142,8 +135,7 @@ resource "google_secret_manager_secret" "prod_db_password" {
 
 # Resource for adding a version of the secret with the actual database password
 resource "google_secret_manager_secret_version" "prod_db_password" {
-  count       = local.sql_server_exists ? 1 : 0 
-  secret      = google_secret_manager_secret.prod_db_password[0].id
+  secret      = google_secret_manager_secret.prod_db_password.id
   secret_data = random_password.additional_user_password.result       
 
   depends_on = [
@@ -163,11 +155,10 @@ resource "time_sleep" "prod_db_password" {
 
 # Data source for accessing the latest version of the secret when it's ready
 data "google_secret_manager_secret_version" "prod_db_password" {
-  count    = local.sql_server_exists ? 1 : 0  
   project  = local.project.project_id
   provider = google  
 
-  secret   = google_secret_manager_secret.prod_db_password[0].id
+  secret   = google_secret_manager_secret.prod_db_password.id
   version  = "latest"  
 
   depends_on = [
