@@ -26,7 +26,29 @@ resource "google_cloud_run_v2_job" "dev_migrate" {
       service_account = local.cloud_run_sa_email
       containers {
         image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
-        command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
+        command = ["/bin/bash", "-c", "export DATABASE_URL=postgres://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME && python manage.py migrate && python manage.py collectstatic --noinput --clear"]
+
+        env {
+          name = "DB_USER"
+          value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-dev"
+        }
+        env {
+          name = "DB_NAME"
+          value = google_sql_database.dev_db.name
+        }
+        env {
+          name = "DB_HOST"
+          value = "/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+        }
+        env {
+          name = "DB_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret = google_secret_manager_secret.dev_db_password.secret_id
+              version = "latest"
+            }
+          }
+        }
 
         env {
           name = "APPLICATION_SETTINGS"
@@ -88,6 +110,27 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
             }
         }
         env {
+          name = "DB_USER"
+          value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-dev"
+        }
+        env {
+          name = "DB_NAME"
+          value = google_sql_database.dev_db.name
+        }
+        env {
+          name = "DB_HOST"
+          value = "/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+        }
+        env {
+          name = "DB_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret = google_secret_manager_secret.dev_db_password.secret_id
+              version = "latest"
+            }
+          }
+        }
+        env {
           name = "APPLICATION_SETTINGS"
           value_source {
             secret_key_ref {
@@ -109,7 +152,7 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
           value = google_storage_bucket.dev_storage.name
         }
 
-        command = ["python", "manage.py", "createsuperuser", "--noinput"]
+        command = ["/bin/bash", "-c", "export DATABASE_URL=postgres://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME && python manage.py createsuperuser --noinput"]
 
         volume_mounts {
           name       = "cloudsql"
@@ -151,7 +194,7 @@ resource "null_resource" "dev_execute_migrate" {
   depends_on = [
       google_cloud_run_v2_job.dev_migrate,
       null_resource.build_and_push_application_image,
-      google_sql_user.dev_user,
+      null_resource.dev_user_setup,
       google_sql_database.dev_db
   ]
 }
@@ -186,7 +229,29 @@ resource "google_cloud_run_v2_job" "qa_migrate" {
       service_account = local.cloud_run_sa_email
       containers {
         image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
-        command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
+        command = ["/bin/bash", "-c", "export DATABASE_URL=postgres://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME && python manage.py migrate && python manage.py collectstatic --noinput --clear"]
+
+        env {
+          name = "DB_USER"
+          value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-qa"
+        }
+        env {
+          name = "DB_NAME"
+          value = google_sql_database.qa_db.name
+        }
+        env {
+          name = "DB_HOST"
+          value = "/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+        }
+        env {
+          name = "DB_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret = google_secret_manager_secret.qa_db_password.secret_id
+              version = "latest"
+            }
+          }
+        }
 
         env {
           name = "APPLICATION_SETTINGS"
@@ -247,6 +312,27 @@ resource "google_cloud_run_v2_job" "qa_createuser" {
             }
         }
         env {
+          name = "DB_USER"
+          value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-qa"
+        }
+        env {
+          name = "DB_NAME"
+          value = google_sql_database.qa_db.name
+        }
+        env {
+          name = "DB_HOST"
+          value = "/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+        }
+        env {
+          name = "DB_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret = google_secret_manager_secret.qa_db_password.secret_id
+              version = "latest"
+            }
+          }
+        }
+        env {
           name = "APPLICATION_SETTINGS"
           value_source {
             secret_key_ref {
@@ -268,7 +354,7 @@ resource "google_cloud_run_v2_job" "qa_createuser" {
           value = google_storage_bucket.qa_storage.name
         }
 
-        command = ["python", "manage.py", "createsuperuser", "--noinput"]
+        command = ["/bin/bash", "-c", "export DATABASE_URL=postgres://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME && python manage.py createsuperuser --noinput"]
 
         volume_mounts {
           name       = "cloudsql"
@@ -309,7 +395,7 @@ resource "null_resource" "qa_execute_migrate" {
   depends_on = [
       google_cloud_run_v2_job.qa_migrate,
       null_resource.build_and_push_application_image,
-      google_sql_user.qa_user,
+      null_resource.qa_user_setup,
       google_sql_database.qa_db
   ]
 }
@@ -344,7 +430,29 @@ resource "google_cloud_run_v2_job" "prod_migrate" {
       service_account = local.cloud_run_sa_email
       containers {
         image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
-        command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
+        command = ["/bin/bash", "-c", "export DATABASE_URL=postgres://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME && python manage.py migrate && python manage.py collectstatic --noinput --clear"]
+
+        env {
+          name = "DB_USER"
+          value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-prod"
+        }
+        env {
+          name = "DB_NAME"
+          value = google_sql_database.prod_db.name
+        }
+        env {
+          name = "DB_HOST"
+          value = "/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+        }
+        env {
+          name = "DB_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret = google_secret_manager_secret.prod_db_password.secret_id
+              version = "latest"
+            }
+          }
+        }
 
         env {
           name = "APPLICATION_SETTINGS"
@@ -405,6 +513,27 @@ resource "google_cloud_run_v2_job" "prod_createuser" {
             }
         }
         env {
+          name = "DB_USER"
+          value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-prod"
+        }
+        env {
+          name = "DB_NAME"
+          value = google_sql_database.prod_db.name
+        }
+        env {
+          name = "DB_HOST"
+          value = "/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+        }
+        env {
+          name = "DB_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret = google_secret_manager_secret.prod_db_password.secret_id
+              version = "latest"
+            }
+          }
+        }
+        env {
           name = "APPLICATION_SETTINGS"
           value_source {
             secret_key_ref {
@@ -426,7 +555,7 @@ resource "google_cloud_run_v2_job" "prod_createuser" {
           value = google_storage_bucket.prod_storage.name
         }
 
-        command = ["python", "manage.py", "createsuperuser", "--noinput"]
+        command = ["/bin/bash", "-c", "export DATABASE_URL=postgres://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME && python manage.py createsuperuser --noinput"]
 
         volume_mounts {
           name       = "cloudsql"
@@ -467,7 +596,7 @@ resource "null_resource" "prod_execute_migrate" {
   depends_on = [
       google_cloud_run_v2_job.prod_migrate,
       null_resource.build_and_push_application_image,
-      google_sql_user.prod_user,
+      null_resource.prod_user_setup,
       google_sql_database.prod_db
   ]
 }
@@ -515,12 +644,12 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 
         env {
           name  = "DB_USER"
-          value = google_sql_user.dev_user.name
+          value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-dev"
         }
 
         env {
           name  = "DB_NAME"
-          value = google_sql_database.dev_db.name
+          value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-dev"
         }
 
         env {
@@ -576,6 +705,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 
   depends_on = [
     null_resource.build_and_push_backup_image,
+    null_resource.dev_user_setup,
     google_sql_database.dev_db,
     google_storage_bucket.dev_backup_storage,
     null_resource.import_dev_nfs # Ensures NFS share exists
@@ -608,12 +738,12 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
 
         env {
           name  = "DB_USER"
-          value = google_sql_user.qa_user.name
+          value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-qa"
         }
 
         env {
           name  = "DB_NAME"
-          value = google_sql_database.qa_db.name
+          value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-qa"
         }
 
         env {
@@ -669,6 +799,7 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
 
   depends_on = [
     null_resource.build_and_push_backup_image,
+    null_resource.qa_user_setup,
     google_sql_database.qa_db,
     google_storage_bucket.qa_backup_storage,
     null_resource.import_qa_nfs
@@ -701,12 +832,12 @@ resource "google_cloud_run_v2_job" "prod_backup_service" {
 
         env {
           name  = "DB_USER"
-          value = google_sql_user.prod_user.name
+          value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-prod"
         }
 
         env {
           name  = "DB_NAME"
-          value = google_sql_database.prod_db.name
+          value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-prod"
         }
 
         env {
@@ -762,6 +893,7 @@ resource "google_cloud_run_v2_job" "prod_backup_service" {
 
   depends_on = [
     null_resource.build_and_push_backup_image,
+    null_resource.prod_user_setup,
     google_sql_database.prod_db,
     google_storage_bucket.prod_backup_storage,
     null_resource.import_prod_nfs

@@ -38,6 +38,28 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
       }
 
       env {
+        name = "DB_USER"
+        value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-dev"
+      }
+      env {
+        name = "DB_NAME"
+        value = google_sql_database.dev_db.name
+      }
+      env {
+        name = "DB_HOST"
+        value = "/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+      }
+      env {
+        name = "DB_PASSWORD"
+        value_source {
+          secret_key_ref {
+            secret = google_secret_manager_secret.dev_db_password.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
         name = "APPLICATION_SETTINGS"
         value_source {
           secret_key_ref {
@@ -137,6 +159,28 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
       }
 
       env {
+        name = "DB_USER"
+        value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-qa"
+      }
+      env {
+        name = "DB_NAME"
+        value = google_sql_database.qa_db.name
+      }
+      env {
+        name = "DB_HOST"
+        value = "/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+      }
+      env {
+        name = "DB_PASSWORD"
+        value_source {
+          secret_key_ref {
+            secret = google_secret_manager_secret.qa_db_password.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
         name = "APPLICATION_SETTINGS"
         value_source {
           secret_key_ref {
@@ -233,6 +277,28 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
       env {
         name = "GS_BUCKET_NAME"
         value = google_storage_bucket.prod_storage.name  # FIXED: Changed from dev_storage to prod_storage
+      }
+
+      env {
+        name = "DB_USER"
+        value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-prod"
+      }
+      env {
+        name = "DB_NAME"
+        value = google_sql_database.prod_db.name
+      }
+      env {
+        name = "DB_HOST"
+        value = "/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+      }
+      env {
+        name = "DB_PASSWORD"
+        value_source {
+          secret_key_ref {
+            secret = google_secret_manager_secret.prod_db_password.secret_id
+            version = "latest"
+          }
+        }
       }
 
       env {

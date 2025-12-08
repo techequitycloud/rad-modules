@@ -52,7 +52,6 @@ resource "google_secret_manager_secret_version" "dev_application_settings" {
 DEBUG=True
 SECRET_KEY="${random_password.django_secret_key.result}"
 GS_BUCKET_NAME="${google_storage_bucket.dev_storage.name}"
-DATABASE_URL="postgres://${google_sql_user.dev_user.name}:${google_sql_user.dev_user.password}@/${google_sql_database.dev_db.name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
 }
 
@@ -93,7 +92,6 @@ resource "google_secret_manager_secret_version" "qa_application_settings" {
 DEBUG=False
 SECRET_KEY="${random_password.django_secret_key.result}"
 GS_BUCKET_NAME="${google_storage_bucket.qa_storage.name}"
-DATABASE_URL="postgres://${google_sql_user.qa_user.name}:${google_sql_user.qa_user.password}@/${google_sql_database.qa_db.name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
 }
 
@@ -134,7 +132,6 @@ resource "google_secret_manager_secret_version" "prod_application_settings" {
 DEBUG=False
 SECRET_KEY="${random_password.django_secret_key.result}"
 GS_BUCKET_NAME="${google_storage_bucket.prod_storage.name}"
-DATABASE_URL="postgres://${google_sql_user.prod_user.name}:${google_sql_user.prod_user.password}@/${google_sql_database.prod_db.name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
 }
 
@@ -169,17 +166,13 @@ resource "google_secret_manager_secret" "dev_db_password" {
   project = local.project.project_id
 }
 
-resource "google_secret_manager_secret_version" "dev_db_password" {
-  secret      = google_secret_manager_secret.dev_db_password.id
-  secret_data = random_password.dev_db_password.result
-
-  depends_on = [google_secret_manager_secret.dev_db_password]
-}
+# Remove password version resource (managed by script)
+# Keep data source but depends_on null_resource (script)
 
 data "google_secret_manager_secret_version" "dev_db_password" {
   secret  = google_secret_manager_secret.dev_db_password.id
   version = "latest"
-  depends_on = [google_secret_manager_secret_version.dev_db_password]
+  depends_on = [null_resource.dev_user_setup]
 }
 
 resource "google_secret_manager_secret" "qa_db_password" {
@@ -194,17 +187,10 @@ resource "google_secret_manager_secret" "qa_db_password" {
   project = local.project.project_id
 }
 
-resource "google_secret_manager_secret_version" "qa_db_password" {
-  secret      = google_secret_manager_secret.qa_db_password.id
-  secret_data = random_password.qa_db_password.result
-
-  depends_on = [google_secret_manager_secret.qa_db_password]
-}
-
 data "google_secret_manager_secret_version" "qa_db_password" {
   secret  = google_secret_manager_secret.qa_db_password.id
   version = "latest"
-  depends_on = [google_secret_manager_secret_version.qa_db_password]
+  depends_on = [null_resource.qa_user_setup]
 }
 
 resource "google_secret_manager_secret" "prod_db_password" {
@@ -219,15 +205,8 @@ resource "google_secret_manager_secret" "prod_db_password" {
   project = local.project.project_id
 }
 
-resource "google_secret_manager_secret_version" "prod_db_password" {
-  secret      = google_secret_manager_secret.prod_db_password.id
-  secret_data = random_password.prod_db_password.result
-
-  depends_on = [google_secret_manager_secret.prod_db_password]
-}
-
 data "google_secret_manager_secret_version" "prod_db_password" {
   secret  = google_secret_manager_secret.prod_db_password.id
   version = "latest"
-  depends_on = [google_secret_manager_secret_version.prod_db_password]
+  depends_on = [null_resource.prod_user_setup]
 }

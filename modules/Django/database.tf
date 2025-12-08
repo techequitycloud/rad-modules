@@ -191,33 +191,26 @@ resource "google_sql_database" "dev_db" {
   }
 }
 
-resource "random_password" "dev_db_password" {
-  length  = 30
-  special = false
-
-  lifecycle {
-    create_before_destroy = true
+resource "null_resource" "dev_user_setup" {
+  triggers = {
+    project    = local.project.project_id
+    secret     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-db-password"
+    instance   = local.db_instance_name
+    user       = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-dev"
+    identity   = var.resource_creator_identity
+    script_sha = filesha256("${path.module}/scripts/db_setup.sh")
   }
-}
 
-resource "google_sql_user" "dev_user" {
-  name     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-dev"
-  instance = local.db_instance_name
-  project  = local.project.project_id
-  password = random_password.dev_db_password.result
-
-  # ABANDON means Terraform won't try to delete the user
-  # We handle deletion via null_resource which checks existence first
-  deletion_policy = "ABANDON"
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    working_dir = "${path.module}/scripts"
+    command     = "./db_setup.sh \"${self.triggers.project}\" \"${self.triggers.secret}\" \"${self.triggers.instance}\" \"${self.triggers.user}\" \"${self.triggers.identity}\""
+  }
 
   depends_on = [
-    google_sql_database.dev_db
+    google_sql_database.dev_db,
+    google_secret_manager_secret.dev_db_password
   ]
-
-  lifecycle {
-    prevent_destroy = false
-    ignore_changes  = [password]
-  }
 }
 
 #########################################################################
@@ -236,33 +229,26 @@ resource "google_sql_database" "qa_db" {
   }
 }
 
-resource "random_password" "qa_db_password" {
-  length  = 30
-  special = false
-
-  lifecycle {
-    create_before_destroy = true
+resource "null_resource" "qa_user_setup" {
+  triggers = {
+    project    = local.project.project_id
+    secret     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-db-password"
+    instance   = local.db_instance_name
+    user       = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-qa"
+    identity   = var.resource_creator_identity
+    script_sha = filesha256("${path.module}/scripts/db_setup.sh")
   }
-}
 
-resource "google_sql_user" "qa_user" {
-  name     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-qa"
-  instance = local.db_instance_name
-  project  = local.project.project_id
-  password = random_password.qa_db_password.result
-
-  # ABANDON means Terraform won't try to delete the user
-  # We handle deletion via null_resource which checks existence first
-  deletion_policy = "ABANDON"
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    working_dir = "${path.module}/scripts"
+    command     = "./db_setup.sh \"${self.triggers.project}\" \"${self.triggers.secret}\" \"${self.triggers.instance}\" \"${self.triggers.user}\" \"${self.triggers.identity}\""
+  }
 
   depends_on = [
-    google_sql_database.qa_db
+    google_sql_database.qa_db,
+    google_secret_manager_secret.qa_db_password
   ]
-
-  lifecycle {
-    prevent_destroy = false
-    ignore_changes  = [password]
-  }
 }
 
 #########################################################################
@@ -281,33 +267,26 @@ resource "google_sql_database" "prod_db" {
   }
 }
 
-resource "random_password" "prod_db_password" {
-  length  = 30
-  special = false
-
-  lifecycle {
-    create_before_destroy = true
+resource "null_resource" "prod_user_setup" {
+  triggers = {
+    project    = local.project.project_id
+    secret     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-db-password"
+    instance   = local.db_instance_name
+    user       = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-prod"
+    identity   = var.resource_creator_identity
+    script_sha = filesha256("${path.module}/scripts/db_setup.sh")
   }
-}
 
-resource "google_sql_user" "prod_user" {
-  name     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-prod"
-  instance = local.db_instance_name
-  project  = local.project.project_id
-  password = random_password.prod_db_password.result
-
-  # ABANDON means Terraform won't try to delete the user
-  # We handle deletion via null_resource which checks existence first
-  deletion_policy = "ABANDON"
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    working_dir = "${path.module}/scripts"
+    command     = "./db_setup.sh \"${self.triggers.project}\" \"${self.triggers.secret}\" \"${self.triggers.instance}\" \"${self.triggers.user}\" \"${self.triggers.identity}\""
+  }
 
   depends_on = [
-    google_sql_database.prod_db
+    google_sql_database.prod_db,
+    google_secret_manager_secret.prod_db_password
   ]
-
-  lifecycle {
-    prevent_destroy = false
-    ignore_changes  = [password]
-  }
 }
 
 #########################################################################
@@ -316,7 +295,7 @@ resource "google_sql_user" "prod_user" {
 
 resource "null_resource" "force_delete_dev_user" {
   triggers = {
-    user     = google_sql_user.dev_user.name
+    user     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-dev"
     instance = local.db_instance_name
     project  = local.project.project_id
   }
@@ -364,7 +343,7 @@ resource "null_resource" "force_delete_dev_user" {
 
 resource "null_resource" "force_delete_qa_user" {
   triggers = {
-    user     = google_sql_user.qa_user.name
+    user     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-qa"
     instance = local.db_instance_name
     project  = local.project.project_id
   }
@@ -412,7 +391,7 @@ resource "null_resource" "force_delete_qa_user" {
 
 resource "null_resource" "force_delete_prod_user" {
   triggers = {
-    user     = google_sql_user.prod_user.name
+    user     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-prod"
     instance = local.db_instance_name
     project  = local.project.project_id
   }
@@ -612,9 +591,9 @@ resource "null_resource" "force_delete_prod_db" {
 
 resource "null_resource" "final_cleanup" {
   triggers = {
-    dev_user  = google_sql_user.dev_user.name
-    qa_user   = google_sql_user.qa_user.name
-    prod_user = google_sql_user.prod_user.name
+    dev_user  = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-dev"
+    qa_user   = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-qa"
+    prod_user = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-prod"
     dev_db    = google_sql_database.dev_db.name
     qa_db     = google_sql_database.qa_db.name
     prod_db   = google_sql_database.prod_db.name
