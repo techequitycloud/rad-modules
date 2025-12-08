@@ -11,22 +11,53 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Generate a random ID for unique naming (moved to top for better dependency management)
 
+#########################################################################
+# Random ID Generation
+#########################################################################
+
+# Generate a random ID for unique naming (moved to top for better dependency management)
 resource "random_id" "note_id" {
   byte_length = 8 # Adjust the byte length as needed for uniqueness
 }
 
-# Local values for better resource reference management
-locals {
-  attestor_name = "${var.tenant_deployment_id}-attestor-${local.random_id}"
-  note_name = "attestor-note-${var.tenant_deployment_id}-${local.random_id}"
-  key_ring_name = "key-ring-${var.tenant_deployment_id}-${local.random_id}"
-  crypto_key_name = "key-${var.tenant_deployment_id}-${local.random_id}"
+# Add a suffix to ensure unique names if keys are scheduled for destruction
+resource "random_id" "key_suffix" {
+  byte_length = 2
+  keepers = {
+    # Force new ID if we detect a destroyed key
+    timestamp = timestamp()
+  }
 }
 
-# Creates a key ring to organize cryptographic keys.
+#########################################################################
+# Local Values
+#########################################################################
+
+# Local values for better resource reference management
+locals {
+  attestor_name   = "${var.tenant_deployment_id}-attestor-${local.random_id}"
+  note_name       = "attestor-note-${var.tenant_deployment_id}-${local.random_id}"
+  key_ring_name   = "key-ring-${var.tenant_deployment_id}-${local.random_id}"
+  # Add suffix to crypto key name to avoid conflicts with destroyed keys
+  crypto_key_name = "key-${var.tenant_deployment_id}-${local.random_id}-${random_id.key_suffix.hex}"
+}
+
+#########################################################################
+# KMS Key Ring - Check for Existing or Create New
+#########################################################################
+
+# Try to get existing key ring
+data "google_kms_key_ring" "existing_keyring" {
+  count    = 1
+  name     = local.key_ring_name
+  location = "global"
+  project  = local.project.project_id
+}
+
+# Create key ring only if it doesn't exist
 resource "google_kms_key_ring" "keyring" {
+  count    = length(data.google_kms_key_ring.existing_keyring) == 0 ? 1 : 0
   project  = local.project.project_id
   name     = local.key_ring_name
   location = "global"
@@ -36,8 +67,17 @@ resource "google_kms_key_ring" "keyring" {
   }
 }
 
+# Reference the key ring (either existing or newly created)
+locals {
+  keyring_id = length(data.google_kms_key_ring.existing_keyring) > 0 ? data.google_kms_key_ring.existing_keyring[0].id : google_kms_key_ring.keyring[0].id
+}
+
+#########################################################################
+# KMS Key Ring IAM
+#########################################################################
+
 resource "google_kms_key_ring_iam_binding" "keyring_owner" {
-  key_ring_id = google_kms_key_ring.keyring.id
+  key_ring_id = local.keyring_id
   role        = "roles/owner"
 
   members = [
@@ -45,18 +85,29 @@ resource "google_kms_key_ring_iam_binding" "keyring_owner" {
   ]
 }
 
-# Creates a cryptographic key for signing attestations.
+#########################################################################
+# KMS Crypto Key - Always Create New with Unique Name
+#########################################################################
+
+# Creates a cryptographic key for signing attestations
 resource "google_kms_crypto_key" "crypto_key" {
   name     = local.crypto_key_name
-  key_ring = google_kms_key_ring.keyring.id
+  key_ring = local.keyring_id
   purpose  = "ASYMMETRIC_SIGN"
 
   version_template {
     algorithm = "RSA_SIGN_PKCS1_4096_SHA512"
   }
 
-  depends_on = [google_kms_key_ring.keyring]
+  lifecycle {
+    prevent_destroy = false
+    create_before_destroy = true
+  }
 }
+
+#########################################################################
+# KMS Crypto Key IAM
+#########################################################################
 
 resource "google_kms_crypto_key_iam_binding" "crypto_key_owner" {
   crypto_key_id = google_kms_crypto_key.crypto_key.id
@@ -67,12 +118,20 @@ resource "google_kms_crypto_key_iam_binding" "crypto_key_owner" {
   ]
 }
 
+#########################################################################
+# KMS Crypto Key Version
+#########################################################################
+
 # Retrieves the latest version of a specified CryptoKey.
 data "google_kms_crypto_key_version" "version" {
   crypto_key = google_kms_crypto_key.crypto_key.id
 
   depends_on = [google_kms_crypto_key.crypto_key]
 }
+
+#########################################################################
+# Container Analysis Note
+#########################################################################
 
 # Creates a note for storing metadata about the binary authorization attestor.
 resource "google_container_analysis_note" "note" {
@@ -89,6 +148,10 @@ resource "google_container_analysis_note" "note" {
     prevent_destroy = false
   }
 }
+
+#########################################################################
+# Binary Authorization Attestor
+#########################################################################
 
 # Represents an entity that can verify container images' attestations.
 resource "google_binary_authorization_attestor" "attestor" {
@@ -115,6 +178,10 @@ resource "google_binary_authorization_attestor" "attestor" {
   ]
 }
 
+#########################################################################
+# Binary Authorization Policy
+#########################################################################
+
 # Defines a policy to enforce container image attestations before deployment.
 resource "google_binary_authorization_policy" "policy" {
   project = local.project.project_id
@@ -137,9 +204,12 @@ resource "google_binary_authorization_policy" "policy" {
     google_binary_authorization_attestor.attestor,
     google_container_analysis_note.note,
     google_kms_crypto_key.crypto_key,
-    google_kms_key_ring.keyring,
   ]
 }
+
+#########################################################################
+# Binary Authorization Attestor IAM
+#########################################################################
 
 # Retrieves the IAM policy for a specified attestor.
 data "google_binary_authorization_attestor_iam_policy" "policy" {

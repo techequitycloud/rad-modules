@@ -88,7 +88,7 @@ variable "region" {
 }
 
 variable "network_name" {
-  description = "The name of the VPC network. {{UIMeta group=0 order=202 updatesafe }}"
+  description = "The name of the VPC network. {{UIMeta group=0 order=202 a   }}"
   type        = string
   default     = "vpc-network"
 }
