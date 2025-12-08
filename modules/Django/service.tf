@@ -14,7 +14,7 @@
 
 resource "google_cloud_run_v2_service" "dev_app_service" {
   count               = var.configure_development_environment && local.sql_server_exists ? 1 : 0
-  name                = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev"
+  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
   location            = local.region
   project             = local.project.project_id
   deletion_protection = false
@@ -113,7 +113,7 @@ resource "null_resource" "dev_update_csrf_origin" {
 
 resource "google_cloud_run_v2_service" "qa_app_service" {
   count               = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
-  name                = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa"
+  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
   location            = local.region
   project             = local.project.project_id
   deletion_protection = false
@@ -212,7 +212,7 @@ resource "null_resource" "qa_update_csrf_origin" {
 
 resource "google_cloud_run_v2_service" "prod_app_service" {
   count               = var.configure_production_environment && local.sql_server_exists ? 1 : 0
-  name                = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod"
+  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
   location            = local.region
   project             = local.project.project_id
   deletion_protection = false
@@ -307,3 +307,4 @@ resource "null_resource" "prod_update_csrf_origin" {
   }
   depends_on = [google_cloud_run_v2_service.prod_app_service]
 }
+
