@@ -39,7 +39,7 @@ resource "google_secret_manager_secret" "dev_application_settings" {
   replication {
     user_managed {
       replicas {
-        location = var.region
+        location = local.region
       }
     }
   }
@@ -61,7 +61,7 @@ resource "google_secret_manager_secret" "dev_superuser_password" {
   replication {
     user_managed {
       replicas {
-        location = var.region
+        location = local.region
       }
     }
   }
@@ -80,7 +80,7 @@ resource "google_secret_manager_secret" "qa_application_settings" {
   replication {
     user_managed {
       replicas {
-        location = var.region
+        location = local.region
       }
     }
   }
@@ -102,7 +102,7 @@ resource "google_secret_manager_secret" "qa_superuser_password" {
   replication {
     user_managed {
       replicas {
-        location = var.region
+        location = local.region
       }
     }
   }
@@ -121,7 +121,7 @@ resource "google_secret_manager_secret" "prod_application_settings" {
   replication {
     user_managed {
       replicas {
-        location = var.region
+        location = local.region
       }
     }
   }
@@ -143,7 +143,7 @@ resource "google_secret_manager_secret" "prod_superuser_password" {
   replication {
     user_managed {
       replicas {
-        location = var.region
+        location = local.region
       }
     }
   }
@@ -162,7 +162,7 @@ resource "google_secret_manager_secret" "dev_db_password" {
   replication {
     user_managed {
       replicas {
-        location = var.region
+        location = local.region
       }
     }
   }
@@ -187,7 +187,7 @@ resource "google_secret_manager_secret" "qa_db_password" {
   replication {
     user_managed {
       replicas {
-        location = var.region
+        location = local.region
       }
     }
   }
@@ -212,7 +212,7 @@ resource "google_secret_manager_secret" "prod_db_password" {
   replication {
     user_managed {
       replicas {
-        location = var.region
+        location = local.region
       }
     }
   }

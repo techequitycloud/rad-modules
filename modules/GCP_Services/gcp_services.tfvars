@@ -2,7 +2,7 @@
 resource_creator_identity = "" # "REPLACE_WITH_TERRAFORM_SERVICE_ACCOUNT"
 
 # Project
-existing_project_id = "qwiklabs-gcp-00-a40917b3f9e5"
+existing_project_id = "qwiklabs-gcp-03-020528f194e4"
 
 # Network
 network_name = "vpc-network"
