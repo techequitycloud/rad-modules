@@ -14,7 +14,7 @@ create_mysql = false
 create_postgres = true
 
 # GKE
-create_google_kubernetes_engine = true
+create_google_kubernetes_engine = false
 configure_config_management = false
 configure_policy_controller = false
 configure_cloud_service_mesh = false
