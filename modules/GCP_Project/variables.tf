@@ -109,3 +109,27 @@ variable "enable_services" {
   type        = bool
   default     = false
 }
+
+variable "billing_budget_amount" {
+  description = "The amount to use for the billing budget. {{UIMeta group=1 order=203 updatesafe }}"
+  type        = number
+  default     = null
+}
+
+variable "billing_budget_alert_spent_percents" {
+  description = "A list of percentages of the budget to alert on (e.g. [0.5, 0.9, 1.0]). {{UIMeta group=1 order=204 updatesafe }}"
+  type        = list(number)
+  default     = [0.5, 0.7, 1.0]
+}
+
+variable "billing_budget_notification_email_addresses" {
+  description = "A list of email addresses to notify when the budget alerts are triggered. {{UIMeta group=1 order=205 updatesafe }}"
+  type        = list(string)
+  default     = []
+}
+
+variable "billing_budget_credit_types_treatment" {
+  description = "Specifies how credits should be treated when determining the spend for threshold calculations. Default is INCLUDE_ALL_CREDITS. {{UIMeta group=1 order=206 updatesafe }}"
+  type        = string
+  default     = "INCLUDE_ALL_CREDITS"
+}

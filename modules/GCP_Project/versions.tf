@@ -18,12 +18,6 @@ terraform {
     google = {
       source = "hashicorp/google"
     }
-    kubernetes = {
-      source = "hashicorp/kubernetes"
-    }
-    github = {
-      source = "integrations/github"
-    }
   }
   required_version = ">= 0.13"
 }
