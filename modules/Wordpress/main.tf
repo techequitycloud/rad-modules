@@ -23,6 +23,45 @@ locals {
   region  = tolist(local.regions_list)[0]
   regions = tolist(local.regions_list)
   project_number = try(data.google_project.existing_project.number, "")
+
+  # Environment definitions
+  environments = merge(
+    var.configure_development_environment ? {
+      dev = {
+        name_suffix = "dev"
+        short_name  = "dev"
+      }
+    } : {},
+    var.configure_nonproduction_environment ? {
+      qa = {
+        name_suffix = "qa"
+        short_name  = "qa"
+      }
+    } : {},
+    var.configure_production_environment ? {
+      prod = {
+        name_suffix = "prod"
+        short_name  = "prod"
+      }
+    } : {}
+  )
+
+  # Cartesian product of environments and regions for Services
+  # If local.regions has multiple, we deploy to all (or logic says first 2 if length >=2, else first 1)
+  # The original logic was: (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]]))
+  target_regions = length(local.regions) >= 2 ? local.regions : [local.regions[0]]
+
+  service_instances = flatten([
+    for env_key, env_config in local.environments : [
+      for region in local.target_regions : {
+        key         = "${env_key}-${region}"
+        env_key     = env_key
+        region      = region
+        name_suffix = env_config.name_suffix
+        short_name  = env_config.short_name
+      }
+    ]
+  ])
 }
 
 data "google_compute_zones" "available_zones" {

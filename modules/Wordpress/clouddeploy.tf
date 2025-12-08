@@ -11,126 +11,78 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
- 
+
 #########################################################################
-# Configure cloud deploy pipeline
+# Create config files
 #########################################################################
 
-# Resource to configure cloud deploy pipeline
-resource "null_resource" "build_cloud_deploy_app_pipeline" {
-  count = var.configure_continuous_deployment && var.configure_development_environment ? 1 : 0
+# Resource to create a local clouddeploy file from a template, with variables substituted
+resource "local_file" "app_clouddeploy_backup" {
+  count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) && var.configure_backups ? 1 : 0
+  filename = "${path.module}/scripts/cd/clouddeploy.yaml"
+  content  = templatefile("${path.module}/scripts/cd/clouddeploy.yaml.tpl", {
+    PROJECT_ID    = local.project.project_id
+    APP_NAME      = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+    IMAGE_REGION  = local.region
+    IMAGE_NAME    = "backup"
+    IMAGE_VERSION = "${var.application_version}"
+    REPO_NAME     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+    PIPELINE_NAME = "pl-bkup-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+    TARGET_NAME   = "tgt-bkup-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+    APP_REGION    = local.region
+    CREATOR_SA    = var.resource_creator_identity
+  })
 
-  triggers = {
-    project_id    = local.project.project_id
-    nfs_ip        = local.nfs_internal_ip
-    zone          = data.google_compute_zones.available_zones.names[0]
-    pipeline_name = "app${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-    target_name   = "app${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-    app_name      = "${var.application_name}"
-    app_prefix    = "app${var.tenant_deployment_id}${local.random_id}"
-    app_region    = local.region
-    creator_sa    = "${var.resource_creator_identity}"
-    script_hash   = filesha256("${path.module}/scripts/cd/setup-pipeline.sh")
-    # always_run    = "${timestamp()}"
-  }
-
-  # Provisioner to execute a local script that builds and pushes the container image
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    working_dir = "${path.module}/scripts/cd/app"  # The directory where build scripts are located
-    command = "bash ../setup-pipeline.sh \"${local.project.project_id}\" \"${local.region}\" \"${var.resource_creator_identity}\""
-  }
-
-  # Provisioner to execute a local script that deletes the database
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    when    = destroy
-    working_dir = "${path.module}/scripts/cd/app" # The directory where build scripts are located
-    command = "bash ../delete-pipeline.sh \"$PROJECT_ID\" \"$NFS_IP\" \"$ZONE\" \"$PIPELINE_NAME\" \"$TARGET_NAME\" \"$APP_NAME\" \"$APP_PREFIX\" \"$APP_REGION\" \"$CREATOR_SA\""
-
-    # Environment variables available to the command execution
-    environment = {
-      PROJECT_ID    = self.triggers.project_id
-      NFS_IP        = self.triggers.nfs_ip
-      ZONE          = self.triggers.zone
-      PIPELINE_NAME = self.triggers.pipeline_name
-      TARGET_NAME   = self.triggers.target_name
-      APP_NAME      = self.triggers.app_name
-      APP_PREFIX    = self.triggers.app_prefix
-      APP_REGION    = self.triggers.app_region
-      CREATOR_SA    = self.triggers.creator_sa
-    }
-  }
-
-  # Dependencies to ensure resources are created in the correct order
+  # Dependency to ensure the file is only created after initializing the git repository
   depends_on = [
-    local_file.clouddeploy_dockerfile,
-    local_file.clouddeploy_app_deploy_dev,
-    local_file.clouddeploy_app_deploy_qa,
-    local_file.clouddeploy_app_deploy_prod,
-    local_file.clouddeploy_app_cloudbuild,
-    local_file.clouddeploy_app_skaffold,
-    null_resource.build_and_push_application_image,
-    null_resource.import_prod_db,
-    google_cloud_run_v2_job.dev_backup_service,
-    google_cloud_run_v2_service.dev_app_service,
+    null_resource.init_git_repo,
   ]
 }
 
-resource "null_resource" "build_cloud_deploy_backup_pipeline" {
-  count = var.configure_continuous_deployment && var.configure_development_environment ? 1 : 0
+# Resource to create a local skaffold file from a template, with variables substituted
+resource "local_file" "app_skaffold_backup" {
+  count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) && var.configure_backups ? 1 : 0
+  filename = "${path.module}/scripts/cd/skaffold.yaml"
+  content  = templatefile("${path.module}/scripts/cd/skaffold.yaml.tpl", {
+    PROJECT_ID    = local.project.project_id
+    APP_NAME      = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+    IMAGE_REGION  = local.region
+    IMAGE_NAME    = "backup"
+    IMAGE_VERSION = "${var.application_version}"
+    REPO_NAME     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+  })
 
+  # Dependency to ensure the file is only created after initializing the git repository
+  depends_on = [
+    null_resource.init_git_repo,
+  ]
+}
+
+#########################################################################
+# Create pipelines
+#########################################################################
+
+# Resource to build the backup pipeline
+resource "null_resource" "build_cloud_deploy_backup_pipeline" {
+  count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) && var.configure_backups ? 1 : 0
+  # Trigger based on the hash of the setup-pipeline.sh script
   triggers = {
-    project_id    = local.project.project_id
-    nfs_ip        = local.nfs_internal_ip
-    zone          = data.google_compute_zones.available_zones.names[0]
-    pipeline_name = "bkup${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-    target_name   = "bkup${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-    app_name      = "${var.application_name}"
-    app_prefix    = "bkup${var.tenant_deployment_id}${local.random_id}"
-    app_region    = local.region
-    creator_sa    = "${var.resource_creator_identity}"
-    script_hash   = filesha256("${path.module}/scripts/cd/setup-pipeline.sh")
-    # always_run    = "${timestamp()}" # Trigger to always run on apply
+    script_hash = filesha256("${path.module}/scripts/cd/setup-pipeline.sh")
   }
   
-  # Provisioner to execute a local script that builds and pushes the container image
+  # Provisioner to execute a local script that builds the Cloud Deploy pipeline
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    working_dir = "${path.module}/scripts/cd/backup"  # The directory where build scripts are located
-    command = "bash ../setup-pipeline.sh \"${local.project.project_id}\" \"${local.region}\" \"${var.resource_creator_identity}\""
-  }
-
-  # Provisioner to execute a local script that deletes the database
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    when    = destroy
-    working_dir = "${path.module}/scripts/cd/backup" # The directory where build scripts are located
-    command = "bash ../delete-pipeline.sh \"$PROJECT_ID\" \"$NFS_IP\" \"$ZONE\" \"$PIPELINE_NAME\" \"$TARGET_NAME\" \"$APP_NAME\" \"$APP_PREFIX\" \"$APP_REGION\" \"$CREATOR_SA\""
-
-    # Environment variables available to the command execution
-    environment = {
-      PROJECT_ID    = self.triggers.project_id
-      NFS_IP        = self.triggers.nfs_ip
-      ZONE          = self.triggers.zone
-      PIPELINE_NAME = self.triggers.pipeline_name
-      APP_NAME      = self.triggers.app_name
-      TARGET_NAME   = self.triggers.target_name
-      APP_PREFIX    = self.triggers.app_prefix
-      APP_REGION    = self.triggers.app_region
-      CREATOR_SA    = self.triggers.creator_sa
-    }
+    working_dir = "${path.module}/scripts/cd"  # The directory where build scripts are located
+    command = "bash setup-pipeline.sh \"${local.project.project_id}\" \"${var.resource_creator_identity}\""
   }
 
   # Dependencies to ensure resources are created in the correct order
   depends_on = [
-    local_file.clouddeploy_dockerfile,
-    local_file.clouddeploy_backup_deploy_dev,
-    local_file.clouddeploy_backup_deploy_qa,
-    local_file.clouddeploy_backup_deploy_prod,
-    local_file.clouddeploy_backup_cloudbuild,
-    local_file.clouddeploy_backup_skaffold,
-    google_cloud_run_v2_job.dev_backup_service,
-    null_resource.import_prod_db,
+    local_file.app_clouddeploy_backup,
+    local_file.app_skaffold_backup,
+    null_resource.build_and_push_backup_image,
+    google_cloud_run_v2_job.backup_service,
+    github_repository.project_private_repo,
   ]
 }

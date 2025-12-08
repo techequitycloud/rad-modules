@@ -24,13 +24,15 @@ resource "random_password" "additional_user_password" {
 }
 
 #########################################################################
-# Secret Manager resources for Dev environment
+# Secret Manager resources
 #########################################################################
 
 # Resource for creating a secret in Google Secret Manager to store the database password
-resource "google_secret_manager_secret" "dev_db_password" {
+resource "google_secret_manager_secret" "db_password" {
+  for_each = local.environments
+
   project    = local.project.project_id  
-  secret_id  = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}" 
+  secret_id  = "${local.db_instance_name}-${var.application_database_name}${each.value.name_suffix}-password-${var.tenant_deployment_id}-${local.random_id}"
 
   replication {
     auto {}  
@@ -38,131 +40,41 @@ resource "google_secret_manager_secret" "dev_db_password" {
 }
 
 # Resource for adding a version of the secret with the actual database password
-resource "google_secret_manager_secret_version" "dev_db_password" {
-  secret      = google_secret_manager_secret.dev_db_password.id
+resource "google_secret_manager_secret_version" "db_password" {
+  for_each = local.environments
+
+  secret      = google_secret_manager_secret.db_password[each.key].id
   secret_data = random_password.additional_user_password.result       
 
   depends_on = [
-    google_secret_manager_secret.dev_db_password,
+    google_secret_manager_secret.db_password,
     random_password.additional_user_password,
   ]
 }
 
 # Resource to introduce a delay after creating a secret version
-resource "time_sleep" "dev_db_password" {
+resource "time_sleep" "db_password" {
+  for_each = local.environments
+
   depends_on = [
-    google_secret_manager_secret_version.dev_db_password
+    google_secret_manager_secret_version.db_password
   ]
 
   create_duration = "90s"  
 }
 
 # Data source for accessing the latest version of the secret when it's ready
-data "google_secret_manager_secret_version" "dev_db_password" {
+data "google_secret_manager_secret_version" "db_password" {
+  for_each = local.environments
+
   project  = local.project.project_id
   provider = google  
 
-  secret   = google_secret_manager_secret.dev_db_password.id
+  secret   = google_secret_manager_secret.db_password[each.key].id
   version  = "latest"  
 
   depends_on = [
-    time_sleep.dev_db_password,
-    google_secret_manager_secret.dev_db_password,
-  ]
-}
-
-#########################################################################
-# Secret Manager resources for QA environment
-#########################################################################
-
-# Resource for creating a secret in Google Secret Manager to store the database password
-resource "google_secret_manager_secret" "qa_db_password" {
-  project    = local.project.project_id  
-  secret_id  = "${local.db_instance_name}-${var.application_database_name}qa-password-${var.tenant_deployment_id}-${local.random_id}"             
-
-  replication {
-    auto {}  
-  }
-}
-
-# Resource for adding a version of the secret with the actual database password
-resource "google_secret_manager_secret_version" "qa_db_password" {
-  secret      = google_secret_manager_secret.qa_db_password.id
-  secret_data = random_password.additional_user_password.result     
-
-  depends_on = [
-    google_secret_manager_secret.qa_db_password,
-    random_password.additional_user_password,
-  ]
-}
-
-# Resource to introduce a delay after creating a secret version
-resource "time_sleep" "qa_db_password" {
-  depends_on = [
-    google_secret_manager_secret_version.qa_db_password
-  ]
-
-  create_duration = "90s"  
-}
-
-# Data source for accessing the latest version of the secret when it's ready
-data "google_secret_manager_secret_version" "qa_db_password" {
-  project  = local.project.project_id
-  provider = google  
-
-  secret   = google_secret_manager_secret.qa_db_password.id
-  version  = "latest"  
-
-  depends_on = [
-    time_sleep.qa_db_password,
-    google_secret_manager_secret.qa_db_password,
-  ]
-}
-
-#########################################################################
-# Secret Manager resources for Prod environment
-#########################################################################
-
-# Resource for creating a secret in Google Secret Manager to store the database password
-resource "google_secret_manager_secret" "prod_db_password" {
-  project    = local.project.project_id  
-  secret_id  = "${local.db_instance_name}-${var.application_database_name}prod-password-${var.tenant_deployment_id}-${local.random_id}"             
-
-  replication {
-    auto {}  
-  }
-}
-
-# Resource for adding a version of the secret with the actual database password
-resource "google_secret_manager_secret_version" "prod_db_password" {
-  secret      = google_secret_manager_secret.prod_db_password.id
-  secret_data = random_password.additional_user_password.result       
-
-  depends_on = [
-    google_secret_manager_secret.prod_db_password,
-    random_password.additional_user_password,
-  ]
-}
-
-# Resource to introduce a delay after creating a secret version
-resource "time_sleep" "prod_db_password" {
-  depends_on = [
-    google_secret_manager_secret_version.prod_db_password
-  ]
-
-  create_duration = "90s"  
-}
-
-# Data source for accessing the latest version of the secret when it's ready
-data "google_secret_manager_secret_version" "prod_db_password" {
-  project  = local.project.project_id
-  provider = google  
-
-  secret   = google_secret_manager_secret.prod_db_password.id
-  version  = "latest"  
-
-  depends_on = [
-    time_sleep.prod_db_password,
-    google_secret_manager_secret.prod_db_password,
+    time_sleep.db_password,
+    google_secret_manager_secret.db_password,
   ]
 }

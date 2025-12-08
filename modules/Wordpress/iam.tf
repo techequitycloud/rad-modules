@@ -17,43 +17,26 @@
 #########################################################################
 
 # IAM member resource to grant the service account access to the secret in Secret Manager
-resource "google_secret_manager_secret_iam_member" "dev_db_password" {
-  count = var.configure_development_environment ? 1 : 0
+resource "google_secret_manager_secret_iam_member" "db_password" {
+  for_each = local.environments
+
   project   = local.project.project_id
-  secret_id = google_secret_manager_secret.dev_db_password.secret_id
+  secret_id = google_secret_manager_secret.db_password[each.key].secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
 
   # Dependency to ensure the secret exists before this resource is created
   depends_on = [
-    google_secret_manager_secret.dev_db_password,
+    google_secret_manager_secret.db_password,
   ]
 }
 
-# IAM member resource to grant the service account access to the secret in Secret Manager
-resource "google_secret_manager_secret_iam_member" "qa_db_password" {
-  count = var.configure_nonproduction_environment ? 1 : 0
+# Grant NFS SA access to the root password secret, as it needs it for DB import
+resource "google_secret_manager_secret_iam_member" "nfs_root_password_access" {
+  count = local.sql_server_exists ? 1 : 0
+
   project   = local.project.project_id
-  secret_id = google_secret_manager_secret.qa_db_password.secret_id
+  secret_id = "${local.db_instance_name}-root-password"
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
-
-  # Dependency to ensure the secret exists before this resource is created
-  depends_on = [
-    google_secret_manager_secret.qa_db_password,
-  ]
-}
-
-# IAM member resource to grant the service account access to the secret in Secret Manager
-resource "google_secret_manager_secret_iam_member" "prod_db_password" {
-  count = var.configure_production_environment ? 1 : 0
-  project   = local.project.project_id
-  secret_id = google_secret_manager_secret.prod_db_password.secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
-
-  # Dependency to ensure the secret exists before this resource is created
-  depends_on = [
-    google_secret_manager_secret.prod_db_password,
-  ]
+  member    = "serviceAccount:${local.nfs_server_sa_email}"
 }

@@ -22,9 +22,8 @@ SERVICE_ACCOUNT=$2
 
 if [ -n "${SERVICE_ACCOUNT}" ]; then
     SA_ARG="--impersonate-service-account=${SERVICE_ACCOUNT}"
-    gcloud projects add-iam-policy-binding ${PROJECT_ID} \
-    --member="serviceAccount:${SERVICE_ACCOUNT}" \
-    --role="roles/storage.objectViewer" --no-user-output-enabled 
+    # Project-level IAM binding removed to adhere to the principle of least privilege.
+    # Users should ensure the service account has necessary permissions on specific buckets if required.
 fi
 
 # Attempt to submit the build

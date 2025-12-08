@@ -70,69 +70,22 @@ while [ $attempt -lt $max_attempts ]; do
   sleep 10
 done
 
-# set -x
+# Fetch root password from Secret Manager
+echo "Retrieving root password..."
+# Note: This script runs on the NFS server. The NFS server's SA must have permission to access this secret.
+ROOT_PASS=$(gcloud secrets versions access latest --secret="${ROOT_PASS_SECRET}" --project="${PROJECT_ID}")
 
-# Remove spaces from the region variables
-APP_REGION_1=$(echo "${APP_REGION_1}" | tr -d '[:space:]')
-APP_REGION_2=$(echo "${APP_REGION_2}" | tr -d '[:space:]')
-
-# Maximum number of attempts
-max_attempts=3
-attempt=0
-delete_attempted=false
-
-# Loop until the service no longer exists or max attempts reached
-while [ $attempt -lt $max_attempts ]; do
-  services_found=false
-
-  # Check and delete service in APP_REGION_1
-  if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" 2>/dev/null; then
-    echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
-    
-    if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" --quiet; then
-      echo "Cloud Run service is being deleted in region $APP_REGION_1."
-      delete_attempted=true
-      services_found=true
-    else
-      echo "Failed to delete Cloud Run service in region $APP_REGION_1. Retrying..."
-      services_found=true
-    fi
-  else
-    echo "Cloud Run service does not exist in region $APP_REGION_1."
-  fi
-
-  # Check and delete service in APP_REGION_2
-  if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" 2>/dev/null; then
-    echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
-    
-    if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" --quiet; then
-      echo "Cloud Run service is being deleted in region $APP_REGION_2."
-      delete_attempted=true
-      services_found=true
-    else
-      echo "Failed to delete Cloud Run service in region $APP_REGION_2. Retrying..."
-      services_found=true
-    fi
-  else
-    echo "Cloud Run service does not exist in region $APP_REGION_2."
-  fi
-
-  if ! $services_found; then
-    echo "No Cloud Run services found. Exiting..."
-    break
-  fi
-
-  attempt=$((attempt + 1))
-  echo "Retrying... Attempt $attempt of $max_attempts."
-  sleep 10
-done
+if [ -z "$ROOT_PASS" ]; then
+    echo "Error: Failed to retrieve root password from secret ${ROOT_PASS_SECRET}"
+    exit 1
+fi
 
 # Create MySQL configuration file
 rm -rf ~/.my.cnf
-cat > ~/.my.cnf << 'EOF'
+cat > ~/.my.cnf << EOF
 [client]
 user=root
-password=${ROOT_PASS}
+password=$${ROOT_PASS}
 host=${DB_IP}
 EOF
 chmod 600 ~/.my.cnf
@@ -267,7 +220,7 @@ if [ -f "${DB_NAME}.zip" ]; then
 
     # Create MySQL configuration file
     rm -rf ~/.my.cnf
-    cat > ~/.my.cnf << 'EOF'
+    cat > ~/.my.cnf << EOF
     [client]
     user=${DB_USER}
     password=${DB_PASS}
@@ -293,4 +246,3 @@ unset MYSQL_PWD
 rm -rf $HOME/.my.cnf
 
 echo "Script completed successfully!"
-

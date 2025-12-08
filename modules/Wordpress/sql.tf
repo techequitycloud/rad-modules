@@ -30,5 +30,5 @@ locals {
   db_instance_region = try(data.external.sql_instance_info.result["instance_region"], "")
   database_version = try(data.external.sql_instance_info.result["database_version"], "")
   db_internal_ip = try(data.external.sql_instance_info.result["instance_ip"], "")
-  db_root_password = try(data.external.sql_instance_info.result["root_password"], "")
+  # db_root_password removed to avoid exposing it in state
 }

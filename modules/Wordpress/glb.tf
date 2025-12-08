@@ -39,7 +39,7 @@ resource "google_compute_backend_service" "dev_default" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -63,7 +63,7 @@ resource "google_compute_url_map" "dev_default" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -78,7 +78,7 @@ resource "google_compute_managed_ssl_certificate" "dev_default" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -120,11 +120,11 @@ resource "google_compute_region_network_endpoint_group" "dev_default" {
   network_endpoint_type = "SERVERLESS"
   region                = local.regions[count.index]
   cloud_run {
-    service = google_cloud_run_v2_service.dev_app_service[local.regions[count.index]].name
+    service = google_cloud_run_v2_service.app_service["dev-${local.regions[count.index]}"].name
   }
 
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -141,7 +141,7 @@ resource "google_compute_url_map" "dev_https" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -198,7 +198,7 @@ resource "google_compute_backend_service" "qa_default" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.qa_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -222,7 +222,7 @@ resource "google_compute_url_map" "qa_default" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.qa_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -237,7 +237,7 @@ resource "google_compute_managed_ssl_certificate" "qa_default" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.qa_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -279,11 +279,11 @@ resource "google_compute_region_network_endpoint_group" "qa_default" {
   network_endpoint_type = "SERVERLESS"
   region                = local.regions[count.index]
   cloud_run {
-    service = google_cloud_run_v2_service.qa_app_service[local.regions[count.index]].name
+    service = google_cloud_run_v2_service.app_service["qa-${local.regions[count.index]}"].name
   }
 
   depends_on = [
-    google_cloud_run_v2_service.qa_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -300,7 +300,7 @@ resource "google_compute_url_map" "qa_https" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.qa_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -356,7 +356,7 @@ resource "google_compute_backend_service" "prod_default" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.prod_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -380,7 +380,7 @@ resource "google_compute_url_map" "prod_default" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.prod_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -395,7 +395,7 @@ resource "google_compute_managed_ssl_certificate" "prod_default" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.prod_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -437,11 +437,11 @@ resource "google_compute_region_network_endpoint_group" "prod_default" {
   network_endpoint_type = "SERVERLESS"
   region                = local.regions[count.index]
   cloud_run {
-    service = google_cloud_run_v2_service.prod_app_service[local.regions[count.index]].name
+    service = google_cloud_run_v2_service.app_service["prod-${local.regions[count.index]}"].name
   }
 
   depends_on = [
-    google_cloud_run_v2_service.prod_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
@@ -458,7 +458,7 @@ resource "google_compute_url_map" "prod_https" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.prod_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
