@@ -75,8 +75,8 @@ while [ $attempt -lt $max_attempts ]; do
 done
 
 
-# Ensure application directory is empty
-sudo mkdir -p /share/${DB_USER} && sudo rm -rf /share/${DB_USER}/* && sudo chown -R 1000:1000 /share/${DB_USER} && sudo chmod 775 /share/${DB_USER}
+# Ensure application directory exists
+sudo mkdir -p /share/${DB_USER} && sudo chown -R 1000:1000 /share/${DB_USER} && sudo chmod 775 /share/${DB_USER}
 
 # Attempt to download the backup file only if BACKUP_FILEID is not empty
 if [ -n "${BACKUP_FILEID}" ] ; then
