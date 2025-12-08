@@ -26,7 +26,7 @@ resource "local_file" "app_dockerfile" {
 
   # Dependency to ensure the file is only created after initializing the git repository
   depends_on = [
-    null_resource.init_git_repo,
+    github_repository.project_private_repo,
   ]
 }
 
@@ -45,7 +45,7 @@ resource "local_file" "app_cloudbuild" {
 
   # Dependency to ensure the file is only created after initializing the git repository
   depends_on = [
-    null_resource.init_git_repo,
+    github_repository.project_private_repo,
   ]
 }
 
@@ -78,4 +78,3 @@ resource "null_resource" "build_and_push_application_image" {
     github_repository.project_private_repo,
   ]
 }
-

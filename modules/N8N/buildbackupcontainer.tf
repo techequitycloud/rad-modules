@@ -25,7 +25,7 @@ resource "local_file" "dockerfile" {
   })
 
   depends_on = [
-    null_resource.init_git_repo,
+    github_repository.project_private_repo,
   ]
 }
 
@@ -43,7 +43,7 @@ resource "local_file" "cloudbuild" {
   })
 
   depends_on = [
-    null_resource.init_git_repo,
+    github_repository.project_private_repo,
   ]
 }
 

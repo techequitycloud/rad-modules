@@ -105,7 +105,7 @@ resource "google_kms_key_ring" "keyring" {
 
 resource "google_kms_key_ring_iam_binding" "keyring_owner" {
   key_ring_id = google_kms_key_ring.keyring.id
-  role        = "roles/owner"
+  role        = "roles/cloudkms.admin" # Fixed Broad Permissions
 
   members = [
     "serviceAccount:service-${local.project_number}@compute-system.iam.gserviceaccount.com",
@@ -139,7 +139,7 @@ resource "google_kms_crypto_key" "crypto_key" {
 
 resource "google_kms_crypto_key_iam_binding" "crypto_key_owner" {
   crypto_key_id = google_kms_crypto_key.crypto_key.id
-  role          = "roles/owner"
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter" # Fixed Broad Permissions
 
   members = [
     "serviceAccount:service-${local.project_number}@compute-system.iam.gserviceaccount.com",
@@ -272,6 +272,7 @@ resource "null_resource" "cleanup_kms_resources" {
 
   provisioner "local-exec" {
     when    = destroy
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       echo "========================================="
       echo "KMS Cleanup Information"

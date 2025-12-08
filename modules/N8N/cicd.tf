@@ -19,10 +19,9 @@
 # Resource for creating a secret in Google Secret Manager to store a GitHub token
 resource "google_secret_manager_secret" "github-token-secret" {
   count      = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" ? 1 : 0
-  project    = local.project.project_id  # The project where the secret is managed
-  secret_id  = "github-token-secret-${var.tenant_deployment_id}-${local.random_id}"  # The identifier for the secret
+  project    = local.project.project_id
+  secret_id  = "github-token-secret-${var.tenant_deployment_id}-${local.random_id}"
 
-  # Configuration for automatic replication of the secret
   replication {
     auto {}
   }
@@ -31,8 +30,8 @@ resource "google_secret_manager_secret" "github-token-secret" {
 # Resource for creating a version of the secret with the actual GitHub token data
 resource "google_secret_manager_secret_version" "github-token-secret" {
   count      = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" ? 1 : 0
-  secret      = google_secret_manager_secret.github-token-secret[count.index].id  # Reference to the secret ID
-  secret_data = var.application_git_token                                         # The GitHub token
+  secret      = google_secret_manager_secret.github-token-secret[count.index].id
+  secret_data = var.application_git_token
 
   depends_on = [
     google_secret_manager_secret.github-token-secret,
@@ -43,7 +42,7 @@ resource "google_secret_manager_secret_version" "github-token-secret" {
 data "google_iam_policy" "github-secret-accessor" {
   count      = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" ? 1 : 0
   binding {
-    role    = "roles/secretmanager.secretAccessor"  # Role granting access to read secrets
+    role    = "roles/secretmanager.secretAccessor"
     members = [
       "serviceAccount:service-${local.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com",
     ]
@@ -53,9 +52,9 @@ data "google_iam_policy" "github-secret-accessor" {
 # Resource for applying the IAM policy to the GitHub token secret
 resource "google_secret_manager_secret_iam_policy" "policy" {
   count      = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" ? 1 : 0
-  project     = local.project.project_id                             # The project where the secret is managed
-  secret_id   = google_secret_manager_secret.github-token-secret[count.index].id  # The identifier for the secret
-  policy_data = data.google_iam_policy.github-secret-accessor[count.index].policy_data   # The IAM policy data to apply
+  project     = local.project.project_id
+  secret_id   = google_secret_manager_secret.github-token-secret[count.index].id
+  policy_data = data.google_iam_policy.github-secret-accessor[count.index].policy_data
 
   depends_on = [
     google_secret_manager_secret.github-token-secret,
@@ -63,53 +62,69 @@ resource "google_secret_manager_secret_iam_policy" "policy" {
 }
 
 #########################################################################
-# Create private git repo
+# Create private git repo and manage via GitHub Provider
 #########################################################################
 
 # Provider configuration for GitHub
 provider "github" {
-  token  = var.application_git_token                                    # The GitHub token file
-  owner  = var.application_git_organization                                      # The GitHub organization or user
+  token  = var.application_git_token
+  owner  = var.application_git_organization
 }
 
 # Resource for creating a private GitHub repository
 resource "github_repository" "project_private_repo" {
   count       = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" ? 1 : 0
-  name        = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"   # The name of the repository
-  description = "Project git repo managed by terraform"           # Description of the repository
-  visibility  = "private"                                         # Visibility set to private
+  name        = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+  description = "Project git repo managed by terraform"
+  visibility  = "private"
+  auto_init   = true # Initialize with README to allow branching immediately
 }
 
-resource "null_resource" "init_git_repo" {
-  count      = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" ? 1 : 0
-
-  triggers = {
-    git_repo      = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-    git_org       = var.application_git_organization
-    github_token  = var.application_git_token
-  }
-
-  # Provisioner to execute the local script with environment variables
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command = "chmod +x ./init_git_repo.sh && ./init_git_repo.sh && sleep 30"
-    working_dir = "${path.module}/scripts/ci"
-    environment = {
-      GIT_REPO      = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-      GIT_ORG       = var.application_git_organization
-      GITHUB_TOKEN  = var.application_git_token
-      GIT_USERNAMES = "${join(",", var.application_git_usernames)}"
-    }
-  }
-
-  depends_on = [
-    google_secret_manager_secret.dev_db_password,
-    google_secret_manager_secret.qa_db_password,
-    google_secret_manager_secret.prod_db_password,
-    google_cloudbuildv2_repository.github_repository,
-    google_secret_manager_secret_version.github-token-secret
-  ]
+# Resource for README.md (replacing script logic)
+resource "github_repository_file" "readme" {
+  count               = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" ? 1 : 0
+  repository          = github_repository.project_private_repo[0].name
+  branch              = "main"
+  file                = "README.md"
+  content             = "Banking Portal on GKE"
+  commit_message      = "Initialize main branch with README"
+  overwrite_on_create = true
 }
+
+locals {
+  # Define a local variable to capture the condition logic, but keep it non-sensitive if possible
+  # The problem is `var.application_git_token` is sensitive.
+  # We can't use it directly in for_each if we can't determine the keys.
+  # However, the keys here are just env names ('dev', 'qa', 'prod'). They are NOT sensitive.
+  # Terraform complains because the *condition* uses a sensitive variable.
+  # We can use `nonsensitive()` function if we are sure it's safe for the plan logic,
+  # or better, rely on `var.configure_continuous_integration` which is boolean and not sensitive.
+  # But we must check if token is provided.
+  # We can create a local boolean:
+  cicd_enabled = var.configure_continuous_integration && nonsensitive(var.application_git_token != null && var.application_git_token != "")
+
+  # Filter environments based on this non-sensitive boolean
+  cicd_environments = { for k, v in local.environments : k => v if local.cicd_enabled }
+}
+
+# Resource for creating branches (dev, qa, prod)
+resource "github_branch" "branches" {
+  for_each = local.cicd_environments
+  repository = github_repository.project_private_repo[0].name
+  branch     = each.key
+  source_branch = "main" # Create from main
+
+  depends_on = [github_repository_file.readme]
+}
+
+# Add collaborators
+resource "github_repository_collaborator" "collaborators" {
+  for_each = local.cicd_enabled ? var.application_git_usernames : []
+  repository = github_repository.project_private_repo[0].name
+  username   = each.value
+  permission = "push" # Equivalent to write access
+}
+
 
 #########################################################################
 # Create Connection to github.com
@@ -117,18 +132,16 @@ resource "null_resource" "init_git_repo" {
 
 # Resource for creating a Cloud Build GitHub connection
 resource "google_cloudbuildv2_connection" "github_connection" {
-  count    = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" ? 1 : 0
-  project  = local.project.project_id  # The project ID where the connection will be created
-  location = local.region                # The location/region where the connection will be created
-  name     = "${var.application_name}-github-connect-${var.tenant_deployment_id}-${local.random_id}"  # The name of the connection
+  count    = local.cicd_enabled ? 1 : 0
+  project  = local.project.project_id
+  location = local.region
+  name     = "${var.application_name}-github-connect-${var.tenant_deployment_id}-${local.random_id}"
 
-  # Configuration block for GitHub settings
   github_config {
-    app_installation_id = var.application_git_installation_id  # The GitHub App installation ID
+    app_installation_id = var.application_git_installation_id
 
-    # Configuration block for authorizer credentials using OAuth token
     authorizer_credential {
-      oauth_token_secret_version = google_secret_manager_secret_version.github-token-secret[count.index].id  # Reference to the secret version containing the OAuth token
+      oauth_token_secret_version = google_secret_manager_secret_version.github-token-secret[0].id
     }
   }
   depends_on = [
@@ -138,11 +151,11 @@ resource "google_cloudbuildv2_connection" "github_connection" {
 
 # Resource for creating a Cloud Build repository which is linked to the GitHub repository
 resource "google_cloudbuildv2_repository" "github_repository" {
-  count    = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" ? 1 : 0
-  project  = local.project.project_id  # The project ID where the repository will be created
-  name     = "${var.application_name}-github-repo"  # The name of the Cloud Build repository
-  parent_connection = google_cloudbuildv2_connection.github_connection[count.index].id  # Reference to the parent connection created above
-  remote_uri = "https://github.com/${var.application_git_organization}/${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}.git"  # URI of the GitHub repository to connect
+  count    = local.cicd_enabled ? 1 : 0
+  project  = local.project.project_id
+  name     = "${var.application_name}-github-repo"
+  parent_connection = google_cloudbuildv2_connection.github_connection[0].id
+  remote_uri = "https://github.com/${var.application_git_organization}/${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}.git"
 
   depends_on = [
     github_repository.project_private_repo,
@@ -150,149 +163,29 @@ resource "google_cloudbuildv2_repository" "github_repository" {
 }
 
 #########################################################################
-# Create dev, qa and prod triggers
+# Create dev, qa and prod triggers (Duplication Removed)
 #########################################################################
 
-# Resource for creating a Google Cloud Build trigger for a repository
-resource "google_cloudbuild_trigger" "dev_repo_trigger" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
-  # The ID of the project where the trigger will be created
+resource "google_cloudbuild_trigger" "repo_trigger" {
+  for_each = local.cicd_environments
+
   project  = local.project.project_id
-
-  # Name of the trigger, which includes the application name from a variable
-  name     = "${var.application_name}-dev-github-trigger-${var.tenant_deployment_id}-${local.random_id}"
-
-  # The location/region where the trigger will be applied
+  name     = "${var.application_name}-${each.key}-github-trigger-${var.tenant_deployment_id}-${local.random_id}"
   location = local.region
-
-  # The trigger can be disabled
   disabled = true
 
-  # Configuration for repository events that will invoke this trigger
   repository_event_config {
-    # The ID of the repository that this trigger is associated with
-    repository = google_cloudbuildv2_repository.github_repository[count.index].id
-
-    # Specifies that the trigger should only fire on push events to the 'dev' branch
+    repository = google_cloudbuildv2_repository.github_repository[0].id
     push {
-      branch = "^dev$"
+      branch = "^${each.key}$"
     }
   }
 
-  # The path to the build configuration file (cloudbuild.yaml) within the repository
   filename = "cloudbuild.yaml"
 
   service_account = "projects/${local.project.project_id}/serviceAccounts/cloudbuild-sa@${local.project.project_id}.iam.gserviceaccount.com"
 
-  # Dependencies ensure that all the specified GitHub repository files are created before this trigger
   depends_on = [
-    github_repository_file.primary_dev_overlay_kustomization,
-    github_repository_file.primary_dev_base_kustomization,
-    github_repository_file.primary_dev_overlay_deploy,
-    github_repository_file.primary_dev_base_deploy,
-    github_repository_file.secondary_dev_overlay_kustomization,
-    github_repository_file.secondary_dev_base_kustomization,
-    github_repository_file.secondary_dev_overlay_deploy,
-    github_repository_file.secondary_dev_base_deploy,
-    github_repository_file.dev_cloudbuild,
-    github_repository_file.dev_dockerfile,
-    github_repository_file.dev_skaffold,
-    google_cloud_run_v2_service.dev_app_service
-  ]
-}
-
-# Resource for creating a Google Cloud Build trigger for a repository
-resource "google_cloudbuild_trigger" "qa_repo_trigger" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_nonproduction_environment ? 1 : 0
-  # The ID of the project where the trigger will be created
-  project  = local.project.project_id
-
-  # Name of the trigger, which includes the application name from a variable
-  name     = "${var.application_name}-qa-github-trigger-${var.tenant_deployment_id}-${local.random_id}"
-
-  # The location/region where the trigger will be applied
-  location = local.region
-
-  # Tnethe trigger can be disabled
-  disabled = true
-
-  # Configuration for repository events that will invoke this trigger
-  repository_event_config {
-    # The ID of the repository that this trigger is associated with
-    repository = google_cloudbuildv2_repository.github_repository[count.index].id
-
-    # Specifies that the trigger should only fire on push events to the 'qa' branch
-    push {
-      branch = "^qa$"
-    }
-  }
-
-  # The path to the build configuration file (cloudbuild.yaml) within the repository
-  filename = "cloudbuild.yaml"
-
-  service_account = "projects/${local.project.project_id}/serviceAccounts/cloudbuild-sa@${local.project.project_id}.iam.gserviceaccount.com"
-
-  # Dependencies ensure that all the specified GitHub repository files are created before this trigger
-  depends_on = [
-    github_repository_file.primary_qa_overlay_kustomization,
-    github_repository_file.primary_qa_base_kustomization,
-    github_repository_file.primary_qa_overlay_deploy,
-    github_repository_file.primary_qa_base_deploy,
-    github_repository_file.secondary_qa_overlay_kustomization,
-    github_repository_file.secondary_qa_base_kustomization,
-    github_repository_file.secondary_qa_overlay_deploy,
-    github_repository_file.secondary_qa_base_deploy,
-    github_repository_file.qa_cloudbuild,
-    github_repository_file.qa_dockerfile,
-    github_repository_file.qa_skaffold,
-    google_cloud_run_v2_service.qa_app_service
-  ]
-}
-
-# Resource for creating a Google Cloud Build trigger for a repository
-resource "google_cloudbuild_trigger" "prod_repo_trigger" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_production_environment ? 1 : 0
-  # The ID of the project where the trigger will be created
-  project  = local.project.project_id
-
-  # Name of the trigger, which includes the application name from a variable
-  name     = "${var.application_name}-prod-github-trigger-${var.tenant_deployment_id}-${local.random_id}"
-
-  # The location/region where the trigger will be applied
-  location = local.region
-
-  # Tnethe trigger can be disabled
-  disabled = true
-
-  # Configuration for repository events that will invoke this trigger
-  repository_event_config {
-    # The ID of the repository that this trigger is associated with
-    repository = google_cloudbuildv2_repository.github_repository[count.index].id
-
-    # Specifies that the trigger should only fire on push events to the 'prod' branch
-    push {
-      branch = "^prod$"
-    }
-  }
-
-  # The path to the build configuration file (cloudbuild.yaml) within the repository
-  filename = "cloudbuild.yaml"
-
-  service_account = "projects/${local.project.project_id}/serviceAccounts/cloudbuild-sa@${local.project.project_id}.iam.gserviceaccount.com"
-
-  # Dependencies ensure that all the specified GitHub repository files are created before this trigger
-  depends_on = [
-    github_repository_file.primary_prod_overlay_kustomization,
-    github_repository_file.primary_prod_base_kustomization,
-    github_repository_file.primary_prod_overlay_deploy,
-    github_repository_file.primary_prod_base_deploy,
-    github_repository_file.secondary_prod_overlay_kustomization,
-    github_repository_file.secondary_prod_base_kustomization,
-    github_repository_file.secondary_prod_overlay_deploy,
-    github_repository_file.secondary_prod_base_deploy,
-    github_repository_file.prod_cloudbuild,
-    github_repository_file.prod_dockerfile,
-    github_repository_file.prod_skaffold,
-    google_cloud_run_v2_service.prod_app_service
+    google_cloud_run_v2_service.app_service,
   ]
 }

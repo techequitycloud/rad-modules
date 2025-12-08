@@ -17,123 +17,51 @@
 #########################################################################
 
 # Resource for creating a random password for database user
-resource "random_password" "dev_encryption_key" {
-  length           = 16
-  special          = false
-}
-
-resource "random_password" "qa_encryption_key" {
-  length           = 16
-  special          = false
-}
-
-resource "random_password" "prod_encryption_key" {
-  length           = 16
-  special          = false
+resource "random_password" "encryption_key" {
+  for_each = local.environments
+  length   = 16
+  special  = false
 }
 
 #########################################################################
-# Secret Manager resources for Dev environment
+# Secret Manager resources
 #########################################################################
 
-resource "google_secret_manager_secret" "dev_db_password" {
-  project    = local.project.project_id
-  secret_id  = "n8n-db-password-${var.tenant_deployment_id}-${local.random_id}-dev"
+resource "google_secret_manager_secret" "db_password" {
+  for_each  = local.environments
+  project   = local.project.project_id
+  secret_id = "n8n-db-password-${var.tenant_deployment_id}-${local.random_id}-${each.key}"
 
   replication {
     auto {}
   }
 }
 
-resource "google_secret_manager_secret_version" "dev_db_password" {
-  secret      = google_secret_manager_secret.dev_db_password.id
-  secret_data = random_password.dev_db_password.result
+resource "google_secret_manager_secret_version" "db_password" {
+  for_each    = local.environments
+  secret      = google_secret_manager_secret.db_password[each.key].id
+  secret_data = random_password.db_password[each.key].result
 }
 
-resource "google_secret_manager_secret" "dev_encryption_key" {
-  project    = local.project.project_id
-  secret_id  = "n8n-encryption-key-${var.tenant_deployment_id}-${local.random_id}-dev"
+resource "google_secret_manager_secret" "encryption_key" {
+  for_each  = local.environments
+  project   = local.project.project_id
+  secret_id = "n8n-encryption-key-${var.tenant_deployment_id}-${local.random_id}-${each.key}"
 
   replication {
     auto {}
   }
 }
 
-resource "google_secret_manager_secret_version" "dev_encryption_key" {
-  secret      = google_secret_manager_secret.dev_encryption_key.id
-  secret_data = random_password.dev_encryption_key.result
-}
-
-
-#########################################################################
-# Secret Manager resources for QA environment
-#########################################################################
-
-resource "google_secret_manager_secret" "qa_db_password" {
-  project    = local.project.project_id
-  secret_id  = "n8n-db-password-${var.tenant_deployment_id}-${local.random_id}-qa"
-
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "qa_db_password" {
-  secret      = google_secret_manager_secret.qa_db_password.id
-  secret_data = random_password.qa_db_password.result
-}
-
-resource "google_secret_manager_secret" "qa_encryption_key" {
-  project    = local.project.project_id
-  secret_id  = "n8n-encryption-key-${var.tenant_deployment_id}-${local.random_id}-qa"
-
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "qa_encryption_key" {
-  secret      = google_secret_manager_secret.qa_encryption_key.id
-  secret_data = random_password.qa_encryption_key.result
-}
-
-#########################################################################
-# Secret Manager resources for Prod environment
-#########################################################################
-
-resource "google_secret_manager_secret" "prod_db_password" {
-  project    = local.project.project_id
-  secret_id  = "n8n-db-password-${var.tenant_deployment_id}-${local.random_id}-prod"
-
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "prod_db_password" {
-  secret      = google_secret_manager_secret.prod_db_password.id
-  secret_data = random_password.prod_db_password.result
-}
-
-resource "google_secret_manager_secret" "prod_encryption_key" {
-  project    = local.project.project_id
-  secret_id  = "n8n-encryption-key-${var.tenant_deployment_id}-${local.random_id}-prod"
-
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "prod_encryption_key" {
-  secret      = google_secret_manager_secret.prod_encryption_key.id
-  secret_data = random_password.prod_encryption_key.result
+resource "google_secret_manager_secret_version" "encryption_key" {
+  for_each    = local.environments
+  secret      = google_secret_manager_secret.encryption_key[each.key].id
+  secret_data = random_password.encryption_key[each.key].result
 }
 
 #########################################################################
 # Secret Manager resources for Object Storage HMAC Key
 # These are shared across environments because the SA is shared.
-# If environments need isolation, multiple SAs or keys should be used,
-# but for this module scope, we use the single SA's key.
 #########################################################################
 
 resource "google_secret_manager_secret" "storage_access_key" {
@@ -166,20 +94,9 @@ resource "google_secret_manager_secret_version" "storage_secret_key" {
 
 # --- Additional Data Sources for Scripts (DB Passwords) ---
 
-data "google_secret_manager_secret_version" "dev_db_password" {
-  secret  = google_secret_manager_secret.dev_db_password.id
-  version = "latest"
-  depends_on = [google_secret_manager_secret_version.dev_db_password]
-}
-
-data "google_secret_manager_secret_version" "qa_db_password" {
-  secret  = google_secret_manager_secret.qa_db_password.id
-  version = "latest"
-  depends_on = [google_secret_manager_secret_version.qa_db_password]
-}
-
-data "google_secret_manager_secret_version" "prod_db_password" {
-  secret  = google_secret_manager_secret.prod_db_password.id
-  version = "latest"
-  depends_on = [google_secret_manager_secret_version.prod_db_password]
+data "google_secret_manager_secret_version" "db_password" {
+  for_each = local.environments
+  secret   = google_secret_manager_secret.db_password[each.key].id
+  version  = "latest"
+  depends_on = [google_secret_manager_secret_version.db_password]
 }

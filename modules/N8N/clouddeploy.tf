@@ -70,9 +70,10 @@ resource "null_resource" "build_cloud_deploy_app_pipeline" {
     local_file.clouddeploy_app_deploy_prod,
     local_file.clouddeploy_app_cloudbuild,
     local_file.clouddeploy_app_skaffold,
-    null_resource.import_prod_db,
-    google_cloud_run_v2_job.dev_backup_service,
-    google_cloud_run_v2_service.dev_app_service,
+    # Updated references to map-based resources
+    null_resource.import_db,
+    google_cloud_run_v2_job.backup_service,
+    google_cloud_run_v2_service.app_service,
   ]
 }
 
@@ -129,7 +130,8 @@ resource "null_resource" "build_cloud_deploy_backup_pipeline" {
     local_file.clouddeploy_backup_deploy_prod,
     local_file.clouddeploy_backup_cloudbuild,
     local_file.clouddeploy_backup_skaffold,
-    google_cloud_run_v2_job.dev_backup_service,
-    null_resource.import_prod_db,
+    # Updated references to map-based resources
+    google_cloud_run_v2_job.backup_service,
+    null_resource.import_db,
   ]
 }
