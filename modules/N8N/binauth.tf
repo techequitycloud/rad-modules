@@ -30,6 +30,40 @@ resource "random_id" "key_suffix" {
   }
 }
 
+# Generate a unique suffix for the key ring to avoid conflicts
+resource "random_id" "keyring_suffix" {
+  byte_length = 4
+  
+  keepers = {
+    # This ensures a new key ring name if the old one still exists
+    timestamp = timestamp()
+  }
+}
+
+#########################################################################
+# Check if Key Ring exists
+#########################################################################
+
+data "external" "check_keyring" {
+  program = ["bash", "-c", <<-EOT
+    KEY_RING_BASE="key-ring-${var.tenant_deployment_id}-${local.random_id}"
+    PROJECT_ID="${local.project.project_id}"
+    LOCATION="global"
+    
+    # Check if the base key ring name exists
+    if gcloud kms keyrings describe "$KEY_RING_BASE" \
+      --location="$LOCATION" \
+      --project="$PROJECT_ID" &>/dev/null; then
+      # Key ring exists, use a new suffix
+      echo "{\"exists\":\"true\",\"suffix\":\"${random_id.keyring_suffix.hex}\"}"
+    else
+      # Key ring doesn't exist, no suffix needed
+      echo "{\"exists\":\"false\",\"suffix\":\"\"}"
+    fi
+  EOT
+  ]
+}
+
 #########################################################################
 # Local Values
 #########################################################################
@@ -38,13 +72,17 @@ resource "random_id" "key_suffix" {
 locals {
   attestor_name   = "${var.tenant_deployment_id}-attestor-${local.random_id}"
   note_name       = "attestor-note-${var.tenant_deployment_id}-${local.random_id}"
-  key_ring_name   = "key-ring-${var.tenant_deployment_id}-${local.random_id}"
+  
+  # Use base name if key ring doesn't exist, otherwise add suffix
+  key_ring_base   = "key-ring-${var.tenant_deployment_id}-${local.random_id}"
+  key_ring_name   = data.external.check_keyring.result.exists == "true" ? "${local.key_ring_base}-${data.external.check_keyring.result.suffix}" : local.key_ring_base
+  
   # Add suffix to crypto key name to avoid conflicts with destroyed keys
   crypto_key_name = "key-${var.tenant_deployment_id}-${local.random_id}-${random_id.key_suffix.hex}"
 }
 
 #########################################################################
-# KMS Key Ring - Always Create with Unique Name
+# KMS Key Ring - Create with unique name
 #########################################################################
 
 # Creates a key ring to organize cryptographic keys.
@@ -57,6 +95,8 @@ resource "google_kms_key_ring" "keyring" {
     prevent_destroy = false
     ignore_changes  = [name]
   }
+
+  depends_on = [data.external.check_keyring]
 }
 
 #########################################################################

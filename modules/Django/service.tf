@@ -14,8 +14,8 @@
 
 resource "google_cloud_run_v2_service" "dev_app_service" {
   count               = var.configure_development_environment && local.sql_server_exists ? 1 : 0
-  name                = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev"
-  location            = var.region
+  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+  location            = local.region
   project             = local.project.project_id
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
@@ -30,7 +30,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     }
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
 
       env {
         name = "GS_BUCKET_NAME"
@@ -83,7 +83,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
 
 resource "google_cloud_run_service_iam_binding" "dev" {
   count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
-  location = var.region
+  location = local.region
   service  = google_cloud_run_v2_service.dev_app_service[0].name
   role     = "roles/run.invoker"
   members  = [
@@ -100,9 +100,9 @@ resource "null_resource" "dev_update_csrf_origin" {
 
   provisioner "local-exec" {
     command = <<EOF
-      URL=$(gcloud run services describe ${google_cloud_run_v2_service.dev_app_service[0].name} --region ${var.region} --project ${local.project.project_id} --format 'value(uri)')
+      URL=$(gcloud run services describe ${google_cloud_run_v2_service.dev_app_service[0].name} --region ${local.region} --project ${local.project.project_id} --format 'value(uri)')
       gcloud run services update ${google_cloud_run_v2_service.dev_app_service[0].name} \
-        --region ${var.region} \
+        --region ${local.region} \
         --project ${local.project.project_id} \
         --set-env-vars CLOUDRUN_SERVICE_URLS=$URL
     EOF
@@ -113,8 +113,8 @@ resource "null_resource" "dev_update_csrf_origin" {
 
 resource "google_cloud_run_v2_service" "qa_app_service" {
   count               = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
-  name                = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa"
-  location            = var.region
+  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
+  location            = local.region
   project             = local.project.project_id
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
@@ -129,7 +129,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
     }
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
 
       env {
         name = "GS_BUCKET_NAME"
@@ -182,7 +182,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
 
 resource "google_cloud_run_service_iam_binding" "qa" {
   count    = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
-  location = var.region
+  location = local.region
   service  = google_cloud_run_v2_service.qa_app_service[0].name
   role     = "roles/run.invoker"
   members  = [
@@ -199,9 +199,9 @@ resource "null_resource" "qa_update_csrf_origin" {
 
   provisioner "local-exec" {
     command = <<EOF
-      URL=$(gcloud run services describe ${google_cloud_run_v2_service.qa_app_service[0].name} --region ${var.region} --project ${local.project.project_id} --format 'value(uri)')
+      URL=$(gcloud run services describe ${google_cloud_run_v2_service.qa_app_service[0].name} --region ${local.region} --project ${local.project.project_id} --format 'value(uri)')
       gcloud run services update ${google_cloud_run_v2_service.qa_app_service[0].name} \
-        --region ${var.region} \
+        --region ${local.region} \
         --project ${local.project.project_id} \
         --set-env-vars CLOUDRUN_SERVICE_URLS=$URL
     EOF
@@ -212,8 +212,8 @@ resource "null_resource" "qa_update_csrf_origin" {
 
 resource "google_cloud_run_v2_service" "prod_app_service" {
   count               = var.configure_production_environment && local.sql_server_exists ? 1 : 0
-  name                = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod"
-  location            = var.region
+  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
+  location            = local.region
   project             = local.project.project_id
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
@@ -228,7 +228,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
     }
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version}"
+      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
 
       env {
         name = "GS_BUCKET_NAME"
@@ -281,7 +281,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
 
 resource "google_cloud_run_service_iam_binding" "prod" {
   count    = var.configure_production_environment && local.sql_server_exists ? 1 : 0
-  location = var.region
+  location = local.region
   service  = google_cloud_run_v2_service.prod_app_service[0].name
   role     = "roles/run.invoker"
   members  = [
@@ -298,12 +298,13 @@ resource "null_resource" "prod_update_csrf_origin" {
 
   provisioner "local-exec" {
     command = <<EOF
-      URL=$(gcloud run services describe ${google_cloud_run_v2_service.prod_app_service[0].name} --region ${var.region} --project ${local.project.project_id} --format 'value(uri)')
+      URL=$(gcloud run services describe ${google_cloud_run_v2_service.prod_app_service[0].name} --region ${local.region} --project ${local.project.project_id} --format 'value(uri)')
       gcloud run services update ${google_cloud_run_v2_service.prod_app_service[0].name} \
-        --region ${var.region} \
+        --region ${local.region} \
         --project ${local.project.project_id} \
         --set-env-vars CLOUDRUN_SERVICE_URLS=$URL
     EOF
   }
   depends_on = [google_cloud_run_v2_service.prod_app_service]
 }
+

@@ -35,3 +35,4 @@ RUN chmod +x /usr/local/bin/backup.sh
 
 # Set the default command to execute the backup script
 CMD ["/usr/local/bin/backup.sh"]
+

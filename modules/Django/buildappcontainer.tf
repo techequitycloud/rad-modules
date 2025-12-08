@@ -1,4 +1,4 @@
-# Copyright 2024 Tech Equity Ltd
+# Copyright 2024 (c) Tech Equity Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,29 +11,71 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+ 
+#########################################################################
+# Create config files
+#########################################################################
 
-resource "null_resource" "build_and_push_application_image" {
-  count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
+# Resource for creating a Dockerfile from a template, which will be used to build the application's container image.
+resource "local_file" "app_dockerfile" {
+  count          = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
+  filename       = "${path.module}/scripts/app/Dockerfile"
+  content        = templatefile("${path.module}/scripts/app/dockerfile.tpl", {
+    APP_VERSION  = "${var.application_version}"
+  })
 
-  triggers = {
-    # Trigger build if any file in source changes
-    dir_sha1 = sha1(join("", [for f in fileset("${path.module}/scripts/app/source", "**") : filesha1("${path.module}/scripts/app/source/${f}")]))
-  }
-
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    working_dir = "${path.module}/scripts/app/source"
-    # Using --pack to follow tutorial, or Dockerfile since I added one.
-    # The tutorial uses `gcloud builds submit --pack image=...`
-    # But since I created a Dockerfile, `gcloud builds submit` will pick it up automatically if no config is specified.
-    # However, to strictly follow the "omit Dockerfile" part of tutorial I should delete it, but I added it for robustness.
-    # Let's use the Dockerfile as it is more standard for these modules.
-    command = <<EOT
-      gcloud builds submit --tag ${local.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.repo.name}/${var.application_name}:${var.application_version} . --project ${local.project.project_id}
-    EOT
-  }
-
+  # Dependency to ensure the file is only created after initializing the git repository
   depends_on = [
-    google_artifact_registry_repository.repo
+    null_resource.init_git_repo,
   ]
 }
+
+# Resource to create a local cloudbuild file from a template, with variables substituted
+resource "local_file" "app_cloudbuild" {
+  count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
+  filename = "${path.module}/scripts/app/cloudbuild.yaml"
+  content  = templatefile("${path.module}/scripts/app/cloudbuild.yaml.tpl", {
+    PROJECT_ID    = local.project.project_id
+    APP_NAME      = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+    IMAGE_REGION  = local.region
+    IMAGE_NAME    = var.application_name
+    IMAGE_VERSION = "${var.application_version}"
+    REPO_NAME     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+  })
+
+  # Dependency to ensure the file is only created after initializing the git repository
+  depends_on = [
+    null_resource.init_git_repo,
+  ]
+}
+
+#########################################################################
+# Build container image
+#########################################################################
+
+# Resource to build the container image locally and push it to the container registry
+resource "null_resource" "build_and_push_application_image" {
+  count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
+  # Trigger based on the hash of the build-container.sh script
+  triggers = {
+    script_hash = filesha256("${path.module}/scripts/app/build-container.sh")
+    # always_run = "${timestamp()}" # Trigger to always run on apply
+  }
+  
+  # Provisioner to execute a local script that builds and pushes the container image
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    working_dir = "${path.module}/scripts/app"  # The directory where build scripts are located
+    command = "bash build-container.sh \"${local.project.project_id}\" \"${var.resource_creator_identity}\""
+  }
+
+  # Dependencies to ensure resources are created in the correct order
+  depends_on = [
+    local_file.app_dockerfile,
+    local_file.app_cloudbuild,
+    null_resource.build_and_push_backup_image,
+    google_artifact_registry_repository.application_image,
+    github_repository.project_private_repo,
+  ]
+}
+

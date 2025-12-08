@@ -15,13 +15,13 @@
 resource "google_cloud_run_v2_service" "dev_app_service" {
   count               = var.configure_development_environment && local.sql_server_exists ? 1 : 0
   project             = local.project.project_id
-  name                = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev"
+  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
   location            = local.region
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
 
   template {
-    service_account       = google_service_account.n8n_sa.email
+    service_account       = local.cloud_run_sa_email
     session_affinity      = true
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
     timeout               = "300s"
@@ -233,13 +233,13 @@ resource "google_cloud_run_service_iam_binding" "dev" {
 resource "google_cloud_run_v2_service" "qa_app_service" {
   count               = var.configure_nonproduction_environment && local.sql_server_exists ? 1 : 0
   project             = local.project.project_id
-  name                = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa"
+  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
   location            = local.region
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
 
   template {
-    service_account       = google_service_account.n8n_sa.email
+    service_account       = local.cloud_run_sa_email
     session_affinity      = true
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
     timeout               = "300s"
@@ -463,13 +463,13 @@ resource "google_cloud_run_service_iam_binding" "qa" {
 resource "google_cloud_run_v2_service" "prod_app_service" {
   count               = var.configure_production_environment && local.sql_server_exists ? 1 : 0
   project             = local.project.project_id
-  name                = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod"
+  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
   location            = local.region
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
 
   template {
-    service_account       = google_service_account.n8n_sa.email
+    service_account       = local.cloud_run_sa_email
     session_affinity      = true
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
     timeout               = "300s"
@@ -694,5 +694,5 @@ resource "google_cloud_run_service_iam_binding" "prod" {
 resource "google_project_iam_member" "storage_admin" {
   project = local.project.project_id
   role    = "roles/storage.objectAdmin"
-  member  = "serviceAccount:${google_service_account.n8n_sa.email}"
+  member  = "serviceAccount:${local.cloud_run_sa_email}"
 }

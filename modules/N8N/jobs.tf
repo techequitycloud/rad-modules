@@ -30,7 +30,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
     }
 
     template {
-      service_account       = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+      service_account       = local.cloud_run_sa_email
       max_retries           = 3
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
@@ -123,7 +123,7 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
     }
 
     template {
-      service_account       = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+      service_account       = local.cloud_run_sa_email
       max_retries           = 3
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
@@ -216,7 +216,7 @@ resource "google_cloud_run_v2_job" "prod_backup_service" {
     }
 
     template {
-      service_account       = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+      service_account       = local.cloud_run_sa_email
       max_retries           = 3
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 

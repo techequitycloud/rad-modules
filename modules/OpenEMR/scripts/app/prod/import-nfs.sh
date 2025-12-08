@@ -11,12 +11,12 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.
+# limitations under the License. 
 
-# set -x
+set -x
 
 # Remove spaces from the region variables
-APP_REGION_1=$(echo "us-central1" | tr -d '[:space:]')
+APP_REGION_1=$(echo "us-west1" | tr -d '[:space:]')
 APP_REGION_2=$(echo "" | tr -d '[:space:]')
 
 # Maximum number of attempts
@@ -29,11 +29,11 @@ while [ $attempt -lt $max_attempts ]; do
   services_found=false # Flag to track if any services were found
 
   # Check and delete service in APP_REGION_1
-  if gcloud run services describe "appn8ndemo05dcprod" --project="qwiklabs-gcp-02-9f7942837ab3" --region="$APP_REGION_1" 2>/dev/null; then
+  if gcloud run services describe "appopenemrdemobd61prod" --project="qwiklabs-gcp-02-20bdd77062d7" --region="$APP_REGION_1" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
-
+    
     # Try to delete the service
-    if gcloud run services delete "appn8ndemo05dcprod" --project="qwiklabs-gcp-02-9f7942837ab3" --region="$APP_REGION_1" --quiet; then
+    if gcloud run services delete "appopenemrdemobd61prod" --project="qwiklabs-gcp-02-20bdd77062d7" --region="$APP_REGION_1" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_1."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -46,11 +46,11 @@ while [ $attempt -lt $max_attempts ]; do
   fi
 
   # Check and delete service in APP_REGION_2
-  if gcloud run services describe "appn8ndemo05dcprod" --project="qwiklabs-gcp-02-9f7942837ab3" --region="$APP_REGION_2" 2>/dev/null; then
+  if gcloud run services describe "appopenemrdemobd61prod" --project="qwiklabs-gcp-02-20bdd77062d7" --region="$APP_REGION_2" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
-
+    
     # Try to delete the service
-    if gcloud run services delete "appn8ndemo05dcprod" --project="qwiklabs-gcp-02-9f7942837ab3" --region="$APP_REGION_2" --quiet; then
+    if gcloud run services delete "appopenemrdemobd61prod" --project="qwiklabs-gcp-02-20bdd77062d7" --region="$APP_REGION_2" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_2."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -74,19 +74,20 @@ while [ $attempt -lt $max_attempts ]; do
   sleep 10
 done
 
+
 # Ensure application directory is empty
-sudo mkdir -p /share/appn8ndemo05dcprod && sudo rm -rf /share/appn8ndemo05dcprod/* && sudo chown -R www-data:www-data /share/appn8ndemo05dcprod && sudo chmod 775 /share/appn8ndemo05dcprod
+sudo mkdir -p /share/appopenemrdemobd61prod && sudo rm -rf /share/appopenemrdemobd61prod/* && sudo chown -R 1000:1000 /share/appopenemrdemobd61prod && sudo chmod 775 /share/appopenemrdemobd61prod
 
 # Attempt to download the backup file only if BACKUP_FILEID is not empty
 if [ -n "" ] ; then
     echo "Attempting to download the backup file using gdown..."
     echo "Using gdown from /root/.local/bin/gdown"
-
+    
     # Try downloading with full path if needed
-    if sudo /root/.local/bin/gdown  -O appn8ndemo05dcprod.zip; then
+    if sudo /root/.local/bin/gdown  -O appopenemrdemobd61prod.zip; then
         echo "Backup file downloaded successfully"
-        if [ -f appn8ndemo05dcprod.zip ]; then
-            echo "Backup file exists and is $(du -h appn8ndemo05dcprod.zip | cut -f1) in size"
+        if [ -f appopenemrdemobd61prod.zip ]; then
+            echo "Backup file exists and is $(du -h appopenemrdemobd61prod.zip | cut -f1) in size"
         fi
     else
         echo "Warning: Failed to download the backup file using /root/.local/bin/gdown."
@@ -96,26 +97,49 @@ else
 fi
 
 # Check if the backup file exists locally
-if [ -f "appn8ndemo05dcprod.zip" ]; then
+if [ -f "appopenemrdemobd61prod.zip" ]; then
     echo "Backup file exists locally."
-
+    
     # Extract the backup file and set  permissions
-    sudo mkdir -p appn8ndemo05dcprod && sudo rm -rf appn8ndemo05dcprod/* && sudo unzip appn8ndemo05dcprod.zip -d appn8ndemo05dcprod
-
-    # Update the application URL
-    sed -i -E 's|https://[^ ]+\.run\.app|https://appn8ndemo05dcprod-870960104436.us-central1.run.app|g' /share/appn8ndemo05dcprod/dump.sql
-
+    sudo mkdir -p appopenemrdemobd61prod && sudo rm -rf appopenemrdemobd61prod/* && sudo unzip appopenemrdemobd61prod.zip -d appopenemrdemobd61prod
+    
     # Move directory
-    sudo rm -rf /share/appn8ndemo05dcprod/* && sudo mv appn8ndemo05dcprod/* /share/appn8ndemo05dcprod/
+    sudo rm -rf /share/appopenemrdemobd61prod/* && sudo mv appopenemrdemobd61prod/* /share/appopenemrdemobd61prod/
 
     # Change ownership
-    sudo chmod -R 0777 /share/appn8ndemo05dcprod && sudo chown -R www-data:www-data /share/appn8ndemo05dcprod
+    sudo chmod -R 0777 /share/appopenemrdemobd61prod && sudo chown -R 1000:1000 /share/appopenemrdemobd61prod
+
+    # Set proper ownership
+    sudo chown -R 1000:1000 /share/appopenemrdemobd61prod
+
+    # 2. Secure base permissions
+    sudo find /share/appopenemrdemobd61prod -type d -exec chmod 755 {} \;  # Directories
+    sudo find /share/appopenemrdemobd61prod -type f -exec chmod 644 {} \;  # Files
+
+    # Make specific directories writable by web server only
+    sudo chmod -R 755 /share/appopenemrdemobd61prod/default/documents
+
+    # Secure sensitive files
+    sudo chmod 600 /share/appopenemrdemobd61prod/default/sqlconf.php  # DB config
+
+    # Define the path to the sqlconf.php file
+    SQLCONF_FILE="/share/appopenemrdemobd61prod/default/sqlconf.php"
+
+    # Replace hardcoded values with environment variables
+    sudo sed -i "s/\$host\s*=\s*'[^']*'/\$host = '10.1.0.3'/" "$SQLCONF_FILE"
+    sudo sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF_FILE"
+    sudo sed -i "s/\$login\s*=\s*'[^']*'/\$login = 'appopenemrdemobd61prod'/" "$SQLCONF_FILE"
+    sudo sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = 'JOw4_45TgAwdtZ3V'/" "$SQLCONF_FILE"
+    sudo sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = 'appopenemrdemobd61prod'/" "$SQLCONF_FILE"
+    sudo sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = 'P5QdtsOLQ6g_M6SF';" "$SQLCONF_FILE"
+
+    echo "sqlconf.php updated successfully!"
 
     # Delete Backup from bastion host
-    sudo rm -rf appn8ndemo05dcprod.zip && sudo rm -rf appn8ndemo05dcprod
+    sudo rm -rf appopenemrdemobd61prod.zip && sudo rm -rf appopenemrdemobd61prod
 fi
 
 # Check if the shared directory exists
-if [ ! -d /share/appn8ndemo05dcprod ]; then echo 'Error: /share/appn8ndemo05dcprod does not exist.'; exit 1; fi
+if [ ! -d /share/appopenemrdemobd61prod ]; then echo 'Error: /share/appopenemrdemobd61prod does not exist.'; exit 1; fi
 
 echo "Script completed successfully!"
