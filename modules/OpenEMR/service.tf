@@ -91,7 +91,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
 
       env {
         name  = "MYSQL_HOST"
-        value = "${local.db_internal_ip}"
+        value = "localhost"
       }
 
       env {
@@ -269,7 +269,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
 
       env {
         name  = "MYSQL_HOST"
-        value = "${local.db_internal_ip}"
+        value = "localhost"
       }
 
       env {
@@ -448,7 +448,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
 
       env {
         name  = "MYSQL_HOST"
-        value = "${local.db_internal_ip}"
+        value = "localhost"
       }
 
       env {

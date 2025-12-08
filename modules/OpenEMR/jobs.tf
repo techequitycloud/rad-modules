@@ -367,7 +367,7 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
             SQLCONF="/mnt/sites/default/sqlconf.php"
 
             if [ -f "$SQLCONF" ]; then
-              sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${local.db_internal_ip}'/" "$SQLCONF"
+              sed -i "s/\$host\s*=\s*'[^']*'/\$host = 'localhost'/" "$SQLCONF"
               sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF"
               sed -i "s/\$login\s*=\s*'[^']*'/\$login = '$MYSQL_USER'/" "$SQLCONF"
               sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '$MYSQL_PASS'/" "$SQLCONF"
@@ -377,6 +377,12 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
               # We will add it to be consistent with import_nfs.tpl
               if ! grep -q "\$rootpass" "$SQLCONF"; then
                  sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '$MYSQL_ROOT_PASS';" "$SQLCONF"
+              fi
+
+              # Inject socket configuration for Cloud Run
+              SOCKET_PATH="/cloudsql/${local.project.project_id}:${local.region}:${local.db_instance_name}"
+              if ! grep -q "mysqli.default_socket" "$SQLCONF"; then
+                sed -i "/<?php/a ini_set('mysqli.default_socket', '$SOCKET_PATH');" "$SQLCONF"
               fi
 
               # Fix permissions
@@ -510,7 +516,7 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
             SQLCONF="/mnt/sites/default/sqlconf.php"
 
             if [ -f "$SQLCONF" ]; then
-              sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${local.db_internal_ip}'/" "$SQLCONF"
+              sed -i "s/\$host\s*=\s*'[^']*'/\$host = 'localhost'/" "$SQLCONF"
               sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF"
               sed -i "s/\$login\s*=\s*'[^']*'/\$login = '$MYSQL_USER'/" "$SQLCONF"
               sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '$MYSQL_PASS'/" "$SQLCONF"
@@ -518,6 +524,12 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
 
               if ! grep -q "\$rootpass" "$SQLCONF"; then
                  sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '$MYSQL_ROOT_PASS';" "$SQLCONF"
+              fi
+
+              # Inject socket configuration for Cloud Run
+              SOCKET_PATH="/cloudsql/${local.project.project_id}:${local.region}:${local.db_instance_name}"
+              if ! grep -q "mysqli.default_socket" "$SQLCONF"; then
+                sed -i "/<?php/a ini_set('mysqli.default_socket', '$SOCKET_PATH');" "$SQLCONF"
               fi
 
               chown -R 1000:1000 /mnt/sites
@@ -649,7 +661,7 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
             SQLCONF="/mnt/sites/default/sqlconf.php"
 
             if [ -f "$SQLCONF" ]; then
-              sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${local.db_internal_ip}'/" "$SQLCONF"
+              sed -i "s/\$host\s*=\s*'[^']*'/\$host = 'localhost'/" "$SQLCONF"
               sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF"
               sed -i "s/\$login\s*=\s*'[^']*'/\$login = '$MYSQL_USER'/" "$SQLCONF"
               sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '$MYSQL_PASS'/" "$SQLCONF"
@@ -657,6 +669,12 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
 
               if ! grep -q "\$rootpass" "$SQLCONF"; then
                  sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '$MYSQL_ROOT_PASS';" "$SQLCONF"
+              fi
+
+              # Inject socket configuration for Cloud Run
+              SOCKET_PATH="/cloudsql/${local.project.project_id}:${local.region}:${local.db_instance_name}"
+              if ! grep -q "mysqli.default_socket" "$SQLCONF"; then
+                sed -i "/<?php/a ini_set('mysqli.default_socket', '$SOCKET_PATH');" "$SQLCONF"
               fi
 
               chown -R 1000:1000 /mnt/sites
