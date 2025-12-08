@@ -1,4 +1,19 @@
-## 1.10.8 (unreleased)
+## 1.10.9 (unreleased)
+
+## 1.10.8
+
+SECURITY ADVISORIES:
+
+This release contains fixes for some security advisories related to previous releases in this series.
+
+- Incorrect handling of excluded subdomain constraint in conjunction with TLS certificates containing wildcard SANs
+
+    This release incorporates the upstream fixes for [GO-2025-4175](https://pkg.go.dev/vuln/GO-2025-4175).
+
+- Excessive CPU usage when reporting error about crafted TLS certificate with many hostnames
+
+    This release incorporates the upstream fixes for [GO-2025-4155](https://pkg.go.dev/vuln/GO-2025-4155).
+
 
 ## 1.10.7
 
@@ -128,6 +143,7 @@ ENHANCEMENTS:
 - When installing a provider from a source that offers a `.zip` archive of a provider package but that cannot also offer a signed set of official checksums for the provider, OpenTofu now includes its locally-verified zip archive checksum (`zh:` scheme) in the dependency lock file in addition to the package contents checksum (`h1:` checksum) previously recorded. This makes it more likely that a future reinstall of the same package from a different source will be verified successfully. ([#2656](https://github.com/opentofu/opentofu/pull/2656))
 - OpenTofu now recommends using `-exclude` instead of `-target`, when possible, in the error messages about unknown values in `count` and `for_each` arguments, thereby providing a more definitive workaround. ([#2154](https://github.com/opentofu/opentofu/pull/2154))
 - `tofu init` now includes additional suggestions when provider installation fails and the provider had been chosen implicitly based on the backward-compatibility rules, rather than written explicitly in the configuration. ([#2084](https://github.com/opentofu/opentofu/issues/2084))
+- Logical operators (`&&` and `||`) now support short-circuit evaluation. The second operand is not evaluated if the result can be determined from the first operand alone. This prevents errors when accessing attributes on potentially null values and aligns with behavior in most modern programming languages. ([#828](https://github.com/opentofu/opentofu/issues/828))
 
 BUG FIXES:
 
