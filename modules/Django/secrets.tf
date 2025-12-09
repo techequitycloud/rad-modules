@@ -13,7 +13,7 @@
 # limitations under the License.
 
 #########################################################################
-# Generate ALL random passwords
+# Generate random passwords (Django-specific only)
 #########################################################################
 
 resource "random_password" "django_secret_key" {
@@ -39,24 +39,8 @@ resource "random_password" "prod_superuser_password" {
   override_special = "_%@"
 }
 
-# Database passwords for OpenEMR
-resource "random_password" "dev_db_password" {
-  length  = 16
-  special = true
-  override_special = "_%@"
-}
-
-resource "random_password" "qa_db_password" {
-  length  = 16
-  special = true
-  override_special = "_%@"
-}
-
-resource "random_password" "prod_db_password" {
-  length  = 16
-  special = true
-  override_special = "_%@"
-}
+# NOTE: Database passwords (dev_db_password, qa_db_password, prod_db_password) 
+# are already defined in database.tf - DO NOT duplicate them here
 
 #########################################################################
 # Dev Secrets
@@ -219,6 +203,7 @@ resource "google_secret_manager_secret_version" "prod_superuser_password" {
 
 #########################################################################
 # Database Password Secrets (for OpenEMR)
+# NOTE: The random_password resources are in database.tf
 #########################################################################
 
 resource "google_secret_manager_secret" "dev_db_password" {
