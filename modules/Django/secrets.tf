@@ -70,7 +70,7 @@ resource "google_secret_manager_secret" "dev_superuser_password" {
 
 resource "google_secret_manager_secret_version" "dev_superuser_password" {
   secret      = google_secret_manager_secret.dev_superuser_password.id
-  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.dev_superuser_password.result
+  secret_data = (var.django_superuser_password != null && var.django_superuser_password != "") ? var.django_superuser_password : random_password.dev_superuser_password.result
 }
 
 # --- QA Secrets ---
@@ -111,7 +111,7 @@ resource "google_secret_manager_secret" "qa_superuser_password" {
 
 resource "google_secret_manager_secret_version" "qa_superuser_password" {
   secret      = google_secret_manager_secret.qa_superuser_password.id
-  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.qa_superuser_password.result
+  secret_data = (var.django_superuser_password != null && var.django_superuser_password != "") ? var.django_superuser_password : random_password.qa_superuser_password.result
 }
 
 # --- Prod Secrets ---
@@ -152,7 +152,7 @@ resource "google_secret_manager_secret" "prod_superuser_password" {
 
 resource "google_secret_manager_secret_version" "prod_superuser_password" {
   secret      = google_secret_manager_secret.prod_superuser_password.id
-  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.prod_superuser_password.result
+  secret_data = (var.django_superuser_password != null && var.django_superuser_password != "") ? var.django_superuser_password : random_password.prod_superuser_password.result
 }
 
 # --- Additional Database Password Secrets (Required for Scripts) ---
