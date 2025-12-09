@@ -120,3 +120,15 @@ resource "google_project_iam_member" "secret_accessor" {
   role    = "roles/secretmanager.secretAccessor"
   member  = "serviceAccount:${local.cloud_run_sa_email}"
 }
+
+resource "google_service_account_iam_binding" "resource_creator_identity_token_creator_role" {
+  count = var.resource_creator_identity != null && var.resource_creator_identity != "" ? 1 : 0
+  
+  service_account_id = local.project_sa_id
+  role               = "roles/iam.serviceAccountTokenCreator"
+
+  members = [
+    "serviceAccount:${var.resource_creator_identity}"
+  ]
+}
+
