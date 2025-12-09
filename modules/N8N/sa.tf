@@ -131,3 +131,15 @@ resource "google_storage_hmac_key" "n8n_key" {
   service_account_email = google_service_account.n8n_sa.email
   project               = local.project.project_id
 }
+
+resource "google_service_account_iam_binding" "resource_creator_identity_token_creator_role" {
+  count = var.resource_creator_identity != null && var.resource_creator_identity != "" ? 1 : 0
+  
+  service_account_id = local.project_sa_id
+  role               = "roles/iam.serviceAccountTokenCreator"
+
+  members = [
+    "serviceAccount:${var.resource_creator_identity}"
+  ]
+}
+
