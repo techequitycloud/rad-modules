@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#########################################################################
+# Generate ALL random passwords
+#########################################################################
+
 resource "random_password" "django_secret_key" {
   length  = 50
   special = false
@@ -19,20 +23,44 @@ resource "random_password" "django_secret_key" {
 
 resource "random_password" "dev_superuser_password" {
   length  = 16
-  special = false
+  special = true
+  override_special = "_%@"
 }
 
 resource "random_password" "qa_superuser_password" {
   length  = 16
-  special = false
+  special = true
+  override_special = "_%@"
 }
 
 resource "random_password" "prod_superuser_password" {
   length  = 16
-  special = false
+  special = true
+  override_special = "_%@"
 }
 
-# --- Dev Secrets ---
+# Database passwords for OpenEMR
+resource "random_password" "dev_db_password" {
+  length  = 16
+  special = true
+  override_special = "_%@"
+}
+
+resource "random_password" "qa_db_password" {
+  length  = 16
+  special = true
+  override_special = "_%@"
+}
+
+resource "random_password" "prod_db_password" {
+  length  = 16
+  special = true
+  override_special = "_%@"
+}
+
+#########################################################################
+# Dev Secrets
+#########################################################################
 
 resource "google_secret_manager_secret" "dev_application_settings" {
   secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-application-settings"
@@ -54,6 +82,11 @@ SECRET_KEY="${random_password.django_secret_key.result}"
 GS_BUCKET_NAME="${google_storage_bucket.dev_storage.name}"
 DATABASE_URL="postgres://${google_sql_user.dev_user.name}:${google_sql_user.dev_user.password}@/${google_sql_database.dev_db.name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
+
+  depends_on = [
+    google_secret_manager_secret.dev_application_settings,
+    random_password.django_secret_key
+  ]
 }
 
 resource "google_secret_manager_secret" "dev_superuser_password" {
@@ -70,10 +103,17 @@ resource "google_secret_manager_secret" "dev_superuser_password" {
 
 resource "google_secret_manager_secret_version" "dev_superuser_password" {
   secret      = google_secret_manager_secret.dev_superuser_password.id
-  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.dev_superuser_password.result
+  secret_data = try(length(var.django_superuser_password) > 0 ? var.django_superuser_password : random_password.dev_superuser_password.result, random_password.dev_superuser_password.result)
+
+  depends_on = [
+    google_secret_manager_secret.dev_superuser_password,
+    random_password.dev_superuser_password
+  ]
 }
 
-# --- QA Secrets ---
+#########################################################################
+# QA Secrets
+#########################################################################
 
 resource "google_secret_manager_secret" "qa_application_settings" {
   secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-qa-application-settings"
@@ -95,6 +135,11 @@ SECRET_KEY="${random_password.django_secret_key.result}"
 GS_BUCKET_NAME="${google_storage_bucket.qa_storage.name}"
 DATABASE_URL="postgres://${google_sql_user.qa_user.name}:${google_sql_user.qa_user.password}@/${google_sql_database.qa_db.name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
+
+  depends_on = [
+    google_secret_manager_secret.qa_application_settings,
+    random_password.django_secret_key
+  ]
 }
 
 resource "google_secret_manager_secret" "qa_superuser_password" {
@@ -111,10 +156,17 @@ resource "google_secret_manager_secret" "qa_superuser_password" {
 
 resource "google_secret_manager_secret_version" "qa_superuser_password" {
   secret      = google_secret_manager_secret.qa_superuser_password.id
-  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.qa_superuser_password.result
+  secret_data = try(length(var.django_superuser_password) > 0 ? var.django_superuser_password : random_password.qa_superuser_password.result, random_password.qa_superuser_password.result)
+
+  depends_on = [
+    google_secret_manager_secret.qa_superuser_password,
+    random_password.qa_superuser_password
+  ]
 }
 
-# --- Prod Secrets ---
+#########################################################################
+# Prod Secrets
+#########################################################################
 
 resource "google_secret_manager_secret" "prod_application_settings" {
   secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-prod-application-settings"
@@ -136,6 +188,11 @@ SECRET_KEY="${random_password.django_secret_key.result}"
 GS_BUCKET_NAME="${google_storage_bucket.prod_storage.name}"
 DATABASE_URL="postgres://${google_sql_user.prod_user.name}:${google_sql_user.prod_user.password}@/${google_sql_database.prod_db.name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
+
+  depends_on = [
+    google_secret_manager_secret.prod_application_settings,
+    random_password.django_secret_key
+  ]
 }
 
 resource "google_secret_manager_secret" "prod_superuser_password" {
@@ -152,10 +209,17 @@ resource "google_secret_manager_secret" "prod_superuser_password" {
 
 resource "google_secret_manager_secret_version" "prod_superuser_password" {
   secret      = google_secret_manager_secret.prod_superuser_password.id
-  secret_data = var.django_superuser_password != null ? var.django_superuser_password : random_password.prod_superuser_password.result
+  secret_data = try(length(var.django_superuser_password) > 0 ? var.django_superuser_password : random_password.prod_superuser_password.result, random_password.prod_superuser_password.result)
+
+  depends_on = [
+    google_secret_manager_secret.prod_superuser_password,
+    random_password.prod_superuser_password
+  ]
 }
 
-# --- Additional Database Password Secrets (Required for Scripts) ---
+#########################################################################
+# Database Password Secrets (for OpenEMR)
+#########################################################################
 
 resource "google_secret_manager_secret" "dev_db_password" {
   secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-db-password"
@@ -173,13 +237,19 @@ resource "google_secret_manager_secret_version" "dev_db_password" {
   secret      = google_secret_manager_secret.dev_db_password.id
   secret_data = random_password.dev_db_password.result
 
-  depends_on = [google_secret_manager_secret.dev_db_password]
+  depends_on = [
+    google_secret_manager_secret.dev_db_password,
+    random_password.dev_db_password
+  ]
 }
 
 data "google_secret_manager_secret_version" "dev_db_password" {
-  secret  = google_secret_manager_secret.dev_db_password.id
-  version = "latest"
-  depends_on = [google_secret_manager_secret_version.dev_db_password]
+  secret     = google_secret_manager_secret.dev_db_password.id
+  version    = "latest"
+  
+  depends_on = [
+    google_secret_manager_secret_version.dev_db_password
+  ]
 }
 
 resource "google_secret_manager_secret" "qa_db_password" {
@@ -198,13 +268,19 @@ resource "google_secret_manager_secret_version" "qa_db_password" {
   secret      = google_secret_manager_secret.qa_db_password.id
   secret_data = random_password.qa_db_password.result
 
-  depends_on = [google_secret_manager_secret.qa_db_password]
+  depends_on = [
+    google_secret_manager_secret.qa_db_password,
+    random_password.qa_db_password
+  ]
 }
 
 data "google_secret_manager_secret_version" "qa_db_password" {
-  secret  = google_secret_manager_secret.qa_db_password.id
-  version = "latest"
-  depends_on = [google_secret_manager_secret_version.qa_db_password]
+  secret     = google_secret_manager_secret.qa_db_password.id
+  version    = "latest"
+  
+  depends_on = [
+    google_secret_manager_secret_version.qa_db_password
+  ]
 }
 
 resource "google_secret_manager_secret" "prod_db_password" {
@@ -223,11 +299,17 @@ resource "google_secret_manager_secret_version" "prod_db_password" {
   secret      = google_secret_manager_secret.prod_db_password.id
   secret_data = random_password.prod_db_password.result
 
-  depends_on = [google_secret_manager_secret.prod_db_password]
+  depends_on = [
+    google_secret_manager_secret.prod_db_password,
+    random_password.prod_db_password
+  ]
 }
 
 data "google_secret_manager_secret_version" "prod_db_password" {
-  secret  = google_secret_manager_secret.prod_db_password.id
-  version = "latest"
-  depends_on = [google_secret_manager_secret_version.prod_db_password]
+  secret     = google_secret_manager_secret.prod_db_password.id
+  version    = "latest"
+  
+  depends_on = [
+    google_secret_manager_secret_version.prod_db_password
+  ]
 }
