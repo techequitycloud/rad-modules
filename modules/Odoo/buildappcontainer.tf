@@ -61,7 +61,8 @@ resource "null_resource" "build_and_push_application_image" {
   # Trigger based on the hash of the build-container.sh script
   triggers = {
     script_hash = filesha256("${path.module}/scripts/app/build-container.sh")
-    # always_run = "${timestamp()}" # Trigger to always run on apply
+    dockerfile_hash = local_file.app_dockerfile[0].content_sha256
+    cloudbuild_hash = local_file.app_cloudbuild[0].content_sha256
   }
   
   # Provisioner to execute a local script that builds and pushes the container image

@@ -55,7 +55,9 @@ resource "local_file" "cloudbuild" {
 resource "null_resource" "build_and_push_backup_image" {
   count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
   triggers = {
-    # always_run    = "${timestamp()}" # Trigger to always run on apply
+    script_hash = filesha256("${path.module}/scripts/bkup/build-container.sh")
+    dockerfile_hash = local_file.dockerfile[0].content_sha256
+    cloudbuild_hash = local_file.cloudbuild[0].content_sha256
   }
     
   provisioner "local-exec" {
