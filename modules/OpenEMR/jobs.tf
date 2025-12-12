@@ -12,27 +12,92 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Pre-create NFS directories to ensure they exist before init jobs run
-resource "null_resource" "prepare_nfs_directories" {
-  count = local.nfs_server_exists ? 1 : 0
+# Pre-create NFS directories using a Cloud Run Job
+resource "google_cloud_run_v2_job" "nfs_setup_job" {
+  count      = local.nfs_server_exists ? 1 : 0
+  project    = local.project.project_id
+  name       = "setup-nfs-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+  location   = local.region
+  deletion_protection = false
 
-  provisioner "local-exec" {
-    command = <<-EOT
-      gcloud compute ssh ${local.nfs_instance_name} \
-        --zone=${local.nfs_instance_zone} \
-        --project=${local.project.project_id} \
-        --command="
-          sudo mkdir -p /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev \
-                       /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa \
-                       /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod && \
-          sudo chmod 777 /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}* && \
-          sudo exportfs -ra
-        "
-    EOT
+  template {
+    template {
+      service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+      max_retries     = 0
+      timeout         = "600s"
+      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
+
+      containers {
+        image = "alpine:3.19"
+
+        volume_mounts {
+          name       = "nfs-root-volume"
+          mount_path = "/mnt/share"
+        }
+
+        command = ["/bin/sh"]
+        args = ["-c", <<-EOT
+          set -e
+          echo "=== NFS Setup Job ==="
+          echo "Mounting /mnt/share..."
+
+          if ! ls /mnt/share > /dev/null 2>&1; then
+            echo "ERROR: Cannot access /mnt/share"
+            exit 1
+          fi
+
+          echo "Creating directories..."
+          mkdir -p /mnt/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev
+          mkdir -p /mnt/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa
+          mkdir -p /mnt/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod
+
+          echo "Setting permissions..."
+          chmod 777 /mnt/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}* || true
+
+          echo "✓ NFS Setup complete"
+        EOT
+        ]
+      }
+
+      vpc_access {
+        network_interfaces {
+          network = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
+          tags = ["nfsserver"]
+        }
+      }
+
+      volumes {
+        name = "nfs-root-volume"
+        nfs {
+          server = "${local.nfs_internal_ip}"
+          path   = "/share"
+        }
+      }
+    }
   }
 
   depends_on = [
     data.external.nfs_instance_info
+  ]
+}
+
+resource "null_resource" "execute_nfs_setup_job" {
+  count = local.nfs_server_exists ? 1 : 0
+
+  triggers = {
+    job_id = google_cloud_run_v2_job.nfs_setup_job[0].id
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command = <<EOT
+      gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} --region ${local.region} --project ${local.project.project_id} --wait
+    EOT
+  }
+
+  depends_on = [
+    google_cloud_run_v2_job.nfs_setup_job
   ]
 }
 
@@ -464,7 +529,7 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
   
   depends_on = [
     null_resource.import_dev_nfs,
-    null_resource.prepare_nfs_directories
+    null_resource.execute_nfs_setup_job
   ]
 }
 
@@ -637,7 +702,7 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
   
   depends_on = [
     null_resource.import_qa_nfs,
-    null_resource.prepare_nfs_directories
+    null_resource.execute_nfs_setup_job
   ]
 }
 
@@ -810,7 +875,7 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
   
   depends_on = [
     null_resource.import_prod_nfs,
-    null_resource.prepare_nfs_directories
+    null_resource.execute_nfs_setup_job
   ]
 }
 
