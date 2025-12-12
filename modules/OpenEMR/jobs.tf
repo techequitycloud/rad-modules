@@ -19,7 +19,7 @@ resource "null_resource" "prepare_nfs_directories" {
   provisioner "local-exec" {
     command = <<-EOT
       gcloud compute ssh ${local.nfs_instance_name} \
-        --zone=${local.zone} \
+        --zone=${local.nfs_instance_zone} \
         --project=${local.project.project_id} \
         --command="
           sudo mkdir -p /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev \
@@ -327,6 +327,7 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
       service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
       max_retries     = 0
       timeout         = "600s"
+      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
       
       containers {
         image = "alpine:3.19"
@@ -499,6 +500,7 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
       service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
       max_retries     = 0
       timeout         = "600s"
+      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
       
       containers {
         image = "alpine:3.19"
@@ -671,6 +673,7 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
       service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
       max_retries     = 0
       timeout         = "600s"
+      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
       
       containers {
         image = "alpine:3.19"
