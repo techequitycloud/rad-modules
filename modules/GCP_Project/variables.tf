@@ -63,7 +63,7 @@ variable "deployment_id" {
 }
 
 variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. {{UIMeta group=0 order=102 updatesafe }}"
+  description = "The terraform Service Account used to create resources in the destination project. {{UIMeta group=0 order=102 }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
@@ -87,25 +87,25 @@ variable "organization_id" {
 }
 
 variable "billing_account_id" {
-  description = "Billing Account associated with GCP resources. {{UIMeta group=0 order=0 updatesafe }}"
+  description = "Billing Account associated with GCP resources. {{UIMeta group=0 order=0 }}"
   type        = string
 }
 
 # GROUP 2: Project
 
 variable "project_id_prefix" {
-  description = "Enter the prefix of the project ID. {{UIMeta group=1 order=200 updatesafe }}"
+  description = "Enter the prefix of the project ID. {{UIMeta group=1 order=200 }}"
   type        = string
 }
 
 variable "trusted_users" {
-  description = "List of users with project trusted privileges. {{UIMeta group=0 order=201 updatesafe }}"
+  description = "List of users with project trusted privileges. {{UIMeta group=0 order=201 }}"
   type        = list(string)
   default     = []
 }
 
 variable "enable_services" {
-  description = "Enable project APIs. {{UIMeta group=1 order=202 updatesafe }}"
+  description = "Enable project APIs. {{UIMeta group=1 order=202 }}"
   type        = bool
   default     = false
 }
