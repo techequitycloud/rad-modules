@@ -12,8 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Pre-create NFS directories to ensure they exist before init jobs run
+resource "null_resource" "prepare_nfs_directories" {
+  count = local.nfs_server_exists ? 1 : 0
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      gcloud compute ssh ${local.nfs_instance_name} \
+        --zone=${local.zone} \
+        --project=${local.project.project_id} \
+        --command="
+          sudo mkdir -p /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev \
+                       /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa \
+                       /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod && \
+          sudo chmod 777 /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}* && \
+          sudo exportfs -ra
+        "
+    EOT
+  }
+
+  depends_on = [
+    data.external.nfs_instance_info
+  ]
+}
+
 resource "google_cloud_run_v2_job" "dev_backup_service" {
-  count      = var.configure_backups && var.configure_development_environment ? 1 : 0  # Updated count condition
+  count      = var.configure_backups && var.configure_development_environment ? 1 : 0
   project    = local.project.project_id  
   name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
   location   = local.region
@@ -83,7 +107,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
       volumes {
         name = "gcs-backup-volume"
         gcs {
-          bucket = "${local.backup_bucket_name}"  # Replace with your GCS bucket name
+          bucket = "${local.backup_bucket_name}"
         }
       }
 
@@ -105,7 +129,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 }
 
 resource "google_cloud_run_v2_job" "qa_backup_service" {
-  count      = var.configure_backups && var.configure_nonproduction_environment ? 1 : 0  # Updated count condition
+  count      = var.configure_backups && var.configure_nonproduction_environment ? 1 : 0
   project    = local.project.project_id  
   name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
   location   = local.region
@@ -153,7 +177,6 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
           value = "${local.db_internal_ip}"
         }
 
-
         volume_mounts {
           name      = "gcs-backup-volume"
           mount_path = "/data"
@@ -176,7 +199,7 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
       volumes {
         name = "gcs-backup-volume"
         gcs {
-          bucket = "${local.backup_bucket_name}"  # Replace with your GCS bucket name
+          bucket = "${local.backup_bucket_name}"
         }
       }
 
@@ -199,7 +222,7 @@ resource "google_cloud_run_v2_job" "qa_backup_service" {
 }
 
 resource "google_cloud_run_v2_job" "prod_backup_service" {
-  count      = var.configure_backups && var.configure_production_environment ? 1 : 0  # Updated count condition
+  count      = var.configure_backups && var.configure_production_environment ? 1 : 0
   project    = local.project.project_id  
   name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
   location   = local.region
@@ -269,7 +292,7 @@ resource "google_cloud_run_v2_job" "prod_backup_service" {
       volumes {
         name = "gcs-backup-volume"
         gcs {
-          bucket = "${local.backup_bucket_name}"  # Replace with your GCS bucket name
+          bucket = "${local.backup_bucket_name}"
         }
       }
 
@@ -291,7 +314,7 @@ resource "google_cloud_run_v2_job" "prod_backup_service" {
   ]
 }
 
-# Initialization Job
+# Development Initialization Job
 resource "google_cloud_run_v2_job" "dev_init_job" {
   count      = var.configure_development_environment && local.nfs_server_exists ? 1 : 0
   project    = local.project.project_id
@@ -303,92 +326,118 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
     template {
       service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
       max_retries     = 0
+      timeout         = "600s"
       
       containers {
-        image = "openemr/openemr:7.0.3"
+        image = "alpine:3.19"
 
         env {
-            name  = "MYSQL_DATABASE"
-            value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          name  = "MYSQL_DATABASE"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
         }
 
         env {
-            name  = "MYSQL_USER"
-            value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          name  = "MYSQL_USER"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
         }
 
         env {
-            name = "MYSQL_PASS"
-            value_source {
+          name = "MYSQL_PASS"
+          value_source {
             secret_key_ref {
-                secret = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
-                version = "latest"
+              secret = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
+              version = "latest"
             }
-            }
+          }
         }
 
         env {
-            name  = "MYSQL_HOST"
-            value = "${local.db_internal_ip}"
+          name  = "MYSQL_HOST"
+          value = "${local.db_internal_ip}"
         }
 
         env {
-            name = "MYSQL_ROOT_PASS"
-            value_source {
+          name = "MYSQL_ROOT_PASS"
+          value_source {
             secret_key_ref {
-                secret = "${local.db_instance_name}-root-password"
-                version = "latest"
+              secret = "${local.db_instance_name}-root-password"
+              version = "latest"
             }
-            }
+          }
         }
 
         env {
-            name  = "MYSQL_PORT"
-            value = "3306"
+          name  = "MYSQL_PORT"
+          value = "3306"
         }
         
         volume_mounts {
-            name       = "nfs-data-volume"
-            mount_path = "/mnt/sites"
+          name       = "nfs-data-volume"
+          mount_path = "/mnt/sites"
         }
 
-        command = ["/bin/sh", "-c"]
-        args = [<<EOT
+        command = ["/bin/sh"]
+        args = ["-c", <<-EOT
           set -e
+          
+          echo "=== NFS Initialization Script (DEV) ==="
           echo "Checking /mnt/sites..."
-          # If /mnt/sites/default/sqlconf.php does not exist, we initialize.
-          if [ ! -f /mnt/sites/default/sqlconf.php ]; then
-            echo "Populating /mnt/sites..."
-            # Check if /mnt/sites is empty, if so copy all. If not empty but missing sqlconf, copy might fail or be partial.
-            # Assuming if sqlconf missing, it's safe to copy.
-            cp -R /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || true
-            
-            echo "Configuring sqlconf.php..."
-            SQLCONF="/mnt/sites/default/sqlconf.php"
-            
-            if [ -f "$SQLCONF" ]; then
-              sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${local.db_internal_ip}'/" "$SQLCONF"
-              sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF"
-              sed -i "s/\$login\s*=\s*'[^']*'/\$login = '$MYSQL_USER'/" "$SQLCONF"
-              sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '$MYSQL_PASS'/" "$SQLCONF"
-              sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = '$MYSQL_DATABASE'/" "$SQLCONF"
-              
-              # Add rootpass only if it's not there, though usually it's not needed in sqlconf.php for runtime but import_nfs does it.
-              # We will add it to be consistent with import_nfs.tpl
-              if ! grep -q "\$rootpass" "$SQLCONF"; then
-                 sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '$MYSQL_ROOT_PASS';" "$SQLCONF"
-              fi
-              
-              # Fix permissions
-              chown -R 1000:1000 /mnt/sites || true
-              chmod -R 755 /mnt/sites || true
-              echo "Configuration done."
-            else
-               echo "Error: sqlconf.php not found after copy."
-               exit 1
-            fi
+          
+          # Verify NFS mount is accessible
+          if ! ls /mnt/sites > /dev/null 2>&1; then
+            echo "ERROR: Cannot access /mnt/sites - NFS mount may have failed"
+            exit 1
+          fi
+          
+          # Check if already initialized
+          if [ -f /mnt/sites/default/sqlconf.php ]; then
+            echo "✓ /mnt/sites/default/sqlconf.php exists. Skipping initialization."
+            exit 0
+          fi
+          
+          echo "Initializing NFS share..."
+          
+          # Create directory structure
+          mkdir -p /mnt/sites/default
+          
+          # Download OpenEMR sqlconf.php template
+          echo "Downloading sqlconf.php template..."
+          apk add --no-cache wget
+          wget -O /mnt/sites/default/sqlconf.php \
+            https://raw.githubusercontent.com/openemr/openemr/master/sites/default/sqlconf.php || {
+            echo "ERROR: Failed to download sqlconf.php template"
+            exit 1
+          }
+          
+          # Configure database connection
+          echo "Configuring database connection..."
+          SQLCONF="/mnt/sites/default/sqlconf.php"
+          
+          # Update database configuration
+          sed -i "s/\\\$host = 'localhost'/\\\$host = '${local.db_internal_ip}'/" "$SQLCONF"
+          sed -i "s/\\\$port = '3306'/\\\$port = '3306'/" "$SQLCONF"
+          sed -i "s/\\\$login = 'openemr'/\\\$login = '$MYSQL_USER'/" "$SQLCONF"
+          sed -i "s/\\\$pass = ''/\\\$pass = '$MYSQL_PASS'/" "$SQLCONF"
+          sed -i "s/\\\$dbase = 'openemr'/\\\$dbase = '$MYSQL_DATABASE'/" "$SQLCONF"
+          
+          # Add root password if not present
+          if ! grep -q "\\\$rootpass" "$SQLCONF"; then
+            echo "\\\$rootpass = '$MYSQL_ROOT_PASS';" >> "$SQLCONF"
+          fi
+          
+          # Set permissions (NFS may not support chown, so we try but don't fail)
+          chmod -R 755 /mnt/sites || true
+          
+          echo "✓ Configuration complete"
+          echo "Created: $SQLCONF"
+          
+          # Verify the file was created
+          if [ -f "$SQLCONF" ]; then
+            echo "✓ Initialization successful"
+            exit 0
           else
-            echo "/mnt/sites/default/sqlconf.php exists. Skipping initialization."
+            echo "ERROR: sqlconf.php was not created"
+            exit 1
           fi
         EOT
         ]
@@ -413,7 +462,8 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
   }
   
   depends_on = [
-    null_resource.import_dev_nfs
+    null_resource.import_dev_nfs,
+    null_resource.prepare_nfs_directories
   ]
 }
 
@@ -421,7 +471,6 @@ resource "null_resource" "execute_dev_init_job" {
   count = var.configure_development_environment && local.nfs_server_exists ? 1 : 0
 
   triggers = {
-    # Run only on creation of the job or if job definition changes
     job_id = google_cloud_run_v2_job.dev_init_job[0].id
   }
 
@@ -437,7 +486,7 @@ resource "null_resource" "execute_dev_init_job" {
   ]
 }
 
-# QA Init Job
+# QA Initialization Job
 resource "google_cloud_run_v2_job" "qa_init_job" {
   count      = var.configure_nonproduction_environment && local.nfs_server_exists ? 1 : 0
   project    = local.project.project_id
@@ -449,86 +498,118 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
     template {
       service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
       max_retries     = 0
+      timeout         = "600s"
       
       containers {
-        image = "openemr/openemr:7.0.3"
+        image = "alpine:3.19"
 
         env {
-            name  = "MYSQL_DATABASE"
-            value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
+          name  = "MYSQL_DATABASE"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
         }
 
         env {
-            name  = "MYSQL_USER"
-            value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
+          name  = "MYSQL_USER"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
         }
 
         env {
-            name = "MYSQL_PASS"
-            value_source {
+          name = "MYSQL_PASS"
+          value_source {
             secret_key_ref {
-                secret = "${local.db_instance_name}-${var.application_database_name}qa-password-${var.tenant_deployment_id}-${local.random_id}"
-                version = "latest"
+              secret = "${local.db_instance_name}-${var.application_database_name}qa-password-${var.tenant_deployment_id}-${local.random_id}"
+              version = "latest"
             }
-            }
+          }
         }
 
         env {
-            name  = "MYSQL_HOST"
-            value = "${local.db_internal_ip}"
+          name  = "MYSQL_HOST"
+          value = "${local.db_internal_ip}"
         }
 
         env {
-            name = "MYSQL_ROOT_PASS"
-            value_source {
+          name = "MYSQL_ROOT_PASS"
+          value_source {
             secret_key_ref {
-                secret = "${local.db_instance_name}-root-password"
-                version = "latest"
+              secret = "${local.db_instance_name}-root-password"
+              version = "latest"
             }
-            }
+          }
         }
 
         env {
-            name  = "MYSQL_PORT"
-            value = "3306"
+          name  = "MYSQL_PORT"
+          value = "3306"
         }
         
         volume_mounts {
-            name       = "nfs-data-volume"
-            mount_path = "/mnt/sites"
+          name       = "nfs-data-volume"
+          mount_path = "/mnt/sites"
         }
 
-        command = ["/bin/sh", "-c"]
-        args = [<<EOT
+        command = ["/bin/sh"]
+        args = ["-c", <<-EOT
           set -e
+          
+          echo "=== NFS Initialization Script (QA) ==="
           echo "Checking /mnt/sites..."
-          if [ ! -f /mnt/sites/default/sqlconf.php ]; then
-            echo "Populating /mnt/sites..."
-            cp -R /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || true
-            
-            echo "Configuring sqlconf.php..."
-            SQLCONF="/mnt/sites/default/sqlconf.php"
-            
-            if [ -f "$SQLCONF" ]; then
-              sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${local.db_internal_ip}'/" "$SQLCONF"
-              sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF"
-              sed -i "s/\$login\s*=\s*'[^']*'/\$login = '$MYSQL_USER'/" "$SQLCONF"
-              sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '$MYSQL_PASS'/" "$SQLCONF"
-              sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = '$MYSQL_DATABASE'/" "$SQLCONF"
-              
-              if ! grep -q "\$rootpass" "$SQLCONF"; then
-                 sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '$MYSQL_ROOT_PASS';" "$SQLCONF"
-              fi
-              
-              chown -R 1000:1000 /mnt/sites || true
-              chmod -R 755 /mnt/sites || true
-              echo "Configuration done."
-            else
-               echo "Error: sqlconf.php not found after copy."
-               exit 1
-            fi
+          
+          # Verify NFS mount is accessible
+          if ! ls /mnt/sites > /dev/null 2>&1; then
+            echo "ERROR: Cannot access /mnt/sites - NFS mount may have failed"
+            exit 1
+          fi
+          
+          # Check if already initialized
+          if [ -f /mnt/sites/default/sqlconf.php ]; then
+            echo "✓ /mnt/sites/default/sqlconf.php exists. Skipping initialization."
+            exit 0
+          fi
+          
+          echo "Initializing NFS share..."
+          
+          # Create directory structure
+          mkdir -p /mnt/sites/default
+          
+          # Download OpenEMR sqlconf.php template
+          echo "Downloading sqlconf.php template..."
+          apk add --no-cache wget
+          wget -O /mnt/sites/default/sqlconf.php \
+            https://raw.githubusercontent.com/openemr/openemr/master/sites/default/sqlconf.php || {
+            echo "ERROR: Failed to download sqlconf.php template"
+            exit 1
+          }
+          
+          # Configure database connection
+          echo "Configuring database connection..."
+          SQLCONF="/mnt/sites/default/sqlconf.php"
+          
+          # Update database configuration
+          sed -i "s/\\\$host = 'localhost'/\\\$host = '${local.db_internal_ip}'/" "$SQLCONF"
+          sed -i "s/\\\$port = '3306'/\\\$port = '3306'/" "$SQLCONF"
+          sed -i "s/\\\$login = 'openemr'/\\\$login = '$MYSQL_USER'/" "$SQLCONF"
+          sed -i "s/\\\$pass = ''/\\\$pass = '$MYSQL_PASS'/" "$SQLCONF"
+          sed -i "s/\\\$dbase = 'openemr'/\\\$dbase = '$MYSQL_DATABASE'/" "$SQLCONF"
+          
+          # Add root password if not present
+          if ! grep -q "\\\$rootpass" "$SQLCONF"; then
+            echo "\\\$rootpass = '$MYSQL_ROOT_PASS';" >> "$SQLCONF"
+          fi
+          
+          # Set permissions (NFS may not support chown, so we try but don't fail)
+          chmod -R 755 /mnt/sites || true
+          
+          echo "✓ Configuration complete"
+          echo "Created: $SQLCONF"
+          
+          # Verify the file was created
+          if [ -f "$SQLCONF" ]; then
+            echo "✓ Initialization successful"
+            exit 0
           else
-            echo "/mnt/sites/default/sqlconf.php exists. Skipping initialization."
+            echo "ERROR: sqlconf.php was not created"
+            exit 1
           fi
         EOT
         ]
@@ -553,7 +634,8 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
   }
   
   depends_on = [
-    null_resource.import_qa_nfs
+    null_resource.import_qa_nfs,
+    null_resource.prepare_nfs_directories
   ]
 }
 
@@ -576,7 +658,7 @@ resource "null_resource" "execute_qa_init_job" {
   ]
 }
 
-# Prod Init Job
+# Production Initialization Job
 resource "google_cloud_run_v2_job" "prod_init_job" {
   count      = var.configure_production_environment && local.nfs_server_exists ? 1 : 0
   project    = local.project.project_id
@@ -588,86 +670,118 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
     template {
       service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
       max_retries     = 0
+      timeout         = "600s"
       
       containers {
-        image = "openemr/openemr:7.0.3"
+        image = "alpine:3.19"
 
         env {
-            name  = "MYSQL_DATABASE"
-            value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
+          name  = "MYSQL_DATABASE"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
         }
 
         env {
-            name  = "MYSQL_USER"
-            value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
+          name  = "MYSQL_USER"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
         }
 
         env {
-            name = "MYSQL_PASS"
-            value_source {
+          name = "MYSQL_PASS"
+          value_source {
             secret_key_ref {
-                secret = "${local.db_instance_name}-${var.application_database_name}prod-password-${var.tenant_deployment_id}-${local.random_id}"
-                version = "latest"
+              secret = "${local.db_instance_name}-${var.application_database_name}prod-password-${var.tenant_deployment_id}-${local.random_id}"
+              version = "latest"
             }
-            }
+          }
         }
 
         env {
-            name  = "MYSQL_HOST"
-            value = "${local.db_internal_ip}"
+          name  = "MYSQL_HOST"
+          value = "${local.db_internal_ip}"
         }
 
         env {
-            name = "MYSQL_ROOT_PASS"
-            value_source {
+          name = "MYSQL_ROOT_PASS"
+          value_source {
             secret_key_ref {
-                secret = "${local.db_instance_name}-root-password"
-                version = "latest"
+              secret = "${local.db_instance_name}-root-password"
+              version = "latest"
             }
-            }
+          }
         }
 
         env {
-            name  = "MYSQL_PORT"
-            value = "3306"
+          name  = "MYSQL_PORT"
+          value = "3306"
         }
         
         volume_mounts {
-            name       = "nfs-data-volume"
-            mount_path = "/mnt/sites"
+          name       = "nfs-data-volume"
+          mount_path = "/mnt/sites"
         }
 
-        command = ["/bin/sh", "-c"]
-        args = [<<EOT
+        command = ["/bin/sh"]
+        args = ["-c", <<-EOT
           set -e
+          
+          echo "=== NFS Initialization Script (PROD) ==="
           echo "Checking /mnt/sites..."
-          if [ ! -f /mnt/sites/default/sqlconf.php ]; then
-            echo "Populating /mnt/sites..."
-            cp -R /var/www/localhost/htdocs/openemr/sites/. /mnt/sites/ || true
-            
-            echo "Configuring sqlconf.php..."
-            SQLCONF="/mnt/sites/default/sqlconf.php"
-            
-            if [ -f "$SQLCONF" ]; then
-              sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${local.db_internal_ip}'/" "$SQLCONF"
-              sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF"
-              sed -i "s/\$login\s*=\s*'[^']*'/\$login = '$MYSQL_USER'/" "$SQLCONF"
-              sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '$MYSQL_PASS'/" "$SQLCONF"
-              sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = '$MYSQL_DATABASE'/" "$SQLCONF"
-              
-              if ! grep -q "\$rootpass" "$SQLCONF"; then
-                 sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '$MYSQL_ROOT_PASS';" "$SQLCONF"
-              fi
-              
-              chown -R 1000:1000 /mnt/sites || true
-              chmod -R 755 /mnt/sites || true
-              echo "Configuration done."
-            else
-               echo "Error: sqlconf.php not found after copy."
-               exit 1
-            fi
+          
+          # Verify NFS mount is accessible
+          if ! ls /mnt/sites > /dev/null 2>&1; then
+            echo "ERROR: Cannot access /mnt/sites - NFS mount may have failed"
+            exit 1
+          fi
+          
+          # Check if already initialized
+          if [ -f /mnt/sites/default/sqlconf.php ]; then
+            echo "✓ /mnt/sites/default/sqlconf.php exists. Skipping initialization."
+            exit 0
+          fi
+          
+          echo "Initializing NFS share..."
+          
+          # Create directory structure
+          mkdir -p /mnt/sites/default
+          
+          # Download OpenEMR sqlconf.php template
+          echo "Downloading sqlconf.php template..."
+          apk add --no-cache wget
+          wget -O /mnt/sites/default/sqlconf.php \
+            https://raw.githubusercontent.com/openemr/openemr/master/sites/default/sqlconf.php || {
+            echo "ERROR: Failed to download sqlconf.php template"
+            exit 1
+          }
+          
+          # Configure database connection
+          echo "Configuring database connection..."
+          SQLCONF="/mnt/sites/default/sqlconf.php"
+          
+          # Update database configuration
+          sed -i "s/\\\$host = 'localhost'/\\\$host = '${local.db_internal_ip}'/" "$SQLCONF"
+          sed -i "s/\\\$port = '3306'/\\\$port = '3306'/" "$SQLCONF"
+          sed -i "s/\\\$login = 'openemr'/\\\$login = '$MYSQL_USER'/" "$SQLCONF"
+          sed -i "s/\\\$pass = ''/\\\$pass = '$MYSQL_PASS'/" "$SQLCONF"
+          sed -i "s/\\\$dbase = 'openemr'/\\\$dbase = '$MYSQL_DATABASE'/" "$SQLCONF"
+          
+          # Add root password if not present
+          if ! grep -q "\\\$rootpass" "$SQLCONF"; then
+            echo "\\\$rootpass = '$MYSQL_ROOT_PASS';" >> "$SQLCONF"
+          fi
+          
+          # Set permissions (NFS may not support chown, so we try but don't fail)
+          chmod -R 755 /mnt/sites || true
+          
+          echo "✓ Configuration complete"
+          echo "Created: $SQLCONF"
+          
+          # Verify the file was created
+          if [ -f "$SQLCONF" ]; then
+            echo "✓ Initialization successful"
+            exit 0
           else
-            echo "/mnt/sites/default/sqlconf.php exists. Skipping initialization."
+            echo "ERROR: sqlconf.php was not created"
+            exit 1
           fi
         EOT
         ]
@@ -692,7 +806,8 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
   }
   
   depends_on = [
-    null_resource.import_prod_nfs
+    null_resource.import_prod_nfs,
+    null_resource.prepare_nfs_directories
   ]
 }
 
