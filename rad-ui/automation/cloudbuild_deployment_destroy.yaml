@@ -38,7 +38,11 @@ steps:
     }
     
     log "🧹 Cleaning workspace..."
-    rm -rfv * 2>/dev/null || log "Workspace already clean"
+    rm -rfv /workspace/* 2>/dev/null || log "Workspace already clean"
+    
+    # Create module directory structure
+    mkdir -p /workspace/modules/${_MODULE_NAME}
+    cd /workspace/modules/${_MODULE_NAME}
         
     log "🔍 Checking for deployment files..."
     
@@ -66,7 +70,7 @@ steps:
     ls -la /workspace/modules/${_MODULE_NAME} || true
     
     log "✅ Destroy environment prepared"
-  dir: /workspace/modules/${_MODULE_NAME}
+  dir: /workspace
 
 - id: 'Initialize and Validate State'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -89,7 +93,8 @@ steps:
     
     # Check if state file exists and has resources
     if tofu show -json > /dev/null 2>&1; then
-        log "📊 Found $$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "unknown") resources in state"
+        RESOURCE_COUNT=$$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "unknown")
+        log "📊 Found $$RESOURCE_COUNT resources in state"
         
         # Show what will be destroyed
         log "📋 Planning destroy..."
@@ -179,9 +184,7 @@ steps:
                     log "🔍 Checking for remaining resources..."
                     
                     # Try to show what's left
-                    if tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]?.address // empty' | head -10; then
-                        log "⚠️  Some resources may still exist in state"
-                    fi
+                    tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || log "Unable to list remaining resources"
                     
                     break
                 fi
@@ -201,11 +204,17 @@ steps:
     }
     
     destroy_with_retry
+    DESTROY_EXIT_CODE=$$?
     
     # Capture exit code in a file to pass to next step
-    echo $$? > /workspace/audit/destroy_exit_code.txt
+    echo $$DESTROY_EXIT_CODE > /workspace/audit/destroy_exit_code.txt
     
     # Update metadata with completion status
+    DESTROY_STATUS="success"
+    if [ $$DESTROY_EXIT_CODE -ne 0 ]; then
+        DESTROY_STATUS="failed"
+    fi
+    
     cat > /workspace/audit/destroy_metadata.json <<EOF
     {
       "module": "${_MODULE_NAME}",
@@ -216,16 +225,16 @@ steps:
       "completed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
       "initiated_by": "${_TRIGGERED_BY:-manual}",
       "bucket": "${_DEPLOYMENT_BUCKET_ID}",
-      "exit_code": $$(cat /workspace/audit/destroy_exit_code.txt),
-      "status": "$$([  $$(cat /workspace/audit/destroy_exit_code.txt) -eq 0 ] && echo 'success' || echo 'failed')"
+      "exit_code": $$DESTROY_EXIT_CODE,
+      "status": "$$DESTROY_STATUS"
     }
     EOF
     
     gsutil cp /workspace/audit/destroy_metadata.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destroy/destroy_metadata.json" || log "Failed to upload final metadata"
     
-    log "🎯 Infrastructure destroy completed"
+    log "🎯 Infrastructure destroy completed with exit code: $$DESTROY_EXIT_CODE"
     
-    exit $$(cat /workspace/audit/destroy_exit_code.txt)
+    exit $$DESTROY_EXIT_CODE
   dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Verify Destroy and Cleanup'
@@ -244,20 +253,22 @@ steps:
     
     mkdir -p /workspace/audit
     
-    # Check final state and capture values inline
+    # Check final state
+    REMAINING_COUNT=0
+    VERIFICATION_STATUS="success"
+    VERIFICATION_MESSAGE="All resources successfully destroyed"
+    
     if tofu show -json > /dev/null 2>&1; then
-        tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null > /workspace/audit/remaining_count.txt || echo "0" > /workspace/audit/remaining_count.txt
+        REMAINING_COUNT=$$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "0")
         
-        if [ "$$(cat /workspace/audit/remaining_count.txt)" = "0" ]; then
+        if [ "$$REMAINING_COUNT" = "0" ]; then
             log "✅ All resources successfully destroyed"
-            echo "success" > /workspace/audit/verification_status.txt
-            echo "All resources successfully destroyed" > /workspace/audit/verification_message.txt
         else
-            log "⚠️  Warning: $$(cat /workspace/audit/remaining_count.txt) resources may still exist"
+            log "⚠️  Warning: $$REMAINING_COUNT resources may still exist"
             log "📋 Remaining resources:"
             tofu show -json | jq -r '.values.root_module.resources[]?.address // empty' 2>/dev/null || log "Unable to list remaining resources"
-            echo "partial" > /workspace/audit/verification_status.txt
-            echo "$$(cat /workspace/audit/remaining_count.txt) resources may still exist in state" > /workspace/audit/verification_message.txt
+            VERIFICATION_STATUS="partial"
+            VERIFICATION_MESSAGE="$$REMAINING_COUNT resources may still exist in state"
             
             # Capture remaining resources for audit
             tofu show -json > /workspace/audit/post_destroy_state.json 2>/dev/null || echo "{}" > /workspace/audit/post_destroy_state.json
@@ -265,9 +276,6 @@ steps:
         fi
     else
         log "✅ State is clean - no resources found"
-        echo "success" > /workspace/audit/verification_status.txt
-        echo "State is clean - no resources found" > /workspace/audit/verification_message.txt
-        echo "0" > /workspace/audit/remaining_count.txt
         echo '{"message": "No state found after destroy", "timestamp": "'$$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /workspace/audit/post_destroy_state.json
     fi
     
@@ -277,9 +285,9 @@ steps:
       "module": "${_MODULE_NAME}",
       "deployment_id": "${_DEPLOYMENT_ID}",
       "verified_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-      "status": "$$(cat /workspace/audit/verification_status.txt)",
-      "message": "$$(cat /workspace/audit/verification_message.txt)",
-      "remaining_resources": $$(cat /workspace/audit/remaining_count.txt)
+      "status": "$$VERIFICATION_STATUS",
+      "message": "$$VERIFICATION_MESSAGE",
+      "remaining_resources": $$REMAINING_COUNT
     }
     EOF
     
@@ -309,7 +317,7 @@ steps:
       "project_id": "${PROJECT_ID}",
       "build_id": "${BUILD_ID}",
       "destroyed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-      "verification_status": "$$(cat /workspace/audit/verification_status.txt)",
+      "verification_status": "$$VERIFICATION_STATUS",
       "build_logs": "gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/",
       "audit_files": "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destroy/"
     }
@@ -379,15 +387,20 @@ steps:
     echo "folder before deletion. Build logs contain the"
     echo "complete destroy process for compliance."
     echo "========================================="
-  dir: /workspace/modules/${_MODULE_NAME}
+  dir: /workspace
 
 options:
   logging: GCS_ONLY
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
+  substitutionOption: 'ALLOW_LOOSE'  # ✅ Allow empty substitutions
 
+# ✅ Add default substitutions
 substitutions:
   _DEPLOYMENT_ID: "none"
+  _GIT_REPO_URL: "techequitycloud/rad-modules"  # Default platform repo (not used in destroy)
+  _MODULE_GIT_REPO_URL: ""  # Not used in destroy, but kept for consistency
+  _GITHUB_TOKEN_SECRET_NAME: "git-access-token"  # Not used in destroy
 
 logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
 timeout: 7200s  # Keep long timeout for complex infrastructure
