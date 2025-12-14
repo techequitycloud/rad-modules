@@ -42,15 +42,13 @@ steps:
     if [ -n "${_MODULE_GIT_REPO_URL}" ] && [ "${_MODULE_GIT_REPO_URL}" != "" ] && [ "${_MODULE_GIT_REPO_URL}" != "none" ]; then
         REPO_URL="${_MODULE_GIT_REPO_URL}"
         log "📦 Using module-specific repository: $$REPO_URL"
-    elif [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ]; then
+    elif [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "" ] && [ "${_GIT_REPO_URL}" != "none" ]; then
         REPO_URL="${_GIT_REPO_URL}"
         log "📦 Using default platform repository: $$REPO_URL"
     else
-        log "❌ No repository URL provided"
-        exit 1
+        REPO_URL=""
+        log "📁 No repository specified - using existing workspace files"
     fi
-    
-    echo "Repository: $$REPO_URL"
     
     # Check if we need to clone from Git
     if [ -n "$$REPO_URL" ]; then
@@ -284,4 +282,109 @@ steps:
     OUTPUT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output"
     
     if gsutil -m cp output.json "$$OUTPUT_PATH/output.json"; then
-        log "✅
+        log "✅ Outputs uploaded to GCS"
+    else
+        log "⚠️  Failed to upload outputs to GCS"
+    fi
+    
+    log "✅ State refresh and output generation completed"
+  dir: /workspace/modules/${_MODULE_NAME}
+
+- id: 'Create Final Archive and Upload'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -e
+    
+    log() {
+        echo "[$(date +'%H:%M:%S')] $$1"
+    }
+    
+    log "📦 Creating final deployment archive..."
+    
+    # Create final archive with all state files
+    cd /workspace
+    tar -czf "${_MODULE_NAME}.tar.gz" -C "modules/${_MODULE_NAME}" .
+    
+    log "📤 Uploading final deployment files..."
+    
+    # Upload final archive
+    FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
+    gsutil -m cp "${_MODULE_NAME}.tar.gz" "$$FILES_PATH/"
+    
+    # Create deployment completion marker
+    COMPLETION_MARKER="{\"deployed_at\": \"$$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"deployment_id\": \"${_DEPLOYMENT_ID}\", \"module\": \"${_MODULE_NAME}\", \"status\": \"completed\"}"
+    echo "$$COMPLETION_MARKER" > deployment_complete.json
+    gsutil cp deployment_complete.json "$$FILES_PATH/"
+    
+    log "📋 Final archive contents:"
+    tar -tzf "${_MODULE_NAME}.tar.gz" | head -20
+    
+    log "✅ Final archive created and uploaded"
+  dir: /workspace
+
+- id: 'Deployment Summary'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    log() {
+        echo "[$(date +'%H:%M:%S')] $$1"
+    }
+    
+    # Determine which repo was used
+    if [ -n "${_MODULE_GIT_REPO_URL}" ] && [ "${_MODULE_GIT_REPO_URL}" != "" ] && [ "${_MODULE_GIT_REPO_URL}" != "none" ]; then
+        REPO_USED="${_MODULE_GIT_REPO_URL}"
+    elif [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "" ] && [ "${_GIT_REPO_URL}" != "none" ]; then
+        REPO_USED="${_GIT_REPO_URL}"
+    else
+        REPO_USED="Local/Default"
+    fi
+    
+    echo "========================================"
+    log "🎉 TERRAFORM DEPLOYMENT COMPLETED SUCCESSFULLY"
+    echo "========================================"
+    echo "Deployment Details:"
+    echo "  • Module: ${_MODULE_NAME}"
+    echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
+    echo "  • Project: ${PROJECT_ID}"
+    echo "  • Repository: $$REPO_USED"
+    echo "  • Completed: $$(date)"
+    echo "========================================"
+    echo "📁 Deployment Artifacts:"
+    echo "  • Archive: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
+    echo "  • Outputs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output/output.json"
+    echo "  • Completion Marker: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/deployment_complete.json"
+    echo "  • Logs: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/create/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+    echo "========================================"
+    
+    # Optional: Show final resource summary
+    if [[ -f "/workspace/modules/${_MODULE_NAME}/terraform.tfstate" ]]; then
+        echo "📊 Deployed Resources Summary:"
+        cd /workspace/modules/${_MODULE_NAME}
+        tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || echo "Resource summary unavailable"
+    fi
+    
+    echo "========================================"
+  dir: /workspace
+
+availableSecrets:
+  secretManager:
+  - versionName: projects/${PROJECT_ID}/secrets/${_GITHUB_TOKEN_SECRET_NAME}/versions/latest
+    env: 'GIT_TOKEN'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  logStreamingOption: STREAM_ON
+  dynamic_substitutions: true
+  # machineType: 'E2_HIGHCPU_8'  # Uncomment for more power on complex deployments
+
+substitutions:
+  _DEPLOYMENT_ID: "none"
+  _MODULE_GIT_REPO_URL: ""
+  _GITHUB_TOKEN_SECRET_NAME: "git-access-token"
+
+timeout: 7200s
