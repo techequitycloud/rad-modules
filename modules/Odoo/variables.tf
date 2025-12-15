@@ -35,7 +35,7 @@ variable "module_services" {
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = number
-  default     = 150
+  default     = 100
 }
 
 variable "require_credit_purchases" {
@@ -53,7 +53,7 @@ variable "enable_purge" {
 variable "public_access" {
 description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
 type = bool
-default = false
+default = true
 }
 
 variable "deployment_id" {
