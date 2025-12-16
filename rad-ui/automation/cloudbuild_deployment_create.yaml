@@ -387,4 +387,12 @@ substitutions:
   _MODULE_GIT_REPO_URL: ""
   _GITHUB_TOKEN_SECRET_NAME: "git-access-token"
 
-timeout: 7200s
+# ============================================
+# Logs Configuration
+# ============================================
+logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/create/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
+
+# ============================================
+# Timeout
+# ============================================
+timeout: 7200s  # 10 minutes should be enough for bucket cleanup
