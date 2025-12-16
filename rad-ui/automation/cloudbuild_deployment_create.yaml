@@ -377,9 +377,10 @@ availableSecrets:
     env: 'GIT_TOKEN'
 
 options:
-  logging: CLOUD_LOGGING_ONLY
+  logging: GCS_ONLY
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
+  substitutionOption: 'ALLOW_LOOSE'  # ✅ Allow empty substitutions
   # machineType: 'E2_HIGHCPU_8'  # Uncomment for more power on complex deployments
 
 substitutions:
