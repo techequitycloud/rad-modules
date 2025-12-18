@@ -24,6 +24,17 @@ steps:
       - |
         set -e
         
+        echo "🗑️  CLOUD STORAGE PURGE INITIATED"
+        echo "========================================"
+        echo "Module: ${_MODULE_NAME}"
+        echo "Deployment ID: ${_DEPLOYMENT_ID}"
+        echo "Project: ${PROJECT_ID}"
+        echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
+        echo "Timestamp: $$(date)"
+        echo "========================================"
+        echo "⚠️  WARNING: This will DELETE all deployment files!"
+        echo "========================================"
+        
         log() {
             echo "[$$(date +'%H:%M:%S')] $$1"
         }
@@ -43,12 +54,14 @@ steps:
         }
         EOF
         
-        # Try to create lock
+        # Try to create lock (fails if already exists)
         if gsutil cp -n $$LOCK_FILE "$$LOCK_PATH" 2>&1; then
             log "✅ Lock acquired successfully"
         else
             log "❌ ERROR: Deployment is locked by another operation"
+            log "   Lock path: $$LOCK_PATH"
             
+            # Show existing lock info
             if gsutil cat "$$LOCK_PATH" 2>/dev/null; then
                 log "   Check if the other operation is still running"
             fi
@@ -77,7 +90,7 @@ steps:
         
         mkdir -p /tmp/audit
         
-        # Calculate folder size
+        # Calculate folder size and file count
         if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
             FOLDER_SIZE=$$(gsutil du -sh "$$DEPLOYMENT_PATH" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
             FILE_COUNT=$$(gsutil ls -r "$$DEPLOYMENT_PATH" 2>/dev/null | grep -v ':$$' | wc -l || echo "0")
@@ -85,16 +98,24 @@ steps:
             log "📊 Folder size: $$FOLDER_SIZE"
             log "📊 File count: $$FILE_COUNT"
             
-            # List all files
+            # List all files for audit trail
+            log "📋 Listing all files for audit..."
             gsutil ls -r "$$DEPLOYMENT_PATH" > /tmp/audit/file_list.txt 2>/dev/null || echo "Unable to list files" > /tmp/audit/file_list.txt
+            
+            log "📄 Files to be deleted:"
+            head -20 /tmp/audit/file_list.txt
+            
+            if [ "$$(wc -l < /tmp/audit/file_list.txt)" -gt 20 ]; then
+                log "   ... and $$((FILE_COUNT - 20)) more files"
+            fi
         else
             FOLDER_SIZE="0"
             FILE_COUNT="0"
             log "ℹ️  Deployment folder not found"
-            echo "Deployment folder not found" > /tmp/audit/file_list.txt
+            echo "Deployment folder not found at $$DEPLOYMENT_PATH" > /tmp/audit/file_list.txt
         fi
         
-        # Create audit record
+        # Create detailed audit record
         cat > /tmp/audit/pre_purge_audit.json <<EOF
         {
           "module": "${_MODULE_NAME}",
@@ -104,14 +125,16 @@ steps:
           "audit_time": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
           "folder_size": "$$FOLDER_SIZE",
           "file_count": $$FILE_COUNT,
-          "deployment_path": "$$DEPLOYMENT_PATH"
+          "deployment_path": "$$DEPLOYMENT_PATH",
+          "operation": "purge",
+          "initiated_by": "${_TRIGGERED_BY:-manual}"
         }
         EOF
         
         log "✅ Pre-purge audit created"
 
   # ============================================
-  # STEP 3: Delete Cloud Storage Bucket Content
+  # STEP 3: Delete Cloud Storage Deployment Folder
   # ============================================
   - id: 'Delete Cloud Storage Bucket'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
@@ -120,17 +143,6 @@ steps:
       - '-c'
       - |
         set -e
-        
-        echo "🗑️  CLOUD STORAGE PURGE INITIATED"
-        echo "========================================"
-        echo "Module: ${_MODULE_NAME}"
-        echo "Deployment ID: ${_DEPLOYMENT_ID}"
-        echo "Project: ${PROJECT_ID}"
-        echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
-        echo "Timestamp: $$(date)"
-        echo "========================================"
-        echo "⚠️  WARNING: This will DELETE all deployment files!"
-        echo "========================================"
         
         log() {
             echo "[$$(date +'%H:%M:%S')] $$1"
@@ -143,6 +155,10 @@ steps:
         if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
             log "📁 Found deployment folder: $$DEPLOYMENT_PATH"
             
+            # Calculate size before deletion
+            FOLDER_SIZE=$$(gsutil du -sh "$$DEPLOYMENT_PATH" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
+            log "📊 Total size to delete: $$FOLDER_SIZE"
+            
             # Remove with retry logic
             log "🗑️  Removing deployment folder..."
             
@@ -151,13 +167,15 @@ steps:
             SUCCESS=false
             
             while [ $$RETRY_COUNT -lt $$MAX_RETRIES ]; do
+                log "   Attempt $$((RETRY_COUNT + 1)) of $$MAX_RETRIES..."
+                
                 if gsutil -m rm -r "$$DEPLOYMENT_PATH" 2>&1; then
                     SUCCESS=true
                     break
                 else
                     RETRY_COUNT=$$((RETRY_COUNT + 1))
                     if [ $$RETRY_COUNT -lt $$MAX_RETRIES ]; then
-                        log "⚠️  Retry $$RETRY_COUNT/$$MAX_RETRIES after 5 seconds..."
+                        log "⚠️  Retry after 5 seconds..."
                         sleep 5
                     fi
                 fi
@@ -167,19 +185,195 @@ steps:
                 log "✅ Successfully removed deployment folder from Cloud Storage"
                 
                 # Verify deletion
+                log "🔍 Verifying deletion..."
                 if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
                     log "❌ ERROR: Deployment folder still exists after deletion attempt"
                     exit 1
                 else
-                    log "✅ Verified: Deployment folder has been removed"
+                    log "✅ Verified: Deployment folder has been completely removed"
                 fi
             else
                 log "❌ ERROR: Failed to remove deployment folder after $$MAX_RETRIES attempts"
                 log "   Path: $$DEPLOYMENT_PATH"
+                log "   This may require manual cleanup"
                 exit 1
             fi
         else
             log "ℹ️  Deployment folder not found"
             log "   Path: $$DEPLOYMENT_PATH"
+            log "   The folder may have been already removed or never existed"
             log "✅ No action needed - folder does not exist"
         fi
+        
+        log "🎉 Purge operation completed successfully!"
+
+  # ============================================
+  # STEP 4: Upload Audit Files to Permanent Location
+  # ============================================
+  - id: 'Upload Purge Audit'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        log "📤 Uploading purge audit records to permanent location..."
+        
+        # Upload to build-logs location (survives deployment folder deletion)
+        AUDIT_BASE="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit"
+        
+        log "📍 Audit destination: $$AUDIT_BASE"
+        
+        if [ -d /tmp/audit ]; then
+            UPLOAD_COUNT=0
+            FAIL_COUNT=0
+            
+            for file in /tmp/audit/*; do
+                if [ -f "$$file" ]; then
+                    FILENAME=$$(basename $$file)
+                    log "   Uploading $$FILENAME..."
+                    
+                    if gsutil cp "$$file" "$$AUDIT_BASE/$$FILENAME"; then
+                        log "   ✅ Uploaded $$FILENAME"
+                        UPLOAD_COUNT=$$((UPLOAD_COUNT + 1))
+                    else
+                        log "   ❌ ERROR: Failed to upload $$FILENAME"
+                        FAIL_COUNT=$$((FAIL_COUNT + 1))
+                    fi
+                fi
+            done
+            
+            log "📊 Upload summary: $$UPLOAD_COUNT successful, $$FAIL_COUNT failed"
+            
+            if [ $$FAIL_COUNT -gt 0 ]; then
+                log "❌ ERROR: Some audit files failed to upload"
+                exit 1
+            fi
+        else
+            log "⚠️  No audit directory found"
+        fi
+        
+        # Create purge completion marker
+        log "📝 Creating purge completion marker..."
+        
+        cat > /tmp/purge_complete.json <<EOF
+        {
+          "module": "${_MODULE_NAME}",
+          "deployment_id": "${_DEPLOYMENT_ID}",
+          "project_id": "${PROJECT_ID}",
+          "build_id": "${BUILD_ID}",
+          "purged_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "bucket": "${_DEPLOYMENT_BUCKET_ID}",
+          "path_removed": "deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/",
+          "operation": "purge",
+          "status": "completed",
+          "audit_location": "$$AUDIT_BASE/",
+          "initiated_by": "${_TRIGGERED_BY:-manual}"
+        }
+        EOF
+        
+        if gsutil cp /tmp/purge_complete.json "$$AUDIT_BASE/purge_complete.json"; then
+            log "✅ Completion marker uploaded"
+        else
+            log "❌ ERROR: Failed to upload completion marker"
+            exit 1
+        fi
+        
+        log "✅ All audit files uploaded successfully to permanent location"
+
+  # ============================================
+  # STEP 5: Release Lock
+  # ============================================
+  - id: 'Release Purge Lock'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        log "🔓 Releasing purge lock..."
+        
+        LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
+        
+        # Lock will be deleted with deployment folder, but try to remove explicitly
+        if gsutil rm "$$LOCK_PATH" 2>&1; then
+            log "✅ Lock released successfully"
+        else
+            log "ℹ️  Lock already removed (expected if deployment folder was deleted)"
+        fi
+
+  # ============================================
+  # STEP 6: Cleanup Summary
+  # ============================================
+  - id: 'Cleanup Summary'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        echo "========================================="
+        log "🗑️  CLOUD STORAGE PURGE COMPLETED"
+        echo "========================================="
+        echo "Purge Details:"
+        echo "  • Module: ${_MODULE_NAME}"
+        echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
+        echo "  • Bucket: ${_DEPLOYMENT_BUCKET_ID}"
+        echo "  • Path Removed: deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+        echo "  • Project: ${PROJECT_ID}"
+        echo "  • Build ID: ${BUILD_ID}"
+        echo "  • Completed: $$(date)"
+        echo "========================================="
+        echo "📝 Permanent Audit Trail:"
+        echo "  • Build Logs: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+        echo "  • Audit Files: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/"
+        echo "  • Pre-purge Audit: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/pre_purge_audit.json"
+        echo "  • File List: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/file_list.txt"
+        echo "  • Completion Marker: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/purge_complete.json"
+        echo "========================================="
+        log "✅ Cloud Storage purge successful"
+        echo "========================================="
+
+# ============================================
+# Build Options
+# ============================================
+options:
+  logging: GCS_ONLY
+  logStreamingOption: STREAM_ON
+  dynamic_substitutions: true
+  substitutionOption: 'ALLOW_LOOSE'
+
+# ============================================
+# Substitution Variables
+# ============================================
+substitutions:
+  _DEPLOYMENT_ID: "none"
+  _MODULE_NAME: "unknown"
+  _DEPLOYMENT_BUCKET_ID: "rad-deployments-2b65"
+  _GIT_REPO_URL: "techequitycloud/rad-modules"
+  _MODULE_GIT_REPO_URL: ""
+  _GITHUB_TOKEN_SECRET_NAME: "git-access-token"
+  _TRIGGERED_BY: "manual"
+
+# ============================================
+# Logs Configuration
+# ============================================
+logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
+
+# ============================================
+# Timeout
+# ============================================
+timeout: 600s
