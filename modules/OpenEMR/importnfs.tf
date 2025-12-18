@@ -1,3 +1,4 @@
+#!/bin/bash
 # Copyright 2024 (c) Tech Equity Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -10,275 +11,135 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.
+# limitations under the License. 
 
-#########################################################################
-# Configurations for nfs import
-#########################################################################
+set -x
 
-# Create db import script
-resource "local_file" "import_dev_nfs_script_output" {
-  count    = local.nfs_server_exists ? 1 : 0  
-  filename = "${path.module}/scripts/app/dev/import-nfs.sh"
-  content = templatefile("${path.module}/scripts/app/import_nfs.tpl", {
-    PROJECT_ID          = local.project.project_id
-    BACKUP_FILEID       = "${var.application_backup_fileid}"
-    DB_IP               = local.db_internal_ip
-    DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    DB_PASS             = data.google_secret_manager_secret_version.dev_db_password.secret_data
-    ROOT_PASS           = local.db_root_password
-    APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
-    APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
-    APP_REGION_2        = length(local.regions) > 1 ? local.regions[1] : ""
-    NFS_IP              = local.nfs_internal_ip
-    NFS_ZONE            = data.google_compute_zones.available_zones.names[0]
-  })
-}
+# Remove spaces from the region variables
+APP_REGION_1=$(echo "${APP_REGION_1}" | tr -d '[:space:]')
+APP_REGION_2=$(echo "${APP_REGION_2}" | tr -d '[:space:]')
 
-# Create db import script
-resource "local_file" "import_qa_nfs_script_output" {
-  count    = local.nfs_server_exists ? 1 : 0  
-  filename = "${path.module}/scripts/app/qa/import-nfs.sh"
-  content = templatefile("${path.module}/scripts/app/import_nfs.tpl", {
-    PROJECT_ID          = local.project.project_id
-    BACKUP_FILEID       = "${var.application_backup_fileid}"
-    DB_IP               = local.db_internal_ip
-    DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
-    DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
-    DB_PASS             = data.google_secret_manager_secret_version.qa_db_password.secret_data
-    ROOT_PASS           = local.db_root_password
-    APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
-    APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
-    APP_REGION_2        = length(local.regions) > 1 ? local.regions[1] : ""
-    NFS_IP              = local.nfs_internal_ip
-    NFS_ZONE            = data.google_compute_zones.available_zones.names[0]
-  })
-}
+# Maximum number of attempts
+max_attempts=10
+attempt=0
+delete_attempted=false
 
-# Create db import script
-resource "local_file" "import_prod_nfs_script_output" {
-  count    = local.nfs_server_exists ? 1 : 0  
-  filename = "${path.module}/scripts/app/prod/import-nfs.sh"
-  content = templatefile("${path.module}/scripts/app/import_nfs.tpl", {
-    PROJECT_ID          = local.project.project_id
-    BACKUP_FILEID       = "${var.application_backup_fileid}"
-    DB_IP               = local.db_internal_ip
-    DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
-    DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
-    DB_PASS             = data.google_secret_manager_secret_version.prod_db_password.secret_data
-    ROOT_PASS           = local.db_root_password
-    APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
-    APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
-    APP_REGION_2        = length(local.regions) > 1 ? local.regions[1] : ""
-    NFS_IP              = local.nfs_internal_ip
-    NFS_ZONE            = data.google_compute_zones.available_zones.names[0]
-  })
-}
+# Loop until the service no longer exists or max attempts reached
+while [ $attempt -lt $max_attempts ]; do
+  services_found=false # Flag to track if any services were found
 
-#########################################################################
-# Configurations for nfs import
-#########################################################################
-
-# Resource to import dev nfs
-resource "null_resource" "import_dev_nfs" {
-  count    = local.nfs_server_exists ? 1 : 0  
+  # Check and delete service in APP_REGION_1
+  if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" 2>/dev/null; then
+    echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
     
-  triggers = {
-    # always_run = "${timestamp()}"
-  }
+    # Try to delete the service
+    if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" --quiet; then
+      echo "Cloud Run service is being deleted in region $APP_REGION_1."
+      delete_attempted=true
+      services_found=true # A service was found and is being deleted
+    else
+      echo "Failed to delete Cloud Run service in region $APP_REGION_1. Retrying..."
+      services_found=true # A service was found but deletion failed
+    fi
+  else
+    echo "Cloud Run service does not exist in region $APP_REGION_1."
+  fi
 
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command = <<-EOF
-      max_attempts=3
-      attempt=0
-
-      while [ $attempt -lt $max_attempts ]; do
-        NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(NAME)")
-        status=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(status)")
-                
-        if [ "$status" = "RUNNING" ]; then
-          echo "Instance is running."
-          break
-        else
-          echo "Waiting for instance to be running... (Attempt $((attempt + 1)) of $max_attempts)"
-          sleep 10
-        fi
-                
-        attempt=$((attempt + 1))
-      done
-
-      if [ $attempt -eq $max_attempts ]; then
-        echo "Max attempts reached. Instance is not running."
-        exit 1
-      fi
-
-      for i in {1..5}; do
-        if [ -z "${local.project_sa_email}" ] || [ -z "${var.resource_creator_identity}" ]; then
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/dev/import-nfs.sh; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
-        else
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/dev/import-nfs.sh --impersonate-service-account=${local.project_sa_email}; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
-        fi
-
-        if [ "$i" -eq 5 ]; then
-          echo "SSH command failed after 5 attempts. Exiting..."
-          exit 1
-        fi
-      done
-    EOF
-  }
-
-  depends_on = [
-    local_file.import_dev_nfs_script_output,
-    null_resource.build_and_push_backup_image,
-  ]
-}
-
-# Resource to import qa nfs
-resource "null_resource" "import_qa_nfs" {
-  count    = local.nfs_server_exists ? 1 : 0  
+  # Check and delete service in APP_REGION_2
+  if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" 2>/dev/null; then
+    echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
     
-  triggers = {
-    # always_run = "${timestamp()}"
-  }
+    # Try to delete the service
+    if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" --quiet; then
+      echo "Cloud Run service is being deleted in region $APP_REGION_2."
+      delete_attempted=true
+      services_found=true # A service was found and is being deleted
+    else
+      echo "Failed to delete Cloud Run service in region $APP_REGION_2. Retrying..."
+      services_found=true # A service was found but deletion failed
+    fi
+  else
+    echo "Cloud Run service does not exist in region $APP_REGION_2."
+  fi
 
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command = <<-EOF
-      max_attempts=3
-      attempt=0
+  # If no services were found, exit the loop
+  if ! $services_found; then
+    echo "No Cloud Run services found. Exiting..."
+    break
+  fi
 
-      while [ $attempt -lt $max_attempts ]; do
-        NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(NAME)")
-        status=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(status)")
-                
-        if [ "$status" = "RUNNING" ]; then
-          echo "Instance is running."
-          break
-        else
-          echo "Waiting for instance to be running... (Attempt $((attempt + 1)) of $max_attempts)"
-          sleep 10
-        fi
-                
-        attempt=$((attempt + 1))
-      done
+  # If services were found and attempted, increment attempt and retry
+  attempt=$((attempt + 1))
+  echo "Retrying... Attempt $attempt of $max_attempts."
+  sleep 10
+done
 
-      if [ $attempt -eq $max_attempts ]; then
-        echo "Max attempts reached. Instance is not running."
-        exit 1
-      fi
 
-      for i in {1..5}; do
-        if [ -z "${local.project_sa_email}" ] || [ -z "${var.resource_creator_identity}" ]; then
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/qa/import-nfs.sh; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
-        else
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/qa/import-nfs.sh --impersonate-service-account=${local.project_sa_email}; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
-        fi
+# Ensure application directory exists
+sudo mkdir -p /share/${DB_USER} && sudo chown -R 1000:1000 /share/${DB_USER} && sudo chmod 775 /share/${DB_USER}
 
-        if [ "$i" -eq 5 ]; then
-          echo "SSH command failed after 5 attempts. Exiting..."
-          exit 1
-        fi
-      done
-    EOF
-  }
-
-  depends_on = [
-    local_file.import_qa_nfs_script_output,
-    null_resource.import_dev_nfs,
-    null_resource.build_and_push_backup_image,
-  ]
-}
-
-# Resource to import prod nfs
-resource "null_resource" "import_prod_nfs" {
-  count    = local.nfs_server_exists ? 1 : 0  
+# Attempt to download the backup file only if BACKUP_FILEID is not empty
+if [ -n "${BACKUP_FILEID}" ] ; then
+    echo "Attempting to download the backup file using gdown..."
+    echo "Using gdown from /root/.local/bin/gdown"
     
-  triggers = {
-    # always_run = "${timestamp()}"
-  }
-
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command = <<-EOF
-      max_attempts=3
-      attempt=0
-
-      while [ $attempt -lt $max_attempts ]; do
-        NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(NAME)")
-        status=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(status)")
-                
-        if [ "$status" = "RUNNING" ]; then
-          echo "Instance is running."
-          break
-        else
-          echo "Waiting for instance to be running... (Attempt $((attempt + 1)) of $max_attempts)"
-          sleep 10
+    # Try downloading with full path if needed
+    if sudo /root/.local/bin/gdown ${BACKUP_FILEID} -O ${DB_NAME}.zip; then
+        echo "Backup file downloaded successfully"
+        if [ -f ${DB_NAME}.zip ]; then
+            echo "Backup file exists and is $(du -h ${DB_NAME}.zip | cut -f1) in size"
         fi
-                
-        attempt=$((attempt + 1))
-      done
+    else
+        echo "Warning: Failed to download the backup file using /root/.local/bin/gdown."
+    fi
+else
+    echo "Skipping download as BACKUP_FILEID is empty."
+fi
 
-      if [ $attempt -eq $max_attempts ]; then
-        echo "Max attempts reached. Instance is not running."
-        exit 1
-      fi
+# Check if the backup file exists locally
+if [ -f "${DB_NAME}.zip" ]; then
+    echo "Backup file exists locally."
+    
+    # Extract the backup file and set  permissions
+    sudo mkdir -p ${DB_NAME} && sudo rm -rf ${DB_NAME}/* && sudo unzip ${DB_NAME}.zip -d ${DB_NAME}
+    
+    # Move directory
+    sudo rm -rf /share/${DB_USER}/* && sudo mv ${DB_NAME}/* /share/${DB_USER}/
 
-      for i in {1..5}; do
-        if [ -z "${local.project_sa_email}" ] || [ -z "${var.resource_creator_identity}" ]; then
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/prod/import-nfs.sh; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
-        else
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/prod/import-nfs.sh --impersonate-service-account=${local.project_sa_email}; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
-        fi
+    # Change ownership
+    sudo chmod -R 0777 /share/${DB_USER} && sudo chown -R 1000:1000 /share/${DB_USER}
 
-        if [ "$i" -eq 5 ]; then
-          echo "SSH command failed after 5 attempts. Exiting..."
-          exit 1
-        fi
-      done
-    EOF
-  }
+    # Set proper ownership
+    sudo chown -R 1000:1000 /share/${DB_USER}
 
-  depends_on = [
-    local_file.import_prod_nfs_script_output,
-    null_resource.import_qa_nfs,
-    null_resource.build_and_push_backup_image,
-  ]
-}
+    # 2. Secure base permissions
+    sudo find /share/${DB_USER} -type d -exec chmod 755 {} \;  # Directories
+    sudo find /share/${DB_USER} -type f -exec chmod 644 {} \;  # Files
+
+    # Make specific directories writable by web server only
+    sudo chmod -R 755 /share/${DB_USER}/default/documents
+
+    # Secure sensitive files
+    sudo chmod 600 /share/${DB_USER}/default/sqlconf.php  # DB config
+
+    # Define the path to the sqlconf.php file
+    SQLCONF_FILE="/share/${DB_USER}/default/sqlconf.php"
+
+    # Replace hardcoded values with environment variables
+    sudo sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${DB_IP}'/" "$SQLCONF_FILE"
+    sudo sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF_FILE"
+    sudo sed -i "s/\$login\s*=\s*'[^']*'/\$login = '${DB_USER}'/" "$SQLCONF_FILE"
+    sudo sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '${DB_PASS}'/" "$SQLCONF_FILE"
+    sudo sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = '${DB_NAME}'/" "$SQLCONF_FILE"
+    sudo sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '${ROOT_PASS}';" "$SQLCONF_FILE"
+
+    echo "sqlconf.php updated successfully!"
+
+    # Delete Backup from bastion host
+    sudo rm -rf ${DB_NAME}.zip && sudo rm -rf ${DB_NAME}
+fi
+
+# Check if the shared directory exists
+if [ ! -d /share/${DB_USER} ]; then echo 'Error: /share/${DB_USER} does not exist.'; exit 1; fi
+
+echo "Script completed successfully!"
