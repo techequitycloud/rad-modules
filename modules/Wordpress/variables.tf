@@ -177,19 +177,19 @@ variable "tenant_deployment_id" {
 }
 
 variable "configure_development_environment" {
-  description = "Select to configure development environment. Code is committed to the dev branch in the github repository. {{UIMeta group=3 order=703 }}"
+  description = "Select to configure development environment. Code is committed to the dev branch in the github repository. {{UIMeta group=0 order=703 }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "configure_nonproduction_environment" {
-  description = "Select to configure staging environment. Code is committed to the qa branch in the github repository. {{UIMeta group=3 order=704 }}"
+  description = "Select to configure staging environment. Code is committed to the qa branch in the github repository. {{UIMeta group=0 order=704 }}"
   type        = bool
   default     = false
 }
 
 variable "configure_production_environment" {
-  description = "Select to configure production environment. Code is committed to the prod branch in the github repository. {{UIMeta group=3 order=705 }}"
+  description = "Select to configure production environment. Code is committed to the prod branch in the github repository. {{UIMeta group=0 order=705 }}"
   type        = bool
   default     = false
 }
