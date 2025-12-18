@@ -271,7 +271,7 @@ resource "null_resource" "import_prod_db" {
         if [ "$i" -eq 5 ]; then
           echo "SSH command failed after 5 attempts. Exiting..."
           exit 1
-        fia
+        fi
       done
     EOF
   }

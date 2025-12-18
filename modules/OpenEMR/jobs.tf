@@ -488,10 +488,16 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
         }
 
         command = ["/bin/sh"]
-        args = ["-c", <<-EOT
+        args = ["-c", <<-'INITSCRIPT'
           set -e
           
           echo "=== NFS Initialization Script (DEV) ==="
+          echo "Environment Check:"
+          echo "  MYSQL_HOST: $MYSQL_HOST"
+          echo "  MYSQL_DATABASE: $MYSQL_DATABASE"
+          echo "  MYSQL_USER: $MYSQL_USER"
+          echo "  MYSQL_PORT: $MYSQL_PORT"
+          
           echo "Checking /mnt/sites..."
           
           # Verify NFS mount is accessible
@@ -511,55 +517,86 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
           # Create directory structure
           mkdir -p /mnt/sites/default
           
-          # Download OpenEMR sqlconf.php template
-          echo "Downloading sqlconf.php template..."
+          # Install required packages
+          echo "Installing required packages..."
           apk add --no-cache wget php81
-          wget -O /mnt/sites/default/sqlconf.php \
-            https://raw.githubusercontent.com/openemr/openemr/master/sites/default/sqlconf.php || {
-            echo "ERROR: Failed to download sqlconf.php template"
-            exit 1
-          }
           
-          # Configure database connection
+          # Create sqlconf.php directly with placeholders
+          echo "Creating sqlconf.php configuration file..."
+          cat > /mnt/sites/default/sqlconf.php << 'PHPEOF'
+<?php
+//  OpenEMR
+//  MySQL Config
+
+$host = 'DBHOST_PLACEHOLDER';
+$port = '3306';
+$login = 'DBUSER_PLACEHOLDER';
+$pass = 'DBPASS_PLACEHOLDER';
+$dbase = 'DBNAME_PLACEHOLDER';
+$rootpass = 'ROOTPASS_PLACEHOLDER';
+$db_encoding = 'utf8mb4';
+
+$sqlconf = [];
+global $sqlconf;
+$sqlconf["host"]= $host;
+$sqlconf["port"] = $port;
+$sqlconf["login"] = $login;
+$sqlconf["pass"] = $pass;
+$sqlconf["dbase"] = $dbase;
+$sqlconf["db_encoding"] = $db_encoding;
+
+//////////////////////////
+//////////////////////////
+//////////////////////////
+//////DO NOT TOUCH THIS///
+$config = 0; /////////////
+//////////////////////////
+//////////////////////////
+//////////////////////////
+?>
+PHPEOF
+          
+          # Replace placeholders with actual values
           echo "Configuring database connection..."
-          SQLCONF="/mnt/sites/default/sqlconf.php"
+          sed -i "s|DBHOST_PLACEHOLDER|${MYSQL_HOST}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBUSER_PLACEHOLDER|${MYSQL_USER}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBPASS_PLACEHOLDER|${MYSQL_PASS}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBNAME_PLACEHOLDER|${MYSQL_DATABASE}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|ROOTPASS_PLACEHOLDER|${MYSQL_ROOT_PASS}|g" /mnt/sites/default/sqlconf.php
           
-          # Update database configuration using pipe delimiter to avoid conflicts
-          sed -i "s|\$host = 'localhost'|\$host = '${local.db_internal_ip}'|" "$SQLCONF"
-          sed -i "s|\$port = '3306'|\$port = '3306'|" "$SQLCONF"
-          sed -i "s|\$login = 'openemr'|\$login = '$MYSQL_USER'|" "$SQLCONF"
-          sed -i "s|\$pass = ''|\$pass = '$MYSQL_PASS'|" "$SQLCONF"
-          sed -i "s|\$dbase = 'openemr'|\$dbase = '$MYSQL_DATABASE'|" "$SQLCONF"
-          
-          # Add root password if not present
-          if ! grep -q "\$rootpass" "$SQLCONF"; then
-            echo "\$rootpass = '$MYSQL_ROOT_PASS';" >> "$SQLCONF"
-          fi
-          
-          # Set permissions (NFS may not support chown, so we try but don't fail)
-          chmod -R 755 /mnt/sites || true
+          # Set permissions
+          chmod 755 /mnt/sites/default/sqlconf.php || true
+          chmod 755 /mnt/sites/default || true
+          chmod 755 /mnt/sites || true
           
           echo "✓ Configuration complete"
-          echo "Created: $SQLCONF"
           
           # Verify the file was created and validate PHP syntax
-          if [ -f "$SQLCONF" ]; then
-            echo "✓ File exists, validating PHP syntax..."
-            if php -l "$SQLCONF"; then
+          if [ -f /mnt/sites/default/sqlconf.php ]; then
+            echo "✓ File created successfully"
+            
+            # Validate PHP syntax
+            echo "Validating PHP syntax..."
+            if php -l /mnt/sites/default/sqlconf.php; then
               echo "✓ PHP syntax validation passed"
+              
+              # Show configuration (non-sensitive parts)
+              echo "=== Configuration Summary ==="
+              grep -E '^\$host|^\$port|^\$dbase' /mnt/sites/default/sqlconf.php || true
+              
               echo "✓ Initialization successful"
               exit 0
             else
               echo "ERROR: PHP syntax validation failed"
-              echo "File contents:"
-              cat "$SQLCONF"
+              echo "=== File contents ==="
+              cat /mnt/sites/default/sqlconf.php
               exit 1
             fi
           else
             echo "ERROR: sqlconf.php was not created"
             exit 1
           fi
-        EOT
+        INITSCRIPT
         ]
       }
       
@@ -670,10 +707,16 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
         }
 
         command = ["/bin/sh"]
-        args = ["-c", <<-EOT
+        args = ["-c", <<-'INITSCRIPT'
           set -e
           
           echo "=== NFS Initialization Script (QA) ==="
+          echo "Environment Check:"
+          echo "  MYSQL_HOST: $MYSQL_HOST"
+          echo "  MYSQL_DATABASE: $MYSQL_DATABASE"
+          echo "  MYSQL_USER: $MYSQL_USER"
+          echo "  MYSQL_PORT: $MYSQL_PORT"
+          
           echo "Checking /mnt/sites..."
           
           # Verify NFS mount is accessible
@@ -693,55 +736,86 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
           # Create directory structure
           mkdir -p /mnt/sites/default
           
-          # Download OpenEMR sqlconf.php template
-          echo "Downloading sqlconf.php template..."
+          # Install required packages
+          echo "Installing required packages..."
           apk add --no-cache wget php81
-          wget -O /mnt/sites/default/sqlconf.php \
-            https://raw.githubusercontent.com/openemr/openemr/master/sites/default/sqlconf.php || {
-            echo "ERROR: Failed to download sqlconf.php template"
-            exit 1
-          }
           
-          # Configure database connection
+          # Create sqlconf.php directly with placeholders
+          echo "Creating sqlconf.php configuration file..."
+          cat > /mnt/sites/default/sqlconf.php << 'PHPEOF'
+<?php
+//  OpenEMR
+//  MySQL Config
+
+$host = 'DBHOST_PLACEHOLDER';
+$port = '3306';
+$login = 'DBUSER_PLACEHOLDER';
+$pass = 'DBPASS_PLACEHOLDER';
+$dbase = 'DBNAME_PLACEHOLDER';
+$rootpass = 'ROOTPASS_PLACEHOLDER';
+$db_encoding = 'utf8mb4';
+
+$sqlconf = [];
+global $sqlconf;
+$sqlconf["host"]= $host;
+$sqlconf["port"] = $port;
+$sqlconf["login"] = $login;
+$sqlconf["pass"] = $pass;
+$sqlconf["dbase"] = $dbase;
+$sqlconf["db_encoding"] = $db_encoding;
+
+//////////////////////////
+//////////////////////////
+//////////////////////////
+//////DO NOT TOUCH THIS///
+$config = 0; /////////////
+//////////////////////////
+//////////////////////////
+//////////////////////////
+?>
+PHPEOF
+          
+          # Replace placeholders with actual values
           echo "Configuring database connection..."
-          SQLCONF="/mnt/sites/default/sqlconf.php"
+          sed -i "s|DBHOST_PLACEHOLDER|${MYSQL_HOST}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBUSER_PLACEHOLDER|${MYSQL_USER}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBPASS_PLACEHOLDER|${MYSQL_PASS}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBNAME_PLACEHOLDER|${MYSQL_DATABASE}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|ROOTPASS_PLACEHOLDER|${MYSQL_ROOT_PASS}|g" /mnt/sites/default/sqlconf.php
           
-          # Update database configuration using pipe delimiter to avoid conflicts
-          sed -i "s|\$host = 'localhost'|\$host = '${local.db_internal_ip}'|" "$SQLCONF"
-          sed -i "s|\$port = '3306'|\$port = '3306'|" "$SQLCONF"
-          sed -i "s|\$login = 'openemr'|\$login = '$MYSQL_USER'|" "$SQLCONF"
-          sed -i "s|\$pass = ''|\$pass = '$MYSQL_PASS'|" "$SQLCONF"
-          sed -i "s|\$dbase = 'openemr'|\$dbase = '$MYSQL_DATABASE'|" "$SQLCONF"
-          
-          # Add root password if not present
-          if ! grep -q "\$rootpass" "$SQLCONF"; then
-            echo "\$rootpass = '$MYSQL_ROOT_PASS';" >> "$SQLCONF"
-          fi
-          
-          # Set permissions (NFS may not support chown, so we try but don't fail)
-          chmod -R 755 /mnt/sites || true
+          # Set permissions
+          chmod 755 /mnt/sites/default/sqlconf.php || true
+          chmod 755 /mnt/sites/default || true
+          chmod 755 /mnt/sites || true
           
           echo "✓ Configuration complete"
-          echo "Created: $SQLCONF"
           
           # Verify the file was created and validate PHP syntax
-          if [ -f "$SQLCONF" ]; then
-            echo "✓ File exists, validating PHP syntax..."
-            if php -l "$SQLCONF"; then
+          if [ -f /mnt/sites/default/sqlconf.php ]; then
+            echo "✓ File created successfully"
+            
+            # Validate PHP syntax
+            echo "Validating PHP syntax..."
+            if php -l /mnt/sites/default/sqlconf.php; then
               echo "✓ PHP syntax validation passed"
+              
+              # Show configuration (non-sensitive parts)
+              echo "=== Configuration Summary ==="
+              grep -E '^\$host|^\$port|^\$dbase' /mnt/sites/default/sqlconf.php || true
+              
               echo "✓ Initialization successful"
               exit 0
             else
               echo "ERROR: PHP syntax validation failed"
-              echo "File contents:"
-              cat "$SQLCONF"
+              echo "=== File contents ==="
+              cat /mnt/sites/default/sqlconf.php
               exit 1
             fi
           else
             echo "ERROR: sqlconf.php was not created"
             exit 1
           fi
-        EOT
+        INITSCRIPT
         ]
       }
       
@@ -852,10 +926,16 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
         }
 
         command = ["/bin/sh"]
-        args = ["-c", <<-EOT
+        args = ["-c", <<-'INITSCRIPT'
           set -e
           
           echo "=== NFS Initialization Script (PROD) ==="
+          echo "Environment Check:"
+          echo "  MYSQL_HOST: $MYSQL_HOST"
+          echo "  MYSQL_DATABASE: $MYSQL_DATABASE"
+          echo "  MYSQL_USER: $MYSQL_USER"
+          echo "  MYSQL_PORT: $MYSQL_PORT"
+          
           echo "Checking /mnt/sites..."
           
           # Verify NFS mount is accessible
@@ -875,55 +955,86 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
           # Create directory structure
           mkdir -p /mnt/sites/default
           
-          # Download OpenEMR sqlconf.php template
-          echo "Downloading sqlconf.php template..."
+          # Install required packages
+          echo "Installing required packages..."
           apk add --no-cache wget php81
-          wget -O /mnt/sites/default/sqlconf.php \
-            https://raw.githubusercontent.com/openemr/openemr/master/sites/default/sqlconf.php || {
-            echo "ERROR: Failed to download sqlconf.php template"
-            exit 1
-          }
           
-          # Configure database connection
+          # Create sqlconf.php directly with placeholders
+          echo "Creating sqlconf.php configuration file..."
+          cat > /mnt/sites/default/sqlconf.php << 'PHPEOF'
+<?php
+//  OpenEMR
+//  MySQL Config
+
+$host = 'DBHOST_PLACEHOLDER';
+$port = '3306';
+$login = 'DBUSER_PLACEHOLDER';
+$pass = 'DBPASS_PLACEHOLDER';
+$dbase = 'DBNAME_PLACEHOLDER';
+$rootpass = 'ROOTPASS_PLACEHOLDER';
+$db_encoding = 'utf8mb4';
+
+$sqlconf = [];
+global $sqlconf;
+$sqlconf["host"]= $host;
+$sqlconf["port"] = $port;
+$sqlconf["login"] = $login;
+$sqlconf["pass"] = $pass;
+$sqlconf["dbase"] = $dbase;
+$sqlconf["db_encoding"] = $db_encoding;
+
+//////////////////////////
+//////////////////////////
+//////////////////////////
+//////DO NOT TOUCH THIS///
+$config = 0; /////////////
+//////////////////////////
+//////////////////////////
+//////////////////////////
+?>
+PHPEOF
+          
+          # Replace placeholders with actual values
           echo "Configuring database connection..."
-          SQLCONF="/mnt/sites/default/sqlconf.php"
+          sed -i "s|DBHOST_PLACEHOLDER|${MYSQL_HOST}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBUSER_PLACEHOLDER|${MYSQL_USER}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBPASS_PLACEHOLDER|${MYSQL_PASS}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBNAME_PLACEHOLDER|${MYSQL_DATABASE}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|ROOTPASS_PLACEHOLDER|${MYSQL_ROOT_PASS}|g" /mnt/sites/default/sqlconf.php
           
-          # Update database configuration using pipe delimiter to avoid conflicts
-          sed -i "s|\$host = 'localhost'|\$host = '${local.db_internal_ip}'|" "$SQLCONF"
-          sed -i "s|\$port = '3306'|\$port = '3306'|" "$SQLCONF"
-          sed -i "s|\$login = 'openemr'|\$login = '$MYSQL_USER'|" "$SQLCONF"
-          sed -i "s|\$pass = ''|\$pass = '$MYSQL_PASS'|" "$SQLCONF"
-          sed -i "s|\$dbase = 'openemr'|\$dbase = '$MYSQL_DATABASE'|" "$SQLCONF"
-          
-          # Add root password if not present
-          if ! grep -q "\$rootpass" "$SQLCONF"; then
-            echo "\$rootpass = '$MYSQL_ROOT_PASS';" >> "$SQLCONF"
-          fi
-          
-          # Set permissions (NFS may not support chown, so we try but don't fail)
-          chmod -R 755 /mnt/sites || true
+          # Set permissions
+          chmod 755 /mnt/sites/default/sqlconf.php || true
+          chmod 755 /mnt/sites/default || true
+          chmod 755 /mnt/sites || true
           
           echo "✓ Configuration complete"
-          echo "Created: $SQLCONF"
           
           # Verify the file was created and validate PHP syntax
-          if [ -f "$SQLCONF" ]; then
-            echo "✓ File exists, validating PHP syntax..."
-            if php -l "$SQLCONF"; then
+          if [ -f /mnt/sites/default/sqlconf.php ]; then
+            echo "✓ File created successfully"
+            
+            # Validate PHP syntax
+            echo "Validating PHP syntax..."
+            if php -l /mnt/sites/default/sqlconf.php; then
               echo "✓ PHP syntax validation passed"
+              
+              # Show configuration (non-sensitive parts)
+              echo "=== Configuration Summary ==="
+              grep -E '^\$host|^\$port|^\$dbase' /mnt/sites/default/sqlconf.php || true
+              
               echo "✓ Initialization successful"
               exit 0
             else
               echo "ERROR: PHP syntax validation failed"
-              echo "File contents:"
-              cat "$SQLCONF"
+              echo "=== File contents ==="
+              cat /mnt/sites/default/sqlconf.php
               exit 1
             fi
           else
             echo "ERROR: sqlconf.php was not created"
             exit 1
           fi
-        EOT
+        INITSCRIPT
         ]
       }
       
