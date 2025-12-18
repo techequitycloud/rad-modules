@@ -29,7 +29,7 @@ steps:
         echo "Module: ${_MODULE_NAME}"
         echo "Deployment ID: ${_DEPLOYMENT_ID}"
         echo "Project: ${PROJECT_ID}"
-        echo "Timestamp: $(date)"
+        echo "Timestamp: $$(date)"
         echo "========================================"
         
         log() {
@@ -44,7 +44,7 @@ steps:
         {
           "build_id": "${BUILD_ID}",
           "operation": "create",
-          "locked_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "locked_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
           "locked_by": "${_TRIGGERED_BY:-manual}",
           "project_id": "${PROJECT_ID}",
           "module": "${_MODULE_NAME}",
@@ -186,7 +186,7 @@ steps:
         echo "Project: ${PROJECT_ID}"
         echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
         echo "Repository: ${_GIT_REPO_URL:-'Default/Local'}"
-        echo "Timestamp: $(date)"
+        echo "Timestamp: $$(date)"
         echo "========================================"
         
         log() {
@@ -386,7 +386,7 @@ steps:
         cd /workspace
         
         # Create archive with timestamp
-        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        TIMESTAMP=$$(date +%Y%m%d-%H%M%S)
         ARCHIVE_NAME="${_MODULE_NAME}-initial-${TIMESTAMP}.tar.gz"
         
         log "📂 Archiving module: ${_MODULE_NAME}"
@@ -599,7 +599,7 @@ steps:
             log "✅ Plan saved in JSON format"
             
             # Upload plan to GCS
-            if gsutil cp /workspace/tfplan.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/plan-$(date +%Y%m%d-%H%M%S).json"; then
+            if gsutil cp /workspace/tfplan.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/plan-$$(date +%Y%m%d-%H%M%S).json"; then
                 log "✅ Plan uploaded to audit location"
             fi
         else
@@ -664,7 +664,7 @@ steps:
                         
                         # Upload failed apply output for debugging
                         gsutil cp /workspace/apply_output_$$attempt.txt \
-                          "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/apply-failed-$(date +%Y%m%d-%H%M%S).txt" 2>/dev/null || true
+                          "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/apply-failed-$$(date +%Y%m%d-%H%M%S).txt" 2>/dev/null || true
                         
                         return $$exit_code
                     fi
@@ -687,7 +687,7 @@ steps:
             # Upload successful apply output
             if [ -f /workspace/apply_output_1.txt ]; then
                 gsutil cp /workspace/apply_output_1.txt \
-                  "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/apply-success-$(date +%Y%m%d-%H%M%S).txt" 2>/dev/null || true
+                  "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/apply-success-$$(date +%Y%m%d-%H%M%S).txt" 2>/dev/null || true
             fi
         else
             log "❌ Infrastructure apply failed"
@@ -766,7 +766,7 @@ steps:
         fi
         
         # Also upload timestamped version
-        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        TIMESTAMP=$$(date +%Y%m%d-%H%M%S)
         gsutil cp output.json "$$OUTPUT_PATH/output-$$TIMESTAMP.json" 2>/dev/null || log "⚠️  Failed to upload timestamped output"
         
         log "✅ State refresh and output generation completed"
@@ -792,7 +792,7 @@ steps:
         cd /workspace
         
         # Create final archive with timestamp
-        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        TIMESTAMP=$$(date +%Y%m%d-%H%M%S)
         FINAL_ARCHIVE="${_MODULE_NAME}-final-${TIMESTAMP}.tar.gz"
         
         log "📂 Archiving deployed infrastructure..."
@@ -853,7 +853,7 @@ steps:
         
         cat > deployment_complete.json <<EOF
         {
-          "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "deployed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
           "deployment_id": "${_DEPLOYMENT_ID}",
           "module": "${_MODULE_NAME}",
           "project_id": "${PROJECT_ID}",
