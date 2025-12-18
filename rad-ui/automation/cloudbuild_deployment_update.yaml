@@ -28,12 +28,12 @@ steps:
     echo "Deployment ID: ${_DEPLOYMENT_ID}"
     echo "Project: ${PROJECT_ID}"
     echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
-    echo "Timestamp: $(date)"
+    echo "Timestamp: $$(date)"
     echo "========================================"
     
     # Function to log with timestamp
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$$(date +'%H:%M:%S')] $$1"
     }
     
     log "🧹 Cleaning workspace..."
@@ -145,7 +145,7 @@ steps:
     
   dir: /workspace
 
-- id: 'Initialize and Plan'
+- id: 'Initialize Terraform'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
   entrypoint: 'bash'
   args:
@@ -154,7 +154,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$$(date +'%H:%M:%S')] $$1"
     }
     
     log "🔧 Initializing Terraform/Tofu..."
@@ -168,28 +168,7 @@ steps:
         tofu init -upgrade -reconfigure
     fi
     
-    log "📋 Generating execution plan..."
-    
-    # Generate plan with detailed exit code
-    set +e
-    tofu plan -out=tfplan -detailed-exitcode
-    PLAN_EXIT_CODE=$$?
-    set -e
-    
-    case $$PLAN_EXIT_CODE in
-        0)
-            log "ℹ️  No changes required - infrastructure is up to date"
-            ;;
-        2)
-            log "📊 Changes detected - plan generated successfully"
-            ;;
-        *)
-            log "❌ Planning failed with exit code: $$PLAN_EXIT_CODE"
-            exit 1
-            ;;
-    esac
-    
-    log "✅ Initialization and planning completed"
+    log "✅ Initialization completed"
   dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Apply Infrastructure Changes'
@@ -201,7 +180,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$$(date +'%H:%M:%S')] $$1"
     }
     
     log "🚀 Applying infrastructure changes..."
@@ -214,7 +193,12 @@ steps:
         while [ $$attempt -le $$max_attempts ]; do
             log "🔄 Apply attempt $$attempt of $$max_attempts"
             
-            if tofu apply -auto-approve tfplan; then
+            # Refresh state before apply
+            log "🔄 Refreshing state..."
+            tofu refresh
+            
+            # Apply without saved plan to avoid stale plan errors
+            if tofu apply -auto-approve; then
                 log "✅ Apply successful on attempt $$attempt"
                 return 0
             else
@@ -223,15 +207,13 @@ steps:
                 
                 if [ $$attempt -eq $$max_attempts ]; then
                     log "💥 All apply attempts failed"
+                    log "🔍 Current state summary:"
+                    tofu state list 2>/dev/null || log "Unable to list state"
                     return $$exit_code
                 fi
                 
                 log "⏳ Waiting 30 seconds before retry..."
                 sleep 30
-                
-                # Regenerate plan for retry
-                log "🔄 Regenerating plan for retry..."
-                tofu plan -out=tfplan
             fi
             
             ((attempt++))
@@ -252,7 +234,7 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$$(date +'%H:%M:%S')] $$1"
     }
     
     log "🔄 Refreshing Terraform state..."
@@ -291,15 +273,19 @@ steps:
     set -e
     
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$$(date +'%H:%M:%S')] $$1"
     }
     
     log "📦 Creating deployment archive..."
     
     # Create archive from parent directory to avoid "file changed" error
     cd /workspace
-    tar -czf "${_MODULE_NAME}.tar.gz" -C "modules/${_MODULE_NAME}" .
-    
+    tar -czf "${_MODULE_NAME}.tar.gz" \
+    --exclude='.terraform' \
+    --exclude='.git' \
+    --exclude='*.tfstate.backup' \
+    -C "modules/${_MODULE_NAME}" .
+
     log "📤 Uploading deployment files..."
     
     # Upload the archive
@@ -324,7 +310,7 @@ steps:
   - '-c'
   - |
     log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
+        echo "[$$(date +'%H:%M:%S')] $$1"
     }
     
     echo "========================================"
