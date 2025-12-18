@@ -29,11 +29,11 @@ steps:
         echo "Module: ${_MODULE_NAME}"
         echo "Deployment ID: ${_DEPLOYMENT_ID}"
         echo "Project: ${PROJECT_ID}"
-        echo "Timestamp: $(date)"
+        echo "Timestamp: $$(date)"
         echo "========================================"
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
@@ -44,7 +44,7 @@ steps:
         {
           "build_id": "${BUILD_ID}",
           "operation": "update",
-          "locked_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "locked_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
           "locked_by": "${_TRIGGERED_BY:-manual}",
           "project_id": "${PROJECT_ID}"
         }
@@ -113,11 +113,11 @@ steps:
         echo "Deployment ID: ${_DEPLOYMENT_ID}"
         echo "Project: ${PROJECT_ID}"
         echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
-        echo "Timestamp: $(date)"
+        echo "Timestamp: $$(date)"
         echo "========================================"
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         # Create module directory if it doesn't exist
@@ -209,7 +209,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "🔍 Verifying backend configuration..."
@@ -259,7 +259,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "🔧 Initializing Terraform/Tofu..."
@@ -302,7 +302,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "📋 Generating Terraform execution plan..."
@@ -350,7 +350,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         # Check if there are changes to apply
@@ -424,7 +424,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         # Check if apply was skipped
@@ -479,7 +479,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "📦 Creating deployment archive..."
@@ -493,13 +493,13 @@ steps:
         fi
         
         # Create archive with timestamp
-        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-        ARCHIVE_NAME="${_MODULE_NAME}-${TIMESTAMP}.tar.gz"
+        TIMESTAMP=$$(date +%Y%m%d-%H%M%S)
+        ARCHIVE_NAME="${_MODULE_NAME}-$$TIMESTAMP.tar.gz"
         
         log "📂 Archiving deployment files..."
         
         # Create archive excluding unnecessary files
-        tar -czf "/workspace/${ARCHIVE_NAME}" \
+        tar -czf "/workspace/$$ARCHIVE_NAME" \
             --exclude='.terraform' \
             --exclude='*.tfstate*' \
             --exclude='tfplan' \
@@ -509,18 +509,18 @@ steps:
         }
         
         # Verify archive was created
-        if [ ! -f "/workspace/${ARCHIVE_NAME}" ]; then
+        if [ ! -f "/workspace/$$ARCHIVE_NAME" ]; then
             log "❌ ERROR: Archive creation failed"
             exit 1
         fi
         
-        ARCHIVE_SIZE=$(du -h "/workspace/${ARCHIVE_NAME}" | cut -f1)
-        log "✅ Archive created: ${ARCHIVE_NAME} ($$ARCHIVE_SIZE)"
+        ARCHIVE_SIZE=$$(du -h "/workspace/$$ARCHIVE_NAME" | cut -f1)
+        log "✅ Archive created: $$ARCHIVE_NAME ($$ARCHIVE_SIZE)"
         
         log "📤 Uploading deployment files..."
         
         # Upload the timestamped archive
-        if gsutil cp "/workspace/${ARCHIVE_NAME}" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${ARCHIVE_NAME}"; then
+        if gsutil cp "/workspace/$$ARCHIVE_NAME" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/$$ARCHIVE_NAME"; then
             log "✅ Timestamped archive uploaded"
         else
             log "❌ ERROR: Failed to upload timestamped archive"
@@ -528,7 +528,7 @@ steps:
         fi
         
         # Also upload as latest (for easy retrieval)
-        if gsutil cp "/workspace/${ARCHIVE_NAME}" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"; then
+        if gsutil cp "/workspace/$$ARCHIVE_NAME" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"; then
             log "✅ Latest archive uploaded"
         else
             log "⚠️  Failed to upload latest archive"
@@ -549,17 +549,17 @@ steps:
         log "📋 Uploading audit files..."
         
         if [ -f /workspace/tfplan.json ]; then
-            gsutil cp /workspace/tfplan.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/plan-${TIMESTAMP}.json" || log "⚠️  Plan audit upload failed"
+            gsutil cp /workspace/tfplan.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/plan-$$TIMESTAMP.json" || log "⚠️  Plan audit upload failed"
         fi
         
         if [ -f /workspace/apply_output_1.txt ]; then
-            gsutil cp /workspace/apply_output_1.txt "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/apply-${TIMESTAMP}.txt" || log "⚠️  Apply audit upload failed"
+            gsutil cp /workspace/apply_output_1.txt "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/apply-$$TIMESTAMP.txt" || log "⚠️  Apply audit upload failed"
         fi
         
         log "📋 Archive contents (first 20 files):"
-        tar -tzf "/workspace/${ARCHIVE_NAME}" | head -20
+        tar -tzf "/workspace/$$ARCHIVE_NAME" | head -20
         
-        FILE_COUNT=$(tar -tzf "/workspace/${ARCHIVE_NAME}" | wc -l)
+        FILE_COUNT=$$(tar -tzf "/workspace/$$ARCHIVE_NAME" | wc -l)
         log "📊 Total files in archive: $$FILE_COUNT"
         
         log "✅ Deployment files archived and uploaded"
@@ -576,13 +576,13 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "🔓 Releasing deployment lock..."
         
         if [ -f /workspace/lock_path.txt ]; then
-            LOCK_PATH=$(cat /workspace/lock_path.txt)
+            LOCK_PATH=$$(cat /workspace/lock_path.txt)
             
             if gsutil rm "$$LOCK_PATH" 2>/dev/null; then
                 log "✅ Lock released successfully"
@@ -603,7 +603,7 @@ steps:
       - '-c'
       - |
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         # Determine deployment outcome
