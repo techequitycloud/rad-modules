@@ -243,26 +243,3 @@ resource "local_file" "backup_clouddeploy" {
     TARGET_NAME   = "bkup${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
   })
 }
-
-# Resource for creating a Dockerfile from a template, which will be used to build the application's container image.
-resource "local_file" "clouddeploy_dockerfile" {
-  count = var.configure_continuous_deployment ? 1 : 0
-  filename        = "${path.module}/scripts/app/Dockerfile"
-  content         = templatefile("${path.module}/scripts/app/dockerfile.tpl", {
-    APP_VERSION  = "${var.application_version}"
-  })
-}
-
-# Resource to create a local cloudbuild file from a template, with variables substituted
-resource "local_file" "cicd_cloudbuild" {
-  count = var.configure_continuous_deployment ? 1 : 0
-  filename = "${path.module}/scripts/app/cloudbuild.yaml"
-  content  = templatefile("${path.module}/scripts/app/cloudbuild.yaml.tpl", {
-    PROJECT_ID    = local.project.project_id
-    APP_NAME      = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
-    IMAGE_REGION  = local.region
-    IMAGE_NAME    = var.application_name
-    IMAGE_VERSION = "${var.application_version}"
-    REPO_NAME     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  })
-}

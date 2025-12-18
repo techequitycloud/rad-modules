@@ -75,7 +75,7 @@ while [ $attempt -lt $max_attempts ]; do
 done
 
 # Ensure application directory is empty
-sudo mkdir -p /share/${DB_USER} && sudo rm -rf /share/${DB_USER}/* && sudo chown -R www-data:www-data /share/${DB_USER} && sudo chmod 775 /share/${DB_USER}
+sudo mkdir -p /share/${DB_USER} && sudo rm -rf /share/${DB_USER}/* && sudo chown -R 1001:1001 /share/${DB_USER} && sudo chmod 775 /share/${DB_USER}
 
 # Attempt to download the backup file only if BACKUP_FILEID is not empty
 if [ -n "${BACKUP_FILEID}" ] ; then
@@ -109,7 +109,7 @@ if [ -f "${DB_NAME}.zip" ]; then
     sudo rm -rf /share/${DB_USER}/* && sudo mv ${DB_NAME}/* /share/${DB_USER}/
 
     # Change ownership
-    sudo chmod -R 0777 /share/${DB_USER} && sudo chown -R www-data:www-data /share/${DB_USER}
+    sudo chmod -R 0777 /share/${DB_USER} && sudo chown -R 1001:1001 /share/${DB_USER}
 
     # Delete Backup from bastion host
     sudo rm -rf ${DB_NAME}.zip && sudo rm -rf ${DB_NAME}

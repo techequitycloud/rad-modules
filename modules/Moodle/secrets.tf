@@ -166,3 +166,25 @@ data "google_secret_manager_secret_version" "prod_db_password" {
     google_secret_manager_secret.prod_db_password,
   ]
 }
+
+#########################################################################
+# Secret Manager resource for Moodle Config
+#########################################################################
+
+resource "google_secret_manager_secret" "moodle_config" {
+  project    = local.project.project_id
+  secret_id  = "moodle-config-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "moodle_config_version" {
+  secret      = google_secret_manager_secret.moodle_config.id
+  secret_data = file("${path.module}/scripts/app/config.tpl")
+
+  depends_on = [
+    google_secret_manager_secret.moodle_config,
+  ]
+}

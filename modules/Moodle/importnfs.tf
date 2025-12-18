@@ -143,7 +143,6 @@ resource "null_resource" "import_dev_nfs" {
 
   depends_on = [
     local_file.import_dev_nfs_script_output,
-    null_resource.build_and_push_application_image,
     null_resource.build_and_push_backup_image,
   ]
 }
@@ -214,7 +213,6 @@ resource "null_resource" "import_qa_nfs" {
   depends_on = [
     local_file.import_qa_nfs_script_output,
     null_resource.import_dev_nfs,
-    null_resource.build_and_push_application_image,
     null_resource.build_and_push_backup_image,
   ]
 }
@@ -284,7 +282,6 @@ resource "null_resource" "import_prod_nfs" {
   depends_on = [
     local_file.import_prod_nfs_script_output,
     null_resource.import_qa_nfs,
-    null_resource.build_and_push_application_image,
     null_resource.build_and_push_backup_image,
   ]
 }

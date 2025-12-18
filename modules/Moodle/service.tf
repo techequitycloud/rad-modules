@@ -33,9 +33,9 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+      image = "bitnami/moodle:latest"
       ports {
-        container_port = 80
+        container_port = 8080
       }
 
       resources {
@@ -53,7 +53,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         period_seconds        = 120
         failure_threshold     = 1
         tcp_socket {
-          port = 80
+          port = 8080
         }
       }
 
@@ -64,22 +64,22 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         failure_threshold     = 3
         http_get {
           path = "/"
-          port = 80
+          port = 8080
         }
       }
 
       env {
-        name  = "DB_NAME"
+        name  = "MOODLE_DATABASE_NAME"
         value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
       }
 
       env {
-        name  = "DB_USER"
+        name  = "MOODLE_DATABASE_USER"
         value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
       }
 
       env {
-        name = "DB_PASSWORD"
+        name = "MOODLE_DATABASE_PASSWORD"
         value_source {
           secret_key_ref {
             secret = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
@@ -89,18 +89,35 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
       }
 
       env {
-        name  = "DB_HOST"
+        name  = "MOODLE_DATABASE_HOST"
         value = "${local.db_internal_ip}"
       }
 
       env {
+        name  = "MOODLE_DATABASE_PORT_NUMBER"
+        value = "5432"
+      }
+
+      env {
+        name  = "MOODLE_SKIP_BOOTSTRAP"
+        value = "yes"
+      }
+
+      env {
         name  = "APP_URL"
-        value = "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-${local.project_number}.${local.region}.run.app"
+        value = "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa-${local.project_number}.${local.region}.run.app"
+        value = "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod-${local.project_number}.${local.region}.run.app"
       }
 
       volume_mounts {
         name      = "nfs-data-volume"
-        mount_path = "/mnt"
+        mount_path = "/bitnami/moodledata"
+      }
+
+      volume_mounts {
+        name       = "moodle-config"
+        mount_path = "/opt/bitnami/moodle/config.php"
+        sub_path   = "config.php"
       }
     }
 
@@ -131,6 +148,17 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
       }
     }
+
+    volumes {
+      name = "moodle-config"
+      secret {
+        secret = google_secret_manager_secret.moodle_config.secret_id
+        items {
+          version = "latest"
+          path    = "config.php"
+        }
+      }
+    }
   }
 
   traffic {
@@ -143,9 +171,8 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     null_resource.import_dev_db,
     null_resource.import_dev_nfs,
     null_resource.build_and_push_backup_image,
-    null_resource.build_and_push_application_image,
     google_secret_manager_secret_version.dev_db_password,
-    null_resource.build_and_push_application_image,
+    google_secret_manager_secret_version.moodle_config_version,
   ]
 }
 
@@ -185,9 +212,9 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+      image = "bitnami/moodle:latest"
       ports {
-        container_port = 80
+        container_port = 8080
       }
 
       resources {
@@ -205,7 +232,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
         period_seconds = 120
         failure_threshold = 1
         tcp_socket {
-          port = 80
+          port = 8080
         }
       }
 
@@ -216,22 +243,22 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
         failure_threshold = 3
         http_get {
           path = "/"
-          port = 80
+          port = 8080
         }
       }
 
       env {
-        name  = "DB_NAME"
+        name  = "MOODLE_DATABASE_NAME"
         value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
       }
 
       env {
-        name  = "DB_USER"
+        name  = "MOODLE_DATABASE_USER"
         value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
       }
 
       env {
-        name = "DB_PASSWORD"
+        name = "MOODLE_DATABASE_PASSWORD"
         value_source {
           secret_key_ref {
             secret = "${local.db_instance_name}-${var.application_database_name}qa-password-${var.tenant_deployment_id}-${local.random_id}"
@@ -241,8 +268,18 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
       }
 
       env {
-        name  = "DB_HOST"
+        name  = "MOODLE_DATABASE_HOST"
         value = "${local.db_internal_ip}"
+      }
+
+      env {
+        name  = "MOODLE_DATABASE_PORT_NUMBER"
+        value = "5432"
+      }
+
+      env {
+        name  = "MOODLE_SKIP_BOOTSTRAP"
+        value = "yes"
       }
 
       env {
@@ -252,7 +289,13 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
 
       volume_mounts {
         name      = "nfs-data-volume"
-        mount_path = "/mnt"
+        mount_path = "/bitnami/moodledata"
+      }
+
+      volume_mounts {
+        name       = "moodle-config"
+        mount_path = "/opt/bitnami/moodle/config.php"
+        sub_path   = "config.php"
       }
     }
 
@@ -283,6 +326,17 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
         path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
       }
     }
+
+    volumes {
+      name = "moodle-config"
+      secret {
+        secret = google_secret_manager_secret.moodle_config.secret_id
+        items {
+          version = "latest"
+          path    = "config.php"
+        }
+      }
+    }
   }
 
   traffic {
@@ -296,9 +350,8 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
     null_resource.import_qa_nfs,
     null_resource.build_and_push_backup_image,
     google_cloud_run_v2_service.dev_app_service,
-    null_resource.build_and_push_application_image,
     google_secret_manager_secret_version.qa_db_password,
-    null_resource.build_and_push_application_image,
+    google_secret_manager_secret_version.moodle_config_version,
   ]
 }
 
@@ -338,9 +391,9 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+      image = "bitnami/moodle:latest"
       ports {
-        container_port = 80
+        container_port = 8080
       }
 
       resources {
@@ -358,7 +411,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
         period_seconds = 120
         failure_threshold = 1
         tcp_socket {
-          port = 80
+          port = 8080
         }
       }
 
@@ -369,22 +422,22 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
         failure_threshold = 3
         http_get {
           path = "/"
-          port = 80
+          port = 8080
         }
       }
 
       env {
-        name  = "DB_NAME"
+        name  = "MOODLE_DATABASE_NAME"
         value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
       }
 
       env {
-        name  = "DB_USER"
+        name  = "MOODLE_DATABASE_USER"
         value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
       }
 
       env {
-        name = "DB_PASSWORD"
+        name = "MOODLE_DATABASE_PASSWORD"
         value_source {
           secret_key_ref {
             secret = "${local.db_instance_name}-${var.application_database_name}prod-password-${var.tenant_deployment_id}-${local.random_id}"
@@ -394,18 +447,34 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
       }
 
       env {
+        name  = "MOODLE_DATABASE_HOST"
+        value = "${local.db_internal_ip}"
+      }
+
+      env {
+        name  = "MOODLE_DATABASE_PORT_NUMBER"
+        value = "5432"
+      }
+
+      env {
+        name  = "MOODLE_SKIP_BOOTSTRAP"
+        value = "yes"
+      }
+
+      env {
         name  = "APP_URL"
         value = "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-${local.project_number}.${local.region}.run.app"
       }
 
-      env {
-        name  = "DB_HOST"
-        value = "${local.db_internal_ip}"
+      volume_mounts {
+        name      = "nfs-data-volume"
+        mount_path = "/bitnami/moodledata"
       }
 
       volume_mounts {
-        name      = "nfs-data-volume"
-        mount_path = "/mnt"
+        name       = "moodle-config"
+        mount_path = "/opt/bitnami/moodle/config.php"
+        sub_path   = "config.php"
       }
     }
 
@@ -436,6 +505,17 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
         path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
       }
     }
+
+    volumes {
+      name = "moodle-config"
+      secret {
+        secret = google_secret_manager_secret.moodle_config.secret_id
+        items {
+          version = "latest"
+          path    = "config.php"
+        }
+      }
+    }
   }
 
   traffic {
@@ -449,9 +529,8 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
     null_resource.import_prod_nfs,
     null_resource.build_and_push_backup_image,
     google_cloud_run_v2_service.qa_app_service,
-    null_resource.build_and_push_application_image,
     google_secret_manager_secret_version.prod_db_password,
-    null_resource.build_and_push_application_image,
+    google_secret_manager_secret_version.moodle_config_version,
   ]
 }
 
