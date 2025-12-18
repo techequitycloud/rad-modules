@@ -33,7 +33,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+      image = "wordpress:${var.application_version}"
       ports {
         container_port = 80
       }
@@ -155,9 +155,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     null_resource.import_dev_db,
     null_resource.import_dev_nfs,
     null_resource.build_and_push_backup_image,
-    null_resource.build_and_push_application_image,
     google_secret_manager_secret_version.dev_db_password,
-    null_resource.build_and_push_application_image,
   ]
 }
 
@@ -197,7 +195,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+      image = "wordpress:${var.application_version}"
       ports {
         container_port = 80
       }
@@ -320,9 +318,7 @@ resource "google_cloud_run_v2_service" "qa_app_service" {
     null_resource.import_qa_nfs,
     null_resource.build_and_push_backup_image,
     google_cloud_run_v2_service.dev_app_service,
-    null_resource.build_and_push_application_image,
     google_secret_manager_secret_version.qa_db_password,
-    null_resource.build_and_push_application_image,
   ]
 }
 
@@ -362,7 +358,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+      image = "wordpress:${var.application_version}"
       ports {
         container_port = 80
       }
@@ -485,9 +481,7 @@ resource "google_cloud_run_v2_service" "prod_app_service" {
     null_resource.import_prod_nfs,
     null_resource.build_and_push_backup_image,
     google_cloud_run_v2_service.qa_app_service,
-    null_resource.build_and_push_application_image,
     google_secret_manager_secret_version.prod_db_password,
-    null_resource.build_and_push_application_image,
   ]
 }
 

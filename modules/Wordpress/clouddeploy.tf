@@ -64,13 +64,11 @@ resource "null_resource" "build_cloud_deploy_app_pipeline" {
 
   # Dependencies to ensure resources are created in the correct order
   depends_on = [
-    local_file.clouddeploy_dockerfile,
     local_file.clouddeploy_app_deploy_dev,
     local_file.clouddeploy_app_deploy_qa,
     local_file.clouddeploy_app_deploy_prod,
     local_file.clouddeploy_app_cloudbuild,
     local_file.clouddeploy_app_skaffold,
-    null_resource.build_and_push_application_image,
     null_resource.import_prod_db,
     google_cloud_run_v2_job.dev_backup_service,
     google_cloud_run_v2_service.dev_app_service,
@@ -124,7 +122,6 @@ resource "null_resource" "build_cloud_deploy_backup_pipeline" {
 
   # Dependencies to ensure resources are created in the correct order
   depends_on = [
-    local_file.clouddeploy_dockerfile,
     local_file.clouddeploy_backup_deploy_dev,
     local_file.clouddeploy_backup_deploy_qa,
     local_file.clouddeploy_backup_deploy_prod,
