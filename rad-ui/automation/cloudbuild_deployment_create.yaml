@@ -33,7 +33,7 @@ steps:
         echo "========================================"
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
@@ -111,7 +111,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "🔍 Validating deployment prerequisites..."
@@ -190,7 +190,7 @@ steps:
         echo "========================================"
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "🧹 Preparing module workspace..."
@@ -261,7 +261,7 @@ steps:
         ls -la "/workspace/modules/${_MODULE_NAME}/" | head -20
         
         # Count Terraform files
-        TF_COUNT=$(find "/workspace/modules/${_MODULE_NAME}" -name "*.tf" | wc -l)
+        TF_COUNT=$$(find "/workspace/modules/${_MODULE_NAME}" -name "*.tf" | wc -l)
         log "📊 Found $$TF_COUNT Terraform files"
         
         if [ $$TF_COUNT -eq 0 ]; then
@@ -282,7 +282,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "⬇️  Downloading deployment configuration..."
@@ -304,7 +304,7 @@ steps:
                 log "✅ terraform.tfvars.json is valid JSON"
                 
                 # Show variable count
-                VAR_COUNT=$(jq 'keys | length' terraform.tfvars.json)
+                VAR_COUNT=$$(jq 'keys | length' terraform.tfvars.json)
                 log "📊 Found $$VAR_COUNT variables"
                 
                 # List variable names (without values for security)
@@ -378,7 +378,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "📦 Creating initial deployment archive..."
@@ -387,7 +387,7 @@ steps:
         
         # Create archive with timestamp
         TIMESTAMP=$$(date +%Y%m%d-%H%M%S)
-        ARCHIVE_NAME="${_MODULE_NAME}-initial-${TIMESTAMP}.tar.gz"
+        ARCHIVE_NAME="${_MODULE_NAME}-initial-$$TIMESTAMP.tar.gz"
         
         log "📂 Archiving module: ${_MODULE_NAME}"
         
@@ -409,8 +409,8 @@ steps:
             exit 1
         fi
         
-        ARCHIVE_SIZE=$(du -h "$$ARCHIVE_NAME" | cut -f1)
-        FILE_COUNT=$(tar -tzf "$$ARCHIVE_NAME" | wc -l)
+        ARCHIVE_SIZE=$$(du -h "$$ARCHIVE_NAME" | cut -f1)
+        FILE_COUNT=$$(tar -tzf "$$ARCHIVE_NAME" | wc -l)
         
         log "📊 Archive details:"
         log "   • Name: $$ARCHIVE_NAME"
@@ -453,7 +453,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "🔧 Initializing Terraform/Tofu..."
@@ -531,7 +531,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "🔍 Validating Terraform configuration..."
@@ -560,7 +560,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "📋 Planning infrastructure changes..."
@@ -621,7 +621,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         # Check if there are changes to apply
@@ -707,7 +707,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         # Check if apply was skipped
@@ -738,7 +738,7 @@ steps:
             # Validate output JSON
             if command -v jq >/dev/null 2>&1; then
                 if jq empty output.json 2>/dev/null; then
-                    OUTPUT_COUNT=$(jq 'keys | length' output.json)
+                    OUTPUT_COUNT=$$(jq 'keys | length' output.json)
                     log "📊 Generated $$OUTPUT_COUNT outputs"
                 else
                     log "⚠️  Output JSON is invalid"
@@ -784,7 +784,7 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "📦 Creating final deployment archive..."
@@ -793,7 +793,7 @@ steps:
         
         # Create final archive with timestamp
         TIMESTAMP=$$(date +%Y%m%d-%H%M%S)
-        FINAL_ARCHIVE="${_MODULE_NAME}-final-${TIMESTAMP}.tar.gz"
+        FINAL_ARCHIVE="${_MODULE_NAME}-final-$$TIMESTAMP.tar.gz"
         
         log "📂 Archiving deployed infrastructure..."
         
@@ -814,8 +814,8 @@ steps:
             exit 1
         fi
         
-        ARCHIVE_SIZE=$(du -h "$$FINAL_ARCHIVE" | cut -f1)
-        FILE_COUNT=$(tar -tzf "$$FINAL_ARCHIVE" | wc -l)
+        ARCHIVE_SIZE=$$(du -h "$$FINAL_ARCHIVE" | cut -f1)
+        FILE_COUNT=$$(tar -tzf "$$FINAL_ARCHIVE" | wc -l)
         
         log "📊 Final archive details:"
         log "   • Name: $$FINAL_ARCHIVE"
@@ -891,13 +891,13 @@ steps:
         set -e
         
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         log "🔓 Releasing deployment lock..."
         
         if [ -f /workspace/lock_path.txt ]; then
-            LOCK_PATH=$(cat /workspace/lock_path.txt)
+            LOCK_PATH=$$(cat /workspace/lock_path.txt)
             
             if gsutil rm "$$LOCK_PATH" 2>/dev/null; then
                 log "✅ Lock released successfully"
@@ -918,7 +918,7 @@ steps:
       - '-c'
       - |
         log() {
-            echo "[$(date +'%H:%M:%S')] $$1"
+            echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
         # Determine deployment outcome
