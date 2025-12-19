@@ -18,7 +18,7 @@
 
 # Resource to configure cloud deploy pipeline
 resource "null_resource" "build_cloud_deploy_app_pipeline" {
-  count = var.configure_continuous_deployment && var.configure_development_environment ? 1 : 0
+  count = var.configure_continuous_deployment && var.configure_environment ? 1 : 0
 
   triggers = {
     project_id    = local.project.project_id
@@ -65,17 +65,17 @@ resource "null_resource" "build_cloud_deploy_app_pipeline" {
   # Dependencies to ensure resources are created in the correct order
   depends_on = [
     local_file.clouddeploy_dockerfile,
-    local_file.clouddeploy_app_deploy_dev,
+    local_file.clouddeploy_app_deploy,
     local_file.clouddeploy_app_cloudbuild,
     local_file.clouddeploy_app_skaffold,
     null_resource.build_and_push_application_image,
-    google_cloud_run_v2_job.dev_backup_service,
-    google_cloud_run_v2_service.dev_app_service,
+    google_cloud_run_v2_job.backup_service,
+    google_cloud_run_v2_service.app_service,
   ]
 }
 
 resource "null_resource" "build_cloud_deploy_backup_pipeline" {
-  count = var.configure_continuous_deployment && var.configure_development_environment ? 1 : 0
+  count = var.configure_continuous_deployment && var.configure_environment ? 1 : 0
 
   triggers = {
     project_id    = local.project.project_id
@@ -122,9 +122,9 @@ resource "null_resource" "build_cloud_deploy_backup_pipeline" {
   # Dependencies to ensure resources are created in the correct order
   depends_on = [
     local_file.clouddeploy_dockerfile,
-    local_file.clouddeploy_backup_deploy_dev,
+    local_file.clouddeploy_backup_deploy,
     local_file.clouddeploy_backup_cloudbuild,
     local_file.clouddeploy_backup_skaffold,
-    google_cloud_run_v2_job.dev_backup_service,
+    google_cloud_run_v2_job.backup_service,
   ]
 }
