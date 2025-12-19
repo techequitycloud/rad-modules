@@ -103,7 +103,7 @@ resource "null_resource" "init_git_repo" {
   }
 
   depends_on = [
-    google_secret_manager_secret.dev_db_password,
+    google_secret_manager_secret.db_password,
     google_cloudbuildv2_repository.github_repository,
     google_secret_manager_secret_version.github-token-secret
   ]
@@ -148,17 +148,17 @@ resource "google_cloudbuildv2_repository" "github_repository" {
 }
 
 #########################################################################
-# Create dev, qa and prod triggers
+# Create triggers
 #########################################################################
 
 # Resource for creating a Google Cloud Build trigger for a repository
-resource "google_cloudbuild_trigger" "dev_repo_trigger" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "google_cloudbuild_trigger" "repo_trigger" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   # The ID of the project where the trigger will be created
   project  = local.project.project_id
 
   # Name of the trigger, which includes the application name from a variable
-  name     = "${var.application_name}-dev-github-trigger-${var.tenant_deployment_id}-${local.random_id}"
+  name     = "${var.application_name}-github-trigger-${var.tenant_deployment_id}-${local.random_id}"
 
   # The location/region where the trigger will be applied
   location = local.region
@@ -172,6 +172,8 @@ resource "google_cloudbuild_trigger" "dev_repo_trigger" {
     repository = google_cloudbuildv2_repository.github_repository[count.index].id
 
     # Specifies that the trigger should only fire on push events to the 'dev' branch
+    # Assuming 'dev' as the default branch for now, based on previous configuration.
+    # If a different branch is required, it should be updated here.
     push {
       branch = "^dev$"
     }
@@ -184,18 +186,17 @@ resource "google_cloudbuild_trigger" "dev_repo_trigger" {
 
   # Dependencies ensure that all the specified GitHub repository files are created before this trigger
   depends_on = [
-    github_repository_file.primary_dev_overlay_kustomization,
-    github_repository_file.primary_dev_base_kustomization,
-    github_repository_file.primary_dev_overlay_deploy,
-    github_repository_file.primary_dev_base_deploy,
-    github_repository_file.secondary_dev_overlay_kustomization,
-    github_repository_file.secondary_dev_base_kustomization,
-    github_repository_file.secondary_dev_overlay_deploy,
-    github_repository_file.secondary_dev_base_deploy,
-    github_repository_file.dev_cloudbuild,
-    github_repository_file.dev_dockerfile,
-    github_repository_file.dev_skaffold,
-    google_cloud_run_v2_service.dev_app_service
+    github_repository_file.primary_overlay_kustomization,
+    github_repository_file.primary_base_kustomization,
+    github_repository_file.primary_overlay_deploy,
+    github_repository_file.primary_base_deploy,
+    github_repository_file.secondary_overlay_kustomization,
+    github_repository_file.secondary_base_kustomization,
+    github_repository_file.secondary_overlay_deploy,
+    github_repository_file.secondary_base_deploy,
+    github_repository_file.ci_cloudbuild,
+    github_repository_file.ci_dockerfile,
+    github_repository_file.skaffold,
+    google_cloud_run_v2_service.app_service
   ]
 }
-
