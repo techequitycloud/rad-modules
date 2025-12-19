@@ -84,10 +84,19 @@ create_or_update_branch() {
         git stash pop || true  # Ignore error if there's nothing to pop
     fi
 
-    if [[ "${branch_name}" == "dev" || "${branch_name}" == "qa" || "${branch_name}" == "prod" ]]; then
-        cp -r ../app/addons .
-        git add addons
-        git commit -m "Add addons folder to ${branch_name} branch"
+    # Assuming we want to keep addons folder logic generic if applicable, or remove if specific to envs
+    # Keeping it simple for now and assuming single branch strategy or main branch is sufficient
+    # if [[ "${branch_name}" == "dev" || "${branch_name}" == "qa" || "${branch_name}" == "prod" ]]; then
+    #    cp -r ../app/addons .
+    #    git add addons
+    #    git commit -m "Add addons folder to ${branch_name} branch"
+    # fi
+
+    # Just adding addons if they exist for main/default branch
+    if [ -d "../app/addons" ]; then
+       cp -r ../app/addons .
+       git add addons
+       git commit -m "Add addons folder to ${branch_name} branch" || true
     fi
 
     git push -u origin ${branch_name}
@@ -140,9 +149,10 @@ else
     git pull
 fi
 
-create_or_update_branch dev
-create_or_update_branch qa
-create_or_update_branch prod
+# create_or_update_branch dev # Removed dev branch
+# create_or_update_branch qa  # Removed qa branch
+# create_or_update_branch prod # Removed prod branch
+create_or_update_branch main # Ensure main is updated with addons if needed
 
 grant_write_access
 

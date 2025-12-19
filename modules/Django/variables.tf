@@ -121,8 +121,8 @@ variable "tenant_deployment_id" {
   default     = ""
 }
 
-variable "configure_development_environment" {
-  description = "Select to configure development environment. {{UIMeta group=0 order=703 }}"
+variable "configure_environment" {
+  description = "Select to configure environment. {{UIMeta group=0 order=703 }}"
   type        = bool
   default     = true
 }
