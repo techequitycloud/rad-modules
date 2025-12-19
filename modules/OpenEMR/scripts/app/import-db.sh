@@ -29,10 +29,10 @@ while [ $attempt -lt $max_attempts ]; do
   services_found=false
 
   # Check and delete service in APP_REGION_1
-  if gcloud run services describe "appopenemrdemo8dad" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" 2>/dev/null; then
+  if gcloud run services describe "appopenemrdemo47c7" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
     
-    if gcloud run services delete "appopenemrdemo8dad" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" --quiet; then
+    if gcloud run services delete "appopenemrdemo47c7" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_1."
       delete_attempted=true
       services_found=true
@@ -45,10 +45,10 @@ while [ $attempt -lt $max_attempts ]; do
   fi
 
   # Check and delete service in APP_REGION_2
-  if gcloud run services describe "appopenemrdemo8dad" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" 2>/dev/null; then
+  if gcloud run services describe "appopenemrdemo47c7" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
     
-    if gcloud run services delete "appopenemrdemo8dad" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" --quiet; then
+    if gcloud run services delete "appopenemrdemo47c7" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_2."
       delete_attempted=true
       services_found=true
@@ -86,10 +86,10 @@ while [ $attempt -lt $max_attempts ]; do
   services_found=false
 
   # Check and delete service in APP_REGION_1
-  if gcloud run services describe "appopenemrdemo8dad" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" 2>/dev/null; then
+  if gcloud run services describe "appopenemrdemo47c7" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
     
-    if gcloud run services delete "appopenemrdemo8dad" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" --quiet; then
+    if gcloud run services delete "appopenemrdemo47c7" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_1."
       delete_attempted=true
       services_found=true
@@ -102,10 +102,10 @@ while [ $attempt -lt $max_attempts ]; do
   fi
 
   # Check and delete service in APP_REGION_2
-  if gcloud run services describe "appopenemrdemo8dad" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" 2>/dev/null; then
+  if gcloud run services describe "appopenemrdemo47c7" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
     
-    if gcloud run services delete "appopenemrdemo8dad" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" --quiet; then
+    if gcloud run services delete "appopenemrdemo47c7" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_2."
       delete_attempted=true
       services_found=true
@@ -149,17 +149,17 @@ attempt_num=1
 
 # Function to check if database exists
 check_database_exists() {
-    local result=$(mysql --defaults-file=$HOME/.my.cnf -u root -h "10.240.0.5" -e "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'appopenemrdemo8dad';" 2>/dev/null | grep -c "appopenemrdemo8dad")
+    local result=$(mysql --defaults-file=$HOME/.my.cnf -u root -h "10.240.0.5" -e "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'appopenemrdemo47c7';" 2>/dev/null | grep -c "appopenemrdemo47c7")
     [[ "$result" == "1" ]]
 }
 
 # Create/update user with NO global privileges initially
-echo "Creating/updating user appopenemrdemo8dad..."
+echo "Creating/updating user appopenemrdemo47c7..."
 mysql --defaults-file=$HOME/.my.cnf -u root -h "10.240.0.5" <<EOF
-CREATE USER IF NOT EXISTS 'appopenemrdemo8dad'@'%' IDENTIFIED BY 'm@niM8mUD_v3Cqwg';
-ALTER USER 'appopenemrdemo8dad'@'%' IDENTIFIED BY 'm@niM8mUD_v3Cqwg';
+CREATE USER IF NOT EXISTS 'appopenemrdemo47c7'@'%' IDENTIFIED BY 'Bti9MpowuqCF9aZ%';
+ALTER USER 'appopenemrdemo47c7'@'%' IDENTIFIED BY 'Bti9MpowuqCF9aZ%';
 # -- ✅ Remove any existing global privileges
-# REVOKE ALL PRIVILEGES ON *.* FROM 'appopenemrdemo8dad'@'%';
+# REVOKE ALL PRIVILEGES ON *.* FROM 'appopenemrdemo47c7'@'%';
 FLUSH PRIVILEGES;
 EOF
 
@@ -167,28 +167,28 @@ EOF
 while [ $attempt_num -le $max_retries ]; do
     echo "Attempt $attempt_num of $max_retries"
 
-    echo "Terminating connections to database appopenemrdemo8dad..."
+    echo "Terminating connections to database appopenemrdemo47c7..."
     # Fixed connection termination logic
-    kill_statements=$(mysql --defaults-file=$HOME/.my.cnf -u root -h "10.240.0.5" -e "SELECT CONCAT('KILL ', id, ';') FROM INFORMATION_SCHEMA.PROCESSLIST WHERE db = 'appopenemrdemo8dad' AND id != CONNECTION_ID();" -N -s 2>/dev/null)
+    kill_statements=$(mysql --defaults-file=$HOME/.my.cnf -u root -h "10.240.0.5" -e "SELECT CONCAT('KILL ', id, ';') FROM INFORMATION_SCHEMA.PROCESSLIST WHERE db = 'appopenemrdemo47c7' AND id != CONNECTION_ID();" -N -s 2>/dev/null)
     if [ -n "$kill_statements" ]; then
         echo "$kill_statements" | mysql --defaults-file=$HOME/.my.cnf -u root -h "10.240.0.5" 2>/dev/null
     fi
 
     if check_database_exists; then
-        echo "Database appopenemrdemo8dad exists, attempting to drop it..."
+        echo "Database appopenemrdemo47c7 exists, attempting to drop it..."
         
         # Try to drop as root user (DB_USER may not have drop privileges yet)
         echo "Dropping database as root user..."
-        drop_result=$(mysql --defaults-file=$HOME/.my.cnf -u root -h "10.240.0.5" -e "DROP DATABASE IF EXISTS \`appopenemrdemo8dad\`;" 2>&1)
+        drop_result=$(mysql --defaults-file=$HOME/.my.cnf -u root -h "10.240.0.5" -e "DROP DATABASE IF EXISTS \`appopenemrdemo47c7\`;" 2>&1)
         
         if [ $? -eq 0 ] && ! check_database_exists; then
-            echo "Database appopenemrdemo8dad dropped successfully."
+            echo "Database appopenemrdemo47c7 dropped successfully."
             break
         else
             echo "Failed to drop database. Error: $drop_result"
         fi
     else
-        echo "Database appopenemrdemo8dad does not exist."
+        echo "Database appopenemrdemo47c7 does not exist."
         break
     fi
 
@@ -201,15 +201,15 @@ while [ $attempt_num -le $max_retries ]; do
 done
 
 if [ $attempt_num -gt $max_retries ]; then
-    echo "Reached maximum number of retries. Failed to drop database appopenemrdemo8dad."
+    echo "Reached maximum number of retries. Failed to drop database appopenemrdemo47c7."
     echo "Database still exists - manual intervention required."
     exit 1
 fi
 
 # Create the database as root
-echo "Creating database appopenemrdemo8dad..."
+echo "Creating database appopenemrdemo47c7..."
 if ! check_database_exists; then
-    create_result=$(mysql --defaults-file=$HOME/.my.cnf -u root -h "10.240.0.5" -e "CREATE DATABASE \`appopenemrdemo8dad\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>&1)
+    create_result=$(mysql --defaults-file=$HOME/.my.cnf -u root -h "10.240.0.5" -e "CREATE DATABASE \`appopenemrdemo47c7\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>&1)
     if [ $? -eq 0 ]; then
         echo "Database created successfully."
     else
@@ -221,35 +221,35 @@ else
 fi
 
 # ✅ Grant privileges ONLY on the specific database
-echo "Granting privileges to appopenemrdemo8dad ONLY on database appopenemrdemo8dad..."
+echo "Granting privileges to appopenemrdemo47c7 ONLY on database appopenemrdemo47c7..."
 mysql --defaults-file=$HOME/.my.cnf -u root -h "10.240.0.5" <<EOF
 -- Grant all privileges on the specific database only
-GRANT ALL PRIVILEGES ON \`appopenemrdemo8dad\`.* TO 'appopenemrdemo8dad'@'%';
+GRANT ALL PRIVILEGES ON \`appopenemrdemo47c7\`.* TO 'appopenemrdemo47c7'@'%';
 -- Allow user to grant privileges on this database to others (if needed)
-GRANT GRANT OPTION ON \`appopenemrdemo8dad\`.* TO 'appopenemrdemo8dad'@'%';
+GRANT GRANT OPTION ON \`appopenemrdemo47c7\`.* TO 'appopenemrdemo47c7'@'%';
 FLUSH PRIVILEGES;
 EOF
 
 if [ $? -eq 0 ]; then
-    echo "Privileges granted successfully on database appopenemrdemo8dad only."
+    echo "Privileges granted successfully on database appopenemrdemo47c7 only."
 else
-    echo "Failed to grant privileges on database appopenemrdemo8dad."
+    echo "Failed to grant privileges on database appopenemrdemo47c7."
     exit 1
 fi
 
 # Verify user has access only to the intended database
 echo "Verifying user privileges..."
-mysql --defaults-file=$HOME/.my.cnf -u root -h "10.240.0.5" -e "SHOW GRANTS FOR 'appopenemrdemo8dad'@'%';"
+mysql --defaults-file=$HOME/.my.cnf -u root -h "10.240.0.5" -e "SHOW GRANTS FOR 'appopenemrdemo47c7'@'%';"
 
 # Attempt to download the backup file only if BACKUP_FILEID is not empty
 if [ -n "" ] ; then
     echo "Attempting to download the backup file using gdown..."
     echo "Using gdown from /root/.local/bin/gdown"
     
-    if sudo /root/.local/bin/gdown "" -O "appopenemrdemo8dad.zip"; then
+    if sudo /root/.local/bin/gdown "" -O "appopenemrdemo47c7.zip"; then
         echo "Backup file downloaded successfully"
-        if [ -f "appopenemrdemo8dad.zip" ]; then
-            echo "Backup file exists and is $(du -h "appopenemrdemo8dad.zip" | cut -f1) in size"
+        if [ -f "appopenemrdemo47c7.zip" ]; then
+            echo "Backup file exists and is $(du -h "appopenemrdemo47c7.zip" | cut -f1) in size"
         fi
     else
         echo "Warning: Failed to download the backup file using /root/.local/bin/gdown."
@@ -258,9 +258,9 @@ else
     echo "Skipping download as BACKUP_FILEID is empty."
 fi
 
-if [ -f "appopenemrdemo8dad.zip" ]; then
+if [ -f "appopenemrdemo47c7.zip" ]; then
     # Extract the backup file using a safe directory name
-    sudo mkdir -p "appopenemrdemo8dad" && sudo rm -rf "appopenemrdemo8dad"/* && sudo unzip "appopenemrdemo8dad.zip" -d "appopenemrdemo8dad"
+    sudo mkdir -p "appopenemrdemo47c7" && sudo rm -rf "appopenemrdemo47c7"/* && sudo unzip "appopenemrdemo47c7.zip" -d "appopenemrdemo47c7"
 
     # Restore the database using DB_USER (who now has privileges on this database only)
     echo "Restoring database from backup..."
@@ -269,13 +269,13 @@ if [ -f "appopenemrdemo8dad.zip" ]; then
     rm -rf $HOME/.my.cnf
     cat > $HOME/.my.cnf << 'EOF'
     [client]
-    user=appopenemrdemo8dad
-    password=m@niM8mUD_v3Cqwg
+    user=appopenemrdemo47c7
+    password=Bti9MpowuqCF9aZ%
     host=10.240.0.5
 EOF
     chmod 600 $HOME/.my.cnf
 
-    restore_result=$(mysql --defaults-file=$HOME/.my.cnf -u "appopenemrdemo8dad" -h "10.240.0.5" "appopenemrdemo8dad" < "appopenemrdemo8dad/dump.sql" 2>&1)
+    restore_result=$(mysql --defaults-file=$HOME/.my.cnf -u "appopenemrdemo47c7" -h "10.240.0.5" "appopenemrdemo47c7" < "appopenemrdemo47c7/dump.sql" 2>&1)
     
     if [ $? -eq 0 ]; then
         echo "Database restored successfully."
@@ -285,7 +285,7 @@ EOF
     fi
 
     # Delete Backup from bastion host
-    sudo rm -rf "appopenemrdemo8dad" && rm -rf "appopenemrdemo8dad.zip"
+    sudo rm -rf "appopenemrdemo47c7" && rm -rf "appopenemrdemo47c7.zip"
 fi
 
 # Clean up 

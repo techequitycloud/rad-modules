@@ -67,8 +67,9 @@ echo "Creating NFS directory structure..."
 # Create directories
 sudo mkdir -p /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}
 
-# Set permissions
-sudo chmod -R 777 /share
+# Set permissions - CRITICAL FIX
+sudo chmod -R 777 /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}
+sudo chown -R www-data:www-data /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}
 
 echo "✓ Directories created successfully:"
 ls -la /share/ | grep app${var.application_database_name}${var.tenant_deployment_id}${local.random_id} || echo "No directories found (this might be normal)"
@@ -215,4 +216,3 @@ resource "null_resource" "import_nfs" {
     null_resource.create_nfs_directories_on_server,
   ]
 }
-

@@ -41,8 +41,10 @@ resource "google_cloud_run_v2_job" "prepare_nfs_directories" {
           
           # Create all required directories
           mkdir -p /var/www/localhost/htdocs/openemr/sites/default
+          mkdir -p /var/www/localhost/htdocs/openemr/sites/default/documents
+          mkdir -p /var/www/localhost/htdocs/openemr/sites/dev
           
-          # Set permissions
+          # Set permissions - make everything accessible
           chmod -R 777 /var/www/localhost/htdocs/openemr/sites
           
           echo "✓ Directories created successfully:"
@@ -300,15 +302,26 @@ resource "google_cloud_run_v2_job" "init_job" {
           
           # Check if already initialized
           if [ -f $$SITES_PATH/default/sqlconf.php ] && [ -f $$SITES_PATH/default/config.php ]; then
-            echo "✓ Configuration files exist. Skipping initialization."
+            echo "✓ Configuration files exist. Verifying permissions..."
+            
+            # Fix permissions even if files exist
+            chmod -R 777 $$SITES_PATH
+            chmod 644 $$SITES_PATH/default/sqlconf.php 2>/dev/null || true
+            chmod 644 $$SITES_PATH/default/config.php 2>/dev/null || true
+            
+            echo "✓ Permissions verified. Skipping initialization."
             exit 0
           fi
           
           echo "Initializing NFS share..."
           
-          # Create directory structure
+          # Create directory structure with correct permissions
           mkdir -p $$SITES_PATH/default
           mkdir -p $$SITES_PATH/default/documents
+          mkdir -p $$SITES_PATH/dev
+          
+          # Set permissions immediately after creation
+          chmod -R 777 $$SITES_PATH
           
           # Install required packages
           echo "Installing required packages..."
@@ -330,15 +343,17 @@ resource "google_cloud_run_v2_job" "init_job" {
             '//  OpenEMR' \
             '//  MySQL Config' \
             '' \
+            'global $disable_utf8_flag;' \
+            '$disable_utf8_flag = false;' \
+            '' \
             '$host = '"'"'DBHOST_PLACEHOLDER'"'"';' \
             '$port = '"'"'3306'"'"';' \
             '$login = '"'"'DBUSER_PLACEHOLDER'"'"';' \
             '$pass = '"'"'DBPASS_PLACEHOLDER'"'"';' \
             '$dbase = '"'"'DBNAME_PLACEHOLDER'"'"';' \
-            '$rootpass = '"'"'ROOTPASS_PLACEHOLDER'"'"';' \
             '$db_encoding = '"'"'utf8mb4'"'"';' \
             '' \
-            '$sqlconf = [];' \
+            '$sqlconf = array();' \
             'global $sqlconf;' \
             '$sqlconf["host"]= $host;' \
             '$sqlconf["port"] = $port;' \
@@ -351,7 +366,7 @@ resource "google_cloud_run_v2_job" "init_job" {
             '//////////////////////////' \
             '//////////////////////////' \
             '//////DO NOT TOUCH THIS///' \
-            '$config = 0; /////////////' \
+            '$config = 1; /////////////' \
             '//////////////////////////' \
             '//////////////////////////' \
             '//////////////////////////' \
@@ -364,7 +379,6 @@ resource "google_cloud_run_v2_job" "init_job" {
           sed -i "s|DBUSER_PLACEHOLDER|$${MYSQL_USER}|g" $$SITES_PATH/default/sqlconf.php
           sed -i "s|DBPASS_PLACEHOLDER|$${MYSQL_PASS}|g" $$SITES_PATH/default/sqlconf.php
           sed -i "s|DBNAME_PLACEHOLDER|$${MYSQL_DATABASE}|g" $$SITES_PATH/default/sqlconf.php
-          sed -i "s|ROOTPASS_PLACEHOLDER|$${MYSQL_ROOT_PASS}|g" $$SITES_PATH/default/sqlconf.php
           
           # Create config.php
           echo "Creating config.php configuration file..."
@@ -401,7 +415,7 @@ resource "google_cloud_run_v2_job" "init_job" {
           sed -i "s|DBPASS_PLACEHOLDER|$${MYSQL_PASS}|g" $$SITES_PATH/default/config.php
           sed -i "s|DBNAME_PLACEHOLDER|$${MYSQL_DATABASE}|g" $$SITES_PATH/default/config.php
           
-          # Set permissions
+          # Set final permissions
           chmod 644 $$SITES_PATH/default/sqlconf.php || true
           chmod 644 $$SITES_PATH/default/config.php || true
           chmod 755 $$SITES_PATH/default || true
