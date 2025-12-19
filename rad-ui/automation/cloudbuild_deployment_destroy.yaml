@@ -833,37 +833,7 @@ steps:
         fi
 
   # ============================================
-  # STEP 9: Release Destroy Lock
-  # ============================================
-  - id: 'Release Destroy Lock'
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        log "🔓 Releasing destroy lock..."
-        
-        if [ -f /workspace/lock_path.txt ]; then
-            LOCK_PATH=$$(cat /workspace/lock_path.txt)
-            
-            # Lock will be deleted with deployment folder, but try to remove explicitly
-            if gsutil rm "$$LOCK_PATH" 2>/dev/null; then
-                log "✅ Lock released successfully"
-            else
-                log "ℹ️  Lock already removed (expected if deployment folder deleted)"
-            fi
-        else
-            log "⚠️  Lock path not found"
-        fi
-
-  # ============================================
-  # STEP 10: Destroy Summary
+  # STEP 9: Destroy Summary
   # ============================================
   - id: 'Destroy Summary'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
@@ -957,6 +927,230 @@ steps:
     dir: /workspace
 
 # ============================================
+# CLEANUP: Always Execute (Success or Failure)
+# ============================================
+finally:
+  # ============================================
+  # CLEANUP STEP 1: Release Destroy Lock
+  # ============================================
+  - id: 'Release Destroy Lock (Cleanup)'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set +e  # Don't fail on errors in cleanup
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        echo "========================================"
+        log "🧹 CLEANUP: Releasing destroy lock"
+        echo "========================================"
+        
+        # Try to read lock path from file first
+        if [ -f /workspace/lock_path.txt ]; then
+            LOCK_PATH=$$(cat /workspace/lock_path.txt)
+            log "📍 Lock path from file: $$LOCK_PATH"
+        else
+            # Fallback: construct lock path from substitution variables
+            LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
+            log "📍 Lock path from substitutions: $$LOCK_PATH"
+        fi
+        
+        # Check if lock exists and belongs to this build
+        if gsutil cp "$$LOCK_PATH" /tmp/lock.json 2>/dev/null; then
+            LOCK_BUILD_ID=$$(cat /tmp/lock.json | grep -o '"build_id":"[^"]*"' | cut -d'"' -f4 2>/dev/null)
+            LOCK_OPERATION=$$(cat /tmp/lock.json | grep -o '"operation":"[^"]*"' | cut -d'"' -f4 2>/dev/null)
+            
+            log "🔍 Lock found:"
+            log "   Lock Build ID: $$LOCK_BUILD_ID"
+            log "   Lock Operation: $$LOCK_OPERATION"
+            log "   Current Build ID: ${BUILD_ID}"
+            
+            if [ "$$LOCK_BUILD_ID" = "${BUILD_ID}" ]; then
+                log "✅ Lock belongs to this build, releasing..."
+                
+                if gsutil rm "$$LOCK_PATH" 2>/dev/null; then
+                    log "✅ Lock released successfully"
+                else
+                    log "⚠️  Failed to release lock"
+                    log "   Lock may have been removed with deployment folder"
+                fi
+            else
+                log "⚠️  Lock belongs to different build ($$LOCK_BUILD_ID)"
+                log "   Skipping lock release to avoid interfering with other operation"
+            fi
+        else
+            log "ℹ️  Lock not found"
+            log "   Lock may have been removed with deployment folder cleanup"
+        fi
+        
+        log "✅ Lock cleanup completed"
+        exit 0  # Always succeed in cleanup
+
+  # ============================================
+  # CLEANUP STEP 2: Upload Final Build Metadata
+  # ============================================
+  - id: 'Upload Final Build Metadata (Cleanup)'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set +e  # Don't fail on errors in cleanup
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        log "📊 CLEANUP: Uploading final build metadata..."
+        
+        # Determine build status
+        BUILD_STATUS="UNKNOWN"
+        DESTROY_STATUS="unknown"
+        VERIFICATION_STATUS="unknown"
+        
+        if [ -f /workspace/destroy_status.txt ]; then
+            DESTROY_STATUS=$$(cat /workspace/destroy_status.txt)
+        fi
+        
+        if [ -f /workspace/verification_status.txt ]; then
+            VERIFICATION_STATUS=$$(cat /workspace/verification_status.txt)
+        fi
+        
+        # Determine overall build status
+        if [ "$$DESTROY_STATUS" = "success" ] && [ "$$VERIFICATION_STATUS" = "success" ]; then
+            BUILD_STATUS="SUCCESS"
+        elif [ "$$DESTROY_STATUS" = "skipped" ]; then
+            BUILD_STATUS="SKIPPED"
+        elif [ "$$VERIFICATION_STATUS" = "partial" ]; then
+            BUILD_STATUS="PARTIAL"
+        elif [ "$$DESTROY_STATUS" = "failed" ]; then
+            BUILD_STATUS="FAILED"
+        else
+            BUILD_STATUS="UNKNOWN"
+        fi
+        
+        # Get backup info
+        BACKUP_STATUS="unknown"
+        BACKUP_LOCATION=""
+        if [ -f /workspace/backup_status.txt ]; then
+            BACKUP_STATUS=$$(cat /workspace/backup_status.txt)
+        fi
+        if [ -f /workspace/backup_location.txt ]; then
+            BACKUP_LOCATION=$$(cat /workspace/backup_location.txt)
+        fi
+        
+        # Create final metadata file
+        cat > /tmp/final_build_metadata.json <<EOF
+        {
+          "build_id": "${BUILD_ID}",
+          "module": "${_MODULE_NAME}",
+          "deployment_id": "${_DEPLOYMENT_ID}",
+          "project_id": "${PROJECT_ID}",
+          "operation": "destroy",
+          "status": "$$BUILD_STATUS",
+          "destroy_status": "$$DESTROY_STATUS",
+          "verification_status": "$$VERIFICATION_STATUS",
+          "backup_status": "$$BACKUP_STATUS",
+          "backup_location": "$$BACKUP_LOCATION",
+          "completed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "triggered_by": "${_TRIGGERED_BY:-manual}"
+        }
+        EOF
+        
+        log "📋 Final build metadata:"
+        cat /tmp/final_build_metadata.json
+        
+        # Upload metadata to audit location
+        METADATA_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/final_build_metadata.json"
+        
+        if gsutil -h "Content-Type:application/json" \
+                  cp /tmp/final_build_metadata.json "$$METADATA_PATH" 2>/dev/null; then
+            log "✅ Final build metadata uploaded"
+        else
+            log "⚠️  Failed to upload final build metadata"
+        fi
+        
+        log "✅ Metadata upload completed"
+        exit 0  # Always succeed in cleanup
+
+  # ============================================
+  # CLEANUP STEP 3: Final Status Summary
+  # ============================================
+  - id: 'Final Status Summary (Cleanup)'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set +e  # Don't fail on errors
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        echo "========================================"
+        log "📊 FINAL DESTROY STATUS"
+        echo "========================================"
+        echo "Build ID: ${BUILD_ID}"
+        echo "Module: ${_MODULE_NAME}"
+        echo "Deployment ID: ${_DEPLOYMENT_ID}"
+        echo "Project: ${PROJECT_ID}"
+        echo "Timestamp: $$(date)"
+        echo "========================================"
+        
+        # Check all statuses
+        if [ -f /workspace/destroy_status.txt ]; then
+            DESTROY_STATUS=$$(cat /workspace/destroy_status.txt)
+            echo "Destroy Status: $$DESTROY_STATUS"
+        else
+            echo "Destroy Status: Not reached (build failed before destroy)"
+        fi
+        
+        if [ -f /workspace/verification_status.txt ]; then
+            VERIFICATION_STATUS=$$(cat /workspace/verification_status.txt)
+            echo "Verification Status: $$VERIFICATION_STATUS"
+        else
+            echo "Verification Status: Not reached"
+        fi
+        
+        if [ -f /workspace/backup_status.txt ]; then
+            BACKUP_STATUS=$$(cat /workspace/backup_status.txt)
+            echo "Backup Status: $$BACKUP_STATUS"
+        else
+            echo "Backup Status: Unknown"
+        fi
+        
+        # Check if lock was released
+        LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
+        if gsutil ls "$$LOCK_PATH" 2>/dev/null; then
+            log "⚠️  WARNING: Lock still exists!"
+            log "   Path: $$LOCK_PATH"
+            log "   This is unexpected - manual cleanup may be required"
+        else
+            log "✅ Lock successfully removed or not found"
+        fi
+        
+        # Check if deployment folder was removed
+        DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+        if gsutil ls "$$DEPLOYMENT_PATH" 2>/dev/null; then
+            log "⚠️  WARNING: Deployment folder still exists!"
+            log "   Path: $$DEPLOYMENT_PATH"
+            log "   Manual cleanup may be required"
+        else
+            log "✅ Deployment folder successfully removed"
+        fi
+        
+        echo "========================================"
+        log "🏁 Cleanup completed"
+        echo "========================================"
+        
+        exit 0  # Always succeed
+
+# ============================================
 # Build Options
 # ============================================
 options:
@@ -964,7 +1158,7 @@ options:
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
   substitutionOption: 'ALLOW_LOOSE'
-  # machineType: 'E2_HIGHCPU_8'  # More power for complex destroys
+  # machineType: 'E2_HIGHCPU_8'  # Uncomment for complex destroys
 
 # ============================================
 # Substitution Variables
