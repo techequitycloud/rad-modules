@@ -14,7 +14,7 @@
 
 # Local variables for bucket existence
 locals {
-  env_suffix = var.configure_development_environment ? "-dev" : ""
+  env_suffix = var.configure_environment ? "" : ""
 
   # Bucket names
   backup_bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}${local.env_suffix}-backups"
