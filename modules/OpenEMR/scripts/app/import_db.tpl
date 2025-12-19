@@ -127,6 +127,26 @@ while [ $attempt -lt $max_attempts ]; do
   sleep 10
 done
 
+# Validate required variables
+if [ -z "${ROOT_PASS}" ]; then
+    echo "ERROR: ROOT_PASS is empty. Cannot connect to MySQL without root password."
+    echo "Please ensure the MySQL root password is stored in Google Secret Manager."
+    echo "Expected secret names:"
+    echo "  - <instance-name>-root-password"
+    echo "  - <instance-name>_root_password"
+    echo "  - db-root-password"
+    echo "  - mysql-root-password"
+    echo "  - sql-root-password"
+    exit 1
+fi
+
+if [ -z "${DB_IP}" ]; then
+    echo "ERROR: DB_IP is empty. Cannot connect to MySQL without database IP address."
+    exit 1
+fi
+
+echo "Connecting to MySQL at ${DB_IP} as root user..."
+
 # Create MySQL configuration file
 rm -rf $HOME/.my.cnf
 cat > $HOME/.my.cnf << 'EOF'
@@ -136,6 +156,70 @@ password=${ROOT_PASS}
 host=${DB_IP}
 EOF
 chmod 600 $HOME/.my.cnf
+
+# Test MySQL connectivity first
+echo "Testing MySQL connectivity..."
+DIRECT_CONNECTION=false
+if mysql --defaults-file=$HOME/.my.cnf -e "SELECT 1;" >/dev/null 2>&1; then
+    echo "MySQL direct connectivity test successful!"
+    DIRECT_CONNECTION=true
+else
+    echo "WARNING: Cannot connect directly to MySQL server at ${DB_IP}"
+    echo "Error details:"
+    mysql --defaults-file=$HOME/.my.cnf -e "SELECT 1;" 2>&1 || true
+    echo ""
+    echo "This is often caused by MySQL root user not being granted access from this IP address."
+    echo "Attempting to use Cloud SQL Proxy as fallback..."
+
+    # Try to start Cloud SQL Proxy
+    INSTANCE_CONNECTION_NAME=$(gcloud sql instances describe $(gcloud sql instances list --project="${PROJECT_ID}" --filter="databaseVersion:MYSQL*" --format="value(name)" --limit=1) --project="${PROJECT_ID}" --format="value(connectionName)" 2>/dev/null || echo "")
+
+    if [ -n "$INSTANCE_CONNECTION_NAME" ]; then
+        echo "Found Cloud SQL instance: $INSTANCE_CONNECTION_NAME"
+        echo "Starting Cloud SQL Proxy on port 3307..."
+
+        # Kill any existing proxy
+        pkill -f cloud_sql_proxy || true
+        sleep 2
+
+        # Start proxy in background
+        cloud_sql_proxy -instances=$INSTANCE_CONNECTION_NAME=tcp:3307 &
+        PROXY_PID=$!
+        sleep 5
+
+        # Test proxy connection
+        rm -rf $HOME/.my.cnf
+        cat > $HOME/.my.cnf << 'EOF'
+[client]
+user=root
+password=${ROOT_PASS}
+host=127.0.0.1
+port=3307
+EOF
+        chmod 600 $HOME/.my.cnf
+
+        if mysql --defaults-file=$HOME/.my.cnf -e "SELECT 1;" >/dev/null 2>&1; then
+            echo "Cloud SQL Proxy connection successful!"
+            DIRECT_CONNECTION=false
+        else
+            echo "ERROR: Both direct connection and Cloud SQL Proxy failed."
+            echo "Please check:"
+            echo "  1. MySQL root password in Secret Manager"
+            echo "  2. MySQL user permissions: GRANT ALL ON *.* TO 'root'@'%' or 'root'@'<nfs-vm-ip>'"
+            echo "  3. Cloud SQL authorized networks configuration"
+            kill $PROXY_PID 2>/dev/null || true
+            exit 1
+        fi
+    else
+        echo "ERROR: Cannot find Cloud SQL instance and direct connection failed."
+        echo "Please ensure:"
+        echo "  1. MySQL root password is correct in Secret Manager"
+        echo "  2. MySQL root user is granted access from IP: $(hostname -I | awk '{print $1}')"
+        echo "  3. You can manually grant access by running on the MySQL server:"
+        echo "     GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '<password>';"
+        exit 1
+    fi
+fi
 
 # To authorize remote connection from root user
 # mysql --defaults-file=$HOME/.my.cnf -u root -h "${DB_IP}" -e "GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%';"
@@ -288,8 +372,15 @@ EOF
     sudo rm -rf "${DB_NAME}" && rm -rf "${DB_NAME}.zip"
 fi
 
-# Clean up 
+# Clean up
 unset MYSQL_PWD
 rm -rf $HOME/.my.cnf
+
+# Kill Cloud SQL Proxy if it was started
+if [ -n "$PROXY_PID" ]; then
+    echo "Stopping Cloud SQL Proxy..."
+    kill $PROXY_PID 2>/dev/null || true
+    pkill -f cloud_sql_proxy || true
+fi
 
 echo "Script completed successfully!"

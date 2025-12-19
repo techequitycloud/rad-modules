@@ -34,11 +34,31 @@ if [ -n "$INSTANCE_INFO" ] && [ "$INSTANCE_INFO" != "[]" ]; then
     DATABASE_VERSION=$(echo "$INSTANCE_INFO" | jq -r '.[0].databaseVersion // ""')
     PRIVATE_IP=$(echo "$INSTANCE_INFO" | jq -r '.[0].ipAddresses[]? | select(.type == "PRIVATE") | .ipAddress // ""')
     
-    # Try to get root password from secrets
+    # Try to get root password from secrets - try multiple naming patterns
+    ROOT_PASSWORD=""
     if [ -n "$INSTANCE_NAME" ]; then
+        # Try pattern 1: instance-name-root-password
         ROOT_PASSWORD=$(gcloud secrets versions access latest --project="${PROJECT_ID}" --secret="${INSTANCE_NAME}-root-password" $SA_ARG 2>/dev/null || echo "")
-    else
-        ROOT_PASSWORD=""
+
+        # Try pattern 2: instance-name_root_password
+        if [ -z "$ROOT_PASSWORD" ]; then
+            ROOT_PASSWORD=$(gcloud secrets versions access latest --project="${PROJECT_ID}" --secret="${INSTANCE_NAME}_root_password" $SA_ARG 2>/dev/null || echo "")
+        fi
+
+        # Try pattern 3: db-root-password
+        if [ -z "$ROOT_PASSWORD" ]; then
+            ROOT_PASSWORD=$(gcloud secrets versions access latest --project="${PROJECT_ID}" --secret="db-root-password" $SA_ARG 2>/dev/null || echo "")
+        fi
+
+        # Try pattern 4: mysql-root-password
+        if [ -z "$ROOT_PASSWORD" ]; then
+            ROOT_PASSWORD=$(gcloud secrets versions access latest --project="${PROJECT_ID}" --secret="mysql-root-password" $SA_ARG 2>/dev/null || echo "")
+        fi
+
+        # Try pattern 5: sql-root-password
+        if [ -z "$ROOT_PASSWORD" ]; then
+            ROOT_PASSWORD=$(gcloud secrets versions access latest --project="${PROJECT_ID}" --secret="sql-root-password" $SA_ARG 2>/dev/null || echo "")
+        fi
     fi
     
     # Output with sql_server_exists = true
