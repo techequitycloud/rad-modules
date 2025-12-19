@@ -16,31 +16,31 @@
 # Configurations for backup import
 #########################################################################
 
-# Create db import script for dev
-resource "local_file" "import_dev_db_script_output" {
+# Create db import script for env
+resource "local_file" "import_db_script_output" {
   count    = local.sql_server_exists ? 1 : 0  
-  filename = "${path.module}/scripts/app/dev/import-db.sh"
+  filename = "${path.module}/scripts/app/import-db.sh"
   content = templatefile("${path.module}/scripts/app/import_db.tpl", {
     PROJECT_ID          = local.project.project_id
     BACKUP_FILEID       = "${var.application_backup_fileid}"
     DB_IP               = local.db_internal_ip
-    DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    DB_PASS             = data.google_secret_manager_secret_version.dev_db_password.secret_data
+    DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    DB_PASS             = data.google_secret_manager_secret_version.db_password.secret_data
     PG_PASS             = local.db_root_password
-    APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+    APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
     APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
     APP_REGION_2        = length(local.regions) > 1 ? local.regions[1] : ""
-    APP_URL             = "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-${local.project_number}.${local.region}.run.app"
+    APP_URL             = "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}-${local.project_number}.${local.region}.run.app"
   })
 }
 
 
 #########################################################################
-# Resource to import dev db
+# Resource to import db
 #########################################################################
 
-resource "null_resource" "import_dev_db" {
+resource "null_resource" "import_db" {
   count    = local.sql_server_exists ? 1 : 0  
     
   triggers = {
@@ -81,7 +81,7 @@ resource "null_resource" "import_dev_db" {
       # Ensure application directory is empty and execute the script
       for i in {1..5}; do
         if [ -z "${local.project_sa_email}" ] || [ -z "${var.resource_creator_identity}" ]; then
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/dev/import-db.sh; then
+          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-db.sh; then
             echo "SSH command succeeded"
             break
           else
@@ -89,7 +89,7 @@ resource "null_resource" "import_dev_db" {
             sleep 30
           fi
         else
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/dev/import-db.sh --impersonate-service-account=${local.project_sa_email}; then
+          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-db.sh --impersonate-service-account=${local.project_sa_email}; then
             echo "SSH command succeeded"
             break
           else
@@ -108,10 +108,9 @@ resource "null_resource" "import_dev_db" {
   }
 
   depends_on = [
-    data.google_secret_manager_secret_version.dev_db_password,
-    google_secret_manager_secret.dev_db_password,
-    local_file.import_dev_db_script_output,
-    null_resource.import_dev_nfs,
+    data.google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret.db_password,
+    local_file.import_db_script_output,
+    null_resource.import_nfs,
   ]
 }
-

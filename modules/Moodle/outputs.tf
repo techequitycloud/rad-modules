@@ -24,12 +24,8 @@ output "cloud_sql_info" {
   value = {
     cloudsql_instance_ip = local.sql_server_exists ? local.db_internal_ip : "" 
     cloud_sql_studio = length(local.db_instance_name) > 0 ? "https://console.cloud.google.com/sql/instances/${local.db_instance_name}/studio?project=${local.project.project_id}&supportedpurview=project,organizationId,folder" : ""
-    development_database_name = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    development_database_user = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    nonproduction_database_name = ""
-    nonproduction_database_user = ""
-    production_database_name = ""
-    production_database_user = ""
+    database_name = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    database_user = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
   }
 }
 
@@ -49,20 +45,16 @@ output "nfs_server_info" {
 
 output "application_info" {
   value = {
-    application_dev_url  = var.configure_development_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-${local.project_number}.${local.region}.run.app" : ""
-    application_qa_url   = ""
-    application_prod_url = ""
-    cloud_secret_manager = var.configure_development_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    application_url  = var.configure_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}-${local.project_number}.${local.region}.run.app" : ""
+    cloud_secret_manager = var.configure_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
     cloud_scheduler      = var.configure_backups ? "https://console.cloud.google.com/cloudscheduler?inv=1&invt=AbioeA&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
   }
 }
 
 output "service_info" {
   value = {
-    service_dev_url  = var.configure_development_environment ? "https://console.cloud.google.com/run/detail/${local.region}/app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev/metrics?orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-    service_qa_url = ""
-    service_prod_url = ""
-    cloud_secret_manager = var.configure_development_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    service_url  = var.configure_environment ? "https://console.cloud.google.com/run/detail/${local.region}/app${var.application_name}${var.tenant_deployment_id}${local.random_id}/metrics?orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    cloud_secret_manager = var.configure_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
     cloud_scheduler = var.configure_backups ? "https://console.cloud.google.com/cloudscheduler?project=${local.project.project_id}&supportedpurview=project,organizationId,folder" : ""
   }
 }
@@ -71,14 +63,12 @@ output "cicd_info" {
   value = {
     github_repository = var.configure_continuous_integration ? "https://github.com/${var.application_git_organization}/${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}.git" : ""
     cloud_build_trigger = var.configure_continuous_integration ? "https://console.cloud.google.com/cloud-build/triggers;region=${local.region}?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-    cloud_artifact_registry = var.configure_development_environment ? "https://console.cloud.google.com/artifacts?inv=1&invt=AbioeA&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    cloud_artifact_registry = var.configure_environment ? "https://console.cloud.google.com/artifacts?inv=1&invt=AbioeA&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
   }
 }
 
 output "application_lb_url_info" {
   value = {
-    dev_app_lb_url  = length(local.regions) >= 2 && (length(google_compute_global_address.dev) > 0) ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev.${google_compute_global_address.dev[0].address}.nip.io" : ""
-    qa_app_lb_url   = ""
-    prod_app_lb_url = ""
+    app_lb_url  = length(local.regions) >= 2 && (length(google_compute_global_address.lb) > 0) ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}.${google_compute_global_address.lb[0].address}.nip.io" : ""
   }
 }
