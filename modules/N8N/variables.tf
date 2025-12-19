@@ -121,19 +121,19 @@ variable "tenant_deployment_id" {
 }
 
 variable "configure_development_environment" {
-  description = "Select to configure development environment. {{UIMeta group=3 order=703 }}"
+  description = "Select to configure development environment. {{UIMeta group=0 order=703 }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "configure_nonproduction_environment" {
-  description = "Select to configure staging environment. {{UIMeta group=3 order=704 }}"
+  description = "Select to configure staging environment. {{UIMeta group=0 order=704 }}"
   type        = bool
   default     = false
 }
 
 variable "configure_production_environment" {
-  description = "Select to configure production environment. {{UIMeta group=3 order=705 }}"
+  description = "Select to configure production environment. {{UIMeta group=0 order=705 }}"
   type        = bool
   default     = false
 }
