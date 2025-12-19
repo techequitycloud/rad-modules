@@ -95,7 +95,7 @@ resource "null_resource" "init_git_repo" {
   }
 
   depends_on = [
-    google_secret_manager_secret.dev_db_password,
+    google_secret_manager_secret.db_password,
     google_cloudbuildv2_repository.github_repository,
     google_secret_manager_secret_version.github-token-secret
   ]

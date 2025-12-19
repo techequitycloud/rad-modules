@@ -13,7 +13,7 @@
 # limitations under the License.
 
 #########################################################################
-# Configurations for Dev environment
+# Configurations for application load balancer
 #########################################################################
 
 # Reserve a global internal IP address for the load balancer

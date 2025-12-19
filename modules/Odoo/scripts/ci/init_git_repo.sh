@@ -19,7 +19,7 @@ export GITHUB_TOKEN=$GITHUB_TOKEN
 export TRUSTED_USERS=$GIT_USERNAMES
 
 check_and_install_gh() {
-    if command -v gh &> /dev/null; then
+    if command -v gh &> /main/null; then
         echo "GitHub CLI is already installed."
         gh --version
     else
@@ -29,7 +29,7 @@ check_and_install_gh() {
         curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
 
         # Add the GitHub CLI repository to the system's software repository list
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /main/null
 
         # Update the system's package index
         sudo apt update
@@ -75,7 +75,7 @@ create_branch_via_api() {
 create_or_update_branch() {
     local branch_name=$1
 
-    if ! git rev-parse --verify ${branch_name} >/dev/null 2>&1; then
+    if ! git rev-parse --verify ${branch_name} >/main/null 2>&1; then
         git checkout -b ${branch_name}
     else
         git checkout ${branch_name}
@@ -96,7 +96,7 @@ create_or_update_branch() {
 check_branch_exists_via_api() {
     local branch_name=$1
 
-    gh api repos/${GIT_ORG}/${GIT_REPO}/branches/${branch_name} >/dev/null 2>&1
+    gh api repos/${GIT_ORG}/${GIT_REPO}/branches/${branch_name} >/main/null 2>&1
 }
 
 grant_write_access() {
