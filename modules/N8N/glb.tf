@@ -13,7 +13,7 @@
 # limitations under the License.
 
 #########################################################################
-# Configure Dev resources
+# Configure resources
 #########################################################################
 
 # Reserve a global IP address for the load balancer

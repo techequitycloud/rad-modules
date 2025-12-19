@@ -13,7 +13,7 @@
 # limitations under the License.
 
 #########################################################################
-# Customize files to add to dev branch on repo
+# Customize files to add to repo
 #########################################################################
 
 # Resource to create a local file from a base kustomization template
@@ -278,7 +278,7 @@ resource "local_file" "secondary_overlay_deploy" {
 }
 
 #########################################################################
-# Add files to repo on dev branch
+# Add files to repo
 #########################################################################
 
 # Resource for creating 'base/primary/kustomization.yaml' in the GitHub repository on the 'main' branch
