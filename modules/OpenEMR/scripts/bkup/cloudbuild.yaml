@@ -15,11 +15,11 @@
 
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'us-central1-docker.pkg.dev/qwiklabs-gcp-03-7d6c3f1a2c26/openemr-demo-8dad/backup:7.0.3', '-f', 'dockerfile', '.']
+  args: ['build', '-t', 'us-central1-docker.pkg.dev/qwiklabs-gcp-03-7d6c3f1a2c26/openemr-demo-47c7/backup:7.0.3', '-f', 'dockerfile', '.']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['tag', 'us-central1-docker.pkg.dev/qwiklabs-gcp-03-7d6c3f1a2c26/openemr-demo-8dad/backup:7.0.3', 'us-central1-docker.pkg.dev/qwiklabs-gcp-03-7d6c3f1a2c26/openemr-demo-8dad/backup:7.0.3']
+  args: ['tag', 'us-central1-docker.pkg.dev/qwiklabs-gcp-03-7d6c3f1a2c26/openemr-demo-47c7/backup:7.0.3', 'us-central1-docker.pkg.dev/qwiklabs-gcp-03-7d6c3f1a2c26/openemr-demo-47c7/backup:7.0.3']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'us-central1-docker.pkg.dev/qwiklabs-gcp-03-7d6c3f1a2c26/openemr-demo-8dad/backup:7.0.3']
+  args: ['push', 'us-central1-docker.pkg.dev/qwiklabs-gcp-03-7d6c3f1a2c26/openemr-demo-47c7/backup:7.0.3']
 serviceAccount: 'projects/qwiklabs-gcp-03-7d6c3f1a2c26/serviceAccounts/cloudbuild-sa@qwiklabs-gcp-03-7d6c3f1a2c26.iam.gserviceaccount.com'
 options:
   logging: CLOUD_LOGGING_ONLY

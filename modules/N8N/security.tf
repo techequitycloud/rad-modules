@@ -48,31 +48,3 @@ resource "google_compute_security_policy" "policy" {
     description = "Deny access to all other IPs"
   }
 }
-
-/**
-resource "google_security_scanner_scan_config" "dev_scanner_config" {
-  count            = (var.configure_development_environment && var.configure_application_security && var.configure_high_availability) ? 1 : 0
-  project          = local.project.project_id
-  provider         = google-beta
-  display_name     = "${var.tenant_deployment_id}-${var.application_name}dev-cr-scan-config"
-  starting_urls    = ["https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev.${google_compute_global_address.dev[0].address}.nip.io"]
-  target_platforms = ["COMPUTE"]
-
-  # Dependencies to ensure resources are created in the correct order
-  depends_on = [
-    google_compute_global_address.dev,
-    time_sleep.wait_for_dev_ip,
-    google_monitoring_uptime_check_config.dev_https,
-  ]
-}
-
-resource "time_sleep" "wait_for_dev_ip" {
-  count = var.configure_development_environment ? 1 : 0
-
-  depends_on = [
-    google_compute_global_address.dev
-  ]
-
-  create_duration = "2m"
-}
-**/

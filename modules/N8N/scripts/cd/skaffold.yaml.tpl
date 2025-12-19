@@ -2,18 +2,13 @@ apiVersion: skaffold/v3alpha1
 kind: Config
 metadata:
   name: ${APP_NAME}
+build:
+  artifacts:
+  - image: ${APP_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}
+    docker:
+      dockerfile: Dockerfile
 profiles:
-- name: dev
+- name: main
   manifests:
     rawYaml:
-    - deploy-dev.yaml
-- name: qa
-  manifests:
-    rawYaml:
-    - deploy-qa.yaml
-- name: prod
-  manifests:
-    rawYaml:
-    - deploy-prod.yaml
-deploy:
-  cloudrun: {}
+    - deploy.yaml
