@@ -488,15 +488,17 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
         }
 
         command = ["/bin/sh"]
-        args = ["-c", <<-'INITSCRIPT'
+        args = [
+          "-c",
+          <<-EOT
           set -e
           
           echo "=== NFS Initialization Script (DEV) ==="
           echo "Environment Check:"
-          echo "  MYSQL_HOST: $MYSQL_HOST"
-          echo "  MYSQL_DATABASE: $MYSQL_DATABASE"
-          echo "  MYSQL_USER: $MYSQL_USER"
-          echo "  MYSQL_PORT: $MYSQL_PORT"
+          echo "  MYSQL_HOST: $$MYSQL_HOST"
+          echo "  MYSQL_DATABASE: $$MYSQL_DATABASE"
+          echo "  MYSQL_USER: $$MYSQL_USER"
+          echo "  MYSQL_PORT: $$MYSQL_PORT"
           
           echo "Checking /mnt/sites..."
           
@@ -521,48 +523,48 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
           echo "Installing required packages..."
           apk add --no-cache wget php81
           
-          # Create sqlconf.php directly with placeholders
+          # Create sqlconf.php using printf to avoid escaping issues
           echo "Creating sqlconf.php configuration file..."
-          cat > /mnt/sites/default/sqlconf.php << 'PHPEOF'
-<?php
-//  OpenEMR
-//  MySQL Config
-
-$host = 'DBHOST_PLACEHOLDER';
-$port = '3306';
-$login = 'DBUSER_PLACEHOLDER';
-$pass = 'DBPASS_PLACEHOLDER';
-$dbase = 'DBNAME_PLACEHOLDER';
-$rootpass = 'ROOTPASS_PLACEHOLDER';
-$db_encoding = 'utf8mb4';
-
-$sqlconf = [];
-global $sqlconf;
-$sqlconf["host"]= $host;
-$sqlconf["port"] = $port;
-$sqlconf["login"] = $login;
-$sqlconf["pass"] = $pass;
-$sqlconf["dbase"] = $dbase;
-$sqlconf["db_encoding"] = $db_encoding;
-
-//////////////////////////
-//////////////////////////
-//////////////////////////
-//////DO NOT TOUCH THIS///
-$config = 0; /////////////
-//////////////////////////
-//////////////////////////
-//////////////////////////
-?>
-PHPEOF
+          printf '%s\n' \
+            '<?php' \
+            '//  OpenEMR' \
+            '//  MySQL Config' \
+            '' \
+            '$host = '"'"'DBHOST_PLACEHOLDER'"'"';' \
+            '$port = '"'"'3306'"'"';' \
+            '$login = '"'"'DBUSER_PLACEHOLDER'"'"';' \
+            '$pass = '"'"'DBPASS_PLACEHOLDER'"'"';' \
+            '$dbase = '"'"'DBNAME_PLACEHOLDER'"'"';' \
+            '$rootpass = '"'"'ROOTPASS_PLACEHOLDER'"'"';' \
+            '$db_encoding = '"'"'utf8mb4'"'"';' \
+            '' \
+            '$sqlconf = [];' \
+            'global $sqlconf;' \
+            '$sqlconf["host"]= $host;' \
+            '$sqlconf["port"] = $port;' \
+            '$sqlconf["login"] = $login;' \
+            '$sqlconf["pass"] = $pass;' \
+            '$sqlconf["dbase"] = $dbase;' \
+            '$sqlconf["db_encoding"] = $db_encoding;' \
+            '' \
+            '//////////////////////////' \
+            '//////////////////////////' \
+            '//////////////////////////' \
+            '//////DO NOT TOUCH THIS///' \
+            '$config = 0; /////////////' \
+            '//////////////////////////' \
+            '//////////////////////////' \
+            '//////////////////////////' \
+            '?>' \
+            > /mnt/sites/default/sqlconf.php
           
           # Replace placeholders with actual values
           echo "Configuring database connection..."
-          sed -i "s|DBHOST_PLACEHOLDER|${MYSQL_HOST}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBUSER_PLACEHOLDER|${MYSQL_USER}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBPASS_PLACEHOLDER|${MYSQL_PASS}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBNAME_PLACEHOLDER|${MYSQL_DATABASE}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|ROOTPASS_PLACEHOLDER|${MYSQL_ROOT_PASS}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBHOST_PLACEHOLDER|$${MYSQL_HOST}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBUSER_PLACEHOLDER|$${MYSQL_USER}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBPASS_PLACEHOLDER|$${MYSQL_PASS}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBNAME_PLACEHOLDER|$${MYSQL_DATABASE}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|ROOTPASS_PLACEHOLDER|$${MYSQL_ROOT_PASS}|g" /mnt/sites/default/sqlconf.php
           
           # Set permissions
           chmod 755 /mnt/sites/default/sqlconf.php || true
@@ -575,28 +577,25 @@ PHPEOF
           if [ -f /mnt/sites/default/sqlconf.php ]; then
             echo "✓ File created successfully"
             
+            # Show file contents for debugging
+            echo "=== File contents ==="
+            cat /mnt/sites/default/sqlconf.php
+            
             # Validate PHP syntax
             echo "Validating PHP syntax..."
             if php -l /mnt/sites/default/sqlconf.php; then
               echo "✓ PHP syntax validation passed"
-              
-              # Show configuration (non-sensitive parts)
-              echo "=== Configuration Summary ==="
-              grep -E '^\$host|^\$port|^\$dbase' /mnt/sites/default/sqlconf.php || true
-              
               echo "✓ Initialization successful"
               exit 0
             else
               echo "ERROR: PHP syntax validation failed"
-              echo "=== File contents ==="
-              cat /mnt/sites/default/sqlconf.php
               exit 1
             fi
           else
             echo "ERROR: sqlconf.php was not created"
             exit 1
           fi
-        INITSCRIPT
+          EOT
         ]
       }
       
@@ -707,15 +706,17 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
         }
 
         command = ["/bin/sh"]
-        args = ["-c", <<-'INITSCRIPT'
+        args = [
+          "-c",
+          <<-EOT
           set -e
           
           echo "=== NFS Initialization Script (QA) ==="
           echo "Environment Check:"
-          echo "  MYSQL_HOST: $MYSQL_HOST"
-          echo "  MYSQL_DATABASE: $MYSQL_DATABASE"
-          echo "  MYSQL_USER: $MYSQL_USER"
-          echo "  MYSQL_PORT: $MYSQL_PORT"
+          echo "  MYSQL_HOST: $$MYSQL_HOST"
+          echo "  MYSQL_DATABASE: $$MYSQL_DATABASE"
+          echo "  MYSQL_USER: $$MYSQL_USER"
+          echo "  MYSQL_PORT: $$MYSQL_PORT"
           
           echo "Checking /mnt/sites..."
           
@@ -740,48 +741,48 @@ resource "google_cloud_run_v2_job" "qa_init_job" {
           echo "Installing required packages..."
           apk add --no-cache wget php81
           
-          # Create sqlconf.php directly with placeholders
+          # Create sqlconf.php using printf to avoid escaping issues
           echo "Creating sqlconf.php configuration file..."
-          cat > /mnt/sites/default/sqlconf.php << 'PHPEOF'
-<?php
-//  OpenEMR
-//  MySQL Config
-
-$host = 'DBHOST_PLACEHOLDER';
-$port = '3306';
-$login = 'DBUSER_PLACEHOLDER';
-$pass = 'DBPASS_PLACEHOLDER';
-$dbase = 'DBNAME_PLACEHOLDER';
-$rootpass = 'ROOTPASS_PLACEHOLDER';
-$db_encoding = 'utf8mb4';
-
-$sqlconf = [];
-global $sqlconf;
-$sqlconf["host"]= $host;
-$sqlconf["port"] = $port;
-$sqlconf["login"] = $login;
-$sqlconf["pass"] = $pass;
-$sqlconf["dbase"] = $dbase;
-$sqlconf["db_encoding"] = $db_encoding;
-
-//////////////////////////
-//////////////////////////
-//////////////////////////
-//////DO NOT TOUCH THIS///
-$config = 0; /////////////
-//////////////////////////
-//////////////////////////
-//////////////////////////
-?>
-PHPEOF
+          printf '%s\n' \
+            '<?php' \
+            '//  OpenEMR' \
+            '//  MySQL Config' \
+            '' \
+            '$host = '"'"'DBHOST_PLACEHOLDER'"'"';' \
+            '$port = '"'"'3306'"'"';' \
+            '$login = '"'"'DBUSER_PLACEHOLDER'"'"';' \
+            '$pass = '"'"'DBPASS_PLACEHOLDER'"'"';' \
+            '$dbase = '"'"'DBNAME_PLACEHOLDER'"'"';' \
+            '$rootpass = '"'"'ROOTPASS_PLACEHOLDER'"'"';' \
+            '$db_encoding = '"'"'utf8mb4'"'"';' \
+            '' \
+            '$sqlconf = [];' \
+            'global $sqlconf;' \
+            '$sqlconf["host"]= $host;' \
+            '$sqlconf["port"] = $port;' \
+            '$sqlconf["login"] = $login;' \
+            '$sqlconf["pass"] = $pass;' \
+            '$sqlconf["dbase"] = $dbase;' \
+            '$sqlconf["db_encoding"] = $db_encoding;' \
+            '' \
+            '//////////////////////////' \
+            '//////////////////////////' \
+            '//////////////////////////' \
+            '//////DO NOT TOUCH THIS///' \
+            '$config = 0; /////////////' \
+            '//////////////////////////' \
+            '//////////////////////////' \
+            '//////////////////////////' \
+            '?>' \
+            > /mnt/sites/default/sqlconf.php
           
           # Replace placeholders with actual values
           echo "Configuring database connection..."
-          sed -i "s|DBHOST_PLACEHOLDER|${MYSQL_HOST}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBUSER_PLACEHOLDER|${MYSQL_USER}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBPASS_PLACEHOLDER|${MYSQL_PASS}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBNAME_PLACEHOLDER|${MYSQL_DATABASE}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|ROOTPASS_PLACEHOLDER|${MYSQL_ROOT_PASS}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBHOST_PLACEHOLDER|$${MYSQL_HOST}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBUSER_PLACEHOLDER|$${MYSQL_USER}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBPASS_PLACEHOLDER|$${MYSQL_PASS}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBNAME_PLACEHOLDER|$${MYSQL_DATABASE}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|ROOTPASS_PLACEHOLDER|$${MYSQL_ROOT_PASS}|g" /mnt/sites/default/sqlconf.php
           
           # Set permissions
           chmod 755 /mnt/sites/default/sqlconf.php || true
@@ -794,28 +795,25 @@ PHPEOF
           if [ -f /mnt/sites/default/sqlconf.php ]; then
             echo "✓ File created successfully"
             
+            # Show file contents for debugging
+            echo "=== File contents ==="
+            cat /mnt/sites/default/sqlconf.php
+            
             # Validate PHP syntax
             echo "Validating PHP syntax..."
             if php -l /mnt/sites/default/sqlconf.php; then
               echo "✓ PHP syntax validation passed"
-              
-              # Show configuration (non-sensitive parts)
-              echo "=== Configuration Summary ==="
-              grep -E '^\$host|^\$port|^\$dbase' /mnt/sites/default/sqlconf.php || true
-              
               echo "✓ Initialization successful"
               exit 0
             else
               echo "ERROR: PHP syntax validation failed"
-              echo "=== File contents ==="
-              cat /mnt/sites/default/sqlconf.php
               exit 1
             fi
           else
             echo "ERROR: sqlconf.php was not created"
             exit 1
           fi
-        INITSCRIPT
+          EOT
         ]
       }
       
@@ -926,15 +924,17 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
         }
 
         command = ["/bin/sh"]
-        args = ["-c", <<-'INITSCRIPT'
+        args = [
+          "-c",
+          <<-EOT
           set -e
           
           echo "=== NFS Initialization Script (PROD) ==="
           echo "Environment Check:"
-          echo "  MYSQL_HOST: $MYSQL_HOST"
-          echo "  MYSQL_DATABASE: $MYSQL_DATABASE"
-          echo "  MYSQL_USER: $MYSQL_USER"
-          echo "  MYSQL_PORT: $MYSQL_PORT"
+          echo "  MYSQL_HOST: $$MYSQL_HOST"
+          echo "  MYSQL_DATABASE: $$MYSQL_DATABASE"
+          echo "  MYSQL_USER: $$MYSQL_USER"
+          echo "  MYSQL_PORT: $$MYSQL_PORT"
           
           echo "Checking /mnt/sites..."
           
@@ -959,48 +959,48 @@ resource "google_cloud_run_v2_job" "prod_init_job" {
           echo "Installing required packages..."
           apk add --no-cache wget php81
           
-          # Create sqlconf.php directly with placeholders
+          # Create sqlconf.php using printf to avoid escaping issues
           echo "Creating sqlconf.php configuration file..."
-          cat > /mnt/sites/default/sqlconf.php << 'PHPEOF'
-<?php
-//  OpenEMR
-//  MySQL Config
-
-$host = 'DBHOST_PLACEHOLDER';
-$port = '3306';
-$login = 'DBUSER_PLACEHOLDER';
-$pass = 'DBPASS_PLACEHOLDER';
-$dbase = 'DBNAME_PLACEHOLDER';
-$rootpass = 'ROOTPASS_PLACEHOLDER';
-$db_encoding = 'utf8mb4';
-
-$sqlconf = [];
-global $sqlconf;
-$sqlconf["host"]= $host;
-$sqlconf["port"] = $port;
-$sqlconf["login"] = $login;
-$sqlconf["pass"] = $pass;
-$sqlconf["dbase"] = $dbase;
-$sqlconf["db_encoding"] = $db_encoding;
-
-//////////////////////////
-//////////////////////////
-//////////////////////////
-//////DO NOT TOUCH THIS///
-$config = 0; /////////////
-//////////////////////////
-//////////////////////////
-//////////////////////////
-?>
-PHPEOF
+          printf '%s\n' \
+            '<?php' \
+            '//  OpenEMR' \
+            '//  MySQL Config' \
+            '' \
+            '$host = '"'"'DBHOST_PLACEHOLDER'"'"';' \
+            '$port = '"'"'3306'"'"';' \
+            '$login = '"'"'DBUSER_PLACEHOLDER'"'"';' \
+            '$pass = '"'"'DBPASS_PLACEHOLDER'"'"';' \
+            '$dbase = '"'"'DBNAME_PLACEHOLDER'"'"';' \
+            '$rootpass = '"'"'ROOTPASS_PLACEHOLDER'"'"';' \
+            '$db_encoding = '"'"'utf8mb4'"'"';' \
+            '' \
+            '$sqlconf = [];' \
+            'global $sqlconf;' \
+            '$sqlconf["host"]= $host;' \
+            '$sqlconf["port"] = $port;' \
+            '$sqlconf["login"] = $login;' \
+            '$sqlconf["pass"] = $pass;' \
+            '$sqlconf["dbase"] = $dbase;' \
+            '$sqlconf["db_encoding"] = $db_encoding;' \
+            '' \
+            '//////////////////////////' \
+            '//////////////////////////' \
+            '//////////////////////////' \
+            '//////DO NOT TOUCH THIS///' \
+            '$config = 0; /////////////' \
+            '//////////////////////////' \
+            '//////////////////////////' \
+            '//////////////////////////' \
+            '?>' \
+            > /mnt/sites/default/sqlconf.php
           
           # Replace placeholders with actual values
           echo "Configuring database connection..."
-          sed -i "s|DBHOST_PLACEHOLDER|${MYSQL_HOST}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBUSER_PLACEHOLDER|${MYSQL_USER}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBPASS_PLACEHOLDER|${MYSQL_PASS}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBNAME_PLACEHOLDER|${MYSQL_DATABASE}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|ROOTPASS_PLACEHOLDER|${MYSQL_ROOT_PASS}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBHOST_PLACEHOLDER|$${MYSQL_HOST}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBUSER_PLACEHOLDER|$${MYSQL_USER}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBPASS_PLACEHOLDER|$${MYSQL_PASS}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|DBNAME_PLACEHOLDER|$${MYSQL_DATABASE}|g" /mnt/sites/default/sqlconf.php
+          sed -i "s|ROOTPASS_PLACEHOLDER|$${MYSQL_ROOT_PASS}|g" /mnt/sites/default/sqlconf.php
           
           # Set permissions
           chmod 755 /mnt/sites/default/sqlconf.php || true
@@ -1013,28 +1013,25 @@ PHPEOF
           if [ -f /mnt/sites/default/sqlconf.php ]; then
             echo "✓ File created successfully"
             
+            # Show file contents for debugging
+            echo "=== File contents ==="
+            cat /mnt/sites/default/sqlconf.php
+            
             # Validate PHP syntax
             echo "Validating PHP syntax..."
             if php -l /mnt/sites/default/sqlconf.php; then
               echo "✓ PHP syntax validation passed"
-              
-              # Show configuration (non-sensitive parts)
-              echo "=== Configuration Summary ==="
-              grep -E '^\$host|^\$port|^\$dbase' /mnt/sites/default/sqlconf.php || true
-              
               echo "✓ Initialization successful"
               exit 0
             else
               echo "ERROR: PHP syntax validation failed"
-              echo "=== File contents ==="
-              cat /mnt/sites/default/sqlconf.php
               exit 1
             fi
           else
             echo "ERROR: sqlconf.php was not created"
             exit 1
           fi
-        INITSCRIPT
+          EOT
         ]
       }
       
