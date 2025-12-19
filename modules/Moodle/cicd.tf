@@ -104,8 +104,6 @@ resource "null_resource" "init_git_repo" {
 
   depends_on = [
     google_secret_manager_secret.dev_db_password,
-    google_secret_manager_secret.qa_db_password,
-    google_secret_manager_secret.prod_db_password,
     google_cloudbuildv2_repository.github_repository,
     google_secret_manager_secret_version.github-token-secret
   ]
@@ -201,98 +199,3 @@ resource "google_cloudbuild_trigger" "dev_repo_trigger" {
   ]
 }
 
-# Resource for creating a Google Cloud Build trigger for a repository
-resource "google_cloudbuild_trigger" "qa_repo_trigger" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_nonproduction_environment ? 1 : 0
-  # The ID of the project where the trigger will be created
-  project  = local.project.project_id
-
-  # Name of the trigger, which includes the application name from a variable
-  name     = "${var.application_name}-qa-github-trigger-${var.tenant_deployment_id}-${local.random_id}"
-
-  # The location/region where the trigger will be applied
-  location = local.region
-
-  # Tnethe trigger can be disabled
-  disabled = true
-
-  # Configuration for repository events that will invoke this trigger
-  repository_event_config {
-    # The ID of the repository that this trigger is associated with
-    repository = google_cloudbuildv2_repository.github_repository[count.index].id
-
-    # Specifies that the trigger should only fire on push events to the 'qa' branch
-    push {
-      branch = "^qa$"
-    }
-  }
-
-  # The path to the build configuration file (cloudbuild.yaml) within the repository
-  filename = "cloudbuild.yaml"
-
-  service_account = "projects/${local.project.project_id}/serviceAccounts/cloudbuild-sa@${local.project.project_id}.iam.gserviceaccount.com"
-
-  # Dependencies ensure that all the specified GitHub repository files are created before this trigger
-  depends_on = [
-    github_repository_file.primary_qa_overlay_kustomization,
-    github_repository_file.primary_qa_base_kustomization,
-    github_repository_file.primary_qa_overlay_deploy,
-    github_repository_file.primary_qa_base_deploy,
-    github_repository_file.secondary_qa_overlay_kustomization,
-    github_repository_file.secondary_qa_base_kustomization,
-    github_repository_file.secondary_qa_overlay_deploy,
-    github_repository_file.secondary_qa_base_deploy,
-    github_repository_file.qa_cloudbuild,
-    github_repository_file.qa_dockerfile,
-    github_repository_file.qa_skaffold,
-    google_cloud_run_v2_service.qa_app_service
-  ]
-}
-
-# Resource for creating a Google Cloud Build trigger for a repository
-resource "google_cloudbuild_trigger" "prod_repo_trigger" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_production_environment ? 1 : 0
-  # The ID of the project where the trigger will be created
-  project  = local.project.project_id
-
-  # Name of the trigger, which includes the application name from a variable
-  name     = "${var.application_name}-prod-github-trigger-${var.tenant_deployment_id}-${local.random_id}"
-
-  # The location/region where the trigger will be applied
-  location = local.region
-
-  # Tnethe trigger can be disabled
-  disabled = true
-
-  # Configuration for repository events that will invoke this trigger
-  repository_event_config {
-    # The ID of the repository that this trigger is associated with
-    repository = google_cloudbuildv2_repository.github_repository[count.index].id
-
-    # Specifies that the trigger should only fire on push events to the 'prod' branch
-    push {
-      branch = "^prod$"
-    }
-  }
-
-  # The path to the build configuration file (cloudbuild.yaml) within the repository
-  filename = "cloudbuild.yaml"
-
-  service_account = "projects/${local.project.project_id}/serviceAccounts/cloudbuild-sa@${local.project.project_id}.iam.gserviceaccount.com"
-
-  # Dependencies ensure that all the specified GitHub repository files are created before this trigger
-  depends_on = [
-    github_repository_file.primary_prod_overlay_kustomization,
-    github_repository_file.primary_prod_base_kustomization,
-    github_repository_file.primary_prod_overlay_deploy,
-    github_repository_file.primary_prod_base_deploy,
-    github_repository_file.secondary_prod_overlay_kustomization,
-    github_repository_file.secondary_prod_base_kustomization,
-    github_repository_file.secondary_prod_overlay_deploy,
-    github_repository_file.secondary_prod_base_deploy,
-    github_repository_file.prod_cloudbuild,
-    github_repository_file.prod_dockerfile,
-    github_repository_file.prod_skaffold,
-    google_cloud_run_v2_service.prod_app_service
-  ]
-}
