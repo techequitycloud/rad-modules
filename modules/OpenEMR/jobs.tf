@@ -37,13 +37,13 @@ resource "google_cloud_run_v2_job" "prepare_nfs_directories" {
           set -e
           
           echo "=== Preparing NFS Directories ==="
-          echo "Creating directory structure for dev environment..."
+          echo "Creating directory structure..."
           
           # Create all required directories
-          mkdir -p /mnt/dev
+          mkdir -p /mnt/share
           
           # Set permissions
-          chmod 777 /mnt/dev
+          chmod 777 /mnt/share
           
           echo "✓ Directories created successfully:"
           ls -la /mnt/
@@ -53,8 +53,8 @@ resource "google_cloud_run_v2_job" "prepare_nfs_directories" {
         ]
         
         volume_mounts {
-          name       = "nfs-dev"
-          mount_path = "/mnt/dev"
+          name       = "nfs-data"
+          mount_path = "/mnt/share"
         }
       }
       
@@ -67,10 +67,10 @@ resource "google_cloud_run_v2_job" "prepare_nfs_directories" {
       }
 
       volumes {
-        name = "nfs-dev"
+        name = "nfs-data"
         nfs {
           server = local.nfs_internal_ip
-          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
       }
     }
@@ -116,10 +116,10 @@ resource "null_resource" "execute_prepare_nfs" {
 # Backup Services
 # ============================================================================
 
-resource "google_cloud_run_v2_job" "dev_backup_service" {
-  count      = var.configure_backups && var.configure_development_environment ? 1 : 0
+resource "google_cloud_run_v2_job" "backup_service" {
+  count      = var.configure_backups && var.configure_environment ? 1 : 0
   project    = local.project.project_id  
-  name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+  name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location   = local.region
   deletion_protection = false
 
@@ -128,8 +128,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
     task_count  = 1
 
     labels = {
-      app : var.application_name,
-      env : "dev"
+      app : var.application_name
     }
 
     template {
@@ -142,19 +141,19 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 
         env {
           name  = "DB_USER"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
 
         env {
           name  = "DB_NAME"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
 
         env {
           name = "DB_PASSWORD"
           value_source {
             secret_key_ref {
-              secret = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
+              secret = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
               version = "latest"
             }
           }
@@ -195,29 +194,28 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
         name = "nfs-data-volume"
         nfs {
           server = "${local.nfs_internal_ip}"
-          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
       }
     }
   }
 
   depends_on = [
-    null_resource.import_dev_db,
-    null_resource.import_dev_nfs,
+    null_resource.import_db,
+    null_resource.import_nfs,
     null_resource.build_and_push_backup_image,
   ]
 }
-
 
 # ============================================================================
 # Initialization Jobs
 # ============================================================================
 
-# Development Initialization Job
-resource "google_cloud_run_v2_job" "dev_init_job" {
-  count      = var.configure_development_environment && local.nfs_server_exists ? 1 : 0
+# Initialization Job
+resource "google_cloud_run_v2_job" "init_job" {
+  count      = var.configure_environment && local.nfs_server_exists ? 1 : 0
   project    = local.project.project_id
-  name       = "init${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+  name       = "init${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location   = local.region
   deletion_protection = false
 
@@ -233,19 +231,19 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
 
         env {
           name  = "MYSQL_DATABASE"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
 
         env {
           name  = "MYSQL_USER"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
 
         env {
           name = "MYSQL_PASS"
           value_source {
             secret_key_ref {
-              secret = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
+              secret = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
               version = "latest"
             }
           }
@@ -282,7 +280,7 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
           <<-EOT
           set -e
           
-          echo "=== NFS Initialization Script (DEV) ==="
+          echo "=== NFS Initialization Script ==="
           echo "Environment Check:"
           echo "  MYSQL_HOST: $$MYSQL_HOST"
           echo "  MYSQL_DATABASE: $$MYSQL_DATABASE"
@@ -400,34 +398,33 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
         name = "nfs-data-volume"
         nfs {
           server = "${local.nfs_internal_ip}"
-          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
       }
     }
   }
   
   depends_on = [
-    null_resource.import_dev_nfs,
+    null_resource.import_nfs,
     null_resource.execute_prepare_nfs
   ]
 }
 
-resource "null_resource" "execute_dev_init_job" {
-  count = var.configure_development_environment && local.nfs_server_exists ? 1 : 0
+resource "null_resource" "execute_init_job" {
+  count = var.configure_environment && local.nfs_server_exists ? 1 : 0
 
   triggers = {
-    job_id = google_cloud_run_v2_job.dev_init_job[0].id
+    job_id = google_cloud_run_v2_job.init_job[0].id
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command = <<EOT
-      gcloud run jobs execute ${google_cloud_run_v2_job.dev_init_job[0].name} --region ${local.region} --project ${local.project.project_id} --wait
+      gcloud run jobs execute ${google_cloud_run_v2_job.init_job[0].name} --region ${local.region} --project ${local.project.project_id} --wait
     EOT
   }
   
   depends_on = [
-    google_cloud_run_v2_job.dev_init_job
+    google_cloud_run_v2_job.init_job
   ]
 }
-

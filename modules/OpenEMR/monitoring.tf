@@ -66,40 +66,39 @@ resource "google_monitoring_notification_channel" "email" {
 }
 
 #########################################################################
-# Configure Dev resources
+# Configure resources
 #########################################################################
 # Define a service for Cloud Run to be monitored.
-resource "google_monitoring_service" "dev_cloud_run" {
-  count =  (var.configure_monitoring && var.configure_development_environment) ? length(local.regions) : 0
-  service_id   = "app${var.application_name}dev-monitoring-service-${var.tenant_deployment_id}-${local.random_id}-${local.regions[count.index]}"
-  display_name = "app${var.application_name}dev-monitoring-service-${var.tenant_deployment_id}-${local.random_id}"
+resource "google_monitoring_service" "cloud_run" {
+  count =  (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
+  service_id   = "app${var.application_name}-monitoring-service-${var.tenant_deployment_id}-${local.random_id}-${local.regions[count.index]}"
+  display_name = "app${var.application_name}-monitoring-service-${var.tenant_deployment_id}-${local.random_id}"
   project      = local.project.project_id
 
   user_labels = {
     app = "app${var.application_name}${var.tenant_deployment_id}"
-    env = "dev"
   }
 
   basic_service {
     service_type  = "CLOUD_RUN"
     service_labels = {
       location = local.regions[count.index]
-      service_name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+      service_name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
     }
   }
 
   depends_on = [
-    google_cloud_scheduler_job.dev_backup,
-    google_cloud_run_v2_service.dev_app_service,
+    google_cloud_scheduler_job.backup,
+    google_cloud_run_v2_service.app_service,
   ]
 }
 
 # Define a Service Level Objective (SLO) for Cloud Run service latency.
-resource "google_monitoring_slo" "dev_latency_slo" {
-  count = (var.configure_monitoring && var.configure_development_environment) ? length(local.regions) : 0
-  service      = google_monitoring_service.dev_cloud_run[count.index].service_id
-  slo_id       = "app${var.application_name}dev-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
-  display_name = "app${var.application_name}dev-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
+resource "google_monitoring_slo" "latency_slo" {
+  count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
+  service      = google_monitoring_service.cloud_run[count.index].service_id
+  slo_id       = "app${var.application_name}-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
+  display_name = "app${var.application_name}-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
   goal         = 0.95
   project      = local.project.project_id
   calendar_period = "DAY"
@@ -115,17 +114,17 @@ resource "google_monitoring_slo" "dev_latency_slo" {
   }
 
   depends_on = [
-    google_monitoring_service.dev_cloud_run,
-    google_cloud_run_v2_service.dev_app_service,
+    google_monitoring_service.cloud_run,
+    google_cloud_run_v2_service.app_service,
   ]
 }
 
 # Define a Service Level Objective (SLO) for Cloud Run service availability.
-resource "google_monitoring_slo" "dev_availability_slo" {
-  count = (var.configure_monitoring && var.configure_development_environment) ? length(local.regions) : 0
-  service      = google_monitoring_service.dev_cloud_run[count.index].service_id
-  slo_id       = "app${var.application_name}dev-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
-  display_name = "app${var.application_name}dev-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
+resource "google_monitoring_slo" "availability_slo" {
+  count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
+  service      = google_monitoring_service.cloud_run[count.index].service_id
+  slo_id       = "app${var.application_name}-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
+  display_name = "app${var.application_name}-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
   goal         = 0.95
   project      = local.project.project_id
   calendar_period = "DAY"
@@ -138,16 +137,16 @@ resource "google_monitoring_slo" "dev_availability_slo" {
   }
 
   depends_on = [
-    google_monitoring_service.dev_cloud_run,
-    google_cloud_run_v2_service.dev_app_service,
+    google_monitoring_service.cloud_run,
+    google_cloud_run_v2_service.app_service,
   ]
 }
 
 # Define an uptime check configuration for monitoring service availability.
-resource "google_monitoring_uptime_check_config" "dev_https" {
-  count = (var.configure_monitoring && var.configure_development_environment) ? length(local.regions) : 0
+resource "google_monitoring_uptime_check_config" "https" {
+  count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
   project = local.project.project_id
-  display_name = "app${var.application_name}dev-uptime-check-config-${var.tenant_deployment_id}-${local.random_id}"
+  display_name = "app${var.application_name}-uptime-check-config-${var.tenant_deployment_id}-${local.random_id}"
   timeout = "60s"
   period = "900s"
 
@@ -162,21 +161,20 @@ resource "google_monitoring_uptime_check_config" "dev_https" {
     type = "cloud_run_revision"
     labels = {
       project_id = local.project.project_id
-      service_name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+      service_name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
       location = local.regions[count.index]
     }
   }
 
   depends_on = [
-    time_sleep.dev_app_service,
-    google_cloud_run_v2_service.dev_app_service,
+    time_sleep.app_service,
+    google_cloud_run_v2_service.app_service,
  ]
 }
 
-resource "time_sleep" "dev_app_service" {
+resource "time_sleep" "app_service" {
   create_duration = "60s"
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service,
+    google_cloud_run_v2_service.app_service,
   ]
 }
-

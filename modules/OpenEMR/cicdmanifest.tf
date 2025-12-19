@@ -17,8 +17,8 @@
 #########################################################################
 
 # Resource to create a local file from a base kustomization template
-resource "local_file" "primary_dev_base_kustomization" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "local_file" "primary_base_kustomization" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   filename = "${path.module}/scripts/ci/base/primary/kustomization.yaml"
   content  = file("${path.module}/scripts/ci/base/kustomization.yaml.tpl")
 
@@ -29,8 +29,8 @@ resource "local_file" "primary_dev_base_kustomization" {
 }
 
 # Resource to create a local file from a base kustomization template
-resource "local_file" "secondary_dev_base_kustomization" {
-  count     = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment && length(local.regions) >= 2 ? 1 : 0
+resource "local_file" "secondary_base_kustomization" {
+  count     = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment && length(local.regions) >= 2 ? 1 : 0
   filename  = "${path.module}/scripts/ci/base/secondary/kustomization.yaml"
   content   = file("${path.module}/scripts/ci/base/kustomization.yaml.tpl")
 
@@ -41,15 +41,15 @@ resource "local_file" "secondary_dev_base_kustomization" {
 }
 
 # Resource to create a local file from an overlay kustomization template, with variables substituted
-resource "local_file" "primary_dev_overlay_kustomization" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "local_file" "primary_overlay_kustomization" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   filename = "${path.module}/scripts/ci/overlay/primary/kustomization.yaml"
   content  = templatefile("${path.module}/scripts/ci/overlay/kustomization.yaml.tpl", {
     PROJECT_ID  = local.project.project_id
     APP_NAME    = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
     REPO_REGION = local.region
     HA_REGION   = "primary"
-    APP_ENV     = "dev"
+    APP_ENV     = "dev" # Assuming 'dev' label for k8s resources or similar logic inside kustomization
     IMAGE_NAME  = var.application_name
     REPO_NAME   = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
   })
@@ -61,8 +61,8 @@ resource "local_file" "primary_dev_overlay_kustomization" {
 }
 
 # Resource to create a local file from an overlay kustomization template, with variables substituted
-resource "local_file" "secondary_dev_overlay_kustomization" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment && length(local.regions) >= 2 ? 1 : 0
+resource "local_file" "secondary_overlay_kustomization" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment && length(local.regions) >= 2 ? 1 : 0
   filename = "${path.module}/scripts/ci/overlay/secondary/kustomization.yaml"
   content  = templatefile("${path.module}/scripts/ci/overlay/kustomization.yaml.tpl", {
     PROJECT_ID  = local.project.project_id
@@ -81,8 +81,8 @@ resource "local_file" "secondary_dev_overlay_kustomization" {
 }
 
 # Resource to create a local file for base deployment, with variables substituted
-resource "local_file" "primary_dev_base_deploy" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "local_file" "primary_base_deploy" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   filename = "${path.module}/scripts/ci/base/primary/deploy.yaml"
   content  = templatefile("${path.module}/scripts/ci/base/deploy.yaml.tpl", {
     PROJECT_ID        = local.project.project_id
@@ -101,8 +101,8 @@ resource "local_file" "primary_dev_base_deploy" {
 }
 
 # Resource to create a local file for base deployment, with variables substituted
-resource "local_file" "secondary_dev_base_deploy" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment && length(local.regions) >= 2 ? 1 : 0
+resource "local_file" "secondary_base_deploy" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment && length(local.regions) >= 2 ? 1 : 0
   filename = "${path.module}/scripts/ci/base/secondary/deploy.yaml"
   content  = templatefile("${path.module}/scripts/ci/base/deploy.yaml.tpl", {
     PROJECT_ID        = local.project.project_id
@@ -121,8 +121,8 @@ resource "local_file" "secondary_dev_base_deploy" {
 }
 
 # Resource to create a local cloudbuild file from a template, with variables substituted
-resource "local_file" "dev_cloudbuild" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment && length(local.regions) > 0 ? 1 : 0
+resource "local_file" "cloudbuild" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment && length(local.regions) > 0 ? 1 : 0
   filename = "${path.module}/scripts/ci/cloudbuild.yaml"
 
   content  = templatefile(
@@ -148,8 +148,8 @@ resource "local_file" "dev_cloudbuild" {
 }
 
 # Resource for creating a Dockerfile from a template, which will be used to build the application's container image.
-resource "local_file" "dev_dockerfile" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "local_file" "dockerfile" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   filename        = "${path.module}/scripts/ci/Dockerfile"
   content         = templatefile("${path.module}/scripts/ci/dockerfile.tpl", {
     APP_VERSION  = "${var.application_version}"
@@ -163,8 +163,8 @@ resource "local_file" "dev_dockerfile" {
 
 # Resource for creating a local Skaffold configuration file from a template.
 # Skaffold is a tool that facilitates CI/CD.
-resource "local_file" "dev_skaffold" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "local_file" "skaffold" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
     filename                  = "${path.module}/scripts/ci/skaffold.yaml"
     content                   = templatefile("${path.module}/scripts/ci/skaffold.yaml.tpl", {
     PROJECT_ID                = local.project.project_id
@@ -182,8 +182,8 @@ resource "local_file" "dev_skaffold" {
 }
 
 # Resource to create a local file for overlay deployment, with variables substituted
-resource "local_file" "primary_dev_overlay_deploy" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "local_file" "primary_overlay_deploy" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   filename = "${path.module}/scripts/ci/overlay/primary/deploy.yaml"
   content  = templatefile("${path.module}/scripts/ci/overlay/deploy.yaml.tpl", {
     # Variables are passed to the template file for dynamic content generation
@@ -192,21 +192,21 @@ resource "local_file" "primary_dev_overlay_deploy" {
     APP_NAME          = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
     APP_ENV           = "dev"
     APP_NFS_IP        = local.nfs_internal_ip
-    DATABASE_USER     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    DATABASE_NAME     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
+    DATABASE_USER     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    DATABASE_NAME     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
     DATABASE_ROOT_PASSWORD = "${ local.db_instance_name}-root-password"
     DATABASE_HOST     = local.db_internal_ip
     DATABASE_INSTANCE =  local.db_instance_name
     IMAGE_NAME        = var.application_name
-    IMAGE_VERSION     = "latest-dev"
+    IMAGE_VERSION     = "latest"
     REPO_NAME         = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
     REPO_REGION        = local.region
     BACKUP_BUCKET     = "${local.project.project_id}-backups"
     DATA_BUCKET       = "${local.project.project_id}-data"
     NETWORK_NAME      = "${var.network_name}"
     HOST_PROJECT_ID   = "${local.project.project_id}"
-    SHARED_DIRECTORY  = "/share/app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+    SHARED_DIRECTORY  = "/share/app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   })
 
   # Ensures that the sql_db_postgresql module is created before this resource
@@ -216,8 +216,8 @@ resource "local_file" "primary_dev_overlay_deploy" {
 }
 
 # Resource to create a local file for overlay deployment, with variables substituted
-resource "local_file" "secondary_dev_overlay_deploy" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment && length(local.regions) >= 2 ? 1 : 0
+resource "local_file" "secondary_overlay_deploy" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment && length(local.regions) >= 2 ? 1 : 0
   filename = "${path.module}/scripts/ci/overlay/secondary/deploy.yaml"
   content  = templatefile("${path.module}/scripts/ci/overlay/deploy.yaml.tpl", {
     # Variables are passed to the template file for dynamic content generation
@@ -226,21 +226,21 @@ resource "local_file" "secondary_dev_overlay_deploy" {
     APP_NAME          = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
     APP_ENV           = "dev"
     APP_NFS_IP        = local.nfs_internal_ip
-    DATABASE_USER     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    DATABASE_NAME     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
+    DATABASE_USER     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    DATABASE_NAME     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
     DATABASE_ROOT_PASSWORD = "${ local.db_instance_name}-root-password"
     DATABASE_HOST     = local.db_internal_ip
     DATABASE_INSTANCE =  local.db_instance_name
     IMAGE_NAME        = var.application_name
-    IMAGE_VERSION     = "latest-dev"
+    IMAGE_VERSION     = "latest"
     REPO_NAME         = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
     REPO_REGION        = local.region
     BACKUP_BUCKET     = "${local.project.project_id}-backups"
     DATA_BUCKET       = "${local.project.project_id}-data"
     NETWORK_NAME      = "${var.network_name}"
     HOST_PROJECT_ID   = "${local.project.project_id}"
-    SHARED_DIRECTORY  = "/share/app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+    SHARED_DIRECTORY  = "/share/app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   })
 
   # Ensures that the sql_db_postgresql module is created before this resource
@@ -249,312 +249,312 @@ resource "local_file" "secondary_dev_overlay_deploy" {
   ]
 }
 
-data "local_file" "dev_auto_configure" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+data "local_file" "auto_configure" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   filename = "${path.module}/scripts/ci/auto_configure.php"
 }
 
-data "local_file" "dev_openemr_conf" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+data "local_file" "openemr_conf" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   filename = "${path.module}/scripts/ci/openemr.conf"
 }
 
-data "local_file" "dev_php_ini" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+data "local_file" "php_ini" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   filename = "${path.module}/scripts/ci/php.ini"
 }
 
-data "local_file" "dev_openemr" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+data "local_file" "openemr" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   filename = "${path.module}/scripts/ci/openemr.sh"
 }
 
-data "local_file" "dev_ssl" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+data "local_file" "ssl" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   filename = "${path.module}/scripts/ci/ssl.sh"
 }
 
-data "local_file" "dev_xdebug" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+data "local_file" "xdebug" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   filename = "${path.module}/scripts/ci/xdebug.sh"
 }
 
-data "local_file" "dev_cloudrun_entrypoint" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+data "local_file" "cloudrun_entrypoint" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   filename = "${path.module}/scripts/ci/cloudrun-entrypoint.sh"
 }
 
 #########################################################################
-# Add files to repo on dev branch
+# Add files to repo on main branch
 #########################################################################
 
-# Resource for creating 'base/primary/kustomization.yaml' in the GitHub repository on the 'dev' branch
-resource "github_repository_file" "primary_dev_base_kustomization" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+# Resource for creating 'base/primary/kustomization.yaml' in the GitHub repository on the 'main' branch
+resource "github_repository_file" "primary_base_kustomization" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add base kustomization.yaml to repo"
   overwrite_on_create = true
   file                = "base/primary/kustomization.yaml"
-  content             = local_file.primary_dev_base_kustomization[count.index].content
+  content             = local_file.primary_base_kustomization[count.index].content
 
-  # Dependencies to ensure the local file and dev branch exist before creation
+  # Dependencies to ensure the local file and main branch exist before creation
   depends_on = [
-    local_file.primary_dev_base_kustomization,
+    local_file.primary_base_kustomization,
     null_resource.init_git_repo
   ]
 }
 
-# Resource for creating 'base/secondary/kustomization.yaml' in the GitHub repository on the 'dev' branch
-resource "github_repository_file" "secondary_dev_base_kustomization" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment && length(local.regions) >= 2 ? 1 : 0
+# Resource for creating 'base/secondary/kustomization.yaml' in the GitHub repository on the 'main' branch
+resource "github_repository_file" "secondary_base_kustomization" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment && length(local.regions) >= 2 ? 1 : 0
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add base kustomization.yaml to repo"
   overwrite_on_create = true
   file                = "base/secondary/kustomization.yaml"
-  content             = local_file.secondary_dev_base_kustomization[count.index].content
+  content             = local_file.secondary_base_kustomization[count.index].content
 
-  # Dependencies to ensure the local file and dev branch exist before creation
+  # Dependencies to ensure the local file and main branch exist before creation
   depends_on = [
-    local_file.secondary_dev_base_kustomization,
+    local_file.secondary_base_kustomization,
     null_resource.init_git_repo
   ]
 }
 
 # Resource for creating 'overlay/primary/kustomization.yaml' in the GitHub repository
-resource "github_repository_file" "primary_dev_overlay_kustomization" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "github_repository_file" "primary_overlay_kustomization" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   # Same repository and branch as before
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add overlay kustomization.yaml to repo"
   overwrite_on_create = true
   file                = "overlay/primary/kustomization.yaml"
-  content             = local_file.primary_dev_overlay_kustomization[count.index].content
+  content             = local_file.primary_overlay_kustomization[count.index].content
 
   # Dependencies for overlay kustomization
   depends_on = [
-    local_file.primary_dev_overlay_kustomization,
+    local_file.primary_overlay_kustomization,
     null_resource.init_git_repo
   ]
 }
 
 # Resource for creating 'overlay/secondary/kustomization.yaml' in the GitHub repository
-resource "github_repository_file" "secondary_dev_overlay_kustomization" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment && length(local.regions) >= 2 ? 1 : 0
+resource "github_repository_file" "secondary_overlay_kustomization" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment && length(local.regions) >= 2 ? 1 : 0
   # Same repository and branch as before
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add overlay kustomization.yaml to repo"
   overwrite_on_create = true
   file                = "overlay/secondary/kustomization.yaml"
-  content             = local_file.secondary_dev_overlay_kustomization[count.index].content
+  content             = local_file.secondary_overlay_kustomization[count.index].content
 
   # Dependencies for overlay kustomization
   depends_on = [
-    local_file.secondary_dev_overlay_kustomization,
+    local_file.secondary_overlay_kustomization,
     null_resource.init_git_repo
   ]
 }
 
 # Resource for creating 'base/deploy.yaml' in the GitHub repository
-resource "github_repository_file" "primary_dev_base_deploy" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "github_repository_file" "primary_base_deploy" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   # Configuration for repository, branch, and commit message
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add base deploy.yaml to repo"
   overwrite_on_create = true
   file                = "base/primary/deploy.yaml"
-  content             = local_file.primary_dev_base_deploy[count.index].content
+  content             = local_file.primary_base_deploy[count.index].content
 
   # Dependencies for base deployment
   depends_on = [
-    local_file.primary_dev_base_deploy,
+    local_file.primary_base_deploy,
     null_resource.init_git_repo
   ]
 }
 
 # Resource for creating 'base/deploy.yaml' in the GitHub repository
-resource "github_repository_file" "secondary_dev_base_deploy" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment && length(local.regions) >= 2 ? 1 : 0
+resource "github_repository_file" "secondary_base_deploy" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment && length(local.regions) >= 2 ? 1 : 0
   # Configuration for repository, branch, and commit message
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add base deploy.yaml to repo"
   overwrite_on_create = true
   file                = "base/secondary/deploy.yaml"
-  content             = local_file.secondary_dev_base_deploy[count.index].content
+  content             = local_file.secondary_base_deploy[count.index].content
 
   # Dependencies for base deployment
   depends_on = [
-    local_file.secondary_dev_base_deploy,
+    local_file.secondary_base_deploy,
     null_resource.init_git_repo
   ]
 }
 
 # Resource for creating 'overlay/primary/deploy.yaml' in the GitHub repository
-resource "github_repository_file" "primary_dev_overlay_deploy" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "github_repository_file" "primary_overlay_deploy" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   # Configuration for repository, branch, and commit message
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add overlay deploy.yaml to repo"
   overwrite_on_create = true
   file                = "overlay/primary/deploy.yaml"
-  content             = local_file.primary_dev_overlay_deploy[count.index].content
+  content             = local_file.primary_overlay_deploy[count.index].content
 
   # Dependencies for overlay deployment
   depends_on = [
-    local_file.primary_dev_overlay_deploy,
+    local_file.primary_overlay_deploy,
     null_resource.init_git_repo
   ]
 }
 
 # Resource for creating 'overlay/secondary/deploy.yaml' in the GitHub repository
-resource "github_repository_file" "secondary_dev_overlay_deploy" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment && length(local.regions) >= 2 ? 1 : 0
+resource "github_repository_file" "secondary_overlay_deploy" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment && length(local.regions) >= 2 ? 1 : 0
   # Configuration for repository, branch, and commit message
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add overlay deploy.yaml to repo"
   overwrite_on_create = true
   file                = "overlay/secondary/deploy.yaml"
-  content             = local_file.secondary_dev_overlay_deploy[count.index].content
+  content             = local_file.secondary_overlay_deploy[count.index].content
 
   # Dependencies for overlay deployment
   depends_on = [
-    local_file.secondary_dev_overlay_deploy,
+    local_file.secondary_overlay_deploy,
     null_resource.init_git_repo
   ]
 }
 
 # Resource definition for a GitHub repository file for the configuration
-resource "github_repository_file" "dev_openemr_conf" {
-  count               = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "github_repository_file" "openemr_conf" {
+  count               = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add file to repo"
   overwrite_on_create = true
   file                = "openemr.conf"
-  content             = data.local_file.dev_openemr_conf[count.index].content
+  content             = data.local_file.openemr_conf[count.index].content
 
   depends_on      = [
-    data.local_file.dev_openemr_conf,
+    data.local_file.openemr_conf,
     null_resource.init_git_repo
   ]
 }
 
 # Resource definition for a GitHub repository file for the configuration
-resource "github_repository_file" "dev_php_ini" {
-  count               = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "github_repository_file" "php_ini" {
+  count               = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add file to repo"
   overwrite_on_create = true
   file                = "php.ini"
-  content             = data.local_file.dev_php_ini[count.index].content
+  content             = data.local_file.php_ini[count.index].content
 
   depends_on      = [
-    data.local_file.dev_php_ini,
+    data.local_file.php_ini,
     null_resource.init_git_repo
   ]
 }
 
 # Resource definition for a GitHub repository file for the script
-resource "github_repository_file" "dev_openemr" {
-  count               = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "github_repository_file" "openemr" {
+  count               = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add file to repo"
   overwrite_on_create = true
   file                = "openemr.sh"
-  content             = data.local_file.dev_openemr[count.index].content
+  content             = data.local_file.openemr[count.index].content
 
   depends_on      = [
-    data.local_file.dev_openemr,
+    data.local_file.openemr,
     null_resource.init_git_repo
   ]
 }
 
 # Resource definition for a GitHub repository file for the script
-resource "github_repository_file" "dev_xdebug" {
-  count               = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "github_repository_file" "xdebug" {
+  count               = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add file to repo"
   overwrite_on_create = true
   file                = "xdebug.sh"
-  content             = data.local_file.dev_xdebug[count.index].content
+  content             = data.local_file.xdebug[count.index].content
 
   depends_on      = [
-    data.local_file.dev_xdebug,
+    data.local_file.xdebug,
     null_resource.init_git_repo
   ]
 }
 
-# Resource for creating the 'cloudrun-entrypoint.sh' file in the GitHub repository on the 'dev' branch
-resource "github_repository_file" "dev_cloudrun_entrypoint" {
-  count               = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+# Resource for creating the 'cloudrun-entrypoint.sh' file in the GitHub repository on the 'main' branch
+resource "github_repository_file" "cloudrun_entrypoint" {
+  count               = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add cloudrun-entrypoint.sh to repo"
   overwrite_on_create = true
   file                = "cloudrun-entrypoint.sh"
-  content             = data.local_file.dev_cloudrun_entrypoint[count.index].content
+  content             = data.local_file.cloudrun_entrypoint[count.index].content
 
-  # Ensure that the local file is created and dev branch exists before this file is added to the repository
+  # Ensure that the local file is created and main branch exists before this file is added to the repository
   depends_on = [
-    data.local_file.dev_cloudrun_entrypoint,
+    data.local_file.cloudrun_entrypoint,
     null_resource.init_git_repo
   ]
 }
 
 # Resource definition for a GitHub repository file for the Cloud Build configuration
-resource "github_repository_file" "dev_cloudbuild" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "github_repository_file" "cloudbuild" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment && length(local.regions) > 0 ? 1 : 0
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add file to repo"
   overwrite_on_create = true
   file                = "cloudbuild.yaml"
-  content             = local_file.dev_cloudbuild[count.index].content
+  content             = local_file.cloudbuild[count.index].content
 
   depends_on      = [
-    local_file.dev_cloudbuild,
+    local_file.cloudbuild,
     null_resource.init_git_repo
   ]
 }
 
 # Resource definition for a GitHub repository file for the Dockerfile
-resource "github_repository_file" "dev_dockerfile" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "github_repository_file" "dockerfile" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add file to repo"
   overwrite_on_create = true
   file                = "Dockerfile"
-  content             = local_file.dev_dockerfile[count.index].content
+  content             = local_file.dockerfile[count.index].content
 
   depends_on      = [
-    local_file.dev_dockerfile,
+    local_file.dockerfile,
     null_resource.init_git_repo
   ]
 }
 
 # Resource definition for a GitHub repository file for the Skaffold configuration
-resource "github_repository_file" "dev_skaffold" {
-  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_development_environment ? 1 : 0
+resource "github_repository_file" "skaffold" {
+  count = var.configure_continuous_integration && var.application_git_token != null && var.application_git_token != "" && var.configure_environment ? 1 : 0
   repository          = "${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
-  branch              = "dev"
+  branch              = "main"
   commit_message      = "Add file to repo"
   overwrite_on_create = true
   file                = "skaffold.yaml"
-  content             = local_file.dev_skaffold[count.index].content
+  content             = local_file.skaffold[count.index].content
 
   depends_on      = [
-    local_file.dev_skaffold,
+    local_file.skaffold,
     null_resource.init_git_repo
   ]
 }
