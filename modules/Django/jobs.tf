@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# --- Dev Jobs ---
+# --- Jobs ---
 
-resource "google_cloud_run_v2_job" "dev_migrate" {
-  count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
-  name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-migrate"
+resource "google_cloud_run_v2_job" "migrate" {
+  count    = var.configure_environment && local.sql_server_exists ? 1 : 0
+  name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-migrate"
   location = local.region
   project  = local.project.project_id
   deletion_protection = false
@@ -32,7 +32,7 @@ resource "google_cloud_run_v2_job" "dev_migrate" {
           name = "APPLICATION_SETTINGS"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.dev_application_settings.secret_id
+              secret = google_secret_manager_secret.application_settings.secret_id
               version = "latest"
             }
           }
@@ -65,9 +65,9 @@ resource "google_cloud_run_v2_job" "dev_migrate" {
   ]
 }
 
-resource "google_cloud_run_v2_job" "dev_createuser" {
-  count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
-  name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-createuser"
+resource "google_cloud_run_v2_job" "createuser" {
+  count    = var.configure_environment && local.sql_server_exists ? 1 : 0
+  name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-createuser"
   location = local.region
   project  = local.project.project_id
   deletion_protection = false
@@ -82,7 +82,7 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
             name = "DJANGO_SUPERUSER_PASSWORD"
             value_source {
                 secret_key_ref {
-                    secret = google_secret_manager_secret.dev_superuser_password.secret_id
+                    secret = google_secret_manager_secret.superuser_password.secret_id
                     version = "latest"
                 }
             }
@@ -91,7 +91,7 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
           name = "APPLICATION_SETTINGS"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.dev_application_settings.secret_id
+              secret = google_secret_manager_secret.application_settings.secret_id
               version = "latest"
             }
           }
@@ -106,7 +106,7 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
         }
         env {
           name = "GS_BUCKET_NAME"
-          value = google_storage_bucket.dev_storage.name
+          value = google_storage_bucket.storage.name
         }
 
         command = ["python", "manage.py", "createsuperuser", "--noinput"]
@@ -139,45 +139,44 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
 }
 
 # Execute jobs
-resource "null_resource" "dev_execute_migrate" {
-  count = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+resource "null_resource" "execute_migrate" {
+  count = var.configure_environment && local.sql_server_exists ? 1 : 0
   triggers = {
-    job_id = google_cloud_run_v2_job.dev_migrate[0].id
+    job_id = google_cloud_run_v2_job.migrate[0].id
   }
 
   provisioner "local-exec" {
-      command = "gcloud run jobs execute ${google_cloud_run_v2_job.dev_migrate[0].name} --region ${local.region} --project ${local.project.project_id} --wait"
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.migrate[0].name} --region ${local.region} --project ${local.project.project_id} --wait"
   }
   depends_on = [
-      google_cloud_run_v2_job.dev_migrate,
+      google_cloud_run_v2_job.migrate,
       null_resource.build_and_push_application_image,
-      google_sql_user.dev_user,
-      google_sql_database.dev_db
+      google_sql_user.user,
+      google_sql_database.db
   ]
 }
 
-resource "null_resource" "dev_execute_createuser" {
-  count = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+resource "null_resource" "execute_createuser" {
+  count = var.configure_environment && local.sql_server_exists ? 1 : 0
   triggers = {
-    job_id = google_cloud_run_v2_job.dev_createuser[0].id
+    job_id = google_cloud_run_v2_job.createuser[0].id
   }
 
   provisioner "local-exec" {
       # Ignore failure if user already exists
-      command = "gcloud run jobs execute ${google_cloud_run_v2_job.dev_createuser[0].name} --region ${local.region} --project ${local.project.project_id} --wait || true"
+      command = "gcloud run jobs execute ${google_cloud_run_v2_job.createuser[0].name} --region ${local.region} --project ${local.project.project_id} --wait || true"
   }
   depends_on = [
-      null_resource.dev_execute_migrate, # Run after migrate
-      google_cloud_run_v2_job.dev_createuser
+      null_resource.execute_migrate, # Run after migrate
+      google_cloud_run_v2_job.createuser
   ]
 }
-
 # Backup Jobs
 
-resource "google_cloud_run_v2_job" "dev_backup_service" {
-  count      = var.configure_backups && var.configure_development_environment && local.nfs_server_exists ? 1 : 0
+resource "google_cloud_run_v2_job" "backup_service" {
+  count      = var.configure_backups && var.configure_environment && local.nfs_server_exists ? 1 : 0
   project    = local.project.project_id
-  name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+  name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location   = local.region
   deletion_protection = false
 
@@ -186,8 +185,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
     task_count  = 1
 
     labels = {
-      app : var.application_name,
-      env : "dev"
+      app : var.application_name
     }
 
     template {
@@ -200,19 +198,19 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 
         env {
           name  = "DB_USER"
-          value = google_sql_user.dev_user.name
+          value = google_sql_user.user.name
         }
 
         env {
           name  = "DB_NAME"
-          value = google_sql_database.dev_db.name
+          value = google_sql_database.db.name
         }
 
         env {
           name = "DB_PASSWORD"
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.dev_db_password.secret_id
+              secret = google_secret_manager_secret.db_password.secret_id
               version = "latest"
             }
           }
@@ -245,7 +243,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
       volumes {
         name = "gcs-backup-volume"
         gcs {
-          bucket = google_storage_bucket.dev_backup_storage.name
+          bucket = google_storage_bucket.backup_storage.name
         }
       }
 
@@ -253,7 +251,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
         name = "nfs-data-volume"
         nfs {
           server = "${local.nfs_internal_ip}"
-          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
       }
     }
@@ -261,9 +259,8 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 
   depends_on = [
     null_resource.build_and_push_backup_image,
-    google_sql_database.dev_db,
-    google_storage_bucket.dev_backup_storage,
-    null_resource.import_dev_nfs # Ensures NFS share exists
+    google_sql_database.db,
+    google_storage_bucket.backup_storage,
+    null_resource.import_nfs # Ensures NFS share exists
   ]
 }
-

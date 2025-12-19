@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resource "google_cloud_run_v2_service" "dev_app_service" {
-  count               = var.configure_development_environment && local.sql_server_exists ? 1 : 0
-  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+resource "google_cloud_run_v2_service" "app_service" {
+  count               = var.configure_environment && local.sql_server_exists ? 1 : 0
+  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location            = local.region
   project             = local.project.project_id
   deletion_protection = false
@@ -25,8 +25,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
     labels = {
-      app = var.application_name,
-      env = "dev"
+      app = var.application_name
     }
 
     containers {
@@ -34,14 +33,14 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
 
       env {
         name = "GS_BUCKET_NAME"
-        value = google_storage_bucket.dev_storage.name
+        value = google_storage_bucket.storage.name
       }
 
       env {
         name = "APPLICATION_SETTINGS"
         value_source {
           secret_key_ref {
-            secret = google_secret_manager_secret.dev_application_settings.secret_id
+            secret = google_secret_manager_secret.application_settings.secret_id
             version = "latest"
           }
         }
@@ -74,17 +73,17 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
 
   depends_on = [
     null_resource.build_and_push_application_image,
-    google_secret_manager_secret_version.dev_application_settings,
+    google_secret_manager_secret_version.application_settings,
     google_project_iam_member.secret_accessor,
     google_project_iam_member.cloudsql_client,
-    google_storage_bucket.dev_storage,
+    google_storage_bucket.storage,
   ]
 }
 
-resource "google_cloud_run_service_iam_binding" "dev" {
-  count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+resource "google_cloud_run_service_iam_binding" "default" {
+  count    = var.configure_environment && local.sql_server_exists ? 1 : 0
   location = local.region
-  service  = google_cloud_run_v2_service.dev_app_service[0].name
+  service  = google_cloud_run_v2_service.app_service[0].name
   role     = "roles/run.invoker"
   members  = [
     "allUsers"
@@ -92,22 +91,22 @@ resource "google_cloud_run_service_iam_binding" "dev" {
   project = local.project.project_id
 }
 
-resource "null_resource" "dev_update_csrf_origin" {
-  count = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+resource "null_resource" "update_csrf_origin" {
+  count = var.configure_environment && local.sql_server_exists ? 1 : 0
   triggers = {
-    service_id = google_cloud_run_v2_service.dev_app_service[0].id
+    service_id = google_cloud_run_v2_service.app_service[0].id
   }
 
   provisioner "local-exec" {
     command = <<EOF
-      URL=$(gcloud run services describe ${google_cloud_run_v2_service.dev_app_service[0].name} --region ${local.region} --project ${local.project.project_id} --format 'value(uri)')
-      gcloud run services update ${google_cloud_run_v2_service.dev_app_service[0].name} \
+      URL=$(gcloud run services describe ${google_cloud_run_v2_service.app_service[0].name} --region ${local.region} --project ${local.project.project_id} --format 'value(uri)')
+      gcloud run services update ${google_cloud_run_v2_service.app_service[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         --set-env-vars CLOUDRUN_SERVICE_URLS=$URL
     EOF
   }
-  depends_on = [google_cloud_run_v2_service.dev_app_service]
+  depends_on = [google_cloud_run_v2_service.app_service]
 }
 
 

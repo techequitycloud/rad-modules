@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-output "dev_app_service_url" {
-  value = length(google_cloud_run_v2_service.dev_app_service) > 0 ? google_cloud_run_v2_service.dev_app_service[0].uri : null
+output "app_service_url" {
+  value = length(google_cloud_run_v2_service.app_service) > 0 ? google_cloud_run_v2_service.app_service[0].uri : null
 }
 
 

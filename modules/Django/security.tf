@@ -5,9 +5,9 @@
 #########################################################################
 
 # Cloud Armor configuration
-resource "google_compute_security_policy" "dev_policy" {
-  count = (var.configure_development_environment && var.configure_application_security && length(var.application_authorized_network) > 0 && length(var.application_secure_path) > 0) ? 1 : 0
-  name    = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+resource "google_compute_security_policy" "policy" {
+  count = (var.configure_environment && var.configure_application_security && length(var.application_authorized_network) > 0 && length(var.application_secure_path) > 0) ? 1 : 0
+  name    = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   project = local.project.project_id
 
   # Rule to allow access from authorized IP ranges
@@ -51,7 +51,7 @@ resource "google_compute_security_policy" "dev_policy" {
 
 /**
 resource "google_security_scanner_scan_config" "dev_scanner_config" {
-  count            = (var.configure_development_environment && var.configure_application_security && var.configure_high_availability) ? 1 : 0
+  count            = (var.configure_environment && var.configure_application_security && var.configure_high_availability) ? 1 : 0
   project          = local.project.project_id
   provider         = google-beta
   display_name     = "${var.tenant_deployment_id}-${var.application_name}dev-cr-scan-config"
@@ -67,7 +67,7 @@ resource "google_security_scanner_scan_config" "dev_scanner_config" {
 }
 
 resource "time_sleep" "wait_for_dev_ip" {
-  count = var.configure_development_environment ? 1 : 0
+  count = var.configure_environment ? 1 : 0
 
   depends_on = [
     google_compute_global_address.dev
