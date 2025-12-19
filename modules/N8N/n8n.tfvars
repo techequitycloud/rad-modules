@@ -10,4 +10,4 @@ existing_project_id = "qwiklabs-gcp-00-b0bbc4e83504"
 network_name = "vpc-network"
 
 # environments
-configure_development_environment = true
+configure_environment = true
