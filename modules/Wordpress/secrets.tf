@@ -24,7 +24,7 @@ resource "random_password" "additional_user_password" {
 }
 
 #########################################################################
-# Secret Manager resources for Dev environment
+# Secret Manager resources
 #########################################################################
 
 # Resource for creating a secret in Google Secret Manager to store the database password

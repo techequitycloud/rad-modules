@@ -158,7 +158,7 @@ resource "local_file" "clouddeploy_dockerfile" {
 }
 
 # Resource to create a local cloudbuild file from a template, with variables substituted
-resource "local_file" "cicd_cloudbuild" {
+resource "local_file" "clouddeploy_cicd_cloudbuild" {
   count = var.configure_continuous_deployment ? 1 : 0
   filename = "${path.module}/scripts/app/cloudbuild.yaml"
   content  = templatefile("${path.module}/scripts/app/cloudbuild.yaml.tpl", {
