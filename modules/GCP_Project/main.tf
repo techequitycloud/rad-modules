@@ -21,7 +21,13 @@ locals {
     "serviceusage.googleapis.com",
   ]
 
+  quota_apis = var.enable_quota_overrides ? [
+    "compute.googleapis.com",
+    "serviceusage.googleapis.com",
+  ] : []
+
   project_services = var.enable_services ? local.default_apis : []
+  all_services = distinct(concat(local.project_services, local.quota_apis))
 }
 
 resource "random_id" "default" {
@@ -39,7 +45,7 @@ resource "google_project" "project" {
 }
 
 resource "google_project_service" "enabled_services" {
-  for_each                   = toset(local.project_services)
+  for_each                   = toset(local.all_services)
   project                    = google_project.project.project_id
   service                    = each.value
   disable_dependent_services = true
@@ -51,4 +57,20 @@ resource "google_project_iam_member" "role_trusted" {
   member   = "user:${each.value}"
   project  = google_project.project.project_id
   role     = "roles/viewer"
+}
+
+# Quota overrides for Compute Engine resources
+resource "google_service_usage_consumer_quota_override" "compute_quotas" {
+  for_each = var.enable_quota_overrides ? var.quota_overrides : {}
+
+  project        = google_project.project.project_id
+  service        = "compute.googleapis.com"
+  metric         = urlencode("compute.googleapis.com/${each.value.metric}")
+  limit          = "/%2Fproject%2F${google_project.project.project_id}"
+  override_value = tostring(each.value.limit)
+  force          = true
+
+  depends_on = [
+    google_project_service.enabled_services
+  ]
 }

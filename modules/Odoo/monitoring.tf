@@ -68,10 +68,10 @@ resource "google_monitoring_notification_channel" "email" {
 */
 
 #########################################################################
-# Configure resources
+# Configure Resources
 #########################################################################
 # Define a service for Cloud Run to be monitored.
-resource "google_monitoring_service" "cloud_run_monitoring" {
+resource "google_monitoring_service" "cloud_run" {
   count =  (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
   service_id   = "app${var.application_name}-monitoring-service-${var.tenant_deployment_id}-${local.random_id}-${local.regions[count.index]}"
   display_name = "app${var.application_name}-monitoring-service-${var.tenant_deployment_id}-${local.random_id}"
@@ -79,7 +79,6 @@ resource "google_monitoring_service" "cloud_run_monitoring" {
 
   user_labels = {
     app = "app${var.application_name}${var.tenant_deployment_id}"
-    env = "app"
   }
 
   basic_service {
@@ -99,7 +98,7 @@ resource "google_monitoring_service" "cloud_run_monitoring" {
 # Define a Service Level Objective (SLO) for Cloud Run service latency.
 resource "google_monitoring_slo" "latency_slo" {
   count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
-  service      = google_monitoring_service.cloud_run_monitoring[count.index].service_id
+  service      = google_monitoring_service.cloud_run[count.index].service_id
   slo_id       = "app${var.application_name}-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
   display_name = "app${var.application_name}-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
   goal         = 0.95
@@ -117,7 +116,7 @@ resource "google_monitoring_slo" "latency_slo" {
   }
 
   depends_on = [
-    google_monitoring_service.cloud_run_monitoring,
+    google_monitoring_service.cloud_run,
     google_cloud_run_v2_service.app_service,
   ]
 }
@@ -125,7 +124,7 @@ resource "google_monitoring_slo" "latency_slo" {
 # Define a Service Level Objective (SLO) for Cloud Run service availability.
 resource "google_monitoring_slo" "availability_slo" {
   count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
-  service      = google_monitoring_service.cloud_run_monitoring[count.index].service_id
+  service      = google_monitoring_service.cloud_run[count.index].service_id
   slo_id       = "app${var.application_name}-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
   display_name = "app${var.application_name}-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
   goal         = 0.95
@@ -140,7 +139,7 @@ resource "google_monitoring_slo" "availability_slo" {
   }
 
   depends_on = [
-    google_monitoring_service.cloud_run_monitoring,
+    google_monitoring_service.cloud_run,
     google_cloud_run_v2_service.app_service,
   ]
 }
@@ -169,12 +168,12 @@ resource "google_monitoring_uptime_check_config" "https_uptime_check" {
   }
 
   depends_on = [
-    time_sleep.app_service_sleep,
+    time_sleep.app_service,
     google_cloud_run_v2_service.app_service,
   ]
 }
 
-resource "time_sleep" "app_service_sleep" {
+resource "time_sleep" "app_service" {
   create_duration = "60s"
   depends_on = [
     google_cloud_run_v2_service.app_service,

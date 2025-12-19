@@ -163,9 +163,9 @@ resource "google_cloudbuild_trigger" "repo_trigger" {
     # The ID of the repository that this trigger is associated with
     repository = google_cloudbuildv2_repository.github_repository[count.index].id
 
-    # Specifies that the trigger should only fire on push events to the 'dev' branch
+    # Specifies that the trigger should only fire on push events to the 'main' branch
     push {
-      branch = "^dev$"
+      branch = "^main$"
     }
   }
 

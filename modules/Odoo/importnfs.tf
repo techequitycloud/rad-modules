@@ -18,11 +18,16 @@
 
 # Create db import script
 resource "local_file" "import_nfs_script_output" {
+resource "local_file" "import_nfs_script_output" {
   count    = local.nfs_server_exists ? 1 : 0  
+  filename = "${path.module}/scripts/app/import-nfs.sh"
   filename = "${path.module}/scripts/app/import-nfs.sh"
   content = templatefile("${path.module}/scripts/app/import_nfs.tpl", {
     PROJECT_ID          = local.project.project_id
     BACKUP_FILEID       = "${var.application_backup_fileid}"
+    DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
     DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
     DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
     APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
@@ -81,6 +86,7 @@ resource "null_resource" "import_nfs" {
       for i in {1..5}; do
         if [ -z "${local.project_sa_email}" ] || [ -z "${var.resource_creator_identity}" ]; then
           if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-nfs.sh; then
+          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-nfs.sh; then
             echo "SSH command succeeded"
             break
           else
@@ -88,6 +94,7 @@ resource "null_resource" "import_nfs" {
             sleep 30
           fi
         else
+          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-nfs.sh --impersonate-service-account=${local.project_sa_email}; then
           if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-nfs.sh --impersonate-service-account=${local.project_sa_email}; then
             echo "SSH command succeeded"
             break
@@ -107,6 +114,7 @@ resource "null_resource" "import_nfs" {
   }
 
   depends_on = [
+    local_file.import_nfs_script_output,
     local_file.import_nfs_script_output,
     null_resource.build_and_push_application_image,
     null_resource.build_and_push_backup_image,

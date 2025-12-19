@@ -28,8 +28,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     timeout = "300s"
 
     labels = {
-      app = var.application_name,
-      env = "app"
+      app = var.application_name
     }
 
     containers {
@@ -184,8 +183,7 @@ resource "google_cloud_run_v2_job" "backup_service" {
     task_count  = 1
 
     labels = {
-      app : var.application_name,
-      env : "app"
+      app : var.application_name
     }
 
     template {

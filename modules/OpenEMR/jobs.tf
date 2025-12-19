@@ -37,24 +37,26 @@ resource "google_cloud_run_v2_job" "prepare_nfs_directories" {
           set -e
           
           echo "=== Preparing NFS Directories ==="
-          echo "Creating directory structure for dev environment..."
+          echo "Creating directory structure..."
           
           # Create all required directories
-          mkdir -p /mnt/dev
+          mkdir -p /var/www/localhost/htdocs/openemr/sites/default
+          mkdir -p /var/www/localhost/htdocs/openemr/sites/default/documents
+          mkdir -p /var/www/localhost/htdocs/openemr/sites/dev
           
-          # Set permissions
-          chmod 777 /mnt/dev
+          # Set permissions - make everything accessible
+          chmod -R 777 /var/www/localhost/htdocs/openemr/sites
           
           echo "✓ Directories created successfully:"
-          ls -la /mnt/
+          ls -la /var/www/localhost/htdocs/openemr/sites/
           
           echo "✓ NFS directory preparation complete"
         EOT
         ]
         
         volume_mounts {
-          name       = "nfs-dev"
-          mount_path = "/mnt/dev"
+          name       = "nfs"
+          mount_path = "/var/www/localhost/htdocs/openemr/sites"
         }
       }
       
@@ -67,10 +69,10 @@ resource "google_cloud_run_v2_job" "prepare_nfs_directories" {
       }
 
       volumes {
-        name = "nfs-dev"
+        name = "nfs"
         nfs {
           server = local.nfs_internal_ip
-          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
       }
     }
@@ -116,10 +118,10 @@ resource "null_resource" "execute_prepare_nfs" {
 # Backup Services
 # ============================================================================
 
-resource "google_cloud_run_v2_job" "dev_backup_service" {
-  count      = var.configure_backups && var.configure_development_environment ? 1 : 0
+resource "google_cloud_run_v2_job" "backup_service" {
+  count      = var.configure_backups && var.configure_environment ? 1 : 0
   project    = local.project.project_id  
-  name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+  name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location   = local.region
   deletion_protection = false
 
@@ -129,7 +131,6 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 
     labels = {
       app : var.application_name,
-      env : "dev"
     }
 
     template {
@@ -142,19 +143,19 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 
         env {
           name  = "DB_USER"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
 
         env {
           name  = "DB_NAME"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
 
         env {
           name = "DB_PASSWORD"
           value_source {
             secret_key_ref {
-              secret = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
+              secret = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
               version = "latest"
             }
           }
@@ -172,7 +173,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 
         volume_mounts {
           name      = "nfs-data-volume"
-          mount_path = "/mnt"
+          mount_path = "/var/www/localhost/htdocs/openemr/sites"
         }
       }
 
@@ -195,15 +196,15 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
         name = "nfs-data-volume"
         nfs {
           server = "${local.nfs_internal_ip}"
-          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
       }
     }
   }
 
   depends_on = [
-    null_resource.import_dev_db,
-    null_resource.import_dev_nfs,
+    null_resource.import_db,
+    null_resource.import_nfs,
     null_resource.build_and_push_backup_image,
   ]
 }
@@ -213,11 +214,11 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 # Initialization Jobs
 # ============================================================================
 
-# Development Initialization Job
-resource "google_cloud_run_v2_job" "dev_init_job" {
-  count      = var.configure_development_environment && local.nfs_server_exists ? 1 : 0
+# Initialization Job
+resource "google_cloud_run_v2_job" "init_job" {
+  count      = var.configure_environment && local.nfs_server_exists ? 1 : 0
   project    = local.project.project_id
-  name       = "init${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+  name       = "init${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location   = local.region
   deletion_protection = false
 
@@ -233,19 +234,19 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
 
         env {
           name  = "MYSQL_DATABASE"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
 
         env {
           name  = "MYSQL_USER"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
 
         env {
           name = "MYSQL_PASS"
           value_source {
             secret_key_ref {
-              secret = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
+              secret = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
               version = "latest"
             }
           }
@@ -273,7 +274,7 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
         
         volume_mounts {
           name       = "nfs-data-volume"
-          mount_path = "/mnt/sites"
+          mount_path = "/var/www/localhost/htdocs/openemr/sites"
         }
 
         command = ["/bin/sh"]
@@ -282,108 +283,187 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
           <<-EOT
           set -e
           
-          echo "=== NFS Initialization Script (DEV) ==="
+          echo "=== NFS Initialization Script ==="
           echo "Environment Check:"
-          echo "  MYSQL_HOST: $$MYSQL_HOST"
-          echo "  MYSQL_DATABASE: $$MYSQL_DATABASE"
-          echo "  MYSQL_USER: $$MYSQL_USER"
-          echo "  MYSQL_PORT: $$MYSQL_PORT"
+          echo "  MYSQL_HOST: $MYSQL_HOST"
+          echo "  MYSQL_DATABASE: $MYSQL_DATABASE"
+          echo "  MYSQL_USER: $MYSQL_USER"
+          echo "  MYSQL_PORT: $MYSQL_PORT"
           
-          echo "Checking /mnt/sites..."
+          SITES_PATH="/var/www/localhost/htdocs/openemr/sites"
+          
+          echo "Checking $SITES_PATH..."
           
           # Verify NFS mount is accessible
-          if ! ls /mnt/sites > /dev/null 2>&1; then
-            echo "ERROR: Cannot access /mnt/sites - NFS mount may have failed"
+          if ! ls $SITES_PATH > /dev/null 2>&1; then
+            echo "ERROR: Cannot access $SITES_PATH - NFS mount may have failed"
             exit 1
           fi
           
           # Check if already initialized
-          if [ -f /mnt/sites/default/sqlconf.php ]; then
-            echo "✓ /mnt/sites/default/sqlconf.php exists. Skipping initialization."
+          if [ -f $SITES_PATH/default/sqlconf.php ] && [ -f $SITES_PATH/default/config.php ]; then
+            echo "✓ Configuration files exist. Verifying permissions..."
+            
+            # Fix permissions even if files exist
+            chmod -R 777 $SITES_PATH
+            chmod 644 $SITES_PATH/default/sqlconf.php 2>/dev/null || true
+            chmod 644 $SITES_PATH/default/config.php 2>/dev/null || true
+            
+            echo "✓ Permissions verified. Skipping initialization."
             exit 0
           fi
           
           echo "Initializing NFS share..."
           
-          # Create directory structure
-          mkdir -p /mnt/sites/default
+          # Create directory structure with correct permissions
+          mkdir -p $SITES_PATH/default
+          mkdir -p $SITES_PATH/default/documents
+          mkdir -p $SITES_PATH/dev
+          
+          # Set permissions immediately after creation
+          chmod -R 777 $SITES_PATH
           
           # Install required packages
           echo "Installing required packages..."
-          apk add --no-cache wget php81
+          apk update
+          apk add --no-cache php81 php81-cli
           
-          # Create sqlconf.php using printf to avoid escaping issues
+          # Verify PHP installation
+          echo "Verifying PHP installation..."
+          if ! command -v php81 >/dev/null 2>&1; then
+            echo "ERROR: PHP installation failed"
+            exit 1
+          fi
+          echo "✓ PHP installed successfully: $(php81 --version | head -n1)"
+          
+          # Create sqlconf.php
           echo "Creating sqlconf.php configuration file..."
-          printf '%s\n' \
-            '<?php' \
-            '//  OpenEMR' \
-            '//  MySQL Config' \
-            '' \
-            '$host = '"'"'DBHOST_PLACEHOLDER'"'"';' \
-            '$port = '"'"'3306'"'"';' \
-            '$login = '"'"'DBUSER_PLACEHOLDER'"'"';' \
-            '$pass = '"'"'DBPASS_PLACEHOLDER'"'"';' \
-            '$dbase = '"'"'DBNAME_PLACEHOLDER'"'"';' \
-            '$rootpass = '"'"'ROOTPASS_PLACEHOLDER'"'"';' \
-            '$db_encoding = '"'"'utf8mb4'"'"';' \
-            '' \
-            '$sqlconf = [];' \
-            'global $sqlconf;' \
-            '$sqlconf["host"]= $host;' \
-            '$sqlconf["port"] = $port;' \
-            '$sqlconf["login"] = $login;' \
-            '$sqlconf["pass"] = $pass;' \
-            '$sqlconf["dbase"] = $dbase;' \
-            '$sqlconf["db_encoding"] = $db_encoding;' \
-            '' \
-            '//////////////////////////' \
-            '//////////////////////////' \
-            '//////////////////////////' \
-            '//////DO NOT TOUCH THIS///' \
-            '$config = 0; /////////////' \
-            '//////////////////////////' \
-            '//////////////////////////' \
-            '//////////////////////////' \
-            '?>' \
-            > /mnt/sites/default/sqlconf.php
+          cat > $SITES_PATH/default/sqlconf.php << 'SQLCONF_EOF'
+<?php
+//  OpenEMR
+//  MySQL Config
+
+global $disable_utf8_flag;
+$disable_utf8_flag = false;
+
+$host = 'DBHOST_PLACEHOLDER';
+$port = '3306';
+$login = 'DBUSER_PLACEHOLDER';
+$pass = 'DBPASS_PLACEHOLDER';
+$dbase = 'DBNAME_PLACEHOLDER';
+$db_encoding = 'utf8mb4';
+
+$sqlconf = array();
+global $sqlconf;
+$sqlconf["host"]= $host;
+$sqlconf["port"] = $port;
+$sqlconf["login"] = $login;
+$sqlconf["pass"] = $pass;
+$sqlconf["dbase"] = $dbase;
+$sqlconf["db_encoding"] = $db_encoding;
+
+//////////////////////////
+//////////////////////////
+//////////////////////////
+//////DO NOT TOUCH THIS///
+$config = 1; /////////////
+//////////////////////////
+//////////////////////////
+//////////////////////////
+?>
+SQLCONF_EOF
           
-          # Replace placeholders with actual values
-          echo "Configuring database connection..."
-          sed -i "s|DBHOST_PLACEHOLDER|$${MYSQL_HOST}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBUSER_PLACEHOLDER|$${MYSQL_USER}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBPASS_PLACEHOLDER|$${MYSQL_PASS}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBNAME_PLACEHOLDER|$${MYSQL_DATABASE}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|ROOTPASS_PLACEHOLDER|$${MYSQL_ROOT_PASS}|g" /mnt/sites/default/sqlconf.php
+          # Replace placeholders in sqlconf.php
+          echo "Configuring database connection in sqlconf.php..."
+          sed -i "s|DBHOST_PLACEHOLDER|$MYSQL_HOST|g" $SITES_PATH/default/sqlconf.php
+          sed -i "s|DBUSER_PLACEHOLDER|$MYSQL_USER|g" $SITES_PATH/default/sqlconf.php
+          sed -i "s|DBPASS_PLACEHOLDER|$MYSQL_PASS|g" $SITES_PATH/default/sqlconf.php
+          sed -i "s|DBNAME_PLACEHOLDER|$MYSQL_DATABASE|g" $SITES_PATH/default/sqlconf.php
           
-          # Set permissions
-          chmod 755 /mnt/sites/default/sqlconf.php || true
-          chmod 755 /mnt/sites/default || true
-          chmod 755 /mnt/sites || true
+          # Create config.php
+          echo "Creating config.php configuration file..."
+          cat > $SITES_PATH/default/config.php << 'CONFIG_EOF'
+<?php
+// OpenEMR Configuration File
+
+$GLOBALS['OE_SITE_DIR'] = '/var/www/localhost/htdocs/openemr/sites/default';
+$GLOBALS['OE_SITES_BASE'] = '/var/www/localhost/htdocs/openemr/sites';
+
+// Database configuration
+$GLOBALS['host'] = 'DBHOST_PLACEHOLDER';
+$GLOBALS['port'] = '3306';
+$GLOBALS['login'] = 'DBUSER_PLACEHOLDER';
+$GLOBALS['pass'] = 'DBPASS_PLACEHOLDER';
+$GLOBALS['dbase'] = 'DBNAME_PLACEHOLDER';
+$GLOBALS['db_encoding'] = 'utf8mb4';
+
+// Site configuration
+$GLOBALS['site_id_header_name'] = 'default';
+$GLOBALS['webserver_root'] = '/var/www/localhost/htdocs/openemr';
+$GLOBALS['web_root'] = '';
+
+// Disable setup
+$GLOBALS['disable_setup'] = 1;
+
+?>
+CONFIG_EOF
+          
+          # Replace placeholders in config.php
+          echo "Configuring database connection in config.php..."
+          sed -i "s|DBHOST_PLACEHOLDER|$MYSQL_HOST|g" $SITES_PATH/default/config.php
+          sed -i "s|DBUSER_PLACEHOLDER|$MYSQL_USER|g" $SITES_PATH/default/config.php
+          sed -i "s|DBPASS_PLACEHOLDER|$MYSQL_PASS|g" $SITES_PATH/default/config.php
+          sed -i "s|DBNAME_PLACEHOLDER|$MYSQL_DATABASE|g" $SITES_PATH/default/config.php
+          
+          # Set final permissions
+          chmod 644 $SITES_PATH/default/sqlconf.php || true
+          chmod 644 $SITES_PATH/default/config.php || true
+          chmod 755 $SITES_PATH/default || true
+          chmod 755 $SITES_PATH || true
+          chmod 777 $SITES_PATH/default/documents || true
           
           echo "✓ Configuration complete"
           
-          # Verify the file was created and validate PHP syntax
-          if [ -f /mnt/sites/default/sqlconf.php ]; then
-            echo "✓ File created successfully"
+          # Verify files were created and validate PHP syntax
+          echo "=== Verifying sqlconf.php ==="
+          if [ -f $SITES_PATH/default/sqlconf.php ]; then
+            echo "✓ sqlconf.php created successfully"
+            cat $SITES_PATH/default/sqlconf.php
             
-            # Show file contents for debugging
-            echo "=== File contents ==="
-            cat /mnt/sites/default/sqlconf.php
-            
-            # Validate PHP syntax
-            echo "Validating PHP syntax..."
-            if php -l /mnt/sites/default/sqlconf.php; then
-              echo "✓ PHP syntax validation passed"
-              echo "✓ Initialization successful"
-              exit 0
+            if php81 -l $SITES_PATH/default/sqlconf.php; then
+              echo "✓ sqlconf.php syntax validation passed"
             else
-              echo "ERROR: PHP syntax validation failed"
+              echo "ERROR: sqlconf.php syntax validation failed"
               exit 1
             fi
           else
             echo "ERROR: sqlconf.php was not created"
             exit 1
           fi
+          
+          echo ""
+          echo "=== Verifying config.php ==="
+          if [ -f $SITES_PATH/default/config.php ]; then
+            echo "✓ config.php created successfully"
+            cat $SITES_PATH/default/config.php
+            
+            if php81 -l $SITES_PATH/default/config.php; then
+              echo "✓ config.php syntax validation passed"
+            else
+              echo "ERROR: config.php syntax validation failed"
+              exit 1
+            fi
+          else
+            echo "ERROR: config.php was not created"
+            exit 1
+          fi
+          
+          echo ""
+          echo "=== Final directory structure ==="
+          ls -la $SITES_PATH/default/
+          
+          echo "✓ Initialization successful"
+          exit 0
           EOT
         ]
       }
@@ -400,34 +480,33 @@ resource "google_cloud_run_v2_job" "dev_init_job" {
         name = "nfs-data-volume"
         nfs {
           server = "${local.nfs_internal_ip}"
-          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
       }
     }
   }
   
   depends_on = [
-    null_resource.import_dev_nfs,
+    null_resource.import_nfs,
     null_resource.execute_prepare_nfs
   ]
 }
 
-resource "null_resource" "execute_dev_init_job" {
-  count = var.configure_development_environment && local.nfs_server_exists ? 1 : 0
+resource "null_resource" "execute_init_job" {
+  count = var.configure_environment && local.nfs_server_exists ? 1 : 0
 
   triggers = {
-    job_id = google_cloud_run_v2_job.dev_init_job[0].id
+    job_id = google_cloud_run_v2_job.init_job[0].id
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command = <<EOT
-      gcloud run jobs execute ${google_cloud_run_v2_job.dev_init_job[0].name} --region ${local.region} --project ${local.project.project_id} --wait
+      gcloud run jobs execute ${google_cloud_run_v2_job.init_job[0].name} --region ${local.region} --project ${local.project.project_id} --wait
     EOT
   }
   
   depends_on = [
-    google_cloud_run_v2_job.dev_init_job
+    google_cloud_run_v2_job.init_job
   ]
 }
-
