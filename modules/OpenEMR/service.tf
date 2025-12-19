@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resource "google_cloud_run_v2_service" "dev_app_service" {
-  for_each            = var.configure_development_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
+resource "google_cloud_run_v2_service" "app_service" {
+  for_each            = var.configure_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
 
   project             = local.project.project_id
-  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location            = each.key
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
@@ -29,7 +29,6 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
 
     labels = {
       app = var.application_name,
-      env = "dev"
     }
 
     containers {
@@ -71,19 +70,19 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
 
       env {
         name  = "MYSQL_DATABASE"
-        value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+        value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
       }
 
       env {
         name  = "MYSQL_USER"
-        value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+        value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
       }
 
       env {
         name = "MYSQL_PASS"
         value_source {
           secret_key_ref {
-            secret = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
+            secret = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
             version = "latest"
           }
         }
@@ -154,7 +153,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
       name = "nfs-data-volume"
       nfs {
         server = "${local.nfs_internal_ip}"
-        path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+        path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
       }
     }
   }
@@ -166,28 +165,28 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
   }
 
   depends_on = [
-    null_resource.import_dev_db,
-    null_resource.import_dev_nfs,
-    null_resource.execute_dev_init_job,
+    null_resource.import_db,
+    null_resource.import_nfs,
+    null_resource.execute_init_job,
     null_resource.build_and_push_backup_image,
-    google_secret_manager_secret_version.dev_db_password,
+    google_secret_manager_secret_version.db_password,
     # null_resource.build_and_push_application_image,
   ]
 }
 
-resource "google_cloud_run_service_iam_binding" "dev" {
-  for_each = var.configure_development_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
+resource "google_cloud_run_service_iam_binding" "app_service_iam" {
+  for_each = var.configure_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
 
   project  = local.project.project_id  
-  location = google_cloud_run_v2_service.dev_app_service[each.key].location  # Access location using each.key
-  service  = google_cloud_run_v2_service.dev_app_service[each.key].name      # Access service name using each.key
+  location = google_cloud_run_v2_service.app_service[each.key].location  # Access location using each.key
+  service  = google_cloud_run_v2_service.app_service[each.key].name      # Access service name using each.key
   role     = "roles/run.invoker"
   members  = [
     "allUsers"
   ]
 
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 

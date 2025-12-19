@@ -13,10 +13,10 @@
 # limitations under the License.
 
 # define a Cloud Scheduler cron job
-resource "google_cloud_scheduler_job" "dev_backup" {
-  count            = var.configure_development_environment ? 1 : 0
+resource "google_cloud_scheduler_job" "backup_job" {
+  count            = var.configure_environment ? 1 : 0
   paused           = false 
-  name             = "${var.application_name}-backup-${var.tenant_deployment_id}-${local.random_id}dev"
+  name             = "${var.application_name}-backup-${var.tenant_deployment_id}-${local.random_id}"
   project          = local.project.project_id
   region           = local.region
   schedule         = "${var.application_backup_schedule}" 
@@ -32,7 +32,7 @@ resource "google_cloud_scheduler_job" "dev_backup" {
 
   http_target {
     http_method = "POST"
-    uri = "https://${local.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${local.project.project_id}/jobs/bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}dev:run"
+    uri = "https://${local.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${local.project.project_id}/jobs/bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}:run"
     headers = {
       "User-Agent"   = "Google-Cloud-Scheduler"
     }
@@ -43,8 +43,8 @@ resource "google_cloud_scheduler_job" "dev_backup" {
   }
 
   depends_on = [
-    null_resource.import_dev_db,
-    null_resource.import_dev_nfs,
+    null_resource.import_db,
+    null_resource.import_nfs,
   ]
 }
 
