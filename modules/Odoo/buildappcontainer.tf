@@ -18,7 +18,7 @@
 
 # Resource for creating a Dockerfile from a template, which will be used to build the application's container image.
 resource "local_file" "app_dockerfile" {
-  count          = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
+  count          = var.configure_development_environment ? 1 : 0
   filename       = "${path.module}/scripts/app/Dockerfile"
   content        = templatefile("${path.module}/scripts/app/dockerfile.tpl", {
     APP_VERSION  = "${var.application_version}"
@@ -34,7 +34,7 @@ resource "local_file" "app_dockerfile" {
 
 # Resource to create a local cloudbuild file from a template, with variables substituted
 resource "local_file" "app_cloudbuild" {
-  count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
+  count    = var.configure_development_environment ? 1 : 0
   filename = "${path.module}/scripts/app/cloudbuild.yaml"
   content  = templatefile("${path.module}/scripts/app/cloudbuild.yaml.tpl", {
     PROJECT_ID    = local.project.project_id
@@ -57,7 +57,7 @@ resource "local_file" "app_cloudbuild" {
 
 # Resource to build the container image locally and push it to the container registry
 resource "null_resource" "build_and_push_application_image" {
-  count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
+  count    = var.configure_development_environment ? 1 : 0
   # Trigger based on the hash of the build-container.sh script
   triggers = {
     script_hash = filesha256("${path.module}/scripts/app/build-container.sh")
