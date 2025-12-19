@@ -569,7 +569,7 @@ steps:
         # Use PIPESTATUS to capture tofu exit code, not tee exit code
         set +e  # Temporarily disable exit on error
         tofu plan -out=tfplan -detailed-exitcode -no-color 2>&1 | tee /workspace/plan_output.txt
-        PLAN_EXIT_CODE=$${PIPESTATUS[0]}  # ← FIX: Get exit code from tofu, not tee
+        PLAN_EXIT_CODE=$${PIPESTATUS[0]}  # Get exit code from tofu, not tee
         set -e  # Re-enable exit on error
         
         log "🔍 Plan exit code: $$PLAN_EXIT_CODE"
@@ -649,7 +649,7 @@ steps:
             while [ $$attempt -le $$max_attempts ]; do
                 log "🔄 Apply attempt $$attempt of $$max_attempts"
                 
-                if tofu apply -auto-approve -no-color 2>&1 | tee /workspace/apply_output_$$attempt.txt; then
+                if tofu apply -auto-approve -no-color tfplan 2>&1 | tee /workspace/apply_output_$$attempt.txt; then
                     log "✅ Apply successful on attempt $$attempt"
                     echo "success" > /workspace/apply_status.txt
                     return 0
@@ -883,36 +883,7 @@ steps:
         log "✅ Final archive created and uploaded"
 
   # ============================================
-  # STEP 11: Release Deployment Lock
-  # ============================================
-  - id: 'Release Deployment Lock'
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        log "🔓 Releasing deployment lock..."
-        
-        if [ -f /workspace/lock_path.txt ]; then
-            LOCK_PATH=$$(cat /workspace/lock_path.txt)
-            
-            if gsutil rm "$$LOCK_PATH" 2>/dev/null; then
-                log "✅ Lock released successfully"
-            else
-                log "⚠️  Lock may have been already released or doesn't exist"
-            fi
-        else
-            log "⚠️  Lock path not found, cannot release lock"
-        fi
-
-  # ============================================
-  # STEP 12: Deployment Summary
+  # STEP 11: Deployment Summary
   # ============================================
   - id: 'Deployment Summary'
     name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -987,6 +958,176 @@ steps:
     dir: /workspace
 
 # ============================================
+# CLEANUP: Always Execute (Success or Failure)
+# ============================================
+finally:
+  # ============================================
+  # CLEANUP STEP 1: Release Deployment Lock
+  # ============================================
+  - id: 'Release Deployment Lock (Cleanup)'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set +e  # Don't fail on errors in cleanup
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        echo "========================================"
+        log "🧹 CLEANUP: Releasing deployment lock"
+        echo "========================================"
+        
+        # Try to read lock path from file first
+        if [ -f /workspace/lock_path.txt ]; then
+            LOCK_PATH=$$(cat /workspace/lock_path.txt)
+            log "📍 Lock path from file: $$LOCK_PATH"
+        else
+            # Fallback: construct lock path from substitution variables
+            LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
+            log "📍 Lock path from substitutions: $$LOCK_PATH"
+        fi
+        
+        # Check if lock exists and belongs to this build
+        if gsutil cp "$$LOCK_PATH" /tmp/lock.json 2>/dev/null; then
+            LOCK_BUILD_ID=$$(cat /tmp/lock.json | grep -o '"build_id":"[^"]*"' | cut -d'"' -f4 2>/dev/null)
+            
+            log "🔍 Lock found:"
+            log "   Lock Build ID: $$LOCK_BUILD_ID"
+            log "   Current Build ID: ${BUILD_ID}"
+            
+            if [ "$$LOCK_BUILD_ID" = "${BUILD_ID}" ]; then
+                log "✅ Lock belongs to this build, releasing..."
+                
+                if gsutil rm "$$LOCK_PATH" 2>/dev/null; then
+                    log "✅ Lock released successfully"
+                else
+                    log "⚠️  Failed to release lock (may have been already removed)"
+                fi
+            else
+                log "⚠️  Lock belongs to different build ($$LOCK_BUILD_ID)"
+                log "   Skipping lock release to avoid interfering with other deployment"
+            fi
+        else
+            log "ℹ️  Lock not found (already released or never created)"
+        fi
+        
+        log "✅ Lock cleanup completed"
+        exit 0  # Always succeed in cleanup
+
+  # ============================================
+  # CLEANUP STEP 2: Upload Build Metadata
+  # ============================================
+  - id: 'Upload Build Metadata (Cleanup)'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set +e  # Don't fail on errors in cleanup
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        log "📊 CLEANUP: Uploading build metadata..."
+        
+        # Determine build status
+        BUILD_STATUS="UNKNOWN"
+        if [ -f /workspace/apply_status.txt ]; then
+            APPLY_STATUS=$$(cat /workspace/apply_status.txt)
+            case "$$APPLY_STATUS" in
+                success) BUILD_STATUS="SUCCESS" ;;
+                skipped) BUILD_STATUS="NO_CHANGES" ;;
+                failed) BUILD_STATUS="FAILED" ;;
+            esac
+        else
+            # If no apply status file, build likely failed before apply
+            BUILD_STATUS="FAILED"
+        fi
+        
+        # Create metadata file
+        cat > /tmp/build_metadata.json <<EOF
+        {
+          "build_id": "${BUILD_ID}",
+          "module": "${_MODULE_NAME}",
+          "deployment_id": "${_DEPLOYMENT_ID}",
+          "project_id": "${PROJECT_ID}",
+          "status": "$$BUILD_STATUS",
+          "completed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "triggered_by": "${_TRIGGERED_BY:-manual}",
+          "repository": "${_GIT_REPO_URL:-local}"
+        }
+        EOF
+        
+        log "📋 Build metadata:"
+        cat /tmp/build_metadata.json
+        
+        # Upload metadata to GCS
+        METADATA_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/build-metadata-$$(date +%Y%m%d-%H%M%S).json"
+        
+        if gsutil -h "Content-Type:application/json" \
+                  cp /tmp/build_metadata.json "$$METADATA_PATH" 2>/dev/null; then
+            log "✅ Build metadata uploaded"
+        else
+            log "⚠️  Failed to upload build metadata"
+        fi
+        
+        log "✅ Metadata upload completed"
+        exit 0  # Always succeed in cleanup
+
+  # ============================================
+  # CLEANUP STEP 3: Final Status Summary
+  # ============================================
+  - id: 'Final Status Summary (Cleanup)'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set +e  # Don't fail on errors
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        echo "========================================"
+        log "📊 FINAL BUILD STATUS"
+        echo "========================================"
+        echo "Build ID: ${BUILD_ID}"
+        echo "Module: ${_MODULE_NAME}"
+        echo "Deployment ID: ${_DEPLOYMENT_ID}"
+        echo "Project: ${PROJECT_ID}"
+        echo "Timestamp: $$(date)"
+        echo "========================================"
+        
+        # Check deployment status
+        if [ -f /workspace/apply_status.txt ]; then
+            APPLY_STATUS=$$(cat /workspace/apply_status.txt)
+            echo "Apply Status: $$APPLY_STATUS"
+        else
+            echo "Apply Status: Not reached (build failed before apply)"
+        fi
+        
+        # Check if lock was released
+        LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
+        if gsutil ls "$$LOCK_PATH" 2>/dev/null; then
+            log "⚠️  WARNING: Lock still exists!"
+            log "   Path: $$LOCK_PATH"
+            log "   Manual cleanup may be required"
+        else
+            log "✅ Lock successfully removed"
+        fi
+        
+        echo "========================================"
+        log "🏁 Cleanup completed"
+        echo "========================================"
+        
+        exit 0  # Always succeed
+
+# ============================================
 # Secret Configuration
 # ============================================
 availableSecrets:
@@ -1001,7 +1142,7 @@ options:
   logging: GCS_ONLY
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
-  # machineType: 'E2_HIGHCPU_8'  # More power for complex deployments
+  # machineType: 'E2_HIGHCPU_8'  # Uncomment for complex deployments
 
 # ============================================
 # Substitution Variables
