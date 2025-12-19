@@ -5,12 +5,12 @@ steps:
       'skaffold','build', '--interactive=false', '--file-output=/workspace/artifacts.json'
       ]
     env:
-    - 'ENV=latest-${APP_ENV}'
+    - 'ENV=latest'
     id: Build and package app
 #  - name: 'gcr.io/${PROJECT_ID}/binauthz-attestation:latest'
 #    args:
 #      - '--artifact-url'
-#      - '${APP_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:latest-${APP_ENV}'
+#      - '${APP_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:latest'
 #      - '--attestor'
 #      - 'binauth-attestor'
 #      - '--attestor-project'
@@ -33,14 +33,14 @@ steps:
     - '-c'
     - |
             skaffold run -p primary --cloud-run-location=${PRIMARY_HA_REGION}
-    id: Deploy primary ${IMAGE_NAME}${APP_ENV} service to ${APP_ENV} environment
+    id: Deploy primary ${IMAGE_NAME} service
   - name: 'gcr.io/k8s-skaffold/skaffold:v2.12.0'
     entrypoint: 'bash'
     args:
     - '-c'
     - |
             skaffold run -p secondary --cloud-run-location=${SECONDARY_HA_REGION}
-    id: Deploy secondary ${IMAGE_NAME}${APP_ENV} service to ${APP_ENV} environment
+    id: Deploy secondary ${IMAGE_NAME} service
 serviceAccount: 'projects/${PROJECT_ID}/serviceAccounts/cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com'
 options:
   logging: CLOUD_LOGGING_ONLY

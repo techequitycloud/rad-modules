@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resource "google_cloud_run_v2_service" "dev_app_service" {
-  for_each            = var.configure_development_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
+resource "google_cloud_run_v2_service" "app_service" {
+  for_each            = var.configure_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
 
   project             = local.project.project_id
-  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location            = each.key
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
@@ -29,7 +29,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
 
     labels = {
       app = var.application_name,
-      env = "dev"
+      env = "main"
     }
 
     containers {
@@ -70,19 +70,19 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
 
       env {
         name  = "WORDPRESS_DB_NAME"
-        value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+        value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
       }
 
       env {
         name  = "WORDPRESS_DB_USER"
-        value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+        value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
       }
 
       env {
         name = "WORDPRESS_DB_PASSWORD"
         value_source {
           secret_key_ref {
-            secret = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
+            secret = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
             version = "latest"
           }
         }
@@ -140,7 +140,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     #   name = "nfs-data-volume"
     #   nfs {
     #     server = "${local.nfs_internal_ip}"
-    #     path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+    #     path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
     #   }
     # }
   }
@@ -152,35 +152,35 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
   }
 
   depends_on = [
-    null_resource.import_dev_db,
-    null_resource.import_dev_nfs,
+    null_resource.import_db,
+    null_resource.import_nfs,
     null_resource.build_and_push_backup_image,
     null_resource.build_and_push_application_image,
-    google_secret_manager_secret_version.dev_db_password,
+    google_secret_manager_secret_version.db_password,
     null_resource.build_and_push_application_image,
   ]
 }
 
-resource "google_cloud_run_service_iam_binding" "dev" {
-  for_each = var.configure_development_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
+resource "google_cloud_run_service_iam_binding" "app_service" {
+  for_each = var.configure_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
 
   project  = local.project.project_id  
-  location = google_cloud_run_v2_service.dev_app_service[each.key].location  # Access location using each.key
-  service  = google_cloud_run_v2_service.dev_app_service[each.key].name      # Access service name using each.key
+  location = google_cloud_run_v2_service.app_service[each.key].location  # Access location using each.key
+  service  = google_cloud_run_v2_service.app_service[each.key].name      # Access service name using each.key
   role     = "roles/run.invoker"
   members  = [
     "allUsers"
   ]
 
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
-resource "google_cloud_run_v2_job" "dev_backup_service" {
-  count      = var.configure_backups && var.configure_development_environment ? 1 : 0  # Updated count condition
+resource "google_cloud_run_v2_job" "backup_service" {
+  count      = var.configure_backups && var.configure_environment ? 1 : 0  # Updated count condition
   project    = local.project.project_id  
-  name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+  name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location   = local.region
   deletion_protection = false
 
@@ -190,7 +190,7 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 
     labels = {
       app : var.application_name,
-      env : "dev"
+      env : "main"
     }
 
     template {
@@ -203,19 +203,19 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
 
         env {
           name  = "DB_USER"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
 
         env {
           name  = "DB_NAME"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
 
         env {
           name = "DB_PASSWORD"
           value_source {
             secret_key_ref {
-              secret = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}"
+              secret = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
               version = "latest"
             }
           }
@@ -256,15 +256,15 @@ resource "google_cloud_run_v2_job" "dev_backup_service" {
         name = "nfs-data-volume"
         nfs {
           server = "${local.nfs_internal_ip}"
-          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
+          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
       }
     }
   }
 
   depends_on = [
-    null_resource.import_dev_db,
-    null_resource.import_dev_nfs,
+    null_resource.import_db,
+    null_resource.import_nfs,
     null_resource.build_and_push_backup_image,
   ]
 }

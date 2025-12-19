@@ -29,37 +29,41 @@ while [ $attempt -lt $max_attempts ]; do
   services_found=false # Flag to track if any services were found
 
   # Check and delete service in APP_REGION_1
-  if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" 2>/dev/null; then
-    echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
-    
-    # Try to delete the service
-    if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" --quiet; then
-      echo "Cloud Run service is being deleted in region $APP_REGION_1."
-      delete_attempted=true
-      services_found=true # A service was found and is being deleted
+  if [ -n "$APP_REGION_1" ]; then
+    if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" 2>/dev/null; then
+      echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
+
+      # Try to delete the service
+      if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" --quiet; then
+        echo "Cloud Run service is being deleted in region $APP_REGION_1."
+        delete_attempted=true
+        services_found=true # A service was found and is being deleted
+      else
+        echo "Failed to delete Cloud Run service in region $APP_REGION_1. Retrying..."
+        services_found=true # A service was found but deletion failed
+      fi
     else
-      echo "Failed to delete Cloud Run service in region $APP_REGION_1. Retrying..."
-      services_found=true # A service was found but deletion failed
+      echo "Cloud Run service does not exist in region $APP_REGION_1."
     fi
-  else
-    echo "Cloud Run service does not exist in region $APP_REGION_1."
   fi
 
   # Check and delete service in APP_REGION_2
-  if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" 2>/dev/null; then
-    echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
-    
-    # Try to delete the service
-    if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" --quiet; then
-      echo "Cloud Run service is being deleted in region $APP_REGION_2."
-      delete_attempted=true
-      services_found=true # A service was found and is being deleted
+  if [ -n "$APP_REGION_2" ]; then
+    if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" 2>/dev/null; then
+      echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
+
+      # Try to delete the service
+      if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" --quiet; then
+        echo "Cloud Run service is being deleted in region $APP_REGION_2."
+        delete_attempted=true
+        services_found=true # A service was found and is being deleted
+      else
+        echo "Failed to delete Cloud Run service in region $APP_REGION_2. Retrying..."
+        services_found=true # A service was found but deletion failed
+      fi
     else
-      echo "Failed to delete Cloud Run service in region $APP_REGION_2. Retrying..."
-      services_found=true # A service was found but deletion failed
+      echo "Cloud Run service does not exist in region $APP_REGION_2."
     fi
-  else
-    echo "Cloud Run service does not exist in region $APP_REGION_2."
   fi
 
   # If no services were found, exit the loop
