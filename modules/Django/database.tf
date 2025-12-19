@@ -69,112 +69,6 @@ SQL
   }
 }
 
-# Cleanup script for qa database objects
-resource "null_resource" "cleanup_qa_db_objects" {
-  triggers = {
-    user     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-qa"
-    database = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}-qa"
-    instance = local.db_instance_name
-    project  = local.project.project_id
-  }
-
-  provisioner "local-exec" {
-    when       = destroy
-    command    = <<-EOT
-      echo "Cleaning up database objects for ${self.triggers.user} in ${self.triggers.database}"
-      
-      # Check if database exists first
-      DB_EXISTS=$(gcloud sql databases list \
-        --instance="${self.triggers.instance}" \
-        --project="${self.triggers.project}" \
-        --format="value(name)" 2>/dev/null | grep -x "${self.triggers.database}" || echo "")
-      
-      if [ -z "$DB_EXISTS" ]; then
-        echo "Database ${self.triggers.database} does not exist, skipping cleanup"
-        exit 0
-      fi
-      
-      # Check if user exists before attempting cleanup
-      USER_EXISTS=$(gcloud sql users list \
-        --instance="${self.triggers.instance}" \
-        --project="${self.triggers.project}" \
-        --format="value(name)" 2>/dev/null | grep -x "${self.triggers.user}" || echo "")
-      
-      if [ -n "$USER_EXISTS" ]; then
-        echo "User ${self.triggers.user} exists, performing cleanup..."
-        gcloud sql connect ${self.triggers.instance} \
-          --user=postgres \
-          --database=${self.triggers.database} \
-          --project=${self.triggers.project} \
-          --quiet <<SQL || echo "Cleanup failed, continuing..."
-        REASSIGN OWNED BY "${self.triggers.user}" TO postgres;
-        DROP OWNED BY "${self.triggers.user}";
-SQL
-      else
-        echo "User ${self.triggers.user} does not exist, skipping cleanup"
-      fi
-    EOT
-    on_failure = continue
-  }
-
-  lifecycle {
-    create_before_destroy = false
-  }
-}
-
-# Cleanup script for prod database objects
-resource "null_resource" "cleanup_prod_db_objects" {
-  triggers = {
-    user     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-prod"
-    database = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}-prod"
-    instance = local.db_instance_name
-    project  = local.project.project_id
-  }
-
-  provisioner "local-exec" {
-    when       = destroy
-    command    = <<-EOT
-      echo "Cleaning up database objects for ${self.triggers.user} in ${self.triggers.database}"
-      
-      # Check if database exists first
-      DB_EXISTS=$(gcloud sql databases list \
-        --instance="${self.triggers.instance}" \
-        --project="${self.triggers.project}" \
-        --format="value(name)" 2>/dev/null | grep -x "${self.triggers.database}" || echo "")
-      
-      if [ -z "$DB_EXISTS" ]; then
-        echo "Database ${self.triggers.database} does not exist, skipping cleanup"
-        exit 0
-      fi
-      
-      # Check if user exists before attempting cleanup
-      USER_EXISTS=$(gcloud sql users list \
-        --instance="${self.triggers.instance}" \
-        --project="${self.triggers.project}" \
-        --format="value(name)" 2>/dev/null | grep -x "${self.triggers.user}" || echo "")
-      
-      if [ -n "$USER_EXISTS" ]; then
-        echo "User ${self.triggers.user} exists, performing cleanup..."
-        gcloud sql connect ${self.triggers.instance} \
-          --user=postgres \
-          --database=${self.triggers.database} \
-          --project=${self.triggers.project} \
-          --quiet <<SQL || echo "Cleanup failed, continuing..."
-        REASSIGN OWNED BY "${self.triggers.user}" TO postgres;
-        DROP OWNED BY "${self.triggers.user}";
-SQL
-      else
-        echo "User ${self.triggers.user} does not exist, skipping cleanup"
-      fi
-    EOT
-    on_failure = continue
-  }
-
-  lifecycle {
-    create_before_destroy = false
-  }
-}
-
 #########################################################################
 # Create Database and User - DEV
 #########################################################################
@@ -212,96 +106,6 @@ resource "google_sql_user" "dev_user" {
 
   depends_on = [
     google_sql_database.dev_db
-  ]
-
-  lifecycle {
-    prevent_destroy = false
-    ignore_changes  = [password]
-  }
-}
-
-#########################################################################
-# Create Database and User - QA
-#########################################################################
-
-resource "google_sql_database" "qa_db" {
-  name     = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}-qa"
-  instance = local.db_instance_name
-  project  = local.project.project_id
-
-  deletion_policy = "DELETE"
-
-  lifecycle {
-    prevent_destroy = false
-  }
-}
-
-resource "random_password" "qa_db_password" {
-  length  = 30
-  special = false
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-resource "google_sql_user" "qa_user" {
-  name     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-qa"
-  instance = local.db_instance_name
-  project  = local.project.project_id
-  password = random_password.qa_db_password.result
-
-  # ABANDON means Terraform won't try to delete the user
-  # We handle deletion via null_resource which checks existence first
-  deletion_policy = "ABANDON"
-
-  depends_on = [
-    google_sql_database.qa_db
-  ]
-
-  lifecycle {
-    prevent_destroy = false
-    ignore_changes  = [password]
-  }
-}
-
-#########################################################################
-# Create Database and User - PROD
-#########################################################################
-
-resource "google_sql_database" "prod_db" {
-  name     = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}-prod"
-  instance = local.db_instance_name
-  project  = local.project.project_id
-
-  deletion_policy = "DELETE"
-
-  lifecycle {
-    prevent_destroy = false
-  }
-}
-
-resource "random_password" "prod_db_password" {
-  length  = 30
-  special = false
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-resource "google_sql_user" "prod_user" {
-  name     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-prod"
-  instance = local.db_instance_name
-  project  = local.project.project_id
-  password = random_password.prod_db_password.result
-
-  # ABANDON means Terraform won't try to delete the user
-  # We handle deletion via null_resource which checks existence first
-  deletion_policy = "ABANDON"
-
-  depends_on = [
-    google_sql_database.prod_db
   ]
 
   lifecycle {
@@ -362,102 +166,6 @@ resource "null_resource" "force_delete_dev_user" {
   }
 }
 
-resource "null_resource" "force_delete_qa_user" {
-  triggers = {
-    user     = google_sql_user.qa_user.name
-    instance = local.db_instance_name
-    project  = local.project.project_id
-  }
-
-  provisioner "local-exec" {
-    when       = destroy
-    command    = <<-EOT
-      echo "========================================="
-      echo "Checking and deleting qa user: ${self.triggers.user}"
-      echo "========================================="
-      
-      # Check if user exists
-      USER_EXISTS=$(gcloud sql users list \
-        --instance="${self.triggers.instance}" \
-        --project="${self.triggers.project}" \
-        --format="value(name)" 2>/dev/null | grep -x "${self.triggers.user}" || echo "")
-      
-      if [ -n "$USER_EXISTS" ]; then
-        echo "✓ User exists, attempting deletion..."
-        if gcloud sql users delete "${self.triggers.user}" \
-          --instance="${self.triggers.instance}" \
-          --project="${self.triggers.project}" \
-          --quiet 2>&1; then
-          echo "✓ User deleted successfully"
-        else
-          echo "⚠ User deletion failed (may have been deleted externally)"
-        fi
-      else
-        echo "✓ User ${self.triggers.user} does not exist, skipping deletion"
-      fi
-      
-      echo "========================================="
-    EOT
-    on_failure = continue
-  }
-
-  depends_on = [
-    null_resource.cleanup_qa_db_objects
-  ]
-
-  lifecycle {
-    create_before_destroy = false
-  }
-}
-
-resource "null_resource" "force_delete_prod_user" {
-  triggers = {
-    user     = google_sql_user.prod_user.name
-    instance = local.db_instance_name
-    project  = local.project.project_id
-  }
-
-  provisioner "local-exec" {
-    when       = destroy
-    command    = <<-EOT
-      echo "========================================="
-      echo "Checking and deleting prod user: ${self.triggers.user}"
-      echo "========================================="
-      
-      # Check if user exists
-      USER_EXISTS=$(gcloud sql users list \
-        --instance="${self.triggers.instance}" \
-        --project="${self.triggers.project}" \
-        --format="value(name)" 2>/dev/null | grep -x "${self.triggers.user}" || echo "")
-      
-      if [ -n "$USER_EXISTS" ]; then
-        echo "✓ User exists, attempting deletion..."
-        if gcloud sql users delete "${self.triggers.user}" \
-          --instance="${self.triggers.instance}" \
-          --project="${self.triggers.project}" \
-          --quiet 2>&1; then
-          echo "✓ User deleted successfully"
-        else
-          echo "⚠ User deletion failed (may have been deleted externally)"
-        fi
-      else
-        echo "✓ User ${self.triggers.user} does not exist, skipping deletion"
-      fi
-      
-      echo "========================================="
-    EOT
-    on_failure = continue
-  }
-
-  depends_on = [
-    null_resource.cleanup_prod_db_objects
-  ]
-
-  lifecycle {
-    create_before_destroy = false
-  }
-}
-
 #########################################################################
 # Force delete databases (backup cleanup method)
 #########################################################################
@@ -510,102 +218,6 @@ resource "null_resource" "force_delete_dev_db" {
   }
 }
 
-resource "null_resource" "force_delete_qa_db" {
-  triggers = {
-    database = google_sql_database.qa_db.name
-    instance = local.db_instance_name
-    project  = local.project.project_id
-  }
-
-  provisioner "local-exec" {
-    when       = destroy
-    command    = <<-EOT
-      echo "========================================="
-      echo "Checking and deleting qa database: ${self.triggers.database}"
-      echo "========================================="
-      
-      # Check if database exists
-      DB_EXISTS=$(gcloud sql databases list \
-        --instance="${self.triggers.instance}" \
-        --project="${self.triggers.project}" \
-        --format="value(name)" 2>/dev/null | grep -x "${self.triggers.database}" || echo "")
-      
-      if [ -n "$DB_EXISTS" ]; then
-        echo "✓ Database exists, attempting deletion..."
-        if gcloud sql databases delete "${self.triggers.database}" \
-          --instance="${self.triggers.instance}" \
-          --project="${self.triggers.project}" \
-          --quiet 2>&1; then
-          echo "✓ Database deleted successfully"
-        else
-          echo "⚠ Database deletion failed (may have been deleted externally)"
-        fi
-      else
-        echo "✓ Database ${self.triggers.database} does not exist, skipping deletion"
-      fi
-      
-      echo "========================================="
-    EOT
-    on_failure = continue
-  }
-
-  depends_on = [
-    null_resource.force_delete_qa_user
-  ]
-
-  lifecycle {
-    create_before_destroy = false
-  }
-}
-
-resource "null_resource" "force_delete_prod_db" {
-  triggers = {
-    database = google_sql_database.prod_db.name
-    instance = local.db_instance_name
-    project  = local.project.project_id
-  }
-
-  provisioner "local-exec" {
-    when       = destroy
-    command    = <<-EOT
-      echo "========================================="
-      echo "Checking and deleting prod database: ${self.triggers.database}"
-      echo "========================================="
-      
-      # Check if database exists
-      DB_EXISTS=$(gcloud sql databases list \
-        --instance="${self.triggers.instance}" \
-        --project="${self.triggers.project}" \
-        --format="value(name)" 2>/dev/null | grep -x "${self.triggers.database}" || echo "")
-      
-      if [ -n "$DB_EXISTS" ]; then
-        echo "✓ Database exists, attempting deletion..."
-        if gcloud sql databases delete "${self.triggers.database}" \
-          --instance="${self.triggers.instance}" \
-          --project="${self.triggers.project}" \
-          --quiet 2>&1; then
-          echo "✓ Database deleted successfully"
-        else
-          echo "⚠ Database deletion failed (may have been deleted externally)"
-        fi
-      else
-        echo "✓ Database ${self.triggers.database} does not exist, skipping deletion"
-      fi
-      
-      echo "========================================="
-    EOT
-    on_failure = continue
-  }
-
-  depends_on = [
-    null_resource.force_delete_prod_user
-  ]
-
-  lifecycle {
-    create_before_destroy = false
-  }
-}
-
 #########################################################################
 # Master cleanup orchestrator (runs last on destroy)
 #########################################################################
@@ -613,11 +225,7 @@ resource "null_resource" "force_delete_prod_db" {
 resource "null_resource" "final_cleanup" {
   triggers = {
     dev_user  = google_sql_user.dev_user.name
-    qa_user   = google_sql_user.qa_user.name
-    prod_user = google_sql_user.prod_user.name
     dev_db    = google_sql_database.dev_db.name
-    qa_db     = google_sql_database.qa_db.name
-    prod_db   = google_sql_database.prod_db.name
     instance  = local.db_instance_name
     project   = local.project.project_id
   }
@@ -634,7 +242,7 @@ resource "null_resource" "final_cleanup" {
       REMAINING_USERS=$(gcloud sql users list \
         --instance=${self.triggers.instance} \
         --project=${self.triggers.project} \
-        --format="value(name)" 2>/dev/null | grep -E "${self.triggers.dev_user}|${self.triggers.qa_user}|${self.triggers.prod_user}" || echo "")
+        --format="value(name)" 2>/dev/null | grep -E "${self.triggers.dev_user}" || echo "")
       
       if [ -n "$REMAINING_USERS" ]; then
         echo "⚠ WARNING: Found remaining users:"
@@ -661,7 +269,7 @@ resource "null_resource" "final_cleanup" {
       REMAINING_DBS=$(gcloud sql databases list \
         --instance=${self.triggers.instance} \
         --project=${self.triggers.project} \
-        --format="value(name)" 2>/dev/null | grep -E "${self.triggers.dev_db}|${self.triggers.qa_db}|${self.triggers.prod_db}" || echo "")
+        --format="value(name)" 2>/dev/null | grep -E "${self.triggers.dev_db}" || echo "")
       
       if [ -n "$REMAINING_DBS" ]; then
         echo "⚠ WARNING: Found remaining databases:"
@@ -692,11 +300,7 @@ resource "null_resource" "final_cleanup" {
 
   depends_on = [
     null_resource.force_delete_dev_user,
-    null_resource.force_delete_qa_user,
-    null_resource.force_delete_prod_user,
-    null_resource.force_delete_dev_db,
-    null_resource.force_delete_qa_db,
-    null_resource.force_delete_prod_db
+    null_resource.force_delete_dev_db
   ]
 
   lifecycle {
