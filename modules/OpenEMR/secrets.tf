@@ -18,9 +18,16 @@
 
 # Resource for creating a random password for database additional user
 resource "random_password" "additional_user_password" {
-  length           = 16          
-  special          = true        
-  override_special = "_%@"       
+  length           = 16
+  special          = true
+  override_special = "_%@"
+}
+
+# Resource for creating a random password for OpenEMR admin user
+resource "random_password" "openemr_admin_password" {
+  length           = 16
+  special          = true
+  override_special = "_%@"
 }
 
 #########################################################################
@@ -60,14 +67,62 @@ resource "time_sleep" "db_password" {
 # Data source for accessing the latest version of the secret when it's ready
 data "google_secret_manager_secret_version" "db_password" {
   project  = local.project.project_id
-  provider = google  
+  provider = google
 
   secret   = google_secret_manager_secret.db_password.id
-  version  = "latest"  
+  version  = "latest"
 
   depends_on = [
     time_sleep.db_password,
     google_secret_manager_secret.db_password,
+  ]
+}
+
+#########################################################################
+# OpenEMR Admin Password Secret
+#########################################################################
+
+# Resource for creating a secret in Google Secret Manager to store the OpenEMR admin password
+resource "google_secret_manager_secret" "openemr_admin_password" {
+  project    = local.project.project_id
+  secret_id  = "openemr-admin-password-${var.tenant_deployment_id}-${local.random_id}"
+
+  replication {
+    auto {}
+  }
+}
+
+# Resource for adding a version of the secret with the actual OpenEMR admin password
+resource "google_secret_manager_secret_version" "openemr_admin_password" {
+  secret      = google_secret_manager_secret.openemr_admin_password.id
+  secret_data = random_password.openemr_admin_password.result
+
+  depends_on = [
+    google_secret_manager_secret.openemr_admin_password,
+    random_password.openemr_admin_password,
+  ]
+}
+
+# Resource to introduce a delay after creating a secret version
+resource "time_sleep" "openemr_admin_password" {
+  depends_on = [
+    google_secret_manager_secret_version.openemr_admin_password
+  ]
+
+  create_duration = "90s"
+}
+
+# Data source for accessing the latest version of the secret when it's ready
+data "google_secret_manager_secret_version" "openemr_admin_password" {
+  project  = local.project.project_id
+  provider = google
+
+  secret   = google_secret_manager_secret.openemr_admin_password.id
+  version  = "latest"
+
+  depends_on = [
+    time_sleep.openemr_admin_password,
+    google_secret_manager_secret.openemr_admin_password,
   ]
 }
 

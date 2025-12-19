@@ -115,7 +115,12 @@ resource "google_cloud_run_v2_service" "app_service" {
 
       env {
         name = "OE_PASS"
-        value = "admin"
+        value_source {
+          secret_key_ref {
+            secret = "openemr-admin-password-${var.tenant_deployment_id}-${local.random_id}"
+            version = "latest"
+          }
+        }
       }
 
       env {
@@ -170,6 +175,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     null_resource.execute_init_job,
     null_resource.build_and_push_backup_image,
     google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret_version.openemr_admin_password,
     # null_resource.build_and_push_application_image,
   ]
 }

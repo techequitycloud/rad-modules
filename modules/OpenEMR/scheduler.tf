@@ -14,7 +14,7 @@
 
 # define a Cloud Scheduler cron job
 resource "google_cloud_scheduler_job" "backup_job" {
-  count            = var.configure_environment ? 1 : 0
+  count            = var.configure_backups && var.configure_environment ? 1 : 0
   paused           = false 
   name             = "${var.application_name}-backup-${var.tenant_deployment_id}-${local.random_id}"
   project          = local.project.project_id
