@@ -148,7 +148,7 @@ resource "google_cloudbuildv2_repository" "github_repository" {
 }
 
 #########################################################################
-# Create dev, qa and prod triggers
+# Create triggers
 #########################################################################
 
 # Resource for creating a Google Cloud Build trigger for a repository

@@ -25,6 +25,8 @@ resource "local_file" "clouddeploy_app_skaffold" {
     PROJECT_ID                = local.project.project_id
     APP_NAME                  = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
     APP_REGION                = local.region
+    REPO_NAME                 = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+    IMAGE_NAME                = var.application_name
   })
 }
 
@@ -35,6 +37,8 @@ resource "local_file" "clouddeploy_backup_skaffold" {
     PROJECT_ID                = local.project.project_id
     APP_NAME                  = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}"
     APP_REGION                = local.region
+    REPO_NAME                 = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+    IMAGE_NAME                = "backup"
   })
 }
 
