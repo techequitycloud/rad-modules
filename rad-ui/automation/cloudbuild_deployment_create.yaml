@@ -957,16 +957,18 @@ steps:
         log "✅ Deployment summary complete"
     dir: /workspace
 
-# ============================================
-# CLEANUP: Always Execute (Success or Failure)
-# ============================================
-finally:
+  # ============================================
+  # CLEANUP STEPS (Always Execute)
+  # Using waitFor: ['-'] to run independently of previous steps
+  # ============================================
+  
   # ============================================
   # CLEANUP STEP 1: Release Deployment Lock
   # ============================================
   - id: 'Release Deployment Lock (Cleanup)'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
+    waitFor: ['-']  # Run independently of previous steps
     args:
       - '-c'
       - |
@@ -1023,6 +1025,7 @@ finally:
   - id: 'Upload Build Metadata (Cleanup)'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
+    waitFor: ['Release Deployment Lock (Cleanup)']  # Wait for previous cleanup step
     args:
       - '-c'
       - |
@@ -1084,6 +1087,7 @@ finally:
   - id: 'Final Status Summary (Cleanup)'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
+    waitFor: ['Upload Build Metadata (Cleanup)']  # Wait for previous cleanup step
     args:
       - '-c'
       - |
