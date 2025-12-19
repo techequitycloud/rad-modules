@@ -44,7 +44,7 @@ resource "local_file" "import_db_script_output" {
 # Configurations for backup import
 #########################################################################
 
-# Resource to import dev db
+# Resource to import database
 resource "null_resource" "import_db" {
   count    = local.sql_server_exists ? 1 : 0  
     

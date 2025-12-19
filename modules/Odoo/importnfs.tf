@@ -42,7 +42,7 @@ resource "local_file" "import_nfs_script_output" {
 # Configurations for nfs import
 #########################################################################
 
-# Resource to import dev nfs
+# Resource to import nfs
 resource "null_resource" "import_nfs" {
   count    = local.nfs_server_exists ? 1 : 0  
     
