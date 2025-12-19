@@ -14,9 +14,9 @@
 
 steps:
   # ============================================
-  # STEP 0: Validate Purge Prerequisites
+  # STEP 0: Validate Destroy Prerequisites
   # ============================================
-  - id: 'Validate Purge Prerequisites'
+  - id: 'Validate Destroy Prerequisites'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
     args:
@@ -24,7 +24,7 @@ steps:
       - |
         set -e
         
-        echo "🔍 VALIDATING PURGE PREREQUISITES"
+        echo "🔍 VALIDATING DESTROY PREREQUISITES"
         echo "========================================"
         echo "Module: ${_MODULE_NAME}"
         echo "Deployment ID: ${_DEPLOYMENT_ID}"
@@ -37,7 +37,7 @@ steps:
             echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
-        log "🔍 Validating purge prerequisites..."
+        log "🔍 Validating destroy prerequisites..."
         
         # Check required substitution variables
         MISSING_VARS=0
@@ -52,9 +52,7 @@ steps:
             MISSING_VARS=1
         fi
         
-        if [ "${_DEPLOYMENT_BUCKET_ID}" = "rad-deployments-2b65" ]; then
-            log "✅ Using default bucket: ${_DEPLOYMENT_BUCKET_ID}"
-        elif [ -z "${_DEPLOYMENT_BUCKET_ID}" ]; then
+        if [ -z "${_DEPLOYMENT_BUCKET_ID}" ]; then
             log "❌ ERROR: _DEPLOYMENT_BUCKET_ID not set"
             MISSING_VARS=1
         fi
@@ -84,6 +82,16 @@ steps:
             log "✅ Deployment found: $$DEPLOYMENT_PATH"
             echo "exists" > /workspace/deployment_exists.txt
             
+            # Check for deployment archive
+            if gsutil ls "$$DEPLOYMENT_PATH/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
+                log "✅ Deployment archive found"
+                echo "archive_exists" > /workspace/archive_status.txt
+            else
+                log "⚠️  WARNING: Deployment archive not found"
+                log "   Expected: $$DEPLOYMENT_PATH/files/${_MODULE_NAME}.tar.gz"
+                echo "archive_missing" > /workspace/archive_status.txt
+            fi
+            
             # Get deployment info if available
             if gsutil cat "$$DEPLOYMENT_PATH/files/deployment_complete.json" > /tmp/deployment_info.json 2>/dev/null; then
                 log "📋 Deployment information:"
@@ -92,16 +100,17 @@ steps:
         else
             log "⚠️  WARNING: Deployment not found"
             log "   Path: $$DEPLOYMENT_PATH"
-            log "   This may have already been purged"
+            log "   Cannot proceed without deployment files"
             echo "not_exists" > /workspace/deployment_exists.txt
+            exit 1
         fi
         
         log "✅ Prerequisites validated successfully"
 
   # ============================================
-  # STEP 1: Acquire Purge Lock
+  # STEP 1: Acquire Destroy Lock
   # ============================================
-  - id: 'Acquire Purge Lock'
+  - id: 'Acquire Destroy Lock'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
     args:
@@ -109,34 +118,21 @@ steps:
       - |
         set -e
         
-        echo "🔒 ACQUIRING PURGE LOCK"
+        echo "🔒 ACQUIRING DESTROY LOCK"
         echo "========================================"
         echo "Module: ${_MODULE_NAME}"
         echo "Deployment ID: ${_DEPLOYMENT_ID}"
         echo "Project: ${PROJECT_ID}"
-        echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
         echo "Timestamp: $$(date)"
         echo "========================================"
-        echo "⚠️  WARNING: This will DELETE all deployment files!"
+        echo "⚠️  WARNING: This will DESTROY infrastructure!"
         echo "========================================"
         
         log() {
             echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
-        # Check if deployment exists
-        DEPLOYMENT_EXISTS="exists"
-        if [ -f /workspace/deployment_exists.txt ]; then
-            DEPLOYMENT_EXISTS=$$(cat /workspace/deployment_exists.txt)
-        fi
-        
-        if [ "$$DEPLOYMENT_EXISTS" = "not_exists" ]; then
-            log "ℹ️  Skipping lock acquisition - deployment does not exist"
-            echo "skipped" > /workspace/lock_status.txt
-            exit 0
-        fi
-        
-        log "🔒 Acquiring purge lock..."
+        log "🔒 Acquiring destroy lock..."
         
         LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
         LOCK_FILE="/tmp/lock.json"
@@ -145,7 +141,7 @@ steps:
         cat > $$LOCK_FILE <<EOF
         {
           "build_id": "${BUILD_ID}",
-          "operation": "purge",
+          "operation": "destroy",
           "locked_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
           "locked_by": "${_TRIGGERED_BY:-manual}",
           "project_id": "${PROJECT_ID}",
@@ -155,7 +151,7 @@ steps:
         EOF
         
         # Try to create lock (fails if already exists)
-        MAX_WAIT=120  # 2 minutes for purge operations
+        MAX_WAIT=300  # 5 minutes
         WAIT_TIME=0
         ACQUIRED=false
         
@@ -199,146 +195,191 @@ steps:
         
         # Save lock path for cleanup
         echo "$$LOCK_PATH" > /workspace/lock_path.txt
-        echo "acquired" > /workspace/lock_status.txt
         log "💾 Lock path saved for cleanup"
 
   # ============================================
-  # STEP 2: Create Pre-Purge Audit
+  # STEP 2: Prepare Destroy Environment
   # ============================================
-  - id: 'Create Pre-Purge Audit'
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+  - id: 'Prepare Destroy Environment'
+    name: '${_TERRAFORM_IMAGE_NAME}:latest'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
         set -e
         
+        echo "🔥 INFRASTRUCTURE DESTROY INITIATED"
+        echo "========================================"
+        echo "Module: ${_MODULE_NAME}"
+        echo "Deployment ID: ${_DEPLOYMENT_ID}"
+        echo "Project: ${PROJECT_ID}"
+        echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
+        echo "Timestamp: $$(date)"
+        echo "========================================"
+        echo "⚠️  WARNING: This will DESTROY all infrastructure!"
+        echo "========================================"
+        
         log() {
             echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
-        log "📝 Creating pre-purge audit..."
+        log "🧹 Preparing workspace..."
         
-        # Check if deployment exists
-        DEPLOYMENT_EXISTS="exists"
-        if [ -f /workspace/deployment_exists.txt ]; then
-            DEPLOYMENT_EXISTS=$$(cat /workspace/deployment_exists.txt)
+        # Clean workspace (preserve status files)
+        find /workspace -mindepth 1 -maxdepth 1 ! -name '*.txt' -exec rm -rf {} + 2>/dev/null || log "Workspace already clean"
+        
+        mkdir -p /workspace/modules/${_MODULE_NAME}
+        cd /workspace/modules/${_MODULE_NAME}
+            
+        log "🔍 Checking for deployment files..."
+        
+        # Check archive status
+        ARCHIVE_STATUS="archive_exists"
+        if [ -f /workspace/archive_status.txt ]; then
+            ARCHIVE_STATUS=$$(cat /workspace/archive_status.txt)
         fi
         
-        if [ "$$DEPLOYMENT_EXISTS" = "not_exists" ]; then
-            log "ℹ️  Skipping audit - deployment does not exist"
-            
-            # Create minimal audit record
-            mkdir -p /tmp/audit
-            cat > /tmp/audit/pre_purge_audit.json <<EOF
-        {
-          "module": "${_MODULE_NAME}",
-          "deployment_id": "${_DEPLOYMENT_ID}",
-          "project_id": "${PROJECT_ID}",
-          "build_id": "${BUILD_ID}",
-          "audit_time": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-          "folder_size": "0",
-          "file_count": 0,
-          "deployment_path": "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/",
-          "operation": "purge",
-          "status": "not_found",
-          "initiated_by": "${_TRIGGERED_BY:-manual}"
-        }
-        EOF
-            echo "Deployment not found" > /tmp/audit/file_list.txt
-            exit 0
+        if [ "$$ARCHIVE_STATUS" = "archive_missing" ]; then
+            log "❌ ERROR: No deployment archive found!"
+            log "   Expected: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
+            log "   Cannot proceed with destroy without deployment files."
+            exit 1
         fi
         
-        DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+        log "📦 Downloading deployment files..."
         
-        mkdir -p /tmp/audit
-        
-        # Calculate folder size and file count
-        log "📊 Analyzing deployment folder..."
-        
-        if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
-            # Get size
-            FOLDER_SIZE=$$(gsutil du -sh "$$DEPLOYMENT_PATH" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
-            log "   Size: $$FOLDER_SIZE"
-            
-            # Count files
-            FILE_COUNT=$$(gsutil ls -r "$$DEPLOYMENT_PATH" 2>/dev/null | grep -v ':$$' | wc -l || echo "0")
-            log "   Files: $$FILE_COUNT"
-            
-            # List all files for audit trail
-            log "📋 Cataloging all files for audit..."
-            if gsutil ls -r "$$DEPLOYMENT_PATH" > /tmp/audit/file_list.txt 2>/dev/null; then
-                log "✅ File list created ($$FILE_COUNT files)"
-            else
-                echo "Unable to list files" > /tmp/audit/file_list.txt
-                log "⚠️  Could not create complete file list"
-            fi
-            
-            # Show preview
-            log "📄 Files to be deleted (first 20):"
-            head -20 /tmp/audit/file_list.txt | sed 's/^/   /'
-            
-            if [ $$FILE_COUNT -gt 20 ]; then
-                log "   ... and $$((FILE_COUNT - 20)) more files"
-            fi
-            
-            # Check for important files
-            log "🔍 Checking for important files..."
-            
-            IMPORTANT_FILES=""
-            if gsutil ls "$$DEPLOYMENT_PATH/files/deployment_complete.json" > /dev/null 2>&1; then
-                IMPORTANT_FILES="$$IMPORTANT_FILES deployment_complete.json"
-                log "   • Found: deployment_complete.json"
-            fi
-            
-            if gsutil ls "$$DEPLOYMENT_PATH/state/default.tfstate" > /dev/null 2>&1; then
-                IMPORTANT_FILES="$$IMPORTANT_FILES default.tfstate"
-                log "   • Found: default.tfstate"
-            fi
-            
-            if gsutil ls "$$DEPLOYMENT_PATH/output/output.json" > /dev/null 2>&1; then
-                IMPORTANT_FILES="$$IMPORTANT_FILES output.json"
-                log "   • Found: output.json"
-            fi
-            
-            if [ -n "$$IMPORTANT_FILES" ]; then
-                echo "$$IMPORTANT_FILES" > /tmp/audit/important_files.txt
-            fi
+        # Download deployment archive
+        if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" .; then
+            log "✅ Archive downloaded"
         else
-            FOLDER_SIZE="0"
-            FILE_COUNT="0"
-            log "⚠️  Deployment folder not found during audit"
-            echo "Deployment folder not found at $$DEPLOYMENT_PATH" > /tmp/audit/file_list.txt
+            log "❌ ERROR: Failed to download archive"
+            exit 1
         fi
         
-        # Create detailed audit record
-        log "📝 Creating audit record..."
-        cat > /tmp/audit/pre_purge_audit.json <<EOF
-        {
-          "module": "${_MODULE_NAME}",
-          "deployment_id": "${_DEPLOYMENT_ID}",
-          "project_id": "${PROJECT_ID}",
-          "build_id": "${BUILD_ID}",
-          "audit_time": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-          "folder_size": "$$FOLDER_SIZE",
-          "file_count": $$FILE_COUNT,
-          "deployment_path": "$$DEPLOYMENT_PATH",
-          "operation": "purge",
-          "status": "pre_purge_audit_complete",
-          "initiated_by": "${_TRIGGERED_BY:-manual}",
-          "git_repo": "${_GIT_REPO_URL:-none}",
-          "module_git_repo": "${_MODULE_GIT_REPO_URL:-none}"
-        }
-        EOF
+        # Extract the module archive
+        log "📂 Extracting deployment files..."
+        if tar -xzf "${_MODULE_NAME}.tar.gz"; then
+            log "✅ Files extracted"
+            
+            # Count extracted files
+            FILE_COUNT=$$(find . -type f | wc -l)
+            log "📊 Extracted $$FILE_COUNT files"
+        else
+            log "❌ ERROR: Failed to extract archive"
+            exit 1
+        fi
         
-        log "✅ Pre-purge audit created"
-        log "   Size: $$FOLDER_SIZE"
-        log "   Files: $$FILE_COUNT"
+        rm -f "${_MODULE_NAME}.tar.gz"
+        
+        log "📋 Workspace contents:"
+        ls -la . | head -20
+        
+        # Verify critical files exist
+        log "🔍 Verifying critical files..."
+        
+        MISSING_FILES=0
+        
+        if [ ! -f "backend.tf" ]; then
+            log "⚠️  WARNING: backend.tf not found"
+            MISSING_FILES=1
+        else
+            log "✅ backend.tf found"
+        fi
+        
+        if [ ! -f "terraform.tfvars.json" ]; then
+            log "⚠️  WARNING: terraform.tfvars.json not found"
+        else
+            log "✅ terraform.tfvars.json found"
+        fi
+        
+        # Count .tf files
+        TF_COUNT=$$(find . -name "*.tf" -type f | wc -l)
+        log "📊 Found $$TF_COUNT Terraform files"
+        
+        if [ $$TF_COUNT -eq 0 ]; then
+            log "❌ ERROR: No Terraform files found"
+            exit 1
+        fi
+        
+        log "✅ Destroy environment prepared"
+    dir: /workspace
 
   # ============================================
-  # STEP 3: Create Backup (Optional Safety)
+  # STEP 3: Initialize and Validate State
   # ============================================
-  - id: 'Create Safety Backup'
+  - id: 'Initialize and Validate State'
+    name: '${_TERRAFORM_IMAGE_NAME}:latest'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        log "🔧 Initializing Terraform/Tofu for destroy..."
+        
+        # Show version
+        log "📋 Terraform/Tofu version:"
+        tofu version || terraform version || log "Could not determine version"
+        
+        # Initialize with reconfigure
+        if tofu init -reconfigure -no-color 2>&1 | tee /workspace/init_output.txt; then
+            log "✅ Initialization successful"
+        else
+            log "❌ Initialization failed"
+            log "📋 Initialization output:"
+            cat /workspace/init_output.txt
+            exit 1
+        fi
+        
+        log "🔍 Validating current state..."
+        
+        # Create audit directory
+        mkdir -p /workspace/audit
+        
+        # Check if state file exists and has resources
+        if tofu show -json > /tmp/current_state.json 2>&1; then
+            RESOURCE_COUNT=$$(tofu show -json 2>/dev/null | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "0")
+            log "📊 Found $$RESOURCE_COUNT resources in state"
+            
+            if [ "$$RESOURCE_COUNT" = "0" ]; then
+                log "ℹ️  State is empty - no resources to destroy"
+                echo "empty" > /workspace/state_status.txt
+            else
+                log "✅ State contains resources to destroy"
+                echo "has_resources" > /workspace/state_status.txt
+                echo "$$RESOURCE_COUNT" > /workspace/resource_count.txt
+                
+                # Create pre-destroy audit
+                log "📝 Creating pre-destroy audit record..."
+                
+                cp /tmp/current_state.json /workspace/audit/pre_destroy_state.json 2>/dev/null || echo "{}" > /workspace/audit/pre_destroy_state.json
+                
+                tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' > /workspace/audit/pre_destroy_resources.txt 2>/dev/null || echo "No resources found" > /workspace/audit/pre_destroy_resources.txt
+                
+                log "✅ Pre-destroy audit completed"
+                log "⚠️  Resources to be destroyed:"
+                cat /workspace/audit/pre_destroy_resources.txt | head -20 | sed 's/^/   • /'
+                
+                if [ $$RESOURCE_COUNT -gt 20 ]; then
+                    log "   ... and $$((RESOURCE_COUNT - 20)) more"
+                fi
+            fi
+        else
+            log "⚠️  No state file found or state is empty"
+            echo "no_state" > /workspace/state_status.txt
+            echo '{"message": "No state found", "timestamp": "'$$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /workspace/audit/pre_destroy_state.json
+        fi
+        
+    dir: /workspace/modules/${_MODULE_NAME}
+
+  # ============================================
+  # STEP 4: Create Pre-Destroy Backup
+  # ============================================
+  - id: 'Create Pre-Destroy Backup'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
     args:
@@ -350,29 +391,31 @@ steps:
             echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
-        log "💾 Creating safety backup before purge..."
+        log "💾 Creating pre-destroy backup..."
         
-        # Check if deployment exists
-        DEPLOYMENT_EXISTS="exists"
-        if [ -f /workspace/deployment_exists.txt ]; then
-            DEPLOYMENT_EXISTS=$$(cat /workspace/deployment_exists.txt)
+        # Check state status
+        STATE_STATUS="unknown"
+        if [ -f /workspace/state_status.txt ]; then
+            STATE_STATUS=$$(cat /workspace/state_status.txt)
         fi
         
-        if [ "$$DEPLOYMENT_EXISTS" = "not_exists" ]; then
-            log "ℹ️  Skipping backup - deployment does not exist"
+        if [ "$$STATE_STATUS" = "no_state" ] || [ "$$STATE_STATUS" = "empty" ]; then
+            log "ℹ️  Skipping backup - no resources to destroy"
             echo "skipped" > /workspace/backup_status.txt
             exit 0
         fi
         
         DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
-        BACKUP_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/backups/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
+        BACKUP_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/backups/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
         TIMESTAMP=$$(date +%Y%m%d-%H%M%S)
         
-        log "📊 Checking deployment size for backup..."
+        log "📊 Calculating deployment size..."
         SIZE_INFO=$$(gsutil du -sh "$$DEPLOYMENT_PATH/" 2>/dev/null || echo "unknown")
         log "   Size: $$SIZE_INFO"
         
         # Create backup metadata
+        RESOURCE_COUNT=$$(cat /workspace/resource_count.txt 2>/dev/null || echo "0")
+        
         cat > /tmp/backup_metadata.json <<EOF
         {
           "backup_created_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -383,12 +426,13 @@ steps:
           "project_id": "${PROJECT_ID}",
           "build_id": "${BUILD_ID}",
           "size": "$$SIZE_INFO",
-          "operation": "purge_backup",
+          "resource_count": $$RESOURCE_COUNT,
+          "operation": "pre_destroy_backup",
           "triggered_by": "${_TRIGGERED_BY:-manual}"
         }
         EOF
         
-        log "📦 Creating backup copy (this may take a while)..."
+        log "📦 Creating backup copy..."
         
         # Copy deployment to backup location
         if gsutil -m cp -r "$$DEPLOYMENT_PATH" "$$BACKUP_PATH-$$TIMESTAMP/" 2>&1 | tee /workspace/backup_output.txt; then
@@ -405,19 +449,16 @@ steps:
             echo "success" > /workspace/backup_status.txt
             echo "$$BACKUP_PATH-$$TIMESTAMP/" > /workspace/backup_location.txt
         else
-            log "❌ Backup creation failed"
-            log "⚠️  Continuing with purge (use caution!)"
+            log "⚠️  Backup creation failed"
+            log "   Continuing with destroy (use caution!)"
             echo "failed" > /workspace/backup_status.txt
-            
-            # Don't fail the build, just warn
-            log "⚠️  WARNING: Proceeding without backup"
         fi
 
   # ============================================
-  # STEP 4: Delete Cloud Storage Deployment Folder
+  # STEP 5: Destroy Infrastructure
   # ============================================
-  - id: 'Delete Cloud Storage Deployment'
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+  - id: 'Destroy Infrastructure'
+    name: '${_TERRAFORM_IMAGE_NAME}:latest'
     entrypoint: 'bash'
     args:
       - '-c'
@@ -428,110 +469,205 @@ steps:
             echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
-        log "🗑️  Initiating deployment folder deletion..."
+        log "🔥 Starting infrastructure destroy..."
         
-        # Check if deployment exists
-        DEPLOYMENT_EXISTS="exists"
-        if [ -f /workspace/deployment_exists.txt ]; then
-            DEPLOYMENT_EXISTS=$$(cat /workspace/deployment_exists.txt)
+        # Check state status
+        STATE_STATUS="unknown"
+        if [ -f /workspace/state_status.txt ]; then
+            STATE_STATUS=$$(cat /workspace/state_status.txt)
         fi
         
-        if [ "$$DEPLOYMENT_EXISTS" = "not_exists" ]; then
-            log "ℹ️  Deployment does not exist - nothing to delete"
-            echo "skipped" > /workspace/purge_status.txt
+        if [ "$$STATE_STATUS" = "no_state" ] || [ "$$STATE_STATUS" = "empty" ]; then
+            log "ℹ️  No resources to destroy - state is empty"
+            echo "skipped" > /workspace/destroy_status.txt
             exit 0
         fi
-
-        DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
         
-        log "🔍 Final check before deletion..."
-        if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
-            log "📁 Confirmed deployment folder exists: $$DEPLOYMENT_PATH"
-            
-            # Calculate size before deletion
-            FOLDER_SIZE=$$(gsutil du -sh "$$DEPLOYMENT_PATH" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
-            log "📊 Total size to delete: $$FOLDER_SIZE"
-            
-            # Show backup status
-            BACKUP_STATUS="unknown"
-            if [ -f /workspace/backup_status.txt ]; then
-                BACKUP_STATUS=$$(cat /workspace/backup_status.txt)
-            fi
-            
-            if [ "$$BACKUP_STATUS" = "success" ]; then
-                log "✅ Backup available - safe to proceed"
-            else
-                log "⚠️  WARNING: No backup available!"
-                log "⚠️  Proceeding with deletion in 5 seconds..."
-                sleep 5
-            fi
-            
-            # Remove with retry logic
-            log "🗑️  Removing deployment folder..."
-            
-            MAX_RETRIES=3
-            RETRY_COUNT=0
-            SUCCESS=false
-            
-            while [ $$RETRY_COUNT -lt $$MAX_RETRIES ]; do
-                log "   Attempt $$((RETRY_COUNT + 1)) of $$MAX_RETRIES..."
-                
-                if gsutil -m rm -r "$$DEPLOYMENT_PATH" 2>&1 | tee /workspace/delete_output_$$RETRY_COUNT.txt; then
-                    SUCCESS=true
-                    break
-                else
-                    RETRY_COUNT=$$((RETRY_COUNT + 1))
-                    if [ $$RETRY_COUNT -lt $$MAX_RETRIES ]; then
-                        log "⚠️  Retry after 5 seconds..."
-                        sleep 5
-                    fi
-                fi
-            done
-            
-            if [ "$$SUCCESS" = true ]; then
-                log "✅ Successfully removed deployment folder from Cloud Storage"
-                echo "success" > /workspace/purge_status.txt
-                
-                # Verify deletion
-                log "🔍 Verifying deletion..."
-                sleep 2  # Brief delay for eventual consistency
-                
-                if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
-                    log "⚠️  WARNING: Deployment folder still exists after deletion attempt"
-                    log "   This may be due to eventual consistency"
-                    log "   Waiting 5 more seconds..."
-                    sleep 5
-                    
-                    if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
-                        log "❌ ERROR: Deployment folder still exists"
-                        echo "partial" > /workspace/purge_status.txt
-                    else
-                        log "✅ Verified: Deployment folder has been completely removed"
-                    fi
-                else
-                    log "✅ Verified: Deployment folder has been completely removed"
-                fi
-            else
-                log "❌ ERROR: Failed to remove deployment folder after $$MAX_RETRIES attempts"
-                log "   Path: $$DEPLOYMENT_PATH"
-                log "   This may require manual cleanup"
-                echo "failed" > /workspace/purge_status.txt
-                exit 1
-            fi
-        else
-            log "ℹ️  Deployment folder not found"
-            log "   Path: $$DEPLOYMENT_PATH"
-            log "   The folder may have been already removed or never existed"
-            log "✅ No action needed - folder does not exist"
-            echo "not_found" > /workspace/purge_status.txt
+        # Show backup status
+        BACKUP_STATUS="unknown"
+        if [ -f /workspace/backup_status.txt ]; then
+            BACKUP_STATUS=$$(cat /workspace/backup_status.txt)
         fi
         
-        log "🎉 Purge operation completed!"
+        if [ "$$BACKUP_STATUS" = "success" ]; then
+            log "✅ Backup available - safe to proceed"
+        else
+            log "⚠️  WARNING: No backup available!"
+            log "⚠️  Proceeding with destroy in 10 seconds..."
+            sleep 10
+        fi
+        
+        # Create destroy metadata
+        mkdir -p /workspace/audit
+        cat > /workspace/audit/destroy_metadata.json <<EOF
+        {
+          "module": "${_MODULE_NAME}",
+          "deployment_id": "${_DEPLOYMENT_ID}",
+          "project_id": "${PROJECT_ID}",
+          "build_id": "${BUILD_ID}",
+          "started_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "initiated_by": "${_TRIGGERED_BY:-manual}",
+          "bucket": "${_DEPLOYMENT_BUCKET_ID}",
+          "backup_status": "$$BACKUP_STATUS"
+        }
+        EOF
+        
+        # Destroy with retry logic
+        destroy_with_retry() {
+            local max_attempts=3
+            local attempt=1
+            local final_exit_code=0
+            
+            while [ $$attempt -le $$max_attempts ]; do
+                log "💥 Destroy attempt $$attempt of $$max_attempts"
+                
+                # Destroy with timeout
+                if timeout 3600 tofu destroy -auto-approve -input=false -no-color 2>&1 | tee /workspace/destroy_output_$$attempt.txt; then
+                    log "✅ Destroy successful on attempt $$attempt"
+                    final_exit_code=0
+                    break
+                else
+                    final_exit_code=$$?
+                    
+                    if [ $$final_exit_code -eq 124 ]; then
+                        log "❌ Destroy timed out on attempt $$attempt"
+                    else
+                        log "❌ Destroy failed on attempt $$attempt (exit code: $$final_exit_code)"
+                    fi
+                    
+                    if [ $$attempt -eq $$max_attempts ]; then
+                        log "💥 All destroy attempts failed"
+                        log "🔍 Checking for remaining resources..."
+                        tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || log "Unable to list remaining resources"
+                        break
+                    fi
+                    
+                    log "⏳ Waiting 60 seconds before retry..."
+                    sleep 60
+                    
+                    # Refresh state before retry
+                    log "🔄 Refreshing state before retry..."
+                    tofu refresh -no-color || log "⚠️  State refresh failed"
+                fi
+                
+                attempt=$$((attempt + 1))
+            done
+            
+            return $$final_exit_code
+        }
+        
+        destroy_with_retry
+        DESTROY_EXIT_CODE=$$?
+        
+        # Update metadata
+        DESTROY_STATUS="success"
+        if [ $$DESTROY_EXIT_CODE -ne 0 ]; then
+            DESTROY_STATUS="failed"
+        fi
+        
+        cat > /workspace/audit/destroy_metadata.json <<EOF
+        {
+          "module": "${_MODULE_NAME}",
+          "deployment_id": "${_DEPLOYMENT_ID}",
+          "project_id": "${PROJECT_ID}",
+          "build_id": "${BUILD_ID}",
+          "started_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "completed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "initiated_by": "${_TRIGGERED_BY:-manual}",
+          "bucket": "${_DEPLOYMENT_BUCKET_ID}",
+          "backup_status": "$$BACKUP_STATUS",
+          "exit_code": $$DESTROY_EXIT_CODE,
+          "status": "$$DESTROY_STATUS"
+        }
+        EOF
+        
+        echo "$$DESTROY_STATUS" > /workspace/destroy_status.txt
+        
+        log "🎯 Infrastructure destroy completed with exit code: $$DESTROY_EXIT_CODE"
+        
+        exit $$DESTROY_EXIT_CODE
+    dir: /workspace/modules/${_MODULE_NAME}
 
   # ============================================
-  # STEP 5: Upload Audit Files to Permanent Location
+  # STEP 6: Verify Destroy
   # ============================================
-  - id: 'Upload Purge Audit'
+  - id: 'Verify Destroy'
+    name: '${_TERRAFORM_IMAGE_NAME}:latest'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        log "🔍 Verifying destroy completion..."
+        
+        # Check destroy status
+        DESTROY_STATUS="unknown"
+        if [ -f /workspace/destroy_status.txt ]; then
+            DESTROY_STATUS=$$(cat /workspace/destroy_status.txt)
+        fi
+        
+        if [ "$$DESTROY_STATUS" = "skipped" ]; then
+            log "ℹ️  Skipping verification - destroy was skipped"
+            exit 0
+        fi
+        
+        mkdir -p /workspace/audit
+        
+        # Check final state
+        REMAINING_COUNT=0
+        VERIFICATION_STATUS="success"
+        VERIFICATION_MESSAGE="All resources successfully destroyed"
+        
+        if tofu show -json > /tmp/final_state.json 2>&1; then
+            REMAINING_COUNT=$$(tofu show -json 2>/dev/null | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "0")
+            
+            if [ "$$REMAINING_COUNT" = "0" ]; then
+                log "✅ All resources successfully destroyed"
+            else
+                log "⚠️  Warning: $$REMAINING_COUNT resources may still exist"
+                VERIFICATION_STATUS="partial"
+                VERIFICATION_MESSAGE="$$REMAINING_COUNT resources may still exist in state"
+                
+                cp /tmp/final_state.json /workspace/audit/post_destroy_state.json 2>/dev/null || echo "{}" > /workspace/audit/post_destroy_state.json
+                
+                tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' > /workspace/audit/remaining_resources.txt 2>/dev/null || echo "Unable to list" > /workspace/audit/remaining_resources.txt
+                
+                log "📋 Remaining resources:"
+                cat /workspace/audit/remaining_resources.txt | sed 's/^/   • /'
+            fi
+        else
+            log "✅ State is clean - no resources found"
+            echo '{"message": "No state found after destroy", "timestamp": "'$$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /workspace/audit/post_destroy_state.json
+        fi
+        
+        # Create verification report
+        cat > /workspace/audit/destroy_verification.json <<EOF
+        {
+          "module": "${_MODULE_NAME}",
+          "deployment_id": "${_DEPLOYMENT_ID}",
+          "verified_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "status": "$$VERIFICATION_STATUS",
+          "message": "$$VERIFICATION_MESSAGE",
+          "remaining_resources": $$REMAINING_COUNT,
+          "destroy_status": "$$DESTROY_STATUS"
+        }
+        EOF
+        
+        echo "$$VERIFICATION_STATUS" > /workspace/verification_status.txt
+        
+        log "✅ Destroy verification completed"
+        
+    dir: /workspace/modules/${_MODULE_NAME}
+
+  # ============================================
+  # STEP 7: Upload Audit Files to Permanent Location
+  # ============================================
+  - id: 'Upload Audit Files'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
     args:
@@ -543,18 +679,18 @@ steps:
             echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
-        log "📤 Uploading purge audit records to permanent location..."
+        log "📤 Uploading audit files to permanent location..."
         
-        # Upload to build-logs location (survives deployment folder deletion)
-        AUDIT_BASE="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit"
+        # Upload to build-logs instead of deployment folder (which will be deleted)
+        AUDIT_BASE="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit"
         
         log "📍 Audit destination: $$AUDIT_BASE"
         
-        if [ -d /tmp/audit ]; then
+        if [ -d /workspace/audit ]; then
             UPLOAD_COUNT=0
             FAIL_COUNT=0
             
-            for file in /tmp/audit/*; do
+            for file in /workspace/audit/*; do
                 if [ -f "$$file" ]; then
                     FILENAME=$$(basename $$file)
                     log "   Uploading $$FILENAME..."
@@ -570,21 +706,21 @@ steps:
             done
             
             log "📊 Audit upload summary: $$UPLOAD_COUNT successful, $$FAIL_COUNT failed"
-            
-            if [ $$FAIL_COUNT -gt 0 ]; then
-                log "⚠️  WARNING: Some audit files failed to upload"
-            fi
         else
             log "⚠️  No audit directory found"
         fi
         
-        # Get purge status
-        PURGE_STATUS="unknown"
-        if [ -f /workspace/purge_status.txt ]; then
-            PURGE_STATUS=$$(cat /workspace/purge_status.txt)
+        # Get statuses
+        DESTROY_STATUS="unknown"
+        if [ -f /workspace/destroy_status.txt ]; then
+            DESTROY_STATUS=$$(cat /workspace/destroy_status.txt)
         fi
         
-        # Get backup status
+        VERIFICATION_STATUS="unknown"
+        if [ -f /workspace/verification_status.txt ]; then
+            VERIFICATION_STATUS=$$(cat /workspace/verification_status.txt)
+        fi
+        
         BACKUP_STATUS="unknown"
         BACKUP_LOCATION=""
         if [ -f /workspace/backup_status.txt ]; then
@@ -594,41 +730,112 @@ steps:
             BACKUP_LOCATION=$$(cat /workspace/backup_location.txt)
         fi
         
-        # Create purge completion marker
-        log "📝 Creating purge completion marker..."
+        # Create destroy completion marker
+        log "📝 Creating destroy completion marker..."
         
-        cat > /tmp/purge_complete.json <<EOF
+        cat > /tmp/destroy_complete.json <<EOF
         {
           "module": "${_MODULE_NAME}",
           "deployment_id": "${_DEPLOYMENT_ID}",
           "project_id": "${PROJECT_ID}",
           "build_id": "${BUILD_ID}",
-          "purged_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-          "bucket": "${_DEPLOYMENT_BUCKET_ID}",
-          "path_removed": "deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/",
-          "operation": "purge",
-          "status": "$$PURGE_STATUS",
+          "destroyed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "destroy_status": "$$DESTROY_STATUS",
+          "verification_status": "$$VERIFICATION_STATUS",
           "backup_status": "$$BACKUP_STATUS",
           "backup_location": "$$BACKUP_LOCATION",
           "audit_location": "$$AUDIT_BASE/",
-          "initiated_by": "${_TRIGGERED_BY:-manual}",
-          "git_repo": "${_GIT_REPO_URL:-none}",
-          "module_git_repo": "${_MODULE_GIT_REPO_URL:-none}"
+          "initiated_by": "${_TRIGGERED_BY:-manual}"
         }
         EOF
         
-        if gsutil cp /tmp/purge_complete.json "$$AUDIT_BASE/purge_complete.json" 2>/dev/null; then
+        if gsutil cp /tmp/destroy_complete.json "$$AUDIT_BASE/destroy_complete.json" 2>/dev/null; then
             log "✅ Completion marker uploaded"
         else
             log "⚠️  Failed to upload completion marker"
         fi
         
-        log "✅ Audit files uploaded to permanent location"
+        log "✅ All audit files uploaded to: $$AUDIT_BASE/"
 
   # ============================================
-  # STEP 6: Purge Summary
+  # STEP 8: Cleanup Deployment Folder
   # ============================================
-  - id: 'Purge Summary'
+  - id: 'Cleanup Deployment Folder'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        log "🗑️  Removing deployment folder from Cloud Storage..."
+        
+        DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+        
+        if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
+            log "📁 Found deployment folder: $$DEPLOYMENT_PATH"
+            
+            # Calculate size before deletion
+            FOLDER_SIZE=$$(gsutil du -sh "$$DEPLOYMENT_PATH" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
+            log "📊 Folder size: $$FOLDER_SIZE"
+            
+            # Remove with retry
+            MAX_RETRIES=3
+            RETRY_COUNT=0
+            SUCCESS=false
+            
+            while [ $$RETRY_COUNT -lt $$MAX_RETRIES ]; do
+                log "   Attempt $$((RETRY_COUNT + 1)) of $$MAX_RETRIES..."
+                
+                if gsutil -m rm -r "$$DEPLOYMENT_PATH" 2>&1 | tee /workspace/cleanup_output_$$RETRY_COUNT.txt; then
+                    SUCCESS=true
+                    break
+                else
+                    RETRY_COUNT=$$((RETRY_COUNT + 1))
+                    if [ $$RETRY_COUNT -lt $$MAX_RETRIES ]; then
+                        log "⚠️  Retry after 5 seconds..."
+                        sleep 5
+                    fi
+                fi
+            done
+            
+            if [ "$$SUCCESS" = true ]; then
+                log "✅ Successfully removed deployment folder"
+                
+                # Verify deletion
+                sleep 2  # Brief delay for eventual consistency
+                
+                if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
+                    log "⚠️  WARNING: Deployment folder still exists after deletion"
+                    log "   This may be due to eventual consistency"
+                    sleep 5
+                    
+                    if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
+                        log "❌ ERROR: Deployment folder still exists"
+                        exit 1
+                    else
+                        log "✅ Confirmed: Deployment folder removed"
+                    fi
+                else
+                    log "✅ Confirmed: Deployment folder removed"
+                fi
+            else
+                log "❌ ERROR: Failed to remove deployment folder after $$MAX_RETRIES attempts"
+                log "   Manual cleanup may be required"
+                exit 1
+            fi
+        else
+            log "ℹ️  Deployment folder not found (may already be removed)"
+        fi
+
+  # ============================================
+  # STEP 9: Destroy Summary
+  # ============================================
+  - id: 'Destroy Summary'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
     args:
@@ -638,10 +845,15 @@ steps:
             echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
-        # Determine operation outcome
-        PURGE_STATUS="unknown"
-        if [ -f /workspace/purge_status.txt ]; then
-            PURGE_STATUS=$$(cat /workspace/purge_status.txt)
+        # Get all statuses
+        DESTROY_STATUS="unknown"
+        if [ -f /workspace/destroy_status.txt ]; then
+            DESTROY_STATUS=$$(cat /workspace/destroy_status.txt)
+        fi
+        
+        VERIFICATION_STATUS="unknown"
+        if [ -f /workspace/verification_status.txt ]; then
+            VERIFICATION_STATUS=$$(cat /workspace/verification_status.txt)
         fi
         
         BACKUP_STATUS="unknown"
@@ -649,77 +861,83 @@ steps:
             BACKUP_STATUS=$$(cat /workspace/backup_status.txt)
         fi
         
-        DEPLOYMENT_EXISTS="unknown"
-        if [ -f /workspace/deployment_exists.txt ]; then
-            DEPLOYMENT_EXISTS=$$(cat /workspace/deployment_exists.txt)
-        fi
-        
         echo "========================================="
-        if [ "$$PURGE_STATUS" = "success" ]; then
-            log "🎉 CLOUD STORAGE PURGE COMPLETED SUCCESSFULLY"
-        elif [ "$$PURGE_STATUS" = "skipped" ] || [ "$$PURGE_STATUS" = "not_found" ]; then
-            log "ℹ️  PURGE SKIPPED (DEPLOYMENT NOT FOUND)"
-        elif [ "$$PURGE_STATUS" = "partial" ]; then
-            log "⚠️  PURGE PARTIALLY COMPLETED"
+        if [ "$$DESTROY_STATUS" = "success" ] && [ "$$VERIFICATION_STATUS" = "success" ]; then
+            log "🎉 INFRASTRUCTURE DESTROY COMPLETED SUCCESSFULLY"
+        elif [ "$$DESTROY_STATUS" = "skipped" ]; then
+            log "ℹ️  DESTROY SKIPPED (NO RESOURCES FOUND)"
+        elif [ "$$VERIFICATION_STATUS" = "partial" ]; then
+            log "⚠️  DESTROY PARTIALLY COMPLETED"
         else
-            log "❌ PURGE FAILED OR INCOMPLETE"
+            log "❌ DESTROY FAILED OR INCOMPLETE"
         fi
         echo "========================================="
-        echo "Purge Details:"
+        echo "Destroy Details:"
         echo "  • Module: ${_MODULE_NAME}"
         echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
-        echo "  • Bucket: ${_DEPLOYMENT_BUCKET_ID}"
-        echo "  • Path Removed: deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
         echo "  • Project: ${PROJECT_ID}"
         echo "  • Build ID: ${BUILD_ID}"
         echo "  • Completed: $$(date)"
         echo "========================================="
         echo "Operation Status:"
-        echo "  • Deployment Existed: $$DEPLOYMENT_EXISTS"
         echo "  • Backup Status: $$BACKUP_STATUS"
-        echo "  • Purge Status: $$PURGE_STATUS"
+        echo "  • Destroy Status: $$DESTROY_STATUS"
+        echo "  • Verification Status: $$VERIFICATION_STATUS"
         echo "========================================="
         
         if [ "$$BACKUP_STATUS" = "success" ] && [ -f /workspace/backup_location.txt ]; then
             BACKUP_LOCATION=$$(cat /workspace/backup_location.txt)
             echo "💾 Backup Information:"
-            echo "  • Backup created before purge"
+            echo "  • Pre-destroy backup created"
             echo "  • Location: $$BACKUP_LOCATION"
             echo "  • Retention: Check bucket lifecycle policy"
             echo "========================================="
         fi
         
-        echo "📝 Permanent Audit Trail:"
-        echo "  • Build Logs: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
-        echo "  • Audit Files: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/"
-        echo "  • Pre-purge Audit: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/pre_purge_audit.json"
-        echo "  • File List: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/file_list.txt"
-        echo "  • Completion Marker: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/purge_complete.json"
+        if [ "$$VERIFICATION_STATUS" = "partial" ]; then
+            echo "⚠️  IMPORTANT WARNINGS:"
+            echo "  • Some resources may still exist"
+            echo "  • Check audit files for details"
+            echo "  • Manual cleanup may be required"
+            echo "========================================="
+        fi
+        
+        echo "⚠️  IMPORTANT: Deployment deleted from GCS"
+        echo "========================================="
+        echo "📝 Audit Trail Preserved:"
+        echo "  • Build Logs: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+        echo "  • Audit Files: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/"
+        echo "  • Pre-destroy State: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/pre_destroy_state.json"
+        echo "  • Resource List: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/pre_destroy_resources.txt"
+        echo "  • Completion Marker: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/destroy_complete.json"
         
         if [ "$$BACKUP_STATUS" = "success" ]; then
-            echo "  • Backup: gs://${_DEPLOYMENT_BUCKET_ID}/backups/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}-*/"
+            echo "  • Backup: gs://${_DEPLOYMENT_BUCKET_ID}/backups/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}-*/"
         fi
         echo "========================================="
         
-        if [ "$$PURGE_STATUS" = "success" ]; then
-            log "✅ Cloud Storage purge successful"
-        elif [ "$$PURGE_STATUS" = "skipped" ] || [ "$$PURGE_STATUS" = "not_found" ]; then
-            log "ℹ️  Purge operation skipped"
+        if [ "$$DESTROY_STATUS" = "success" ] && [ "$$VERIFICATION_STATUS" = "success" ]; then
+            log "✅ Infrastructure destroy successful"
+        elif [ "$$DESTROY_STATUS" = "skipped" ]; then
+            log "ℹ️  Destroy operation skipped"
         else
-            log "⚠️  Purge completed with warnings"
+            log "⚠️  Destroy completed with warnings"
         fi
         echo "========================================="
+    dir: /workspace
 
-# ============================================
-# CLEANUP: Always Execute (Success or Failure)
-# ============================================
-finally:
   # ============================================
-  # CLEANUP STEP 1: Release Purge Lock
+  # CLEANUP STEPS (Always Execute)
+  # Using waitFor: ['-'] to run independently of previous steps
   # ============================================
-  - id: 'Release Purge Lock (Cleanup)'
+  
+  # ============================================
+  # CLEANUP STEP 1: Release Destroy Lock
+  # ============================================
+  - id: 'Release Destroy Lock (Cleanup)'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
+    waitFor: ['-']  # Run independently of previous steps
     args:
       - '-c'
       - |
@@ -730,19 +948,8 @@ finally:
         }
         
         echo "========================================"
-        log "🧹 CLEANUP: Releasing purge lock"
+        log "🧹 CLEANUP: Releasing destroy lock"
         echo "========================================"
-        
-        # Check lock status
-        LOCK_STATUS="unknown"
-        if [ -f /workspace/lock_status.txt ]; then
-            LOCK_STATUS=$$(cat /workspace/lock_status.txt)
-        fi
-        
-        if [ "$$LOCK_STATUS" = "skipped" ]; then
-            log "ℹ️  Lock was not acquired - nothing to release"
-            exit 0
-        fi
         
         # Try to read lock path from file first
         if [ -f /workspace/lock_path.txt ]; then
@@ -791,6 +998,7 @@ finally:
   - id: 'Upload Final Build Metadata (Cleanup)'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
+    waitFor: ['Release Destroy Lock (Cleanup)']  # Wait for previous cleanup step
     args:
       - '-c'
       - |
@@ -804,20 +1012,29 @@ finally:
         
         # Determine build status
         BUILD_STATUS="UNKNOWN"
-        PURGE_STATUS="unknown"
+        DESTROY_STATUS="unknown"
+        VERIFICATION_STATUS="unknown"
         
-        if [ -f /workspace/purge_status.txt ]; then
-            PURGE_STATUS=$$(cat /workspace/purge_status.txt)
+        if [ -f /workspace/destroy_status.txt ]; then
+            DESTROY_STATUS=$$(cat /workspace/destroy_status.txt)
+        fi
+        
+        if [ -f /workspace/verification_status.txt ]; then
+            VERIFICATION_STATUS=$$(cat /workspace/verification_status.txt)
         fi
         
         # Determine overall build status
-        case "$$PURGE_STATUS" in
-            success) BUILD_STATUS="SUCCESS" ;;
-            skipped|not_found) BUILD_STATUS="SKIPPED" ;;
-            partial) BUILD_STATUS="PARTIAL" ;;
-            failed) BUILD_STATUS="FAILED" ;;
-            *) BUILD_STATUS="UNKNOWN" ;;
-        esac
+        if [ "$$DESTROY_STATUS" = "success" ] && [ "$$VERIFICATION_STATUS" = "success" ]; then
+            BUILD_STATUS="SUCCESS"
+        elif [ "$$DESTROY_STATUS" = "skipped" ]; then
+            BUILD_STATUS="SKIPPED"
+        elif [ "$$VERIFICATION_STATUS" = "partial" ]; then
+            BUILD_STATUS="PARTIAL"
+        elif [ "$$DESTROY_STATUS" = "failed" ]; then
+            BUILD_STATUS="FAILED"
+        else
+            BUILD_STATUS="UNKNOWN"
+        fi
         
         # Get backup info
         BACKUP_STATUS="unknown"
@@ -829,12 +1046,6 @@ finally:
             BACKUP_LOCATION=$$(cat /workspace/backup_location.txt)
         fi
         
-        # Get deployment existence status
-        DEPLOYMENT_EXISTS="unknown"
-        if [ -f /workspace/deployment_exists.txt ]; then
-            DEPLOYMENT_EXISTS=$$(cat /workspace/deployment_exists.txt)
-        fi
-        
         # Create final metadata file
         cat > /tmp/final_build_metadata.json <<EOF
         {
@@ -842,12 +1053,12 @@ finally:
           "module": "${_MODULE_NAME}",
           "deployment_id": "${_DEPLOYMENT_ID}",
           "project_id": "${PROJECT_ID}",
-          "operation": "purge",
+          "operation": "destroy",
           "status": "$$BUILD_STATUS",
-          "purge_status": "$$PURGE_STATUS",
+          "destroy_status": "$$DESTROY_STATUS",
+          "verification_status": "$$VERIFICATION_STATUS",
           "backup_status": "$$BACKUP_STATUS",
           "backup_location": "$$BACKUP_LOCATION",
-          "deployment_existed": "$$DEPLOYMENT_EXISTS",
           "completed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
           "triggered_by": "${_TRIGGERED_BY:-manual}"
         }
@@ -857,7 +1068,7 @@ finally:
         cat /tmp/final_build_metadata.json
         
         # Upload metadata to audit location
-        METADATA_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/final_build_metadata.json"
+        METADATA_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/final_build_metadata.json"
         
         if gsutil -h "Content-Type:application/json" \
                   cp /tmp/final_build_metadata.json "$$METADATA_PATH" 2>/dev/null; then
@@ -875,6 +1086,7 @@ finally:
   - id: 'Final Status Summary (Cleanup)'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
+    waitFor: ['Upload Final Build Metadata (Cleanup)']  # Wait for previous cleanup step
     args:
       - '-c'
       - |
@@ -885,7 +1097,7 @@ finally:
         }
         
         echo "========================================"
-        log "📊 FINAL PURGE STATUS"
+        log "📊 FINAL DESTROY STATUS"
         echo "========================================"
         echo "Build ID: ${BUILD_ID}"
         echo "Module: ${_MODULE_NAME}"
@@ -895,11 +1107,18 @@ finally:
         echo "========================================"
         
         # Check all statuses
-        if [ -f /workspace/purge_status.txt ]; then
-            PURGE_STATUS=$$(cat /workspace/purge_status.txt)
-            echo "Purge Status: $$PURGE_STATUS"
+        if [ -f /workspace/destroy_status.txt ]; then
+            DESTROY_STATUS=$$(cat /workspace/destroy_status.txt)
+            echo "Destroy Status: $$DESTROY_STATUS"
         else
-            echo "Purge Status: Not reached (build failed before purge)"
+            echo "Destroy Status: Not reached (build failed before destroy)"
+        fi
+        
+        if [ -f /workspace/verification_status.txt ]; then
+            VERIFICATION_STATUS=$$(cat /workspace/verification_status.txt)
+            echo "Verification Status: $$VERIFICATION_STATUS"
+        else
+            echo "Verification Status: Not reached"
         fi
         
         if [ -f /workspace/backup_status.txt ]; then
@@ -907,13 +1126,6 @@ finally:
             echo "Backup Status: $$BACKUP_STATUS"
         else
             echo "Backup Status: Unknown"
-        fi
-        
-        if [ -f /workspace/deployment_exists.txt ]; then
-            DEPLOYMENT_EXISTS=$$(cat /workspace/deployment_exists.txt)
-            echo "Deployment Existed: $$DEPLOYMENT_EXISTS"
-        else
-            echo "Deployment Existed: Unknown"
         fi
         
         # Check if lock was released
@@ -933,7 +1145,7 @@ finally:
             log "   Path: $$DEPLOYMENT_PATH"
             log "   Manual cleanup may be required"
         else
-            log "✅ Deployment folder successfully removed or never existed"
+            log "✅ Deployment folder successfully removed"
         fi
         
         echo "========================================"
@@ -950,7 +1162,7 @@ options:
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
   substitutionOption: 'ALLOW_LOOSE'
-  # machineType: 'E2_HIGHCPU_8'  # Uncomment if needed for large deployments
+  # machineType: 'E2_HIGHCPU_8'  # Uncomment for complex destroys
 
 # ============================================
 # Substitution Variables
@@ -959,6 +1171,7 @@ substitutions:
   _DEPLOYMENT_ID: "none"
   _MODULE_NAME: "unknown"
   _DEPLOYMENT_BUCKET_ID: "rad-deployments-2b65"
+  _TERRAFORM_IMAGE_NAME: "us-central1-docker.pkg.dev/tec-rad-ui-2b65/opentofu-images/opentofu"
   _GIT_REPO_URL: "techequitycloud/rad-modules"
   _MODULE_GIT_REPO_URL: ""
   _GITHUB_TOKEN_SECRET_NAME: "git-access-token"
@@ -967,9 +1180,9 @@ substitutions:
 # ============================================
 # Logs Configuration
 # ============================================
-logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
+logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
 
 # ============================================
 # Timeout
 # ============================================
-timeout: 1200s  # 20 minutes for large deployments with backup
+timeout: 7200s  # 2 hours for complex destroys
