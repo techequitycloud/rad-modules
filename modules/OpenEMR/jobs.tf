@@ -37,16 +37,16 @@ resource "google_cloud_run_v2_job" "prepare_nfs_directories" {
           set -e
           
           echo "=== Preparing NFS Directories ==="
-          echo "Creating directory structure for dev environment..."
+          echo "Creating directory structure..."
           
           # Create all required directories
-          mkdir -p /mnt/dev
+          mkdir -p /var/www/localhost/htdocs/openemr/sites/default
           
           # Set permissions
-          chmod 777 /mnt/dev
+          chmod -R 777 /var/www/localhost/htdocs/openemr/sites
           
           echo "✓ Directories created successfully:"
-          ls -la /mnt/
+          ls -la /var/www/localhost/htdocs/openemr/sites/
           
           echo "✓ NFS directory preparation complete"
         EOT
@@ -54,7 +54,7 @@ resource "google_cloud_run_v2_job" "prepare_nfs_directories" {
         
         volume_mounts {
           name       = "nfs"
-          mount_path = "/mnt"
+          mount_path = "/var/www/localhost/htdocs/openemr/sites"
         }
       }
       
@@ -171,7 +171,7 @@ resource "google_cloud_run_v2_job" "backup_service" {
 
         volume_mounts {
           name      = "nfs-data-volume"
-          mount_path = "/mnt"
+          mount_path = "/var/www/localhost/htdocs/openemr/sites"
         }
       }
 
@@ -272,7 +272,7 @@ resource "google_cloud_run_v2_job" "init_job" {
         
         volume_mounts {
           name       = "nfs-data-volume"
-          mount_path = "/mnt/sites"
+          mount_path = "/var/www/localhost/htdocs/openemr/sites"
         }
 
         command = ["/bin/sh"]
@@ -288,30 +288,42 @@ resource "google_cloud_run_v2_job" "init_job" {
           echo "  MYSQL_USER: $$MYSQL_USER"
           echo "  MYSQL_PORT: $$MYSQL_PORT"
           
-          echo "Checking /mnt/sites..."
+          SITES_PATH="/var/www/localhost/htdocs/openemr/sites"
+          
+          echo "Checking $$SITES_PATH..."
           
           # Verify NFS mount is accessible
-          if ! ls /mnt/sites > /dev/null 2>&1; then
-            echo "ERROR: Cannot access /mnt/sites - NFS mount may have failed"
+          if ! ls $$SITES_PATH > /dev/null 2>&1; then
+            echo "ERROR: Cannot access $$SITES_PATH - NFS mount may have failed"
             exit 1
           fi
           
           # Check if already initialized
-          if [ -f /mnt/sites/default/sqlconf.php ]; then
-            echo "✓ /mnt/sites/default/sqlconf.php exists. Skipping initialization."
+          if [ -f $$SITES_PATH/default/sqlconf.php ] && [ -f $$SITES_PATH/default/config.php ]; then
+            echo "✓ Configuration files exist. Skipping initialization."
             exit 0
           fi
           
           echo "Initializing NFS share..."
           
           # Create directory structure
-          mkdir -p /mnt/sites/default
+          mkdir -p $$SITES_PATH/default
+          mkdir -p $$SITES_PATH/default/documents
           
           # Install required packages
           echo "Installing required packages..."
-          apk add --no-cache wget php81
+          apk update
+          apk add --no-cache php81 php81-cli
           
-          # Create sqlconf.php using printf to avoid escaping issues
+          # Verify PHP installation
+          echo "Verifying PHP installation..."
+          if ! command -v php81 >/dev/null 2>&1; then
+            echo "ERROR: PHP installation failed"
+            exit 1
+          fi
+          echo "✓ PHP installed successfully: $$(php81 --version | head -n1)"
+          
+          # Create sqlconf.php
           echo "Creating sqlconf.php configuration file..."
           printf '%s\n' \
             '<?php' \
@@ -344,45 +356,100 @@ resource "google_cloud_run_v2_job" "init_job" {
             '//////////////////////////' \
             '//////////////////////////' \
             '?>' \
-            > /mnt/sites/default/sqlconf.php
+            > $$SITES_PATH/default/sqlconf.php
           
-          # Replace placeholders with actual values
-          echo "Configuring database connection..."
-          sed -i "s|DBHOST_PLACEHOLDER|$${MYSQL_HOST}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBUSER_PLACEHOLDER|$${MYSQL_USER}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBPASS_PLACEHOLDER|$${MYSQL_PASS}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|DBNAME_PLACEHOLDER|$${MYSQL_DATABASE}|g" /mnt/sites/default/sqlconf.php
-          sed -i "s|ROOTPASS_PLACEHOLDER|$${MYSQL_ROOT_PASS}|g" /mnt/sites/default/sqlconf.php
+          # Replace placeholders in sqlconf.php
+          echo "Configuring database connection in sqlconf.php..."
+          sed -i "s|DBHOST_PLACEHOLDER|$${MYSQL_HOST}|g" $$SITES_PATH/default/sqlconf.php
+          sed -i "s|DBUSER_PLACEHOLDER|$${MYSQL_USER}|g" $$SITES_PATH/default/sqlconf.php
+          sed -i "s|DBPASS_PLACEHOLDER|$${MYSQL_PASS}|g" $$SITES_PATH/default/sqlconf.php
+          sed -i "s|DBNAME_PLACEHOLDER|$${MYSQL_DATABASE}|g" $$SITES_PATH/default/sqlconf.php
+          sed -i "s|ROOTPASS_PLACEHOLDER|$${MYSQL_ROOT_PASS}|g" $$SITES_PATH/default/sqlconf.php
+          
+          # Create config.php
+          echo "Creating config.php configuration file..."
+          printf '%s\n' \
+            '<?php' \
+            '// OpenEMR Configuration File' \
+            '' \
+            '$GLOBALS['"'"'OE_SITE_DIR'"'"'] = '"'"'/var/www/localhost/htdocs/openemr/sites/default'"'"';' \
+            '$GLOBALS['"'"'OE_SITES_BASE'"'"'] = '"'"'/var/www/localhost/htdocs/openemr/sites'"'"';' \
+            '' \
+            '// Database configuration' \
+            '$GLOBALS['"'"'host'"'"'] = '"'"'DBHOST_PLACEHOLDER'"'"';' \
+            '$GLOBALS['"'"'port'"'"'] = '"'"'3306'"'"';' \
+            '$GLOBALS['"'"'login'"'"'] = '"'"'DBUSER_PLACEHOLDER'"'"';' \
+            '$GLOBALS['"'"'pass'"'"'] = '"'"'DBPASS_PLACEHOLDER'"'"';' \
+            '$GLOBALS['"'"'dbase'"'"'] = '"'"'DBNAME_PLACEHOLDER'"'"';' \
+            '$GLOBALS['"'"'db_encoding'"'"'] = '"'"'utf8mb4'"'"';' \
+            '' \
+            '// Site configuration' \
+            '$GLOBALS['"'"'site_id_header_name'"'"'] = '"'"'default'"'"';' \
+            '$GLOBALS['"'"'webserver_root'"'"'] = '"'"'/var/www/localhost/htdocs/openemr'"'"';' \
+            '$GLOBALS['"'"'web_root'"'"'] = '"'"''"'"';' \
+            '' \
+            '// Disable setup' \
+            '$GLOBALS['"'"'disable_setup'"'"'] = 1;' \
+            '' \
+            '?>' \
+            > $$SITES_PATH/default/config.php
+          
+          # Replace placeholders in config.php
+          echo "Configuring database connection in config.php..."
+          sed -i "s|DBHOST_PLACEHOLDER|$${MYSQL_HOST}|g" $$SITES_PATH/default/config.php
+          sed -i "s|DBUSER_PLACEHOLDER|$${MYSQL_USER}|g" $$SITES_PATH/default/config.php
+          sed -i "s|DBPASS_PLACEHOLDER|$${MYSQL_PASS}|g" $$SITES_PATH/default/config.php
+          sed -i "s|DBNAME_PLACEHOLDER|$${MYSQL_DATABASE}|g" $$SITES_PATH/default/config.php
           
           # Set permissions
-          chmod 755 /mnt/sites/default/sqlconf.php || true
-          chmod 755 /mnt/sites/default || true
-          chmod 755 /mnt/sites || true
+          chmod 644 $$SITES_PATH/default/sqlconf.php || true
+          chmod 644 $$SITES_PATH/default/config.php || true
+          chmod 755 $$SITES_PATH/default || true
+          chmod 755 $$SITES_PATH || true
+          chmod 777 $$SITES_PATH/default/documents || true
           
           echo "✓ Configuration complete"
           
-          # Verify the file was created and validate PHP syntax
-          if [ -f /mnt/sites/default/sqlconf.php ]; then
-            echo "✓ File created successfully"
+          # Verify files were created and validate PHP syntax
+          echo "=== Verifying sqlconf.php ==="
+          if [ -f $$SITES_PATH/default/sqlconf.php ]; then
+            echo "✓ sqlconf.php created successfully"
+            cat $$SITES_PATH/default/sqlconf.php
             
-            # Show file contents for debugging
-            echo "=== File contents ==="
-            cat /mnt/sites/default/sqlconf.php
-            
-            # Validate PHP syntax
-            echo "Validating PHP syntax..."
-            if php -l /mnt/sites/default/sqlconf.php; then
-              echo "✓ PHP syntax validation passed"
-              echo "✓ Initialization successful"
-              exit 0
+            if php81 -l $$SITES_PATH/default/sqlconf.php; then
+              echo "✓ sqlconf.php syntax validation passed"
             else
-              echo "ERROR: PHP syntax validation failed"
+              echo "ERROR: sqlconf.php syntax validation failed"
               exit 1
             fi
           else
             echo "ERROR: sqlconf.php was not created"
             exit 1
           fi
+          
+          echo ""
+          echo "=== Verifying config.php ==="
+          if [ -f $$SITES_PATH/default/config.php ]; then
+            echo "✓ config.php created successfully"
+            cat $$SITES_PATH/default/config.php
+            
+            if php81 -l $$SITES_PATH/default/config.php; then
+              echo "✓ config.php syntax validation passed"
+            else
+              echo "ERROR: config.php syntax validation failed"
+              exit 1
+            fi
+          else
+            echo "ERROR: config.php was not created"
+            exit 1
+          fi
+          
+          echo ""
+          echo "=== Final directory structure ==="
+          ls -la $$SITES_PATH/default/
+          
+          echo "✓ Initialization successful"
+          exit 0
           EOT
         ]
       }
@@ -429,4 +496,3 @@ resource "null_resource" "execute_init_job" {
     google_cloud_run_v2_job.init_job
   ]
 }
-

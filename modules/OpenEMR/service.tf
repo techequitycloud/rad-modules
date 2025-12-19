@@ -51,16 +51,16 @@ resource "google_cloud_run_v2_service" "app_service" {
         initial_delay_seconds = 240
         timeout_seconds = 60
         period_seconds = 240
-        failure_threshold = 5
+        failure_threshold = 3
         tcp_socket {
           port = 80
         }
       }
 
       liveness_probe {
-        initial_delay_seconds = 300
+        initial_delay_seconds = 240
         timeout_seconds = 60
-        period_seconds = 60
+        period_seconds = 180
         failure_threshold = 3
         http_get {
           path = "/interface/login/login.php"
