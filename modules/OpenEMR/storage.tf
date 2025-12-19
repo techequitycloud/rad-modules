@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Local variables for bucket existence
+# Local variables for bucket names
 locals {
-  env_suffix = var.configure_environment ? "" : ""
-
   # Bucket names
-  backup_bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}${local.env_suffix}-backups"
-  data_bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}${local.env_suffix}-data"
-  restore_bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}${local.env_suffix}-restore"
+  backup_bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-backups"
+  data_bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-data"
+  restore_bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-restore"
 }
 
 # Create buckets only if they don't exist and creation is requested
