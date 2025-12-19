@@ -16,11 +16,11 @@
 # Cleanup Resources (executed on destroy)
 #########################################################################
 
-# Cleanup script for dev database objects
-resource "null_resource" "cleanup_dev_db_objects" {
+# Cleanup script for database objects
+resource "null_resource" "cleanup_db_objects" {
   triggers = {
-    user     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-dev"
-    database = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}-dev"
+    user     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}"
+    database = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}"
     instance = local.db_instance_name
     project  = local.project.project_id
   }
@@ -70,11 +70,11 @@ resource "null_resource" "cleanup_dev_db_objects" {
 }
 
 #########################################################################
-# Create Database and User - DEV
+# Create Database and User
 #########################################################################
 
-resource "google_sql_database" "dev_db" {
-  name     = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}-dev"
+resource "google_sql_database" "db" {
+  name     = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}"
   instance = local.db_instance_name
   project  = local.project.project_id
 
@@ -85,7 +85,7 @@ resource "google_sql_database" "dev_db" {
   }
 }
 
-resource "random_password" "dev_db_password" {
+resource "random_password" "db_password" {
   length  = 30
   special = false
 
@@ -94,16 +94,16 @@ resource "random_password" "dev_db_password" {
   }
 }
 
-resource "google_sql_user" "dev_user" {
-  name     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}-dev"
+resource "google_sql_user" "user" {
+  name     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}"
   instance = local.db_instance_name
   project  = local.project.project_id
-  password = random_password.dev_db_password.result
+  password = random_password.db_password.result
 
   deletion_policy = "ABANDON"
 
   depends_on = [
-    google_sql_database.dev_db
+    google_sql_database.db
   ]
 
   lifecycle {
@@ -116,9 +116,9 @@ resource "google_sql_user" "dev_user" {
 # Force delete users (simplified - no SQL connection needed)
 #########################################################################
 
-resource "null_resource" "force_delete_dev_user" {
+resource "null_resource" "force_delete_user" {
   triggers = {
-    user     = google_sql_user.dev_user.name
+    user     = google_sql_user.user.name
     instance = local.db_instance_name
     project  = local.project.project_id
   }
@@ -127,7 +127,7 @@ resource "null_resource" "force_delete_dev_user" {
     when       = destroy
     command    = <<-EOT
       echo "========================================="
-      echo "Deleting dev user: ${self.triggers.user}"
+      echo "Deleting user: ${self.triggers.user}"
       echo "========================================="
       
       USER_EXISTS=$(gcloud sql users list \
@@ -152,7 +152,7 @@ resource "null_resource" "force_delete_dev_user" {
   }
 
   depends_on = [
-    null_resource.cleanup_dev_db_objects
+    null_resource.cleanup_db_objects
   ]
 
   lifecycle {
@@ -164,9 +164,9 @@ resource "null_resource" "force_delete_dev_user" {
 # Force delete databases with connection termination
 #########################################################################
 
-resource "null_resource" "force_delete_dev_db" {
+resource "null_resource" "force_delete_db" {
   triggers = {
-    database = google_sql_database.dev_db.name
+    database = google_sql_database.db.name
     instance = local.db_instance_name
     project  = local.project.project_id
   }
@@ -175,7 +175,7 @@ resource "null_resource" "force_delete_dev_db" {
     when       = destroy
     command    = <<-EOT
       echo "========================================="
-      echo "Deleting dev database: ${self.triggers.database}"
+      echo "Deleting database: ${self.triggers.database}"
       echo "========================================="
       
       DB_EXISTS=$(gcloud sql databases list \
@@ -216,7 +216,7 @@ resource "null_resource" "force_delete_dev_db" {
   }
 
   depends_on = [
-    null_resource.force_delete_dev_user
+    null_resource.force_delete_user
   ]
 
   lifecycle {
@@ -230,8 +230,8 @@ resource "null_resource" "force_delete_dev_db" {
 
 resource "null_resource" "final_cleanup" {
   triggers = {
-    dev_user  = google_sql_user.dev_user.name
-    dev_db    = google_sql_database.dev_db.name
+    user      = google_sql_user.user.name
+    db        = google_sql_database.db.name
     instance  = local.db_instance_name
     project   = local.project.project_id
   }
@@ -246,7 +246,7 @@ resource "null_resource" "final_cleanup" {
       REMAINING_USERS=$(gcloud sql users list \
         --instance=${self.triggers.instance} \
         --project=${self.triggers.project} \
-        --format="value(name)" 2>/dev/null | grep -E "${self.triggers.dev_user}" || echo "")
+        --format="value(name)" 2>/dev/null | grep -E "${self.triggers.user}" || echo "")
       
       if [ -n "$REMAINING_USERS" ]; then
         echo "⚠ Found remaining users: $REMAINING_USERS"
@@ -257,7 +257,7 @@ resource "null_resource" "final_cleanup" {
       REMAINING_DBS=$(gcloud sql databases list \
         --instance=${self.triggers.instance} \
         --project=${self.triggers.project} \
-        --format="value(name)" 2>/dev/null | grep -E "${self.triggers.dev_db}" || echo "")
+        --format="value(name)" 2>/dev/null | grep -E "${self.triggers.db}" || echo "")
       
       if [ -n "$REMAINING_DBS" ]; then
         echo "⚠ Found remaining databases: $REMAINING_DBS"
@@ -273,8 +273,8 @@ resource "null_resource" "final_cleanup" {
   }
 
   depends_on = [
-    null_resource.force_delete_dev_user,
-    null_resource.force_delete_dev_db
+    null_resource.force_delete_user,
+    null_resource.force_delete_db
   ]
 
   lifecycle {

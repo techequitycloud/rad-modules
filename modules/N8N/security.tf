@@ -1,13 +1,13 @@
 # Copyright (c) Tech Equity Ltd
 
 #########################################################################
-# Configure Dev resources
+# Configure resources
 #########################################################################
 
 # Cloud Armor configuration
-resource "google_compute_security_policy" "dev_policy" {
-  count = (var.configure_development_environment && var.configure_application_security && length(var.application_authorized_network) > 0 && length(var.application_secure_path) > 0) ? 1 : 0
-  name    = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+resource "google_compute_security_policy" "policy" {
+  count = (var.configure_environment && var.configure_application_security && length(var.application_authorized_network) > 0 && length(var.application_secure_path) > 0) ? 1 : 0
+  name    = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   project = local.project.project_id
 
   # Rule to allow access from authorized IP ranges

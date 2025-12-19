@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-resource "google_cloud_run_v2_service" "dev_app_service" {
-  count               = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+resource "google_cloud_run_v2_service" "app_service" {
+  count               = var.configure_environment && local.sql_server_exists ? 1 : 0
   project             = local.project.project_id
-  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location            = local.region
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
@@ -28,7 +28,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
 
     labels = {
       app = var.application_name,
-      env = "dev"
+      env = "app"
     }
 
     containers {
@@ -98,11 +98,11 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
       }
       env {
         name  = "DB_POSTGRESDB_DATABASE"
-        value = google_sql_database.dev_db.name
+        value = google_sql_database.db.name
       }
       env {
         name  = "DB_POSTGRESDB_USER"
-        value = google_sql_user.dev_user.name
+        value = google_sql_user.user.name
       }
       env {
         name  = "DB_POSTGRESDB_HOST"
@@ -144,7 +144,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         name = "DB_POSTGRESDB_PASSWORD"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.dev_db_password.secret_id
+            secret  = google_secret_manager_secret.db_password.secret_id
             version = "latest"
           }
         }
@@ -154,7 +154,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
         name = "N8N_ENCRYPTION_KEY"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.dev_encryption_key.secret_id
+            secret  = google_secret_manager_secret.encryption_key.secret_id
             version = "latest"
           }
         }
@@ -195,7 +195,7 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     volumes {
       name = "gcs-data"
       gcs {
-        bucket    = google_storage_bucket.dev_storage.name
+        bucket    = google_storage_bucket.storage.name
         read_only = false
       }
     }
@@ -208,22 +208,22 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
   }
 
   depends_on = [
-    google_sql_database.dev_db,
-    google_sql_user.dev_user,
-    google_secret_manager_secret_version.dev_db_password,
-    google_secret_manager_secret_version.dev_encryption_key,
+    google_sql_database.db,
+    google_sql_user.user,
+    google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret_version.encryption_key,
     google_project_iam_member.cloudsql_client,
-    google_storage_bucket.dev_storage,
+    google_storage_bucket.storage,
     google_project_iam_member.storage_admin
   ]
 }
 
-resource "google_cloud_run_service_iam_binding" "dev" {
-  count = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+resource "google_cloud_run_service_iam_binding" "app_service" {
+  count = var.configure_environment && local.sql_server_exists ? 1 : 0
 
   project  = local.project.project_id
   location = local.region
-  service  = google_cloud_run_v2_service.dev_app_service[0].name
+  service  = google_cloud_run_v2_service.app_service[0].name
   role     = "roles/run.invoker"
   members = [
     "allUsers"

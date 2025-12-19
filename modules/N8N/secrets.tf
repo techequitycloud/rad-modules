@@ -17,41 +17,41 @@
 #########################################################################
 
 # Resource for creating a random password for database user
-resource "random_password" "dev_encryption_key" {
+resource "random_password" "encryption_key" {
   length           = 16
   special          = false
 }
 
 #########################################################################
-# Secret Manager resources for Dev environment
+# Secret Manager resources
 #########################################################################
 
-resource "google_secret_manager_secret" "dev_db_password" {
+resource "google_secret_manager_secret" "db_password" {
   project    = local.project.project_id
-  secret_id  = "n8n-db-password-${var.tenant_deployment_id}-${local.random_id}-dev"
+  secret_id  = "n8n-db-password-${var.tenant_deployment_id}-${local.random_id}"
 
   replication {
     auto {}
   }
 }
 
-resource "google_secret_manager_secret_version" "dev_db_password" {
-  secret      = google_secret_manager_secret.dev_db_password.id
-  secret_data = random_password.dev_db_password.result
+resource "google_secret_manager_secret_version" "db_password" {
+  secret      = google_secret_manager_secret.db_password.id
+  secret_data = random_password.db_password.result
 }
 
-resource "google_secret_manager_secret" "dev_encryption_key" {
+resource "google_secret_manager_secret" "encryption_key" {
   project    = local.project.project_id
-  secret_id  = "n8n-encryption-key-${var.tenant_deployment_id}-${local.random_id}-dev"
+  secret_id  = "n8n-encryption-key-${var.tenant_deployment_id}-${local.random_id}"
 
   replication {
     auto {}
   }
 }
 
-resource "google_secret_manager_secret_version" "dev_encryption_key" {
-  secret      = google_secret_manager_secret.dev_encryption_key.id
-  secret_data = random_password.dev_encryption_key.result
+resource "google_secret_manager_secret_version" "encryption_key" {
+  secret      = google_secret_manager_secret.encryption_key.id
+  secret_data = random_password.encryption_key.result
 }
 
 #########################################################################
@@ -91,8 +91,8 @@ resource "google_secret_manager_secret_version" "storage_secret_key" {
 
 # --- Additional Data Sources for Scripts (DB Passwords) ---
 
-data "google_secret_manager_secret_version" "dev_db_password" {
-  secret  = google_secret_manager_secret.dev_db_password.id
+data "google_secret_manager_secret_version" "db_password" {
+  secret  = google_secret_manager_secret.db_password.id
   version = "latest"
-  depends_on = [google_secret_manager_secret_version.dev_db_password]
+  depends_on = [google_secret_manager_secret_version.db_password]
 }
