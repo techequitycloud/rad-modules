@@ -1,10 +1,10 @@
 # GCP Project
 
-This Terraform module creates a new Google Cloud project and configures a billing budget for it.
+This Terraform module creates a new Google Cloud project, configures a billing budget for it, and optionally applies Compute Engine quota overrides.
 
 ## Purpose
 
-The main purpose of this module is to provide a standardized way to create new projects with budget controls in place from the start. This helps to prevent unexpected costs and ensures that all new projects adhere to the organization's spending policies.
+The main purpose of this module is to provide a standardized way to create new projects with budget controls and resource quotas in place from the start. This helps to prevent unexpected costs and ensures that all new projects adhere to the organization's spending policies and resource limits.
 
 ## Usage
 
@@ -19,6 +19,43 @@ You can also customize the budget by providing the following variables:
 - `billing_budget_amount`: The amount of the budget.
 - `billing_budget_alert_spent_percents`: A list of percentages of the budget at which to send alerts.
 - `billing_budget_notification_email_addresses`: A list of email addresses to receive budget alerts.
+
+### Quota Management
+
+This module supports applying GCP Compute Engine quota overrides. To enable this feature:
+
+1. Set `enable_quota_overrides = true`
+2. Optionally customize the `quota_overrides` variable with your desired quota limits
+
+The module includes default quota values for all Compute Engine metrics including:
+- Network resources (NETWORKS, FIREWALLS, ROUTES, SUBNETWORKS)
+- Compute resources (CPUS_ALL_REGIONS, GPUS_ALL_REGIONS, SNAPSHOTS, IMAGES)
+- Load balancing resources (FORWARDING_RULES, BACKEND_SERVICES, URL_MAPS, TARGET_HTTP_PROXIES)
+- VPN and networking (VPN_GATEWAYS, VPN_TUNNELS, ROUTERS)
+- Security (SECURITY_POLICIES, SSL_CERTIFICATES)
+
+Example usage with quota overrides:
+
+```hcl
+module "gcp_project" {
+  source = "./modules/GCP_Project"
+
+  project_id_prefix = "my-project"
+  billing_account_id = "XXXXXX-YYYYYY-ZZZZZZ"
+
+  enable_quota_overrides = true
+  quota_overrides = {
+    "CPUS_ALL_REGIONS" = {
+      metric = "CPUS_ALL_REGIONS"
+      limit  = 64
+    }
+    "NETWORKS" = {
+      metric = "NETWORKS"
+      limit  = 10
+    }
+  }
+}
+```
 
 ## Inputs
 
