@@ -566,10 +566,13 @@ steps:
         log "📋 Planning infrastructure changes..."
         
         # Generate plan with detailed exit codes
+        # Use PIPESTATUS to capture tofu exit code, not tee exit code
         set +e  # Temporarily disable exit on error
         tofu plan -out=tfplan -detailed-exitcode -no-color 2>&1 | tee /workspace/plan_output.txt
-        PLAN_EXIT_CODE=$$?
+        PLAN_EXIT_CODE=$${PIPESTATUS[0]}  # ← FIX: Get exit code from tofu, not tee
         set -e  # Re-enable exit on error
+        
+        log "🔍 Plan exit code: $$PLAN_EXIT_CODE"
         
         # Interpret exit code
         case $$PLAN_EXIT_CODE in
@@ -583,7 +586,7 @@ steps:
                 
                 # Extract plan summary
                 log "📋 Plan Summary:"
-                grep -E "Plan:|will be created|will be updated|will be destroyed" /workspace/plan_output.txt | head -20 || log "Summary extraction failed"
+                grep -E "Plan:" /workspace/plan_output.txt || log "Could not extract plan summary"
                 ;;
             *)
                 log "❌ Planning failed with exit code: $$PLAN_EXIT_CODE"
@@ -606,7 +609,7 @@ steps:
             log "⚠️  Could not save JSON plan"
         fi
         
-        log "✅ Planning completed"
+        log "✅ Planning completed with status: $$(cat /workspace/plan_status.txt)"
     dir: /workspace/modules/${_MODULE_NAME}
 
   # ============================================
