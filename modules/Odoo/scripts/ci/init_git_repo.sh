@@ -84,7 +84,7 @@ create_or_update_branch() {
         git stash pop || true  # Ignore error if there's nothing to pop
     fi
 
-    if [[ "${branch_name}" == "dev" || "${branch_name}" == "qa" || "${branch_name}" == "prod" ]]; then
+    if [[ "${branch_name}" == "main" ]]; then
         cp -r ../app/addons .
         git add addons
         git commit -m "Add addons folder to ${branch_name} branch"
@@ -140,9 +140,7 @@ else
     git pull
 fi
 
-create_or_update_branch dev
-create_or_update_branch qa
-create_or_update_branch prod
+create_or_update_branch main
 
 grant_write_access
 
