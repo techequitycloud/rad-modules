@@ -14,12 +14,10 @@
 
 # Local variables for bucket existence
 locals {
-  env_suffix = var.configure_development_environment ? "-dev" : "-qa"
-
   # Bucket names
-  backup_bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}${local.env_suffix}-backups"
-  data_bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}${local.env_suffix}-data"
-  restore_bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}${local.env_suffix}-restore"
+  backup_bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-backups"
+  data_bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-data"
+  restore_bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-restore"
 }
 
 # Create buckets only if they don't exist and creation is requested

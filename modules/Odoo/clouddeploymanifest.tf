@@ -39,21 +39,21 @@ resource "local_file" "clouddeploy_backup_skaffold" {
 }
 
 # Resource to create a local file for development deployment, with variables substituted
-resource "local_file" "clouddeploy_app_deploy_dev" {
+resource "local_file" "clouddeploy_app_deploy" {
   count = var.configure_continuous_deployment ? 1 : 0
-  filename = "${path.module}/scripts/cd/app/deploy-dev.yaml"
-  content  = templatefile("${path.module}/scripts/cd/app/deploy-dev.yaml.tpl", {
+  filename = "${path.module}/scripts/cd/app/deploy.yaml"
+  content  = templatefile("${path.module}/scripts/cd/app/deploy.yaml.tpl", {
     # Variables are passed to the template file for dynamic content generation
     PROJECT_ID        = local.project.project_id
     PROJECT_NUMBER    = local.project_number
     APP_REGION        = local.region
     APP_NAME          = var.application_name
-    APP_SERVICE       = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
-    APP_DATA_DIR      = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev" # 
+    APP_SERVICE       = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+    APP_DATA_DIR      = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}" #
     APP_NFS_IP        = local.nfs_internal_ip
-    DATABASE_USER     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev" # module.sql_db_postgresql.additional_users[0].name
-    DATABASE_NAME     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev" # google_sql_database.sql_dev_database.name
-    DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}" 
+    DATABASE_USER     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}" # module.sql_db_postgresql.additional_users[0].name
+    DATABASE_NAME     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}" # google_sql_database.sql_dev_database.name
+    DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
     DATABASE_HOST     = local.db_internal_ip
     DATABASE_INSTANCE = local.db_instance_name
     BACKUP_BUCKET     = "${local.backup_bucket_name}s"
@@ -64,21 +64,21 @@ resource "local_file" "clouddeploy_app_deploy_dev" {
 }
 
 # Resource to create a local file for development deployment, with variables substituted
-resource "local_file" "clouddeploy_backup_deploy_dev" {
+resource "local_file" "clouddeploy_backup_deploy" {
   count = var.configure_continuous_deployment ? 1 : 0
-  filename = "${path.module}/scripts/cd/backup/deploy-dev.yaml"
-  content  = templatefile("${path.module}/scripts/cd/backup/deploy-dev.yaml.tpl", {
+  filename = "${path.module}/scripts/cd/backup/deploy.yaml"
+  content  = templatefile("${path.module}/scripts/cd/backup/deploy.yaml.tpl", {
     # Variables are passed to the template file for dynamic content generation
     PROJECT_ID        = local.project.project_id
     PROJECT_NUMBER    = local.project_number
     APP_REGION        = local.region
     APP_NAME          = var.application_name
-    APP_SERVICE       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
-    APP_DATA_DIR      = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev" # 
+    APP_SERVICE       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+    APP_DATA_DIR      = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}" #
     APP_NFS_IP        = local.nfs_internal_ip
-    DATABASE_USER     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev" # module.sql_db_postgresql.additional_users[0].name
-    DATABASE_NAME     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev" # google_sql_database.sql_dev_database.name
-    DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}" 
+    DATABASE_USER     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}" # module.sql_db_postgresql.additional_users[0].name
+    DATABASE_NAME     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}" # google_sql_database.sql_dev_database.name
+    DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
     DATABASE_HOST     = local.db_internal_ip
     DATABASE_INSTANCE = local.db_instance_name
     BACKUP_BUCKET     = "${local.backup_bucket_name}s"

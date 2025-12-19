@@ -181,8 +181,8 @@ variable "tenant_deployment_id" {
   type        = string
 }
 
-variable "configure_development_environment" {
-  description = "Select to configure development environment. Code is committed to the dev branch in the github repository. {{UIMeta group=0 order=703 }}"
+variable "configure_environment" {
+  description = "Select to configure environment. {{UIMeta group=0 order=703 }}"
   type        = bool
   default     = true
 }
