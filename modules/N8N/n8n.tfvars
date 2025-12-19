@@ -11,5 +11,3 @@ network_name = "vpc-network"
 
 # environments
 configure_development_environment = true
-configure_nonproduction_environment = false
-configure_production_environment = false

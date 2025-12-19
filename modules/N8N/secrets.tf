@@ -22,16 +22,6 @@ resource "random_password" "dev_encryption_key" {
   special          = false
 }
 
-resource "random_password" "qa_encryption_key" {
-  length           = 16
-  special          = false
-}
-
-resource "random_password" "prod_encryption_key" {
-  length           = 16
-  special          = false
-}
-
 #########################################################################
 # Secret Manager resources for Dev environment
 #########################################################################
@@ -62,71 +52,6 @@ resource "google_secret_manager_secret" "dev_encryption_key" {
 resource "google_secret_manager_secret_version" "dev_encryption_key" {
   secret      = google_secret_manager_secret.dev_encryption_key.id
   secret_data = random_password.dev_encryption_key.result
-}
-
-
-#########################################################################
-# Secret Manager resources for QA environment
-#########################################################################
-
-resource "google_secret_manager_secret" "qa_db_password" {
-  project    = local.project.project_id
-  secret_id  = "n8n-db-password-${var.tenant_deployment_id}-${local.random_id}-qa"
-
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "qa_db_password" {
-  secret      = google_secret_manager_secret.qa_db_password.id
-  secret_data = random_password.qa_db_password.result
-}
-
-resource "google_secret_manager_secret" "qa_encryption_key" {
-  project    = local.project.project_id
-  secret_id  = "n8n-encryption-key-${var.tenant_deployment_id}-${local.random_id}-qa"
-
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "qa_encryption_key" {
-  secret      = google_secret_manager_secret.qa_encryption_key.id
-  secret_data = random_password.qa_encryption_key.result
-}
-
-#########################################################################
-# Secret Manager resources for Prod environment
-#########################################################################
-
-resource "google_secret_manager_secret" "prod_db_password" {
-  project    = local.project.project_id
-  secret_id  = "n8n-db-password-${var.tenant_deployment_id}-${local.random_id}-prod"
-
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "prod_db_password" {
-  secret      = google_secret_manager_secret.prod_db_password.id
-  secret_data = random_password.prod_db_password.result
-}
-
-resource "google_secret_manager_secret" "prod_encryption_key" {
-  project    = local.project.project_id
-  secret_id  = "n8n-encryption-key-${var.tenant_deployment_id}-${local.random_id}-prod"
-
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "prod_encryption_key" {
-  secret      = google_secret_manager_secret.prod_encryption_key.id
-  secret_data = random_password.prod_encryption_key.result
 }
 
 #########################################################################
@@ -170,16 +95,4 @@ data "google_secret_manager_secret_version" "dev_db_password" {
   secret  = google_secret_manager_secret.dev_db_password.id
   version = "latest"
   depends_on = [google_secret_manager_secret_version.dev_db_password]
-}
-
-data "google_secret_manager_secret_version" "qa_db_password" {
-  secret  = google_secret_manager_secret.qa_db_password.id
-  version = "latest"
-  depends_on = [google_secret_manager_secret_version.qa_db_password]
-}
-
-data "google_secret_manager_secret_version" "prod_db_password" {
-  secret  = google_secret_manager_secret.prod_db_password.id
-  version = "latest"
-  depends_on = [google_secret_manager_secret_version.prod_db_password]
 }

@@ -16,13 +16,6 @@ output "dev_app_service_url" {
   value = length(google_cloud_run_v2_service.dev_app_service) > 0 ? google_cloud_run_v2_service.dev_app_service[0].uri : null
 }
 
-output "qa_app_service_url" {
-  value = length(google_cloud_run_v2_service.qa_app_service) > 0 ? google_cloud_run_v2_service.qa_app_service[0].uri : null
-}
-
-output "prod_app_service_url" {
-  value = length(google_cloud_run_v2_service.prod_app_service) > 0 ? google_cloud_run_v2_service.prod_app_service[0].uri : null
-}
 
 output "sql_instance_info" {
   value = {

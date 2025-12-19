@@ -126,18 +126,6 @@ variable "configure_development_environment" {
   default     = true
 }
 
-variable "configure_nonproduction_environment" {
-  description = "Select to configure staging environment. {{UIMeta group=0 order=704 }}"
-  type        = bool
-  default     = false
-}
-
-variable "configure_production_environment" {
-  description = "Select to configure production environment. {{UIMeta group=0 order=705 }}"
-  type        = bool
-  default     = false
-}
-
 # GROUP 6: CICD
 
 variable "configure_continuous_integration" {
