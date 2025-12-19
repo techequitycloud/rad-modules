@@ -176,18 +176,6 @@ variable "configure_development_environment" {
   default     = true
 }
 
-variable "configure_nonproduction_environment" {
-  description = "Select to configure staging environment. Code is committed to the qa branch in the github repository. {{UIMeta group=0 order=704 }}"
-  type        = bool
-  default     = false
-}
-
-variable "configure_production_environment" {
-  description = "Select to configure production environment. Code is committed to the prod branch in the github repository. {{UIMeta group=0 order=705 }}"
-  type        = bool
-  default     = false
-}
-
 # GROUP 8: Tenant
 
 variable "configure_monitoring" {

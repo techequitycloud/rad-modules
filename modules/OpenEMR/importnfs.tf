@@ -22,8 +22,6 @@ resource "null_resource" "create_nfs_directories_on_server" {
   triggers = {
     nfs_ip = local.nfs_internal_ip
     dev_path = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    qa_path = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
-    prod_path = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
   }
 
   provisioner "local-exec" {
@@ -68,8 +66,6 @@ echo "Creating NFS directory structure..."
 
 # Create directories
 sudo mkdir -p /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev
-sudo mkdir -p /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa
-sudo mkdir -p /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod
 
 # Set permissions
 sudo chmod -R 777 /share
@@ -146,45 +142,6 @@ resource "local_file" "import_dev_nfs_script_output" {
   })
 }
 
-# Create db import script
-resource "local_file" "import_qa_nfs_script_output" {
-  count    = local.nfs_server_exists ? 1 : 0  
-  filename = "${path.module}/scripts/app/qa/import-nfs.sh"
-  content = templatefile("${path.module}/scripts/app/import_nfs.tpl", {
-    PROJECT_ID          = local.project.project_id
-    BACKUP_FILEID       = "${var.application_backup_fileid}"
-    DB_IP               = local.db_internal_ip
-    DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
-    DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
-    DB_PASS             = data.google_secret_manager_secret_version.qa_db_password.secret_data
-    ROOT_PASS           = local.db_root_password
-    APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
-    APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
-    APP_REGION_2        = length(local.regions) > 1 ? local.regions[1] : ""
-    NFS_IP              = local.nfs_internal_ip
-    NFS_ZONE            = data.google_compute_zones.available_zones.names[0]
-  })
-}
-
-# Create db import script
-resource "local_file" "import_prod_nfs_script_output" {
-  count    = local.nfs_server_exists ? 1 : 0  
-  filename = "${path.module}/scripts/app/prod/import-nfs.sh"
-  content = templatefile("${path.module}/scripts/app/import_nfs.tpl", {
-    PROJECT_ID          = local.project.project_id
-    BACKUP_FILEID       = "${var.application_backup_fileid}"
-    DB_IP               = local.db_internal_ip
-    DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
-    DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
-    DB_PASS             = data.google_secret_manager_secret_version.prod_db_password.secret_data
-    ROOT_PASS           = local.db_root_password
-    APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
-    APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
-    APP_REGION_2        = length(local.regions) > 1 ? local.regions[1] : ""
-    NFS_IP              = local.nfs_internal_ip
-    NFS_ZONE            = data.google_compute_zones.available_zones.names[0]
-  })
-}
 
 #########################################################################
 # NFS Import Operations
@@ -258,140 +215,3 @@ resource "null_resource" "import_dev_nfs" {
   ]
 }
 
-# Resource to import qa nfs
-resource "null_resource" "import_qa_nfs" {
-  count    = local.nfs_server_exists ? 1 : 0  
-    
-  triggers = {
-    # always_run = "${timestamp()}"
-  }
-
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command = <<-EOF
-      max_attempts=3
-      attempt=0
-
-      while [ $attempt -lt $max_attempts ]; do
-        NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(NAME)")
-        status=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(status)")
-                
-        if [ "$status" = "RUNNING" ]; then
-          echo "Instance is running."
-          break
-        else
-          echo "Waiting for instance to be running... (Attempt $((attempt + 1)) of $max_attempts)"
-          sleep 10
-        fi
-                
-        attempt=$((attempt + 1))
-      done
-
-      if [ $attempt -eq $max_attempts ]; then
-        echo "Max attempts reached. Instance is not running."
-        exit 1
-      fi
-
-      for i in {1..5}; do
-        if [ -z "${local.project_sa_email}" ] || [ -z "${var.resource_creator_identity}" ]; then
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/qa/import-nfs.sh; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
-        else
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/qa/import-nfs.sh --impersonate-service-account=${local.project_sa_email}; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
-        fi
-
-        if [ "$i" -eq 5 ]; then
-          echo "SSH command failed after 5 attempts. Exiting..."
-          exit 1
-        fi
-      done
-    EOF
-  }
-
-  depends_on = [
-    local_file.import_qa_nfs_script_output,
-    null_resource.import_dev_nfs,
-    null_resource.build_and_push_backup_image,
-    null_resource.create_nfs_directories_on_server,
-  ]
-}
-
-# Resource to import prod nfs
-resource "null_resource" "import_prod_nfs" {
-  count    = local.nfs_server_exists ? 1 : 0  
-    
-  triggers = {
-    # always_run = "${timestamp()}"
-  }
-
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command = <<-EOF
-      max_attempts=3
-      attempt=0
-
-      while [ $attempt -lt $max_attempts ]; do
-        NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(NAME)")
-        status=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(status)")
-                
-        if [ "$status" = "RUNNING" ]; then
-          echo "Instance is running."
-          break
-        else
-          echo "Waiting for instance to be running... (Attempt $((attempt + 1)) of $max_attempts)"
-          sleep 10
-        fi
-                
-        attempt=$((attempt + 1))
-      done
-
-      if [ $attempt -eq $max_attempts ]; then
-        echo "Max attempts reached. Instance is not running."
-        exit 1
-      fi
-
-      for i in {1..5}; do
-        if [ -z "${local.project_sa_email}" ] || [ -z "${var.resource_creator_identity}" ]; then
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/prod/import-nfs.sh; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
-        else
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/prod/import-nfs.sh --impersonate-service-account=${local.project_sa_email}; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
-        fi
-
-        if [ "$i" -eq 5 ]; then
-          echo "SSH command failed after 5 attempts. Exiting..."
-          exit 1
-        fi
-      done
-    EOF
-  }
-
-  depends_on = [
-    local_file.import_prod_nfs_script_output,
-    null_resource.import_qa_nfs,
-    null_resource.build_and_push_backup_image,
-    null_resource.create_nfs_directories_on_server,
-  ]
-}
