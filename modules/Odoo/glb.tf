@@ -13,46 +13,46 @@
 # limitations under the License.
 
 #########################################################################
-# Configure Dev resources
+# Configure resources
 #########################################################################
 
 # Reserve a global IP address for the load balancer
-resource "google_compute_global_address" "dev" {
-  count   = length(local.regions) >= 2 && var.configure_development_environment ? 1 : 0
+resource "google_compute_global_address" "default" {
+  count   = length(local.regions) >= 2 && var.configure_environment ? 1 : 0
   project = local.project.project_id
-  name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+  name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
 }
 
-resource "google_compute_backend_service" "dev_default" {
-  count                 = length(local.regions) >= 2 && var.configure_development_environment ? 1 : 0
+resource "google_compute_backend_service" "default" {
+  count                 = length(local.regions) >= 2 && var.configure_environment ? 1 : 0
   project               = local.project.project_id
   provider              = google-beta
-  name                  = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+  name                  = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   load_balancing_scheme = "EXTERNAL_MANAGED"
 
   dynamic "backend" {
     for_each = local.regions  # Iterate over each region in local.regions
 
     content {
-      group = google_compute_region_network_endpoint_group.dev_default[backend.key].id
+      group = google_compute_region_network_endpoint_group.default[backend.key].id
     }
   }
 
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
-resource "google_compute_url_map" "dev_default" {
-  count           = length(local.regions) >= 2 && var.configure_development_environment ? 1 : 0
+resource "google_compute_url_map" "default" {
+  count           = length(local.regions) >= 2 && var.configure_environment ? 1 : 0
   project         = local.project.project_id
   provider        = google-beta
-  name            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-lb-urlmap"
-  default_service = google_compute_backend_service.dev_default[count.index].id
+  name            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}-lb-urlmap"
+  default_service = google_compute_backend_service.default[count.index].id
 
   path_matcher {
     name            = "allpaths"
-    default_service = google_compute_backend_service.dev_default[count.index].id
+    default_service = google_compute_backend_service.default[count.index].id
     route_rules {
       priority = 1
       url_redirect {
@@ -63,76 +63,76 @@ resource "google_compute_url_map" "dev_default" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
-resource "google_compute_managed_ssl_certificate" "dev_default" {
-  count    = length(local.regions) >= 2 && var.configure_development_environment ? 1 : 0
+resource "google_compute_managed_ssl_certificate" "default" {
+  count    = length(local.regions) >= 2 && var.configure_environment ? 1 : 0
   project  = local.project.project_id
   provider = google-beta
-  name     = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-ssl-cert"
+  name     = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}-ssl-cert"
 
   managed {
-    domains = ["app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev.${google_compute_global_address.dev[count.index].address}.nip.io"]
+    domains = ["app${var.application_name}${var.tenant_deployment_id}${local.random_id}.${google_compute_global_address.default[count.index].address}.nip.io"]
   }
 
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
-resource "google_compute_target_https_proxy" "dev_default" {
-  count    = length(local.regions) >= 2 && var.configure_development_environment ? 1 : 0
+resource "google_compute_target_https_proxy" "default" {
+  count    = length(local.regions) >= 2 && var.configure_environment ? 1 : 0
   project  = local.project.project_id
   provider = google-beta
-  name     = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-https-proxy"
-  url_map  = google_compute_url_map.dev_default[count.index].id
+  name     = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}-https-proxy"
+  url_map  = google_compute_url_map.default[count.index].id
   ssl_certificates = [
-    google_compute_managed_ssl_certificate.dev_default[count.index].name
+    google_compute_managed_ssl_certificate.default[count.index].name
   ]
 
   depends_on = [
-    google_compute_managed_ssl_certificate.dev_default
+    google_compute_managed_ssl_certificate.default
   ]
 }
 
-resource "google_compute_global_forwarding_rule" "dev_default" {
-  count                 = length(local.regions) >= 2 && var.configure_development_environment ? 1 : 0
+resource "google_compute_global_forwarding_rule" "default" {
+  count                 = length(local.regions) >= 2 && var.configure_environment ? 1 : 0
   project               = local.project.project_id
   provider              = google-beta
-  name                  = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-lb-fr"
+  name                  = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}-lb-fr"
   load_balancing_scheme = "EXTERNAL_MANAGED"
-  target                = google_compute_target_https_proxy.dev_default[count.index].id
-  ip_address            = google_compute_global_address.dev[count.index].id
+  target                = google_compute_target_https_proxy.default[count.index].id
+  ip_address            = google_compute_global_address.default[count.index].id
   port_range            = "443"
 
   depends_on            = [
-    google_compute_target_https_proxy.dev_default
+    google_compute_target_https_proxy.default
   ]
 }
 
-resource "google_compute_region_network_endpoint_group" "dev_default" {
-  count                 = length(local.regions) >= 2 && var.configure_development_environment ? length(local.regions) : 0
+resource "google_compute_region_network_endpoint_group" "default" {
+  count                 = length(local.regions) >= 2 && var.configure_environment ? length(local.regions) : 0
   project               = local.project.project_id
   provider              = google-beta
-  name                  = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-neg"
+  name                  = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}-neg"
   network_endpoint_type = "SERVERLESS"
   region                = local.regions[count.index]
   cloud_run {
-    service = google_cloud_run_v2_service.dev_app_service[local.regions[count.index]].name
+    service = google_cloud_run_v2_service.app_service[local.regions[count.index]].name
   }
 
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
-resource "google_compute_url_map" "dev_https" {
-  count    = length(local.regions) >= 2 && var.configure_development_environment ? 1 : 0
+resource "google_compute_url_map" "https" {
+  count    = length(local.regions) >= 2 && var.configure_environment ? 1 : 0
   project  = local.project.project_id
   provider = google-beta
-  name     = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-https-urlmap"
+  name     = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}-https-urlmap"
 
   default_url_redirect {
     redirect_response_code = "MOVED_PERMANENTLY_DEFAULT"
@@ -141,32 +141,32 @@ resource "google_compute_url_map" "dev_https" {
   }
 
   depends_on = [
-    google_cloud_run_v2_service.dev_app_service
+    google_cloud_run_v2_service.app_service
   ]
 }
 
-resource "google_compute_target_http_proxy" "dev_https" {
-  count    = length(local.regions) >= 2 && var.configure_development_environment ? 1 : 0
+resource "google_compute_target_http_proxy" "https" {
+  count    = length(local.regions) >= 2 && var.configure_environment ? 1 : 0
   project  = local.project.project_id
   provider = google-beta
-  name     = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-http-proxy"
-  url_map  = google_compute_url_map.dev_https[count.index].id
+  name     = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}-http-proxy"
+  url_map  = google_compute_url_map.https[count.index].id
 
   depends_on = [
-    google_compute_url_map.dev_https
+    google_compute_url_map.https
   ]
 }
 
-resource "google_compute_global_forwarding_rule" "dev_https" {
-  count      = length(local.regions) >= 2 && var.configure_development_environment ? 1 : 0
+resource "google_compute_global_forwarding_rule" "https" {
+  count      = length(local.regions) >= 2 && var.configure_environment ? 1 : 0
   project    = local.project.project_id
   provider   = google-beta
-  name       = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-https-fr"
-  target     = google_compute_target_http_proxy.dev_https[count.index].id
-  ip_address = google_compute_global_address.dev[count.index].id
+  name       = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}-https-fr"
+  target     = google_compute_target_http_proxy.https[count.index].id
+  ip_address = google_compute_global_address.default[count.index].id
   port_range = "80"
 
   depends_on = [
-    google_compute_target_http_proxy.dev_https
+    google_compute_target_http_proxy.https
   ]
 }

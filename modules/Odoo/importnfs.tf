@@ -17,15 +17,15 @@
 #########################################################################
 
 # Create db import script
-resource "local_file" "import_dev_nfs_script_output" {
+resource "local_file" "import_nfs_script_output" {
   count    = local.nfs_server_exists ? 1 : 0  
-  filename = "${path.module}/scripts/app/dev/import-nfs.sh"
+  filename = "${path.module}/scripts/app/import-nfs.sh"
   content = templatefile("${path.module}/scripts/app/import_nfs.tpl", {
     PROJECT_ID          = local.project.project_id
     BACKUP_FILEID       = "${var.application_backup_fileid}"
-    DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-    APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
+    DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
     APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
     APP_REGION_2        = length(local.regions) > 1 ? local.regions[1] : ""
     NFS_IP              = local.nfs_internal_ip
@@ -38,7 +38,7 @@ resource "local_file" "import_dev_nfs_script_output" {
 #########################################################################
 
 # Resource to import dev nfs
-resource "null_resource" "import_dev_nfs" {
+resource "null_resource" "import_nfs" {
   count    = local.nfs_server_exists ? 1 : 0  
     
   # Triggers that cause the resource to be updated/recreated
@@ -80,7 +80,7 @@ resource "null_resource" "import_dev_nfs" {
       # Ensure application directory is empty and execute the script
       for i in {1..5}; do
         if [ -z "${local.project_sa_email}" ] || [ -z "${var.resource_creator_identity}" ]; then
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/dev/import-nfs.sh; then
+          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-nfs.sh; then
             echo "SSH command succeeded"
             break
           else
@@ -88,7 +88,7 @@ resource "null_resource" "import_dev_nfs" {
             sleep 30
           fi
         else
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/dev/import-nfs.sh --impersonate-service-account=${local.project_sa_email}; then
+          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-nfs.sh --impersonate-service-account=${local.project_sa_email}; then
             echo "SSH command succeeded"
             break
           else
@@ -107,9 +107,8 @@ resource "null_resource" "import_dev_nfs" {
   }
 
   depends_on = [
-    local_file.import_dev_nfs_script_output,
+    local_file.import_nfs_script_output,
     null_resource.build_and_push_application_image,
     null_resource.build_and_push_backup_image,
   ]
 }
-
