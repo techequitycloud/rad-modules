@@ -64,56 +64,6 @@ resource "local_file" "clouddeploy_app_deploy_dev" {
   })
 }
 
-resource "local_file" "clouddeploy_app_deploy_qa" {
-  count = var.configure_continuous_deployment ? 1 : 0
-  filename = "${path.module}/scripts/cd/app/deploy-qa.yaml"
-  content  = templatefile("${path.module}/scripts/cd/app/deploy-qa.yaml.tpl", {
-    # Variables are passed to the template file for dynamic content generation
-    PROJECT_ID        = local.project.project_id
-    PROJECT_NUMBER    = local.project_number
-    APP_REGION        = local.region
-    APP_NAME          = var.application_name
-    APP_SERVICE       = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
-    APP_DATA_DIR      = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa" #
-    APP_NFS_IP        = local.nfs_internal_ip
-    APP_URL           = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa-${local.project_number}.${local.region}.run.app"
-    DATABASE_USER     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
-    DATABASE_NAME     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa" # google_sql_database.sql_qa_database.name
-    DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}qa-password-${var.tenant_deployment_id}-${local.random_id}"
-    DATABASE_HOST     = local.db_internal_ip
-    DATABASE_INSTANCE = local.db_instance_name
-    BACKUP_BUCKET     = try(google_storage_bucket.qa_backup_storage.name, "")
-    DATA_BUCKET       = try(google_storage_bucket.qa_storage.name, "")
-    NETWORK_NAME      = "${var.network_name}"
-    HOST_PROJECT_ID   = "${local.project.project_id}"
-  })
-}
-
-resource "local_file" "clouddeploy_app_deploy_prod" {
-  count = var.configure_continuous_deployment ? 1 : 0
-  filename = "${path.module}/scripts/cd/app/deploy-prod.yaml"
-  content  = templatefile("${path.module}/scripts/cd/app/deploy-prod.yaml.tpl", {
-    # Variables are passed to the template file for dynamic content generation
-    PROJECT_ID        = local.project.project_id
-    PROJECT_NUMBER    = local.project_number
-    APP_REGION        = local.region
-    APP_NAME          = var.application_name
-    APP_SERVICE       = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
-    APP_DATA_DIR      = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod" #
-    APP_NFS_IP        = local.nfs_internal_ip
-    APP_URL           = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod-${local.project_number}.${local.region}.run.app"
-    DATABASE_USER     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
-    DATABASE_NAME     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod" # google_sql_database.sql_prod_database.name
-    DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}prod-password-${var.tenant_deployment_id}-${local.random_id}"
-    DATABASE_HOST     = local.db_internal_ip
-    DATABASE_INSTANCE = local.db_instance_name
-    BACKUP_BUCKET     = try(google_storage_bucket.prod_backup_storage.name, "")
-    DATA_BUCKET       = try(google_storage_bucket.prod_storage.name, "")
-    NETWORK_NAME      = "${var.network_name}"
-    HOST_PROJECT_ID   = "${local.project.project_id}"
-  })
-}
-
 # Resource to create a local file for development deployment, with variables substituted
 resource "local_file" "clouddeploy_backup_deploy_dev" {
   count = var.configure_continuous_deployment ? 1 : 0
@@ -134,54 +84,6 @@ resource "local_file" "clouddeploy_backup_deploy_dev" {
     DATABASE_INSTANCE = local.db_instance_name
     BACKUP_BUCKET     = try(google_storage_bucket.dev_backup_storage.name, "")
     DATA_BUCKET       = try(google_storage_bucket.dev_storage.name, "")
-    NETWORK_NAME      = "${var.network_name}"
-    HOST_PROJECT_ID   = "${local.project.project_id}"
-  })
-}
-
-resource "local_file" "clouddeploy_backup_deploy_qa" {
-  count = var.configure_continuous_deployment ? 1 : 0
-  filename = "${path.module}/scripts/cd/backup/deploy-qa.yaml"
-  content  = templatefile("${path.module}/scripts/cd/backup/deploy-qa.yaml.tpl", {
-    # Variables are passed to the template file for dynamic content generation
-    PROJECT_ID        = local.project.project_id
-    PROJECT_NUMBER    = local.project_number
-    APP_REGION        = local.region
-    APP_NAME          = var.application_name
-    APP_SERVICE       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}qa"
-    APP_DATA_DIR      = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa" #
-    APP_NFS_IP        = local.nfs_internal_ip
-    DATABASE_USER     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa"
-    DATABASE_NAME     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa" # google_sql_database.sql_qa_database.name
-    DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}qa-password-${var.tenant_deployment_id}-${local.random_id}"
-    DATABASE_HOST     = local.db_internal_ip
-    DATABASE_INSTANCE = local.db_instance_name
-    BACKUP_BUCKET     = try(google_storage_bucket.qa_backup_storage.name, "")
-    DATA_BUCKET       = try(google_storage_bucket.qa_storage.name, "")
-    NETWORK_NAME      = "${var.network_name}"
-    HOST_PROJECT_ID   = "${local.project.project_id}"
-  })
-}
-
-resource "local_file" "clouddeploy_backup_deploy_prod" {
-  count = var.configure_continuous_deployment ? 1 : 0
-  filename = "${path.module}/scripts/cd/backup/deploy-prod.yaml"
-  content  = templatefile("${path.module}/scripts/cd/backup/deploy-prod.yaml.tpl", {
-    # Variables are passed to the template file for dynamic content generation
-    PROJECT_ID        = local.project.project_id
-    PROJECT_NUMBER    = local.project_number
-    APP_REGION        = local.region
-    APP_NAME          = var.application_name
-    APP_SERVICE       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}prod"
-    APP_DATA_DIR      = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod" #
-    APP_NFS_IP        = local.nfs_internal_ip
-    DATABASE_USER     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod"
-    DATABASE_NAME     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod" # google_sql_database.sql_prod_database.name
-    DATABASE_PASSWORD = "${local.db_instance_name}-${var.application_database_name}prod-password-${var.tenant_deployment_id}-${local.random_id}"
-    DATABASE_HOST     = local.db_internal_ip
-    DATABASE_INSTANCE = local.db_instance_name
-    BACKUP_BUCKET     = try(google_storage_bucket.prod_backup_storage.name, "")
-    DATA_BUCKET       = try(google_storage_bucket.prod_storage.name, "")
     NETWORK_NAME      = "${var.network_name}"
     HOST_PROJECT_ID   = "${local.project.project_id}"
   })
