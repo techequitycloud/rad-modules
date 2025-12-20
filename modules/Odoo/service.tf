@@ -146,7 +146,7 @@ resource "google_cloud_run_v2_service" "app_service" {
   }
 
   depends_on = [
-    null_resource.import_db,
+    null_resource.execute_import_db_job,
     null_resource.import_nfs,
     null_resource.build_and_push_application_image,
     google_secret_manager_secret_version.db_password,
