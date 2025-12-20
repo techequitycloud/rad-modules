@@ -22,7 +22,6 @@ resource "null_resource" "import_db" {
     
   triggers = {
     job_id = google_cloud_run_v2_job.import_db_job[0].id
-    backup_id = var.application_backup_fileid
     script_hash = filesha256("${path.module}/scripts/app/import_db_job.sh")
   }
 

@@ -32,7 +32,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     }
 
     containers {
-# image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+# image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}${var.tenant_deployment_id}${local.random_id}/${var.application_name}:${var.application_version}"
       image = "openemr/openemr:7.0.3"
        ports {
         container_port = 80
@@ -173,7 +173,6 @@ resource "google_cloud_run_v2_service" "app_service" {
     null_resource.import_db,
     null_resource.import_nfs,
     null_resource.execute_init_job,
-    null_resource.build_and_push_backup_image,
     google_secret_manager_secret_version.db_password,
     google_secret_manager_secret_version.openemr_admin_password,
     # null_resource.build_and_push_application_image,

@@ -18,7 +18,7 @@
 resource "google_cloud_run_v2_job" "prepare_nfs_directories" {
   count    = local.nfs_server_exists ? 1 : 0
   project  = local.project.project_id
-  name     = "prep-nfs-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+  name     = "prep-nfs-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location = local.region
   deletion_protection = false
 
@@ -113,102 +113,6 @@ resource "null_resource" "execute_prepare_nfs" {
     google_cloud_run_v2_job.prepare_nfs_directories
   ]
 }
-
-# ============================================================================
-# Backup Services
-# ============================================================================
-
-resource "google_cloud_run_v2_job" "backup_service" {
-  count      = var.configure_backups && var.configure_environment ? 1 : 0
-  project    = local.project.project_id  
-  name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}"
-  location   = local.region
-  deletion_protection = false
-
-  template {
-    parallelism = 1
-    task_count  = 1
-
-    labels = {
-      app : var.application_name,
-    }
-
-    template {
-      service_account       = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
-      max_retries           = 3
-      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
-
-      containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/backup:${var.application_version}"
-
-        env {
-          name  = "DB_USER"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
-        }
-
-        env {
-          name  = "DB_NAME"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
-        }
-
-        env {
-          name = "DB_PASSWORD"
-          value_source {
-            secret_key_ref {
-              secret = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
-              version = "latest"
-            }
-          }
-        }
-
-        env {
-          name  = "DB_HOST"
-          value = "${local.db_internal_ip}"
-        }
-
-        volume_mounts {
-          name      = "gcs-backup-volume"
-          mount_path = "/data"
-        }
-
-        volume_mounts {
-          name      = "nfs-data-volume"
-          mount_path = "/var/www/localhost/htdocs/openemr/sites"
-        }
-      }
-
-      vpc_access {
-        network_interfaces {
-          network = "projects/${local.project.project_id}/global/networks/${var.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
-          tags = ["nfsserver"]
-        }
-      }
-
-      volumes {
-        name = "gcs-backup-volume"
-        gcs {
-          bucket = "${local.backup_bucket_name}"
-        }
-      }
-
-      volumes {
-        name = "nfs-data-volume"
-        nfs {
-          server = "${local.nfs_internal_ip}"
-          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
-        }
-      }
-    }
-  }
-
-  depends_on = [
-    null_resource.import_db,
-    null_resource.import_nfs,
-    null_resource.build_and_push_backup_image,
-  ]
-}
-
 
 # ============================================================================
 # Initialization Jobs
@@ -518,7 +422,7 @@ resource "null_resource" "execute_init_job" {
 resource "google_cloud_run_v2_job" "import_db_job" {
   count      = local.sql_server_exists ? 1 : 0
   project    = local.project.project_id
-  name       = "import-db-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+  name       = "import-db-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location   = local.region
   deletion_protection = false
 
@@ -543,10 +447,6 @@ resource "google_cloud_run_v2_job" "import_db_job" {
         env {
           name  = "DB_USER"
           value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
-        }
-        env {
-          name  = "BACKUP_FILEID"
-          value = "${var.application_backup_fileid}"
         }
 
         env {

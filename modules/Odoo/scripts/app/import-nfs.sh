@@ -11,13 +11,13 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.
+# limitations under the License. 
 
 # set -x
 
 # Remove spaces from the region variables
-APP_REGION_1=$(echo "${APP_REGION_1}" | tr -d '[:space:]')
-APP_REGION_2=$(echo "${APP_REGION_2}" | tr -d '[:space:]')
+APP_REGION_1=$(echo "us-central1" | tr -d '[:space:]')
+APP_REGION_2=$(echo "" | tr -d '[:space:]')
 
 # Maximum number of attempts
 max_attempts=10
@@ -29,11 +29,11 @@ while [ $attempt -lt $max_attempts ]; do
   services_found=false # Flag to track if any services were found
 
   # Check and delete service in APP_REGION_1
-  if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" 2>/dev/null; then
+  if gcloud run services describe "appodoodemoc6ce" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
-
+    
     # Try to delete the service
-    if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" --quiet; then
+    if gcloud run services delete "appodoodemoc6ce" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_1."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -46,11 +46,11 @@ while [ $attempt -lt $max_attempts ]; do
   fi
 
   # Check and delete service in APP_REGION_2
-  if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" 2>/dev/null; then
+  if gcloud run services describe "appodoodemoc6ce" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
-
+    
     # Try to delete the service
-    if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" --quiet; then
+    if gcloud run services delete "appodoodemoc6ce" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_2."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -74,10 +74,11 @@ while [ $attempt -lt $max_attempts ]; do
   sleep 10
 done
 
+
 # Ensure application directory is empty
-sudo mkdir -p /share/${DB_USER} && sudo rm -rf /share/${DB_USER}/* && sudo chown -R www-data:www-data /share/${DB_USER} && sudo chmod 775 /share/${DB_USER}
+sudo mkdir -p /share/appodoodemoc6ce && sudo rm -rf /share/appodoodemoc6ce/* && sudo chown -R nobody:nogroup /share/appodoodemoc6ce && sudo chmod 775 /share/appodoodemoc6ce
 
 # Check if the shared directory exists
-if [ ! -d /share/${DB_USER} ]; then echo 'Error: /share/${DB_USER} does not exist.'; exit 1; fi
+if [ ! -d /share/appodoodemoc6ce ]; then echo 'Error: /share/appodoodemoc6ce does not exist.'; exit 1; fi
 
 echo "Script completed successfully!"

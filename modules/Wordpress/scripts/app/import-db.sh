@@ -16,8 +16,8 @@
 # set -x
 
 # Remove spaces from the region variables
-APP_REGION_1=$(echo "${APP_REGION_1}" | tr -d '[:space:]')
-APP_REGION_2=$(echo "${APP_REGION_2}" | tr -d '[:space:]')
+APP_REGION_1=$(echo "us-central1" | tr -d '[:space:]')
+APP_REGION_2=$(echo "" | tr -d '[:space:]')
 
 # Maximum number of attempts
 max_attempts=3
@@ -30,10 +30,10 @@ while [ $attempt -lt $max_attempts ]; do
 
   # Check and delete service in APP_REGION_1
   if [ -n "$APP_REGION_1" ]; then
-    if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" 2>/dev/null; then
+    if gcloud run services describe "appwpdemo4bf9" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" 2>/dev/null; then
       echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
 
-      if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" --quiet; then
+      if gcloud run services delete "appwpdemo4bf9" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" --quiet; then
         echo "Cloud Run service is being deleted in region $APP_REGION_1."
         delete_attempted=true
         services_found=true
@@ -48,10 +48,10 @@ while [ $attempt -lt $max_attempts ]; do
 
   # Check and delete service in APP_REGION_2
   if [ -n "$APP_REGION_2" ]; then
-    if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" 2>/dev/null; then
+    if gcloud run services describe "appwpdemo4bf9" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" 2>/dev/null; then
       echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
 
-      if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" --quiet; then
+      if gcloud run services delete "appwpdemo4bf9" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" --quiet; then
         echo "Cloud Run service is being deleted in region $APP_REGION_2."
         delete_attempted=true
         services_found=true
@@ -77,8 +77,8 @@ done
 # set -x
 
 # Remove spaces from the region variables
-APP_REGION_1=$(echo "${APP_REGION_1}" | tr -d '[:space:]')
-APP_REGION_2=$(echo "${APP_REGION_2}" | tr -d '[:space:]')
+APP_REGION_1=$(echo "us-central1" | tr -d '[:space:]')
+APP_REGION_2=$(echo "" | tr -d '[:space:]')
 
 # Maximum number of attempts
 max_attempts=3
@@ -91,10 +91,10 @@ while [ $attempt -lt $max_attempts ]; do
 
   # Check and delete service in APP_REGION_1
   if [ -n "$APP_REGION_1" ]; then
-    if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" 2>/dev/null; then
+    if gcloud run services describe "appwpdemo4bf9" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" 2>/dev/null; then
       echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
 
-      if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" --quiet; then
+      if gcloud run services delete "appwpdemo4bf9" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" --quiet; then
         echo "Cloud Run service is being deleted in region $APP_REGION_1."
         delete_attempted=true
         services_found=true
@@ -109,10 +109,10 @@ while [ $attempt -lt $max_attempts ]; do
 
   # Check and delete service in APP_REGION_2
   if [ -n "$APP_REGION_2" ]; then
-    if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" 2>/dev/null; then
+    if gcloud run services describe "appwpdemo4bf9" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" 2>/dev/null; then
       echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
 
-      if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" --quiet; then
+      if gcloud run services delete "appwpdemo4bf9" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" --quiet; then
         echo "Cloud Run service is being deleted in region $APP_REGION_2."
         delete_attempted=true
         services_found=true
@@ -140,16 +140,16 @@ rm -rf ~/.my.cnf
 cat > ~/.my.cnf << EOF
 [client]
 user=root
-password=${ROOT_PASS}
-host=${DB_IP}
+password=
+host=10.240.0.5
 EOF
 chmod 600 ~/.my.cnf
 
 # To authorize remote connection from root user
-# mysql --defaults-file=~/.my.cnf -u root -h "${DB_IP}" -e "GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%';"
+# mysql --defaults-file=~/.my.cnf -u root -h "10.240.0.5" -e "GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%';"
 
 echo "Displaying databases..."
-mysql --defaults-file=~/.my.cnf -u root -h "${DB_IP}" -e 'SHOW DATABASES;'
+mysql --defaults-file=~/.my.cnf -u root -h "10.240.0.5" -e 'SHOW DATABASES;'
 
 # Set maximum retries to drop the database
 max_retries=5
@@ -157,17 +157,17 @@ attempt_num=1
 
 # Function to check if database exists
 check_database_exists() {
-    local result=$(mysql --defaults-file=~/.my.cnf -u root -h "${DB_IP}" -e "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '${DB_NAME}';" 2>/dev/null | grep -c "${DB_NAME}")
+    local result=$(mysql --defaults-file=~/.my.cnf -u root -h "10.240.0.5" -e "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'appwpdemo4bf9';" 2>/dev/null | grep -c "appwpdemo4bf9")
     [[ "$result" == "1" ]]
 }
 
 # Create/update user with NO global privileges initially
-echo "Creating/updating user ${DB_USER}..."
-mysql --defaults-file=~/.my.cnf -u root -h "${DB_IP}" <<EOF
-CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';
-ALTER USER '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';
+echo "Creating/updating user appwpdemo4bf9..."
+mysql --defaults-file=~/.my.cnf -u root -h "10.240.0.5" <<EOF
+CREATE USER IF NOT EXISTS 'appwpdemo4bf9'@'%' IDENTIFIED BY 'ZXa3bXd1_njqMFRC';
+ALTER USER 'appwpdemo4bf9'@'%' IDENTIFIED BY 'ZXa3bXd1_njqMFRC';
 # -- ✅ Remove any existing global privileges
-# REVOKE ALL PRIVILEGES ON *.* FROM '${DB_USER}'@'%';
+# REVOKE ALL PRIVILEGES ON *.* FROM 'appwpdemo4bf9'@'%';
 FLUSH PRIVILEGES;
 EOF
 
@@ -175,28 +175,28 @@ EOF
 while [ $attempt_num -le $max_retries ]; do
     echo "Attempt $attempt_num of $max_retries"
 
-    echo "Terminating connections to database ${DB_NAME}..."
+    echo "Terminating connections to database appwpdemo4bf9..."
     # Fixed connection termination logic
-    kill_statements=$(mysql --defaults-file=~/.my.cnf -u root -h "${DB_IP}" -e "SELECT CONCAT('KILL ', id, ';') FROM INFORMATION_SCHEMA.PROCESSLIST WHERE db = '${DB_NAME}' AND id != CONNECTION_ID();" -N -s 2>/dev/null)
+    kill_statements=$(mysql --defaults-file=~/.my.cnf -u root -h "10.240.0.5" -e "SELECT CONCAT('KILL ', id, ';') FROM INFORMATION_SCHEMA.PROCESSLIST WHERE db = 'appwpdemo4bf9' AND id != CONNECTION_ID();" -N -s 2>/dev/null)
     if [ -n "$kill_statements" ]; then
-        echo "$kill_statements" | mysql --defaults-file=~/.my.cnf -u root -h "${DB_IP}" 2>/dev/null
+        echo "$kill_statements" | mysql --defaults-file=~/.my.cnf -u root -h "10.240.0.5" 2>/dev/null
     fi
 
     if check_database_exists; then
-        echo "Database ${DB_NAME} exists, attempting to drop it..."
+        echo "Database appwpdemo4bf9 exists, attempting to drop it..."
         
         # Try to drop as root user (DB_USER may not have drop privileges yet)
         echo "Dropping database as root user..."
-        drop_result=$(mysql --defaults-file=~/.my.cnf -u root -h "${DB_IP}" -e "DROP DATABASE IF EXISTS \`${DB_NAME}\`;" 2>&1)
+        drop_result=$(mysql --defaults-file=~/.my.cnf -u root -h "10.240.0.5" -e "DROP DATABASE IF EXISTS \`appwpdemo4bf9\`;" 2>&1)
         
         if [ $? -eq 0 ] && ! check_database_exists; then
-            echo "Database ${DB_NAME} dropped successfully."
+            echo "Database appwpdemo4bf9 dropped successfully."
             break
         else
             echo "Failed to drop database. Error: $drop_result"
         fi
     else
-        echo "Database ${DB_NAME} does not exist."
+        echo "Database appwpdemo4bf9 does not exist."
         break
     fi
 
@@ -209,15 +209,15 @@ while [ $attempt_num -le $max_retries ]; do
 done
 
 if [ $attempt_num -gt $max_retries ]; then
-    echo "Reached maximum number of retries. Failed to drop database ${DB_NAME}."
+    echo "Reached maximum number of retries. Failed to drop database appwpdemo4bf9."
     echo "Database still exists - manual intervention required."
     exit 1
 fi
 
 # Create the database as root
-echo "Creating database ${DB_NAME}..."
+echo "Creating database appwpdemo4bf9..."
 if ! check_database_exists; then
-    create_result=$(mysql --defaults-file=~/.my.cnf -u root -h "${DB_IP}" -e "CREATE DATABASE \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>&1)
+    create_result=$(mysql --defaults-file=~/.my.cnf -u root -h "10.240.0.5" -e "CREATE DATABASE \`appwpdemo4bf9\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>&1)
     if [ $? -eq 0 ]; then
         echo "Database created successfully."
     else
@@ -229,25 +229,25 @@ else
 fi
 
 # ✅ Grant privileges ONLY on the specific database
-echo "Granting privileges to ${DB_USER} ONLY on database ${DB_NAME}..."
-mysql --defaults-file=~/.my.cnf -u root -h "${DB_IP}" <<EOF
+echo "Granting privileges to appwpdemo4bf9 ONLY on database appwpdemo4bf9..."
+mysql --defaults-file=~/.my.cnf -u root -h "10.240.0.5" <<EOF
 -- Grant all privileges on the specific database only
-GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
+GRANT ALL PRIVILEGES ON \`appwpdemo4bf9\`.* TO 'appwpdemo4bf9'@'%';
 -- Allow user to grant privileges on this database to others (if needed)
-GRANT GRANT OPTION ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
+GRANT GRANT OPTION ON \`appwpdemo4bf9\`.* TO 'appwpdemo4bf9'@'%';
 FLUSH PRIVILEGES;
 EOF
 
 if [ $? -eq 0 ]; then
-    echo "Privileges granted successfully on database ${DB_NAME} only."
+    echo "Privileges granted successfully on database appwpdemo4bf9 only."
 else
-    echo "Failed to grant privileges on database ${DB_NAME}."
+    echo "Failed to grant privileges on database appwpdemo4bf9."
     exit 1
 fi
 
 # Verify user has access only to the intended database
 echo "Verifying user privileges..."
-mysql --defaults-file=~/.my.cnf -u root -h "${DB_IP}" -e "SHOW GRANTS FOR '${DB_USER}'@'%';"
+mysql --defaults-file=~/.my.cnf -u root -h "10.240.0.5" -e "SHOW GRANTS FOR 'appwpdemo4bf9'@'%';"
 
 # Clean up 
 unset MYSQL_PWD

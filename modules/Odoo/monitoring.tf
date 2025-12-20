@@ -90,7 +90,6 @@ resource "google_monitoring_service" "cloud_run" {
   }
 
   depends_on = [
-    google_cloud_scheduler_job.backup,
     google_cloud_run_v2_service.app_service,
   ]
 }

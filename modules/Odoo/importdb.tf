@@ -13,16 +13,15 @@
 # limitations under the License.
 
 #########################################################################
-# Configurations for backup import
+# Configurations for import
 #########################################################################
 
 # Create db import script
 resource "local_file" "import_db_script_output" {
   count    = local.sql_server_exists ? 1 : 0  
   filename = "${path.module}/scripts/app/import-db.sh"
-  content = templatefile("${path.module}/scripts/app/import_db.tpl", {
+  content  = templatefile("${path.module}/scripts/app/import_db.tpl", {
     PROJECT_ID          = local.project.project_id
-    BACKUP_FILEID       = "${var.application_backup_fileid}"
     DB_IP               = local.db_internal_ip
     DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
     DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
@@ -34,8 +33,8 @@ resource "local_file" "import_db_script_output" {
   })
 }
 
-#########################################################################
-# Configurations for backup import
+
+# Configurations for import
 #########################################################################
 
 # Resource to import db

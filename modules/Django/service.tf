@@ -13,7 +13,7 @@
 # limitations under the License.
 
 resource "google_cloud_run_v2_service" "dev_app_service" {
-  count               = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+  count               = var.configure_environment && local.sql_server_exists ? 1 : 0
   name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
   location            = local.region
   project             = local.project.project_id
@@ -30,11 +30,11 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}${var.tenant_deployment_id}${local.random_id}/${var.application_name}:${var.application_version}"
 
       env {
         name = "GS_BUCKET_NAME"
-        value = google_storage_bucket.dev_storage.name
+        value = google_storage_bucket.storage.name
       }
 
       env {
@@ -77,12 +77,12 @@ resource "google_cloud_run_v2_service" "dev_app_service" {
     google_secret_manager_secret_version.dev_application_settings,
     google_project_iam_member.secret_accessor,
     google_project_iam_member.cloudsql_client,
-    google_storage_bucket.dev_storage,
+    google_storage_bucket.storage,
   ]
 }
 
 resource "google_cloud_run_service_iam_binding" "dev" {
-  count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+  count    = var.configure_environment && local.sql_server_exists ? 1 : 0
   location = local.region
   service  = google_cloud_run_v2_service.dev_app_service[0].name
   role     = "roles/run.invoker"
@@ -93,7 +93,7 @@ resource "google_cloud_run_service_iam_binding" "dev" {
 }
 
 resource "null_resource" "dev_update_csrf_origin" {
-  count = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+  count = var.configure_environment && local.sql_server_exists ? 1 : 0
   triggers = {
     service_id = google_cloud_run_v2_service.dev_app_service[0].id
   }

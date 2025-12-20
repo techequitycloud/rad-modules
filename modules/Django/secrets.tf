@@ -35,7 +35,7 @@ resource "random_password" "dev_superuser_password" {
 #########################################################################
 
 resource "google_secret_manager_secret" "dev_application_settings" {
-  secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-application-settings"
+  secret_id = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-dev-application-settings"
   replication {
     user_managed {
       replicas {
@@ -51,7 +51,7 @@ resource "google_secret_manager_secret_version" "dev_application_settings" {
   secret_data = <<EOT
 DEBUG=True
 SECRET_KEY="${random_password.django_secret_key.result}"
-GS_BUCKET_NAME="${google_storage_bucket.dev_storage.name}"
+GS_BUCKET_NAME="${google_storage_bucket.storage.name}"
 DATABASE_URL="postgres://${google_sql_user.dev_user.name}:${google_sql_user.dev_user.password}@/${google_sql_database.dev_db.name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
 
@@ -62,7 +62,7 @@ EOT
 }
 
 resource "google_secret_manager_secret" "dev_superuser_password" {
-  secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-superuser-password"
+  secret_id = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-dev-superuser-password"
   replication {
     user_managed {
       replicas {
@@ -89,7 +89,7 @@ resource "google_secret_manager_secret_version" "dev_superuser_password" {
 #########################################################################
 
 resource "google_secret_manager_secret" "dev_db_password" {
-  secret_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-db-password"
+  secret_id = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-dev-db-password"
   replication {
     user_managed {
       replicas {

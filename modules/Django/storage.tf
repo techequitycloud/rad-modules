@@ -17,9 +17,9 @@
 #########################################################################
 
 # Cleanup dev storage bucket contents
-resource "null_resource" "cleanup_dev_storage" {
+resource "null_resource" "cleanup_storage" {
   triggers = {
-    bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev"
+    bucket_name = "${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   }
 
   provisioner "local-exec" {
@@ -36,66 +36,28 @@ resource "null_resource" "cleanup_dev_storage" {
   }
 }
 
-# Cleanup dev backup bucket contents
-resource "null_resource" "cleanup_dev_backup_storage" {
-  triggers = {
-    bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-backups"
-  }
-
-  provisioner "local-exec" {
-    when       = destroy
-    command    = <<-EOT
-      echo "Emptying backup bucket: ${self.triggers.bucket_name}"
-      gsutil -m rm -r gs://${self.triggers.bucket_name}/** 2>/dev/null || echo "Bucket already empty or does not exist"
-    EOT
-    on_failure = continue
-  }
-
-  lifecycle {
-    create_before_destroy = false
-  }
-}
-
 #########################################################################
 # Cloud Storage Buckets for Application Data
 #########################################################################
 
-resource "google_storage_bucket" "dev_storage" {
-  name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev"
+resource "google_storage_bucket" "storage" {
+  name                        = "${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location                    = local.region
   force_destroy               = true
   uniform_bucket_level_access = false
   project                     = local.project.project_id
 
-  depends_on = [null_resource.cleanup_dev_storage]
+  depends_on = [null_resource.cleanup_storage]
 
   lifecycle {
     prevent_destroy = false
   }
 }
 
-resource "google_storage_bucket_iam_member" "dev_storage_admin" {
-  bucket = google_storage_bucket.dev_storage.name
+resource "google_storage_bucket_iam_member" "storage_admin" {
+  bucket = google_storage_bucket.storage.name
   role   = "roles/storage.admin"
   member = "serviceAccount:${local.cloud_run_sa_email}"
-}
-
-#########################################################################
-# Backup Buckets
-#########################################################################
-
-resource "google_storage_bucket" "dev_backup_storage" {
-  name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-backups"
-  location                    = local.region
-  force_destroy               = true
-  uniform_bucket_level_access = false
-  project                     = local.project.project_id
-
-  depends_on = [null_resource.cleanup_dev_backup_storage]
-
-  lifecycle {
-    prevent_destroy = false
-  }
 }
 
 #########################################################################
@@ -104,8 +66,7 @@ resource "google_storage_bucket" "dev_backup_storage" {
 
 resource "null_resource" "verify_bucket_cleanup" {
   triggers = {
-    dev_bucket         = google_storage_bucket.dev_storage.name
-    dev_backup_bucket  = google_storage_bucket.dev_backup_storage.name
+    bucket         = google_storage_bucket.storage.name
   }
 
   provisioner "local-exec" {
@@ -115,7 +76,7 @@ resource "null_resource" "verify_bucket_cleanup" {
       echo "Verifying bucket cleanup"
       echo "========================================="
       
-      for bucket in ${self.triggers.dev_bucket} ${self.triggers.dev_backup_bucket}; do
+      for bucket in ${self.triggers.bucket}; do
         echo "Checking bucket: $bucket"
         gsutil ls gs://$bucket 2>/dev/null || echo "Bucket $bucket is empty or deleted"
       done
@@ -126,11 +87,9 @@ resource "null_resource" "verify_bucket_cleanup" {
   }
 
   depends_on = [
-    google_storage_bucket.dev_storage,
-    google_storage_bucket.dev_backup_storage,
-    google_storage_bucket_iam_member.dev_storage_admin,
-    null_resource.cleanup_dev_storage,
-    null_resource.cleanup_dev_backup_storage
+    google_storage_bucket.storage,
+    google_storage_bucket_iam_member.storage_admin,
+    null_resource.cleanup_storage,
   ]
 
   lifecycle {

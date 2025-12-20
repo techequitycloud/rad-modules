@@ -19,7 +19,7 @@
 # Cleanup storage bucket contents
 resource "null_resource" "cleanup_storage" {
   triggers = {
-    bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-app"
+    bucket_name = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-app"
   }
 
   provisioner "local-exec" {
@@ -36,32 +36,12 @@ resource "null_resource" "cleanup_storage" {
   }
 }
 
-# Cleanup backup bucket contents
-resource "null_resource" "cleanup_backup_storage" {
-  triggers = {
-    bucket_name = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-app-backups"
-  }
-
-  provisioner "local-exec" {
-    when       = destroy
-    command    = <<-EOT
-      echo "Emptying backup bucket: ${self.triggers.bucket_name}"
-      gsutil -m rm -r gs://${self.triggers.bucket_name}/** 2>/dev/null || echo "Bucket already empty or does not exist"
-    EOT
-    on_failure = continue
-  }
-
-  lifecycle {
-    create_before_destroy = false
-  }
-}
-
 #########################################################################
 # Cloud Storage Buckets for Application Data
 #########################################################################
 
 resource "google_storage_bucket" "storage" {
-  name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-app"
+  name                        = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-app"
   location                    = local.region
   force_destroy               = true
   uniform_bucket_level_access = false
@@ -81,31 +61,12 @@ resource "google_storage_bucket_iam_member" "storage_admin" {
 }
 
 #########################################################################
-# Backup Buckets
-#########################################################################
-
-resource "google_storage_bucket" "backup_storage" {
-  name                        = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-app-backups"
-  location                    = local.region
-  force_destroy               = true
-  uniform_bucket_level_access = false
-  project                     = local.project.project_id
-
-  depends_on = [null_resource.cleanup_backup_storage]
-
-  lifecycle {
-    prevent_destroy = false
-  }
-}
-
-#########################################################################
 # Final Bucket Cleanup Verification
 #########################################################################
 
 resource "null_resource" "verify_bucket_cleanup" {
   triggers = {
     bucket         = google_storage_bucket.storage.name
-    backup_bucket  = google_storage_bucket.backup_storage.name
   }
 
   provisioner "local-exec" {
@@ -115,7 +76,7 @@ resource "null_resource" "verify_bucket_cleanup" {
       echo "Verifying bucket cleanup"
       echo "========================================="
       
-      for bucket in ${self.triggers.bucket} ${self.triggers.backup_bucket}; do
+      for bucket in ${self.triggers.bucket} ; do
         echo "Checking bucket: $bucket"
         gsutil ls gs://$bucket 2>/dev/null || echo "Bucket $bucket is empty or deleted"
       done
@@ -127,10 +88,8 @@ resource "null_resource" "verify_bucket_cleanup" {
 
   depends_on = [
     google_storage_bucket.storage,
-    google_storage_bucket.backup_storage,
     google_storage_bucket_iam_member.storage_admin,
     null_resource.cleanup_storage,
-    null_resource.cleanup_backup_storage
   ]
 
   lifecycle {
