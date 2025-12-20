@@ -29,3 +29,12 @@ resource "google_secret_manager_secret_iam_member" "db_password" {
   ]
 }
 
+# IAM member resource to grant the service account access to the database root password secret in Secret Manager
+resource "google_secret_manager_secret_iam_member" "db_root_password" {
+  count     = local.sql_server_exists ? 1 : 0
+  project   = local.project.project_id
+  secret_id = "${local.db_instance_name}-root-password"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+}
+
