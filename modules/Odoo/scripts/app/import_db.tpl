@@ -175,7 +175,7 @@ fi
 echo "Creating database ${DB_NAME}..."
 export PGPASSWORD=${DB_PASS}
 if ! check_database_exists; then
-    create_result=$(psql -U ${DB_USER} -h ${DB_IP} -d postgres -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};" 2>&1)
+    create_result=$(psql -U ${DB_USER} -h ${DB_IP} -d postgres -c "CREATE DATABASE ${DB_NAME};" 2>&1)
     if [ $? -eq 0 ]; then
         echo "Database created successfully."
         
