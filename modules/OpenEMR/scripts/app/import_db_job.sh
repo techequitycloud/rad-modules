@@ -20,7 +20,7 @@ echo "=== DB Import/Setup Job ==="
 # Install dependencies
 echo "Installing dependencies..."
 apk update
-apk add --no-cache mariadb-client python3 py3-pip unzip
+apk add --no-cache mariadb-client python3 py3-pip unzip curl
 
 # Install gdown in venv
 echo "Installing gdown..."
@@ -110,7 +110,25 @@ EOF
         exit 1
     fi
 else
-    echo "No backup file provided. Setup complete."
+    echo "No backup file provided. Populating with initial database schema..."
+
+    # Format version string (e.g. 7.0.3 -> v7_0_3)
+    VERSION_UNDERSCORE="v$(echo ${APP_VERSION} | tr '.' '_')"
+    SQL_URL="https://raw.githubusercontent.com/openemr/openemr/${VERSION_UNDERSCORE}/sql/database.sql"
+
+    echo "Downloading database.sql from ${SQL_URL}..."
+    if curl -L -o database.sql "${SQL_URL}"; then
+        echo "Download successful."
+
+        echo "Importing database.sql..."
+        mysql --defaults-file=/tmp/root.cnf "${DB_NAME}" < database.sql
+
+        echo "Database population complete."
+        rm -f database.sql
+    else
+        echo "Failed to download database.sql. Check if version ${APP_VERSION} tag exists."
+        exit 1
+    fi
 fi
 
 rm -f /tmp/root.cnf
