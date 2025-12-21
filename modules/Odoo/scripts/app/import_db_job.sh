@@ -45,7 +45,7 @@ EOF
 echo "Creating Database ${DB_NAME} if not exists..."
 if ! psql -h "${DB_HOST}" -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1; then
   echo "Database does not exist. Creating as ${DB_USER}..."
-
+  
   # Switch to user credentials to create the DB (ensures ownership)
   export PGPASSWORD="${DB_PASS}"
   if psql -h "${DB_HOST}" -U "${DB_USER}" -d postgres -c "CREATE DATABASE \"${DB_NAME}\";"; then

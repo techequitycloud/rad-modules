@@ -15,11 +15,11 @@
 # [START cloudbuild_quickstart_build]
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/odoodemoaeab/odoo:18.0', '-f', 'Dockerfile', '.']
+  args: ['build', '-t', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/openemrdemo1997/openemr:7.0.3', '-f', 'Dockerfile', '.']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['tag', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/odoodemoaeab/odoo:18.0', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/odoodemoaeab/odoo:18.0']
+  args: ['tag', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/openemrdemo1997/openemr:7.0.3', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/openemrdemo1997/openemr:7.0.3']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/odoodemoaeab/odoo:18.0']
+  args: ['push', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/openemrdemo1997/openemr:7.0.3']
 serviceAccount: 'projects/qwiklabs-gcp-00-9c58e150e7c1/serviceAccounts/cloudbuild-sa@qwiklabs-gcp-00-9c58e150e7c1.iam.gserviceaccount.com'
 options:
   logging: CLOUD_LOGGING_ONLY
