@@ -448,6 +448,10 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           name  = "DB_USER"
           value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
+        env {
+          name  = "APP_VERSION"
+          value = var.application_version
+        }
 
         env {
           name = "ROOT_PASS"
