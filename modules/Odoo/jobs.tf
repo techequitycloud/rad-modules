@@ -80,7 +80,9 @@ resource "google_cloud_run_v2_job" "import_db_job" {
   }
   
   depends_on = [
-    data.google_secret_manager_secret_version.db_password
+    data.google_secret_manager_secret_version.db_password,
+    google_project_iam_member.secret_accessor,
+    google_project_iam_member.cloudsql_client
   ]
 }
 
