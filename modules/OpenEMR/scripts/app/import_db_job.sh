@@ -122,8 +122,9 @@ else
 
         echo "Importing database.sql with relaxed SQL mode..."
         # Temporarily disable strict SQL mode to allow OpenEMR's legacy date defaults
+        # Allow zero dates and invalid dates that OpenEMR uses
         # Prepend SET SESSION command to the SQL file
-        echo "SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION';" > database_with_mode.sql
+        echo "SET SESSION sql_mode = 'ALLOW_INVALID_DATES,NO_ENGINE_SUBSTITUTION';" > database_with_mode.sql
         cat database.sql >> database_with_mode.sql
         mysql --defaults-file=/tmp/root.cnf "${DB_NAME}" < database_with_mode.sql
         rm -f database_with_mode.sql
