@@ -141,7 +141,21 @@ INSERT IGNORE INTO globals (gl_name, gl_index, gl_value) VALUES
 ('secondary_logo_width', 0, ''),
 ('extra_logo_login', 0, ''),
 ('secondary_logo_position', 0, 'right'),
-('language_menu_showall', 0, '0');
+('language_menu_showall', 0, '0'),
+('drug_screen', 0, '0'),
+('default_search_code_type', 0, 'ICD10'),
+('date_display_format', 0, '1'),
+('login_page_layout', 0, 'default'),
+('login_into_facility', 0, ''),
+('language_default', 0, '1'),
+('allow_debug_language', 0, '0'),
+('tiny_logo_1', 0, ''),
+('tiny_logo_2', 0, ''),
+('openemr_name', 0, 'OpenEMR'),
+('google_signin_client_id', 0, ''),
+('show_label_login', 0, '0'),
+('show_tagline_on_login', 0, '0'),
+('login_tagline_text', 0, '');
 SQLEOF
 
         echo "Database population complete."
