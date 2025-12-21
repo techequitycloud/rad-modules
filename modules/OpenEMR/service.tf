@@ -32,7 +32,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     }
 
     containers {
-      image = "openemr/openemr:7.0.3"
+      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.application_image.repository_id}/${var.application_name}:${var.application_version}"
       ports {
         container_port = 80
       }
@@ -218,6 +218,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     null_resource.execute_init_job,
     google_secret_manager_secret_version.db_password,
     google_secret_manager_secret_version.openemr_admin_password,
+    null_resource.build_and_push_application_image
   ]
 }
 
