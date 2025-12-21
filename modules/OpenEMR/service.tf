@@ -32,9 +32,8 @@ resource "google_cloud_run_v2_service" "app_service" {
     }
 
     containers {
-# image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}${var.tenant_deployment_id}${local.random_id}/${var.application_name}:${var.application_version}"
       image = "openemr/openemr:7.0.3"
-       ports {
+      ports {
         container_port = 80
       }
 
@@ -68,6 +67,7 @@ resource "google_cloud_run_v2_service" "app_service" {
         }
       }
 
+      # MySQL/Database Configuration
       env {
         name  = "MYSQL_DATABASE"
         value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
@@ -108,6 +108,7 @@ resource "google_cloud_run_v2_service" "app_service" {
         value = "3306"
       }
 
+      # OpenEMR Admin Configuration
       env {
         name  = "OE_USER"
         value = "admin"
@@ -126,6 +127,48 @@ resource "google_cloud_run_v2_service" "app_service" {
       env {
         name = "MANUAL_SETUP"
         value = "no"
+      }
+
+      # PHP Configuration Overrides
+      env {
+        name  = "PHP_MEMORY_LIMIT"
+        value = "2048M"
+      }
+
+      env {
+        name  = "PHP_MAX_EXECUTION_TIME"
+        value = "300"
+      }
+
+      env {
+        name  = "PHP_MAX_INPUT_TIME"
+        value = "300"
+      }
+
+      env {
+        name  = "PHP_POST_MAX_SIZE"
+        value = "128M"
+      }
+
+      env {
+        name  = "PHP_UPLOAD_MAX_FILESIZE"
+        value = "128M"
+      }
+
+      env {
+        name  = "PHP_MAX_INPUT_VARS"
+        value = "3000"
+      }
+
+      # Alternative: Set via Apache/PHP-FPM environment
+      env {
+        name  = "APACHE_RUN_USER"
+        value = "www-data"
+      }
+
+      env {
+        name  = "APACHE_RUN_GROUP"
+        value = "www-data"
       }
 
       volume_mounts {
@@ -175,7 +218,6 @@ resource "google_cloud_run_v2_service" "app_service" {
     null_resource.execute_init_job,
     google_secret_manager_secret_version.db_password,
     google_secret_manager_secret_version.openemr_admin_password,
-    # null_resource.build_and_push_application_image,
   ]
 }
 
@@ -183,8 +225,8 @@ resource "google_cloud_run_service_iam_binding" "app_service_iam" {
   for_each = var.configure_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
 
   project  = local.project.project_id  
-  location = google_cloud_run_v2_service.app_service[each.key].location  # Access location using each.key
-  service  = google_cloud_run_v2_service.app_service[each.key].name      # Access service name using each.key
+  location = google_cloud_run_v2_service.app_service[each.key].location
+  service  = google_cloud_run_v2_service.app_service[each.key].name
   role     = "roles/run.invoker"
   members  = [
     "allUsers"
@@ -194,5 +236,3 @@ resource "google_cloud_run_service_iam_binding" "app_service_iam" {
     google_cloud_run_v2_service.app_service
   ]
 }
-
-

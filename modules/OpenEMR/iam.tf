@@ -44,6 +44,7 @@ resource "google_secret_manager_secret_iam_member" "openemr_admin_password" {
   ]
 }
 
+/**
 # IAM member resource to grant the service account access to the database root password secret in Secret Manager
 resource "google_secret_manager_secret_iam_member" "db_root_password" {
   count     = local.sql_server_exists ? 1 : 0
@@ -57,3 +58,4 @@ resource "google_secret_manager_secret_iam_member" "db_root_password" {
     google_secret_manager_secret.db_root_password,
   ]
 }
+**/

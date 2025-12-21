@@ -29,11 +29,11 @@ while [ $attempt -lt $max_attempts ]; do
   services_found=false # Flag to track if any services were found
 
   # Check and delete service in APP_REGION_1
-  if gcloud run services describe "appodoodemoc6ce" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" 2>/dev/null; then
+  if gcloud run services describe "appodoodemo9b29" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
     
     # Try to delete the service
-    if gcloud run services delete "appodoodemoc6ce" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" --quiet; then
+    if gcloud run services delete "appodoodemo9b29" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_1."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -46,11 +46,11 @@ while [ $attempt -lt $max_attempts ]; do
   fi
 
   # Check and delete service in APP_REGION_2
-  if gcloud run services describe "appodoodemoc6ce" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" 2>/dev/null; then
+  if gcloud run services describe "appodoodemo9b29" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
     
     # Try to delete the service
-    if gcloud run services delete "appodoodemoc6ce" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" --quiet; then
+    if gcloud run services delete "appodoodemo9b29" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_2."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -76,9 +76,9 @@ done
 
 
 # Ensure application directory is empty
-sudo mkdir -p /share/appodoodemoc6ce && sudo rm -rf /share/appodoodemoc6ce/* && sudo chown -R nobody:nogroup /share/appodoodemoc6ce && sudo chmod 775 /share/appodoodemoc6ce
+sudo mkdir -p /share/appodoodemo9b29 && sudo rm -rf /share/appodoodemo9b29/* && sudo chown -R nobody:nogroup /share/appodoodemo9b29 && sudo chmod 775 /share/appodoodemo9b29
 
 # Check if the shared directory exists
-if [ ! -d /share/appodoodemoc6ce ]; then echo 'Error: /share/appodoodemoc6ce does not exist.'; exit 1; fi
+if [ ! -d /share/appodoodemo9b29 ]; then echo 'Error: /share/appodoodemo9b29 does not exist.'; exit 1; fi
 
 echo "Script completed successfully!"

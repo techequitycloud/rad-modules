@@ -89,6 +89,7 @@ data "google_secret_manager_secret_version" "db_password" {
 # Database Root Password Secret
 #########################################################################
 
+/**
 # Resource for creating a secret in Google Secret Manager to store the database root password
 resource "google_secret_manager_secret" "db_root_password" {
   project    = local.project.project_id
@@ -132,6 +133,7 @@ data "google_secret_manager_secret_version" "db_root_password" {
     google_secret_manager_secret.db_root_password,
   ]
 }
+**/
 
 #########################################################################
 # OpenEMR Admin Password Secret
