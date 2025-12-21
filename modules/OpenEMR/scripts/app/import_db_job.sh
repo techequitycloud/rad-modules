@@ -20,7 +20,7 @@ echo "=== DB Import/Setup Job ==="
 # Install dependencies
 echo "Installing dependencies..."
 apk update
-apk add --no-cache mariadb-client python3 py3-pip unzip curl
+apk add --no-cache mariadb-client python3 py3-pip unzip curl git php83 php83-mysqli php83-pdo_mysql php83-json php83-openssl php83-curl php83-zip
 
 # Install gdown in venv
 echo "Installing gdown..."
@@ -110,58 +110,68 @@ EOF
         exit 1
     fi
 else
-    echo "No backup file provided. Populating with initial database schema..."
+    echo "No backup file provided. Using OpenEMR installer for proper initialization..."
 
-    # Format version string (e.g. 7.0.3 -> v7_0_3)
-    VERSION_UNDERSCORE="v$(echo ${APP_VERSION} | tr '.' '_')"
-    SQL_URL="https://raw.githubusercontent.com/openemr/openemr/${VERSION_UNDERSCORE}/sql/database.sql"
+    # Clone minimal OpenEMR files needed for installation
+    echo "Downloading OpenEMR installer files..."
+    VERSION_TAG="v$(echo ${APP_VERSION} | tr '.' '_')"
 
-    echo "Downloading database.sql from ${SQL_URL}..."
-    if curl -L -o database.sql "${SQL_URL}"; then
-        echo "Download successful."
+    mkdir -p /tmp/openemr-install
+    cd /tmp/openemr-install
 
-        echo "Importing database.sql with relaxed SQL mode..."
-        # Temporarily disable strict SQL mode to allow OpenEMR's legacy date defaults
-        # Allow zero dates and invalid dates that OpenEMR uses
-        # Prepend SET SESSION command to the SQL file
-        echo "SET SESSION sql_mode = 'ALLOW_INVALID_DATES,NO_ENGINE_SUBSTITUTION';" > database_with_mode.sql
-        cat database.sql >> database_with_mode.sql
-        mysql --defaults-file=/tmp/root.cnf "${DB_NAME}" < database_with_mode.sql
-        rm -f database_with_mode.sql
+    # Download necessary files for installation
+    curl -L -o auto_configure.php "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/auto_configure.php"
 
-        echo "Populating globals table with default values..."
-        # Insert missing global configuration values that OpenEMR requires
-        mysql --defaults-file=/tmp/root.cnf "${DB_NAME}" <<'SQLEOF'
-INSERT IGNORE INTO globals (gl_name, gl_index, gl_value) VALUES
-('display_acknowledgements_on_login', 0, '0'),
-('show_labels_on_login_form', 0, '0'),
-('show_primary_logo', 0, '1'),
-('primary_logo_width', 0, ''),
-('logo_position', 0, 'left'),
-('secondary_logo_width', 0, ''),
-('extra_logo_login', 0, ''),
-('secondary_logo_position', 0, 'right'),
-('language_menu_showall', 0, '0'),
-('drug_screen', 0, '0'),
-('default_search_code_type', 0, 'ICD10'),
-('date_display_format', 0, '1'),
-('login_page_layout', 0, 'default'),
-('login_into_facility', 0, ''),
-('language_default', 0, '1'),
-('allow_debug_language', 0, '0'),
-('tiny_logo_1', 0, ''),
-('tiny_logo_2', 0, ''),
-('openemr_name', 0, 'OpenEMR'),
-('google_signin_client_id', 0, ''),
-('show_label_login', 0, '0'),
-('show_tagline_on_login', 0, '0'),
-('login_tagline_text', 0, '');
-SQLEOF
+    # Download library files
+    mkdir -p library/classes
+    curl -L -o library/classes/Installer.class.php "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/library/classes/Installer.class.php"
+    curl -L -o library/globals.inc.php "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/library/globals.inc.php"
+    curl -L -o library/sql_upgrade_fx.php "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/library/sql_upgrade_fx.php"
 
-        echo "Database population complete."
-        rm -f database.sql
+    # Download SQL files
+    mkdir -p sql
+    curl -L -o sql/database.sql "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/sql/database.sql"
+    curl -L -o sql/official_additional_users.sql "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/sql/official_additional_users.sql"
+
+    # Download composer autoload (create minimal stub)
+    mkdir -p vendor
+    cat > vendor/autoload.php << 'AUTOLOADEOF'
+<?php
+// Minimal autoloader stub
+spl_autoload_register(function ($class) {
+    $file = str_replace('\\', '/', $class) . '.php';
+    if (file_exists(__DIR__ . '/../library/classes/' . basename($file))) {
+        require_once __DIR__ . '/../library/classes/' . basename($file);
+    }
+});
+AUTOLOADEOF
+
+    # Set SQL mode to allow invalid dates
+    echo "Setting SQL mode..."
+    mysql --defaults-file=/tmp/root.cnf <<'SQLMODEEOF'
+SET GLOBAL sql_mode = 'ALLOW_INVALID_DATES,NO_ENGINE_SUBSTITUTION';
+SQLMODEEOF
+
+    # Run the OpenEMR installer
+    echo "Running OpenEMR installer..."
+    php83 auto_configure.php \
+        server="${DB_HOST}" \
+        port=3306 \
+        login="${DB_USER}" \
+        pass="${DB_PASS}" \
+        loginhost="%" \
+        root="root" \
+        rootpass="${ROOT_PASS}" \
+        dbname="${DB_NAME}" \
+        collate="utf8mb4_general_ci"
+
+    if [ $? -eq 0 ]; then
+        echo "OpenEMR installation completed successfully."
+        # Clean up
+        cd /
+        rm -rf /tmp/openemr-install
     else
-        echo "Failed to download database.sql. Check if version ${APP_VERSION} tag exists."
+        echo "OpenEMR installation failed."
         exit 1
     fi
 fi
