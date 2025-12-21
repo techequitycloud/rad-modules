@@ -18,9 +18,16 @@
 
 # Resource for creating a random password for database additional user
 resource "random_password" "additional_user_password" {
-  length           = 16          
-  special          = true        
-  override_special = "_%@"       
+  length           = 16
+  special          = true
+  override_special = "_%@"
+}
+
+# Resource for creating a random password for database root user
+resource "random_password" "db_root_password" {
+  length           = 16
+  special          = true
+  override_special = "_%@"
 }
 
 #########################################################################
@@ -60,13 +67,61 @@ resource "time_sleep" "db_password" {
 # Data source for accessing the latest version of the secret when it's ready
 data "google_secret_manager_secret_version" "db_password" {
   project  = local.project.project_id
-  provider = google  
+  provider = google
 
   secret   = google_secret_manager_secret.db_password.id
-  version  = "latest"  
+  version  = "latest"
 
   depends_on = [
     time_sleep.db_password,
     google_secret_manager_secret.db_password,
+  ]
+}
+
+#########################################################################
+# Database Root Password Secret
+#########################################################################
+
+# Resource for creating a secret in Google Secret Manager to store the database root password
+resource "google_secret_manager_secret" "db_root_password" {
+  project    = local.project.project_id
+  secret_id  = "${local.db_instance_name}-root-password"
+
+  replication {
+    auto {}
+  }
+}
+
+# Resource for adding a version of the secret with the actual database root password
+resource "google_secret_manager_secret_version" "db_root_password" {
+  secret      = google_secret_manager_secret.db_root_password.id
+  secret_data = random_password.db_root_password.result
+
+  depends_on = [
+    google_secret_manager_secret.db_root_password,
+    random_password.db_root_password,
+  ]
+}
+
+# Resource to introduce a delay after creating a secret version
+resource "time_sleep" "db_root_password" {
+  depends_on = [
+    google_secret_manager_secret_version.db_root_password
+  ]
+
+  create_duration = "30s"
+}
+
+# Data source for accessing the latest version of the secret when it's ready
+data "google_secret_manager_secret_version" "db_root_password" {
+  project  = local.project.project_id
+  provider = google
+
+  secret   = google_secret_manager_secret.db_root_password.id
+  version  = "latest"
+
+  depends_on = [
+    time_sleep.db_root_password,
+    google_secret_manager_secret.db_root_password,
   ]
 }
