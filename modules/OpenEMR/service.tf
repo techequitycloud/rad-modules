@@ -47,10 +47,10 @@ resource "google_cloud_run_v2_service" "app_service" {
       }
 
       startup_probe {
-        initial_delay_seconds = 240
+        initial_delay_seconds = 300
         timeout_seconds = 60
-        period_seconds = 240
-        failure_threshold = 3
+        period_seconds = 60
+        failure_threshold = 20
         tcp_socket {
           port = 80
         }
@@ -127,6 +127,11 @@ resource "google_cloud_run_v2_service" "app_service" {
       env {
         name = "MANUAL_SETUP"
         value = "no"
+      }
+
+      env {
+        name  = "OPENEMR_DOCKER_ENV_TAG"
+        value = "production"
       }
 
       # PHP Configuration Overrides
