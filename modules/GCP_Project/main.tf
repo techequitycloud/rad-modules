@@ -52,15 +52,9 @@ resource "google_project_service" "enabled_services" {
   disable_on_destroy         = true
 }
 
-resource "google_project_iam_member" "role_trusted" {
-  for_each = toset(var.trusted_users)
-  member   = "user:${each.value}"
-  project  = google_project.project.project_id
-  role     = "roles/viewer"
-}
-
 # Quota overrides for Compute Engine resources
 resource "google_service_usage_consumer_quota_override" "compute_quotas" {
+  provider = google-beta
   for_each = var.enable_quota_overrides ? var.quota_overrides : {}
 
   project        = google_project.project.project_id
