@@ -113,20 +113,30 @@ else
     echo "No backup file provided. Populating with initial database schema..."
 
     # Format version string (e.g. 7.0.3 -> v7_0_3)
-    VERSION_UNDERSCORE="v$(echo ${APP_VERSION} | tr '.' '_')"
+    # Strip leading 'v' if present to avoid v7.0.3 -> vv7_0_3
+    CLEAN_VERSION="${APP_VERSION#v}"
+    VERSION_UNDERSCORE="v$(echo ${CLEAN_VERSION} | tr '.' '_')"
     SQL_URL="https://raw.githubusercontent.com/openemr/openemr/${VERSION_UNDERSCORE}/sql/database.sql"
 
+    echo "DEBUG: APP_VERSION=${APP_VERSION}"
+    echo "DEBUG: CLEAN_VERSION=${CLEAN_VERSION}"
+    echo "DEBUG: VERSION_UNDERSCORE=${VERSION_UNDERSCORE}"
     echo "Downloading database.sql from ${SQL_URL}..."
-    if curl -L -o database.sql "${SQL_URL}"; then
+
+    if curl -f -L -o database.sql "${SQL_URL}"; then
         echo "Download successful."
 
         echo "Importing database.sql..."
-        mysql --defaults-file=/tmp/root.cnf "${DB_NAME}" < database.sql
-
-        echo "Database population complete."
-        rm -f database.sql
+        # Disable strict mode to allow 0000-00-00 dates present in OpenEMR schema
+        if (echo "SET @@SESSION.sql_mode = '';"; cat database.sql) | mysql --defaults-file=/tmp/root.cnf "${DB_NAME}"; then
+            echo "Database population complete."
+            rm -f database.sql
+        else
+            echo "ERROR: Failed to import database.sql into ${DB_NAME}"
+            exit 1
+        fi
     else
-        echo "Failed to download database.sql. Check if version ${APP_VERSION} tag exists."
+        echo "ERROR: Failed to download database.sql from ${SQL_URL}. Check if version tag exists."
         exit 1
     fi
 fi
