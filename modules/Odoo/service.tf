@@ -151,6 +151,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     null_resource.build_and_push_application_image,
     google_secret_manager_secret_version.db_password,
     null_resource.build_and_push_application_image,
+    google_cloud_run_v2_job.init_db_job,
   ]
 }
 

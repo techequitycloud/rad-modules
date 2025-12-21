@@ -29,11 +29,11 @@ while [ $attempt -lt $max_attempts ]; do
   services_found=false # Flag to track if any services were found
 
   # Check and delete service in APP_REGION_1
-  if gcloud run services describe "appopenemrdemo1997" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" 2>/dev/null; then
+  if gcloud run services describe "appopenemrdemob327" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
     
     # Try to delete the service
-    if gcloud run services delete "appopenemrdemo1997" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" --quiet; then
+    if gcloud run services delete "appopenemrdemob327" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_1."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -46,11 +46,11 @@ while [ $attempt -lt $max_attempts ]; do
   fi
 
   # Check and delete service in APP_REGION_2
-  if gcloud run services describe "appopenemrdemo1997" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" 2>/dev/null; then
+  if gcloud run services describe "appopenemrdemob327" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
     
     # Try to delete the service
-    if gcloud run services delete "appopenemrdemo1997" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" --quiet; then
+    if gcloud run services delete "appopenemrdemob327" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_2."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -75,9 +75,9 @@ while [ $attempt -lt $max_attempts ]; do
 done
 
 # Ensure application directory exists
-sudo mkdir -p /share/appopenemrdemo1997 && sudo chown -R 1000:1000 /share/appopenemrdemo1997 && sudo chmod 775 /share/appopenemrdemo1997
+sudo mkdir -p /share/appopenemrdemob327 && sudo chown -R 1000:1000 /share/appopenemrdemob327 && sudo chmod 775 /share/appopenemrdemob327
 
 # Check if the shared directory exists
-if [ ! -d /share/appopenemrdemo1997 ]; then echo 'Error: /share/appopenemrdemo1997 does not exist.'; exit 1; fi
+if [ ! -d /share/appopenemrdemob327 ]; then echo 'Error: /share/appopenemrdemob327 does not exist.'; exit 1; fi
 
 echo "Script completed successfully!"
