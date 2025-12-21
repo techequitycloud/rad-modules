@@ -123,6 +123,21 @@ else
         echo "Importing database.sql..."
         mysql --defaults-file=/tmp/root.cnf "${DB_NAME}" < database.sql
 
+        echo "Populating globals table with default values..."
+        # Insert missing global configuration values that OpenEMR requires
+        mysql --defaults-file=/tmp/root.cnf "${DB_NAME}" <<'SQLEOF'
+INSERT IGNORE INTO globals (gl_name, gl_index, gl_value) VALUES
+('display_acknowledgements_on_login', 0, '0'),
+('show_labels_on_login_form', 0, '0'),
+('show_primary_logo', 0, '1'),
+('primary_logo_width', 0, ''),
+('logo_position', 0, 'left'),
+('secondary_logo_width', 0, ''),
+('extra_logo_login', 0, ''),
+('secondary_logo_position', 0, 'right'),
+('language_menu_showall', 0, '0');
+SQLEOF
+
         echo "Database population complete."
         rm -f database.sql
     else
