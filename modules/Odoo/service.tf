@@ -81,7 +81,7 @@ resource "google_cloud_run_v2_service" "app_service" {
         name = "DB_PASSWORD"
         value_source {
           secret_key_ref {
-            secret = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
+            secret = google_secret_manager_secret.db_password.secret_id
             version = "latest"
           }
         }
