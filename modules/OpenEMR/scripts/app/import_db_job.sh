@@ -120,8 +120,13 @@ else
     if curl -L -o database.sql "${SQL_URL}"; then
         echo "Download successful."
 
-        echo "Importing database.sql..."
-        mysql --defaults-file=/tmp/root.cnf "${DB_NAME}" < database.sql
+        echo "Importing database.sql with relaxed SQL mode..."
+        # Temporarily disable strict SQL mode to allow OpenEMR's legacy date defaults
+        # Prepend SET SESSION command to the SQL file
+        echo "SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION';" > database_with_mode.sql
+        cat database.sql >> database_with_mode.sql
+        mysql --defaults-file=/tmp/root.cnf "${DB_NAME}" < database_with_mode.sql
+        rm -f database_with_mode.sql
 
         echo "Populating globals table with default values..."
         # Insert missing global configuration values that OpenEMR requires
