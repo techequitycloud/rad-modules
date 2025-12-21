@@ -39,17 +39,30 @@ BEGIN
 END
 \$\$;
 ALTER ROLE "${DB_USER}" CREATEDB;
+GRANT ALL PRIVILEGES ON DATABASE postgres TO "${DB_USER}";
 EOF
 
 echo "Creating Database ${DB_NAME} if not exists..."
 if ! psql -h "${DB_HOST}" -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1; then
-  psql -h "${DB_HOST}" -U postgres -d postgres -c "CREATE DATABASE \"${DB_NAME}\" OWNER \"${DB_USER}\";"
-  echo "Database created."
+  echo "Database does not exist. Creating as ${DB_USER}..."
+
+  # Switch to user credentials to create the DB (ensures ownership)
+  export PGPASSWORD="${DB_PASS}"
+  if psql -h "${DB_HOST}" -U "${DB_USER}" -d postgres -c "CREATE DATABASE \"${DB_NAME}\";"; then
+    echo "Database created successfully."
+  else
+    echo "Failed to create database as ${DB_USER}."
+    exit 1
+  fi
+
+  # Revert to root password for subsequent commands if any
+  export PGPASSWORD="${ROOT_PASS}"
 else
   echo "Database ${DB_NAME} already exists."
 fi
 
 echo "Granting privileges..."
+# Owner has all privileges, but we can ensure it here if needed.
 psql -h "${DB_HOST}" -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"${DB_NAME}\" TO \"${DB_USER}\";"
 
 echo "Initialization complete."
