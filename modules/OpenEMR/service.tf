@@ -47,10 +47,10 @@ resource "google_cloud_run_v2_service" "app_service" {
       }
 
       startup_probe {
-        initial_delay_seconds = 240
+        initial_delay_seconds = 300
         timeout_seconds = 60
-        period_seconds = 240
-        failure_threshold = 3
+        period_seconds = 60
+        failure_threshold = 10
         tcp_socket {
           port = 80
         }
@@ -65,6 +65,11 @@ resource "google_cloud_run_v2_service" "app_service" {
           path = "/interface/login/login.php"
           port = 80
         }
+      }
+
+      env {
+        name  = "OPENEMR_DOCKER_ENV_TAG"
+        value = "production"
       }
 
       # MySQL/Database Configuration
@@ -132,7 +137,7 @@ resource "google_cloud_run_v2_service" "app_service" {
       # PHP Configuration Overrides
       env {
         name  = "PHP_MEMORY_LIMIT"
-        value = "2048M"
+        value = "3072M"
       }
 
       env {
