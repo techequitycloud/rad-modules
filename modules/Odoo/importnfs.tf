@@ -22,7 +22,6 @@ resource "local_file" "import_nfs_script_output" {
   filename = "${path.module}/scripts/app/import-nfs.sh"
   content = templatefile("${path.module}/scripts/app/import_nfs.tpl", {
     PROJECT_ID          = local.project.project_id
-    BACKUP_FILEID       = "${var.application_backup_fileid}"
     DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
     DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
     APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
@@ -109,6 +108,5 @@ resource "null_resource" "import_nfs" {
   depends_on = [
     local_file.import_nfs_script_output,
     null_resource.build_and_push_application_image,
-    null_resource.build_and_push_backup_image,
   ]
 }

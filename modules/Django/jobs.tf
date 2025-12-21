@@ -15,8 +15,8 @@
 # --- Dev Jobs ---
 
 resource "google_cloud_run_v2_job" "dev_migrate" {
-  count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
-  name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-migrate"
+  count    = var.configure_environment && local.sql_server_exists ? 1 : 0
+  name     = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-dev-migrate"
   location = local.region
   project  = local.project.project_id
   deletion_protection = false
@@ -25,7 +25,7 @@ resource "google_cloud_run_v2_job" "dev_migrate" {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}${var.tenant_deployment_id}${local.random_id}/${var.application_name}:${var.application_version}"
         command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
 
         env {
@@ -66,8 +66,8 @@ resource "google_cloud_run_v2_job" "dev_migrate" {
 }
 
 resource "google_cloud_run_v2_job" "dev_createuser" {
-  count    = var.configure_development_environment && local.sql_server_exists ? 1 : 0
-  name     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}-dev-createuser"
+  count    = var.configure_environment && local.sql_server_exists ? 1 : 0
+  name     = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-dev-createuser"
   location = local.region
   project  = local.project.project_id
   deletion_protection = false
@@ -76,7 +76,7 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}${var.tenant_deployment_id}${local.random_id}/${var.application_name}:${var.application_version}"
 
         env {
             name = "DJANGO_SUPERUSER_PASSWORD"
@@ -106,7 +106,7 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
         }
         env {
           name = "GS_BUCKET_NAME"
-          value = google_storage_bucket.dev_storage.name
+          value = google_storage_bucket.storage.name
         }
 
         command = ["python", "manage.py", "createsuperuser", "--noinput"]
@@ -140,7 +140,7 @@ resource "google_cloud_run_v2_job" "dev_createuser" {
 
 # Execute jobs
 resource "null_resource" "dev_execute_migrate" {
-  count = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+  count = var.configure_environment && local.sql_server_exists ? 1 : 0
   triggers = {
     job_id = google_cloud_run_v2_job.dev_migrate[0].id
   }
@@ -157,7 +157,7 @@ resource "null_resource" "dev_execute_migrate" {
 }
 
 resource "null_resource" "dev_execute_createuser" {
-  count = var.configure_development_environment && local.sql_server_exists ? 1 : 0
+  count = var.configure_environment && local.sql_server_exists ? 1 : 0
   triggers = {
     job_id = google_cloud_run_v2_job.dev_createuser[0].id
   }
@@ -169,101 +169,6 @@ resource "null_resource" "dev_execute_createuser" {
   depends_on = [
       null_resource.dev_execute_migrate, # Run after migrate
       google_cloud_run_v2_job.dev_createuser
-  ]
-}
-
-# Backup Jobs
-
-resource "google_cloud_run_v2_job" "dev_backup_service" {
-  count      = var.configure_backups && var.configure_development_environment && local.nfs_server_exists ? 1 : 0
-  project    = local.project.project_id
-  name       = "bkup${var.application_name}${var.tenant_deployment_id}${local.random_id}dev"
-  location   = local.region
-  deletion_protection = false
-
-  template {
-    parallelism = 1
-    task_count  = 1
-
-    labels = {
-      app : var.application_name,
-      env : "dev"
-    }
-
-    template {
-      service_account       = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
-      max_retries           = 3
-      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
-
-      containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/backup:${var.application_version}"
-
-        env {
-          name  = "DB_USER"
-          value = google_sql_user.dev_user.name
-        }
-
-        env {
-          name  = "DB_NAME"
-          value = google_sql_database.dev_db.name
-        }
-
-        env {
-          name = "DB_PASSWORD"
-          value_source {
-            secret_key_ref {
-              secret = google_secret_manager_secret.dev_db_password.secret_id
-              version = "latest"
-            }
-          }
-        }
-
-        env {
-          name  = "DB_HOST"
-          value = "${local.db_internal_ip}"
-        }
-
-        volume_mounts {
-          name      = "gcs-backup-volume"
-          mount_path = "/data"
-        }
-
-        volume_mounts {
-          name      = "nfs-data-volume"
-          mount_path = "/mnt"
-        }
-      }
-
-      vpc_access {
-        network_interfaces {
-          network = "projects/${local.project.project_id}/global/networks/${var.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
-          tags = ["nfsserver"]
-        }
-      }
-
-      volumes {
-        name = "gcs-backup-volume"
-        gcs {
-          bucket = google_storage_bucket.dev_backup_storage.name
-        }
-      }
-
-      volumes {
-        name = "nfs-data-volume"
-        nfs {
-          server = "${local.nfs_internal_ip}"
-          path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev"
-        }
-      }
-    }
-  }
-
-  depends_on = [
-    null_resource.build_and_push_backup_image,
-    google_sql_database.dev_db,
-    google_storage_bucket.dev_backup_storage,
-    null_resource.import_dev_nfs # Ensures NFS share exists
   ]
 }
 

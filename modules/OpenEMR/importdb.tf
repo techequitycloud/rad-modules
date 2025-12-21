@@ -13,100 +13,41 @@
 # limitations under the License.
 
 #########################################################################
-# Configurations for backup import
-#########################################################################
-
-# Create db import script
-resource "local_file" "import_db_script_output" {
-  count    = local.sql_server_exists ? 1 : 0  
-  filename = "${path.module}/scripts/app/import-db.sh"
-  content = templatefile("${path.module}/scripts/app/import_db.tpl", {
-    PROJECT_ID          = local.project.project_id
-    BACKUP_FILEID       = "${var.application_backup_fileid}"
-    DB_IP               = local.db_internal_ip
-    DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
-    DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
-    DB_PASS             = data.google_secret_manager_secret_version.db_password.secret_data
-    ROOT_PASS           = local.db_root_password
-    APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
-    APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
-    APP_REGION_2        = length(local.regions) > 1 ? local.regions[1] : ""
-  })
-}
-
-
-#########################################################################
 # Database Import Operations
 #########################################################################
 
-# Resource to import db
+# Resource to execute import db job
 resource "null_resource" "import_db" {
   count    = local.sql_server_exists ? 1 : 0  
     
   triggers = {
-    script_hash = filesha256("${path.module}/scripts/app/import_db.tpl")
-    # always_run = "${timestamp()}"
+    job_id = google_cloud_run_v2_job.import_db_job[0].id
+    script_hash = filesha256("${path.module}/scripts/app/import_db_job.sh")
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
-      max_attempts=3
-      attempt=0
+      echo "Executing DB import/setup job..."
+      gcloud run jobs execute ${google_cloud_run_v2_job.import_db_job[0].name} \
+        --region ${local.region} \
+        --project ${local.project.project_id} \
+        --wait
 
-      while [ $attempt -lt $max_attempts ]; do
-        NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(NAME)")
-        status=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(status)")
-                
-        if [ "$status" = "RUNNING" ]; then
-          echo "Instance is running."
-          break
-        else
-          echo "Waiting for instance to be running... (Attempt $((attempt + 1)) of $max_attempts)"
-          sleep 10
-        fi
-                
-        attempt=$((attempt + 1))
-      done
-
-      if [ $attempt -eq $max_attempts ]; then
-        echo "Max attempts reached. Instance is not running."
+      if [ $? -eq 0 ]; then
+        echo "✓ DB import/setup completed successfully"
+      else
+        echo "✗ DB import/setup failed"
         exit 1
       fi
-
-      for i in {1..5}; do
-        if [ -z "${local.project_sa_email}" ] || [ -z "${var.resource_creator_identity}" ]; then
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-db.sh; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
-        else
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-db.sh --impersonate-service-account=${local.project_sa_email}; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
-        fi
-
-        if [ "$i" -eq 5 ]; then
-          echo "SSH command failed after 5 attempts. Exiting..."
-          exit 1
-        fi
-      done
     EOF
   }
 
   depends_on = [
     data.google_secret_manager_secret_version.db_password,
     google_secret_manager_secret.db_password,
-    local_file.import_db_script_output,
     null_resource.import_nfs,
-    null_resource.create_nfs_directories_on_server,  # ← ADDED
+    null_resource.create_nfs_directories_on_server,
+    google_cloud_run_v2_job.import_db_job
   ]
 }
-

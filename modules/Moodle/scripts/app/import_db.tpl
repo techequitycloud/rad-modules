@@ -194,43 +194,5 @@ else
     echo "Database already exists, skipping creation."
 fi
 
-# Attempt to download the backup file only if BACKUP_FILEID is not empty
-if [ -n "${BACKUP_FILEID}" ] ; then
-    echo "Attempting to download the backup file using gdown..."
-    echo "Using gdown from /root/.local/bin/gdown"
-    
-    # Try downloading with full path if needed
-    if sudo /root/.local/bin/gdown ${BACKUP_FILEID} -O ${DB_NAME}.zip; then
-        echo "Backup file downloaded successfully"
-        if [ -f ${DB_NAME}.zip ]; then
-            echo "Backup file exists and is $(du -h ${DB_NAME}.zip | cut -f1) in size"
-        fi
-    else
-        echo "Warning: Failed to download the backup file using /root/.local/bin/gdown."
-    fi
-else
-    echo "Skipping download as BACKUP_FILEID is empty."
-fi
-
-if [ -f "${DB_NAME}.zip" ]; then
-    # Extract the backup file 
-    sudo mkdir -p ${DB_USER} && sudo rm -rf ${DB_USER}/* && sudo unzip ${DB_NAME}.zip -d ${DB_USER}
-
-    # Restore the database
-    echo "Restoring database from backup..."
-    export PGPASSWORD=${DB_PASS}
-    restore_result=$(psql "host=${DB_IP} port=5432 sslmode=disable dbname=${DB_NAME} user=${DB_USER}" < ${DB_USER}/dump.sql 2>&1)
-    
-    if [ $? -eq 0 ]; then
-        echo "Database restored successfully."
-    else
-        echo "Failed to restore database: $restore_result"
-        exit 1
-    fi
-
-    # Delete Backup from bastion host
-    sudo rm -rf ${DB_USER}/dump.sql && rm -rf ${DB_NAME}.zip
-fi
-
 echo "Script completed successfully!"
 

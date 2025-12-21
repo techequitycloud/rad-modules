@@ -77,44 +77,6 @@ done
 # Ensure application directory is empty
 sudo mkdir -p /share/${DB_USER} && sudo rm -rf /share/${DB_USER}/* && sudo chown -R www-data:www-data /share/${DB_USER} && sudo chmod 775 /share/${DB_USER}
 
-# Attempt to download the backup file only if BACKUP_FILEID is not empty
-if [ -n "${BACKUP_FILEID}" ] ; then
-    echo "Attempting to download the backup file using gdown..."
-    echo "Using gdown from /root/.local/bin/gdown"
-
-    # Try downloading with full path if needed
-    if sudo /root/.local/bin/gdown ${BACKUP_FILEID} -O ${DB_NAME}.zip; then
-        echo "Backup file downloaded successfully"
-        if [ -f ${DB_NAME}.zip ]; then
-            echo "Backup file exists and is $(du -h ${DB_NAME}.zip | cut -f1) in size"
-        fi
-    else
-        echo "Warning: Failed to download the backup file using /root/.local/bin/gdown."
-    fi
-else
-    echo "Skipping download as BACKUP_FILEID is empty."
-fi
-
-# Check if the backup file exists locally
-if [ -f "${DB_NAME}.zip" ]; then
-    echo "Backup file exists locally."
-
-    # Extract the backup file and set  permissions
-    sudo mkdir -p ${DB_NAME} && sudo rm -rf ${DB_NAME}/* && sudo unzip ${DB_NAME}.zip -d ${DB_NAME}
-
-    # Update the application URL
-    sed -i -E 's|https://[^ ]+\.run\.app|${APP_URL}|g' /share/${DB_NAME}/dump.sql
-
-    # Move directory
-    sudo rm -rf /share/${DB_USER}/* && sudo mv ${DB_NAME}/* /share/${DB_USER}/
-
-    # Change ownership
-    sudo chmod -R 0777 /share/${DB_USER} && sudo chown -R www-data:www-data /share/${DB_USER}
-
-    # Delete Backup from bastion host
-    sudo rm -rf ${DB_NAME}.zip && sudo rm -rf ${DB_NAME}
-fi
-
 # Check if the shared directory exists
 if [ ! -d /share/${DB_USER} ]; then echo 'Error: /share/${DB_USER} does not exist.'; exit 1; fi
 

@@ -31,9 +31,7 @@ output "cloud_sql_info" {
 
 output "private_storage_info" {
   value = {
-    gcs_private_backup_bucket  = var.create_cloud_storage ? local.backup_bucket_name : ""
     gcs_private_data_bucket = var.create_cloud_storage ? local.data_bucket_name : "" 
-    gcs_private_restore_bucket = var.create_cloud_storage ? local.restore_bucket_name : ""
   }
 }
 
@@ -47,7 +45,6 @@ output "application_info" {
   value = {
     application_url  = var.configure_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}-${local.project_number}.${local.region}.run.app" : ""
     cloud_secret_manager = var.configure_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-    cloud_scheduler      = var.configure_backups ? "https://console.cloud.google.com/cloudscheduler?inv=1&invt=AbioeA&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
   }
 }
 
@@ -55,20 +52,5 @@ output "service_info" {
   value = {
     service_url  = var.configure_environment ? "https://console.cloud.google.com/run/detail/${local.region}/app${var.application_name}${var.tenant_deployment_id}${local.random_id}/metrics?orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
     cloud_secret_manager = var.configure_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-    cloud_scheduler = var.configure_backups ? "https://console.cloud.google.com/cloudscheduler?project=${local.project.project_id}&supportedpurview=project,organizationId,folder" : ""
-  }
-}
-
-output "cicd_info" {
-  value = {
-    github_repository = var.configure_continuous_integration ? "https://github.com/${var.application_git_organization}/${local.project.project_id}-${var.application_name}-${var.tenant_deployment_id}-${local.random_id}.git" : ""
-    cloud_build_trigger = var.configure_continuous_integration ? "https://console.cloud.google.com/cloud-build/triggers;region=${local.region}?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-    cloud_artifact_registry = var.configure_environment ? "https://console.cloud.google.com/artifacts?inv=1&invt=AbioeA&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-  }
-}
-
-output "application_lb_url_info" {
-  value = {
-    app_lb_url  = length(local.regions) >= 2 && (length(google_compute_global_address.lb) > 0) ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}.${google_compute_global_address.lb[0].address}.nip.io" : ""
   }
 }

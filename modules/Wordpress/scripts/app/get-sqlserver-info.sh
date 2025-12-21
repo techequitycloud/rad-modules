@@ -12,19 +12,38 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
- 
-# set -x 
-#!/bin/bash
+
+# set -x
+
+# Check for required tools
+if ! command -v jq &> /dev/null; then
+    echo '{"error": "jq is not installed"}' >&2
+    exit 1
+fi
+
+# Parse arguments
 PROJECT_ID=$1
 DB_TYPE=$2
 SERVICE_ACCOUNT=$3
 
+# Validate required arguments
+if [ -z "${PROJECT_ID}" ] || [ -z "${DB_TYPE}" ]; then
+    echo '{"error": "Missing required arguments: PROJECT_ID and DB_TYPE"}' >&2
+    exit 1
+fi
+
+# Initialize service account argument
+SA_ARG=""
 if [ -n "${SERVICE_ACCOUNT}" ]; then
     SA_ARG="--impersonate-service-account=${SERVICE_ACCOUNT}"
 fi
 
 # Get SQL instances across all regions (no region filter)
-INSTANCE_INFO=$(gcloud sql instances list --project="${PROJECT_ID}" --filter="databaseVersion:${DB_TYPE}*" --format="json" $SA_ARG 2>/dev/null)
+INSTANCE_INFO=$(gcloud sql instances list \
+    --project="${PROJECT_ID}" \
+    --filter="databaseVersion:${DB_TYPE}*" \
+    --format="json" \
+    $SA_ARG 2>/dev/null)
 
 # Check if any instances were found
 if [ -n "$INSTANCE_INFO" ] && [ "$INSTANCE_INFO" != "[]" ]; then
@@ -35,29 +54,40 @@ if [ -n "$INSTANCE_INFO" ] && [ "$INSTANCE_INFO" != "[]" ]; then
     PRIVATE_IP=$(echo "$INSTANCE_INFO" | jq -r '.[0].ipAddresses[]? | select(.type == "PRIVATE") | .ipAddress // ""')
     
     # Try to get root password from secrets
+    ROOT_PASSWORD=""
     if [ -n "$INSTANCE_NAME" ]; then
-        ROOT_PASSWORD=$(gcloud secrets versions access latest --project="${PROJECT_ID}" --secret="${INSTANCE_NAME}-root-password" $SA_ARG 2>/dev/null || echo "")
-    else
-        ROOT_PASSWORD=""
+        ROOT_PASSWORD=$(gcloud secrets versions access latest \
+            --project="${PROJECT_ID}" \
+            --secret="${INSTANCE_NAME}-root-password" \
+            $SA_ARG 2>/dev/null || echo "")
     fi
     
-    # Output with sql_server_exists = true
-    echo '{'
-    echo '"sql_server_exists": "true",'
-    echo '"instance_name": "'"${INSTANCE_NAME}"'",'
-    echo '"instance_region": "'"${INSTANCE_REGION}"'",'
-    echo '"instance_ip": "'"${PRIVATE_IP}"'",'
-    echo '"database_version": "'"${DATABASE_VERSION}"'",'
-    echo '"root_password": "'"${ROOT_PASSWORD}"'"'
-    echo '}'
+    # Output JSON using jq for proper escaping
+    jq -n \
+        --arg exists "true" \
+        --arg name "${INSTANCE_NAME}" \
+        --arg region "${INSTANCE_REGION}" \
+        --arg ip "${PRIVATE_IP}" \
+        --arg version "${DATABASE_VERSION}" \
+        --arg password "${ROOT_PASSWORD}" \
+        '{
+            sql_server_exists: $exists,
+            instance_name: $name,
+            instance_region: $region,
+            instance_ip: $ip,
+            database_version: $version,
+            root_password: $password
+        }'
 else
-    # No instances found
-    echo '{'
-    echo '"sql_server_exists": "false",'
-    echo '"instance_name": "",'
-    echo '"instance_region": "",'
-    echo '"instance_ip": "",'
-    echo '"database_version": "",'
-    echo '"root_password": ""'
-    echo '}'
+    # No instances found - output using jq
+    jq -n \
+        --arg exists "false" \
+        '{
+            sql_server_exists: $exists,
+            instance_name: "",
+            instance_region: "",
+            instance_ip: "",
+            database_version: "",
+            root_password: ""
+        }'
 fi

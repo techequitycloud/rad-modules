@@ -63,7 +63,7 @@ variable "deployment_id" {
 }
 
 variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=103 }}"
+  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=103 }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
@@ -135,49 +135,10 @@ variable "application_sha" {
   default     = "c15a8eb3791e805b9cd3078f2dd4e0d78130b1c2"
 }
 
-# GROUP 6: CICD
-
-variable "configure_continuous_integration" {
-  description = "Select the checkbox to configure GitHub continuous integration and continous delivery pipeline that supports single and multi-region deployment. {{UIMeta group=0 order=601}}"
-  type        = bool
-  default     = false
-}
-
-variable "configure_continuous_deployment" {
-  description = "Select the checkbox to configure continous deployment pipeline. Implements a continuous delivery pipeline on the primary deployment region using Cloud Deploy. {{UIMeta group=0 order=600}}"
-  type        = bool
-  default     = false
-}
-
-variable "application_git_token" {
-  description = "Specify a github classic token with following privileges needed to configure the code repository: delete_repo, read:org, repo. {{UIMeta group=0 order=602}}"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "application_git_usernames" {
-  description = "Specify the usernames to add as collaborators to the git repo. {{UIMeta group=0 order=602}}"
-  type        = set(string)
-  default     = []
-}
-
-variable "application_git_installation_id" {
-  description = "Specify the application installation ID. {{UIMeta group=0 order=603}}"
-  type        = string
-  default     = "38735316"
-}
-
-variable "application_git_organization" {
-  description = "Specify the github organization. {{UIMeta group=0 order=604}}"
-  type        = string
-  default     = "techequitycloud"
-}
-
 # GROUP 7: Tenant
 
 variable "tenant_deployment_id" {
-  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=3 order=701}}"
+  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=2 order=701}}"
   type        = string
 }
 
@@ -211,22 +172,4 @@ variable "application_backup_fileid" {
   description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup file during deployment. {{UIMeta group=0 order=808}}"
   type        = string
   default     = "1jolaJFFU8-qMUgI8XOfGNBHDLFYrJQQT"
-}
-
-variable "configure_application_security" {
-  description = "Select this checkbox to configure web application security.  Configures a global load balancer with Cloud Armor web application security. {{UIMeta group=0 order=809 }}"
-  type        = bool
-  default     = false
-}
-
-variable "application_secure_path" {
-  description = "Enter the application secure path. Cloud Armour is configured to restrict traffic to this path. {{UIMeta group=0 order=810}}"
-  type        = string
-  default     = ""
-}
-
-variable "application_authorized_network" {
-  description = "Enter the application authorized network. Cloud Armour is configured to allow traffic from this network. {{UIMeta group=0 order=812}}"
-  type        = set(string)
-  default     = []
 }

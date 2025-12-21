@@ -19,8 +19,8 @@
 # Cleanup script for database objects
 resource "null_resource" "cleanup_db_objects" {
   triggers = {
-    user     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}"
-    database = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}"
+    user     = "${var.application_database_user}${var.tenant_deployment_id}${local.random_id}"
+    database = "${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
     instance = local.db_instance_name
     project  = local.project.project_id
   }
@@ -74,7 +74,7 @@ resource "null_resource" "cleanup_db_objects" {
 #########################################################################
 
 resource "google_sql_database" "db" {
-  name     = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}"
+  name     = "${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
   instance = local.db_instance_name
   project  = local.project.project_id
 
@@ -95,7 +95,7 @@ resource "random_password" "db_password" {
 }
 
 resource "google_sql_user" "user" {
-  name     = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}"
+  name     = "${var.application_database_user}${var.tenant_deployment_id}${local.random_id}"
   instance = local.db_instance_name
   project  = local.project.project_id
   password = random_password.db_password.result

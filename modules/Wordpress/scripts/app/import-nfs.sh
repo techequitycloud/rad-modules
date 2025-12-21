@@ -16,8 +16,8 @@
 # set -x
 
 # Remove spaces from the region variables
-APP_REGION_1=$(echo "${APP_REGION_1}" | tr -d '[:space:]')
-APP_REGION_2=$(echo "${APP_REGION_2}" | tr -d '[:space:]')
+APP_REGION_1=$(echo "us-central1" | tr -d '[:space:]')
+APP_REGION_2=$(echo "" | tr -d '[:space:]')
 
 # Maximum number of attempts
 max_attempts=10
@@ -30,11 +30,11 @@ while [ $attempt -lt $max_attempts ]; do
 
   # Check and delete service in APP_REGION_1
   if [ -n "$APP_REGION_1" ]; then
-    if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" 2>/dev/null; then
+    if gcloud run services describe "appwpdemo4bf9" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" 2>/dev/null; then
       echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
 
       # Try to delete the service
-      if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_1" --quiet; then
+      if gcloud run services delete "appwpdemo4bf9" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_1" --quiet; then
         echo "Cloud Run service is being deleted in region $APP_REGION_1."
         delete_attempted=true
         services_found=true # A service was found and is being deleted
@@ -49,11 +49,11 @@ while [ $attempt -lt $max_attempts ]; do
 
   # Check and delete service in APP_REGION_2
   if [ -n "$APP_REGION_2" ]; then
-    if gcloud run services describe "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" 2>/dev/null; then
+    if gcloud run services describe "appwpdemo4bf9" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" 2>/dev/null; then
       echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
 
       # Try to delete the service
-      if gcloud run services delete "${APP_NAME}" --project="${PROJECT_ID}" --region="$APP_REGION_2" --quiet; then
+      if gcloud run services delete "appwpdemo4bf9" --project="qwiklabs-gcp-03-7d6c3f1a2c26" --region="$APP_REGION_2" --quiet; then
         echo "Cloud Run service is being deleted in region $APP_REGION_2."
         delete_attempted=true
         services_found=true # A service was found and is being deleted
@@ -80,9 +80,9 @@ done
 
 
 # Ensure application directory is empty
-sudo mkdir -p /share/${DB_USER} && sudo rm -rf /share/${DB_USER}/* && sudo chown -R www-data:www-data /share/${DB_USER} && sudo chmod 775 /share/${DB_USER}
+sudo mkdir -p /share/appwpdemo4bf9 && sudo rm -rf /share/appwpdemo4bf9/* && sudo chown -R www-data:www-data /share/appwpdemo4bf9 && sudo chmod 775 /share/appwpdemo4bf9
 
 # Check if the shared directory exists
-if [ ! -d /share/${DB_USER} ]; then echo 'Error: /share/${DB_USER} does not exist.'; exit 1; fi
+if [ ! -d /share/appwpdemo4bf9 ]; then echo 'Error: /share/appwpdemo4bf9 does not exist.'; exit 1; fi
 
 echo "Script completed successfully!"

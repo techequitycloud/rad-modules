@@ -70,7 +70,7 @@ resource "google_monitoring_notification_channel" "email" {
 #########################################################################
 # Define a service for Cloud Run to be monitored.
 resource "google_monitoring_service" "dev_cloud_run" {
-  count =  (var.configure_monitoring && var.configure_development_environment) ? length(local.regions) : 0
+  count =  (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
   service_id   = "app${var.application_name}dev-monitoring-service-${var.tenant_deployment_id}-${local.random_id}-${local.regions[count.index]}"
   display_name = "app${var.application_name}dev-monitoring-service-${var.tenant_deployment_id}-${local.random_id}"
   project      = local.project.project_id
@@ -89,14 +89,13 @@ resource "google_monitoring_service" "dev_cloud_run" {
   }
 
   depends_on = [
-    google_cloud_scheduler_job.dev_backup,
     google_cloud_run_v2_service.dev_app_service,
   ]
 }
 
 # Define a Service Level Objective (SLO) for Cloud Run service latency.
 resource "google_monitoring_slo" "dev_latency_slo" {
-  count = (var.configure_monitoring && var.configure_development_environment) ? length(local.regions) : 0
+  count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
   service      = google_monitoring_service.dev_cloud_run[count.index].service_id
   slo_id       = "app${var.application_name}dev-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
   display_name = "app${var.application_name}dev-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
@@ -122,7 +121,7 @@ resource "google_monitoring_slo" "dev_latency_slo" {
 
 # Define a Service Level Objective (SLO) for Cloud Run service availability.
 resource "google_monitoring_slo" "dev_availability_slo" {
-  count = (var.configure_monitoring && var.configure_development_environment) ? length(local.regions) : 0
+  count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
   service      = google_monitoring_service.dev_cloud_run[count.index].service_id
   slo_id       = "app${var.application_name}dev-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
   display_name = "app${var.application_name}dev-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
@@ -145,7 +144,7 @@ resource "google_monitoring_slo" "dev_availability_slo" {
 
 # Define an uptime check configuration for monitoring service availability.
 resource "google_monitoring_uptime_check_config" "dev_https" {
-  count = (var.configure_monitoring && var.configure_development_environment) ? length(local.regions) : 0
+  count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
   project = local.project.project_id
   display_name = "app${var.application_name}dev-uptime-check-config-${var.tenant_deployment_id}-${local.random_id}"
   timeout = "60s"
