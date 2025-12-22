@@ -81,4 +81,19 @@ sudo mkdir -p /share/${DB_USER} && sudo rm -rf /share/${DB_USER}/* && sudo chown
 # Check if the shared directory exists
 if [ ! -d /share/${DB_USER} ]; then echo 'Error: /share/${DB_USER} does not exist.'; exit 1; fi
 
+if [ "${CONFIGURE_BACKUPS}" = "true" ] && [ -n "${BACKUP_FILE_ID}" ]; then
+    echo "Restoring backup..."
+    # Install gdown
+    sudo apt-get update && sudo apt-get install -y python3-pip
+    if ! sudo pip3 install gdown --break-system-packages 2>/dev/null; then
+        sudo pip3 install gdown
+    fi
+    # Download
+    gdown "${BACKUP_FILE_ID}" -O /tmp/backup.tar.gz
+    # Extract
+    sudo tar -xzvf /tmp/backup.tar.gz -C /share/${DB_USER}
+    # Fix permissions
+    sudo chown -R 1000:1000 /share/${DB_USER}
+fi
+
 echo "Script completed successfully!"

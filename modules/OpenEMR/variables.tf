@@ -155,10 +155,22 @@ variable "configure_monitoring" {
   default     = false
 }
 
+variable "configure_backups" {
+  description = "Select to configure backups. {{UIMeta group=6 order=806 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
 variable "application_backup_schedule" {
   description = "Enter the application backup schedule in cron format. This is used to configure the Cloud Scheduler cron job. {{UIMeta group=6 order=807 updatesafe }}"
   type        = string
   default     = "0 0 * * *"
+}
+
+variable "application_backup_fileid" {
+  description = "Enter the application backup file ID. {{UIMeta group=6 order=808 updatesafe }}"
+  type        = string
+  default     = ""
 }
 
 variable "configure_application_security" {
