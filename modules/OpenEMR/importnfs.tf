@@ -36,8 +36,13 @@ resource "null_resource" "create_nfs_directories_on_server" {
 
       # Wait for NFS instance to be running
       while [ $attempt -lt $max_attempts ]; do
-        NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(NAME)")
-        status=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(status)")
+        NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list \
+          --filter="INTERNAL_IP=${local.nfs_internal_ip}" \
+          --format="value(NAME)")
+        
+        status=$(gcloud --project ${local.project.project_id} compute instances list \
+          --filter="INTERNAL_IP=${local.nfs_internal_ip}" \
+          --format="value(status)")
         
         if [ "$status" = "RUNNING" ]; then
           echo "✓ NFS instance $NFS_VM is running"
@@ -55,53 +60,77 @@ resource "null_resource" "create_nfs_directories_on_server" {
         exit 1
       fi
 
+      # Get NFS zone
+      NFS_ZONE=$(gcloud --project ${local.project.project_id} compute instances list \
+        --filter="INTERNAL_IP=${local.nfs_internal_ip}" \
+        --format="value(zone)")
+
       # Create directories on NFS server
-      echo "Creating NFS directories on $NFS_VM..."
+      echo "Creating NFS directories on $NFS_VM in zone $NFS_ZONE..."
       
-      CREATE_DIRS_SCRIPT=$(cat <<'SCRIPT_END'
+      # FIXED: Removed single quotes to allow variable interpolation
+      CREATE_DIRS_SCRIPT=$(cat <<SCRIPT_END
 #!/bin/bash
 set -e
 
 echo "Creating NFS directory structure..."
 
-# Create directories
-sudo mkdir -p /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}
+# Define the share path
+SHARE_PATH="/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
 
-# Set permissions - CRITICAL FIX
-sudo chmod -R 777 /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}
-sudo chown -R www-data:www-data /share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}
+# Create directories
+sudo mkdir -p "\$SHARE_PATH"
+sudo mkdir -p "\$SHARE_PATH/default"
+sudo mkdir -p "\$SHARE_PATH/default/documents"
+
+# FIXED: Set ownership first (use nobody:nogroup for NFS)
+sudo chown -R nobody:nogroup "\$SHARE_PATH"
+
+# FIXED: Set permissions after ownership
+sudo chmod -R 777 "\$SHARE_PATH"
 
 echo "✓ Directories created successfully:"
-ls -la /share/ | grep app${var.application_database_name}${var.tenant_deployment_id}${local.random_id} || echo "No directories found (this might be normal)"
+ls -la /share/ | grep app${var.application_database_name}${var.tenant_deployment_id}${local.random_id} || true
+
+# ADDED: Configure NFS export
+echo ""
+echo "Configuring NFS export..."
+
+EXPORT_LINE="\$SHARE_PATH *(rw,sync,no_subtree_check,no_root_squash,insecure)"
+
+if ! sudo grep -q "^\$SHARE_PATH " /etc/exports; then
+  echo "\$EXPORT_LINE" | sudo tee -a /etc/exports
+  sudo exportfs -ra
+  echo "✓ NFS export added and reloaded"
+else
+  echo "✓ NFS export already exists, reloading..."
+  sudo exportfs -ra
+fi
 
 # Verify NFS exports
 echo ""
 echo "Current NFS exports:"
-sudo exportfs -v || echo "No exports configured yet"
+sudo exportfs -v
 
 echo ""
-echo "✓ NFS directory creation complete"
+echo "✓ NFS directory creation and export complete"
 SCRIPT_END
 )
 
       # Execute directory creation with retries
       for i in {1..5}; do
-        if [ -z "${local.project_sa_email}" ] || [ -z "${var.resource_creator_identity}" ]; then
-          if echo "$CREATE_DIRS_SCRIPT" | gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s"; then
-            echo "✓ NFS directories created successfully"
-            break
-          else
-            echo "Attempt $i failed, retrying in 10 seconds..."
-            sleep 10
-          fi
+        SSH_CMD="gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone $NFS_ZONE"
+        
+        if [ -n "${local.project_sa_email}" ] && [ -n "${var.resource_creator_identity}" ]; then
+          SSH_CMD="$SSH_CMD --impersonate-service-account=${local.project_sa_email}"
+        fi
+        
+        if echo "$CREATE_DIRS_SCRIPT" | $SSH_CMD --command="sudo bash -s"; then
+          echo "✓ NFS directories created successfully"
+          break
         else
-          if echo "$CREATE_DIRS_SCRIPT" | gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" --impersonate-service-account=${local.project_sa_email}; then
-            echo "✓ NFS directories created successfully"
-            break
-          else
-            echo "Attempt $i failed, retrying in 10 seconds..."
-            sleep 10
-          fi
+          echo "Attempt $i failed, retrying in 10 seconds..."
+          sleep 10
         fi
 
         if [ "$i" -eq 5 ]; then

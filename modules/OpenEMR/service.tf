@@ -1,17 +1,3 @@
-# Copyright 2024 (c) Tech Equity Ltd
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 resource "google_cloud_run_v2_service" "app_service" {
   for_each            = var.configure_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
 
@@ -33,8 +19,10 @@ resource "google_cloud_run_v2_service" "app_service" {
 
     containers {
       image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.application_image.repository_id}/${var.application_name}:${var.application_version}"
+      
       ports {
         container_port = 80
+        name          = "http1"
       }
 
       resources {
@@ -46,24 +34,37 @@ resource "google_cloud_run_v2_service" "app_service" {
         }
       }
 
+      # FIXED: Better startup probe configuration
       startup_probe {
-        initial_delay_seconds = 240
-        timeout_seconds = 60
-        period_seconds = 240
-        failure_threshold = 3
-        tcp_socket {
+        initial_delay_seconds = 30      # Start checking after 30 seconds
+        timeout_seconds       = 10      # 10 seconds per check
+        period_seconds        = 10      # Check every 10 seconds
+        failure_threshold     = 30      # 30 attempts = 5 minutes total (30 + 10*30 = 330s)
+        
+        http_get {
+          path = "/"                    # Check root path (more reliable)
           port = 80
+          http_headers {
+            name  = "User-Agent"
+            value = "GoogleHC/1.0"
+          }
         }
       }
 
+      # FIXED: Better liveness probe
       liveness_probe {
-        initial_delay_seconds = 240
-        timeout_seconds = 60
-        period_seconds = 180
-        failure_threshold = 3
+        initial_delay_seconds = 60      # Wait 1 minute after startup
+        timeout_seconds       = 5       # 5 seconds per check
+        period_seconds        = 30      # Check every 30 seconds
+        failure_threshold     = 3       # Fail after 3 attempts
+        
         http_get {
-          path = "/interface/login/login.php"
+          path = "/"                    # Use root path instead of login page
           port = 80
+          http_headers {
+            name  = "User-Agent"
+            value = "GoogleHC/1.0"
+          }
         }
       }
 
@@ -90,7 +91,7 @@ resource "google_cloud_run_v2_service" "app_service" {
 
       env {
         name  = "MYSQL_HOST"
-        value = "${local.db_internal_ip}"
+        value = local.db_internal_ip
       }
 
       env {
@@ -124,9 +125,39 @@ resource "google_cloud_run_v2_service" "app_service" {
         }
       }
 
+      # FIXED: Set to "yes" if database is already initialized
       env {
         name = "MANUAL_SETUP"
-        value = "no"
+        value = "yes"  # Changed from "no" to "yes" - skip auto-setup
+      }
+
+      # ADDED: Skip auto-setup since we're using import_db job
+      env {
+        name  = "EMPTY"
+        value = ""
+      }
+
+      # ADDED: Force production mode
+      env {
+        name  = "OPENEMR_DOCKER_ENV_TAG"
+        value = "production"
+      }
+
+      # ADDED: Disable dev mode
+      env {
+        name  = "EASY_DEV_MODE"
+        value = "off"
+      }
+
+      env {
+        name  = "EASY_DEV_MODE_NEW"
+        value = "off"
+      }
+
+      # ADDED: Force no build mode (skip setup scripts)
+      env {
+        name  = "FORCE_NO_BUILD_MODE"
+        value = "1"
       }
 
       # PHP Configuration Overrides
@@ -160,7 +191,7 @@ resource "google_cloud_run_v2_service" "app_service" {
         value = "3000"
       }
 
-      # Alternative: Set via Apache/PHP-FPM environment
+      # Apache Configuration
       env {
         name  = "APACHE_RUN_USER"
         value = "www-data"
@@ -171,8 +202,14 @@ resource "google_cloud_run_v2_service" "app_service" {
         value = "www-data"
       }
 
+      # ADDED: Apache timeout settings
+      env {
+        name  = "APACHE_TIMEOUT"
+        value = "300"
+      }
+
       volume_mounts {
-        name      = "nfs-data-volume"
+        name       = "nfs-data-volume"
         mount_path = "/var/www/localhost/htdocs/openemr/sites"
       }
     }
@@ -181,8 +218,9 @@ resource "google_cloud_run_v2_service" "app_service" {
       network_interfaces {
         network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
         subnetwork = "projects/${local.project.project_id}/regions/${each.key}/subnetworks/gce-vpc-subnet-${each.key}"
-        tags = ["nfsserver"]
+        tags       = ["nfsserver"]
       }
+      egress = "PRIVATE_RANGES_ONLY"  # ADDED: Explicit egress setting
     }
 
     scaling {
@@ -200,15 +238,16 @@ resource "google_cloud_run_v2_service" "app_service" {
     volumes {
       name = "nfs-data-volume"
       nfs {
-        server = "${local.nfs_internal_ip}"
-        path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+        server    = local.nfs_internal_ip
+        path      = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+        read_only = false  # ADDED: Explicit read_only setting
       }
     }
   }
 
   traffic {
-    type   = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
-    tag    = "latest"
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    tag     = "latest"
     percent = 100
   }
 
