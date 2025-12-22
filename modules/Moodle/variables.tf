@@ -77,7 +77,7 @@ variable "trusted_users" {
 # GROUP 2: Application Project
 
 variable "existing_project_id" {
-  description = "Select an existing project. If no project is listed, create a new project using the GCP_Project module. {{UIMeta group=2 order=200 }}"
+  description = "Select an existing project. If no project is listed, create a new project using the GCP Project module. {{UIMeta group=2 order=200 }}"
   type        = string
 }
 
