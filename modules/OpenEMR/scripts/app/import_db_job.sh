@@ -119,7 +119,7 @@ else
 
     # Clone OpenEMR repository (similar to working Dockerfile approach)
     echo "Cloning OpenEMR repository..."
-    VERSION_TAG="rel-$(echo ${APP_VERSION} | tr '.' '')"  # e.g. 7.0.3 -> rel-703
+    VERSION_TAG="rel-$(echo ${APP_VERSION} | tr -d '.')"  # e.g. 7.0.3 -> rel-703
 
     cd /tmp
     git clone https://github.com/openemr/openemr.git --branch ${VERSION_TAG} --depth 1
