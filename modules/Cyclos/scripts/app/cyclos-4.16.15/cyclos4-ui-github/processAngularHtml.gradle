@@ -1,0 +1,48 @@
+ext.processAngularHtml = { dist, out, vars, replaceStyle, cssPreload ->
+    ant.copy(file:"$dist/index.html", tofile:out)
+    
+    def file = file(out)
+    def content = file.getText('UTF-8')
+    if (replaceStyle) {
+        content = content.replaceAll(/href="styles\.[^\.]+\.css"/, """id="stylesLink" ${cssPreload ? 'media="preload"' : ''} th:href="\\\${styleUrl}" """)
+    }
+	content = content.replaceAll(/<script>/) { '<script th:inline="javascript">' }
+	content = content.replaceAll(/<base[^>]*>/) { '<th:block th:utext="${base}" />' }
+    content = content.replaceAll(/<\/head>/) { '\n<th:block th:utext="${meta}" />\n</head>' }
+    content = content.replaceAll(/<script src="([^"]+)"[^>]*><\/script>/) { m, name ->
+        if (name.startsWith('styles.') && replaceStyle) {
+            // This is actually a style
+            return """ 
+        <script th:inline="javascript">
+            document.addEventListener('load', new function () {
+                var s = document.createElement('link');
+                ${cssPreload ? "s.setAttribute('media', 'preload');" : ""}
+                s.setAttribute('rel', 'stylesheet');
+                s.setAttribute('href', '${styleUrl}');
+                s.onload = new function() {
+                    s.setAttribute('media', '');
+                };
+                document.body.appendChild(s);
+            }, false);
+        </script>
+        """;
+        } else {
+            return """
+        <script th:inline="javascript">
+            document.addEventListener('load', new function () {
+                var s = document.createElement('script');
+                s.setAttribute('src', '$name');
+                s.setAttribute('defer', 'true');
+                document.body.appendChild(s);
+            }, false);
+        </script>
+        """;
+        }
+    }
+    vars.each { v ->
+        content = content.replaceAll("var\\s+${v}\\s*=[^;]+;") { 
+			"""var $v = /*[[\${${v}}]]*/ null;"""
+		}
+    }
+    file.setText(content, 'UTF-8')
+}

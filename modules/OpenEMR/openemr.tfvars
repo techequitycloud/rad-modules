@@ -1,10 +1,10 @@
 # Deployment
 tenant_deployment_id = "demo"
 resource_creator_identity = "" # "REPLACE_WITH_TERRAFORM_SERVICE_ACCOUNT"
-trusted_users = ["student-01-a7587da03fc7@qwiklabs.net"]
+trusted_users = ["student-01-dca557108124@qwiklabs.net"]
 
 # Project
-existing_project_id = "qwiklabs-gcp-03-7d6c3f1a2c26"
+existing_project_id = "qwiklabs-gcp-00-9c58e150e7c1"
 
 # Network
 network_name = "vpc-network"
@@ -19,7 +19,7 @@ configure_continuous_deployment = false
 application_name = "openerm"
 application_database_user = "openerm"
 application_database_name = "openerm"
-application_backup_fileid = "1nitol1S9hdcjf7PpHvsRl3ZDwhKYlzF2"
+application_backup_fileid = ""
 application_version = "7.0.3"
 application_git_installation_id = "38735316"
 application_git_organization = "techequitycloud"

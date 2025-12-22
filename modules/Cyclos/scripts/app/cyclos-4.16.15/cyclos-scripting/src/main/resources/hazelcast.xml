@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- This file is used when cyclos.clusterHandler is set to hazelcast in 
+    cyclos.properties. -->
+<hazelcast xmlns="http://www.hazelcast.com/schema/config"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.hazelcast.com/schema/config
+    http://www.hazelcast.com/schema/config/hazelcast-config-5.0.xsd">
+
+    <cluster-name>cyclos</cluster-name>
+
+    <network>
+        <port auto-increment="true">5701</port>
+        
+        <!-- NOTICE:
+        Starting with Cyclos 4.16, an easier way to set the join strategy
+        is to use one of the following environment variables. When one of these is set,
+        any <join> tags are ignored, and the corresponding join kind is used.
+        See https://documentation.cyclos.org/current/cyclos-reference/#setup-adjustments-clustering
+        -->
+         
+        <join>
+            <!-- Multicast communication -->
+            <multicast enabled="true">
+                <multicast-group>224.2.2.3</multicast-group>
+                <multicast-port>54327</multicast-port>
+            </multicast>
+
+            <!-- Full TCP/IP communication -->
+            <!-- <tcp-ip enabled="true"> <member>machine1</member> <member>machine2</member> 
+                <member>machine3:5702</member> </tcp-ip> -->
+        </join>
+
+        <!-- Discovery for Amazon Web Services (EC2) -->
+        <!-- Each instance running Cyclos must be tagged with the same values specified here (you can choose whatever fit your needs) -->
+        <!--                 
+        <join>
+            <multicast enabled="false" />
+            <aws enabled="true">
+                <tag-key>node</tag-key>
+                <tag-value>cyclos</tag-value>
+            </aws>
+        </join>
+         -->
+
+        <!-- Discovery for Google Cloud Platform (Compute Engine) -->
+        <!-- Eachinstance running Cyclos must be configured as follow: -->
+        <!--  * Access scopes, select 'Compute Engine' with at least 'Read Only' access -->
+        <!--  * Add a label with the same values specified here (you can choose whatever fit your needs for the name and value) -->
+        <!--
+        <join>
+            <multicast enabled="false" />
+            <gcp enabled="true">
+                <label>cluster=cyclos</label>
+                <hz-port>5701-5708</hz-port>
+            </gcp>
+        </join>
+         -->
+
+        <!-- Discovery for Kubernetes -->
+        <!-- You need a service which acts as a DNS, such as: -->
+        <!-- 
+	        apiVersion: v1
+			kind: Service
+			metadata:
+			  name: cyclos-dns
+			spec:
+			  type: ClusterIP
+			  clusterIP: None
+			  selector:
+			    app.kubernetes.io/name: cyclos
+         -->
+        <!--                 
+        <join>
+            <multicast enabled="false" />
+            <kubernetes enabled="true">
+                <service-dns>cyclos-dns</service-dns>
+            </kubernetes>
+        </join>
+         -->
+    </network>
+
+    <!-- Both initializations and tasks maps need to never expire, and have 
+        some backups, as they need to be kept alive for the entire cluster lifecycle -->
+    <map name="cyclos.map.initializations">
+        <backup-count>3</backup-count>
+    </map>
+
+    <!-- It is advised that the session timeout map has a backup -->
+    <map name="cyclos.map.sharedStorage.SESSION_TIMEOUTS">
+        <backup-count>1</backup-count>
+        <read-backup-data>true</read-backup-data>
+    </map>
+
+    <scheduled-executor-service name="recurringTaskScheduledExecutor">
+        <durability>0</durability>
+        <!-- Pool size is configured through cyclos.properties with cyclos.maxRecurringTasks -->
+    </scheduled-executor-service>
+
+    <!-- Executor used only to run system monitor tasks -->
+    <executor-service name="systemMonitorExecutor">
+        <pool-size>4</pool-size>
+    </executor-service>
+
+</hazelcast>

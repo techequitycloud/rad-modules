@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="INFO">
+    <Appenders>
+        <Console name="stdout" target="SYSTEM_OUT">
+            <PatternLayout
+                pattern="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-level %c{1} - %msg%n" />
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Root level="info" additivity="false">
+            <AppenderRef ref="stdout" />
+        </Root>
+        <Logger name="eclipselink" level="fatal" />
+        <Logger name="eclipselink.sql" level="debug" />
+        <Logger name="org.stro.dbdiff" level="info" />
+        <Logger name="org.cyclos" level="info" />
+        <Logger name="org.cyclos.impl.banking.AccountVerificationBackgroundTask" level="warn" />
+        <Logger name="org.cyclos.impl.utils.sms" level="info" />
+        <Logger name="org.cyclos.impl.sql" level="warn" />
+        <Logger name="org.cyclos.impl.utils.cache" level="warn" />
+        <Logger name="org.cyclos.impl.utils.tasks" level="info" />
+        <Logger name="org.cyclos.impl.messaging" level="info" />
+        <Logger name="org.cyclos.impl.utils.cluster" level="info" />
+        <Logger name="org.cyclos.impl.system.PDFExportHandlerImpl" level="warn" />
+        <Logger name="org.cyclos.server.spring" level="warn" />
+        <Logger name="org.cyclos.bootstrap.EntityManagerFactoryBean" level="warn" />
+        <Logger name="org.cyclos.impl.sql" level="warn" />
+        <Logger name="nl.basjes.parse.useragent" level="warn" />
+        <Logger name="com.mchange" level="fatal" />
+        <Logger name="org.springframework" level="warn" />
+        <Logger name="org.springframework.web.servlet.mvc.support.DefaultHandlerExceptionResolver" level="off" />
+        <Logger name="com.openhtmltopdf" level="fatal" />
+        <Logger name="com.zaxxer.hikari" level="warn" />
+        <Logger name="org.apache" level="warn" />
+        <Logger name="org.apache.pdfbox" level="fatal" />
+        <Logger name="org.apache.fontbox" level="fatal" />
+        <Logger name="org.hibernate.validator" level="warn" />
+        <Logger name="org.apache.http" level="fatal" />
+        <Logger name="com.amazonaws.services.s3.internal" level="error" />
+        <Logger name="org.pac4j.oidc.profile.creator.TokenValidator" level="error" />
+    </Loggers>
+</Configuration>

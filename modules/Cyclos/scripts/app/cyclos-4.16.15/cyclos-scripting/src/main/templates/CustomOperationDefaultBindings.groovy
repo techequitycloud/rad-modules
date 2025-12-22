@@ -1,0 +1,23 @@
+return [
+	ad: null,
+	bulkAction: null,
+	contact: null,
+	contactInfo: null,
+	currentPage: null,
+	customOperation: null,
+	execution: null,
+	exportFormat: null,
+	formParameters: null,
+	inputFile: null,
+	menuItem: null,
+	pageSize: null,
+	record: null,
+	request: null,
+	returnUrl: null,
+	scannedQrCode: null,
+	skipTotalCount: null,
+	storage: null,
+	transfer: null,
+	user: null,
+
+]
