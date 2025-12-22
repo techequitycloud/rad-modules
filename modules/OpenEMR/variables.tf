@@ -23,7 +23,7 @@ variable "module_description" {
 variable "module_dependency" {
   description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=102 }}"
   type        = list(string)
-  default     = ["GCP Project","GCP Services"]
+  default     = ["GCP Services"]
 }
 
 variable "module_services" {
@@ -77,7 +77,7 @@ variable "trusted_users" {
 # GROUP 2: Application Project
 
 variable "existing_project_id" {
-  description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 }}"
+  description = "Select an existing project. If no project is listed, create a new project using the GCP Project module. {{UIMeta group=2 order=200 }}"
   type        = string
 }
 
