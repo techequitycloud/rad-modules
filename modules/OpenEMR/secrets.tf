@@ -50,27 +50,4 @@ resource "google_secret_manager_secret_version" "dev_db_password" {
   ]
 }
 
-# Resource to introduce a delay after creating a secret version
-resource "time_sleep" "dev_db_password" {
-  depends_on = [
-    google_secret_manager_secret_version.dev_db_password
-  ]
-
-  create_duration = "90s"  
-}
-
-# Data source for accessing the latest version of the secret when it's ready
-data "google_secret_manager_secret_version" "dev_db_password" {
-  count    = local.sql_server_exists ? 1 : 0  
-  project  = local.project.project_id
-  provider = google  
-
-  secret   = google_secret_manager_secret.dev_db_password[0].id
-  version  = "latest"  
-
-  depends_on = [
-    time_sleep.dev_db_password,
-    google_secret_manager_secret.dev_db_password,
-  ]
-}
 
