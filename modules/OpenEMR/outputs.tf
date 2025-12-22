@@ -47,7 +47,6 @@ output "application_info" {
   value = {
     application_dev_url  = var.configure_development_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-${local.project_number}.${local.region}.run.app" : ""
     cloud_secret_manager = var.configure_development_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-    cloud_scheduler      = var.configure_backups ? "https://console.cloud.google.com/cloudscheduler?inv=1&invt=AbioeA&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
   }
 }
 
@@ -55,7 +54,5 @@ output "service_info" {
   value = {
     service_dev_url  = var.configure_development_environment ? "https://console.cloud.google.com/run/detail/${local.region}/app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev/metrics?orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
     cloud_secret_manager = var.configure_development_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-    cloud_scheduler = var.configure_backups ? "https://console.cloud.google.com/cloudscheduler?project=${local.project.project_id}&supportedpurview=project,organizationId,folder" : ""
   }
 }
-

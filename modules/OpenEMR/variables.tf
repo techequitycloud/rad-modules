@@ -133,24 +133,6 @@ variable "application_git_token" {
   sensitive   = true
 }
 
-variable "application_git_usernames" {
-  description = "Specify the usernames to add as collaborators to the git repo. {{UIMeta group=4 order=602 updatesafe}}"
-  type        = set(string)
-  default     = []
-}
-
-variable "application_git_installation_id" {
-  description = "Specify the application installation ID. {{UIMeta group=0 order=603 updatesafe}}"
-  type        = string
-  default     = "38735316"
-}
-
-variable "application_git_organization" {
-  description = "Specify the github organization. {{UIMeta group=0 order=604 updatesafe}}"
-  type        = string
-  default     = "techequitycloud"
-}
-
 # GROUP 7: Tenant
 
 variable "tenant_deployment_id" {
@@ -173,22 +155,10 @@ variable "configure_monitoring" {
   default     = false
 }
 
-variable "configure_backups" {
-  description = "Select this checkbox to schedule daily application backups. Configures a Cloud Scheduler trigger to execute a Cloud Run backup job. {{UIMeta group=6 order=806 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
 variable "application_backup_schedule" {
   description = "Enter the application backup schedule in cron format. This is used to configure the Cloud Scheduler cron job. {{UIMeta group=6 order=807 updatesafe }}"
   type        = string
   default     = "0 0 * * *"
-}
-
-variable "application_backup_fileid" {
-  description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup files during deployment. {{UIMeta group=6 order=808 updatesafe}}"
-  type        = string
-  default     = ""
 }
 
 variable "configure_application_security" {

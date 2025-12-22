@@ -10,19 +10,13 @@ existing_project_id = "qwiklabs-gcp-00-9c58e150e7c1"
 network_name = "vpc-network"
 
 # Application Features
-configure_backups = false
 configure_monitoring = true
 
 # Application Configuration
 application_name = "openerm"
 application_database_user = "openerm"
 application_database_name = "openerm"
-application_backup_fileid = ""
 application_version = "7.0.3"
-application_git_installation_id = "38735316"
-application_git_organization = "techequitycloud"
-application_git_usernames = ["snavti"]
 
 # environments
 configure_development_environment = true
-
