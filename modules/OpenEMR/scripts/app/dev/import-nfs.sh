@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License. 
 
-# set -x
+set -x
 
 # Remove spaces from the region variables
 APP_REGION_1=$(echo "us-central1" | tr -d '[:space:]')
@@ -29,11 +29,11 @@ while [ $attempt -lt $max_attempts ]; do
   services_found=false # Flag to track if any services were found
 
   # Check and delete service in APP_REGION_1
-  if gcloud run services describe "appcyclosdemofd01dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" 2>/dev/null; then
+  if gcloud run services describe "appopenermdemo9f10dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
     
     # Try to delete the service
-    if gcloud run services delete "appcyclosdemofd01dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" --quiet; then
+    if gcloud run services delete "appopenermdemo9f10dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_1."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -46,11 +46,11 @@ while [ $attempt -lt $max_attempts ]; do
   fi
 
   # Check and delete service in APP_REGION_2
-  if gcloud run services describe "appcyclosdemofd01dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" 2>/dev/null; then
+  if gcloud run services describe "appopenermdemo9f10dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
     
     # Try to delete the service
-    if gcloud run services delete "appcyclosdemofd01dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" --quiet; then
+    if gcloud run services delete "appopenermdemo9f10dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_2."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -74,46 +74,63 @@ while [ $attempt -lt $max_attempts ]; do
   sleep 10
 done
 
-# Ensure application directory is empty
-sudo mkdir -p /share/appcyclosdemofd01dev && sudo rm -rf /share/appcyclosdemofd01dev/* && sudo chown -R nobody:nogroup /share/appcyclosdemofd01dev && sudo chmod 775 /share/appcyclosdemofd01dev
 
-# Attempt to download the backup file only if BACKUP_FILEID is not empty
-if [ -n "" ] ; then
-    echo "Attempting to download the backup file using gdown..."
-    echo "Using gdown from /root/.local/bin/gdown"
-    
-    # Try downloading with full path if needed
-    if sudo /root/.local/bin/gdown  -O appcyclosdemofd01dev.zip; then
-        echo "Backup file downloaded successfully"
-        if [ -f appcyclosdemofd01dev.zip ]; then
-            echo "Backup file exists and is $(du -h appcyclosdemofd01dev.zip | cut -f1) in size"
-        fi
-    else
-        echo "Warning: Failed to download the backup file using /root/.local/bin/gdown."
-    fi
-else
-    echo "Skipping download as BACKUP_FILEID is empty."
-fi
+# Ensure application directory is empty and created
+sudo mkdir -p /share/appopenermdemo9f10dev && sudo rm -rf /share/appopenermdemo9f10dev/* && sudo chown -R 1000:1000 /share/appopenermdemo9f10dev && sudo chmod 775 /share/appopenermdemo9f10dev
 
-# Check if the backup file exists locally
-if [ -f "appcyclosdemofd01dev.zip" ]; then
-    echo "Backup file exists locally."
-    
-    # Extract the backup file and set  permissions
-    sudo mkdir -p appcyclosdemofd01dev && sudo rm -rf appcyclosdemofd01dev/* && sudo unzip appcyclosdemofd01dev.zip -d appcyclosdemofd01dev
-    
-    # Move directory
-    sudo rm -rf /share/appcyclosdemofd01dev/* && sudo mv appcyclosdemofd01dev/* /share/appcyclosdemofd01dev/
+# Create default directory
+sudo mkdir -p /share/appopenermdemo9f10dev/default
 
-    # Change ownership
-    sudo chmod -R 0777 /share/appcyclosdemofd01dev && sudo chown -R nobody:nogroup /share/appcyclosdemofd01dev
+# Create sqlconf.php
+cat <<EOF | sudo tee /share/appopenermdemo9f10dev/default/sqlconf.php > /dev/null
+<?php
+//  OpenEMR
+//  MySQL Config
 
-    # Delete Backup from bastion host
-    sudo rm -rf appcyclosdemofd01dev.zip && sudo rm -rf appcyclosdemofd01dev
-fi
+global \$disable_utf8_flag;
+\$disable_utf8_flag = false;
+
+\$host   = '172.21.0.3';
+\$port   = '3306';
+\$login  = 'appopenermdemo9f10dev';
+\$pass   = 'GVyJqL%hRf6EuTf1';
+\$dbase  = 'appopenermdemo9f10dev';
+\$db_encoding = 'utf8mb4';
+
+\$sqlconf = [];
+global \$sqlconf;
+\$sqlconf["host"]= \$host;
+\$sqlconf["port"] = \$port;
+\$sqlconf["login"] = \$login;
+\$sqlconf["pass"] = \$pass;
+\$sqlconf["dbase"] = \$dbase;
+\$sqlconf["db_encoding"] = \$db_encoding;
+\$rootpass = 'g%L9hkVajm3p@ApK';
+
+//////////////////////////
+//////////////////////////
+//////////////////////////
+//////DO NOT TOUCH THIS///
+\$config = 0; /////////////
+//////////////////////////
+//////////////////////////
+//////////////////////////
+EOF
+
+# Set permissions
+sudo chown -R 1000:1000 /share/appopenermdemo9f10dev
+sudo chmod 755 /share/appopenermdemo9f10dev/default/sqlconf.php
+
+# Create other necessary directories (documents, images, etc.) to ensure they are writable
+sudo mkdir -p /share/appopenermdemo9f10dev/default/documents
+sudo mkdir -p /share/appopenermdemo9f10dev/default/edi
+sudo mkdir -p /share/appopenermdemo9f10dev/default/era
+sudo mkdir -p /share/appopenermdemo9f10dev/default/letter_templates
+sudo mkdir -p /share/appopenermdemo9f10dev/default/images
+sudo chown -R 1000:1000 /share/appopenermdemo9f10dev
+sudo chmod -R 775 /share/appopenermdemo9f10dev
 
 # Check if the shared directory exists
-if [ ! -d /share/appcyclosdemofd01dev ]; then echo 'Error: /share/appcyclosdemofd01dev does not exist.'; exit 1; fi
+if [ ! -d /share/appopenermdemo9f10dev ]; then echo 'Error: /share/appopenermdemo9f10dev does not exist.'; exit 1; fi
 
 echo "Script completed successfully!"
-

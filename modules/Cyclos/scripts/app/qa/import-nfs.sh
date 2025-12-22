@@ -29,11 +29,11 @@ while [ $attempt -lt $max_attempts ]; do
   services_found=false # Flag to track if any services were found
 
   # Check and delete service in APP_REGION_1
-  if gcloud run services describe "appcyclosdemo5a96qa" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" 2>/dev/null; then
+  if gcloud run services describe "appcyclosdemofd01qa" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
     
     # Try to delete the service
-    if gcloud run services delete "appcyclosdemo5a96qa" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" --quiet; then
+    if gcloud run services delete "appcyclosdemofd01qa" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_1."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -46,11 +46,11 @@ while [ $attempt -lt $max_attempts ]; do
   fi
 
   # Check and delete service in APP_REGION_2
-  if gcloud run services describe "appcyclosdemo5a96qa" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" 2>/dev/null; then
+  if gcloud run services describe "appcyclosdemofd01qa" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
     
     # Try to delete the service
-    if gcloud run services delete "appcyclosdemo5a96qa" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" --quiet; then
+    if gcloud run services delete "appcyclosdemofd01qa" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_2."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -75,7 +75,7 @@ while [ $attempt -lt $max_attempts ]; do
 done
 
 # Ensure application directory is empty
-sudo mkdir -p /share/appcyclosdemo5a96qa && sudo rm -rf /share/appcyclosdemo5a96qa/* && sudo chown -R nobody:nogroup /share/appcyclosdemo5a96qa && sudo chmod 775 /share/appcyclosdemo5a96qa
+sudo mkdir -p /share/appcyclosdemofd01qa && sudo rm -rf /share/appcyclosdemofd01qa/* && sudo chown -R nobody:nogroup /share/appcyclosdemofd01qa && sudo chmod 775 /share/appcyclosdemofd01qa
 
 # Attempt to download the backup file only if BACKUP_FILEID is not empty
 if [ -n "" ] ; then
@@ -83,10 +83,10 @@ if [ -n "" ] ; then
     echo "Using gdown from /root/.local/bin/gdown"
     
     # Try downloading with full path if needed
-    if sudo /root/.local/bin/gdown  -O appcyclosdemo5a96qa.zip; then
+    if sudo /root/.local/bin/gdown  -O appcyclosdemofd01qa.zip; then
         echo "Backup file downloaded successfully"
-        if [ -f appcyclosdemo5a96qa.zip ]; then
-            echo "Backup file exists and is $(du -h appcyclosdemo5a96qa.zip | cut -f1) in size"
+        if [ -f appcyclosdemofd01qa.zip ]; then
+            echo "Backup file exists and is $(du -h appcyclosdemofd01qa.zip | cut -f1) in size"
         fi
     else
         echo "Warning: Failed to download the backup file using /root/.local/bin/gdown."
@@ -96,24 +96,24 @@ else
 fi
 
 # Check if the backup file exists locally
-if [ -f "appcyclosdemo5a96qa.zip" ]; then
+if [ -f "appcyclosdemofd01qa.zip" ]; then
     echo "Backup file exists locally."
     
     # Extract the backup file and set  permissions
-    sudo mkdir -p appcyclosdemo5a96qa && sudo rm -rf appcyclosdemo5a96qa/* && sudo unzip appcyclosdemo5a96qa.zip -d appcyclosdemo5a96qa
+    sudo mkdir -p appcyclosdemofd01qa && sudo rm -rf appcyclosdemofd01qa/* && sudo unzip appcyclosdemofd01qa.zip -d appcyclosdemofd01qa
     
     # Move directory
-    sudo rm -rf /share/appcyclosdemo5a96qa/* && sudo mv appcyclosdemo5a96qa/* /share/appcyclosdemo5a96qa/
+    sudo rm -rf /share/appcyclosdemofd01qa/* && sudo mv appcyclosdemofd01qa/* /share/appcyclosdemofd01qa/
 
     # Change ownership
-    sudo chmod -R 0777 /share/appcyclosdemo5a96qa && sudo chown -R nobody:nogroup /share/appcyclosdemo5a96qa
+    sudo chmod -R 0777 /share/appcyclosdemofd01qa && sudo chown -R nobody:nogroup /share/appcyclosdemofd01qa
 
     # Delete Backup from bastion host
-    sudo rm -rf appcyclosdemo5a96qa.zip && sudo rm -rf appcyclosdemo5a96qa
+    sudo rm -rf appcyclosdemofd01qa.zip && sudo rm -rf appcyclosdemofd01qa
 fi
 
 # Check if the shared directory exists
-if [ ! -d /share/appcyclosdemo5a96qa ]; then echo 'Error: /share/appcyclosdemo5a96qa does not exist.'; exit 1; fi
+if [ ! -d /share/appcyclosdemofd01qa ]; then echo 'Error: /share/appcyclosdemofd01qa does not exist.'; exit 1; fi
 
 echo "Script completed successfully!"
 

@@ -75,8 +75,60 @@ while [ $attempt -lt $max_attempts ]; do
 done
 
 
-# Ensure application directory is empty
+# Ensure application directory is empty and created
 sudo mkdir -p /share/${DB_USER} && sudo rm -rf /share/${DB_USER}/* && sudo chown -R 1000:1000 /share/${DB_USER} && sudo chmod 775 /share/${DB_USER}
+
+# Create default directory
+sudo mkdir -p /share/${DB_USER}/default
+
+# Create sqlconf.php
+cat <<EOF | sudo tee /share/${DB_USER}/default/sqlconf.php > /dev/null
+<?php
+//  OpenEMR
+//  MySQL Config
+
+global \$disable_utf8_flag;
+\$disable_utf8_flag = false;
+
+\$host   = '${DB_IP}';
+\$port   = '3306';
+\$login  = '${DB_USER}';
+\$pass   = '${DB_PASS}';
+\$dbase  = '${DB_NAME}';
+\$db_encoding = 'utf8mb4';
+
+\$sqlconf = [];
+global \$sqlconf;
+\$sqlconf["host"]= \$host;
+\$sqlconf["port"] = \$port;
+\$sqlconf["login"] = \$login;
+\$sqlconf["pass"] = \$pass;
+\$sqlconf["dbase"] = \$dbase;
+\$sqlconf["db_encoding"] = \$db_encoding;
+\$rootpass = '${ROOT_PASS}';
+
+//////////////////////////
+//////////////////////////
+//////////////////////////
+//////DO NOT TOUCH THIS///
+\$config = 0; /////////////
+//////////////////////////
+//////////////////////////
+//////////////////////////
+EOF
+
+# Set permissions
+sudo chown -R 1000:1000 /share/${DB_USER}
+sudo chmod 755 /share/${DB_USER}/default/sqlconf.php
+
+# Create other necessary directories (documents, images, etc.) to ensure they are writable
+sudo mkdir -p /share/${DB_USER}/default/documents
+sudo mkdir -p /share/${DB_USER}/default/edi
+sudo mkdir -p /share/${DB_USER}/default/era
+sudo mkdir -p /share/${DB_USER}/default/letter_templates
+sudo mkdir -p /share/${DB_USER}/default/images
+sudo chown -R 1000:1000 /share/${DB_USER}
+sudo chmod -R 775 /share/${DB_USER}
 
 # Check if the shared directory exists
 if [ ! -d /share/${DB_USER} ]; then echo 'Error: /share/${DB_USER} does not exist.'; exit 1; fi

@@ -29,11 +29,11 @@ while [ $attempt -lt $max_attempts ]; do
   services_found=false # Flag to track if any services were found
 
   # Check and delete service in APP_REGION_1
-  if gcloud run services describe "appcyclosdemo5a96dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" 2>/dev/null; then
+  if gcloud run services describe "appcyclosdemofd01dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
     
     # Try to delete the service
-    if gcloud run services delete "appcyclosdemo5a96dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" --quiet; then
+    if gcloud run services delete "appcyclosdemofd01dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_1."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -46,11 +46,11 @@ while [ $attempt -lt $max_attempts ]; do
   fi
 
   # Check and delete service in APP_REGION_2
-  if gcloud run services describe "appcyclosdemo5a96dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" 2>/dev/null; then
+  if gcloud run services describe "appcyclosdemofd01dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
     
     # Try to delete the service
-    if gcloud run services delete "appcyclosdemo5a96dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" --quiet; then
+    if gcloud run services delete "appcyclosdemofd01dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_2."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -83,7 +83,7 @@ attempt_num=1
 
 # Function to check if database exists
 check_database_exists() {
-    local result=$(PGPASSWORD="g%L9hkVajm3p@ApK" psql -U postgres -h 172.21.0.5 -d postgres -t -c "SELECT 1 FROM pg_database WHERE datname = 'appcyclosdemo5a96dev';" 2>/dev/null | tr -d ' \n')
+    local result=$(PGPASSWORD="g%L9hkVajm3p@ApK" psql -U postgres -h 172.21.0.5 -d postgres -t -c "SELECT 1 FROM pg_database WHERE datname = 'appcyclosdemofd01dev';" 2>/dev/null | tr -d ' \n')
     [[ "$result" == "1" ]]
 }
 
@@ -91,30 +91,30 @@ check_database_exists() {
 while [ $attempt_num -le $max_retries ]; do
     echo "Attempt $attempt_num of $max_retries"
 
-    echo "Terminating connections to database appcyclosdemo5a96dev..."
+    echo "Terminating connections to database appcyclosdemofd01dev..."
     export PGPASSWORD='g%L9hkVajm3p@ApK'
-    psql -U 'postgres' -h '172.21.0.5' -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'appcyclosdemo5a96dev' AND pid <> pg_backend_pid();" 2>/dev/null
+    psql -U 'postgres' -h '172.21.0.5' -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'appcyclosdemofd01dev' AND pid <> pg_backend_pid();" 2>/dev/null
 
-    echo "Creating/updating user role appcyclosdemo5a96dev..."
+    echo "Creating/updating user role appcyclosdemofd01dev..."
     psql -U 'postgres' -h '172.21.0.5' -d postgres <<EOF
     DO \$\$
     BEGIN
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'appcyclosdemo5a96dev') THEN
-        CREATE ROLE appcyclosdemo5a96dev WITH LOGIN PASSWORD 'NoM7qXY5dKjbybJj';
-        RAISE NOTICE 'Role appcyclosdemo5a96dev created';
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'appcyclosdemofd01dev') THEN
+        CREATE ROLE appcyclosdemofd01dev WITH LOGIN PASSWORD 'U8XFkh9o80wBr8Mp';
+        RAISE NOTICE 'Role appcyclosdemofd01dev created';
     ELSE
-        ALTER ROLE appcyclosdemo5a96dev WITH PASSWORD 'NoM7qXY5dKjbybJj';
-        RAISE NOTICE 'Role appcyclosdemo5a96dev password updated';
+        ALTER ROLE appcyclosdemofd01dev WITH PASSWORD 'U8XFkh9o80wBr8Mp';
+        RAISE NOTICE 'Role appcyclosdemofd01dev password updated';
     END IF;
     END
     \$\$;
-    GRANT ALL PRIVILEGES ON DATABASE postgres TO appcyclosdemo5a96dev;
-    ALTER ROLE appcyclosdemo5a96dev CREATEDB;
-    ALTER ROLE appcyclosdemo5a96dev INHERIT;
+    GRANT ALL PRIVILEGES ON DATABASE postgres TO appcyclosdemofd01dev;
+    ALTER ROLE appcyclosdemofd01dev CREATEDB;
+    ALTER ROLE appcyclosdemofd01dev INHERIT;
 EOF
 
-    echo "Creating extensions in appcyclosdemo5a96dev..."
-    psql -U 'postgres' -h '172.21.0.5' -d "appcyclosdemo5a96dev" <<EOF
+    echo "Creating extensions in appcyclosdemofd01dev..."
+    psql -U 'postgres' -h '172.21.0.5' -d "appcyclosdemofd01dev" <<EOF
     CREATE EXTENSION IF NOT EXISTS cube;
     CREATE EXTENSION IF NOT EXISTS earthdistance;
     CREATE EXTENSION IF NOT EXISTS postgis;
@@ -123,17 +123,17 @@ EOF
 
     # Check if the database exists using the function
     if check_database_exists; then
-        echo "Database appcyclosdemo5a96dev exists, attempting to drop it..."
+        echo "Database appcyclosdemofd01dev exists, attempting to drop it..."
         
         # Try to drop using database owner credentials first
         echo "Dropping database using owner credentials..."
-        export PGPASSWORD='NoM7qXY5dKjbybJj'
-        drop_result=$(psql -U 'appcyclosdemo5a96dev' -h '172.21.0.5' -d postgres -c "DROP DATABASE IF EXISTS appcyclosdemo5a96dev;" 2>&1)
+        export PGPASSWORD='U8XFkh9o80wBr8Mp'
+        drop_result=$(psql -U 'appcyclosdemofd01dev' -h '172.21.0.5' -d postgres -c "DROP DATABASE IF EXISTS appcyclosdemofd01dev;" 2>&1)
         drop_exit_code=$?
         
         # Check if drop was successful
         if [ $drop_exit_code -eq 0 ] && ! check_database_exists; then
-            echo "Database appcyclosdemo5a96dev dropped successfully."
+            echo "Database appcyclosdemofd01dev dropped successfully."
             break
         else
             echo "Failed to drop database with owner credentials. Error: $drop_result"
@@ -141,24 +141,24 @@ EOF
             # Try alternative approach - change ownership first
             echo "Trying to change database ownership to postgres..."
             export PGPASSWORD='g%L9hkVajm3p@ApK'
-            psql -U 'postgres' -h '172.21.0.5' -d postgres -c "ALTER DATABASE appcyclosdemo5a96dev OWNER TO postgres;" 2>/dev/null
+            psql -U 'postgres' -h '172.21.0.5' -d postgres -c "ALTER DATABASE appcyclosdemofd01dev OWNER TO postgres;" 2>/dev/null
             
             # Terminate connections again
-            psql -U 'postgres' -h '172.21.0.5' -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'appcyclosdemo5a96dev' AND pid <> pg_backend_pid();" 2>/dev/null
+            psql -U 'postgres' -h '172.21.0.5' -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'appcyclosdemofd01dev' AND pid <> pg_backend_pid();" 2>/dev/null
             
             # Try dropping as postgres
             echo "Attempting to drop as postgres user..."
-            drop_result2=$(psql -U 'postgres' -h '172.21.0.5' -d postgres -c "DROP DATABASE IF EXISTS appcyclosdemo5a96dev;" 2>&1)
+            drop_result2=$(psql -U 'postgres' -h '172.21.0.5' -d postgres -c "DROP DATABASE IF EXISTS appcyclosdemofd01dev;" 2>&1)
             
             if [ $? -eq 0 ] && ! check_database_exists; then
-                echo "Database appcyclosdemo5a96dev dropped successfully."
+                echo "Database appcyclosdemofd01dev dropped successfully."
                 break
             else
                 echo "Still failed to drop database. Error: $drop_result2"
             fi
         fi
     else
-        echo "Database appcyclosdemo5a96dev does not exist."
+        echo "Database appcyclosdemofd01dev does not exist."
         break
     fi
 
@@ -174,29 +174,29 @@ done
 
 # Check if we failed to drop the database
 if [ $attempt_num -gt $max_retries ]; then
-    echo "Reached maximum number of retries. Failed to drop database appcyclosdemo5a96dev."
+    echo "Reached maximum number of retries. Failed to drop database appcyclosdemofd01dev."
     echo "Database still exists - manual intervention required."
     exit 1
 fi
 
 # Create the database - only if it doesn't exist
-echo "Creating database appcyclosdemo5a96dev..."
-export PGPASSWORD=NoM7qXY5dKjbybJj
+echo "Creating database appcyclosdemofd01dev..."
+export PGPASSWORD=U8XFkh9o80wBr8Mp
 if ! check_database_exists; then
-    create_result=$(psql -U appcyclosdemo5a96dev -h 172.21.0.5 -d postgres -c "CREATE DATABASE appcyclosdemo5a96dev OWNER appcyclosdemo5a96dev;" 2>&1)
+    create_result=$(psql -U appcyclosdemofd01dev -h 172.21.0.5 -d postgres -c "CREATE DATABASE appcyclosdemofd01dev OWNER appcyclosdemofd01dev;" 2>&1)
     if [ $? -eq 0 ]; then
         echo "Database created successfully."
         
         export PGPASSWORD=g%L9hkVajm3p@ApK
-        echo "Creating/updating user role appcyclosdemo5a96dev..."
+        echo "Creating/updating user role appcyclosdemofd01dev..."
         psql -U 'postgres' -h '172.21.0.5' -d postgres <<EOF
-        GRANT ALL PRIVILEGES ON DATABASE appcyclosdemo5a96dev TO appcyclosdemo5a96dev;
-        ALTER ROLE appcyclosdemo5a96dev CREATEDB;
-        ALTER ROLE appcyclosdemo5a96dev INHERIT;
+        GRANT ALL PRIVILEGES ON DATABASE appcyclosdemofd01dev TO appcyclosdemofd01dev;
+        ALTER ROLE appcyclosdemofd01dev CREATEDB;
+        ALTER ROLE appcyclosdemofd01dev INHERIT;
 EOF
 
-        echo "Creating extensions in appcyclosdemo5a96dev..."
-        psql -U 'postgres' -h '172.21.0.5' -d "appcyclosdemo5a96dev" <<EOF
+        echo "Creating extensions in appcyclosdemofd01dev..."
+        psql -U 'postgres' -h '172.21.0.5' -d "appcyclosdemofd01dev" <<EOF
         CREATE EXTENSION IF NOT EXISTS cube;
         CREATE EXTENSION IF NOT EXISTS earthdistance;
         CREATE EXTENSION IF NOT EXISTS postgis;
@@ -216,10 +216,10 @@ if [ -n "" ] ; then
     echo "Using gdown from /root/.local/bin/gdown"
     
     # Try downloading with full path if needed
-    if sudo /root/.local/bin/gdown  -O appcyclosdemo5a96dev.zip; then
+    if sudo /root/.local/bin/gdown  -O appcyclosdemofd01dev.zip; then
         echo "Backup file downloaded successfully"
-        if [ -f appcyclosdemo5a96dev.zip ]; then
-            echo "Backup file exists and is $(du -h appcyclosdemo5a96dev.zip | cut -f1) in size"
+        if [ -f appcyclosdemofd01dev.zip ]; then
+            echo "Backup file exists and is $(du -h appcyclosdemofd01dev.zip | cut -f1) in size"
         fi
     else
         echo "Warning: Failed to download the backup file using /root/.local/bin/gdown."
@@ -228,14 +228,14 @@ else
     echo "Skipping download as BACKUP_FILEID is empty."
 fi
 
-if [ -f "appcyclosdemo5a96dev.zip" ]; then
+if [ -f "appcyclosdemofd01dev.zip" ]; then
     # Extract the backup file 
-    sudo mkdir -p appcyclosdemo5a96dev && sudo rm -rf appcyclosdemo5a96dev/* && sudo unzip appcyclosdemo5a96dev.zip -d appcyclosdemo5a96dev
+    sudo mkdir -p appcyclosdemofd01dev && sudo rm -rf appcyclosdemofd01dev/* && sudo unzip appcyclosdemofd01dev.zip -d appcyclosdemofd01dev
 
     # Restore the database
     echo "Restoring database from backup..."
-    export PGPASSWORD=NoM7qXY5dKjbybJj
-    restore_result=$(psql "host=172.21.0.5 port=5432 sslmode=disable dbname=appcyclosdemo5a96dev user=appcyclosdemo5a96dev" < appcyclosdemo5a96dev/dump.sql 2>&1)
+    export PGPASSWORD=U8XFkh9o80wBr8Mp
+    restore_result=$(psql "host=172.21.0.5 port=5432 sslmode=disable dbname=appcyclosdemofd01dev user=appcyclosdemofd01dev" < appcyclosdemofd01dev/dump.sql 2>&1)
     
     if [ $? -eq 0 ]; then
         echo "Database restored successfully."
@@ -245,7 +245,7 @@ if [ -f "appcyclosdemo5a96dev.zip" ]; then
     fi
 
     # Delete Backup from bastion host
-    sudo rm -rf appcyclosdemo5a96dev/dump.sql && rm -rf appcyclosdemo5a96dev.zip
+    sudo rm -rf appcyclosdemofd01dev/dump.sql && rm -rf appcyclosdemofd01dev.zip
 fi
 
 echo "Script completed successfully!"
