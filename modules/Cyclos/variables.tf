@@ -148,8 +148,8 @@ variable "tenant_deployment_id" {
   type        = string
 }
 
-variable "configure_development_environment" {
-  description = "Select to configure development environment. Code is committed to the dev branch in the github repository. {{UIMeta group=3 order=703 updatesafe }}"
+variable "configure_environment" {
+  description = "Select to configure environment. Code is committed to the branch in the github repository. {{UIMeta group=3 order=703 updatesafe }}"
   type        = bool
   default     = false
 }
@@ -160,18 +160,6 @@ variable "configure_monitoring" {
   description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring. {{UIMeta group=5 order=805 updatesafe}}"
   type        = bool
   default     = false
-}
-
-variable "configure_backups" {
-  description = "Select this checkbox to schedule daily application backups. Configures a Cloud Scheduler trigger to execute a Cloud Run backup job. {{UIMeta group=6 order=806 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "application_backup_schedule" {
-  description = "Enter the application backup schedule in cron format. This is used to configure the Cloud Scheduler cron job. {{UIMeta group=6 order=807 updatesafe }}"
-  type        = string
-  default     = "0 0 * * *"
 }
 
 variable "application_backup_fileid" {
