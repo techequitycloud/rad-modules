@@ -32,6 +32,8 @@ resource "local_file" "import_dev_nfs_script_output" {
     APP_REGION_2        = length(local.regions) > 1 ? local.regions[1] : ""
     NFS_IP              = local.nfs_internal_ip
     NFS_ZONE            = data.google_compute_zones.available_zones.names[0]
+    CONFIGURE_BACKUPS   = var.configure_backups
+    BACKUP_FILE_ID      = var.application_backup_fileid
   })
 }
 
