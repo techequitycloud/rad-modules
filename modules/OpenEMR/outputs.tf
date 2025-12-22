@@ -59,14 +59,3 @@ output "service_info" {
   }
 }
 
-output "cicd_info" {
-  value = {
-    cloud_artifact_registry = var.configure_development_environment ? "https://console.cloud.google.com/artifacts?inv=1&invt=AbioeA&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-  }
-}
-
-output "application_lb_url_info" {
-  value = {
-    dev_app_lb_url  = length(local.regions) >= 2 && (length(google_compute_global_address.dev) > 0) ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev.${google_compute_global_address.dev[0].address}.nip.io" : ""
-  }
-}
