@@ -18,14 +18,13 @@ fi
 
 echo "Database connection confirmed (or skipped)."
 
-# Execute the original entrypoint
-# The upstream OpenEMR image typically uses /openemr.sh as the entrypoint.
-# We pass the arguments "$@" to it.
-
+# Execute the original entrypoint logic via openemr.sh
+# We expect openemr.sh to be at the root, as copied in the Dockerfile
 if [ -f "/openemr.sh" ]; then
     echo "Executing /openemr.sh..."
     exec /openemr.sh "$@"
 else
-    echo "/openemr.sh not found. Executing command directly..."
+    echo "CRITICAL: /openemr.sh not found. This will likely fail."
+    echo "Falling back to executing command directly..."
     exec "$@"
 fi

@@ -20,12 +20,20 @@ RUN php -i | grep memory_limit
 COPY cloudrun-entrypoint.sh /usr/local/bin/cloudrun-entrypoint.sh
 COPY db_check.php /usr/local/bin/db_check.php
 
+# Copy standard OpenEMR scripts to ensure they are available
+COPY openemr.sh /openemr.sh
+COPY ssl.sh /ssl.sh
+COPY xdebug.sh /xdebug.sh
+COPY utilities/devtoolsLibrary.source /root/devtoolsLibrary.source
+
 # Ensure scripts are executable
-RUN chmod +x /usr/local/bin/cloudrun-entrypoint.sh
+RUN chmod +x /usr/local/bin/cloudrun-entrypoint.sh \
+    /openemr.sh \
+    /ssl.sh \
+    /xdebug.sh
 
 # Set the new entrypoint
 ENTRYPOINT ["/usr/local/bin/cloudrun-entrypoint.sh"]
 
-# Default command (matches upstream default usually, but good to be explicit if known.
-# Since we hand off to openemr.sh which handles empty CMD, we can leave CMD empty or default)
+# Default command (matches upstream default)
 CMD ["/usr/sbin/httpd", "-D", "FOREGROUND"]
