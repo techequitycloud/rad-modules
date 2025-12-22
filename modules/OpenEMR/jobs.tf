@@ -452,6 +452,10 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           name  = "APP_VERSION"
           value = var.application_version
         }
+        env {
+          name  = "BACKUP_FILEID"
+          value = var.application_backup_fileid
+        }
 
         env {
           name = "ROOT_PASS"

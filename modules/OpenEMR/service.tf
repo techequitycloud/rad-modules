@@ -18,11 +18,10 @@ resource "google_cloud_run_v2_service" "app_service" {
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.application_image.repository_id}/${var.application_name}:${var.application_version}"
+      image = "openemr/openemr:${var.application_version}"
       
       ports {
         container_port = 80
-        name          = "http1"
       }
 
       resources {
@@ -34,37 +33,24 @@ resource "google_cloud_run_v2_service" "app_service" {
         }
       }
 
-      # FIXED: Better startup probe configuration
       startup_probe {
-        initial_delay_seconds = 30      # Start checking after 30 seconds
-        timeout_seconds       = 10      # 10 seconds per check
-        period_seconds        = 10      # Check every 10 seconds
-        failure_threshold     = 30      # 30 attempts = 5 minutes total (30 + 10*30 = 330s)
-        
-        http_get {
-          path = "/"                    # Check root path (more reliable)
+        initial_delay_seconds = 240
+        timeout_seconds       = 60
+        period_seconds        = 240
+        failure_threshold     = 5
+        tcp_socket {
           port = 80
-          http_headers {
-            name  = "User-Agent"
-            value = "GoogleHC/1.0"
-          }
         }
       }
 
-      # FIXED: Better liveness probe
       liveness_probe {
-        initial_delay_seconds = 60      # Wait 1 minute after startup
-        timeout_seconds       = 5       # 5 seconds per check
-        period_seconds        = 30      # Check every 30 seconds
-        failure_threshold     = 3       # Fail after 3 attempts
-        
+        initial_delay_seconds = 300
+        timeout_seconds       = 60
+        period_seconds        = 60
+        failure_threshold     = 3
         http_get {
-          path = "/"                    # Use root path instead of login page
+          path = "/interface/login/login.php"
           port = 80
-          http_headers {
-            name  = "User-Agent"
-            value = "GoogleHC/1.0"
-          }
         }
       }
 
@@ -125,87 +111,9 @@ resource "google_cloud_run_v2_service" "app_service" {
         }
       }
 
-      # FIXED: Set to "yes" if database is already initialized
       env {
         name = "MANUAL_SETUP"
-        value = "yes"  # Changed from "no" to "yes" - skip auto-setup
-      }
-
-      # ADDED: Skip auto-setup since we're using import_db job
-      env {
-        name  = "EMPTY"
-        value = ""
-      }
-
-      # ADDED: Force production mode
-      env {
-        name  = "OPENEMR_DOCKER_ENV_TAG"
-        value = "production"
-      }
-
-      # ADDED: Disable dev mode
-      env {
-        name  = "EASY_DEV_MODE"
-        value = "off"
-      }
-
-      env {
-        name  = "EASY_DEV_MODE_NEW"
-        value = "off"
-      }
-
-      # ADDED: Force no build mode (skip setup scripts)
-      env {
-        name  = "FORCE_NO_BUILD_MODE"
-        value = "1"
-      }
-
-      # PHP Configuration Overrides
-      env {
-        name  = "PHP_MEMORY_LIMIT"
-        value = "2048M"
-      }
-
-      env {
-        name  = "PHP_MAX_EXECUTION_TIME"
-        value = "300"
-      }
-
-      env {
-        name  = "PHP_MAX_INPUT_TIME"
-        value = "300"
-      }
-
-      env {
-        name  = "PHP_POST_MAX_SIZE"
-        value = "128M"
-      }
-
-      env {
-        name  = "PHP_UPLOAD_MAX_FILESIZE"
-        value = "128M"
-      }
-
-      env {
-        name  = "PHP_MAX_INPUT_VARS"
-        value = "3000"
-      }
-
-      # Apache Configuration
-      env {
-        name  = "APACHE_RUN_USER"
-        value = "www-data"
-      }
-
-      env {
-        name  = "APACHE_RUN_GROUP"
-        value = "www-data"
-      }
-
-      # ADDED: Apache timeout settings
-      env {
-        name  = "APACHE_TIMEOUT"
-        value = "300"
+        value = "no"
       }
 
       volume_mounts {
@@ -220,7 +128,6 @@ resource "google_cloud_run_v2_service" "app_service" {
         subnetwork = "projects/${local.project.project_id}/regions/${each.key}/subnetworks/gce-vpc-subnet-${each.key}"
         tags       = ["nfsserver"]
       }
-      egress = "PRIVATE_RANGES_ONLY"  # ADDED: Explicit egress setting
     }
 
     scaling {
@@ -240,7 +147,6 @@ resource "google_cloud_run_v2_service" "app_service" {
       nfs {
         server    = local.nfs_internal_ip
         path      = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
-        read_only = false  # ADDED: Explicit read_only setting
       }
     }
   }
@@ -256,8 +162,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     null_resource.import_nfs,
     null_resource.execute_init_job,
     google_secret_manager_secret_version.db_password,
-    google_secret_manager_secret_version.openemr_admin_password,
-    null_resource.build_and_push_application_image
+    google_secret_manager_secret_version.openemr_admin_password
   ]
 }
 
