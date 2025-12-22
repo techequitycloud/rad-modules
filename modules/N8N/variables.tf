@@ -23,7 +23,7 @@ variable "module_description" {
 variable "module_dependency" {
   description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=102 }}"
   type        = list(string)
-  default     = ["GCP Project","GCP Services"]
+  default     = ["GCP Services"]
 }
 
 variable "module_services" {
