@@ -24,6 +24,9 @@ apk add --no-cache mariadb-client python3 py3-pip unzip curl git \
     php83 php83-mysqli php83-pdo_mysql php83-json php83-openssl php83-curl php83-zip \
     php83-tokenizer php83-xml php83-mbstring php83-phar php83-iconv
 
+# Create symlink for php
+ln -sf /usr/bin/php83 /usr/bin/php
+
 # Install composer
 curl -sS https://getcomposer.org/installer | php83 -- --install-dir=/usr/bin --filename=composer
 
