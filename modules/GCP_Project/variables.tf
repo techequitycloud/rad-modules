@@ -99,25 +99,25 @@ variable "project_id_prefix" {
 }
 
 variable "trusted_users" {
-  description = "List of users with project trusted privileges. {{UIMeta group=0 order=201 }}"
+  description = "Enter list of users requiring trusted project privileges. {{UIMeta group=1 order=201 }}"
   type        = list(string)
   default     = []
 }
 
 variable "enable_services" {
-  description = "Enable project APIs. {{UIMeta group=1 order=202 }}"
+  description = "Enable project APIs. {{UIMeta group=0 order=202 }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "enable_quota_overrides" {
-  description = "Enable GCP Compute Engine quota overrides. {{UIMeta group=1 order=203 }}"
+  description = "Enable GCP Compute Engine quota overrides. {{UIMeta group=0 order=203 }}"
   type        = bool
   default     = false
 }
 
 variable "quota_overrides" {
-  description = "Map of Compute Engine quota metrics to their limit values for web app deployment (Cloud Run, Cloud SQL focused). {{UIMeta group=1 order=204 }}"
+  description = "Map of Compute Engine quota metrics to their limit values for web app deployment (Cloud Run, Cloud SQL focused). {{UIMeta group=0 order=204 }}"
   type = map(object({
     limit  = number
     metric = string
