@@ -24,12 +24,8 @@ output "cloud_sql_info" {
   value = {
     cloudsql_instance_ip = local.sql_server_exists ? local.db_internal_ip : "" 
     cloud_sql_studio = length(local.db_instance_name) > 0 ? "https://console.cloud.google.com/sql/instances/${local.db_instance_name}/studio?project=${local.project.project_id}&supportedpurview=project,organizationId,folder" : ""
-    development_database_name =  var.configure_nonproduction_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev" : ""
-    development_database_user = var.configure_nonproduction_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev" : ""
-    nonproduction_database_name = var.configure_nonproduction_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa" : ""
-    nonproduction_database_user = var.configure_nonproduction_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}qa" : ""
-    production_database_name = var.configure_nonproduction_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod" : ""
-    production_database_user = var.configure_nonproduction_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}prod" : ""
+    development_database_name =  var.configure_development_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev" : ""
+    development_database_user = var.configure_development_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}dev" : ""
   }
 }
 
@@ -50,17 +46,13 @@ output "nfs_server_info" {
 output "application_info" {
   value = {
     application_dev_url  = var.configure_development_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev-${local.project_number}.${local.region}.run.app" : ""
-    application_qa_url   = var.configure_nonproduction_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa-${local.project_number}.${local.region}.run.app" : ""
-    application_prod_url = var.configure_production_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod-${local.project_number}.${local.region}.run.app" : ""
-    cloud_secret_manager = var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    cloud_secret_manager = var.configure_development_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
   }
 }
 
 output "service_info" {
   value = {
     service_dev_url  = var.configure_development_environment ? "https://console.cloud.google.com/run/detail/${local.region}/app${var.application_name}${var.tenant_deployment_id}${local.random_id}dev/metrics?orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-    service_qa_url = var.configure_nonproduction_environment ? "https://console.cloud.google.com/run/detail/${local.region}/app${var.application_name}${var.tenant_deployment_id}${local.random_id}qa/metrics?orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-    service_prod_url = var.configure_production_environment ? "https://console.cloud.google.com/run/detail/${local.region}/app${var.application_name}${var.tenant_deployment_id}${local.random_id}prod/metrics?orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-    cloud_secret_manager = var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    cloud_secret_manager = var.configure_development_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
   }
 }

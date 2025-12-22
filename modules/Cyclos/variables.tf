@@ -116,18 +116,6 @@ variable "application_download_fileid" {
 
 # GROUP 6: CICD
 
-variable "configure_continuous_integration" {
-  description = "Select the checkbox to configure GitHub continuous integration and continous delivery pipeline that supports single and multi-region deployment. {{UIMeta group=4 order=601 updatesafe}}"
-  type        = bool
-  default     = false
-}
-
-variable "configure_continuous_deployment" {
-  description = "Select the checkbox to configure continous deployment pipeline. Implements a continuous delivery pipeline on the primary deployment region using Cloud Deploy. {{UIMeta group=4 order=600 updatesafe}}"
-  type        = bool
-  default     = false
-}
-
 variable "application_git_token" {
   description = "Specify a github classic token with following privileges needed to configure the code repository: delete_repo, read:org, repo. {{UIMeta group=4 order=602 updatesafe}}"
   type        = string
@@ -162,18 +150,6 @@ variable "tenant_deployment_id" {
 
 variable "configure_development_environment" {
   description = "Select to configure development environment. Code is committed to the dev branch in the github repository. {{UIMeta group=3 order=703 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "configure_nonproduction_environment" {
-  description = "Select to configure staging environment. Code is committed to the qa branch in the github repository. {{UIMeta group=3 order=704 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "configure_production_environment" {
-  description = "Select to configure production environment. Code is committed to the prod branch in the github repository. {{UIMeta group=3 order=705 updatesafe }}"
   type        = bool
   default     = false
 }
