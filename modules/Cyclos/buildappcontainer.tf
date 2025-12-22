@@ -64,7 +64,6 @@ resource "null_resource" "build_and_push_application_image" {
   
   # Provisioner to execute a local script that builds and pushes the container image
   provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
     working_dir = "${path.module}/scripts/app"  # The directory where build scripts are located
     command = "bash build-container.sh \"${local.project.project_id}\" \"${var.application_version}\" \"${var.application_download_fileid}\" \"${var.resource_creator_identity}\""
   }

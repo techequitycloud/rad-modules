@@ -17,7 +17,16 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys the Cyclos Banking System (CBS) on Google Cloud Run, providing a serverless, secure, and automated environment with a database, file storage, and networking."
+  default     = <<-EOT
+**Purpose:** This module deploys the Cyclos Banking System (CBS) on Google Cloud Run. This provides a serverless environment for the banking application, which means you don't have to manage servers.
+
+**What it does:**
+- Deploys the Cyclos application on Cloud Run.
+- Sets up a complete and secure environment for the application, including a database, file storage, and networking.
+- Automates the build and deployment process.
+
+**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
+EOT
 }
 
 variable "module_dependency" {
@@ -26,34 +35,10 @@ variable "module_dependency" {
   default     = ["GCP Project","GCP Services"]
 }
 
-variable "module_services" {
-  description = "Specify the module services. {{UIMeta group=0 order=102 }}"
-  type = list(string)
-  default = ["GCP", "Cloud Run", "Cloud Build", "Cloud Deploy", "Artifact Registry", "Cloud Storage", "Cloud SQL", "Cloud IAM", "Cloud Networking"]
-}
-
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
-  type        = number
-  default     = 250
-}
-
-variable "require_credit_purchases" {
-  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
-  type        = bool
-  default     = false
-}
-
-variable "enable_purge" {
-  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=105 }}"
-  type        = bool
-  default     = true
-}
-
-variable "public_access" {
-description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
-type = bool
-default = false
+  type        = string
+  default     = "250"
 }
 
 variable "deployment_id" {
@@ -65,12 +50,12 @@ variable "deployment_id" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
-  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+  default     = "tecs-module-creator@tecs-ui-dev-ae08.iam.gserviceaccount.com"
 }
 
 variable "trusted_users" {
-  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
-  type        = list(string)
+  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=1 order=103 updatesafe }}"
+  type        = set(string)
   default     = []
 }
 
