@@ -74,8 +74,70 @@ while [ $attempt -lt $max_attempts ]; do
   sleep 10
 done
 
-# Ensure application directory exists
-sudo mkdir -p /share/${DB_USER} && sudo chown -R 1000:1000 /share/${DB_USER} && sudo chmod 775 /share/${DB_USER}
+
+# Ensure application directory is empty
+sudo mkdir -p /share/${DB_USER} && sudo rm -rf /share/${DB_USER}/* && sudo chown -R 1000:1000 /share/${DB_USER} && sudo chmod 775 /share/${DB_USER}
+
+# Attempt to download the backup file only if BACKUP_FILEID is not empty
+if [ -n "${BACKUP_FILEID}" ] ; then
+    echo "Attempting to download the backup file using gdown..."
+    echo "Using gdown from /root/.local/bin/gdown"
+    
+    # Try downloading with full path if needed
+    if sudo /root/.local/bin/gdown ${BACKUP_FILEID} -O ${DB_NAME}.zip; then
+        echo "Backup file downloaded successfully"
+        if [ -f ${DB_NAME}.zip ]; then
+            echo "Backup file exists and is $(du -h ${DB_NAME}.zip | cut -f1) in size"
+        fi
+    else
+        echo "Warning: Failed to download the backup file using /root/.local/bin/gdown."
+    fi
+else
+    echo "Skipping download as BACKUP_FILEID is empty."
+fi
+
+# Check if the backup file exists locally
+if [ -f "${DB_NAME}.zip" ]; then
+    echo "Backup file exists locally."
+    
+    # Extract the backup file and set  permissions
+    sudo mkdir -p ${DB_NAME} && sudo rm -rf ${DB_NAME}/* && sudo unzip ${DB_NAME}.zip -d ${DB_NAME}
+    
+    # Move directory
+    sudo rm -rf /share/${DB_USER}/* && sudo mv ${DB_NAME}/* /share/${DB_USER}/
+
+    # Change ownership
+    sudo chmod -R 0777 /share/${DB_USER} && sudo chown -R 1000:1000 /share/${DB_USER}
+
+    # Set proper ownership
+    sudo chown -R 1000:1000 /share/${DB_USER}
+
+    # 2. Secure base permissions
+    sudo find /share/${DB_USER} -type d -exec chmod 755 {} \;  # Directories
+    sudo find /share/${DB_USER} -type f -exec chmod 644 {} \;  # Files
+
+    # Make specific directories writable by web server only
+    sudo chmod -R 755 /share/${DB_USER}/default/documents
+
+    # Secure sensitive files
+    sudo chmod 600 /share/${DB_USER}/default/sqlconf.php  # DB config
+
+    # Define the path to the sqlconf.php file
+    SQLCONF_FILE="/share/${DB_USER}/default/sqlconf.php"
+
+    # Replace hardcoded values with environment variables
+    sudo sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${DB_IP}'/" "$SQLCONF_FILE"
+    sudo sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF_FILE"
+    sudo sed -i "s/\$login\s*=\s*'[^']*'/\$login = '${DB_USER}'/" "$SQLCONF_FILE"
+    sudo sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '${DB_PASS}'/" "$SQLCONF_FILE"
+    sudo sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = '${DB_NAME}'/" "$SQLCONF_FILE"
+    sudo sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = '${ROOT_PASS}';" "$SQLCONF_FILE"
+
+    echo "sqlconf.php updated successfully!"
+
+    # Delete Backup from bastion host
+    sudo rm -rf ${DB_NAME}.zip && sudo rm -rf ${DB_NAME}
+fi
 
 # Check if the shared directory exists
 if [ ! -d /share/${DB_USER} ]; then echo 'Error: /share/${DB_USER} does not exist.'; exit 1; fi

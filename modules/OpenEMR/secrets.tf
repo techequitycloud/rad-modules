@@ -18,33 +18,20 @@
 
 # Resource for creating a random password for database additional user
 resource "random_password" "additional_user_password" {
-  length           = 16
-  special          = true
-  override_special = "_%@"
-}
-
-# Resource for creating a random password for database root user
-resource "random_password" "db_root_password" {
-  length           = 16
-  special          = true
-  override_special = "_%@"
-}
-
-# Resource for creating a random password for OpenEMR admin user
-resource "random_password" "openemr_admin_password" {
-  length           = 16
-  special          = true
-  override_special = "_%@"
+  length           = 16          
+  special          = true        
+  override_special = "_%@"       
 }
 
 #########################################################################
-# Secret Manager resources
+# Secret Manager resources for Dev environment
 #########################################################################
 
 # Resource for creating a secret in Google Secret Manager to store the database password
-resource "google_secret_manager_secret" "db_password" {
+resource "google_secret_manager_secret" "dev_db_password" {
+  count      = local.sql_server_exists ? 1 : 0  
   project    = local.project.project_id  
-  secret_id  = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
+  secret_id  = "${local.db_instance_name}-${var.application_database_name}dev-password-${var.tenant_deployment_id}-${local.random_id}" 
 
   replication {
     auto {}  
@@ -52,134 +39,139 @@ resource "google_secret_manager_secret" "db_password" {
 }
 
 # Resource for adding a version of the secret with the actual database password
-resource "google_secret_manager_secret_version" "db_password" {
-  secret      = google_secret_manager_secret.db_password.id
+resource "google_secret_manager_secret_version" "dev_db_password" {
+  count       = local.sql_server_exists ? 1 : 0 
+  secret      = google_secret_manager_secret.dev_db_password[0].id
   secret_data = random_password.additional_user_password.result       
 
   depends_on = [
-    google_secret_manager_secret.db_password,
+    google_secret_manager_secret.dev_db_password,
     random_password.additional_user_password,
   ]
 }
 
 # Resource to introduce a delay after creating a secret version
-resource "time_sleep" "db_password" {
+resource "time_sleep" "dev_db_password" {
   depends_on = [
-    google_secret_manager_secret_version.db_password
+    google_secret_manager_secret_version.dev_db_password
   ]
 
   create_duration = "90s"  
 }
 
 # Data source for accessing the latest version of the secret when it's ready
-data "google_secret_manager_secret_version" "db_password" {
+data "google_secret_manager_secret_version" "dev_db_password" {
+  count    = local.sql_server_exists ? 1 : 0  
   project  = local.project.project_id
-  provider = google
+  provider = google  
 
-  secret   = google_secret_manager_secret.db_password.id
-  version  = "latest"
+  secret   = google_secret_manager_secret.dev_db_password[0].id
+  version  = "latest"  
 
   depends_on = [
-    time_sleep.db_password,
-    google_secret_manager_secret.db_password,
+    time_sleep.dev_db_password,
+    google_secret_manager_secret.dev_db_password,
   ]
 }
 
 #########################################################################
-# Database Root Password Secret
+# Secret Manager resources for QA environment
 #########################################################################
 
-/**
-# Resource for creating a secret in Google Secret Manager to store the database root password
-resource "google_secret_manager_secret" "db_root_password" {
-  project    = local.project.project_id
-  secret_id  = "${local.db_instance_name}-root-password"
+# Resource for creating a secret in Google Secret Manager to store the database password
+resource "google_secret_manager_secret" "qa_db_password" {
+  count      = local.sql_server_exists ? 1 : 0  
+  project    = local.project.project_id  
+  secret_id  = "${local.db_instance_name}-${var.application_database_name}qa-password-${var.tenant_deployment_id}-${local.random_id}"             
 
   replication {
-    auto {}
+    auto {}  
   }
 }
 
-# Resource for adding a version of the secret with the actual database root password
-resource "google_secret_manager_secret_version" "db_root_password" {
-  secret      = google_secret_manager_secret.db_root_password.id
-  secret_data = random_password.db_root_password.result
+# Resource for adding a version of the secret with the actual database password
+resource "google_secret_manager_secret_version" "qa_db_password" {
+  count       = local.sql_server_exists ? 1 : 0 
+  secret      = google_secret_manager_secret.qa_db_password[0].id
+  secret_data = random_password.additional_user_password.result     
 
   depends_on = [
-    google_secret_manager_secret.db_root_password,
-    random_password.db_root_password,
+    google_secret_manager_secret.qa_db_password,
+    random_password.additional_user_password,
   ]
 }
 
 # Resource to introduce a delay after creating a secret version
-resource "time_sleep" "db_root_password" {
+resource "time_sleep" "qa_db_password" {
   depends_on = [
-    google_secret_manager_secret_version.db_root_password
+    google_secret_manager_secret_version.qa_db_password
   ]
 
-  create_duration = "90s"
+  create_duration = "90s"  
 }
 
 # Data source for accessing the latest version of the secret when it's ready
-data "google_secret_manager_secret_version" "db_root_password" {
+data "google_secret_manager_secret_version" "qa_db_password" {
+  count    = local.sql_server_exists ? 1 : 0  
   project  = local.project.project_id
-  provider = google
+  provider = google  
 
-  secret   = google_secret_manager_secret.db_root_password.id
-  version  = "latest"
+  secret   = google_secret_manager_secret.qa_db_password[0].id
+  version  = "latest"  
 
   depends_on = [
-    time_sleep.db_root_password,
-    google_secret_manager_secret.db_root_password,
+    time_sleep.qa_db_password,
+    google_secret_manager_secret.qa_db_password,
   ]
 }
-**/
 
 #########################################################################
-# OpenEMR Admin Password Secret
+# Secret Manager resources for Prod environment
 #########################################################################
 
-# Resource for creating a secret in Google Secret Manager to store the OpenEMR admin password
-resource "google_secret_manager_secret" "openemr_admin_password" {
-  project    = local.project.project_id
-  secret_id  = "openemr-admin-password-${var.tenant_deployment_id}-${local.random_id}"
+# Resource for creating a secret in Google Secret Manager to store the database password
+resource "google_secret_manager_secret" "prod_db_password" {
+  count      = local.sql_server_exists ? 1 : 0  
+  project    = local.project.project_id  
+  secret_id  = "${local.db_instance_name}-${var.application_database_name}prod-password-${var.tenant_deployment_id}-${local.random_id}"             
 
   replication {
-    auto {}
+    auto {}  
   }
 }
 
-# Resource for adding a version of the secret with the actual OpenEMR admin password
-resource "google_secret_manager_secret_version" "openemr_admin_password" {
-  secret      = google_secret_manager_secret.openemr_admin_password.id
-  secret_data = random_password.openemr_admin_password.result
+# Resource for adding a version of the secret with the actual database password
+resource "google_secret_manager_secret_version" "prod_db_password" {
+  count       = local.sql_server_exists ? 1 : 0 
+  secret      = google_secret_manager_secret.prod_db_password[0].id
+  secret_data = random_password.additional_user_password.result       
 
   depends_on = [
-    google_secret_manager_secret.openemr_admin_password,
-    random_password.openemr_admin_password,
+    google_secret_manager_secret.prod_db_password,
+    random_password.additional_user_password,
   ]
 }
 
 # Resource to introduce a delay after creating a secret version
-resource "time_sleep" "openemr_admin_password" {
+resource "time_sleep" "prod_db_password" {
   depends_on = [
-    google_secret_manager_secret_version.openemr_admin_password
+    google_secret_manager_secret_version.prod_db_password
   ]
 
-  create_duration = "90s"
+  create_duration = "90s"  
 }
 
 # Data source for accessing the latest version of the secret when it's ready
-data "google_secret_manager_secret_version" "openemr_admin_password" {
+data "google_secret_manager_secret_version" "prod_db_password" {
+  count    = local.sql_server_exists ? 1 : 0  
   project  = local.project.project_id
-  provider = google
+  provider = google  
 
-  secret   = google_secret_manager_secret.openemr_admin_password.id
-  version  = "latest"
+  secret   = google_secret_manager_secret.prod_db_password[0].id
+  version  = "latest"  
 
   depends_on = [
-    time_sleep.openemr_admin_password,
-    google_secret_manager_secret.openemr_admin_password,
+    time_sleep.prod_db_password,
+    google_secret_manager_secret.prod_db_password,
   ]
 }
-

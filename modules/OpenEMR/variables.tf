@@ -23,7 +23,7 @@ variable "module_description" {
 variable "module_dependency" {
   description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=102 }}"
   type        = list(string)
-  default     = ["GCP_Services"]
+  default     = ["GCP Project","GCP Services"]
 }
 
 variable "module_services" {
@@ -35,7 +35,7 @@ variable "module_services" {
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=103 }}"
   type        = number
-  default     = 100
+  default     = 250
 }
 
 variable "require_credit_purchases" {
@@ -50,16 +50,10 @@ variable "enable_purge" {
   default     = true
 }
 
-variable "application_backup_fileid" {
-  description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup files during deployment. {{UIMeta group=6 order=808 updatesafe}}"
-  type        = string
-  default     = "1nitol1S9hdcjf7PpHvsRl3ZDwhKYlzF2"
-}
-
 variable "public_access" {
 description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
 type = bool
-default = true
+default = false
 }
 
 variable "deployment_id" {
@@ -69,13 +63,13 @@ variable "deployment_id" {
 }
 
 variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=102 }}"
+  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "trusted_users" {
-  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 }}"
+  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
   type        = list(string)
   default     = []
 }
@@ -83,14 +77,14 @@ variable "trusted_users" {
 # GROUP 2: Application Project
 
 variable "existing_project_id" {
-  description = "Select an existing project. If no project is listed, create a new project using the GCP Project module. {{UIMeta group=2 order=200 }}"
+  description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
 }
 
 # GROUP 3: Network
 
 variable "network_name" {
-  description = "Name to be assigned to the network. {{UIMeta group=0 order=301 }}"
+  description = "Name to be assigned to the network. {{UIMeta group=0 order=301 updatesafe }}"
   type        = string
   default     = "vpc-network"
 }
@@ -98,7 +92,7 @@ variable "network_name" {
 # GROUP 5: Storage
 
 variable "create_cloud_storage" {
-  description = "Select to enable access to Cloud Storage. {{UIMeta group=0 order=501 }}"
+  description = "Select to enable access to Cloud Storage. {{UIMeta group=0 order=501 updatesafe }}"
   type        = bool
   default     = true  # Change to true to create the resource
 }
@@ -106,47 +100,133 @@ variable "create_cloud_storage" {
 # GROUP 5: Deploy
 
 variable "application_name" {
-  description = "Specify application name. The application name is used to identify configured resources alongside other attributes that ensures uniqueness. {{UIMeta group=0 order=501}}"
+  description = "Specify application name. The application name is used to identify configured resources alongside other attributes that ensures uniqueness. {{UIMeta group=0 order=501 updatesafe}}"
   type        = string
   default     = "openemr"
 }
 
 variable "application_database_user" {
-  description = "Specify application database user name. The actual database user name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=502}}"
+  description = "Specify application database user name. The actual database user name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=502 updatesafe}}"
   type        = string
   default     = "openemr"
 }
 
 variable "application_database_name" {
-  description = "Specify application database name. The actual database name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=503 }}"
+  description = "Specify application database name. The actual database name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=503 updatesafe }}"
   type        = string
   default     = "openemr"
 }
 
 variable "application_version" {
-  description = "Enter application version. Container images are tagged with this version number. {{UIMeta group=0 order=504}}"
+  description = "Enter application version. Container images are tagged with this version number. {{UIMeta group=0 order=504 updatesafe}}"
   type        = string
   default     = "7.0.3"
+}
+
+# GROUP 6: CICD
+
+variable "configure_continuous_integration" {
+  description = "Select the checkbox to configure GitHub continuous integration and continous delivery pipeline that supports single and multi-region deployment. {{UIMeta group=4 order=601 updatesafe}}"
+  type        = bool
+  default     = false
+}
+
+variable "configure_continuous_deployment" {
+  description = "Select the checkbox to configure continous deployment pipeline. Implements a continuous delivery pipeline on the primary deployment region using Cloud Deploy. {{UIMeta group=0 order=600 updatesafe}}"
+  type        = bool
+  default     = false
+}
+
+variable "application_git_token" {
+  description = "Specify a github classic token with following privileges needed to configure the code repository: delete_repo, read:org, repo. {{UIMeta group=4 order=602 updatesafe}}"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "application_git_usernames" {
+  description = "Specify the usernames to add as collaborators to the git repo. {{UIMeta group=4 order=602 updatesafe}}"
+  type        = set(string)
+  default     = []
+}
+
+variable "application_git_installation_id" {
+  description = "Specify the application installation ID. {{UIMeta group=0 order=603 updatesafe}}"
+  type        = string
+  default     = "38735316"
+}
+
+variable "application_git_organization" {
+  description = "Specify the github organization. {{UIMeta group=0 order=604 updatesafe}}"
+  type        = string
+  default     = "techequitycloud"
 }
 
 # GROUP 7: Tenant
 
 variable "tenant_deployment_id" {
-  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=2 order=701}}"
+  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=3 order=701 updatesafe}}"
   type        = string
-  default     = ""
 }
 
-variable "configure_environment" {
-  description = "Select to configure environment. Code is committed to the dev branch in the github repository. {{UIMeta group=0 order=703 }}"
+variable "configure_development_environment" {
+  description = "Select to configure development environment. Code is committed to the dev branch in the github repository. {{UIMeta group=3 order=703 updatesafe }}"
   type        = bool
-  default     = true
+  default     = false
+}
+
+variable "configure_nonproduction_environment" {
+  description = "Select to configure staging environment. Code is committed to the qa branch in the github repository. {{UIMeta group=3 order=704 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "configure_production_environment" {
+  description = "Select to configure production environment. Code is committed to the prod branch in the github repository. {{UIMeta group=3 order=705 updatesafe }}"
+  type        = bool
+  default     = false
 }
 
 # GROUP 8: Tenant
 
 variable "configure_monitoring" {
-  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring for NFS virtual machine. {{UIMeta group=0 order=805}}"
+  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring for NFS virtual machine. {{UIMeta group=5 order=805 updatesafe}}"
   type        = bool
-  default     = true
+  default     = false
+}
+
+variable "configure_backups" {
+  description = "Select this checkbox to schedule daily application backups. Configures a Cloud Scheduler trigger to execute a Cloud Run backup job. {{UIMeta group=6 order=806 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "application_backup_schedule" {
+  description = "Enter the application backup schedule in cron format. This is used to configure the Cloud Scheduler cron job. {{UIMeta group=6 order=807 updatesafe }}"
+  type        = string
+  default     = "0 0 * * *"
+}
+
+variable "application_backup_fileid" {
+  description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup files during deployment. {{UIMeta group=6 order=808 updatesafe}}"
+  type        = string
+  default     = "1nitol1S9hdcjf7PpHvsRl3ZDwhKYlzF2"
+}
+
+variable "configure_application_security" {
+  description = "Select this checkbox to configure web application security.  Configures a global load balancer with Cloud Armor web application security. {{UIMeta group=0 order=809 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "application_secure_path" {
+  description = "Enter the application secure path. Cloud Armour is configured to restrict traffic to this path. {{UIMeta group=0 order=810 updatesafe}}"
+  type        = string
+  default     = ""
+}
+
+variable "application_authorized_network" {
+  description = "Enter the application authorized network. Cloud Armour is configured to allow traffic from this network. {{UIMeta group=0 order=812 updatesafe}}"
+  type        = set(string)
+  default     = []
 }

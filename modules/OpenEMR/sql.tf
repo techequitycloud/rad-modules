@@ -32,3 +32,18 @@ locals {
   db_internal_ip = try(data.external.sql_instance_info.result["instance_ip"], "")
   db_root_password = try(data.external.sql_instance_info.result["root_password"], "")
 }
+
+########################################################################################
+# Local variables output
+########################################################################################
+
+output "sql_instance_info" {
+  value = {
+    instance_exists  = local.sql_server_exists
+    database_version = local.database_version
+    instance_name    = local.db_instance_name
+    instance_region  = local.db_instance_region
+    instance_ip      = local.db_internal_ip
+    # root_password    = local.db_root_password
+  }
+}
