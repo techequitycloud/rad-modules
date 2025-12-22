@@ -20,7 +20,12 @@ echo "=== DB Import/Setup Job ==="
 # Install dependencies
 echo "Installing dependencies..."
 apk update
-apk add --no-cache mariadb-client python3 py3-pip unzip curl git php83 php83-mysqli php83-pdo_mysql php83-json php83-openssl php83-curl php83-zip
+apk add --no-cache mariadb-client python3 py3-pip unzip curl git \
+    php83 php83-mysqli php83-pdo_mysql php83-json php83-openssl php83-curl php83-zip \
+    php83-tokenizer php83-xml php83-mbstring php83-phar php83-iconv
+
+# Install composer
+curl -sS https://getcomposer.org/installer | php83 -- --install-dir=/usr/bin --filename=composer
 
 # Install gdown in venv
 echo "Installing gdown..."
@@ -112,82 +117,29 @@ EOF
 else
     echo "No backup file provided. Using OpenEMR installer for proper initialization..."
 
-    # Clone minimal OpenEMR files needed for installation
-    echo "Downloading OpenEMR installer files..."
-    VERSION_TAG="v$(echo ${APP_VERSION} | tr '.' '_')"
+    # Clone OpenEMR repository (similar to working Dockerfile approach)
+    echo "Cloning OpenEMR repository..."
+    VERSION_TAG="rel-$(echo ${APP_VERSION} | tr '.' '')"  # e.g. 7.0.3 -> rel-703
 
-    mkdir -p /tmp/openemr-install
-    cd /tmp/openemr-install
+    cd /tmp
+    git clone https://github.com/openemr/openemr.git --branch ${VERSION_TAG} --depth 1
+    cd openemr
 
-    # Download necessary files for installation
-    curl -L -o auto_configure.php.orig "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/auto_configure.php"
+    # Install PHP dependencies (minimal, no dev dependencies)
+    echo "Installing composer dependencies..."
+    composer install --no-dev --no-interaction --optimize-autoloader
 
-    # Modify auto_configure.php to skip translations during installation
-    # This prevents errors when lang_definitions/lang_constants tables don't exist yet
-    echo "Modifying auto_configure.php to skip translations..."
-    cat > auto_configure.php << 'PHPEOF'
-<?php
-// Skip translations during installation to avoid lang_definitions table errors
-$GLOBALS['temp_skip_translations'] = true;
-
-// Define stub translation functions if they don't exist
-if (!function_exists('xl')) {
-    function xl($s) { return $s; }
-}
-if (!function_exists('xlt')) {
-    function xlt($s) { return $s; }
-}
-if (!function_exists('xls')) {
-    function xls($s) { return $s; }
-}
-if (!function_exists('xla')) {
-    function xla($s) { return $s; }
-}
-
-PHPEOF
-    cat auto_configure.php.orig >> auto_configure.php
-    rm auto_configure.php.orig
-
-    # Download library files
-    mkdir -p library/classes
-    curl -L -o library/classes/Installer.class.php "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/library/classes/Installer.class.php"
-    curl -L -o library/globals.inc.php "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/library/globals.inc.php"
-    curl -L -o library/sql_upgrade_fx.php "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/library/sql_upgrade_fx.php"
-
-    # Download SQL files
-    mkdir -p sql
-    curl -L -o sql/database.sql.orig "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/sql/database.sql"
-
-    # Prepend SET SESSION sql_mode to database.sql to allow invalid dates
-    # This is needed because OpenEMR schema uses legacy date defaults like '0000-00-00'
-    # We can't use SET GLOBAL in Cloud SQL (requires SUPER privilege)
+    # Modify database.sql to use relaxed SQL mode
     echo "Preparing database.sql with relaxed SQL mode..."
-    cat > sql/database.sql << 'SQLPREFIXEOF'
--- Set SQL mode to allow invalid dates for OpenEMR legacy schema
-SET SESSION sql_mode = 'ALLOW_INVALID_DATES,NO_ENGINE_SUBSTITUTION';
+    echo "SET SESSION sql_mode = 'ALLOW_INVALID_DATES,NO_ENGINE_SUBSTITUTION';" > /tmp/sql_prefix.sql
+    cat sql/database.sql >> /tmp/sql_prefix.sql
+    mv /tmp/sql_prefix.sql sql/database.sql
 
-SQLPREFIXEOF
-    cat sql/database.sql.orig >> sql/database.sql
-    rm sql/database.sql.orig
-
-    curl -L -o sql/official_additional_users.sql "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/sql/official_additional_users.sql"
-
-    # Download composer autoload (create minimal stub)
-    mkdir -p vendor
-    cat > vendor/autoload.php << 'AUTOLOADEOF'
-<?php
-// Minimal autoloader stub
-spl_autoload_register(function ($class) {
-    $file = str_replace('\\', '/', $class) . '.php';
-    if (file_exists(__DIR__ . '/../library/classes/' . basename($file))) {
-        require_once __DIR__ . '/../library/classes/' . basename($file);
-    }
-});
-AUTOLOADEOF
-
-    # Run the OpenEMR installer
+    # Run the OpenEMR installer using the working auto_configure.php
     echo "Running OpenEMR installer..."
-    php83 auto_configure.php \
+    chmod 600 auto_configure.php
+
+    php auto_configure.php \
         server="${DB_HOST}" \
         port=3306 \
         login="${DB_USER}" \
@@ -202,7 +154,7 @@ AUTOLOADEOF
         echo "OpenEMR installation completed successfully."
         # Clean up
         cd /
-        rm -rf /tmp/openemr-install
+        rm -rf /tmp/openemr
     else
         echo "OpenEMR installation failed."
         exit 1
