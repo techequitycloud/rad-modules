@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License. 
 
-set -x
+# set -x
 
 # Remove spaces from the region variables
 APP_REGION_1=$(echo "us-central1" | tr -d '[:space:]')
@@ -29,11 +29,11 @@ while [ $attempt -lt $max_attempts ]; do
   services_found=false # Flag to track if any services were found
 
   # Check and delete service in APP_REGION_1
-  if gcloud run services describe "appopenermdemof6f5dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" 2>/dev/null; then
+  if gcloud run services describe "appcyclosdemo5a96prod" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_1. Attempting to delete..."
     
     # Try to delete the service
-    if gcloud run services delete "appopenermdemof6f5dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" --quiet; then
+    if gcloud run services delete "appcyclosdemo5a96prod" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_1" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_1."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -46,11 +46,11 @@ while [ $attempt -lt $max_attempts ]; do
   fi
 
   # Check and delete service in APP_REGION_2
-  if gcloud run services describe "appopenermdemof6f5dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" 2>/dev/null; then
+  if gcloud run services describe "appcyclosdemo5a96prod" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" 2>/dev/null; then
     echo "Cloud Run service still exists in region $APP_REGION_2. Attempting to delete..."
     
     # Try to delete the service
-    if gcloud run services delete "appopenermdemof6f5dev" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" --quiet; then
+    if gcloud run services delete "appcyclosdemo5a96prod" --project="qwiklabs-gcp-00-9c58e150e7c1" --region="$APP_REGION_2" --quiet; then
       echo "Cloud Run service is being deleted in region $APP_REGION_2."
       delete_attempted=true
       services_found=true # A service was found and is being deleted
@@ -74,9 +74,8 @@ while [ $attempt -lt $max_attempts ]; do
   sleep 10
 done
 
-
 # Ensure application directory is empty
-sudo mkdir -p /share/appopenermdemof6f5dev && sudo rm -rf /share/appopenermdemof6f5dev/* && sudo chown -R 1000:1000 /share/appopenermdemof6f5dev && sudo chmod 775 /share/appopenermdemof6f5dev
+sudo mkdir -p /share/appcyclosdemo5a96prod && sudo rm -rf /share/appcyclosdemo5a96prod/* && sudo chown -R nobody:nogroup /share/appcyclosdemo5a96prod && sudo chmod 775 /share/appcyclosdemo5a96prod
 
 # Attempt to download the backup file only if BACKUP_FILEID is not empty
 if [ -n "" ] ; then
@@ -84,10 +83,10 @@ if [ -n "" ] ; then
     echo "Using gdown from /root/.local/bin/gdown"
     
     # Try downloading with full path if needed
-    if sudo /root/.local/bin/gdown  -O appopenermdemof6f5dev.zip; then
+    if sudo /root/.local/bin/gdown  -O appcyclosdemo5a96prod.zip; then
         echo "Backup file downloaded successfully"
-        if [ -f appopenermdemof6f5dev.zip ]; then
-            echo "Backup file exists and is $(du -h appopenermdemof6f5dev.zip | cut -f1) in size"
+        if [ -f appcyclosdemo5a96prod.zip ]; then
+            echo "Backup file exists and is $(du -h appcyclosdemo5a96prod.zip | cut -f1) in size"
         fi
     else
         echo "Warning: Failed to download the backup file using /root/.local/bin/gdown."
@@ -97,49 +96,24 @@ else
 fi
 
 # Check if the backup file exists locally
-if [ -f "appopenermdemof6f5dev.zip" ]; then
+if [ -f "appcyclosdemo5a96prod.zip" ]; then
     echo "Backup file exists locally."
     
     # Extract the backup file and set  permissions
-    sudo mkdir -p appopenermdemof6f5dev && sudo rm -rf appopenermdemof6f5dev/* && sudo unzip appopenermdemof6f5dev.zip -d appopenermdemof6f5dev
+    sudo mkdir -p appcyclosdemo5a96prod && sudo rm -rf appcyclosdemo5a96prod/* && sudo unzip appcyclosdemo5a96prod.zip -d appcyclosdemo5a96prod
     
     # Move directory
-    sudo rm -rf /share/appopenermdemof6f5dev/* && sudo mv appopenermdemof6f5dev/* /share/appopenermdemof6f5dev/
+    sudo rm -rf /share/appcyclosdemo5a96prod/* && sudo mv appcyclosdemo5a96prod/* /share/appcyclosdemo5a96prod/
 
     # Change ownership
-    sudo chmod -R 0777 /share/appopenermdemof6f5dev && sudo chown -R 1000:1000 /share/appopenermdemof6f5dev
-
-    # Set proper ownership
-    sudo chown -R 1000:1000 /share/appopenermdemof6f5dev
-
-    # 2. Secure base permissions
-    sudo find /share/appopenermdemof6f5dev -type d -exec chmod 755 {} \;  # Directories
-    sudo find /share/appopenermdemof6f5dev -type f -exec chmod 644 {} \;  # Files
-
-    # Make specific directories writable by web server only
-    sudo chmod -R 755 /share/appopenermdemof6f5dev/default/documents
-
-    # Secure sensitive files
-    sudo chmod 600 /share/appopenermdemof6f5dev/default/sqlconf.php  # DB config
-
-    # Define the path to the sqlconf.php file
-    SQLCONF_FILE="/share/appopenermdemof6f5dev/default/sqlconf.php"
-
-    # Replace hardcoded values with environment variables
-    sudo sed -i "s/\$host\s*=\s*'[^']*'/\$host = '172.21.0.3'/" "$SQLCONF_FILE"
-    sudo sed -i "s/\$port\s*=\s*'[^']*'/\$port = '3306'/" "$SQLCONF_FILE"
-    sudo sed -i "s/\$login\s*=\s*'[^']*'/\$login = 'appopenermdemof6f5dev'/" "$SQLCONF_FILE"
-    sudo sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = 'GCRApj6u7p6agSYd'/" "$SQLCONF_FILE"
-    sudo sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = 'appopenermdemof6f5dev'/" "$SQLCONF_FILE"
-    sudo sed -i "/\$pass\s*=\s*'[^']*'/a \$rootpass = 'g%L9hkVajm3p@ApK';" "$SQLCONF_FILE"
-
-    echo "sqlconf.php updated successfully!"
+    sudo chmod -R 0777 /share/appcyclosdemo5a96prod && sudo chown -R nobody:nogroup /share/appcyclosdemo5a96prod
 
     # Delete Backup from bastion host
-    sudo rm -rf appopenermdemof6f5dev.zip && sudo rm -rf appopenermdemof6f5dev
+    sudo rm -rf appcyclosdemo5a96prod.zip && sudo rm -rf appcyclosdemo5a96prod
 fi
 
 # Check if the shared directory exists
-if [ ! -d /share/appopenermdemof6f5dev ]; then echo 'Error: /share/appopenermdemof6f5dev does not exist.'; exit 1; fi
+if [ ! -d /share/appcyclosdemo5a96prod ]; then echo 'Error: /share/appcyclosdemo5a96prod does not exist.'; exit 1; fi
 
 echo "Script completed successfully!"
+

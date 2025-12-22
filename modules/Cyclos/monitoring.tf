@@ -53,7 +53,6 @@ resource "google_monitoring_service" "dev_cloud_run" {
   }
 
   depends_on = [
-    google_cloud_scheduler_job.dev_backup,
     google_cloud_run_v2_service.dev_app_service,
   ]
 }
@@ -169,7 +168,6 @@ resource "google_monitoring_service" "qa_cloud_run" {
   }
 
   depends_on = [
-    google_cloud_scheduler_job.qa_backup,
     google_cloud_run_v2_service.qa_app_service,
   ]
 }
@@ -284,7 +282,6 @@ resource "google_monitoring_service" "prod_cloud_run" {
   }
 
   depends_on = [
-    google_cloud_scheduler_job.prod_backup,
     google_cloud_run_v2_service.prod_app_service,
   ]
 }

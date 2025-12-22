@@ -15,11 +15,11 @@
 
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/openerm-demo-f6f5/backup:7.0.3', '-f', 'dockerfile', '.']
+  args: ['build', '-t', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/cyclos-demo-5a96/backup:4.16.15', '-f', 'dockerfile', '.']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['tag', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/openerm-demo-f6f5/backup:7.0.3', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/openerm-demo-f6f5/backup:7.0.3']
+  args: ['tag', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/cyclos-demo-5a96/backup:4.16.15', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/cyclos-demo-5a96/backup:4.16.15']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/openerm-demo-f6f5/backup:7.0.3']
+  args: ['push', 'us-central1-docker.pkg.dev/qwiklabs-gcp-00-9c58e150e7c1/cyclos-demo-5a96/backup:4.16.15']
 serviceAccount: 'projects/qwiklabs-gcp-00-9c58e150e7c1/serviceAccounts/cloudbuild-sa@qwiklabs-gcp-00-9c58e150e7c1.iam.gserviceaccount.com'
 options:
   logging: CLOUD_LOGGING_ONLY

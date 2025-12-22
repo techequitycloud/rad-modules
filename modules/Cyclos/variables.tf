@@ -111,7 +111,7 @@ variable "application_version" {
 variable "application_download_fileid" {
   description = "Enter the URL to download the application. {{UIMeta group=0 order=515 updatesafe }}"
   type        = string
-  default     = "1-rHTal1upD8u57WuMieuKz51uVN1erBr"
+  default     = ""
 }
 
 # GROUP 6: CICD

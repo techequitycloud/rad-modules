@@ -23,10 +23,6 @@ resource "local_file" "dockerfile" {
     content         = templatefile("${path.module}/scripts/bkup/Dockerfile.tpl", {
     BACKUP_SCRIPT   = "backup.sh"
   })
-
-  depends_on = [
-    null_resource.init_git_repo,
-  ]
 }
 
 # Resource for creating a local Cloud Build configuration file from a template.
@@ -41,10 +37,6 @@ resource "local_file" "cloudbuild" {
     DOCKERFILE      = "dockerfile"
     REPO_NAME       = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
   })
-
-  depends_on = [
-    null_resource.init_git_repo,
-  ]
 }
 
 #########################################################################
@@ -68,6 +60,5 @@ resource "null_resource" "build_and_push_backup_image" {
     local_file.cloudbuild,
     local_file.dockerfile,
     google_artifact_registry_repository.application_image,
-    github_repository.project_private_repo,
   ]
 }

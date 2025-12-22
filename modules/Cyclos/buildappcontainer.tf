@@ -23,11 +23,6 @@ resource "local_file" "app_dockerfile" {
   content        = templatefile("${path.module}/scripts/app/Dockerfile.tpl", {
     APP_VERSION  = "${var.application_version}"
   })
-
-  # Dependency to ensure the file is only created after initializing the git repository
-  depends_on = [
-    null_resource.init_git_repo,
-  ]
 }
 
 # Resource to create a local cloudbuild file from a template, with variables substituted
@@ -42,11 +37,6 @@ resource "local_file" "app_cloudbuild" {
     IMAGE_VERSION = "${var.application_version}"
     REPO_NAME     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
   })
-
-  # Dependency to ensure the file is only created after initializing the git repository
-  depends_on = [
-    null_resource.init_git_repo,
-  ]
 }
 
 #########################################################################
@@ -74,6 +64,5 @@ resource "null_resource" "build_and_push_application_image" {
     local_file.app_cloudbuild,
     null_resource.build_and_push_backup_image,
     google_artifact_registry_repository.application_image,
-    github_repository.project_private_repo,
   ]
 }
