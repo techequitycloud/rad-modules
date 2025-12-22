@@ -130,7 +130,20 @@ else
 
     # Download SQL files
     mkdir -p sql
-    curl -L -o sql/database.sql "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/sql/database.sql"
+    curl -L -o sql/database.sql.orig "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/sql/database.sql"
+
+    # Prepend SET SESSION sql_mode to database.sql to allow invalid dates
+    # This is needed because OpenEMR schema uses legacy date defaults like '0000-00-00'
+    # We can't use SET GLOBAL in Cloud SQL (requires SUPER privilege)
+    echo "Preparing database.sql with relaxed SQL mode..."
+    cat > sql/database.sql << 'SQLPREFIXEOF'
+-- Set SQL mode to allow invalid dates for OpenEMR legacy schema
+SET SESSION sql_mode = 'ALLOW_INVALID_DATES,NO_ENGINE_SUBSTITUTION';
+
+SQLPREFIXEOF
+    cat sql/database.sql.orig >> sql/database.sql
+    rm sql/database.sql.orig
+
     curl -L -o sql/official_additional_users.sql "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/sql/official_additional_users.sql"
 
     # Download composer autoload (create minimal stub)
@@ -145,12 +158,6 @@ spl_autoload_register(function ($class) {
     }
 });
 AUTOLOADEOF
-
-    # Set SQL mode to allow invalid dates
-    echo "Setting SQL mode..."
-    mysql --defaults-file=/tmp/root.cnf <<'SQLMODEEOF'
-SET GLOBAL sql_mode = 'ALLOW_INVALID_DATES,NO_ENGINE_SUBSTITUTION';
-SQLMODEEOF
 
     # Run the OpenEMR installer
     echo "Running OpenEMR installer..."
