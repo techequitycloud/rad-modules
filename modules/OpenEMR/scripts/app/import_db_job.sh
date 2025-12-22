@@ -120,7 +120,33 @@ else
     cd /tmp/openemr-install
 
     # Download necessary files for installation
-    curl -L -o auto_configure.php "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/auto_configure.php"
+    curl -L -o auto_configure.php.orig "https://raw.githubusercontent.com/openemr/openemr/${VERSION_TAG}/auto_configure.php"
+
+    # Modify auto_configure.php to skip translations during installation
+    # This prevents errors when lang_definitions/lang_constants tables don't exist yet
+    echo "Modifying auto_configure.php to skip translations..."
+    cat > auto_configure.php << 'PHPEOF'
+<?php
+// Skip translations during installation to avoid lang_definitions table errors
+$GLOBALS['temp_skip_translations'] = true;
+
+// Define stub translation functions if they don't exist
+if (!function_exists('xl')) {
+    function xl($s) { return $s; }
+}
+if (!function_exists('xlt')) {
+    function xlt($s) { return $s; }
+}
+if (!function_exists('xls')) {
+    function xls($s) { return $s; }
+}
+if (!function_exists('xla')) {
+    function xla($s) { return $s; }
+}
+
+PHPEOF
+    cat auto_configure.php.orig >> auto_configure.php
+    rm auto_configure.php.orig
 
     # Download library files
     mkdir -p library/classes
