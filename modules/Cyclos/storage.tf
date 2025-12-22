@@ -15,19 +15,7 @@
 # Local variables for bucket existence
 locals { 
   # Bucket names
-  backup_bucket_name = "${local.project.project_id}-${var.application_name}${var.tenant_deployment_id}${local.random_id}-backups"
   data_bucket_name = "${local.project.project_id}-${var.application_name}${var.tenant_deployment_id}${local.random_id}-data"
-  restore_bucket_name = "${local.project.project_id}-${var.application_name}${var.tenant_deployment_id}${local.random_id}-restore"
-}
-
-# Create buckets only if they don't exist and creation is requested
-resource "google_storage_bucket" "gcs_private_backup_bucket" {
-  count = var.create_cloud_storage ? 1 : 0
-  
-  name          = local.backup_bucket_name
-  location      = "EU"
-  project       = local.project.project_id
-  force_destroy = true
 }
 
 resource "google_storage_bucket" "gcs_private_data_bucket" {
@@ -39,39 +27,11 @@ resource "google_storage_bucket" "gcs_private_data_bucket" {
   force_destroy = true
 }
 
-resource "google_storage_bucket" "gcs_private_restore_bucket" {
-  count = var.create_cloud_storage ? 1 : 0
-  
-  name          = local.restore_bucket_name
-  location      = "EU"
-  project       = local.project.project_id
-  force_destroy = true
-}
-
-# Data sources to get bucket information (whether existing or newly created)
-data "google_storage_bucket" "backup_bucket" {
-  count = var.create_cloud_storage ? 1 : 0
-  name  = local.backup_bucket_name
-  
-  depends_on = [
-    google_storage_bucket.gcs_private_backup_bucket
-  ]
-}
-
 data "google_storage_bucket" "data_bucket" {
   count = var.create_cloud_storage ? 1 : 0
   name  = local.data_bucket_name
   
   depends_on = [
     google_storage_bucket.gcs_private_data_bucket
-  ]
-}
-
-data "google_storage_bucket" "restore_bucket" {
-  count = var.create_cloud_storage ? 1 : 0
-  name  = local.restore_bucket_name
-  
-  depends_on = [
-    google_storage_bucket.gcs_private_restore_bucket
   ]
 }
