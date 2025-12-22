@@ -18,20 +18,16 @@
 
 # Resource for creating a Dockerfile from a template, which will be used to build the application's container image.
 resource "local_file" "dockerfile" {
-  count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
+  count    = var.configure_development_environment ? 1 : 0
     filename = "${path.module}/scripts/bkup/dockerfile"
     content         = templatefile("${path.module}/scripts/bkup/Dockerfile.tpl", {
     BACKUP_SCRIPT   = "backup.sh"
   })
-
-  depends_on = [
-    null_resource.init_git_repo,
-  ]
 }
 
 # Resource for creating a local Cloud Build configuration file from a template.
 resource "local_file" "cloudbuild" {
-  count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
+  count    = var.configure_development_environment ? 1 : 0
     filename        = "${path.module}/scripts/bkup/cloudbuild.yaml"
     content         = templatefile("${path.module}/scripts/bkup/cloudbuild.yaml.tpl", {
     PROJECT_ID      = local.project.project_id
@@ -41,10 +37,6 @@ resource "local_file" "cloudbuild" {
     DOCKERFILE      = "dockerfile"
     REPO_NAME       = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
   })
-
-  depends_on = [
-    null_resource.init_git_repo,
-  ]
 }
 
 #########################################################################
@@ -53,7 +45,7 @@ resource "local_file" "cloudbuild" {
 
 # Null resource to trigger local scripts for building and pushing the container image.
 resource "null_resource" "build_and_push_backup_image" {
-  count    = (var.configure_development_environment || var.configure_nonproduction_environment || var.configure_production_environment) ? 1 : 0
+  count    = var.configure_development_environment ? 1 : 0
   triggers = {
     script_hash = filesha256("${path.module}/scripts/bkup/build-container.sh")
     # always_run    = "${timestamp()}" # Trigger to always run on apply
@@ -70,6 +62,5 @@ resource "null_resource" "build_and_push_backup_image" {
     local_file.cloudbuild,
     local_file.dockerfile,
     google_artifact_registry_repository.application_image,
-    github_repository.project_private_repo,
   ]
 }
