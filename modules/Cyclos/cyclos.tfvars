@@ -12,8 +12,6 @@ network_name = "vpc-network"
 # Application Features
 configure_backups = true
 configure_monitoring = false
-configure_continuous_integration = false
-configure_continuous_deployment = false
 
 # Application Configuration
 application_name = "cyclos"
@@ -28,5 +26,3 @@ application_git_usernames = ["snavti"]
 
 # environments
 configure_development_environment = true
-configure_nonproduction_environment = false
-configure_production_environment = false
