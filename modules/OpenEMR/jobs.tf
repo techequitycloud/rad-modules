@@ -475,6 +475,13 @@ resource "google_cloud_run_v2_job" "import_db_job" {
 
         command = ["/bin/sh"]
         args = ["-c", file("${path.module}/scripts/app/import_db_job.sh")]
+
+        resources {
+          limits = {
+            memory = "4Gi"
+            cpu    = "2"
+          }
+        }
       }
 
       vpc_access {
