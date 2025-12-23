@@ -17,9 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = <<-EOT
-This module deploys the Cyclos Banking System (CBS) on Google Cloud Run. This provides a serverless environment for the banking application, which means you don't have to manage servers.
-EOT
+  default     = "This module deploys the Cyclos Banking System (CBS) on Google Cloud Run. This provides a serverless environment for the banking application, which means you don't have to manage servers."
 }
 
 variable "module_dependency" {
