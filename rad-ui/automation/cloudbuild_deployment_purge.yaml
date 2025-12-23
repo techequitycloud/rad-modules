@@ -52,9 +52,7 @@ steps:
             MISSING_VARS=1
         fi
         
-        if [ "${_DEPLOYMENT_BUCKET_ID}" = "rad-deployments-2b65" ]; then
-            log "✅ Using default bucket: ${_DEPLOYMENT_BUCKET_ID}"
-        elif [ -z "${_DEPLOYMENT_BUCKET_ID}" ]; then
+        if [ -z "${_DEPLOYMENT_BUCKET_ID}" ]; then
             log "❌ ERROR: _DEPLOYMENT_BUCKET_ID not set"
             MISSING_VARS=1
         fi
@@ -80,20 +78,35 @@ steps:
         DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
         
         log "🔍 Checking deployment existence..."
+        log "   Path: $$DEPLOYMENT_PATH"
+        
         if gsutil ls "$$DEPLOYMENT_PATH/" > /dev/null 2>&1; then
             log "✅ Deployment found: $$DEPLOYMENT_PATH"
             echo "exists" > /workspace/deployment_exists.txt
             
+            # Show deployment structure
+            log "📋 Deployment structure:"
+            gsutil ls "$$DEPLOYMENT_PATH/" 2>/dev/null | sed 's/^/   /' || log "   Could not list structure"
+            
             # Get deployment info if available
             if gsutil cat "$$DEPLOYMENT_PATH/files/deployment_complete.json" > /tmp/deployment_info.json 2>/dev/null; then
                 log "📋 Deployment information:"
-                cat /tmp/deployment_info.json | grep -E '"deployed_at"|"status"|"build_id"' | sed 's/^/   /'
+                cat /tmp/deployment_info.json | grep -E '"deployed_at"|"status"|"build_id"|"module"|"deployment_id"' | sed 's/^/   /'
+            else
+                log "ℹ️  No deployment completion marker found"
             fi
+            
+            # Calculate and show size
+            SIZE_INFO=$$(gsutil du -sh "$$DEPLOYMENT_PATH/" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
+            log "📊 Deployment size: $$SIZE_INFO"
+            echo "$$SIZE_INFO" > /workspace/deployment_size.txt
+            
         else
             log "⚠️  WARNING: Deployment not found"
             log "   Path: $$DEPLOYMENT_PATH"
             log "   This may have already been purged"
             echo "not_exists" > /workspace/deployment_exists.txt
+            echo "0" > /workspace/deployment_size.txt
         fi
         
         log "✅ Prerequisites validated successfully"
@@ -140,6 +153,8 @@ steps:
         
         LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
         LOCK_FILE="/tmp/lock.json"
+        
+        log "📍 Lock path: $$LOCK_PATH"
         
         # Create lock file with metadata
         cat > $$LOCK_FILE <<EOF
@@ -193,7 +208,8 @@ steps:
             log "❌ ERROR: Could not acquire lock after $$MAX_WAIT seconds"
             log "   Another operation may be in progress"
             log "   Lock path: $$LOCK_PATH"
-            log "   If the lock is stale, manually delete it"
+            log "   If the lock is stale, manually delete it with:"
+            log "   gsutil rm $$LOCK_PATH"
             exit 1
         fi
         
@@ -225,11 +241,12 @@ steps:
             DEPLOYMENT_EXISTS=$$(cat /workspace/deployment_exists.txt)
         fi
         
+        mkdir -p /tmp/audit
+        
         if [ "$$DEPLOYMENT_EXISTS" = "not_exists" ]; then
-            log "ℹ️  Skipping audit - deployment does not exist"
+            log "ℹ️  Deployment does not exist - creating minimal audit"
             
             # Create minimal audit record
-            mkdir -p /tmp/audit
             cat > /tmp/audit/pre_purge_audit.json <<EOF
         {
           "module": "${_MODULE_NAME}",
@@ -246,73 +263,96 @@ steps:
         }
         EOF
             echo "Deployment not found" > /tmp/audit/file_list.txt
+            log "✅ Minimal audit created"
             exit 0
         fi
         
         DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
         
-        mkdir -p /tmp/audit
-        
-        # Calculate folder size and file count
         log "📊 Analyzing deployment folder..."
+        log "   Path: $$DEPLOYMENT_PATH"
         
-        if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
-            # Get size
+        # Get size from previous step or calculate now
+        if [ -f /workspace/deployment_size.txt ]; then
+            FOLDER_SIZE=$$(cat /workspace/deployment_size.txt)
+            log "   Size (cached): $$FOLDER_SIZE"
+        else
             FOLDER_SIZE=$$(gsutil du -sh "$$DEPLOYMENT_PATH" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
             log "   Size: $$FOLDER_SIZE"
-            
-            # Count files
-            FILE_COUNT=$$(gsutil ls -r "$$DEPLOYMENT_PATH" 2>/dev/null | grep -v ':$$' | wc -l || echo "0")
-            log "   Files: $$FILE_COUNT"
-            
-            # List all files for audit trail
-            log "📋 Cataloging all files for audit..."
-            if gsutil ls -r "$$DEPLOYMENT_PATH" > /tmp/audit/file_list.txt 2>/dev/null; then
-                log "✅ File list created ($$FILE_COUNT files)"
-            else
-                echo "Unable to list files" > /tmp/audit/file_list.txt
-                log "⚠️  Could not create complete file list"
-            fi
-            
-            # Show preview
-            log "📄 Files to be deleted (first 20):"
-            head -20 /tmp/audit/file_list.txt | sed 's/^/   /'
-            
-            if [ $$FILE_COUNT -gt 20 ]; then
-                log "   ... and $$((FILE_COUNT - 20)) more files"
-            fi
-            
-            # Check for important files
-            log "🔍 Checking for important files..."
-            
-            IMPORTANT_FILES=""
-            if gsutil ls "$$DEPLOYMENT_PATH/files/deployment_complete.json" > /dev/null 2>&1; then
-                IMPORTANT_FILES="$$IMPORTANT_FILES deployment_complete.json"
-                log "   • Found: deployment_complete.json"
-            fi
-            
-            if gsutil ls "$$DEPLOYMENT_PATH/state/default.tfstate" > /dev/null 2>&1; then
-                IMPORTANT_FILES="$$IMPORTANT_FILES default.tfstate"
-                log "   • Found: default.tfstate"
-            fi
-            
-            if gsutil ls "$$DEPLOYMENT_PATH/output/output.json" > /dev/null 2>&1; then
-                IMPORTANT_FILES="$$IMPORTANT_FILES output.json"
-                log "   • Found: output.json"
-            fi
-            
-            if [ -n "$$IMPORTANT_FILES" ]; then
-                echo "$$IMPORTANT_FILES" > /tmp/audit/important_files.txt
-            fi
+        fi
+        
+        # Count files
+        log "📋 Cataloging files..."
+        FILE_COUNT=$$(gsutil ls -r "$$DEPLOYMENT_PATH" 2>/dev/null | grep -v ':$$' | wc -l || echo "0")
+        log "   Total files: $$FILE_COUNT"
+        
+        # List all files for audit trail
+        if gsutil ls -r "$$DEPLOYMENT_PATH" > /tmp/audit/file_list.txt 2>/dev/null; then
+            log "✅ Complete file list created"
         else
-            FOLDER_SIZE="0"
-            FILE_COUNT="0"
-            log "⚠️  Deployment folder not found during audit"
-            echo "Deployment folder not found at $$DEPLOYMENT_PATH" > /tmp/audit/file_list.txt
+            echo "Unable to list files" > /tmp/audit/file_list.txt
+            log "⚠️  Could not create complete file list"
+        fi
+        
+        # Show preview
+        log "📄 Files to be deleted (first 20):"
+        head -20 /tmp/audit/file_list.txt | sed 's/^/   /'
+        
+        if [ $$FILE_COUNT -gt 20 ]; then
+            log "   ... and $$((FILE_COUNT - 20)) more files"
+        fi
+        
+        # Check for important files and create inventory
+        log "🔍 Checking for important files..."
+        
+        IMPORTANT_FILES=""
+        HAS_DEPLOYMENT_COMPLETE=false
+        HAS_STATE=false
+        HAS_OUTPUT=false
+        HAS_ARCHIVE=false
+        
+        if gsutil ls "$$DEPLOYMENT_PATH/files/deployment_complete.json" > /dev/null 2>&1; then
+            IMPORTANT_FILES="$$IMPORTANT_FILES deployment_complete.json"
+            HAS_DEPLOYMENT_COMPLETE=true
+            log "   ✅ deployment_complete.json"
+            
+            # Download for audit
+            gsutil cp "$$DEPLOYMENT_PATH/files/deployment_complete.json" /tmp/audit/deployment_complete.json 2>/dev/null || log "   ⚠️  Could not download"
+        fi
+        
+        if gsutil ls "$$DEPLOYMENT_PATH/state/default.tfstate" > /dev/null 2>&1; then
+            IMPORTANT_FILES="$$IMPORTANT_FILES default.tfstate"
+            HAS_STATE=true
+            log "   ✅ default.tfstate"
+            
+            # Download state for audit (contains resource info)
+            gsutil cp "$$DEPLOYMENT_PATH/state/default.tfstate" /tmp/audit/default.tfstate 2>/dev/null || log "   ⚠️  Could not download"
+        fi
+        
+        if gsutil ls "$$DEPLOYMENT_PATH/output/output.json" > /dev/null 2>&1; then
+            IMPORTANT_FILES="$$IMPORTANT_FILES output.json"
+            HAS_OUTPUT=true
+            log "   ✅ output.json"
+            
+            # Download outputs for audit
+            gsutil cp "$$DEPLOYMENT_PATH/output/output.json" /tmp/audit/output.json 2>/dev/null || log "   ⚠️  Could not download"
+        fi
+        
+        # Check for archives
+        ARCHIVE_COUNT=$$(gsutil ls "$$DEPLOYMENT_PATH/files/*.tar.gz" 2>/dev/null | wc -l || echo "0")
+        if [ $$ARCHIVE_COUNT -gt 0 ]; then
+            HAS_ARCHIVE=true
+            log "   ✅ $$ARCHIVE_COUNT archive file(s)"
+        fi
+        
+        if [ -n "$$IMPORTANT_FILES" ]; then
+            echo "$$IMPORTANT_FILES" > /tmp/audit/important_files.txt
+        else
+            log "   ℹ️  No standard important files found"
         fi
         
         # Create detailed audit record
-        log "📝 Creating audit record..."
+        log "📝 Creating comprehensive audit record..."
         cat > /tmp/audit/pre_purge_audit.json <<EOF
         {
           "module": "${_MODULE_NAME}",
@@ -327,7 +367,14 @@ steps:
           "status": "pre_purge_audit_complete",
           "initiated_by": "${_TRIGGERED_BY:-manual}",
           "git_repo": "${_GIT_REPO_URL:-none}",
-          "module_git_repo": "${_MODULE_GIT_REPO_URL:-none}"
+          "module_git_repo": "${_MODULE_GIT_REPO_URL:-none}",
+          "important_files": {
+            "deployment_complete": $$HAS_DEPLOYMENT_COMPLETE,
+            "state": $$HAS_STATE,
+            "output": $$HAS_OUTPUT,
+            "archives": $$HAS_ARCHIVE,
+            "archive_count": $$ARCHIVE_COUNT
+          }
         }
         EOF
         
@@ -367,51 +414,95 @@ steps:
         DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
         BACKUP_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/backups/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
         TIMESTAMP=$$(date +%Y%m%d-%H%M%S)
+        BACKUP_FULL_PATH="$$BACKUP_PATH-$$TIMESTAMP"
         
-        log "📊 Checking deployment size for backup..."
-        SIZE_INFO=$$(gsutil du -sh "$$DEPLOYMENT_PATH/" 2>/dev/null || echo "unknown")
-        log "   Size: $$SIZE_INFO"
+        log "📍 Source: $$DEPLOYMENT_PATH"
+        log "📍 Backup: $$BACKUP_FULL_PATH"
+        
+        # Get size from previous step
+        SIZE_INFO="unknown"
+        if [ -f /workspace/deployment_size.txt ]; then
+            SIZE_INFO=$$(cat /workspace/deployment_size.txt)
+        else
+            SIZE_INFO=$$(gsutil du -sh "$$DEPLOYMENT_PATH/" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
+        fi
+        log "📊 Deployment size: $$SIZE_INFO"
         
         # Create backup metadata
         cat > /tmp/backup_metadata.json <<EOF
         {
           "backup_created_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
           "original_path": "$$DEPLOYMENT_PATH",
-          "backup_path": "$$BACKUP_PATH-$$TIMESTAMP",
+          "backup_path": "$$BACKUP_FULL_PATH",
           "module": "${_MODULE_NAME}",
           "deployment_id": "${_DEPLOYMENT_ID}",
           "project_id": "${PROJECT_ID}",
           "build_id": "${BUILD_ID}",
           "size": "$$SIZE_INFO",
           "operation": "purge_backup",
-          "triggered_by": "${_TRIGGERED_BY:-manual}"
+          "triggered_by": "${_TRIGGERED_BY:-manual}",
+          "retention": "Check bucket lifecycle policy for automatic deletion"
         }
         EOF
         
-        log "📦 Creating backup copy (this may take a while)..."
+        log "📦 Creating backup copy..."
+        log "   This may take several minutes depending on size..."
         
-        # Copy deployment to backup location
-        if gsutil -m cp -r "$$DEPLOYMENT_PATH" "$$BACKUP_PATH-$$TIMESTAMP/" 2>&1 | tee /workspace/backup_output.txt; then
+        # Copy deployment to backup location with progress
+        if gsutil -m cp -r "$$DEPLOYMENT_PATH" "$$BACKUP_FULL_PATH/" 2>&1 | tee /workspace/backup_output.txt; then
             log "✅ Backup created successfully"
             
-            # Upload backup metadata
-            if gsutil cp /tmp/backup_metadata.json "$$BACKUP_PATH-$$TIMESTAMP/backup_metadata.json" 2>/dev/null; then
-                log "✅ Backup metadata uploaded"
+            # Verify backup
+            log "🔍 Verifying backup..."
+            if gsutil ls "$$BACKUP_FULL_PATH/" > /dev/null 2>&1; then
+                BACKUP_SIZE=$$(gsutil du -sh "$$BACKUP_FULL_PATH/" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
+                log "✅ Backup verified"
+                log "   Backup size: $$BACKUP_SIZE"
+                
+                # Upload backup metadata
+                if gsutil cp /tmp/backup_metadata.json "$$BACKUP_FULL_PATH/backup_metadata.json" 2>/dev/null; then
+                    log "✅ Backup metadata uploaded"
+                else
+                    log "⚠️  Metadata upload failed (non-critical)"
+                fi
+                
+                log "📍 Backup location: $$BACKUP_FULL_PATH/"
+                echo "success" > /workspace/backup_status.txt
+                echo "$$BACKUP_FULL_PATH/" > /workspace/backup_location.txt
+                
+                # Create backup index for easy reference
+                cat > /tmp/backup_index.json <<EOF
+        {
+          "deployment_id": "${_DEPLOYMENT_ID}",
+          "module": "${_MODULE_NAME}",
+          "backup_timestamp": "$$TIMESTAMP",
+          "backup_path": "$$BACKUP_FULL_PATH/",
+          "original_deployment": "$$DEPLOYMENT_PATH",
+          "size": "$$BACKUP_SIZE",
+          "operation": "purge"
+        }
+        EOF
+                
+                # Upload to backups index
+                gsutil cp /tmp/backup_index.json "gs://${_DEPLOYMENT_BUCKET_ID}/backups/purge/${_MODULE_NAME}/index-${_DEPLOYMENT_ID}-$$TIMESTAMP.json" 2>/dev/null || log "⚠️  Could not create backup index"
+                
             else
-                log "⚠️  Metadata upload failed"
+                log "❌ Backup verification failed"
+                echo "failed" > /workspace/backup_status.txt
             fi
-            
-            log "📍 Backup location: $$BACKUP_PATH-$$TIMESTAMP/"
-            echo "success" > /workspace/backup_status.txt
-            echo "$$BACKUP_PATH-$$TIMESTAMP/" > /workspace/backup_location.txt
         else
             log "❌ Backup creation failed"
             log "⚠️  Continuing with purge (use caution!)"
+            log ""
+            log "📋 Backup error output:"
+            cat /workspace/backup_output.txt | tail -20 | sed 's/^/   /'
             echo "failed" > /workspace/backup_status.txt
             
             # Don't fail the build, just warn
             log "⚠️  WARNING: Proceeding without backup"
         fi
+        
+        log "✅ Backup step completed"
 
   # ============================================
   # STEP 4: Delete Cloud Storage Deployment Folder
@@ -444,12 +535,18 @@ steps:
 
         DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
         
-        log "🔍 Final check before deletion..."
+        log "🔍 Final verification before deletion..."
         if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
-            log "📁 Confirmed deployment folder exists: $$DEPLOYMENT_PATH"
+            log "📁 Confirmed deployment folder exists"
+            log "   Path: $$DEPLOYMENT_PATH"
             
-            # Calculate size before deletion
-            FOLDER_SIZE=$$(gsutil du -sh "$$DEPLOYMENT_PATH" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
+            # Get size from previous step
+            FOLDER_SIZE="unknown"
+            if [ -f /workspace/deployment_size.txt ]; then
+                FOLDER_SIZE=$$(cat /workspace/deployment_size.txt)
+            else
+                FOLDER_SIZE=$$(gsutil du -sh "$$DEPLOYMENT_PATH" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
+            fi
             log "📊 Total size to delete: $$FOLDER_SIZE"
             
             # Show backup status
@@ -460,29 +557,39 @@ steps:
             
             if [ "$$BACKUP_STATUS" = "success" ]; then
                 log "✅ Backup available - safe to proceed"
+                if [ -f /workspace/backup_location.txt ]; then
+                    BACKUP_LOC=$$(cat /workspace/backup_location.txt)
+                    log "📍 Backup: $$BACKUP_LOC"
+                fi
             else
                 log "⚠️  WARNING: No backup available!"
+                log "⚠️  Data will be permanently deleted"
                 log "⚠️  Proceeding with deletion in 5 seconds..."
+                log "   (Cancel now if this is a mistake)"
                 sleep 5
             fi
             
             # Remove with retry logic
             log "🗑️  Removing deployment folder..."
+            log "   Started: $$(date)"
             
             MAX_RETRIES=3
             RETRY_COUNT=0
             SUCCESS=false
             
             while [ $$RETRY_COUNT -lt $$MAX_RETRIES ]; do
-                log "   Attempt $$((RETRY_COUNT + 1)) of $$MAX_RETRIES..."
+                log "   Deletion attempt $$((RETRY_COUNT + 1)) of $$MAX_RETRIES..."
                 
                 if gsutil -m rm -r "$$DEPLOYMENT_PATH" 2>&1 | tee /workspace/delete_output_$$RETRY_COUNT.txt; then
                     SUCCESS=true
                     break
                 else
+                    EXIT_CODE=$$?
+                    log "   ❌ Attempt failed (exit code: $$EXIT_CODE)"
                     RETRY_COUNT=$$((RETRY_COUNT + 1))
+                    
                     if [ $$RETRY_COUNT -lt $$MAX_RETRIES ]; then
-                        log "⚠️  Retry after 5 seconds..."
+                        log "   ⏳ Waiting 5 seconds before retry..."
                         sleep 5
                     fi
                 fi
@@ -490,20 +597,23 @@ steps:
             
             if [ "$$SUCCESS" = true ]; then
                 log "✅ Successfully removed deployment folder from Cloud Storage"
+                log "   Completed: $$(date)"
                 echo "success" > /workspace/purge_status.txt
                 
-                # Verify deletion
+                # Verify deletion with eventual consistency handling
                 log "🔍 Verifying deletion..."
-                sleep 2  # Brief delay for eventual consistency
+                sleep 3  # Wait for eventual consistency
                 
                 if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
-                    log "⚠️  WARNING: Deployment folder still exists after deletion attempt"
+                    log "⚠️  WARNING: Deployment folder still visible"
                     log "   This may be due to eventual consistency"
                     log "   Waiting 5 more seconds..."
                     sleep 5
                     
                     if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
-                        log "❌ ERROR: Deployment folder still exists"
+                        log "❌ ERROR: Deployment folder still exists after deletion"
+                        log "   Path: $$DEPLOYMENT_PATH"
+                        log "   Manual verification required"
                         echo "partial" > /workspace/purge_status.txt
                     else
                         log "✅ Verified: Deployment folder has been completely removed"
@@ -513,8 +623,15 @@ steps:
                 fi
             else
                 log "❌ ERROR: Failed to remove deployment folder after $$MAX_RETRIES attempts"
+                log ""
+                log "📋 Last error output:"
+                cat /workspace/delete_output_$$((RETRY_COUNT - 1)).txt | tail -30 | sed 's/^/   /'
+                log ""
                 log "   Path: $$DEPLOYMENT_PATH"
                 log "   This may require manual cleanup"
+                log ""
+                log "💡 Manual cleanup command:"
+                log "   gsutil -m rm -r $$DEPLOYMENT_PATH"
                 echo "failed" > /workspace/purge_status.txt
                 exit 1
             fi
@@ -554,16 +671,25 @@ steps:
             UPLOAD_COUNT=0
             FAIL_COUNT=0
             
+            log "📋 Uploading audit files..."
+            
             for file in /tmp/audit/*; do
                 if [ -f "$$file" ]; then
                     FILENAME=$$(basename $$file)
-                    log "   Uploading $$FILENAME..."
                     
-                    if gsutil cp "$$file" "$$AUDIT_BASE/$$FILENAME" 2>/dev/null; then
-                        log "   ✅ Uploaded $$FILENAME"
+                    # Determine content type
+                    CONTENT_TYPE="application/octet-stream"
+                    if [[ "$$FILENAME" == *.json ]]; then
+                        CONTENT_TYPE="application/json"
+                    elif [[ "$$FILENAME" == *.txt ]]; then
+                        CONTENT_TYPE="text/plain"
+                    fi
+                    
+                    if gsutil -h "Content-Type:$$CONTENT_TYPE" cp "$$file" "$$AUDIT_BASE/$$FILENAME" 2>/dev/null; then
+                        log "   ✅ $$FILENAME"
                         UPLOAD_COUNT=$$((UPLOAD_COUNT + 1))
                     else
-                        log "   ❌ Failed to upload $$FILENAME"
+                        log "   ❌ $$FILENAME (failed)"
                         FAIL_COUNT=$$((FAIL_COUNT + 1))
                     fi
                 fi
@@ -578,13 +704,12 @@ steps:
             log "⚠️  No audit directory found"
         fi
         
-        # Get purge status
+        # Get all statuses
         PURGE_STATUS="unknown"
         if [ -f /workspace/purge_status.txt ]; then
             PURGE_STATUS=$$(cat /workspace/purge_status.txt)
         fi
         
-        # Get backup status
         BACKUP_STATUS="unknown"
         BACKUP_LOCATION=""
         if [ -f /workspace/backup_status.txt ]; then
@@ -594,7 +719,17 @@ steps:
             BACKUP_LOCATION=$$(cat /workspace/backup_location.txt)
         fi
         
-        # Create purge completion marker
+        DEPLOYMENT_EXISTS="unknown"
+        if [ -f /workspace/deployment_exists.txt ]; then
+            DEPLOYMENT_EXISTS=$$(cat /workspace/deployment_exists.txt)
+        fi
+        
+        FOLDER_SIZE="unknown"
+        if [ -f /workspace/deployment_size.txt ]; then
+            FOLDER_SIZE=$$(cat /workspace/deployment_size.txt)
+        fi
+        
+        # Create comprehensive purge completion marker
         log "📝 Creating purge completion marker..."
         
         cat > /tmp/purge_complete.json <<EOF
@@ -608,6 +743,8 @@ steps:
           "path_removed": "deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/",
           "operation": "purge",
           "status": "$$PURGE_STATUS",
+          "deployment_existed": "$$DEPLOYMENT_EXISTS",
+          "folder_size": "$$FOLDER_SIZE",
           "backup_status": "$$BACKUP_STATUS",
           "backup_location": "$$BACKUP_LOCATION",
           "audit_location": "$$AUDIT_BASE/",
@@ -617,13 +754,14 @@ steps:
         }
         EOF
         
-        if gsutil cp /tmp/purge_complete.json "$$AUDIT_BASE/purge_complete.json" 2>/dev/null; then
+        if gsutil -h "Content-Type:application/json" cp /tmp/purge_complete.json "$$AUDIT_BASE/purge_complete.json" 2>/dev/null; then
             log "✅ Completion marker uploaded"
         else
             log "⚠️  Failed to upload completion marker"
         fi
         
-        log "✅ Audit files uploaded to permanent location"
+        log "✅ All audit files uploaded to permanent location"
+        log "📍 Audit location: $$AUDIT_BASE/"
 
   # ============================================
   # STEP 6: Purge Summary
@@ -638,7 +776,7 @@ steps:
             echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
-        # Determine operation outcome
+        # Get all statuses
         PURGE_STATUS="unknown"
         if [ -f /workspace/purge_status.txt ]; then
             PURGE_STATUS=$$(cat /workspace/purge_status.txt)
@@ -654,6 +792,12 @@ steps:
             DEPLOYMENT_EXISTS=$$(cat /workspace/deployment_exists.txt)
         fi
         
+        FOLDER_SIZE="unknown"
+        if [ -f /workspace/deployment_size.txt ]; then
+            FOLDER_SIZE=$$(cat /workspace/deployment_size.txt)
+        fi
+        
+        echo ""
         echo "========================================="
         if [ "$$PURGE_STATUS" = "success" ]; then
             log "🎉 CLOUD STORAGE PURGE COMPLETED SUCCESSFULLY"
@@ -676,6 +820,7 @@ steps:
         echo "========================================="
         echo "Operation Status:"
         echo "  • Deployment Existed: $$DEPLOYMENT_EXISTS"
+        echo "  • Folder Size: $$FOLDER_SIZE"
         echo "  • Backup Status: $$BACKUP_STATUS"
         echo "  • Purge Status: $$PURGE_STATUS"
         echo "========================================="
@@ -686,6 +831,9 @@ steps:
             echo "  • Backup created before purge"
             echo "  • Location: $$BACKUP_LOCATION"
             echo "  • Retention: Check bucket lifecycle policy"
+            echo ""
+            echo "  Recovery command (if needed):"
+            echo "  gsutil -m cp -r $$BACKUP_LOCATION gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
             echo "========================================="
         fi
         
@@ -697,18 +845,19 @@ steps:
         echo "  • Completion Marker: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/purge_complete.json"
         
         if [ "$$BACKUP_STATUS" = "success" ]; then
-            echo "  • Backup: gs://${_DEPLOYMENT_BUCKET_ID}/backups/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}-*/"
+            echo "  • Full Backup: gs://${_DEPLOYMENT_BUCKET_ID}/backups/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}-*/"
         fi
         echo "========================================="
         
         if [ "$$PURGE_STATUS" = "success" ]; then
-            log "✅ Cloud Storage purge successful"
+            log "✅ Cloud Storage purge successful - deployment completely removed"
         elif [ "$$PURGE_STATUS" = "skipped" ] || [ "$$PURGE_STATUS" = "not_found" ]; then
-            log "ℹ️  Purge operation skipped"
+            log "ℹ️  Purge operation skipped - deployment did not exist"
         else
-            log "⚠️  Purge completed with warnings"
+            log "⚠️  Purge completed with warnings - review audit files"
         fi
         echo "========================================="
+        echo ""
 
   # ============================================
   # CLEANUP STEPS (Always Execute)
@@ -731,6 +880,7 @@ steps:
             echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
+        echo ""
         echo "========================================"
         log "🧹 CLEANUP: Releasing purge lock"
         echo "========================================"
@@ -838,6 +988,12 @@ steps:
             DEPLOYMENT_EXISTS=$$(cat /workspace/deployment_exists.txt)
         fi
         
+        # Get folder size
+        FOLDER_SIZE="unknown"
+        if [ -f /workspace/deployment_size.txt ]; then
+            FOLDER_SIZE=$$(cat /workspace/deployment_size.txt)
+        fi
+        
         # Create final metadata file
         cat > /tmp/final_build_metadata.json <<EOF
         {
@@ -851,6 +1007,7 @@ steps:
           "backup_status": "$$BACKUP_STATUS",
           "backup_location": "$$BACKUP_LOCATION",
           "deployment_existed": "$$DEPLOYMENT_EXISTS",
+          "folder_size": "$$FOLDER_SIZE",
           "completed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
           "triggered_by": "${_TRIGGERED_BY:-manual}"
         }
@@ -888,6 +1045,7 @@ steps:
             echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
+        echo ""
         echo "========================================"
         log "📊 FINAL PURGE STATUS"
         echo "========================================"
@@ -920,6 +1078,11 @@ steps:
             echo "Deployment Existed: Unknown"
         fi
         
+        if [ -f /workspace/deployment_size.txt ]; then
+            FOLDER_SIZE=$$(cat /workspace/deployment_size.txt)
+            echo "Folder Size: $$FOLDER_SIZE"
+        fi
+        
         # Check if lock was released
         LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
         if gsutil ls "$$LOCK_PATH" 2>/dev/null; then
@@ -935,7 +1098,8 @@ steps:
         if gsutil ls "$$DEPLOYMENT_PATH" 2>/dev/null; then
             log "⚠️  WARNING: Deployment folder still exists!"
             log "   Path: $$DEPLOYMENT_PATH"
-            log "   Manual cleanup may be required"
+            log "   Manual cleanup may be required:"
+            log "   gsutil -m rm -r $$DEPLOYMENT_PATH"
         else
             log "✅ Deployment folder successfully removed or never existed"
         fi
@@ -943,6 +1107,7 @@ steps:
         echo "========================================"
         log "🏁 Cleanup completed"
         echo "========================================"
+        echo ""
         
         exit 0  # Always succeed
 
