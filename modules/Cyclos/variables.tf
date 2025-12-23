@@ -114,33 +114,6 @@ variable "application_download_fileid" {
   default     = ""
 }
 
-# GROUP 6: CICD
-
-variable "application_git_token" {
-  description = "Specify a github classic token with following privileges needed to configure the code repository: delete_repo, read:org, repo. {{UIMeta group=4 order=602 updatesafe}}"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "application_git_usernames" {
-  description = "Specify the usernames to add as collaborators to the git repo. {{UIMeta group=4 order=602 updatesafe}}"
-  type        = set(string)
-  default     = []
-}
-
-variable "application_git_installation_id" {
-  description = "Specify the application installation ID. {{UIMeta group=0 order=603 updatesafe}}"
-  type        = string
-  default     = "38735316"
-}
-
-variable "application_git_organization" {
-  description = "Specify the github organization. {{UIMeta group=0 order=604 updatesafe}}"
-  type        = string
-  default     = "techequitycloud"
-}
-
 # GROUP 7: Tenant
 
 variable "tenant_deployment_id" {
@@ -151,7 +124,7 @@ variable "tenant_deployment_id" {
 variable "configure_environment" {
   description = "Select to configure environment. Code is committed to the branch in the github repository. {{UIMeta group=3 order=703 updatesafe }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 # GROUP 8: Tenant
@@ -159,7 +132,7 @@ variable "configure_environment" {
 variable "configure_monitoring" {
   description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring. {{UIMeta group=5 order=805 updatesafe}}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "application_backup_fileid" {
