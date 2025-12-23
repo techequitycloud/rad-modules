@@ -171,5 +171,5 @@ variable "application_backup_schedule" {
 variable "application_backup_fileid" {
   description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup file during deployment. {{UIMeta group=0 order=808}}"
   type        = string
-  default     = "1jolaJFFU8-qMUgI8XOfGNBHDLFYrJQQT"
+  default     = ""
 }
