@@ -139,7 +139,13 @@ variable "configure_environment" {
 # GROUP 8: Tenant
 
 variable "configure_monitoring" {
-  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring for NFS virtual machine. {{UIMeta group=5 order=805 updatesafe}}"
+  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring for NFS virtual machine. {{UIMeta group=0 order=805 updatesafe}}"
   type        = bool
   default     = true
+}
+
+variable "application_backup_fileid" {
+  description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup files during deployment. {{UIMeta group=0 order=808 updatesafe}}"
+  type        = string
+  default     = "1nitol1S9hdcjf7PpHvsRl3ZDwhKYlzF2"
 }
