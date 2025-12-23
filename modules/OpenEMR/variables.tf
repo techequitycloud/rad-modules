@@ -23,7 +23,7 @@ variable "module_description" {
 variable "module_dependency" {
   description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=102 }}"
   type        = list(string)
-  default     = ["GCP Project","GCP Services"]
+  default     = ["GCP_Services"]
 }
 
 variable "module_services" {
@@ -63,7 +63,7 @@ variable "deployment_id" {
 }
 
 variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
+  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=102 updatesafe }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
@@ -77,7 +77,7 @@ variable "trusted_users" {
 # GROUP 2: Application Project
 
 variable "existing_project_id" {
-  description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
+  description = "Enter the project ID of the destination project. {{UIMeta group=1 order=200 updatesafe }}"
   type        = string
 }
 
@@ -123,70 +123,23 @@ variable "application_version" {
   default     = "7.0.3"
 }
 
-# GROUP 6: CICD
-
-
-variable "application_git_token" {
-  description = "Specify a github classic token with following privileges needed to configure the code repository: delete_repo, read:org, repo. {{UIMeta group=4 order=602 updatesafe}}"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
 # GROUP 7: Tenant
 
 variable "tenant_deployment_id" {
-  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=3 order=701 updatesafe}}"
+  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=1 order=701 updatesafe}}"
   type        = string
 }
 
 variable "configure_environment" {
-  description = "Select to configure environment. {{UIMeta group=3 order=703 updatesafe }}"
+  description = "Select to configure environment. {{UIMeta group=0 order=703 updatesafe }}"
   type        = bool
-  default     = false
+  default     = true
 }
-
 
 # GROUP 8: Tenant
 
 variable "configure_monitoring" {
   description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring for NFS virtual machine. {{UIMeta group=5 order=805 updatesafe}}"
   type        = bool
-  default     = false
-}
-
-variable "configure_backups" {
-  description = "Select to configure backups. {{UIMeta group=6 order=806 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "application_backup_schedule" {
-  description = "Enter the application backup schedule in cron format. This is used to configure the Cloud Scheduler cron job. {{UIMeta group=6 order=807 updatesafe }}"
-  type        = string
-  default     = "0 0 * * *"
-}
-
-variable "application_backup_fileid" {
-  description = "Enter the application backup file ID. {{UIMeta group=6 order=808 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "configure_application_security" {
-  description = "Select this checkbox to configure web application security.  Configures a global load balancer with Cloud Armor web application security. {{UIMeta group=0 order=809 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "application_secure_path" {
-  description = "Enter the application secure path. Cloud Armour is configured to restrict traffic to this path. {{UIMeta group=0 order=810 updatesafe}}"
-  type        = string
-  default     = ""
-}
-
-variable "application_authorized_network" {
-  description = "Enter the application authorized network. Cloud Armour is configured to allow traffic from this network. {{UIMeta group=0 order=812 updatesafe}}"
-  type        = set(string)
-  default     = []
+  default     = true
 }
