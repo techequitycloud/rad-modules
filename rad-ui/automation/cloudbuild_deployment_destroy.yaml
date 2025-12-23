@@ -78,24 +78,55 @@ steps:
         DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
         
         log "🔍 Checking deployment existence..."
+        log "   Path: $$DEPLOYMENT_PATH"
+        
         if gsutil ls "$$DEPLOYMENT_PATH/" > /dev/null 2>&1; then
             log "✅ Deployment found: $$DEPLOYMENT_PATH"
             echo "exists" > /workspace/deployment_exists.txt
             
-            # Check for deployment archive
+            # List all files in deployment
+            log "📋 Deployment structure:"
+            gsutil ls -r "$$DEPLOYMENT_PATH/" 2>/dev/null | head -20 | sed 's/^/   /'
+            
+            # Check for deployment archive with multiple strategies
+            log "🔍 Checking for deployment archives..."
+            
+            ARCHIVE_FOUND=false
+            
+            # Check for standard latest archive
             if gsutil ls "$$DEPLOYMENT_PATH/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
-                log "✅ Deployment archive found"
+                log "✅ Standard archive found: ${_MODULE_NAME}.tar.gz"
+                ARCHIVE_FOUND=true
+            fi
+            
+            # Check for timestamped final archives
+            if gsutil ls "$$DEPLOYMENT_PATH/files/${_MODULE_NAME}-final-*.tar.gz" > /dev/null 2>&1; then
+                FINAL_COUNT=$$(gsutil ls "$$DEPLOYMENT_PATH/files/${_MODULE_NAME}-final-*.tar.gz" 2>/dev/null | wc -l)
+                log "✅ Found $$FINAL_COUNT timestamped final archive(s)"
+                ARCHIVE_FOUND=true
+            fi
+            
+            # Check for initial archives
+            if gsutil ls "$$DEPLOYMENT_PATH/files/${_MODULE_NAME}-initial*.tar.gz" > /dev/null 2>&1; then
+                INITIAL_COUNT=$$(gsutil ls "$$DEPLOYMENT_PATH/files/${_MODULE_NAME}-initial*.tar.gz" 2>/dev/null | wc -l)
+                log "✅ Found $$INITIAL_COUNT initial archive(s)"
+                ARCHIVE_FOUND=true
+            fi
+            
+            if [ "$$ARCHIVE_FOUND" = true ]; then
                 echo "archive_exists" > /workspace/archive_status.txt
+                log "✅ At least one deployment archive found"
             else
-                log "⚠️  WARNING: Deployment archive not found"
-                log "   Expected: $$DEPLOYMENT_PATH/files/${_MODULE_NAME}.tar.gz"
+                log "⚠️  WARNING: No deployment archives found"
+                log "   Available files:"
+                gsutil ls "$$DEPLOYMENT_PATH/files/" 2>/dev/null | sed 's/^/   /' || log "   Could not list files"
                 echo "archive_missing" > /workspace/archive_status.txt
             fi
             
             # Get deployment info if available
             if gsutil cat "$$DEPLOYMENT_PATH/files/deployment_complete.json" > /tmp/deployment_info.json 2>/dev/null; then
                 log "📋 Deployment information:"
-                cat /tmp/deployment_info.json | grep -E '"deployed_at"|"status"|"build_id"' | sed 's/^/   /'
+                cat /tmp/deployment_info.json | grep -E '"deployed_at"|"status"|"build_id"|"archive"' | sed 's/^/   /'
             fi
         else
             log "⚠️  WARNING: Deployment not found"
@@ -136,6 +167,8 @@ steps:
         
         LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
         LOCK_FILE="/tmp/lock.json"
+        
+        log "📍 Lock path: $$LOCK_PATH"
         
         # Create lock file with metadata
         cat > $$LOCK_FILE <<EOF
@@ -189,7 +222,8 @@ steps:
             log "❌ ERROR: Could not acquire lock after $$MAX_WAIT seconds"
             log "   Another operation may be in progress"
             log "   Lock path: $$LOCK_PATH"
-            log "   If the lock is stale, manually delete it"
+            log "   If the lock is stale, manually delete it with:"
+            log "   gsutil rm $$LOCK_PATH"
             exit 1
         fi
         
@@ -233,75 +267,208 @@ steps:
             
         log "🔍 Checking for deployment files..."
         
-        # Check archive status
+        # Check archive status from previous step
         ARCHIVE_STATUS="archive_exists"
         if [ -f /workspace/archive_status.txt ]; then
             ARCHIVE_STATUS=$$(cat /workspace/archive_status.txt)
         fi
         
+        FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
+        
+        log "📍 Files path: $$FILES_PATH"
+        
         if [ "$$ARCHIVE_STATUS" = "archive_missing" ]; then
-            log "❌ ERROR: No deployment archive found!"
-            log "   Expected: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
-            log "   Cannot proceed with destroy without deployment files."
+            log "❌ ERROR: No deployment archive found in prerequisites check"
+            log "   Expected location: $$FILES_PATH/"
+            log "   Cannot proceed with destroy without deployment files"
             exit 1
         fi
         
-        log "📦 Downloading deployment files..."
+        log "📦 Downloading deployment files with fallback strategy..."
         
-        # Download deployment archive
-        if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" .; then
-            log "✅ Archive downloaded"
+        ARCHIVE_DOWNLOADED=false
+        ARCHIVE_FILE=""
+        
+        # Strategy 1: Try the standard latest archive name (preferred)
+        log "🔄 Strategy 1: Trying standard archive ${_MODULE_NAME}.tar.gz..."
+        if gsutil cp "$$FILES_PATH/${_MODULE_NAME}.tar.gz" ./${_MODULE_NAME}.tar.gz 2>/dev/null; then
+            log "✅ Downloaded standard archive"
+            ARCHIVE_DOWNLOADED=true
+            ARCHIVE_FILE="${_MODULE_NAME}.tar.gz"
         else
-            log "❌ ERROR: Failed to download archive"
+            log "⚠️  Standard archive not found, trying alternatives..."
+            
+            # Strategy 2: Try to find the most recent final archive
+            log "🔄 Strategy 2: Searching for timestamped final archives..."
+            LATEST_FINAL=$$(gsutil ls "$$FILES_PATH/${_MODULE_NAME}-final-*.tar.gz" 2>/dev/null | sort -r | head -n 1 || echo "")
+            
+            if [ -n "$$LATEST_FINAL" ]; then
+                log "📦 Found latest final archive: $$LATEST_FINAL"
+                ARCHIVE_NAME=$$(basename "$$LATEST_FINAL")
+                
+                if gsutil cp "$$LATEST_FINAL" ./$$ARCHIVE_NAME 2>/dev/null; then
+                    log "✅ Downloaded timestamped final archive"
+                    ARCHIVE_DOWNLOADED=true
+                    ARCHIVE_FILE="$$ARCHIVE_NAME"
+                else
+                    log "❌ Failed to download: $$LATEST_FINAL"
+                fi
+            else
+                log "⚠️  No final archives found"
+            fi
+        fi
+        
+        # Strategy 3: Try initial archive as last resort
+        if [ "$$ARCHIVE_DOWNLOADED" = false ]; then
+            log "🔄 Strategy 3: Trying initial deployment archives..."
+            LATEST_INITIAL=$$(gsutil ls "$$FILES_PATH/${_MODULE_NAME}-initial*.tar.gz" 2>/dev/null | sort -r | head -n 1 || echo "")
+            
+            if [ -n "$$LATEST_INITIAL" ]; then
+                log "📦 Found initial archive: $$LATEST_INITIAL"
+                ARCHIVE_NAME=$$(basename "$$LATEST_INITIAL")
+                
+                if gsutil cp "$$LATEST_INITIAL" ./$$ARCHIVE_NAME 2>/dev/null; then
+                    log "✅ Downloaded initial archive"
+                    ARCHIVE_DOWNLOADED=true
+                    ARCHIVE_FILE="$$ARCHIVE_NAME"
+                    log "⚠️  WARNING: Using initial archive - may not reflect latest deployed state"
+                    log "   This could cause issues if infrastructure was modified after initial deployment"
+                else
+                    log "❌ Failed to download: $$LATEST_INITIAL"
+                fi
+            else
+                log "⚠️  No initial archives found"
+            fi
+        fi
+        
+        # Final check - exit if no archive was downloaded
+        if [ "$$ARCHIVE_DOWNLOADED" = false ]; then
+            log "❌ ERROR: Could not download any deployment archive"
+            log ""
+            log "📋 Listing all files in deployment folder:"
+            gsutil ls -lh "$$FILES_PATH/" 2>/dev/null || log "   Could not list files - check permissions"
+            log ""
+            log "💡 Troubleshooting steps:"
+            log "   1. Verify deployment completed: gsutil cat $$FILES_PATH/deployment_complete.json"
+            log "   2. Check file permissions: gsutil iam get gs://${_DEPLOYMENT_BUCKET_ID}"
+            log "   3. List all files: gsutil ls -r $$FILES_PATH/"
+            log "   4. Review create pipeline logs for upload errors"
+            log "   5. Check if archive was uploaded with different name"
+            log ""
+            log "🔧 Manual recovery:"
+            log "   If you have the terraform files locally, you can:"
+            log "   1. Create archive: tar -czf ${_MODULE_NAME}.tar.gz -C /path/to/module ."
+            log "   2. Upload: gsutil cp ${_MODULE_NAME}.tar.gz $$FILES_PATH/"
+            log "   3. Re-run destroy"
+            exit 1
+        fi
+        
+        log "✅ Archive downloaded: $$ARCHIVE_FILE"
+        
+        # Verify archive integrity before extraction
+        log "🔍 Verifying archive integrity..."
+        if tar -tzf "$$ARCHIVE_FILE" > /dev/null 2>&1; then
+            FILE_LIST_COUNT=$$(tar -tzf "$$ARCHIVE_FILE" | wc -l)
+            log "✅ Archive is valid (contains $$FILE_LIST_COUNT entries)"
+        else
+            log "❌ ERROR: Archive is corrupted or invalid"
+            log "   Archive: $$ARCHIVE_FILE"
+            log "   Size: $$(du -h $$ARCHIVE_FILE | cut -f1)"
             exit 1
         fi
         
         # Extract the module archive
-        log "📂 Extracting deployment files..."
-        if tar -xzf "${_MODULE_NAME}.tar.gz"; then
-            log "✅ Files extracted"
+        log "📂 Extracting deployment files from $$ARCHIVE_FILE..."
+        if tar -xzf "$$ARCHIVE_FILE" 2>&1 | tee /tmp/extract_output.txt; then
+            log "✅ Files extracted successfully"
             
             # Count extracted files
-            FILE_COUNT=$$(find . -type f | wc -l)
+            FILE_COUNT=$$(find . -type f ! -name "*.tar.gz" | wc -l)
             log "📊 Extracted $$FILE_COUNT files"
+            
+            # Show extraction summary
+            if [ -s /tmp/extract_output.txt ]; then
+                log "⚠️  Extraction warnings:"
+                cat /tmp/extract_output.txt | sed 's/^/   /'
+            fi
         else
             log "❌ ERROR: Failed to extract archive"
+            log "   This usually indicates:"
+            log "   • Archive is corrupted"
+            log "   • Insufficient disk space"
+            log "   • Permission issues"
+            cat /tmp/extract_output.txt | sed 's/^/   /'
             exit 1
         fi
         
-        rm -f "${_MODULE_NAME}.tar.gz"
+        # Clean up archive file to save space
+        rm -f "$$ARCHIVE_FILE"
+        log "🧹 Cleaned up archive file"
         
         log "📋 Workspace contents:"
-        ls -la . | head -20
+        ls -la . | head -30
         
         # Verify critical files exist
-        log "🔍 Verifying critical files..."
+        log "🔍 Verifying critical Terraform files..."
         
-        MISSING_FILES=0
+        CRITICAL_MISSING=0
         
+        # Check for backend configuration
         if [ ! -f "backend.tf" ]; then
-            log "⚠️  WARNING: backend.tf not found"
-            MISSING_FILES=1
+            log "❌ CRITICAL: backend.tf not found"
+            CRITICAL_MISSING=1
         else
             log "✅ backend.tf found"
+            log "   Backend configuration:"
+            grep -E "bucket|prefix" backend.tf | sed 's/^/   /' || log "   Could not parse backend config"
         fi
         
+        # Check for tfvars
         if [ ! -f "terraform.tfvars.json" ]; then
             log "⚠️  WARNING: terraform.tfvars.json not found"
+            log "   Destroy may still work if variables have defaults"
         else
             log "✅ terraform.tfvars.json found"
+            # Count variables without showing values
+            if command -v jq >/dev/null 2>&1; then
+                VAR_COUNT=$$(jq 'keys | length' terraform.tfvars.json 2>/dev/null || echo "unknown")
+                log "   Contains $$VAR_COUNT variables"
+            fi
         fi
         
-        # Count .tf files
-        TF_COUNT=$$(find . -name "*.tf" -type f | wc -l)
-        log "📊 Found $$TF_COUNT Terraform files"
+        # Count and list .tf files
+        TF_COUNT=$$(find . -maxdepth 1 -name "*.tf" -type f | wc -l)
+        log "📊 Found $$TF_COUNT Terraform configuration files"
         
-        if [ $$TF_COUNT -eq 0 ]; then
-            log "❌ ERROR: No Terraform files found"
+        if [ $$TF_COUNT -gt 0 ]; then
+            log "📋 Terraform files:"
+            find . -maxdepth 1 -name "*.tf" -type f -exec basename {} \; | sort | sed 's/^/   • /'
+        else
+            log "❌ CRITICAL: No Terraform (.tf) files found"
+            CRITICAL_MISSING=1
+        fi
+        
+        # Check for .terraform directory (shouldn't exist yet)
+        if [ -d ".terraform" ]; then
+            log "⚠️  WARNING: .terraform directory already exists, cleaning..."
+            rm -rf .terraform .terraform.lock.hcl
+        fi
+        
+        # Exit if critical files are missing
+        if [ $$CRITICAL_MISSING -eq 1 ]; then
+            log "❌ ERROR: Critical files missing - cannot proceed with destroy"
+            log ""
+            log "📋 Directory structure:"
+            find . -type f | head -20 | sed 's/^/   /'
             exit 1
         fi
         
-        log "✅ Destroy environment prepared"
+        # Save archive info for audit
+        echo "$$ARCHIVE_FILE" > /workspace/used_archive.txt
+        
+        log "✅ Destroy environment prepared successfully"
+        log "📍 Working directory: $$(pwd)"
+        log "📦 Used archive: $$ARCHIVE_FILE"
     dir: /workspace
 
   # ============================================
@@ -325,27 +492,66 @@ steps:
         log "📋 Terraform/Tofu version:"
         tofu version || terraform version || log "Could not determine version"
         
-        # Initialize with reconfigure
+        # Show current directory
+        log "📍 Current directory: $$(pwd)"
+        log "📋 Files in directory:"
+        ls -la | head -20
+        
+        # Initialize with reconfigure to ensure backend is properly configured
+        log "🔄 Running terraform init..."
         if tofu init -reconfigure -no-color 2>&1 | tee /workspace/init_output.txt; then
             log "✅ Initialization successful"
         else
             log "❌ Initialization failed"
+            log ""
             log "📋 Initialization output:"
             cat /workspace/init_output.txt
+            log ""
+            log "💡 Common causes:"
+            log "   • Backend configuration incorrect"
+            log "   • State bucket inaccessible"
+            log "   • Provider version conflicts"
+            log "   • Network connectivity issues"
+            exit 1
+        fi
+        
+        # Verify .terraform directory was created
+        if [ -d ".terraform" ]; then
+            log "✅ .terraform directory created"
+            
+            # Show providers
+            if [ -f ".terraform.lock.hcl" ]; then
+                log "📋 Provider lock file:"
+                grep -A 2 "provider" .terraform.lock.hcl | head -15 | sed 's/^/   /'
+            fi
+        else
+            log "❌ ERROR: .terraform directory not created"
             exit 1
         fi
         
         log "🔍 Validating current state..."
         
-        # Create audit directory
+        # Create audit directory for state snapshots
         mkdir -p /workspace/audit
         
         # Check if state file exists and has resources
+        STATE_EXISTS=false
+        RESOURCE_COUNT=0
+        
         if tofu show -json > /tmp/current_state.json 2>&1; then
-            RESOURCE_COUNT=$$(tofu show -json 2>/dev/null | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "0")
+            STATE_EXISTS=true
+            
+            # Try to count resources
+            if command -v jq >/dev/null 2>&1; then
+                RESOURCE_COUNT=$$(jq -r '.values.root_module.resources // [] | length' /tmp/current_state.json 2>/dev/null || echo "0")
+            else
+                # Fallback without jq
+                RESOURCE_COUNT=$$(tofu state list 2>/dev/null | wc -l || echo "0")
+            fi
+            
             log "📊 Found $$RESOURCE_COUNT resources in state"
             
-            if [ "$$RESOURCE_COUNT" = "0" ]; then
+            if [ "$$RESOURCE_COUNT" = "0" ] || [ $$RESOURCE_COUNT -eq 0 ]; then
                 log "ℹ️  State is empty - no resources to destroy"
                 echo "empty" > /workspace/state_status.txt
             else
@@ -353,26 +559,58 @@ steps:
                 echo "has_resources" > /workspace/state_status.txt
                 echo "$$RESOURCE_COUNT" > /workspace/resource_count.txt
                 
-                # Create pre-destroy audit
+                # Create pre-destroy audit record
                 log "📝 Creating pre-destroy audit record..."
                 
-                cp /tmp/current_state.json /workspace/audit/pre_destroy_state.json 2>/dev/null || echo "{}" > /workspace/audit/pre_destroy_state.json
+                # Copy full state
+                cp /tmp/current_state.json /workspace/audit/pre_destroy_state.json 2>/dev/null || echo '{"error": "Could not copy state"}' > /workspace/audit/pre_destroy_state.json
                 
-                tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' > /workspace/audit/pre_destroy_resources.txt 2>/dev/null || echo "No resources found" > /workspace/audit/pre_destroy_resources.txt
+                # Create human-readable resource list
+                log "📋 Creating resource inventory..."
+                tofu state list 2>/dev/null > /workspace/audit/pre_destroy_resources.txt || echo "Could not list resources" > /workspace/audit/pre_destroy_resources.txt
+                
+                # Create detailed resource list with types
+                if command -v jq >/dev/null 2>&1; then
+                    jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' /tmp/current_state.json 2>/dev/null > /workspace/audit/pre_destroy_resources_detailed.txt || echo "Could not create detailed list" > /workspace/audit/pre_destroy_resources_detailed.txt
+                fi
                 
                 log "✅ Pre-destroy audit completed"
-                log "⚠️  Resources to be destroyed:"
+                log ""
+                log "⚠️  Resources to be DESTROYED:"
                 cat /workspace/audit/pre_destroy_resources.txt | head -20 | sed 's/^/   • /'
                 
                 if [ $$RESOURCE_COUNT -gt 20 ]; then
-                    log "   ... and $$((RESOURCE_COUNT - 20)) more"
+                    log "   ... and $$((RESOURCE_COUNT - 20)) more resources"
                 fi
+                log ""
             fi
         else
-            log "⚠️  No state file found or state is empty"
+            log "⚠️  No state file found or state is inaccessible"
+            log "   This could mean:"
+            log "   • Infrastructure was never deployed"
+            log "   • State was manually deleted"
+            log "   • Backend configuration is incorrect"
+            log "   • State bucket is inaccessible"
+            
             echo "no_state" > /workspace/state_status.txt
-            echo '{"message": "No state found", "timestamp": "'$$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /workspace/audit/pre_destroy_state.json
+            
+            # Create empty audit record
+            cat > /workspace/audit/pre_destroy_state.json <<EOF
+        {
+          "message": "No state found",
+          "timestamp": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "deployment_id": "${_DEPLOYMENT_ID}",
+          "module": "${_MODULE_NAME}"
+        }
+        EOF
         fi
+        
+        # Upload state path for reference
+        STATE_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/state"
+        echo "$$STATE_PATH" > /workspace/state_path.txt
+        log "📍 State location: $$STATE_PATH"
+        
+        log "✅ State validation completed"
         
     dir: /workspace/modules/${_MODULE_NAME}
 
@@ -408,19 +646,24 @@ steps:
         DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
         BACKUP_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/backups/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
         TIMESTAMP=$$(date +%Y%m%d-%H%M%S)
+        BACKUP_FULL_PATH="$$BACKUP_PATH-$$TIMESTAMP"
+        
+        log "📍 Source: $$DEPLOYMENT_PATH"
+        log "📍 Backup: $$BACKUP_FULL_PATH"
         
         log "📊 Calculating deployment size..."
-        SIZE_INFO=$$(gsutil du -sh "$$DEPLOYMENT_PATH/" 2>/dev/null || echo "unknown")
-        log "   Size: $$SIZE_INFO"
+        SIZE_INFO=$$(gsutil du -sh "$$DEPLOYMENT_PATH/" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
+        log "   Total size: $$SIZE_INFO"
         
-        # Create backup metadata
+        # Get resource count
         RESOURCE_COUNT=$$(cat /workspace/resource_count.txt 2>/dev/null || echo "0")
         
+        # Create backup metadata
         cat > /tmp/backup_metadata.json <<EOF
         {
           "backup_created_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
           "original_path": "$$DEPLOYMENT_PATH",
-          "backup_path": "$$BACKUP_PATH-$$TIMESTAMP",
+          "backup_path": "$$BACKUP_FULL_PATH",
           "module": "${_MODULE_NAME}",
           "deployment_id": "${_DEPLOYMENT_ID}",
           "project_id": "${PROJECT_ID}",
@@ -428,31 +671,66 @@ steps:
           "size": "$$SIZE_INFO",
           "resource_count": $$RESOURCE_COUNT,
           "operation": "pre_destroy_backup",
-          "triggered_by": "${_TRIGGERED_BY:-manual}"
+          "triggered_by": "${_TRIGGERED_BY:-manual}",
+          "state_location": "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/state"
         }
         EOF
         
-        log "📦 Creating backup copy..."
+        log "📦 Creating backup copy of entire deployment..."
+        log "   This may take a few minutes depending on size..."
         
-        # Copy deployment to backup location
-        if gsutil -m cp -r "$$DEPLOYMENT_PATH" "$$BACKUP_PATH-$$TIMESTAMP/" 2>&1 | tee /workspace/backup_output.txt; then
+        # Copy deployment to backup location with progress
+        if gsutil -m cp -r "$$DEPLOYMENT_PATH" "$$BACKUP_FULL_PATH/" 2>&1 | tee /workspace/backup_output.txt; then
             log "✅ Backup created successfully"
             
-            # Upload backup metadata
-            if gsutil cp /tmp/backup_metadata.json "$$BACKUP_PATH-$$TIMESTAMP/backup_metadata.json" 2>/dev/null; then
-                log "✅ Backup metadata uploaded"
+            # Verify backup
+            log "🔍 Verifying backup..."
+            if gsutil ls "$$BACKUP_FULL_PATH/" > /dev/null 2>&1; then
+                BACKUP_SIZE=$$(gsutil du -sh "$$BACKUP_FULL_PATH/" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
+                log "✅ Backup verified"
+                log "   Backup size: $$BACKUP_SIZE"
+                
+                # Upload backup metadata
+                if gsutil cp /tmp/backup_metadata.json "$$BACKUP_FULL_PATH/backup_metadata.json" 2>/dev/null; then
+                    log "✅ Backup metadata uploaded"
+                else
+                    log "⚠️  Metadata upload failed (non-critical)"
+                fi
+                
+                log "📍 Backup location: $$BACKUP_FULL_PATH/"
+                echo "success" > /workspace/backup_status.txt
+                echo "$$BACKUP_FULL_PATH/" > /workspace/backup_location.txt
+                
+                # Create backup index for easy reference
+                cat > /tmp/backup_index.json <<EOF
+        {
+          "deployment_id": "${_DEPLOYMENT_ID}",
+          "module": "${_MODULE_NAME}",
+          "backup_timestamp": "$$TIMESTAMP",
+          "backup_path": "$$BACKUP_FULL_PATH/",
+          "original_deployment": "$$DEPLOYMENT_PATH",
+          "resource_count": $$RESOURCE_COUNT,
+          "size": "$$BACKUP_SIZE"
+        }
+        EOF
+                
+                # Upload to backups index
+                gsutil cp /tmp/backup_index.json "gs://${_DEPLOYMENT_BUCKET_ID}/backups/destroy/${_MODULE_NAME}/index-${_DEPLOYMENT_ID}-$$TIMESTAMP.json" 2>/dev/null || log "⚠️  Could not create backup index"
+                
             else
-                log "⚠️  Metadata upload failed"
+                log "❌ Backup verification failed"
+                echo "failed" > /workspace/backup_status.txt
             fi
-            
-            log "📍 Backup location: $$BACKUP_PATH-$$TIMESTAMP/"
-            echo "success" > /workspace/backup_status.txt
-            echo "$$BACKUP_PATH-$$TIMESTAMP/" > /workspace/backup_location.txt
         else
             log "⚠️  Backup creation failed"
             log "   Continuing with destroy (use caution!)"
+            log ""
+            log "📋 Backup error output:"
+            cat /workspace/backup_output.txt | tail -20 | sed 's/^/   /'
             echo "failed" > /workspace/backup_status.txt
         fi
+        
+        log "✅ Backup step completed"
 
   # ============================================
   # STEP 5: Destroy Infrastructure
@@ -490,12 +768,22 @@ steps:
         fi
         
         if [ "$$BACKUP_STATUS" = "success" ]; then
-            log "✅ Backup available - safe to proceed"
+            log "✅ Pre-destroy backup available - safe to proceed"
+            if [ -f /workspace/backup_location.txt ]; then
+                BACKUP_LOC=$$(cat /workspace/backup_location.txt)
+                log "📍 Backup: $$BACKUP_LOC"
+            fi
         else
             log "⚠️  WARNING: No backup available!"
+            log "⚠️  If destroy fails, recovery may be difficult"
             log "⚠️  Proceeding with destroy in 10 seconds..."
+            log "   Press Ctrl+C to cancel (if running interactively)"
             sleep 10
         fi
+        
+        # Get resource count
+        RESOURCE_COUNT=$$(cat /workspace/resource_count.txt 2>/dev/null || echo "unknown")
+        log "📊 Resources to destroy: $$RESOURCE_COUNT"
         
         # Create destroy metadata
         mkdir -p /workspace/audit
@@ -508,7 +796,8 @@ steps:
           "started_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
           "initiated_by": "${_TRIGGERED_BY:-manual}",
           "bucket": "${_DEPLOYMENT_BUCKET_ID}",
-          "backup_status": "$$BACKUP_STATUS"
+          "backup_status": "$$BACKUP_STATUS",
+          "resource_count": "$$RESOURCE_COUNT"
         }
         EOF
         
@@ -520,25 +809,57 @@ steps:
             
             while [ $$attempt -le $$max_attempts ]; do
                 log "💥 Destroy attempt $$attempt of $$max_attempts"
+                log "   Started: $$(date)"
                 
-                # Destroy with timeout
-                if timeout 3600 tofu destroy -auto-approve -input=false -no-color 2>&1 | tee /workspace/destroy_output_$$attempt.txt; then
+                # Destroy with timeout (1 hour per attempt)
+                set +e  # Don't exit on error
+                timeout 3600 tofu destroy -auto-approve -input=false -no-color 2>&1 | tee /workspace/destroy_output_$$attempt.txt
+                final_exit_code=$${PIPESTATUS[0]}
+                set -e
+                
+                if [ $$final_exit_code -eq 0 ]; then
                     log "✅ Destroy successful on attempt $$attempt"
-                    final_exit_code=0
+                    log "   Completed: $$(date)"
                     break
                 else
-                    final_exit_code=$$?
-                    
                     if [ $$final_exit_code -eq 124 ]; then
-                        log "❌ Destroy timed out on attempt $$attempt"
+                        log "❌ Destroy timed out on attempt $$attempt (1 hour limit)"
                     else
                         log "❌ Destroy failed on attempt $$attempt (exit code: $$final_exit_code)"
                     fi
                     
+                    # Show last 30 lines of error output
+                    log "📋 Last 30 lines of destroy output:"
+                    tail -30 /workspace/destroy_output_$$attempt.txt | sed 's/^/   /'
+                    
                     if [ $$attempt -eq $$max_attempts ]; then
                         log "💥 All destroy attempts failed"
+                        log ""
                         log "🔍 Checking for remaining resources..."
-                        tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || log "Unable to list remaining resources"
+                        
+                        # List remaining resources
+                        if tofu state list > /tmp/remaining.txt 2>/dev/null; then
+                            REMAINING=$$(cat /tmp/remaining.txt | wc -l)
+                            log "⚠️  $$REMAINING resources may still exist:"
+                            cat /tmp/remaining.txt | head -20 | sed 's/^/   • /'
+                            
+                            if [ $$REMAINING -gt 20 ]; then
+                                log "   ... and $$((REMAINING - 20)) more"
+                            fi
+                            
+                            # Save for audit
+                            cp /tmp/remaining.txt /workspace/audit/remaining_after_failed_destroy.txt
+                        else
+                            log "   Unable to list remaining resources"
+                        fi
+                        
+                        log ""
+                        log "💡 Recovery options:"
+                        log "   1. Review error output in: /workspace/destroy_output_$$attempt.txt"
+                        log "   2. Manually destroy problematic resources via console"
+                        log "   3. Use targeted destroy: tofu destroy -target=RESOURCE"
+                        log "   4. Check backup at: $$(cat /workspace/backup_location.txt 2>/dev/null || echo 'No backup')"
+                        
                         break
                     fi
                     
@@ -547,7 +868,7 @@ steps:
                     
                     # Refresh state before retry
                     log "🔄 Refreshing state before retry..."
-                    tofu refresh -no-color || log "⚠️  State refresh failed"
+                    tofu refresh -no-color 2>&1 | tee /workspace/refresh_output_$$attempt.txt || log "⚠️  State refresh failed"
                 fi
                 
                 attempt=$$((attempt + 1))
@@ -556,10 +877,11 @@ steps:
             return $$final_exit_code
         }
         
+        # Execute destroy with retry
         destroy_with_retry
         DESTROY_EXIT_CODE=$$?
         
-        # Update metadata
+        # Update metadata with results
         DESTROY_STATUS="success"
         if [ $$DESTROY_EXIT_CODE -ne 0 ]; then
             DESTROY_STATUS="failed"
@@ -577,13 +899,18 @@ steps:
           "bucket": "${_DEPLOYMENT_BUCKET_ID}",
           "backup_status": "$$BACKUP_STATUS",
           "exit_code": $$DESTROY_EXIT_CODE,
-          "status": "$$DESTROY_STATUS"
+          "status": "$$DESTROY_STATUS",
+          "resource_count": "$$RESOURCE_COUNT"
         }
         EOF
         
         echo "$$DESTROY_STATUS" > /workspace/destroy_status.txt
         
-        log "🎯 Infrastructure destroy completed with exit code: $$DESTROY_EXIT_CODE"
+        if [ $$DESTROY_EXIT_CODE -eq 0 ]; then
+            log "🎯 Infrastructure destroy completed successfully"
+        else
+            log "❌ Infrastructure destroy failed with exit code: $$DESTROY_EXIT_CODE"
+        fi
         
         exit $$DESTROY_EXIT_CODE
     dir: /workspace/modules/${_MODULE_NAME}
@@ -613,6 +940,7 @@ steps:
         
         if [ "$$DESTROY_STATUS" = "skipped" ]; then
             log "ℹ️  Skipping verification - destroy was skipped"
+            echo "skipped" > /workspace/verification_status.txt
             exit 0
         fi
         
@@ -623,26 +951,54 @@ steps:
         VERIFICATION_STATUS="success"
         VERIFICATION_MESSAGE="All resources successfully destroyed"
         
+        log "🔍 Checking final state..."
+        
         if tofu show -json > /tmp/final_state.json 2>&1; then
-            REMAINING_COUNT=$$(tofu show -json 2>/dev/null | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "0")
-            
-            if [ "$$REMAINING_COUNT" = "0" ]; then
-                log "✅ All resources successfully destroyed"
+            # Try to count remaining resources
+            if command -v jq >/dev/null 2>&1; then
+                REMAINING_COUNT=$$(jq -r '.values.root_module.resources // [] | length' /tmp/final_state.json 2>/dev/null || echo "0")
             else
-                log "⚠️  Warning: $$REMAINING_COUNT resources may still exist"
+                REMAINING_COUNT=$$(tofu state list 2>/dev/null | wc -l || echo "0")
+            fi
+            
+            if [ "$$REMAINING_COUNT" = "0" ] || [ $$REMAINING_COUNT -eq 0 ]; then
+                log "✅ All resources successfully destroyed"
+                log "   State is clean"
+            else
+                log "⚠️  Warning: $$REMAINING_COUNT resources may still exist in state"
                 VERIFICATION_STATUS="partial"
                 VERIFICATION_MESSAGE="$$REMAINING_COUNT resources may still exist in state"
                 
-                cp /tmp/final_state.json /workspace/audit/post_destroy_state.json 2>/dev/null || echo "{}" > /workspace/audit/post_destroy_state.json
+                # Save final state for audit
+                cp /tmp/final_state.json /workspace/audit/post_destroy_state.json 2>/dev/null || echo '{"error": "Could not save state"}' > /workspace/audit/post_destroy_state.json
                 
-                tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' > /workspace/audit/remaining_resources.txt 2>/dev/null || echo "Unable to list" > /workspace/audit/remaining_resources.txt
+                # Create detailed list of remaining resources
+                tofu state list > /workspace/audit/remaining_resources.txt 2>/dev/null || echo "Unable to list" > /workspace/audit/remaining_resources.txt
+                
+                if command -v jq >/dev/null 2>&1; then
+                    jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' /tmp/final_state.json 2>/dev/null > /workspace/audit/remaining_resources_detailed.txt || echo "Unable to create detailed list" > /workspace/audit/remaining_resources_detailed.txt
+                fi
                 
                 log "📋 Remaining resources:"
                 cat /workspace/audit/remaining_resources.txt | sed 's/^/   • /'
+                
+                log ""
+                log "⚠️  Manual cleanup may be required for these resources"
             fi
         else
             log "✅ State is clean - no resources found"
-            echo '{"message": "No state found after destroy", "timestamp": "'$$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /workspace/audit/post_destroy_state.json
+            log "   (State file may have been automatically cleaned)"
+            
+            # Create empty state record
+            cat > /workspace/audit/post_destroy_state.json <<EOF
+        {
+          "message": "No state found after destroy",
+          "timestamp": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "deployment_id": "${_DEPLOYMENT_ID}",
+          "module": "${_MODULE_NAME}",
+          "verification": "clean"
+        }
+        EOF
         fi
         
         # Create verification report
@@ -661,6 +1017,7 @@ steps:
         echo "$$VERIFICATION_STATUS" > /workspace/verification_status.txt
         
         log "✅ Destroy verification completed"
+        log "   Status: $$VERIFICATION_STATUS"
         
     dir: /workspace/modules/${_MODULE_NAME}
 
@@ -681,7 +1038,7 @@ steps:
         
         log "📤 Uploading audit files to permanent location..."
         
-        # Upload to build-logs instead of deployment folder (which will be deleted)
+        # Upload to build-logs (deployment folder will be deleted)
         AUDIT_BASE="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit"
         
         log "📍 Audit destination: $$AUDIT_BASE"
@@ -690,16 +1047,17 @@ steps:
             UPLOAD_COUNT=0
             FAIL_COUNT=0
             
+            log "📋 Uploading audit files..."
+            
             for file in /workspace/audit/*; do
                 if [ -f "$$file" ]; then
                     FILENAME=$$(basename $$file)
-                    log "   Uploading $$FILENAME..."
                     
-                    if gsutil cp "$$file" "$$AUDIT_BASE/$$FILENAME" 2>/dev/null; then
-                        log "   ✅ Uploaded $$FILENAME"
+                    if gsutil -h "Content-Type:application/json" cp "$$file" "$$AUDIT_BASE/$$FILENAME" 2>/dev/null; then
+                        log "   ✅ $$FILENAME"
                         UPLOAD_COUNT=$$((UPLOAD_COUNT + 1))
                     else
-                        log "   ❌ Failed to upload $$FILENAME"
+                        log "   ❌ $$FILENAME (failed)"
                         FAIL_COUNT=$$((FAIL_COUNT + 1))
                     fi
                 fi
@@ -710,7 +1068,7 @@ steps:
             log "⚠️  No audit directory found"
         fi
         
-        # Get statuses
+        # Get all statuses
         DESTROY_STATUS="unknown"
         if [ -f /workspace/destroy_status.txt ]; then
             DESTROY_STATUS=$$(cat /workspace/destroy_status.txt)
@@ -730,7 +1088,13 @@ steps:
             BACKUP_LOCATION=$$(cat /workspace/backup_location.txt)
         fi
         
-        # Create destroy completion marker
+        # Get used archive info
+        USED_ARCHIVE="unknown"
+        if [ -f /workspace/used_archive.txt ]; then
+            USED_ARCHIVE=$$(cat /workspace/used_archive.txt)
+        fi
+        
+        # Create comprehensive destroy completion marker
         log "📝 Creating destroy completion marker..."
         
         cat > /tmp/destroy_complete.json <<EOF
@@ -745,17 +1109,21 @@ steps:
           "backup_status": "$$BACKUP_STATUS",
           "backup_location": "$$BACKUP_LOCATION",
           "audit_location": "$$AUDIT_BASE/",
-          "initiated_by": "${_TRIGGERED_BY:-manual}"
+          "initiated_by": "${_TRIGGERED_BY:-manual}",
+          "used_archive": "$$USED_ARCHIVE",
+          "deployment_path": "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}",
+          "state_path": "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/state"
         }
         EOF
         
-        if gsutil cp /tmp/destroy_complete.json "$$AUDIT_BASE/destroy_complete.json" 2>/dev/null; then
+        if gsutil -h "Content-Type:application/json" cp /tmp/destroy_complete.json "$$AUDIT_BASE/destroy_complete.json" 2>/dev/null; then
             log "✅ Completion marker uploaded"
         else
             log "⚠️  Failed to upload completion marker"
         fi
         
-        log "✅ All audit files uploaded to: $$AUDIT_BASE/"
+        log "✅ All audit files uploaded"
+        log "📍 Audit location: $$AUDIT_BASE/"
 
   # ============================================
   # STEP 8: Cleanup Deployment Folder
@@ -776,12 +1144,18 @@ steps:
         
         DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
         
+        log "📍 Target: $$DEPLOYMENT_PATH"
+        
         if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
-            log "📁 Found deployment folder: $$DEPLOYMENT_PATH"
+            log "📁 Found deployment folder"
             
             # Calculate size before deletion
             FOLDER_SIZE=$$(gsutil du -sh "$$DEPLOYMENT_PATH" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
             log "📊 Folder size: $$FOLDER_SIZE"
+            
+            # List contents before deletion (for audit)
+            log "📋 Contents to be deleted:"
+            gsutil ls -r "$$DEPLOYMENT_PATH" 2>/dev/null | head -30 | sed 's/^/   /'
             
             # Remove with retry
             MAX_RETRIES=3
@@ -789,7 +1163,7 @@ steps:
             SUCCESS=false
             
             while [ $$RETRY_COUNT -lt $$MAX_RETRIES ]; do
-                log "   Attempt $$((RETRY_COUNT + 1)) of $$MAX_RETRIES..."
+                log "   Deletion attempt $$((RETRY_COUNT + 1)) of $$MAX_RETRIES..."
                 
                 if gsutil -m rm -r "$$DEPLOYMENT_PATH" 2>&1 | tee /workspace/cleanup_output_$$RETRY_COUNT.txt; then
                     SUCCESS=true
@@ -806,16 +1180,19 @@ steps:
             if [ "$$SUCCESS" = true ]; then
                 log "✅ Successfully removed deployment folder"
                 
-                # Verify deletion
-                sleep 2  # Brief delay for eventual consistency
+                # Verify deletion with eventual consistency handling
+                log "🔍 Verifying deletion..."
+                sleep 3  # Wait for eventual consistency
                 
                 if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
-                    log "⚠️  WARNING: Deployment folder still exists after deletion"
-                    log "   This may be due to eventual consistency"
+                    log "⚠️  WARNING: Deployment folder still visible (eventual consistency)"
+                    log "   Waiting 5 more seconds..."
                     sleep 5
                     
                     if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
-                        log "❌ ERROR: Deployment folder still exists"
+                        log "❌ ERROR: Deployment folder still exists after deletion"
+                        log "   This may require manual cleanup"
+                        log "   Path: $$DEPLOYMENT_PATH"
                         exit 1
                     else
                         log "✅ Confirmed: Deployment folder removed"
@@ -825,12 +1202,19 @@ steps:
                 fi
             else
                 log "❌ ERROR: Failed to remove deployment folder after $$MAX_RETRIES attempts"
-                log "   Manual cleanup may be required"
+                log ""
+                log "📋 Last error output:"
+                cat /workspace/cleanup_output_$$((RETRY_COUNT - 1)).txt | tail -20 | sed 's/^/   /'
+                log ""
+                log "💡 Manual cleanup required:"
+                log "   gsutil -m rm -r $$DEPLOYMENT_PATH"
                 exit 1
             fi
         else
             log "ℹ️  Deployment folder not found (may already be removed)"
         fi
+        
+        log "✅ Cleanup completed"
 
   # ============================================
   # STEP 9: Destroy Summary
@@ -861,7 +1245,8 @@ steps:
             BACKUP_STATUS=$$(cat /workspace/backup_status.txt)
         fi
         
-        echo "========================================="
+        echo ""
+        echo "========================================"
         if [ "$$DESTROY_STATUS" = "success" ] && [ "$$VERIFICATION_STATUS" = "success" ]; then
             log "🎉 INFRASTRUCTURE DESTROY COMPLETED SUCCESSFULLY"
         elif [ "$$DESTROY_STATUS" = "skipped" ]; then
@@ -871,19 +1256,19 @@ steps:
         else
             log "❌ DESTROY FAILED OR INCOMPLETE"
         fi
-        echo "========================================="
+        echo "========================================"
         echo "Destroy Details:"
         echo "  • Module: ${_MODULE_NAME}"
         echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
         echo "  • Project: ${PROJECT_ID}"
         echo "  • Build ID: ${BUILD_ID}"
         echo "  • Completed: $$(date)"
-        echo "========================================="
+        echo "========================================"
         echo "Operation Status:"
         echo "  • Backup Status: $$BACKUP_STATUS"
         echo "  • Destroy Status: $$DESTROY_STATUS"
         echo "  • Verification Status: $$VERIFICATION_STATUS"
-        echo "========================================="
+        echo "========================================"
         
         if [ "$$BACKUP_STATUS" = "success" ] && [ -f /workspace/backup_location.txt ]; then
             BACKUP_LOCATION=$$(cat /workspace/backup_location.txt)
@@ -891,7 +1276,10 @@ steps:
             echo "  • Pre-destroy backup created"
             echo "  • Location: $$BACKUP_LOCATION"
             echo "  • Retention: Check bucket lifecycle policy"
-            echo "========================================="
+            echo ""
+            echo "  Recovery command (if needed):"
+            echo "  gsutil -m cp -r $$BACKUP_LOCATION gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+            echo "========================================"
         fi
         
         if [ "$$VERIFICATION_STATUS" = "partial" ]; then
@@ -899,11 +1287,14 @@ steps:
             echo "  • Some resources may still exist"
             echo "  • Check audit files for details"
             echo "  • Manual cleanup may be required"
-            echo "========================================="
+            echo "  • Review: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/remaining_resources.txt"
+            echo "========================================"
         fi
         
-        echo "⚠️  IMPORTANT: Deployment deleted from GCS"
-        echo "========================================="
+        echo "🗑️  Deployment Cleanup:"
+        echo "  • Original deployment folder removed from GCS"
+        echo "  • Path was: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+        echo "========================================"
         echo "📝 Audit Trail Preserved:"
         echo "  • Build Logs: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
         echo "  • Audit Files: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/"
@@ -912,18 +1303,19 @@ steps:
         echo "  • Completion Marker: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/destroy_complete.json"
         
         if [ "$$BACKUP_STATUS" = "success" ]; then
-            echo "  • Backup: gs://${_DEPLOYMENT_BUCKET_ID}/backups/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}-*/"
+            echo "  • Full Backup: gs://${_DEPLOYMENT_BUCKET_ID}/backups/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}-*/"
         fi
-        echo "========================================="
+        echo "========================================"
         
         if [ "$$DESTROY_STATUS" = "success" ] && [ "$$VERIFICATION_STATUS" = "success" ]; then
-            log "✅ Infrastructure destroy successful"
+            log "✅ Infrastructure successfully destroyed and cleaned up"
         elif [ "$$DESTROY_STATUS" = "skipped" ]; then
-            log "ℹ️  Destroy operation skipped"
+            log "ℹ️  Destroy operation skipped - no resources found"
         else
-            log "⚠️  Destroy completed with warnings"
+            log "⚠️  Destroy completed with warnings - review audit files"
         fi
-        echo "========================================="
+        echo "========================================"
+        echo ""
     dir: /workspace
 
   # ============================================
@@ -947,6 +1339,7 @@ steps:
             echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
+        echo ""
         echo "========================================"
         log "🧹 CLEANUP: Releasing destroy lock"
         echo "========================================"
@@ -969,220 +1362,4 @@ steps:
             log "🔍 Lock found:"
             log "   Lock Build ID: $$LOCK_BUILD_ID"
             log "   Lock Operation: $$LOCK_OPERATION"
-            log "   Current Build ID: ${BUILD_ID}"
-            
-            if [ "$$LOCK_BUILD_ID" = "${BUILD_ID}" ]; then
-                log "✅ Lock belongs to this build, releasing..."
-                
-                if gsutil rm "$$LOCK_PATH" 2>/dev/null; then
-                    log "✅ Lock released successfully"
-                else
-                    log "⚠️  Failed to release lock"
-                    log "   Lock may have been removed with deployment folder"
-                fi
-            else
-                log "⚠️  Lock belongs to different build ($$LOCK_BUILD_ID)"
-                log "   Skipping lock release to avoid interfering with other operation"
-            fi
-        else
-            log "ℹ️  Lock not found"
-            log "   Lock may have been removed with deployment folder cleanup"
-        fi
-        
-        log "✅ Lock cleanup completed"
-        exit 0  # Always succeed in cleanup
-
-  # ============================================
-  # CLEANUP STEP 2: Upload Final Build Metadata
-  # ============================================
-  - id: 'Upload Final Build Metadata (Cleanup)'
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
-    entrypoint: 'bash'
-    waitFor: ['Release Destroy Lock (Cleanup)']  # Wait for previous cleanup step
-    args:
-      - '-c'
-      - |
-        set +e  # Don't fail on errors in cleanup
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        log "📊 CLEANUP: Uploading final build metadata..."
-        
-        # Determine build status
-        BUILD_STATUS="UNKNOWN"
-        DESTROY_STATUS="unknown"
-        VERIFICATION_STATUS="unknown"
-        
-        if [ -f /workspace/destroy_status.txt ]; then
-            DESTROY_STATUS=$$(cat /workspace/destroy_status.txt)
-        fi
-        
-        if [ -f /workspace/verification_status.txt ]; then
-            VERIFICATION_STATUS=$$(cat /workspace/verification_status.txt)
-        fi
-        
-        # Determine overall build status
-        if [ "$$DESTROY_STATUS" = "success" ] && [ "$$VERIFICATION_STATUS" = "success" ]; then
-            BUILD_STATUS="SUCCESS"
-        elif [ "$$DESTROY_STATUS" = "skipped" ]; then
-            BUILD_STATUS="SKIPPED"
-        elif [ "$$VERIFICATION_STATUS" = "partial" ]; then
-            BUILD_STATUS="PARTIAL"
-        elif [ "$$DESTROY_STATUS" = "failed" ]; then
-            BUILD_STATUS="FAILED"
-        else
-            BUILD_STATUS="UNKNOWN"
-        fi
-        
-        # Get backup info
-        BACKUP_STATUS="unknown"
-        BACKUP_LOCATION=""
-        if [ -f /workspace/backup_status.txt ]; then
-            BACKUP_STATUS=$$(cat /workspace/backup_status.txt)
-        fi
-        if [ -f /workspace/backup_location.txt ]; then
-            BACKUP_LOCATION=$$(cat /workspace/backup_location.txt)
-        fi
-        
-        # Create final metadata file
-        cat > /tmp/final_build_metadata.json <<EOF
-        {
-          "build_id": "${BUILD_ID}",
-          "module": "${_MODULE_NAME}",
-          "deployment_id": "${_DEPLOYMENT_ID}",
-          "project_id": "${PROJECT_ID}",
-          "operation": "destroy",
-          "status": "$$BUILD_STATUS",
-          "destroy_status": "$$DESTROY_STATUS",
-          "verification_status": "$$VERIFICATION_STATUS",
-          "backup_status": "$$BACKUP_STATUS",
-          "backup_location": "$$BACKUP_LOCATION",
-          "completed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-          "triggered_by": "${_TRIGGERED_BY:-manual}"
-        }
-        EOF
-        
-        log "📋 Final build metadata:"
-        cat /tmp/final_build_metadata.json
-        
-        # Upload metadata to audit location
-        METADATA_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/final_build_metadata.json"
-        
-        if gsutil -h "Content-Type:application/json" \
-                  cp /tmp/final_build_metadata.json "$$METADATA_PATH" 2>/dev/null; then
-            log "✅ Final build metadata uploaded"
-        else
-            log "⚠️  Failed to upload final build metadata"
-        fi
-        
-        log "✅ Metadata upload completed"
-        exit 0  # Always succeed in cleanup
-
-  # ============================================
-  # CLEANUP STEP 3: Final Status Summary
-  # ============================================
-  - id: 'Final Status Summary (Cleanup)'
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
-    entrypoint: 'bash'
-    waitFor: ['Upload Final Build Metadata (Cleanup)']  # Wait for previous cleanup step
-    args:
-      - '-c'
-      - |
-        set +e  # Don't fail on errors
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        echo "========================================"
-        log "📊 FINAL DESTROY STATUS"
-        echo "========================================"
-        echo "Build ID: ${BUILD_ID}"
-        echo "Module: ${_MODULE_NAME}"
-        echo "Deployment ID: ${_DEPLOYMENT_ID}"
-        echo "Project: ${PROJECT_ID}"
-        echo "Timestamp: $$(date)"
-        echo "========================================"
-        
-        # Check all statuses
-        if [ -f /workspace/destroy_status.txt ]; then
-            DESTROY_STATUS=$$(cat /workspace/destroy_status.txt)
-            echo "Destroy Status: $$DESTROY_STATUS"
-        else
-            echo "Destroy Status: Not reached (build failed before destroy)"
-        fi
-        
-        if [ -f /workspace/verification_status.txt ]; then
-            VERIFICATION_STATUS=$$(cat /workspace/verification_status.txt)
-            echo "Verification Status: $$VERIFICATION_STATUS"
-        else
-            echo "Verification Status: Not reached"
-        fi
-        
-        if [ -f /workspace/backup_status.txt ]; then
-            BACKUP_STATUS=$$(cat /workspace/backup_status.txt)
-            echo "Backup Status: $$BACKUP_STATUS"
-        else
-            echo "Backup Status: Unknown"
-        fi
-        
-        # Check if lock was released
-        LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
-        if gsutil ls "$$LOCK_PATH" 2>/dev/null; then
-            log "⚠️  WARNING: Lock still exists!"
-            log "   Path: $$LOCK_PATH"
-            log "   This is unexpected - manual cleanup may be required"
-        else
-            log "✅ Lock successfully removed or not found"
-        fi
-        
-        # Check if deployment folder was removed
-        DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
-        if gsutil ls "$$DEPLOYMENT_PATH" 2>/dev/null; then
-            log "⚠️  WARNING: Deployment folder still exists!"
-            log "   Path: $$DEPLOYMENT_PATH"
-            log "   Manual cleanup may be required"
-        else
-            log "✅ Deployment folder successfully removed"
-        fi
-        
-        echo "========================================"
-        log "🏁 Cleanup completed"
-        echo "========================================"
-        
-        exit 0  # Always succeed
-
-# ============================================
-# Build Options
-# ============================================
-options:
-  logging: GCS_ONLY
-  logStreamingOption: STREAM_ON
-  dynamic_substitutions: true
-  substitutionOption: 'ALLOW_LOOSE'
-  # machineType: 'E2_HIGHCPU_8'  # Uncomment for complex destroys
-
-# ============================================
-# Substitution Variables
-# ============================================
-substitutions:
-  _DEPLOYMENT_ID: "none"
-  _MODULE_NAME: "unknown"
-  _DEPLOYMENT_BUCKET_ID: "rad-deployments-2b65"
-  _TERRAFORM_IMAGE_NAME: "us-central1-docker.pkg.dev/tec-rad-ui-2b65/opentofu-images/opentofu"
-  _GIT_REPO_URL: "techequitycloud/rad-modules"
-  _MODULE_GIT_REPO_URL: ""
-  _GITHUB_TOKEN_SECRET_NAME: "git-access-token"
-  _TRIGGERED_BY: "manual"
-
-# ============================================
-# Logs Configuration
-# ============================================
-logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
-
-# ============================================
-# Timeout
-# ============================================
-timeout: 7200s  # 2 hours for complex destroys
+            log "   Current Build ID: ${
