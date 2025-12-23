@@ -99,12 +99,6 @@ variable "application_version" {
   default     = "4.16.15"
 }
 
-variable "application_download_fileid" {
-  description = "Enter the URL to download the application. {{UIMeta group=0 order=515 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
 # GROUP 7: Tenant
 
 variable "tenant_deployment_id" {
