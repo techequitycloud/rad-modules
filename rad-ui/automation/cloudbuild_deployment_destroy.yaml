@@ -1022,7 +1022,7 @@ steps:
     dir: /workspace/modules/${_MODULE_NAME}
 
   # ============================================
-  # STEP 7: Upload Audit Files to Permanent Location
+  # STEP 7: Upload Audit Files
   # ============================================
   - id: 'Upload Audit Files'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
@@ -1362,4 +1362,211 @@ steps:
             log "🔍 Lock found:"
             log "   Lock Build ID: $$LOCK_BUILD_ID"
             log "   Lock Operation: $$LOCK_OPERATION"
-            log "   Current Build ID: ${
+            log "   Current Build ID: ${BUILD_ID}"
+            
+            if [ "$$LOCK_BUILD_ID" = "${BUILD_ID}" ]; then
+                log "✅ Lock belongs to this build, releasing..."
+                
+                if gsutil rm "$$LOCK_PATH" 2>/dev/null; then
+                    log "✅ Lock released successfully"
+                else
+                    log "⚠️  Failed to release lock"
+                    log "   Lock may have been removed with deployment folder"
+                fi
+            else
+                log "⚠️  Lock belongs to different build ($$LOCK_BUILD_ID)"
+                log "   Skipping lock release to avoid interfering with other operation"
+            fi
+        else
+            log "ℹ️  Lock not found"
+            log "   Lock may have been removed with deployment folder cleanup"
+        fi
+        
+        log "✅ Lock cleanup completed"
+        exit 0  # Always succeed in cleanup
+
+  # ============================================
+  # CLEANUP STEP 2: Upload Final Build Metadata
+  # ============================================
+  - id: 'Upload Final Build Metadata (Cleanup)'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    waitFor: ['Release Destroy Lock (Cleanup)']  # Wait for previous cleanup step
+    args:
+      - '-c'
+      - |
+        set +e  # Don't fail on errors in cleanup
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        log "📊 CLEANUP: Uploading final build metadata..."
+        
+        # Determine build status
+        BUILD_STATUS="UNKNOWN"
+        DESTROY_STATUS="unknown"
+        
+        if [ -f /workspace/destroy_status.txt ]; then
+            DESTROY_STATUS=$$(cat /workspace/destroy_status.txt)
+        fi
+        
+        # Determine overall build status
+        case "$$DESTROY_STATUS" in
+            success) BUILD_STATUS="SUCCESS" ;;
+            skipped) BUILD_STATUS="SKIPPED" ;;
+            partial) BUILD_STATUS="PARTIAL" ;;
+            failed) BUILD_STATUS="FAILED" ;;
+            *) BUILD_STATUS="UNKNOWN" ;;
+        esac
+        
+        # Get verification status
+        VERIFICATION_STATUS="unknown"
+        if [ -f /workspace/verification_status.txt ]; then
+            VERIFICATION_STATUS=$$(cat /workspace/verification_status.txt)
+        fi
+        
+        # Get backup info
+        BACKUP_STATUS="unknown"
+        BACKUP_LOCATION=""
+        if [ -f /workspace/backup_status.txt ]; then
+            BACKUP_STATUS=$$(cat /workspace/backup_status.txt)
+        fi
+        if [ -f /workspace/backup_location.txt ]; then
+            BACKUP_LOCATION=$$(cat /workspace/backup_location.txt)
+        fi
+        
+        # Create final metadata file
+        cat > /tmp/final_build_metadata.json <<EOF
+        {
+          "build_id": "${BUILD_ID}",
+          "module": "${_MODULE_NAME}",
+          "deployment_id": "${_DEPLOYMENT_ID}",
+          "project_id": "${PROJECT_ID}",
+          "operation": "destroy",
+          "status": "$$BUILD_STATUS",
+          "destroy_status": "$$DESTROY_STATUS",
+          "verification_status": "$$VERIFICATION_STATUS",
+          "backup_status": "$$BACKUP_STATUS",
+          "backup_location": "$$BACKUP_LOCATION",
+          "completed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "triggered_by": "${_TRIGGERED_BY:-manual}"
+        }
+        EOF
+        
+        log "📋 Final build metadata:"
+        cat /tmp/final_build_metadata.json
+        
+        # Upload metadata to audit location
+        METADATA_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/final_build_metadata.json"
+        
+        if gsutil -h "Content-Type:application/json" \
+                  cp /tmp/final_build_metadata.json "$$METADATA_PATH" 2>/dev/null; then
+            log "✅ Final build metadata uploaded"
+        else
+            log "⚠️  Failed to upload final build metadata"
+        fi
+        
+        log "✅ Metadata upload completed"
+        exit 0  # Always succeed in cleanup
+
+  # ============================================
+  # CLEANUP STEP 3: Final Status Summary
+  # ============================================
+  - id: 'Final Status Summary (Cleanup)'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
+    entrypoint: 'bash'
+    waitFor: ['Upload Final Build Metadata (Cleanup)']  # Wait for previous cleanup step
+    args:
+      - '-c'
+      - |
+        set +e  # Don't fail on errors
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        echo ""
+        echo "========================================"
+        log "📊 FINAL DESTROY STATUS"
+        echo "========================================"
+        echo "Build ID: ${BUILD_ID}"
+        echo "Module: ${_MODULE_NAME}"
+        echo "Deployment ID: ${_DEPLOYMENT_ID}"
+        echo "Project: ${PROJECT_ID}"
+        echo "Timestamp: $$(date)"
+        echo "========================================"
+        
+        # Check all statuses
+        if [ -f /workspace/destroy_status.txt ]; then
+            DESTROY_STATUS=$$(cat /workspace/destroy_status.txt)
+            echo "Destroy Status: $$DESTROY_STATUS"
+        else
+            echo "Destroy Status: Not reached (build failed before destroy)"
+        fi
+        
+        if [ -f /workspace/verification_status.txt ]; then
+            VERIFICATION_STATUS=$$(cat /workspace/verification_status.txt)
+            echo "Verification Status: $$VERIFICATION_STATUS"
+        else
+            echo "Verification Status: Unknown"
+        fi
+        
+        if [ -f /workspace/backup_status.txt ]; then
+            BACKUP_STATUS=$$(cat /workspace/backup_status.txt)
+            echo "Backup Status: $$BACKUP_STATUS"
+        else
+            echo "Backup Status: Unknown"
+        fi
+        
+        # Check if lock was released
+        LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
+        if gsutil ls "$$LOCK_PATH" 2>/dev/null; then
+            log "⚠️  WARNING: Lock still exists!"
+            log "   Path: $$LOCK_PATH"
+            log "   This is unexpected - manual cleanup may be required"
+        else
+            log "✅ Lock successfully removed or not found"
+        fi
+        
+        # Check if deployment folder was removed
+        DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+        if gsutil ls "$$DEPLOYMENT_PATH" 2>/dev/null; then
+            log "⚠️  WARNING: Deployment folder still exists!"
+            log "   Path: $$DEPLOYMENT_PATH"
+            log "   Manual cleanup may be required"
+        else
+            log "✅ Deployment folder successfully removed or never existed"
+        fi
+        
+        echo "========================================"
+        log "🏁 Cleanup completed"
+        echo "========================================"
+        echo ""
+        
+        exit 0  # Always succeed
+
+# ============================================
+# Build Options
+# ============================================
+options:
+  logging: CLOUD_LOGGING_ONLY
+  logStreamingOption: STREAM_ON
+  dynamic_substitutions: true
+  substitutionOption: 'ALLOW_LOOSE'
+  # machineType: 'E2_HIGHCPU_8'  # Uncomment if needed for large deployments
+
+# ============================================
+# Substitution Variables
+# ============================================
+substitutions:
+  _DEPLOYMENT_ID: "none"
+  _MODULE_NAME: "unknown"
+  _DEPLOYMENT_BUCKET_ID: "rad-deployments-2b65"
+  _TERRAFORM_IMAGE_NAME: "us-central1-docker.pkg.dev/tec-rad-ui-2b65/opentofu-images/opentofu"
+  _TRIGGERED_BY: "manual"
+
+# ============================================
+# Timeout
+# ============================================
+timeout: 7200s  # 2 hours for destroy operations
