@@ -117,13 +117,9 @@ delete_cloud_run_job() {
     done
 }
 
-# Delete services for dev, qa, and prod
-delete_cloud_run_service "${APP_PREFIX}${APP_NAME}dev"
-delete_cloud_run_job "${APP_PREFIX}${APP_NAME}dev"
-delete_cloud_run_service "${APP_PREFIX}${APP_NAME}qa"
-delete_cloud_run_job "${APP_PREFIX}${APP_NAME}qa"
-delete_cloud_run_service "${APP_PREFIX}${APP_NAME}prod"
-delete_cloud_run_job "${APP_PREFIX}${APP_NAME}prod"
+# Delete services
+delete_cloud_run_service "${APP_PREFIX}${APP_NAME}"
+delete_cloud_run_job "${APP_PREFIX}${APP_NAME}"
 
 if [ "$delete_attempted" = true ]; then
     echo "Waiting for 120 seconds for the service to be completely deleted."
@@ -132,9 +128,7 @@ fi
 
 echo "Cloud Run service deleted or does not exist. Proceeding."
 
-gcloud --project $PROJECT_ID deploy targets delete ${TARGET_NAME}-dev-env --region=${APP_REGION} --quiet $SA_ARG
-gcloud --project $PROJECT_ID deploy targets delete ${TARGET_NAME}-qa-env --region=${APP_REGION} --quiet $SA_ARG
-gcloud --project $PROJECT_ID deploy targets delete ${TARGET_NAME}-prod-env --region=${APP_REGION} --quiet $SA_ARG
+gcloud --project $PROJECT_ID deploy targets delete ${TARGET_NAME}-run-env --region=${APP_REGION} --quiet $SA_ARG
 
 gcloud deploy delivery-pipelines delete ${PIPELINE_NAME} --region=${APP_REGION} --project=${PROJECT_ID} --force --quiet $SA_ARG || true
 
