@@ -3,17 +3,9 @@ kind: Config
 metadata: 
   name: ${APP_NAME}
 profiles:
-- name: dev
+- name: run
   manifests:
     rawYaml:
-    - deploy-dev.yaml
-- name: qa
-  manifests:
-    rawYaml:
-    - deploy-qa.yaml
-- name: prod
-  manifests:
-    rawYaml:
-    - deploy-prod.yaml
+    - deploy.yaml
 deploy:
   cloudrun: {}
