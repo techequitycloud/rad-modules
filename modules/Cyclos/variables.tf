@@ -168,20 +168,3 @@ variable "application_backup_fileid" {
   default     = "1NWsxy_PHGKn9LJnXaQh5FFqp_WKjYEsJ"
 }
 
-variable "configure_application_security" {
-  description = "Select this checkbox to configure web application security.  Configures a global load balancer with Cloud Armor web application security. {{UIMeta group=0 order=809 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "application_secure_path" {
-  description = "Enter the application secure path. Cloud Armour is configured to restrict traffic to this path. {{UIMeta group=0 order=810 updatesafe}}"
-  type        = string
-  default     = ""
-}
-
-variable "application_authorized_network" {
-  description = "Enter the application authorized network. Cloud Armour is configured to allow traffic from this network. {{UIMeta group=0 order=811 updatesafe}}"
-  type        = set(string)
-  default     = []
-}
