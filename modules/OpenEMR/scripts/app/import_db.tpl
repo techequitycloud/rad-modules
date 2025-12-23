@@ -241,6 +241,53 @@ fi
 echo "Verifying user privileges..."
 mysql --defaults-file=$HOME/.my.cnf -u root -h "${DB_IP}" -e "SHOW GRANTS FOR '${DB_USER}'@'%';"
 
+# Attempt to download the backup file only if BACKUP_FILEID is not empty
+if [ -n "${BACKUP_FILEID}" ] ; then
+    echo "Attempting to download the backup file using gdown..."
+    echo "Using gdown from /root/.local/bin/gdown"
+    
+    if sudo /root/.local/bin/gdown "${BACKUP_FILEID}" -O "${DB_NAME}.zip"; then
+        echo "Backup file downloaded successfully"
+        if [ -f "${DB_NAME}.zip" ]; then
+            echo "Backup file exists and is $(du -h "${DB_NAME}.zip" | cut -f1) in size"
+        fi
+    else
+        echo "Warning: Failed to download the backup file using /root/.local/bin/gdown."
+    fi
+else
+    echo "Skipping download as BACKUP_FILEID is empty."
+fi
+
+if [ -f "${DB_NAME}.zip" ]; then
+    # Extract the backup file using a safe directory name
+    sudo mkdir -p "${DB_NAME}" && sudo rm -rf "${DB_NAME}"/* && sudo unzip "${DB_NAME}.zip" -d "${DB_NAME}"
+
+    # Restore the database using DB_USER (who now has privileges on this database only)
+    echo "Restoring database from backup..."
+
+    # Create MySQL configuration file
+    rm -rf $HOME/.my.cnf
+    cat > $HOME/.my.cnf << 'EOF'
+    [client]
+    user=${DB_USER}
+    password=${DB_PASS}
+    host=${DB_IP}
+EOF
+    chmod 600 $HOME/.my.cnf
+
+    restore_result=$(mysql --defaults-file=$HOME/.my.cnf -u "${DB_USER}" -h "${DB_IP}" "${DB_NAME}" < "${DB_NAME}/dump.sql" 2>&1)
+    
+    if [ $? -eq 0 ]; then
+        echo "Database restored successfully."
+    else
+        echo "Failed to restore database: $restore_result"
+        exit 1
+    fi
+
+    # Delete Backup from bastion host
+    sudo rm -rf "${DB_NAME}" && rm -rf "${DB_NAME}.zip"
+fi
+
 # Clean up 
 unset MYSQL_PWD
 rm -rf $HOME/.my.cnf

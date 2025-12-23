@@ -19,4 +19,4 @@ application_database_name = "openerm"
 application_version = "7.0.3"
 
 # environments
-configure_development_environment = true
+configure_environment = true

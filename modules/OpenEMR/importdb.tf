@@ -30,6 +30,7 @@ resource "local_file" "import_db_script_output" {
     APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
     APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
     APP_REGION_2        = length(local.regions) > 1 ? local.regions[1] : ""
+    BACKUP_FILEID       = var.application_backup_fileid
   })
 }
 

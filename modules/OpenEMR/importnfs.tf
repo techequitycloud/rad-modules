@@ -33,7 +33,7 @@ resource "local_file" "import_nfs_script_output" {
     NFS_IP              = local.nfs_internal_ip
     NFS_ZONE            = data.google_compute_zones.available_zones.names[0]
     CONFIGURE_BACKUPS   = var.configure_backups
-    BACKUP_FILE_ID      = var.application_backup_fileid
+    BACKUP_FILEID       = var.application_backup_fileid
   })
 }
 

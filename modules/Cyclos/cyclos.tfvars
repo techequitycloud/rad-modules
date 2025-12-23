@@ -10,7 +10,6 @@ existing_project_id = "qwiklabs-gcp-00-9c58e150e7c1"
 network_name = "vpc-network"
 
 # Application Features
-configure_backups = true
 configure_monitoring = false
 
 # Application Configuration
@@ -19,10 +18,6 @@ application_database_user = "cyclos"
 application_database_name = "cyclos"
 application_backup_fileid = ""
 application_version = "4.16.15"
-application_download_fileid = ""
-application_git_installation_id = "38735316"
-application_git_organization = "techequitycloud"
-application_git_usernames = ["snavti"]
 
 # environments
-configure_development_environment = true
+configure_environment = true
