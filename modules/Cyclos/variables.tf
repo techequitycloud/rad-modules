@@ -18,21 +18,14 @@ variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
   default     = <<-EOT
-**Purpose:** This module deploys the Cyclos Banking System (CBS) on Google Cloud Run. This provides a serverless environment for the banking application, which means you don't have to manage servers.
-
-**What it does:**
-- Deploys the Cyclos application on Cloud Run.
-- Sets up a complete and secure environment for the application, including a database, file storage, and networking.
-- Automates the build and deployment process.
-
-**Dependencies:** This module requires the `GCP Services` module to be deployed first to prepare the Google Cloud project.
+This module deploys the Cyclos Banking System (CBS) on Google Cloud Run. This provides a serverless environment for the banking application, which means you don't have to manage servers.
 EOT
 }
 
 variable "module_dependency" {
   description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=102 }}"
   type        = list(string)
-  default     = ["GCP Project","GCP Services"]
+  default     = ["GCP_Services"]
 }
 
 variable "credit_cost" {
@@ -48,13 +41,13 @@ variable "deployment_id" {
 }
 
 variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
+  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=102 updatesafe }}"
   type        = string
-  default     = "tecs-module-creator@tecs-ui-dev-ae08.iam.gserviceaccount.com"
+  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "trusted_users" {
-  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=1 order=103 updatesafe }}"
+  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 updatesafe }}"
   type        = set(string)
   default     = []
 }
@@ -62,7 +55,7 @@ variable "trusted_users" {
 # GROUP 2: Application Project
 
 variable "existing_project_id" {
-  description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
+  description = "Enter the project ID of the destination project. {{UIMeta group=1 order=200 updatesafe }}"
   type        = string
 }
 
@@ -117,12 +110,12 @@ variable "application_download_fileid" {
 # GROUP 7: Tenant
 
 variable "tenant_deployment_id" {
-  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=3 order=701 updatesafe}}"
+  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=1 order=701 updatesafe}}"
   type        = string
 }
 
 variable "configure_environment" {
-  description = "Select to configure environment. Code is committed to the branch in the github repository. {{UIMeta group=3 order=703 updatesafe }}"
+  description = "Select to configure environment. Code is committed to the branch in the github repository. {{UIMeta group=0 order=703 updatesafe }}"
   type        = bool
   default     = true
 }
@@ -130,13 +123,13 @@ variable "configure_environment" {
 # GROUP 8: Tenant
 
 variable "configure_monitoring" {
-  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring. {{UIMeta group=5 order=805 updatesafe}}"
+  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring. {{UIMeta group=0 order=805 updatesafe}}"
   type        = bool
   default     = true
 }
 
 variable "application_backup_fileid" {
-  description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup files during deployment. {{UIMeta group=6 order=808 updatesafe}}"
+  description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup files during deployment. {{UIMeta group=0 order=808 updatesafe}}"
   type        = string
   default     = "1NWsxy_PHGKn9LJnXaQh5FFqp_WKjYEsJ"
 }
