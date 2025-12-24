@@ -168,7 +168,7 @@ steps:
         log "✅ Prerequisites validated successfully"
 
   # ============================================
-  # STEP 2: Prepare Source Code
+  # STEP 2: Prepare Source Code (DUAL REPO SUPPORT)
   # ============================================
   - id: 'Prepare Source Code'
     name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -185,7 +185,6 @@ steps:
         echo "Deployment ID: ${_DEPLOYMENT_ID}"
         echo "Project: ${PROJECT_ID}"
         echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
-        echo "Repository: ${_GIT_REPO_URL:-'Default/Local'}"
         echo "Timestamp: $$(date)"
         echo "========================================"
         
@@ -198,9 +197,33 @@ steps:
         # Create modules directory if it doesn't exist
         mkdir -p /workspace/modules
         
-        # Check if we need to clone from Git or use existing files
-        if [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ]; then
-            log "📥 Cloning repository from ${_GIT_REPO_URL}"
+        # ✅ DUAL REPOSITORY LOGIC
+        # Priority: _MODULE_GIT_REPO_URL (partner repo) > _GIT_REPO_URL (platform repo) > local files
+        
+        REPO_URL=""
+        REPO_TYPE=""
+        
+        if [ -n "${_MODULE_GIT_REPO_URL}" ] && [ "${_MODULE_GIT_REPO_URL}" != "" ] && [ "${_MODULE_GIT_REPO_URL}" != "none" ]; then
+            REPO_URL="${_MODULE_GIT_REPO_URL}"
+            REPO_TYPE="partner"
+            log "📦 Using PARTNER repository: $$REPO_URL"
+        elif [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "" ] && [ "${_GIT_REPO_URL}" != "none" ]; then
+            REPO_URL="${_GIT_REPO_URL}"
+            REPO_TYPE="platform"
+            log "📦 Using PLATFORM repository: $$REPO_URL"
+        else
+            REPO_URL=""
+            REPO_TYPE="local"
+            log "📁 No repository specified - using existing workspace files"
+        fi
+        
+        # Save repository info for later steps
+        echo "$$REPO_TYPE" > /workspace/repo_type.txt
+        echo "$$REPO_URL" > /workspace/repo_url.txt
+        
+        # Check if we need to clone from Git
+        if [ -n "$$REPO_URL" ]; then
+            log "📥 Cloning $$REPO_TYPE repository from $$REPO_URL"
             
             # Verify Git token is available
             if [ -z "$$GIT_TOKEN" ]; then
@@ -210,26 +233,38 @@ steps:
                 exit 1
             fi
             
-            # Clean workspace completely (preserve lock info)
+            # Clean workspace completely (preserve lock and status info)
             log "🧹 Cleaning workspace..."
-            find /workspace -mindepth 1 -maxdepth 1 ! -name 'lock_path.txt' ! -name 'deployment_status.txt' -exec rm -rf {} + 2>/dev/null || true
+            find /workspace -mindepth 1 -maxdepth 1 \
+              ! -name 'lock_path.txt' \
+              ! -name 'deployment_status.txt' \
+              ! -name 'repo_type.txt' \
+              ! -name 'repo_url.txt' \
+              -exec rm -rf {} + 2>/dev/null || true
             
             # Clone repository with error handling and timeout
             log "🔄 Cloning repository..."
-            if timeout 300 git clone "https://$$GIT_TOKEN@github.com/${_GIT_REPO_URL}.git" /workspace/repo 2>&1; then
+            if timeout 300 git clone "https://$$GIT_TOKEN@github.com/$$REPO_URL.git" /workspace/repo 2>&1; then
                 log "✅ Repository cloned successfully"
                 
                 # Move modules to expected location
                 if [ -d "/workspace/repo/modules" ]; then
                     mv /workspace/repo/modules /workspace/modules
                     log "✅ Modules directory moved to workspace"
+                    
+                    # Clean up repo directory
+                    rm -rf /workspace/repo
                 else
-                    log "⚠️  No modules directory in repository, using repo root"
-                    mv /workspace/repo /workspace/modules
+                    log "⚠️  No modules directory in repository"
+                    log "   Treating repository root as modules directory"
+                    mv /workspace/repo /workspace/modules_temp
+                    mkdir -p /workspace/modules
+                    mv /workspace/modules_temp /workspace/modules/${_MODULE_NAME}
                 fi
             else
                 log "❌ Failed to clone repository"
-                log "   Repository: ${_GIT_REPO_URL}"
+                log "   Repository: $$REPO_URL"
+                log "   Type: $$REPO_TYPE"
                 log "   Possible issues:"
                 log "   • Invalid repository URL"
                 log "   • Access token expired or invalid"
@@ -243,7 +278,7 @@ steps:
             # Verify workspace has content
             if [ ! -d "/workspace/modules" ]; then
                 log "❌ ERROR: No modules directory found in workspace"
-                log "   Either provide _GIT_REPO_URL or ensure modules are in workspace"
+                log "   Either provide _MODULE_GIT_REPO_URL/_GIT_REPO_URL or ensure modules are in workspace"
                 exit 1
             fi
         fi
@@ -252,11 +287,13 @@ steps:
         if [ ! -d "/workspace/modules/${_MODULE_NAME}" ]; then
             log "❌ ERROR: Module directory not found"
             log "   Expected: /workspace/modules/${_MODULE_NAME}"
+            log "   Repository type: $$REPO_TYPE"
             log "   Available modules:"
             ls -la /workspace/modules/ 2>/dev/null || log "   No modules directory found"
             exit 1
         fi
         
+        log "✅ Module directory found: /workspace/modules/${_MODULE_NAME}"
         log "📋 Module contents:"
         ls -la "/workspace/modules/${_MODULE_NAME}/" | head -20
         
@@ -269,9 +306,92 @@ steps:
         fi
         
         log "✅ Source code preparation completed"
+        log "   Repository type: $$REPO_TYPE"
+        log "   Repository URL: $${REPO_URL:-N/A}"
 
   # ============================================
-  # STEP 3: Download and Verify Configuration
+  # STEP 3: Download CloudBuild YAML from Platform Repo
+  # ============================================
+  - id: 'Download CloudBuild YAML from Platform Repo'
+    name: '${_TERRAFORM_IMAGE_NAME}:latest'
+    secretEnv: ['GIT_TOKEN']
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        log "📥 Retrieving CloudBuild YAML from platform repository..."
+        
+        # Read repository type
+        REPO_TYPE="local"
+        if [ -f /workspace/repo_type.txt ]; then
+            REPO_TYPE=$$(cat /workspace/repo_type.txt)
+        fi
+        
+        # Only fetch CloudBuild YAML if using partner repo
+        # (Platform repo already has it, local doesn't need it)
+        if [ "$$REPO_TYPE" = "partner" ]; then
+            log "🔄 Partner repository detected - fetching CloudBuild YAML from platform repo"
+            
+            # Check if platform repo URL is provided
+            if [ -z "${_GIT_REPO_URL}" ] || [ "${_GIT_REPO_URL}" = "none" ]; then
+                log "⚠️  WARNING: No platform repository specified"
+                log "   CloudBuild YAML will not be updated from platform repo"
+                log "   Using existing CloudBuild configuration"
+            else
+                log "📦 Platform repository: ${_GIT_REPO_URL}"
+                
+                # Clone platform repo to temporary location
+                mkdir -p /workspace/platform_repo
+                
+                if timeout 180 git clone "https://$$GIT_TOKEN@github.com/${_GIT_REPO_URL}.git" /workspace/platform_repo 2>&1; then
+                    log "✅ Platform repository cloned"
+                    
+                    # Look for CloudBuild YAML files in platform repo
+                    CLOUDBUILD_FILES=$$(find /workspace/platform_repo -maxdepth 3 -name "cloudbuild*.yaml" -o -name "cloudbuild*.yml" 2>/dev/null)
+                    
+                    if [ -n "$$CLOUDBUILD_FILES" ]; then
+                        log "📋 Found CloudBuild YAML files in platform repo:"
+                        echo "$$CLOUDBUILD_FILES" | sed 's/^/   • /'
+                        
+                        # Copy CloudBuild files to deployment audit location
+                        mkdir -p /workspace/cloudbuild_configs
+                        find /workspace/platform_repo -maxdepth 3 -name "cloudbuild*.yaml" -o -name "cloudbuild*.yml" | \
+                          xargs -I {} cp {} /workspace/cloudbuild_configs/ 2>/dev/null || true
+                        
+                        # Upload to GCS for audit
+                        if [ -d /workspace/cloudbuild_configs ] && [ "$$(ls -A /workspace/cloudbuild_configs)" ]; then
+                            gsutil -m cp /workspace/cloudbuild_configs/* \
+                              "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/cloudbuild/" 2>/dev/null || \
+                              log "⚠️  Failed to upload CloudBuild configs to audit location"
+                            
+                            log "✅ CloudBuild YAML files archived for audit"
+                        fi
+                    else
+                        log "⚠️  No CloudBuild YAML files found in platform repo"
+                    fi
+                    
+                    # Clean up platform repo
+                    rm -rf /workspace/platform_repo
+                else
+                    log "⚠️  Failed to clone platform repository for CloudBuild YAML"
+                    log "   Continuing with existing configuration"
+                fi
+            fi
+        else
+            log "ℹ️  Repository type: $$REPO_TYPE"
+            log "   CloudBuild YAML fetch not required"
+        fi
+        
+        log "✅ CloudBuild YAML retrieval completed"
+
+  # ============================================
+  # STEP 4: Download and Verify Configuration
   # ============================================
   - id: 'Download and Verify Configuration'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
@@ -367,7 +487,7 @@ steps:
         log "✅ Configuration download and verification completed"
 
   # ============================================
-  # STEP 4: Create Initial Archive
+  # STEP 5: Create Initial Archive
   # ============================================
   - id: 'Create Initial Archive'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
@@ -412,10 +532,22 @@ steps:
         ARCHIVE_SIZE=$$(du -h "$$ARCHIVE_NAME" | cut -f1)
         FILE_COUNT=$$(tar -tzf "$$ARCHIVE_NAME" | wc -l)
         
+        # Read repository info
+        REPO_TYPE="local"
+        REPO_URL="N/A"
+        if [ -f /workspace/repo_type.txt ]; then
+            REPO_TYPE=$$(cat /workspace/repo_type.txt)
+        fi
+        if [ -f /workspace/repo_url.txt ]; then
+            REPO_URL=$$(cat /workspace/repo_url.txt)
+        fi
+        
         log "📊 Archive details:"
         log "   • Name: $$ARCHIVE_NAME"
         log "   • Size: $$ARCHIVE_SIZE"
         log "   • Files: $$FILE_COUNT"
+        log "   • Repository Type: $$REPO_TYPE"
+        log "   • Repository URL: $$REPO_URL"
         
         log "📤 Uploading initial archive to GCS..."
         
@@ -424,6 +556,8 @@ steps:
                   -h "x-goog-meta-deployment-id:${_DEPLOYMENT_ID}" \
                   -h "x-goog-meta-module:${_MODULE_NAME}" \
                   -h "x-goog-meta-timestamp:$$TIMESTAMP" \
+                  -h "x-goog-meta-repo-type:$$REPO_TYPE" \
+                  -h "x-goog-meta-repo-url:$$REPO_URL" \
                   cp "$$ARCHIVE_NAME" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/$$ARCHIVE_NAME"; then
             log "✅ Initial archive uploaded"
         else
@@ -442,7 +576,7 @@ steps:
         log "✅ Initial archive creation completed"
 
   # ============================================
-  # STEP 5: Initialize Terraform
+  # STEP 6: Initialize Terraform
   # ============================================
   - id: 'Initialize Terraform'
     name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -520,7 +654,7 @@ steps:
     dir: /workspace/modules/${_MODULE_NAME}
 
   # ============================================
-  # STEP 6: Validate Terraform Configuration
+  # STEP 7: Validate Terraform Configuration
   # ============================================
   - id: 'Validate Terraform Configuration'
     name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -549,7 +683,7 @@ steps:
     dir: /workspace/modules/${_MODULE_NAME}
 
   # ============================================
-  # STEP 7: Generate Terraform Plan
+  # STEP 8: Generate Terraform Plan
   # ============================================
   - id: 'Generate Terraform Plan'
     name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -566,10 +700,9 @@ steps:
         log "📋 Planning infrastructure changes..."
         
         # Generate plan with detailed exit codes
-        # Use PIPESTATUS to capture tofu exit code, not tee exit code
         set +e  # Temporarily disable exit on error
         tofu plan -out=tfplan -detailed-exitcode -no-color 2>&1 | tee /workspace/plan_output.txt
-        PLAN_EXIT_CODE=$${PIPESTATUS[0]}  # Get exit code from tofu, not tee
+        PLAN_EXIT_CODE=$${PIPESTATUS[0]}
         set -e  # Re-enable exit on error
         
         log "🔍 Plan exit code: $$PLAN_EXIT_CODE"
@@ -613,7 +746,7 @@ steps:
     dir: /workspace/modules/${_MODULE_NAME}
 
   # ============================================
-  # STEP 8: Apply Infrastructure Changes
+  # STEP 9: Apply Infrastructure Changes
   # ============================================
   - id: 'Apply Infrastructure Changes'
     name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -699,7 +832,7 @@ steps:
     dir: /workspace/modules/${_MODULE_NAME}
 
   # ============================================
-  # STEP 9: Refresh State and Generate Outputs
+  # STEP 10: Refresh State and Generate Outputs
   # ============================================
   - id: 'Refresh State and Generate Outputs'
     name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -776,7 +909,7 @@ steps:
     dir: /workspace/modules/${_MODULE_NAME}
 
   # ============================================
-  # STEP 10: Create Final Archive and Upload
+  # STEP 11: Create Final Archive and Upload
   # ============================================
   - id: 'Create Final Archive and Upload'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
@@ -820,10 +953,21 @@ steps:
         ARCHIVE_SIZE=$$(du -h "$$FINAL_ARCHIVE" | cut -f1)
         FILE_COUNT=$$(tar -tzf "$$FINAL_ARCHIVE" | wc -l)
         
+        # Read repository info
+        REPO_TYPE="local"
+        REPO_URL="N/A"
+        if [ -f /workspace/repo_type.txt ]; then
+            REPO_TYPE=$$(cat /workspace/repo_type.txt)
+        fi
+        if [ -f /workspace/repo_url.txt ]; then
+            REPO_URL=$$(cat /workspace/repo_url.txt)
+        fi
+        
         log "📊 Final archive details:"
         log "   • Name: $$FINAL_ARCHIVE"
         log "   • Size: $$ARCHIVE_SIZE"
         log "   • Files: $$FILE_COUNT"
+        log "   • Repository Type: $$REPO_TYPE"
         
         log "📤 Uploading final deployment files..."
         
@@ -834,6 +978,8 @@ steps:
                   -h "x-goog-meta-deployment-id:${_DEPLOYMENT_ID}" \
                   -h "x-goog-meta-timestamp:$$TIMESTAMP" \
                   -h "x-goog-meta-type:final" \
+                  -h "x-goog-meta-repo-type:$$REPO_TYPE" \
+                  -h "x-goog-meta-repo-url:$$REPO_URL" \
                   cp "$$FINAL_ARCHIVE" "$$FILES_PATH/$$FINAL_ARCHIVE"; then
             log "✅ Timestamped final archive uploaded"
         else
@@ -865,7 +1011,10 @@ steps:
           "archive": "$$FINAL_ARCHIVE",
           "archive_size": "$$ARCHIVE_SIZE",
           "file_count": $$FILE_COUNT,
-          "repository": "${_GIT_REPO_URL:-local}",
+          "repository_type": "$$REPO_TYPE",
+          "repository_url": "$$REPO_URL",
+          "platform_repo": "${_GIT_REPO_URL:-none}",
+          "partner_repo": "${_MODULE_GIT_REPO_URL:-none}",
           "triggered_by": "${_TRIGGERED_BY:-manual}"
         }
         EOF
@@ -883,7 +1032,7 @@ steps:
         log "✅ Final archive created and uploaded"
 
   # ============================================
-  # STEP 11: Deployment Summary
+  # STEP 12: Deployment Summary
   # ============================================
   - id: 'Deployment Summary'
     name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -906,6 +1055,16 @@ steps:
             DEPLOYMENT_STATUS=$$(cat /workspace/deployment_status.txt)
         fi
         
+        # Read repository info
+        REPO_TYPE="local"
+        REPO_URL="N/A"
+        if [ -f /workspace/repo_type.txt ]; then
+            REPO_TYPE=$$(cat /workspace/repo_type.txt)
+        fi
+        if [ -f /workspace/repo_url.txt ]; then
+            REPO_URL=$$(cat /workspace/repo_url.txt)
+        fi
+        
         echo "========================================"
         if [ "$$APPLY_STATUS" = "success" ]; then
             log "🎉 TERRAFORM DEPLOYMENT COMPLETED SUCCESSFULLY"
@@ -922,7 +1081,10 @@ steps:
         echo "  • Status: $$APPLY_STATUS"
         echo "  • Project: ${PROJECT_ID}"
         echo "  • Build ID: ${BUILD_ID}"
-        echo "  • Repository: ${_GIT_REPO_URL:-Local/Default}"
+        echo "  • Repository Type: $$REPO_TYPE"
+        echo "  • Repository URL: $$REPO_URL"
+        echo "  • Platform Repo: ${_GIT_REPO_URL:-none}"
+        echo "  • Partner Repo: ${_MODULE_GIT_REPO_URL:-none}"
         echo "  • Completed: $$(date)"
         echo "========================================"
         echo "📁 Deployment Artifacts:"
@@ -931,6 +1093,7 @@ steps:
         echo "  • State: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/state/"
         echo "  • Outputs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output/output.json"
         echo "  • Audit: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/"
+        echo "  • CloudBuild: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/cloudbuild/"
         echo "  • Completion: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/deployment_complete.json"
         echo "  • Logs: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/create/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
         echo "========================================"
@@ -959,20 +1122,16 @@ steps:
 
   # ============================================
   # CLEANUP STEPS (Always Execute)
-  # Using waitFor: ['-'] to run independently of previous steps
   # ============================================
   
-  # ============================================
-  # CLEANUP STEP 1: Release Deployment Lock
-  # ============================================
   - id: 'Release Deployment Lock (Cleanup)'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
-    waitFor: ['-']  # Run independently of previous steps
+    waitFor: ['-']
     args:
       - '-c'
       - |
-        set +e  # Don't fail on errors in cleanup
+        set +e
         
         log() {
             echo "[$$(date +'%H:%M:%S')] $$1"
@@ -982,17 +1141,14 @@ steps:
         log "🧹 CLEANUP: Releasing deployment lock"
         echo "========================================"
         
-        # Try to read lock path from file first
         if [ -f /workspace/lock_path.txt ]; then
             LOCK_PATH=$$(cat /workspace/lock_path.txt)
             log "📍 Lock path from file: $$LOCK_PATH"
         else
-            # Fallback: construct lock path from substitution variables
             LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
             log "📍 Lock path from substitutions: $$LOCK_PATH"
         fi
         
-        # Check if lock exists and belongs to this build
         if gsutil cp "$$LOCK_PATH" /tmp/lock.json 2>/dev/null; then
             LOCK_BUILD_ID=$$(cat /tmp/lock.json | grep -o '"build_id":"[^"]*"' | cut -d'"' -f4 2>/dev/null)
             
@@ -1017,19 +1173,16 @@ steps:
         fi
         
         log "✅ Lock cleanup completed"
-        exit 0  # Always succeed in cleanup
+        exit 0
 
-  # ============================================
-  # CLEANUP STEP 2: Upload Build Metadata
-  # ============================================
   - id: 'Upload Build Metadata (Cleanup)'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
-    waitFor: ['Release Deployment Lock (Cleanup)']  # Wait for previous cleanup step
+    waitFor: ['Release Deployment Lock (Cleanup)']
     args:
       - '-c'
       - |
-        set +e  # Don't fail on errors in cleanup
+        set +e
         
         log() {
             echo "[$$(date +'%H:%M:%S')] $$1"
@@ -1037,7 +1190,6 @@ steps:
         
         log "📊 CLEANUP: Uploading build metadata..."
         
-        # Determine build status
         BUILD_STATUS="UNKNOWN"
         if [ -f /workspace/apply_status.txt ]; then
             APPLY_STATUS=$$(cat /workspace/apply_status.txt)
@@ -1047,11 +1199,19 @@ steps:
                 failed) BUILD_STATUS="FAILED" ;;
             esac
         else
-            # If no apply status file, build likely failed before apply
             BUILD_STATUS="FAILED"
         fi
         
-        # Create metadata file
+        # Read repository info
+        REPO_TYPE="local"
+        REPO_URL="N/A"
+        if [ -f /workspace/repo_type.txt ]; then
+            REPO_TYPE=$$(cat /workspace/repo_type.txt)
+        fi
+        if [ -f /workspace/repo_url.txt ]; then
+            REPO_URL=$$(cat /workspace/repo_url.txt)
+        fi
+        
         cat > /tmp/build_metadata.json <<EOF
         {
           "build_id": "${BUILD_ID}",
@@ -1061,14 +1221,16 @@ steps:
           "status": "$$BUILD_STATUS",
           "completed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
           "triggered_by": "${_TRIGGERED_BY:-manual}",
-          "repository": "${_GIT_REPO_URL:-local}"
+          "repository_type": "$$REPO_TYPE",
+          "repository_url": "$$REPO_URL",
+          "platform_repo": "${_GIT_REPO_URL:-none}",
+          "partner_repo": "${_MODULE_GIT_REPO_URL:-none}"
         }
         EOF
         
         log "📋 Build metadata:"
         cat /tmp/build_metadata.json
         
-        # Upload metadata to GCS
         METADATA_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/audit/build-metadata-$$(date +%Y%m%d-%H%M%S).json"
         
         if gsutil -h "Content-Type:application/json" \
@@ -1079,19 +1241,16 @@ steps:
         fi
         
         log "✅ Metadata upload completed"
-        exit 0  # Always succeed in cleanup
+        exit 0
 
-  # ============================================
-  # CLEANUP STEP 3: Final Status Summary
-  # ============================================
   - id: 'Final Status Summary (Cleanup)'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
-    waitFor: ['Upload Build Metadata (Cleanup)']  # Wait for previous cleanup step
+    waitFor: ['Upload Build Metadata (Cleanup)']
     args:
       - '-c'
       - |
-        set +e  # Don't fail on errors
+        set +e
         
         log() {
             echo "[$$(date +'%H:%M:%S')] $$1"
@@ -1107,7 +1266,6 @@ steps:
         echo "Timestamp: $$(date)"
         echo "========================================"
         
-        # Check deployment status
         if [ -f /workspace/apply_status.txt ]; then
             APPLY_STATUS=$$(cat /workspace/apply_status.txt)
             echo "Apply Status: $$APPLY_STATUS"
@@ -1115,7 +1273,12 @@ steps:
             echo "Apply Status: Not reached (build failed before apply)"
         fi
         
-        # Check if lock was released
+        # Read repository info
+        if [ -f /workspace/repo_type.txt ]; then
+            REPO_TYPE=$$(cat /workspace/repo_type.txt)
+            echo "Repository Type: $$REPO_TYPE"
+        fi
+        
         LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
         if gsutil ls "$$LOCK_PATH" 2>/dev/null; then
             log "⚠️  WARNING: Lock still exists!"
@@ -1129,7 +1292,7 @@ steps:
         log "🏁 Cleanup completed"
         echo "========================================"
         
-        exit 0  # Always succeed
+        exit 0
 
 # ============================================
 # Secret Configuration
@@ -1146,6 +1309,7 @@ options:
   logging: GCS_ONLY
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
+  substitutionOption: 'ALLOW_LOOSE'
   # machineType: 'E2_HIGHCPU_8'  # Uncomment for complex deployments
 
 # ============================================
@@ -1156,7 +1320,9 @@ substitutions:
   _MODULE_NAME: "unknown"
   _DEPLOYMENT_BUCKET_ID: "rad-deployments-2b65"
   _TERRAFORM_IMAGE_NAME: "hashicorp/terraform"
-  _GIT_REPO_URL: "none"
+  _GIT_REPO_URL: "none"                    # Platform repository (for CloudBuild YAML)
+  _MODULE_GIT_REPO_URL: ""                 # Partner repository (for module code)
+  _GITHUB_TOKEN_SECRET_NAME: "git-access-token"
   _TRIGGERED_BY: "manual"
 
 # ============================================
