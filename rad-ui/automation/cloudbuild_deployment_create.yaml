@@ -200,54 +200,125 @@ steps:
         log "   Access: Read-only"
         log "   Purpose: Configuration + optionally module code"
         
-        # Verify Git token
+        # ========================================
+        # FIXED: Verify Git token exists before using it
+        # ========================================
         if [ -z "$$GIT_TOKEN" ]; then
             log "❌ ERROR: Git token not available"
-            log "   Secret: ${_GITHUB_TOKEN_SECRET_NAME}"
+            log "   Secret name: ${_GITHUB_TOKEN_SECRET_NAME}"
+            log "   Secret path: projects/${PROJECT_ID}/secrets/${_GITHUB_TOKEN_SECRET_NAME}/versions/latest"
+            log ""
+            log "💡 Troubleshooting:"
+            log "   1. Verify secret exists:"
+            log "      gcloud secrets describe ${_GITHUB_TOKEN_SECRET_NAME} --project=${PROJECT_ID}"
+            log "   2. Verify Cloud Build service account has access:"
+            log "      gcloud secrets add-iam-policy-binding ${_GITHUB_TOKEN_SECRET_NAME} \\"
+            log "        --member='serviceAccount:YOUR_SERVICE_ACCOUNT@PROJECT.iam.gserviceaccount.com' \\"
+            log "        --role='roles/secretmanager.secretAccessor'"
             exit 1
         fi
         
-        # Normalize repo URL (remove .git if present)
+        log "✅ Git token available (length: $${#GIT_TOKEN} characters)"
+        
+        # ========================================
+        # FIXED: Validate repository URL before cloning
+        # ========================================
+        if [ -z "${_GIT_REPO_URL}" ] || [ "${_GIT_REPO_URL}" = "none" ]; then
+            log "❌ ERROR: Platform repository URL not provided"
+            log "   Variable: _GIT_REPO_URL"
+            log "   Current value: '${_GIT_REPO_URL}'"
+            log ""
+            log "💡 Provide the repository URL:"
+            log "   _GIT_REPO_URL=your-org/your-repo"
+            exit 1
+        fi
+        
+        # Normalize repository URL (remove .git if present)
         CLEAN_REPO_URL="${_GIT_REPO_URL%.git}"
         
-        # Clone platform repository
-        if timeout 300 git clone "https://$$GIT_TOKEN@github.com/$$CLEAN_REPO_URL.git" /workspace/platform_repo 2>&1 | tee /tmp/clone_platform_output.txt; then
+        log "📍 Normalized repository: $$CLEAN_REPO_URL"
+        
+        # ========================================
+        # FIXED: Clone with proper error handling
+        # ========================================
+        log "🔄 Cloning repository..."
+        
+        # Construct full URL
+        FULL_URL="https://$$GIT_TOKEN@github.com/$$CLEAN_REPO_URL.git"
+        
+        # Clone with timeout and error capture
+        if timeout 300 git clone "$$FULL_URL" /workspace/platform_repo 2>&1 | tee /tmp/clone_output.txt; then
             log "✅ Platform repository cloned successfully"
-            
-            # Verify deployment configuration exists
-            DEPLOYMENT_CONFIG_PATH="/workspace/platform_repo/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
-            
-            if [ -d "$$DEPLOYMENT_CONFIG_PATH" ]; then
-                log "✅ Deployment configuration found"
-                
-                # List configuration files
-                log "📋 Configuration files:"
-                ls -la "$$DEPLOYMENT_CONFIG_PATH" | tail -n +4 | sed 's/^/   /'
-            else
-                log "❌ ERROR: Deployment configuration not found"
-                log "   Expected path: $$DEPLOYMENT_CONFIG_PATH"
-                log ""
-                log "💡 The platform repository should contain:"
-                log "   deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
-                log "   ├── terraform.tfvars.json  (REQUIRED)"
-                log "   └── backend.tf             (OPTIONAL)"
-                exit 1
-            fi
         else
+            CLONE_EXIT_CODE=$$?
             log "❌ ERROR: Failed to clone platform repository"
-            log "   Repository: ${_GIT_REPO_URL}"
+            log "   Repository: $$CLEAN_REPO_URL"
+            log "   Exit code: $$CLONE_EXIT_CODE"
             log ""
-            log "📋 Clone error:"
-            cat /tmp/clone_platform_output.txt | grep -v "$$GIT_TOKEN" | tail -10 | sed 's/^/   /'
+            log "📋 Clone error (sanitized):"
+            # Remove token from error output
+            cat /tmp/clone_output.txt | sed "s/$$GIT_TOKEN/[REDACTED]/g" | tail -10 | sed 's/^/   /'
             log ""
             log "💡 Possible issues:"
-            log "   • Invalid repository URL"
-            log "   • Access token expired or lacks permissions"
+            log "   • Repository does not exist: https://github.com/$$CLEAN_REPO_URL"
+            log "   • Access token lacks permissions (needs 'repo' scope)"
             log "   • Repository is private and token doesn't have access"
             log "   • Network timeout or GitHub API rate limit"
+            log "   • Token has expired"
+            log ""
+            log "🔍 Verify repository exists:"
+            log "   https://github.com/$$CLEAN_REPO_URL"
             exit 1
         fi
-    dir: /workspace
+        
+        # ========================================
+        # Verify deployment configuration exists
+        # ========================================
+        DEPLOYMENT_CONFIG_PATH="/workspace/platform_repo/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
+        
+        log "🔍 Looking for deployment configuration..."
+        log "   Path: $$DEPLOYMENT_CONFIG_PATH"
+        
+        if [ -d "$$DEPLOYMENT_CONFIG_PATH" ]; then
+            log "✅ Deployment configuration found"
+            
+            # List contents
+            log "📋 Configuration files:"
+            ls -la "$$DEPLOYMENT_CONFIG_PATH" | sed 's/^/   /'
+            
+            # Verify required files
+            if [ -f "$$DEPLOYMENT_CONFIG_PATH/terraform.tfvars.json" ]; then
+                log "✅ terraform.tfvars.json found"
+            else
+                log "❌ ERROR: terraform.tfvars.json not found"
+                log "   Required file: $$DEPLOYMENT_CONFIG_PATH/terraform.tfvars.json"
+                exit 1
+            fi
+            
+            if [ -f "$$DEPLOYMENT_CONFIG_PATH/backend.tf" ]; then
+                log "✅ backend.tf found"
+            else
+                log "ℹ️  backend.tf not found (will create default)"
+            fi
+        else
+            log "❌ ERROR: Deployment configuration not found"
+            log "   Expected path: $$DEPLOYMENT_CONFIG_PATH"
+            log ""
+            log "💡 The platform repository should contain:"
+            log "   deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+            log "   ├── terraform.tfvars.json  (REQUIRED)"
+            log "   └── backend.tf             (OPTIONAL)"
+            log ""
+            log "📋 Available deployments:"
+            if [ -d "/workspace/platform_repo/deployments" ]; then
+                find /workspace/platform_repo/deployments -type d -maxdepth 2 | sed 's/^/   /' || log "   No deployments found"
+            else
+                log "   No deployments directory found"
+            fi
+            exit 1
+        fi
+        
+        log "✅ Platform repository validation completed"
 
   # ============================================
   # STEP 3: Prepare Module Code
