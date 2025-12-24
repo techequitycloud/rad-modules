@@ -89,7 +89,7 @@ steps:
             gsutil ls "$$DEPLOYMENT_PATH/" 2>/dev/null | sed 's/^/   /' || log "   Could not list structure"
             
             # ========================================
-            # Extract repository information
+            # FIXED: Extract repository information using correct field names
             # ========================================
             if gsutil cat "$$DEPLOYMENT_PATH/files/deployment_complete.json" > /tmp/deployment_info.json 2>/dev/null; then
                 log "📋 Deployment information:"
@@ -105,8 +105,9 @@ steps:
                 if command -v jq >/dev/null 2>&1; then
                     log "📦 Extracting repository metadata..."
                     
-                    REPO_TYPE=$$(jq -r '.repository_type // "unknown"' /tmp/deployment_info.json 2>/dev/null || echo "unknown")
-                    REPO_URL=$$(jq -r '.repository_url // "none"' /tmp/deployment_info.json 2>/dev/null || echo "none")
+                    # FIXED: Use correct field names from CREATE YAML
+                    REPO_TYPE=$$(jq -r '.module_source // "unknown"' /tmp/deployment_info.json 2>/dev/null || echo "unknown")
+                    REPO_URL=$$(jq -r '.module_repository // "none"' /tmp/deployment_info.json 2>/dev/null || echo "none")
                     PARTNER_REPO=$$(jq -r '.partner_repo // "none"' /tmp/deployment_info.json 2>/dev/null || echo "none")
                     PLATFORM_REPO=$$(jq -r '.platform_repo // "none"' /tmp/deployment_info.json 2>/dev/null || echo "none")
                     
@@ -138,6 +139,29 @@ steps:
                 fi
             else
                 log "ℹ️  No deployment completion marker found"
+            fi
+            
+            # FIXED: Also check deployment_update.json (from UPDATE operations)
+            if gsutil cat "$$DEPLOYMENT_PATH/files/deployment_update.json" > /tmp/deployment_update_info.json 2>/dev/null; then
+                if command -v jq >/dev/null 2>&1; then
+                    log "📦 Checking for updated repository info from last UPDATE..."
+                    
+                    # Update files might have more recent info
+                    UPDATE_REPO_TYPE=$$(jq -r '.module_source // "unknown"' /tmp/deployment_update_info.json 2>/dev/null || echo "unknown")
+                    UPDATE_REPO_URL=$$(jq -r '.module_repository // "none"' /tmp/deployment_update_info.json 2>/dev/null || echo "none")
+                    
+                    if [ "$$UPDATE_REPO_TYPE" != "unknown" ] && [ "$$UPDATE_REPO_TYPE" != "null" ]; then
+                        echo "$$UPDATE_REPO_TYPE" > /workspace/original_repo_type.txt
+                        log "📦 Using repository info from last UPDATE"
+                    fi
+                    if [ "$$UPDATE_REPO_URL" != "none" ] && [ "$$UPDATE_REPO_URL" != "null" ]; then
+                        echo "$$UPDATE_REPO_URL" > /workspace/original_repo_url.txt
+                    fi
+                fi
+            fi
+            
+            # If still no metadata, create empty files
+            if [ ! -f /workspace/original_repo_type.txt ]; then
                 log "   Repository metadata not available"
                 echo "unknown" > /workspace/original_repo_type.txt
                 echo "none" > /workspace/original_repo_url.txt
@@ -471,6 +495,10 @@ steps:
         log "   Size: $$FOLDER_SIZE"
         log "   Files: $$FILE_COUNT"
         log "   Original Repo Type: $$ORIGINAL_REPO_TYPE"
+
+  # [Steps 3-6 remain exactly the same as your original]
+  # Including: Create Safety Backup, Delete Cloud Storage Deployment, 
+  # Upload Purge Audit, Purge Summary
 
   # ============================================
   # STEP 3: Create Safety Backup
