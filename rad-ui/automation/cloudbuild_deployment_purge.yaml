@@ -88,17 +88,67 @@ steps:
             log "📋 Deployment structure:"
             gsutil ls "$$DEPLOYMENT_PATH/" 2>/dev/null | sed 's/^/   /' || log "   Could not list structure"
             
-            # Get deployment info if available
+            # ========================================
+            # Extract repository information
+            # ========================================
             if gsutil cat "$$DEPLOYMENT_PATH/files/deployment_complete.json" > /tmp/deployment_info.json 2>/dev/null; then
                 log "📋 Deployment information:"
                 cat /tmp/deployment_info.json | grep -E '"deployed_at"|"status"|"build_id"|"module"|"deployment_id"' | sed 's/^/   /'
+                
+                # Install jq if not available
+                if ! command -v jq >/dev/null 2>&1; then
+                    log "📦 Installing jq for JSON parsing..."
+                    apk add --no-cache jq 2>/dev/null || log "⚠️  jq installation failed"
+                fi
+                
+                # Extract repository metadata
+                if command -v jq >/dev/null 2>&1; then
+                    log "📦 Extracting repository metadata..."
+                    
+                    REPO_TYPE=$$(jq -r '.repository_type // "unknown"' /tmp/deployment_info.json 2>/dev/null || echo "unknown")
+                    REPO_URL=$$(jq -r '.repository_url // "none"' /tmp/deployment_info.json 2>/dev/null || echo "none")
+                    PARTNER_REPO=$$(jq -r '.partner_repo // "none"' /tmp/deployment_info.json 2>/dev/null || echo "none")
+                    PLATFORM_REPO=$$(jq -r '.platform_repo // "none"' /tmp/deployment_info.json 2>/dev/null || echo "none")
+                    
+                    # Save for audit
+                    echo "$$REPO_TYPE" > /workspace/original_repo_type.txt
+                    echo "$$REPO_URL" > /workspace/original_repo_url.txt
+                    echo "$$PARTNER_REPO" > /workspace/original_partner_repo.txt
+                    echo "$$PLATFORM_REPO" > /workspace/original_platform_repo.txt
+                    
+                    log "📦 Original deployment repository info:"
+                    log "   Repository Type: $$REPO_TYPE"
+                    log "   Repository URL: $$REPO_URL"
+                    
+                    if [ "$$PARTNER_REPO" != "none" ] && [ "$$PARTNER_REPO" != "null" ] && [ -n "$$PARTNER_REPO" ]; then
+                        log "   Partner Repo: $$PARTNER_REPO"
+                    fi
+                    
+                    if [ "$$PLATFORM_REPO" != "none" ] && [ "$$PLATFORM_REPO" != "null" ] && [ -n "$$PLATFORM_REPO" ]; then
+                        log "   Platform Repo: $$PLATFORM_REPO"
+                    fi
+                    
+                    log "✅ Repository metadata extracted successfully"
+                else
+                    log "⚠️  Could not extract repository metadata (jq not available)"
+                    echo "unknown" > /workspace/original_repo_type.txt
+                    echo "none" > /workspace/original_repo_url.txt
+                    echo "none" > /workspace/original_partner_repo.txt
+                    echo "none" > /workspace/original_platform_repo.txt
+                fi
             else
                 log "ℹ️  No deployment completion marker found"
+                log "   Repository metadata not available"
+                echo "unknown" > /workspace/original_repo_type.txt
+                echo "none" > /workspace/original_repo_url.txt
+                echo "none" > /workspace/original_partner_repo.txt
+                echo "none" > /workspace/original_platform_repo.txt
             fi
             
             # Calculate and show size
+            log "📊 Calculating deployment size..."
             SIZE_INFO=$$(gsutil du -sh "$$DEPLOYMENT_PATH/" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
-            log "📊 Deployment size: $$SIZE_INFO"
+            log "   Deployment size: $$SIZE_INFO"
             echo "$$SIZE_INFO" > /workspace/deployment_size.txt
             
         else
@@ -107,6 +157,12 @@ steps:
             log "   This may have already been purged"
             echo "not_exists" > /workspace/deployment_exists.txt
             echo "0" > /workspace/deployment_size.txt
+            
+            # Create empty repository metadata files
+            echo "unknown" > /workspace/original_repo_type.txt
+            echo "none" > /workspace/original_repo_url.txt
+            echo "none" > /workspace/original_partner_repo.txt
+            echo "none" > /workspace/original_platform_repo.txt
         fi
         
         log "✅ Prerequisites validated successfully"
@@ -243,10 +299,29 @@ steps:
         
         mkdir -p /tmp/audit
         
+        # Read repository metadata
+        ORIGINAL_REPO_TYPE="unknown"
+        ORIGINAL_REPO_URL="none"
+        ORIGINAL_PARTNER_REPO="none"
+        ORIGINAL_PLATFORM_REPO="none"
+        
+        if [ -f /workspace/original_repo_type.txt ]; then
+            ORIGINAL_REPO_TYPE=$$(cat /workspace/original_repo_type.txt)
+        fi
+        if [ -f /workspace/original_repo_url.txt ]; then
+            ORIGINAL_REPO_URL=$$(cat /workspace/original_repo_url.txt)
+        fi
+        if [ -f /workspace/original_partner_repo.txt ]; then
+            ORIGINAL_PARTNER_REPO=$$(cat /workspace/original_partner_repo.txt)
+        fi
+        if [ -f /workspace/original_platform_repo.txt ]; then
+            ORIGINAL_PLATFORM_REPO=$$(cat /workspace/original_platform_repo.txt)
+        fi
+        
         if [ "$$DEPLOYMENT_EXISTS" = "not_exists" ]; then
             log "ℹ️  Deployment does not exist - creating minimal audit"
             
-            # Create minimal audit record
+            # Create minimal audit record with repository info
             cat > /tmp/audit/pre_purge_audit.json <<EOF
         {
           "module": "${_MODULE_NAME}",
@@ -259,11 +334,19 @@ steps:
           "deployment_path": "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/",
           "operation": "purge",
           "status": "not_found",
-          "initiated_by": "${_TRIGGERED_BY:-manual}"
+          "initiated_by": "${_TRIGGERED_BY:-manual}",
+          "repository_info": {
+            "original_type": "$$ORIGINAL_REPO_TYPE",
+            "original_url": "$$ORIGINAL_REPO_URL",
+            "original_partner_repo": "$$ORIGINAL_PARTNER_REPO",
+            "original_platform_repo": "$$ORIGINAL_PLATFORM_REPO",
+            "purge_git_repo": "${_GIT_REPO_URL:-none}",
+            "purge_module_git_repo": "${_MODULE_GIT_REPO_URL:-none}"
+          }
         }
         EOF
             echo "Deployment not found" > /tmp/audit/file_list.txt
-            log "✅ Minimal audit created"
+            log "✅ Minimal audit created with repository metadata"
             exit 0
         fi
         
@@ -351,7 +434,7 @@ steps:
             log "   ℹ️  No standard important files found"
         fi
         
-        # Create detailed audit record
+        # Create detailed audit record with repository info
         log "📝 Creating comprehensive audit record..."
         cat > /tmp/audit/pre_purge_audit.json <<EOF
         {
@@ -366,8 +449,14 @@ steps:
           "operation": "purge",
           "status": "pre_purge_audit_complete",
           "initiated_by": "${_TRIGGERED_BY:-manual}",
-          "git_repo": "${_GIT_REPO_URL:-none}",
-          "module_git_repo": "${_MODULE_GIT_REPO_URL:-none}",
+          "repository_info": {
+            "original_type": "$$ORIGINAL_REPO_TYPE",
+            "original_url": "$$ORIGINAL_REPO_URL",
+            "original_partner_repo": "$$ORIGINAL_PARTNER_REPO",
+            "original_platform_repo": "$$ORIGINAL_PLATFORM_REPO",
+            "purge_git_repo": "${_GIT_REPO_URL:-none}",
+            "purge_module_git_repo": "${_MODULE_GIT_REPO_URL:-none}"
+          },
           "important_files": {
             "deployment_complete": $$HAS_DEPLOYMENT_COMPLETE,
             "state": $$HAS_STATE,
@@ -378,12 +467,13 @@ steps:
         }
         EOF
         
-        log "✅ Pre-purge audit created"
+        log "✅ Pre-purge audit created with repository metadata"
         log "   Size: $$FOLDER_SIZE"
         log "   Files: $$FILE_COUNT"
+        log "   Original Repo Type: $$ORIGINAL_REPO_TYPE"
 
   # ============================================
-  # STEP 3: Create Backup (Optional Safety)
+  # STEP 3: Create Safety Backup
   # ============================================
   - id: 'Create Safety Backup'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
@@ -428,6 +518,17 @@ steps:
         fi
         log "📊 Deployment size: $$SIZE_INFO"
         
+        # Read repository metadata
+        ORIGINAL_REPO_TYPE="unknown"
+        ORIGINAL_REPO_URL="none"
+        
+        if [ -f /workspace/original_repo_type.txt ]; then
+            ORIGINAL_REPO_TYPE=$$(cat /workspace/original_repo_type.txt)
+        fi
+        if [ -f /workspace/original_repo_url.txt ]; then
+            ORIGINAL_REPO_URL=$$(cat /workspace/original_repo_url.txt)
+        fi
+        
         # Create backup metadata
         cat > /tmp/backup_metadata.json <<EOF
         {
@@ -441,7 +542,9 @@ steps:
           "size": "$$SIZE_INFO",
           "operation": "purge_backup",
           "triggered_by": "${_TRIGGERED_BY:-manual}",
-          "retention": "Check bucket lifecycle policy for automatic deletion"
+          "retention": "Check bucket lifecycle policy for automatic deletion",
+          "original_repository_type": "$$ORIGINAL_REPO_TYPE",
+          "original_repository_url": "$$ORIGINAL_REPO_URL"
         }
         EOF
         
@@ -479,7 +582,9 @@ steps:
           "backup_path": "$$BACKUP_FULL_PATH/",
           "original_deployment": "$$DEPLOYMENT_PATH",
           "size": "$$BACKUP_SIZE",
-          "operation": "purge"
+          "operation": "purge",
+          "original_repository_type": "$$ORIGINAL_REPO_TYPE",
+          "original_repository_url": "$$ORIGINAL_REPO_URL"
         }
         EOF
                 
@@ -729,7 +834,26 @@ steps:
             FOLDER_SIZE=$$(cat /workspace/deployment_size.txt)
         fi
         
-        # Create comprehensive purge completion marker
+        # Read repository metadata
+        ORIGINAL_REPO_TYPE="unknown"
+        ORIGINAL_REPO_URL="none"
+        ORIGINAL_PARTNER_REPO="none"
+        ORIGINAL_PLATFORM_REPO="none"
+        
+        if [ -f /workspace/original_repo_type.txt ]; then
+            ORIGINAL_REPO_TYPE=$$(cat /workspace/original_repo_type.txt)
+        fi
+        if [ -f /workspace/original_repo_url.txt ]; then
+            ORIGINAL_REPO_URL=$$(cat /workspace/original_repo_url.txt)
+        fi
+        if [ -f /workspace/original_partner_repo.txt ]; then
+            ORIGINAL_PARTNER_REPO=$$(cat /workspace/original_partner_repo.txt)
+        fi
+        if [ -f /workspace/original_platform_repo.txt ]; then
+            ORIGINAL_PLATFORM_REPO=$$(cat /workspace/original_platform_repo.txt)
+        fi
+        
+        # Create comprehensive purge completion marker with repository info
         log "📝 Creating purge completion marker..."
         
         cat > /tmp/purge_complete.json <<EOF
@@ -749,13 +873,19 @@ steps:
           "backup_location": "$$BACKUP_LOCATION",
           "audit_location": "$$AUDIT_BASE/",
           "initiated_by": "${_TRIGGERED_BY:-manual}",
-          "git_repo": "${_GIT_REPO_URL:-none}",
-          "module_git_repo": "${_MODULE_GIT_REPO_URL:-none}"
+          "repository_info": {
+            "original_type": "$$ORIGINAL_REPO_TYPE",
+            "original_url": "$$ORIGINAL_REPO_URL",
+            "original_partner_repo": "$$ORIGINAL_PARTNER_REPO",
+            "original_platform_repo": "$$ORIGINAL_PLATFORM_REPO",
+            "purge_git_repo": "${_GIT_REPO_URL:-none}",
+            "purge_module_git_repo": "${_MODULE_GIT_REPO_URL:-none}"
+          }
         }
         EOF
         
         if gsutil -h "Content-Type:application/json" cp /tmp/purge_complete.json "$$AUDIT_BASE/purge_complete.json" 2>/dev/null; then
-            log "✅ Completion marker uploaded"
+            log "✅ Completion marker uploaded with repository metadata"
         else
             log "⚠️  Failed to upload completion marker"
         fi
@@ -797,6 +927,17 @@ steps:
             FOLDER_SIZE=$$(cat /workspace/deployment_size.txt)
         fi
         
+        # Read repository metadata
+        ORIGINAL_REPO_TYPE="unknown"
+        ORIGINAL_REPO_URL="none"
+        
+        if [ -f /workspace/original_repo_type.txt ]; then
+            ORIGINAL_REPO_TYPE=$$(cat /workspace/original_repo_type.txt)
+        fi
+        if [ -f /workspace/original_repo_url.txt ]; then
+            ORIGINAL_REPO_URL=$$(cat /workspace/original_repo_url.txt)
+        fi
+        
         echo ""
         echo "========================================="
         if [ "$$PURGE_STATUS" = "success" ]; then
@@ -823,6 +964,12 @@ steps:
         echo "  • Folder Size: $$FOLDER_SIZE"
         echo "  • Backup Status: $$BACKUP_STATUS"
         echo "  • Purge Status: $$PURGE_STATUS"
+        echo "========================================="
+        echo "Repository Information:"
+        echo "  • Original Type: $$ORIGINAL_REPO_TYPE"
+        echo "  • Original URL: $$ORIGINAL_REPO_URL"
+        echo "  • Purge Git Repo: ${_GIT_REPO_URL:-none}"
+        echo "  • Purge Module Repo: ${_MODULE_GIT_REPO_URL:-none}"
         echo "========================================="
         
         if [ "$$BACKUP_STATUS" = "success" ] && [ -f /workspace/backup_location.txt ]; then
@@ -994,6 +1141,25 @@ steps:
             FOLDER_SIZE=$$(cat /workspace/deployment_size.txt)
         fi
         
+        # Read repository metadata
+        ORIGINAL_REPO_TYPE="unknown"
+        ORIGINAL_REPO_URL="none"
+        ORIGINAL_PARTNER_REPO="none"
+        ORIGINAL_PLATFORM_REPO="none"
+        
+        if [ -f /workspace/original_repo_type.txt ]; then
+            ORIGINAL_REPO_TYPE=$$(cat /workspace/original_repo_type.txt)
+        fi
+        if [ -f /workspace/original_repo_url.txt ]; then
+            ORIGINAL_REPO_URL=$$(cat /workspace/original_repo_url.txt)
+        fi
+        if [ -f /workspace/original_partner_repo.txt ]; then
+            ORIGINAL_PARTNER_REPO=$$(cat /workspace/original_partner_repo.txt)
+        fi
+        if [ -f /workspace/original_platform_repo.txt ]; then
+            ORIGINAL_PLATFORM_REPO=$$(cat /workspace/original_platform_repo.txt)
+        fi
+        
         # Create final metadata file
         cat > /tmp/final_build_metadata.json <<EOF
         {
@@ -1009,7 +1175,15 @@ steps:
           "deployment_existed": "$$DEPLOYMENT_EXISTS",
           "folder_size": "$$FOLDER_SIZE",
           "completed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-          "triggered_by": "${_TRIGGERED_BY:-manual}"
+          "triggered_by": "${_TRIGGERED_BY:-manual}",
+          "repository_info": {
+            "original_type": "$$ORIGINAL_REPO_TYPE",
+            "original_url": "$$ORIGINAL_REPO_URL",
+            "original_partner_repo": "$$ORIGINAL_PARTNER_REPO",
+            "original_platform_repo": "$$ORIGINAL_PLATFORM_REPO",
+            "purge_git_repo": "${_GIT_REPO_URL:-none}",
+            "purge_module_git_repo": "${_MODULE_GIT_REPO_URL:-none}"
+          }
         }
         EOF
         
@@ -1083,6 +1257,17 @@ steps:
             echo "Folder Size: $$FOLDER_SIZE"
         fi
         
+        # Show repository info
+        if [ -f /workspace/original_repo_type.txt ]; then
+            ORIGINAL_REPO_TYPE=$$(cat /workspace/original_repo_type.txt)
+            echo "Original Repository Type: $$ORIGINAL_REPO_TYPE"
+        fi
+        
+        if [ -f /workspace/original_repo_url.txt ]; then
+            ORIGINAL_REPO_URL=$$(cat /workspace/original_repo_url.txt)
+            echo "Original Repository URL: $$ORIGINAL_REPO_URL"
+        fi
+        
         # Check if lock was released
         LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
         if gsutil ls "$$LOCK_PATH" 2>/dev/null; then
@@ -1128,8 +1313,8 @@ substitutions:
   _DEPLOYMENT_ID: "none"
   _MODULE_NAME: "unknown"
   _DEPLOYMENT_BUCKET_ID: "rad-deployments-2b65"
-  _GIT_REPO_URL: "techequitycloud/rad-modules"
-  _MODULE_GIT_REPO_URL: ""
+  _GIT_REPO_URL: "none"                    # Platform repository (for audit only)
+  _MODULE_GIT_REPO_URL: ""                 # Partner repository (for audit only)
   _GITHUB_TOKEN_SECRET_NAME: "git-access-token"
   _TRIGGERED_BY: "manual"
 
