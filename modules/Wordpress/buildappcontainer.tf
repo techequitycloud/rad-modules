@@ -36,7 +36,7 @@ resource "local_file" "app_cloudbuild" {
     IMAGE_REGION  = local.region
     IMAGE_NAME    = var.application_name
     IMAGE_VERSION = "${var.application_version}"
-    REPO_NAME     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+    REPO_NAME     = "${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   })
 }
 
@@ -64,5 +64,6 @@ resource "null_resource" "build_and_push_application_image" {
   depends_on = [
     local_file.app_cloudbuild,
     google_artifact_registry_repository.application_image,
+    google_artifact_registry_repository_iam_member.cloudbuild_sa_writer,
   ]
 }
