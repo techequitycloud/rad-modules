@@ -1125,7 +1125,7 @@ availableSecrets:
 # Build Options
 # ============================================
 options:
-  logging: CLOUD_LOGGING_ONLY
+  logging: GCS_ONLY
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
   substitutionOption: 'ALLOW_LOOSE'
@@ -1152,3 +1152,4 @@ logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${
 # Timeout
 # ============================================
 timeout: 7200s
+
