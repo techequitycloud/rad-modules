@@ -207,8 +207,11 @@ steps:
             exit 1
         fi
         
+        # Normalize repo URL (remove .git if present)
+        CLEAN_REPO_URL="${_GIT_REPO_URL%.git}"
+        
         # Clone platform repository
-        if timeout 300 git clone "https://$$GIT_TOKEN@github.com/${_GIT_REPO_URL}.git" /workspace/platform_repo 2>&1; then
+        if timeout 300 git clone "https://$$GIT_TOKEN@github.com/$$CLEAN_REPO_URL.git" /workspace/platform_repo 2>&1 | tee /tmp/clone_platform_output.txt; then
             log "✅ Platform repository cloned successfully"
             
             # Verify deployment configuration exists
@@ -233,6 +236,15 @@ steps:
         else
             log "❌ ERROR: Failed to clone platform repository"
             log "   Repository: ${_GIT_REPO_URL}"
+            log ""
+            log "📋 Clone error:"
+            cat /tmp/clone_platform_output.txt | grep -v "$$GIT_TOKEN" | tail -10 | sed 's/^/   /'
+            log ""
+            log "💡 Possible issues:"
+            log "   • Invalid repository URL"
+            log "   • Access token expired or lacks permissions"
+            log "   • Repository is private and token doesn't have access"
+            log "   • Network timeout or GitHub API rate limit"
             exit 1
         fi
     dir: /workspace
@@ -282,7 +294,10 @@ steps:
             log "   Repository: $$REPO_URL"
             log "   Access: Read-only"
             
-            if timeout 300 git clone "https://$$GIT_TOKEN@github.com/$$REPO_URL.git" /workspace/partner_repo 2>&1; then
+            # Normalize repo URL (remove .git if present)
+            CLEAN_REPO_URL="$${REPO_URL%.git}"
+            
+            if timeout 300 git clone "https://$$GIT_TOKEN@github.com/$$CLEAN_REPO_URL.git" /workspace/partner_repo 2>&1 | tee /tmp/clone_partner_output.txt; then
                 log "✅ Partner repository cloned"
                 
                 if [ -d "/workspace/partner_repo/modules/${_MODULE_NAME}" ]; then
@@ -299,6 +314,16 @@ steps:
                 fi
             else
                 log "❌ ERROR: Failed to clone partner repository"
+                log "   Repository: $$REPO_URL"
+                log ""
+                log "📋 Clone error:"
+                cat /tmp/clone_partner_output.txt | grep -v "$$GIT_TOKEN" | tail -10 | sed 's/^/   /'
+                log ""
+                log "💡 Possible issues:"
+                log "   • Invalid repository URL"
+                log "   • Access token expired or lacks permissions"
+                log "   • Repository is private and token doesn't have access"
+                log "   • Network timeout or GitHub API rate limit"
                 exit 1
             fi
         else
@@ -665,56 +690,166 @@ steps:
             echo "[$$(date +'%H:%M:%S')] $$1"
         }
         
-        log "📦 Creating deployment archive..."
+        log "📦 Preparing deployment archive..."
         
         cd /workspace/modules/${_MODULE_NAME}
         
+        # ========================================
+        # PRIORITY 1 FIX: Verify critical files exist before archiving
+        # ========================================
+        log "🔍 Verifying critical files before archiving..."
+        
+        CRITICAL_MISSING=0
+        
+        if [ ! -f "backend.tf" ]; then
+            log "❌ ERROR: backend.tf missing"
+            CRITICAL_MISSING=1
+        else
+            log "✅ backend.tf present"
+        fi
+        
+        if [ ! -f "terraform.tfvars.json" ]; then
+            log "❌ ERROR: terraform.tfvars.json missing"
+            CRITICAL_MISSING=1
+        else
+            log "✅ terraform.tfvars.json present"
+        fi
+        
+        TF_COUNT=$$(find . -maxdepth 1 -name "*.tf" -type f | wc -l)
+        if [ $$TF_COUNT -eq 0 ]; then
+            log "❌ ERROR: No Terraform files found"
+            CRITICAL_MISSING=1
+        else
+            log "✅ Found $$TF_COUNT Terraform files"
+        fi
+        
+        if [ $$CRITICAL_MISSING -eq 1 ]; then
+            log "❌ ERROR: Critical files missing - cannot create archive"
+            log ""
+            log "📋 Current directory contents:"
+            ls -la | sed 's/^/   /'
+            exit 1
+        fi
+        
+        log "✅ All critical files verified"
+        
+        # ========================================
+        # PRIORITY 1 FIX: Make archive creation fail the build on error
+        # ========================================
         TIMESTAMP=$$(date +%Y%m%d-%H%M%S)
         ARCHIVE_NAME="${_MODULE_NAME}-final-$$TIMESTAMP.tar.gz"
         
-        # Create archive excluding unnecessary files
+        log "📦 Creating archive: $$ARCHIVE_NAME"
+        
         if tar -czf "/workspace/$$ARCHIVE_NAME" \
             --exclude='.terraform/providers' \
             --exclude='*.tfstate.backup' \
             --exclude='tfplan' \
             --exclude='.git' \
-            . 2>/dev/null; then
+            . 2>&1 | tee /tmp/tar_output.txt; then
             
             ARCHIVE_SIZE=$$(du -h "/workspace/$$ARCHIVE_NAME" | cut -f1)
-            log "✅ Archive created ($$ARCHIVE_SIZE)"
+            log "✅ Archive created successfully ($$ARCHIVE_SIZE)"
         else
-            log "⚠️  Archive creation failed"
+            log "❌ ERROR: Archive creation failed"
+            log ""
+            log "📋 Tar output:"
+            cat /tmp/tar_output.txt | sed 's/^/   /'
+            log ""
+            log "⚠️  This archive is REQUIRED for UPDATE and DESTROY operations"
+            exit 1
         fi
         
+        # Verify archive file exists and is not empty
+        if [ ! -f "/workspace/$$ARCHIVE_NAME" ]; then
+            log "❌ ERROR: Archive file not found after creation"
+            exit 1
+        fi
+        
+        ARCHIVE_SIZE_BYTES=$$(stat -f%z "/workspace/$$ARCHIVE_NAME" 2>/dev/null || stat -c%s "/workspace/$$ARCHIVE_NAME" 2>/dev/null || echo "0")
+        if [ "$$ARCHIVE_SIZE_BYTES" -lt 1024 ]; then
+            log "❌ ERROR: Archive file is too small ($$ARCHIVE_SIZE_BYTES bytes)"
+            log "   This indicates the archive may be corrupted or empty"
+            exit 1
+        fi
+        
+        log "✅ Archive integrity verified"
+        
+        # ========================================
+        # PRIORITY 1 FIX: Make GCS uploads fail the build on error
+        # ========================================
         FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
         
         log "📤 Uploading to GCS..."
+        log "   Destination: $$FILES_PATH"
         
-        # Upload timestamped archive
+        # Upload timestamped archive (CRITICAL)
+        log "📤 Uploading timestamped archive..."
         if gsutil -h "Content-Type:application/gzip" \
-                  cp "/workspace/$$ARCHIVE_NAME" "$$FILES_PATH/$$ARCHIVE_NAME" 2>/dev/null; then
-            log "✅ Timestamped archive uploaded"
+                  cp "/workspace/$$ARCHIVE_NAME" "$$FILES_PATH/$$ARCHIVE_NAME" 2>&1 | tee /tmp/upload_timestamped.txt; then
+            log "✅ Timestamped archive uploaded: $$ARCHIVE_NAME"
+        else
+            log "❌ ERROR: Failed to upload timestamped archive"
+            log ""
+            log "📋 Upload error:"
+            cat /tmp/upload_timestamped.txt | sed 's/^/   /'
+            log ""
+            log "⚠️  This archive is REQUIRED for UPDATE and DESTROY operations"
+            exit 1
         fi
         
-        # Upload as latest
-        if gsutil cp "/workspace/$$ARCHIVE_NAME" "$$FILES_PATH/${_MODULE_NAME}.tar.gz" 2>/dev/null; then
-            log "✅ Latest archive uploaded"
+        # Upload as latest (CRITICAL)
+        log "📤 Uploading latest archive..."
+        if gsutil cp "/workspace/$$ARCHIVE_NAME" "$$FILES_PATH/${_MODULE_NAME}.tar.gz" 2>&1 | tee /tmp/upload_latest.txt; then
+            log "✅ Latest archive uploaded: ${_MODULE_NAME}.tar.gz"
+        else
+            log "❌ ERROR: Failed to upload latest archive"
+            log ""
+            log "📋 Upload error:"
+            cat /tmp/upload_latest.txt | sed 's/^/   /'
+            log ""
+            log "⚠️  This archive is REQUIRED for UPDATE and DESTROY operations"
+            exit 1
         fi
         
-        # Upload configuration files separately for easy access
+        # Verify uploads by listing
+        log "🔍 Verifying uploads..."
+        if gsutil ls "$$FILES_PATH/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
+            log "✅ Latest archive verified in GCS"
+        else
+            log "❌ ERROR: Latest archive not found in GCS after upload"
+            exit 1
+        fi
+        
+        if gsutil ls "$$FILES_PATH/$$ARCHIVE_NAME" > /dev/null 2>&1; then
+            log "✅ Timestamped archive verified in GCS"
+        else
+            log "❌ ERROR: Timestamped archive not found in GCS after upload"
+            exit 1
+        fi
+        
+        # Upload configuration files separately for easy access (non-critical)
+        log "📤 Uploading configuration files..."
+        
         if [ -f terraform.tfvars.json ]; then
-            gsutil -h "Content-Type:application/json" \
-                   cp terraform.tfvars.json "$$FILES_PATH/terraform.tfvars.json" 2>/dev/null || true
-            log "✅ terraform.tfvars.json uploaded"
+            if gsutil -h "Content-Type:application/json" \
+                      cp terraform.tfvars.json "$$FILES_PATH/terraform.tfvars.json" 2>/dev/null; then
+                log "✅ terraform.tfvars.json uploaded"
+            else
+                log "⚠️  Failed to upload terraform.tfvars.json (non-critical)"
+            fi
         fi
         
         if [ -f backend.tf ]; then
-            gsutil -h "Content-Type:text/plain" \
-                   cp backend.tf "$$FILES_PATH/backend.tf" 2>/dev/null || true
-            log "✅ backend.tf uploaded"
+            if gsutil -h "Content-Type:text/plain" \
+                      cp backend.tf "$$FILES_PATH/backend.tf" 2>/dev/null; then
+                log "✅ backend.tf uploaded"
+            else
+                log "⚠️  Failed to upload backend.tf (non-critical)"
+            fi
         fi
         
-        log "✅ All files uploaded to GCS"
+        log "✅ All critical files uploaded and verified successfully"
 
   # ============================================
   # STEP 11: Write Deployment Metadata to GCS
