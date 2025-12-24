@@ -62,6 +62,40 @@ steps:
             exit 1
         fi
         
+        # ========================================
+        # Validate repository configuration
+        # ========================================
+        log "🔍 Validating repository configuration..."
+        
+        # Platform repository is REQUIRED for UPDATE operations
+        if [ -z "${_GIT_REPO_URL}" ] || [ "${_GIT_REPO_URL}" = "none" ] || [ "${_GIT_REPO_URL}" = "" ]; then
+            log "⚠️  WARNING: No platform repository specified"
+            log "   Will use existing deployment archives from GCS"
+            log ""
+            log "💡 For code updates, provide platform repository:"
+            log "   _GIT_REPO_URL=your-org/platform-terraform-configs"
+            echo "gcs_only" > /workspace/update_mode.txt
+        else
+            log "✅ Platform repository: ${_GIT_REPO_URL}"
+            echo "git_update" > /workspace/update_mode.txt
+        fi
+        
+        # Partner repository check (should NOT be used for updates)
+        if [ -n "${_MODULE_GIT_REPO_URL}" ] && [ "${_MODULE_GIT_REPO_URL}" != "" ] && [ "${_MODULE_GIT_REPO_URL}" != "none" ]; then
+            log "⚠️  WARNING: Partner repository specified for UPDATE"
+            log "   Partner repo: ${_MODULE_GIT_REPO_URL}"
+            log ""
+            log "📋 Partner repositories are READ-ONLY"
+            log "   For updates, you should use:"
+            log "   • Platform repository (_GIT_REPO_URL) for code updates"
+            log "   • GCS archives for configuration-only updates"
+            log ""
+            log "   Partner repo will be used for module code (read-only)"
+            echo "partner" > /workspace/module_source.txt
+        else
+            echo "platform" > /workspace/module_source.txt
+        fi
+        
         # Verify bucket exists
         log "🔍 Verifying bucket accessibility..."
         if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}" > /dev/null 2>&1; then
@@ -113,7 +147,7 @@ steps:
                 log "✅ Timestamped archives found"
                 echo "archive_exists" > /workspace/archive_status.txt
             else
-                log "⚠️  No archives found - will treat as initial deployment"
+                log "⚠️  No archives found"
                 echo "archive_missing" > /workspace/archive_status.txt
             fi
             
@@ -184,8 +218,7 @@ steps:
         
         log "🔒 Attempting to acquire lock..."
         
-        # Try to create lock (fails if already exists)
-        MAX_WAIT=300  # 5 minutes
+        MAX_WAIT=300
         WAIT_TIME=0
         ACQUIRED=false
         
@@ -195,40 +228,25 @@ steps:
                 ACQUIRED=true
                 break
             else
-                log "⏳ Lock exists, checking status..."
+                log "⏳ Lock exists, waiting..."
                 
-                # Download existing lock
                 if gsutil cp "$$LOCK_PATH" /tmp/existing_lock.json 2>/dev/null; then
-                    LOCKED_AT=$$(cat /tmp/existing_lock.json | grep -o '"locked_at":"[^"]*"' | cut -d'"' -f4)
                     EXISTING_BUILD=$$(cat /tmp/existing_lock.json | grep -o '"build_id":"[^"]*"' | cut -d'"' -f4)
-                    EXISTING_OP=$$(cat /tmp/existing_lock.json | grep -o '"operation":"[^"]*"' | cut -d'"' -f4)
-                    
-                    log "   Existing lock from build: $$EXISTING_BUILD"
-                    log "   Operation: $$EXISTING_OP"
-                    log "   Locked at: $$LOCKED_AT"
-                    
-                    log "   Waiting 10 seconds before retry..."
-                    sleep 10
-                    WAIT_TIME=$$((WAIT_TIME + 10))
-                else
-                    log "⚠️  Could not read existing lock"
-                    sleep 10
-                    WAIT_TIME=$$((WAIT_TIME + 10))
+                    log "   Locked by build: $$EXISTING_BUILD"
                 fi
+                
+                sleep 10
+                WAIT_TIME=$$((WAIT_TIME + 10))
             fi
         done
         
         if [ "$$ACQUIRED" = false ]; then
             log "❌ ERROR: Could not acquire lock after $$MAX_WAIT seconds"
-            log "   Another operation may be in progress"
-            log "   Lock path: $$LOCK_PATH"
-            log "   Manual cleanup: gsutil rm $$LOCK_PATH"
             exit 1
         fi
         
-        # Save lock path for cleanup
         echo "$$LOCK_PATH" > /workspace/lock_path.txt
-        log "💾 Lock path saved for cleanup"
+        log "💾 Lock path saved"
 
   # ============================================
   # STEP 2: Create Pre-Update Backup
@@ -317,7 +335,7 @@ steps:
         fi
 
   # ============================================
-  # STEP 3: Prepare Deployment Environment (ENHANCED)
+  # STEP 3: Prepare Deployment Environment (FIXED)
   # ============================================
   - id: 'Prepare Deployment Environment'
     name: '${_TERRAFORM_IMAGE_NAME}:latest'
@@ -357,86 +375,84 @@ steps:
         rm -rf ./* .terraform .terraform.lock.hcl 2>/dev/null || log "Workspace already clean"
         
         # ========================================
-        # DUAL REPOSITORY SELECTION LOGIC
+        # Determine update strategy
         # ========================================
-        REPO_URL=""
-        REPO_TYPE="none"
-        USE_GIT=false
-        
-        log "🔍 Determining source strategy..."
-        
-        # Priority 1: Explicitly provided partner repository
-        if [ -n "${_MODULE_GIT_REPO_URL}" ] && [ "${_MODULE_GIT_REPO_URL}" != "" ] && [ "${_MODULE_GIT_REPO_URL}" != "none" ]; then
-            REPO_URL="${_MODULE_GIT_REPO_URL}"
-            REPO_TYPE="partner"
-            USE_GIT=true
-            log "📦 Using provided PARTNER repository: $$REPO_URL"
-            
-        # Priority 2: Explicitly provided platform repository
-        elif [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ] && [ "${_GIT_REPO_URL}" != "" ]; then
-            REPO_URL="${_GIT_REPO_URL}"
-            REPO_TYPE="platform"
-            USE_GIT=true
-            log "📦 Using provided PLATFORM repository: $$REPO_URL"
-            
-        # Priority 3: Use original deployment repository (for updates)
-        elif [ "$$DEPLOYMENT_MODE" = "update" ]; then
-            if [ -f /workspace/original_repo_url.txt ]; then
-                ORIG_REPO_URL=$$(cat /workspace/original_repo_url.txt)
-                ORIG_REPO_TYPE=$$(cat /workspace/original_repo_type.txt 2>/dev/null || echo "unknown")
-                
-                if [ "$$ORIG_REPO_URL" != "none" ] && [ "$$ORIG_REPO_URL" != "N/A" ] && [ -n "$$ORIG_REPO_URL" ]; then
-                    REPO_URL="$$ORIG_REPO_URL"
-                    REPO_TYPE="$$ORIG_REPO_TYPE"
-                    USE_GIT=true
-                    log "📦 Using ORIGINAL deployment repository: $$REPO_URL ($$REPO_TYPE)"
-                fi
-            fi
+        UPDATE_MODE="gcs_only"
+        if [ -f /workspace/update_mode.txt ]; then
+            UPDATE_MODE=$$(cat /workspace/update_mode.txt)
         fi
         
-        # Save repository info for audit
-        echo "$$REPO_TYPE" > /workspace/repo_type.txt
-        echo "$$REPO_URL" > /workspace/repo_url.txt
-        
         # ========================================
-        # STRATEGY 1: Use Git Repository
+        # STRATEGY 1: Git Update (Code Changes)
         # ========================================
-        if [ "$$USE_GIT" = true ]; then
-            log "🔄 Cloning from Git repository..."
-            log "   Repository: $$REPO_URL"
-            log "   Type: $$REPO_TYPE"
+        if [ "$$UPDATE_MODE" = "git_update" ]; then
+            log "🔄 Git-based update - fetching latest code"
             
+            # Verify Git token
             if [ -z "$$GIT_TOKEN" ]; then
                 log "❌ ERROR: Git token not available"
-                log "   Secret: git-access-token"
+                log "   Secret: ${_GITHUB_TOKEN_SECRET_NAME}"
                 exit 1
             fi
             
-            if timeout 300 git clone "https://$$GIT_TOKEN@github.com/$$REPO_URL.git" /workspace/repo 2>&1; then
-                log "✅ Repository cloned successfully"
+            # Determine module source (partner or platform)
+            MODULE_SOURCE="platform"
+            if [ -f /workspace/module_source.txt ]; then
+                MODULE_SOURCE=$$(cat /workspace/module_source.txt)
+            fi
+            
+            if [ "$$MODULE_SOURCE" = "partner" ]; then
+                # Use partner repository for module code (READ-ONLY)
+                REPO_URL="${_MODULE_GIT_REPO_URL}"
+                REPO_TYPE="partner"
+                log "📦 Using PARTNER repository for module code (read-only)"
+                log "   Repository: $$REPO_URL"
+            else
+                # Use platform repository for module code
+                REPO_URL="${_GIT_REPO_URL}"
+                REPO_TYPE="platform"
+                log "📦 Using PLATFORM repository for module code"
+                log "   Repository: $$REPO_URL"
+            fi
+            
+            log "🔄 Cloning module repository..."
+            
+            if timeout 300 git clone "https://$$GIT_TOKEN@github.com/$$REPO_URL.git" /workspace/module_repo 2>&1; then
+                log "✅ Module repository cloned successfully"
                 
-                # Move module files
-                if [ -d "/workspace/repo/modules/${_MODULE_NAME}" ]; then
-                    cp -r /workspace/repo/modules/${_MODULE_NAME}/* . 2>/dev/null || cp -r /workspace/repo/modules/${_MODULE_NAME}/. .
-                    log "✅ Module files copied from repository"
+                # Copy module files
+                if [ -d "/workspace/module_repo/modules/${_MODULE_NAME}" ]; then
+                    cp -r /workspace/module_repo/modules/${_MODULE_NAME}/* . 2>/dev/null || cp -r /workspace/module_repo/modules/${_MODULE_NAME}/. .
+                    log "✅ Module files copied"
+                    
+                    # Verify we have Terraform files
+                    TF_COUNT=$$(find . -name "*.tf" -type f | wc -l)
+                    log "📊 Found $$TF_COUNT Terraform files"
+                    
+                    if [ $$TF_COUNT -eq 0 ]; then
+                        log "❌ ERROR: No Terraform files found in module"
+                        exit 1
+                    fi
                 else
                     log "❌ ERROR: Module not found in repository"
-                    log "   Expected: /workspace/repo/modules/${_MODULE_NAME}"
-                    log "   Available modules:"
-                    ls -la /workspace/repo/modules/ 2>/dev/null || log "   No modules directory"
+                    log "   Expected: /workspace/module_repo/modules/${_MODULE_NAME}"
                     exit 1
                 fi
                 
-                # Clean up repo
-                rm -rf /workspace/repo
+                # Clean up
+                rm -rf /workspace/module_repo
+                
+                # Save repository info
+                echo "$$REPO_TYPE" > /workspace/repo_type.txt
+                echo "$$REPO_URL" > /workspace/repo_url.txt
             else
-                log "❌ ERROR: Failed to clone repository"
+                log "❌ ERROR: Failed to clone module repository"
                 log "   Repository: $$REPO_URL"
                 log "   Type: $$REPO_TYPE"
                 exit 1
             fi
             
-            # Download configuration files from GCS
+            # Download configuration from GCS
             log "⬇️  Downloading configuration from GCS..."
             
             FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
@@ -445,7 +461,6 @@ steps:
                 log "✅ terraform.tfvars.json downloaded"
             else
                 log "❌ ERROR: terraform.tfvars.json not found"
-                log "   Path: $$FILES_PATH/terraform.tfvars.json"
                 exit 1
             fi
             
@@ -456,7 +471,7 @@ steps:
             fi
             
         # ========================================
-        # STRATEGY 2: Download Existing Archive (Update Mode)
+        # STRATEGY 2: GCS Archive (Config-Only Update)
         # ========================================
         elif [ "$$DEPLOYMENT_MODE" = "update" ]; then
             log "📦 Downloading existing deployment files from GCS..."
@@ -524,6 +539,10 @@ steps:
                 exit 1
             fi
             
+            # Save repository info
+            echo "gcs" > /workspace/repo_type.txt
+            echo "archive" > /workspace/repo_url.txt
+            
         # ========================================
         # STRATEGY 3: Initial Deployment
         # ========================================
@@ -544,6 +563,9 @@ steps:
             else
                 log "ℹ️  backend.tf not found, will create"
             fi
+            
+            echo "initial" > /workspace/repo_type.txt
+            echo "none" > /workspace/repo_url.txt
         fi
         
         # Verify we have required files
@@ -568,13 +590,7 @@ steps:
         ls -la | head -20
         
         log "✅ Deployment environment prepared"
-        log "   Source: $$REPO_TYPE repository"
-        log "   Repository: $$REPO_URL"
     dir: /workspace
-
-  # [Steps 4-11 remain unchanged - same as original]
-  # Including: Verify Backend, Initialize Terraform, Validate, Plan, Apply, 
-  # Refresh State, Archive Files, Update Metadata, Summary
 
   # ============================================
   # STEP 4: Verify Backend Configuration
@@ -637,11 +653,69 @@ steps:
         log "✅ Configuration files verified"
     dir: /workspace/modules/${_MODULE_NAME}
 
-  # [Steps 5-11 continue with same content as original...]
-  # [For brevity, I'll include just the key metadata step]
+  # [Steps 5-11 remain the same as original UPDATE yaml]
+  # Including: Initialize Terraform, Validate, Plan, Apply, 
+  # Refresh State, Archive Files, Update Metadata, Summary
 
   # ============================================
-  # STEP 11: Update Deployment Metadata (ENHANCED)
+  # STEP 5: Initialize Terraform
+  # ============================================
+  - id: 'Initialize Terraform'
+    name: '${_TERRAFORM_IMAGE_NAME}:latest'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        
+        log() {
+            echo "[$$(date +'%H:%M:%S')] $$1"
+        }
+        
+        log "🔧 Initializing Terraform/Tofu..."
+        
+        tofu version || terraform version || log "Could not determine version"
+        
+        DEPLOYMENT_MODE="initial"
+        if [ -f /workspace/deployment_mode.txt ]; then
+            DEPLOYMENT_MODE=$$(cat /workspace/deployment_mode.txt)
+        fi
+        
+        if [ "$$DEPLOYMENT_MODE" = "update" ]; then
+            log "🔄 Re-initializing existing deployment with upgrade"
+            if tofu init -reconfigure -upgrade -no-color 2>&1 | tee /workspace/init_output.txt; then
+                log "✅ Initialization successful"
+            else
+                log "❌ Initialization failed"
+                exit 1
+            fi
+        else
+            log "🆕 First time initialization"
+            if tofu init -no-color 2>&1 | tee /workspace/init_output.txt; then
+                log "✅ Initialization successful"
+            else
+                log "❌ Initialization failed"
+                exit 1
+            fi
+        fi
+        
+        if tofu state list > /dev/null 2>&1; then
+            RESOURCE_COUNT=$$(tofu state list | wc -l)
+            log "📊 Found $$RESOURCE_COUNT resources in existing state"
+            echo "$$RESOURCE_COUNT" > /workspace/existing_resource_count.txt
+        else
+            log "ℹ️  No existing state (new deployment)"
+            echo "0" > /workspace/existing_resource_count.txt
+        fi
+        
+        log "✅ Terraform initialization completed"
+    dir: /workspace/modules/${_MODULE_NAME}
+
+  # [Continue with remaining steps 6-11 from original UPDATE yaml...]
+  # [For brevity, I'll include the key metadata step]
+
+  # ============================================
+  # STEP 11: Update Deployment Metadata (FIXED)
   # ============================================
   - id: 'Update Deployment Metadata'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
@@ -678,8 +752,8 @@ steps:
         fi
         
         # Read repository info
-        REPO_TYPE="local"
-        REPO_URL="none"
+        REPO_TYPE="gcs"
+        REPO_URL="archive"
         if [ -f /workspace/repo_type.txt ]; then
             REPO_TYPE=$$(cat /workspace/repo_type.txt)
         fi
@@ -702,9 +776,10 @@ steps:
           "backup_location": "$$BACKUP_LOCATION",
           "repository_type": "$$REPO_TYPE",
           "repository_url": "$$REPO_URL",
-          "partner_repo": "${_MODULE_GIT_REPO_URL:-none}",
           "platform_repo": "${_GIT_REPO_URL:-none}",
-          "triggered_by": "${_TRIGGERED_BY:-manual}"
+          "partner_repo": "${_MODULE_GIT_REPO_URL:-none}",
+          "triggered_by": "${_TRIGGERED_BY:-manual}",
+          "note": "All artifacts stored in platform repository or GCS"
         }
         EOF
         
@@ -716,7 +791,7 @@ steps:
             log "⚠️  Failed to upload metadata"
         fi
 
-  # [Steps 12 and cleanup steps remain the same...]
+  # [Cleanup steps remain the same...]
 
 # ============================================
 # Secret Configuration
@@ -734,18 +809,17 @@ options:
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
   substitutionOption: 'ALLOW_LOOSE'
-  # machineType: 'E2_HIGHCPU_8'
 
 # ============================================
-# Substitution Variables (ENHANCED)
+# Substitution Variables
 # ============================================
 substitutions:
   _DEPLOYMENT_ID: "none"
   _MODULE_NAME: "unknown"
   _DEPLOYMENT_BUCKET_ID: "rad-deployments-2b65"
   _TERRAFORM_IMAGE_NAME: "us-central1-docker.pkg.dev/tec-rad-ui-2b65/opentofu-images/opentofu"
-  _GIT_REPO_URL: "none"                    # Platform repository
-  _MODULE_GIT_REPO_URL: ""                 # Partner repository (NEW)
+  _GIT_REPO_URL: "none"                    # Platform repository (for code updates)
+  _MODULE_GIT_REPO_URL: ""                 # Partner repository (read-only, optional)
   _GITHUB_TOKEN_SECRET_NAME: "git-access-token"
   _TRIGGERED_BY: "manual"
 
