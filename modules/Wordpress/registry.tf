@@ -24,3 +24,11 @@ resource "google_artifact_registry_repository" "application_image" {
   description   = "${var.application_name} artifact registry repository"  
   format        = "DOCKER"                 
 }
+
+resource "google_artifact_registry_repository_iam_member" "cloudbuild_sa_writer" {
+  project    = local.project.project_id
+  location   = local.region
+  repository = google_artifact_registry_repository.application_image.name
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:${local.cloud_build_sa_email}"
+}
