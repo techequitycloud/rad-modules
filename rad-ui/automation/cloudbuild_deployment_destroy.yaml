@@ -1430,4 +1430,17 @@ substitutions:
   _MODULE_NAME: "unknown"
   _DEPLOYMENT_BUCKET_ID: "rad-deployments-2b65"
   _TERRAFORM_IMAGE_NAME: "us-central1-docker.pkg.dev/tec-rad-ui-2b65/opentofu-images/opentofu"
-  _GIT_REPO_URL:
+  _GIT_REPO_URL: "none"                    # Platform repository (fallback)
+  _MODULE_GIT_REPO_URL: ""                 # Partner repository (fallback)
+  _GITHUB_TOKEN_SECRET_NAME: "git-access-token"
+  _TRIGGERED_BY: "manual"
+
+# ============================================
+# Logs Configuration
+# ============================================
+logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
+
+# ============================================
+# Timeout
+# ============================================
+timeout: 7200s
