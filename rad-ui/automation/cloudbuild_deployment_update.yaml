@@ -13,1434 +13,367 @@
 # limitations under the License.
 
 steps:
-  # ============================================
-  # STEP 0: Validate Update Prerequisites
-  # ============================================
-  - id: 'Validate Update Prerequisites'
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
+- id: 'Prepare Deployment Environment'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  secretEnv: ['GIT_TOKEN']
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -e
+    
+    echo "🚀 DEPLOYMENT UPDATE INITIATED"
+    echo "========================================"
+    echo "Module: ${_MODULE_NAME}"
+    echo "Deployment ID: ${_DEPLOYMENT_ID}"
+    echo "Project: ${PROJECT_ID}"
+    echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
+    echo "Timestamp: $(date)"
+    echo "========================================"
+    
+    # Function to log with timestamp
+    log() {
+        echo "[$(date +'%H:%M:%S')] $$1"
+    }
+    
+    log "🧹 Cleaning workspace..."
+    rm -rfv /workspace/* 2>/dev/null || log "Workspace already clean"
+    
+    # Create module directory structure
+    mkdir -p /workspace/modules/${_MODULE_NAME}
+    cd /workspace/modules/${_MODULE_NAME}
+    
+    log "🔍 Checking deployment type..."
+    
+    # Check if this is an initial deployment or update
+    if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
+        log "📦 Existing deployment detected - performing update"
         
-        echo "🔍 VALIDATING UPDATE PREREQUISITES"
-        echo "========================================"
-        echo "Module: ${_MODULE_NAME}"
-        echo "Deployment ID: ${_DEPLOYMENT_ID}"
-        echo "Project: ${PROJECT_ID}"
-        echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
-        echo "Timestamp: $$(date)"
-        echo "========================================"
+        # Download the archive
+        log "⬇️  Downloading module archive..."
+        gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" .
         
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
+        # Extract the module archive
+        log "📂 Extracting module files..."
+        tar -xzf "${_MODULE_NAME}.tar.gz"
         
-        log "🔍 Validating update prerequisites..."
+        # Clean up archive
+        rm -f "${_MODULE_NAME}.tar.gz"
         
-        # Check required substitution variables
-        MISSING_VARS=0
+        # ✅ Download updated configuration files (overwrites old ones from archive)
+        log "⬇️  Downloading updated configuration files..."
         
-        if [ "${_MODULE_NAME}" = "unknown" ] || [ -z "${_MODULE_NAME}" ]; then
-            log "❌ ERROR: _MODULE_NAME not set"
-            MISSING_VARS=1
-        fi
-        
-        if [ "${_DEPLOYMENT_ID}" = "none" ] || [ -z "${_DEPLOYMENT_ID}" ]; then
-            log "❌ ERROR: _DEPLOYMENT_ID not set"
-            MISSING_VARS=1
-        fi
-        
-        if [ -z "${_DEPLOYMENT_BUCKET_ID}" ]; then
-            log "❌ ERROR: _DEPLOYMENT_BUCKET_ID not set"
-            MISSING_VARS=1
-        fi
-        
-        if [ $$MISSING_VARS -eq 1 ]; then
-            log "❌ ERROR: Required substitution variables missing"
-            exit 1
-        fi
-        
-        # ========================================
-        # Validate repository configuration
-        # ========================================
-        log "🔍 Validating repository configuration..."
-        
-        # Platform repository is OPTIONAL for UPDATE operations
-        if [ -z "${_GIT_REPO_URL}" ] || [ "${_GIT_REPO_URL}" = "none" ] || [ "${_GIT_REPO_URL}" = "" ]; then
-            log "⚠️  WARNING: No platform repository specified"
-            log "   Will use existing deployment archives from GCS"
-            log ""
-            log "💡 For code updates, provide platform repository:"
-            log "   _GIT_REPO_URL=your-org/platform-terraform-configs"
-            echo "gcs_only" > /workspace/update_mode.txt
+        if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/terraform.tfvars.json" ./terraform.tfvars.json; then
+            log "✅ Downloaded terraform.tfvars.json"
+            log "🔍 Verifying configuration:"
+            cat terraform.tfvars.json | jq '.' || log "Unable to parse JSON"
         else
-            log "✅ Platform repository: ${_GIT_REPO_URL}"
-            log "   Access: Read-only"
-            echo "git_update" > /workspace/update_mode.txt
+            log "⚠️  terraform.tfvars.json not found"
         fi
         
-        # Partner repository check
+        if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/backend.tf" ./backend.tf; then
+            log "✅ Downloaded backend.tf"
+        else
+            log "⚠️  backend.tf not found"
+        fi
+        
+        log "✅ Update environment prepared with latest configuration"
+    else
+        log "🆕 Initial deployment detected - fetching source code"
+        
+        # ✅ Determine which repository to use
         if [ -n "${_MODULE_GIT_REPO_URL}" ] && [ "${_MODULE_GIT_REPO_URL}" != "" ] && [ "${_MODULE_GIT_REPO_URL}" != "none" ]; then
-            log "✅ Partner repository: ${_MODULE_GIT_REPO_URL}"
-            log "   Access: Read-only (module code only)"
-            log ""
-            log "📋 Partner repositories are READ-ONLY"
-            log "   Partner repo will be used for module code updates"
-            echo "partner" > /workspace/module_source.txt
+            REPO_URL="${_MODULE_GIT_REPO_URL}"
+            log "📦 Using module-specific repository: $$REPO_URL"
+        elif [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ]; then
+            REPO_URL="${_GIT_REPO_URL}"
+            log "📦 Using default platform repository: $$REPO_URL"
         else
-            echo "platform" > /workspace/module_source.txt
-        fi
-        
-        # Verify bucket exists
-        log "🔍 Verifying bucket accessibility..."
-        if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}" > /dev/null 2>&1; then
-            log "✅ Deployment bucket accessible"
-            log "   All writes (state, logs, archives) go to GCS"
-        else
-            log "❌ ERROR: Cannot access deployment bucket"
+            log "❌ No repository URL provided"
             exit 1
         fi
         
-        # Check if deployment exists
-        DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
+        log "📥 Cloning repository from $$REPO_URL"
         
-        log "🔍 Checking deployment existence..."
-        if gsutil ls "$$DEPLOYMENT_PATH/" > /dev/null 2>&1; then
-            log "✅ Deployment exists - update mode"
-            echo "update" > /workspace/deployment_mode.txt
-            
-            # Extract original repository information (FIXED: correct field names)
-            if gsutil cat "$$DEPLOYMENT_PATH/files/deployment_complete.json" > /tmp/deployment_info.json 2>/dev/null; then
-                log "📋 Reading original deployment metadata..."
-                
-                # Install jq if needed
-                if ! command -v jq >/dev/null 2>&1; then
-                    apk add --no-cache jq 2>/dev/null || log "⚠️  jq not available"
-                fi
-                
-                if command -v jq >/dev/null 2>&1; then
-                    # FIXED: Use correct field names from CREATE YAML
-                    ORIG_REPO_TYPE=$$(jq -r '.module_source // "unknown"' /tmp/deployment_info.json 2>/dev/null || echo "unknown")
-                    ORIG_REPO_URL=$$(jq -r '.module_repository // "none"' /tmp/deployment_info.json 2>/dev/null || echo "none")
-                    ORIG_PARTNER_REPO=$$(jq -r '.partner_repo // "none"' /tmp/deployment_info.json 2>/dev/null || echo "none")
-                    ORIG_PLATFORM_REPO=$$(jq -r '.platform_repo // "none"' /tmp/deployment_info.json 2>/dev/null || echo "none")
-                    
-                    echo "$$ORIG_REPO_TYPE" > /workspace/original_repo_type.txt
-                    echo "$$ORIG_REPO_URL" > /workspace/original_repo_url.txt
-                    echo "$$ORIG_PARTNER_REPO" > /workspace/original_partner_repo.txt
-                    echo "$$ORIG_PLATFORM_REPO" > /workspace/original_platform_repo.txt
-                    
-                    log "📦 Original deployment repository:"
-                    log "   Type: $$ORIG_REPO_TYPE"
-                    log "   URL: $$ORIG_REPO_URL"
-                fi
-            fi
-            
-            # Check for archives
-            if gsutil ls "$$DEPLOYMENT_PATH/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
-                log "✅ Standard archive found"
-                echo "archive_exists" > /workspace/archive_status.txt
-            elif gsutil ls "$$DEPLOYMENT_PATH/files/${_MODULE_NAME}-final-*.tar.gz" > /dev/null 2>&1; then
-                log "✅ Timestamped archives found"
-                echo "archive_exists" > /workspace/archive_status.txt
-            elif gsutil ls "$$DEPLOYMENT_PATH/files/${_MODULE_NAME}-update-*.tar.gz" > /dev/null 2>&1; then
-                log "✅ Update archives found"
-                echo "archive_exists" > /workspace/archive_status.txt
-            else
-                log "⚠️  No archives found"
-                echo "archive_missing" > /workspace/archive_status.txt
-            fi
-            
-            # Check for state
-            if gsutil ls "$$DEPLOYMENT_PATH/state/default.tfstate" > /dev/null 2>&1; then
-                log "✅ State file exists"
-                echo "state_exists" > /workspace/state_status.txt
-            else
-                log "ℹ️  No state file found"
-                echo "state_missing" > /workspace/state_status.txt
-            fi
-            
-        else
-            log "ℹ️  Deployment does not exist - initial deployment mode"
-            echo "initial" > /workspace/deployment_mode.txt
-            echo "archive_missing" > /workspace/archive_status.txt
-            echo "state_missing" > /workspace/state_status.txt
-            
-            # Create empty original repo files
-            echo "unknown" > /workspace/original_repo_type.txt
-            echo "none" > /workspace/original_repo_url.txt
-            echo "none" > /workspace/original_partner_repo.txt
-            echo "none" > /workspace/original_platform_repo.txt
+        # Clone to temporary directory
+        TEMP_CLONE="/tmp/repo_clone"
+        rm -rf $$TEMP_CLONE
+        
+        if ! git clone "https://$$GIT_TOKEN@github.com/$$REPO_URL.git" $$TEMP_CLONE; then
+            log "❌ Failed to clone repository"
+            log "   Repository: $$REPO_URL"
+            exit 1
         fi
         
-        log "✅ Prerequisites validated"
+        log "✅ Repository cloned successfully"
+        
+        # Copy module files to workspace
+        if [ -d "$$TEMP_CLONE/modules/${_MODULE_NAME}" ]; then
+            log "📂 Copying module files to workspace..."
+            cp -r $$TEMP_CLONE/modules/${_MODULE_NAME}/* .
+            log "✅ Module files copied"
+        else
+            log "❌ Module directory not found: $$TEMP_CLONE/modules/${_MODULE_NAME}"
+            log "📋 Available modules:"
+            ls -la $$TEMP_CLONE/modules/ || log "No modules directory"
+            exit 1
+        fi
+        
+        # Clean up temp clone
+        rm -rf $$TEMP_CLONE
+        
+        # Download configuration files
+        log "⬇️  Downloading configuration files..."
+        
+        if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/terraform.tfvars.json" ./terraform.tfvars.json; then
+            log "✅ Downloaded terraform.tfvars.json"
+        else
+            log "⚠️  terraform.tfvars.json not found"
+        fi
+        
+        if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/backend.tf" ./backend.tf; then
+            log "✅ Downloaded backend.tf"
+        else
+            log "⚠️  backend.tf not found"
+        fi
+        
+        log "✅ Initial deployment environment prepared"
+    fi
+    
+    log "📋 Module contents:"
+    ls -la . || true
+    
+  dir: /workspace
 
-  # ============================================
-  # STEP 1: Acquire Deployment Lock
-  # ============================================
-  - id: 'Acquire Deployment Lock'
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
+- id: 'Initialize and Plan'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -e
+    
+    log() {
+        echo "[$(date +'%H:%M:%S')] $$1"
+    }
+    
+    log "🔧 Initializing Terraform/Tofu..."
+    
+    # Check if already initialized
+    if [[ ! -d ".terraform" ]]; then
+        log "🆕 First time initialization"
+        tofu init
+    else
+        log "🔄 Re-initializing existing state"
+        tofu init -upgrade -reconfigure
+    fi
+    
+    log "📋 Generating execution plan..."
+    
+    # Generate plan with detailed exit code
+    set +e
+    tofu plan -out=tfplan -detailed-exitcode
+    PLAN_EXIT_CODE=$$?
+    set -e
+    
+    case $$PLAN_EXIT_CODE in
+        0)
+            log "ℹ️  No changes required - infrastructure is up to date"
+            ;;
+        2)
+            log "📊 Changes detected - plan generated successfully"
+            ;;
+        *)
+            log "❌ Planning failed with exit code: $$PLAN_EXIT_CODE"
+            exit 1
+            ;;
+    esac
+    
+    log "✅ Initialization and planning completed"
+  dir: /workspace/modules/${_MODULE_NAME}
+
+- id: 'Apply Infrastructure Changes'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -e
+    
+    log() {
+        echo "[$(date +'%H:%M:%S')] $$1"
+    }
+    
+    log "🚀 Applying infrastructure changes..."
+    
+    # Apply with retry logic for transient errors
+    apply_with_retry() {
+        local max_attempts=2
+        local attempt=1
         
-        echo "🔒 ACQUIRING DEPLOYMENT LOCK"
-        echo "========================================"
-        echo "Module: ${_MODULE_NAME}"
-        echo "Deployment ID: ${_DEPLOYMENT_ID}"
-        echo "Project: ${PROJECT_ID}"
-        echo "Timestamp: $$(date)"
-        echo "========================================"
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/lock"
-        LOCK_FILE="/tmp/lock.json"
-        
-        log "📍 Lock path: $$LOCK_PATH"
-        
-        # Create lock file with metadata
-        cat > $$LOCK_FILE <<EOF
-        {
-          "build_id": "${BUILD_ID}",
-          "operation": "update",
-          "locked_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-          "locked_by": "${_TRIGGERED_BY:-manual}",
-          "project_id": "${PROJECT_ID}",
-          "module": "${_MODULE_NAME}",
-          "deployment_id": "${_DEPLOYMENT_ID}"
-        }
-        EOF
-        
-        log "🔒 Attempting to acquire lock..."
-        
-        MAX_WAIT=300
-        WAIT_TIME=0
-        ACQUIRED=false
-        
-        while [ $$WAIT_TIME -lt $$MAX_WAIT ]; do
-            if gsutil cp -n $$LOCK_FILE "$$LOCK_PATH" 2>/dev/null; then
-                log "✅ Lock acquired successfully"
-                ACQUIRED=true
-                break
+        while [ $$attempt -le $$max_attempts ]; do
+            log "🔄 Apply attempt $$attempt of $$max_attempts"
+            
+            if tofu apply -auto-approve tfplan; then
+                log "✅ Apply successful on attempt $$attempt"
+                return 0
             else
-                log "⏳ Lock exists, waiting..."
+                local exit_code=$$?
+                log "❌ Apply failed on attempt $$attempt (exit code: $$exit_code)"
                 
-                if gsutil cp "$$LOCK_PATH" /tmp/existing_lock.json 2>/dev/null; then
-                    EXISTING_BUILD=$$(cat /tmp/existing_lock.json | grep -o '"build_id":"[^"]*"' | cut -d'"' -f4)
-                    log "   Locked by build: $$EXISTING_BUILD"
+                if [ $$attempt -eq $$max_attempts ]; then
+                    log "💥 All apply attempts failed"
+                    return $$exit_code
                 fi
                 
-                sleep 10
-                WAIT_TIME=$$((WAIT_TIME + 10))
+                log "⏳ Waiting 30 seconds before retry..."
+                sleep 30
+                
+                # Regenerate plan for retry
+                log "🔄 Regenerating plan for retry..."
+                tofu plan -out=tfplan
             fi
+            
+            ((attempt++))
         done
-        
-        if [ "$$ACQUIRED" = false ]; then
-            log "❌ ERROR: Could not acquire lock after $$MAX_WAIT seconds"
-            exit 1
-        fi
-        
-        echo "$$LOCK_PATH" > /workspace/lock_path.txt
-        log "💾 Lock path saved"
+    }
+    
+    apply_with_retry
+    
+    log "🎯 Infrastructure changes applied successfully"
+  dir: /workspace/modules/${_MODULE_NAME}
 
-  # ============================================
-  # STEP 2: Create Pre-Update Backup
-  # ============================================
-  - id: 'Create Pre-Update Backup'
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
+- id: 'Refresh State and Generate Outputs'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -e
+    
+    log() {
+        echo "[$(date +'%H:%M:%S')] $$1"
+    }
+    
+    log "🔄 Refreshing Terraform state..."
+    
+    if tofu apply -refresh-only -auto-approve; then
+        log "✅ State refresh completed"
+    else
+        log "⚠️  State refresh failed, but continuing..."
+    fi
+    
+    log "📤 Generating and uploading outputs..."
+    
+    if tofu output -json > output.json; then
+        log "✅ Outputs generated successfully"
         
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
+        # Upload outputs to GCS
+        gsutil -m cp output.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output/output.json"
         
-        log "💾 Creating pre-update backup..."
-        
-        # Check deployment mode
-        DEPLOYMENT_MODE="initial"
-        if [ -f /workspace/deployment_mode.txt ]; then
-            DEPLOYMENT_MODE=$$(cat /workspace/deployment_mode.txt)
-        fi
-        
-        if [ "$$DEPLOYMENT_MODE" = "initial" ]; then
-            log "ℹ️  Skipping backup - initial deployment"
-            echo "skipped" > /workspace/backup_status.txt
-            exit 0
-        fi
-        
-        DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
-        BACKUP_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/backups/update/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
-        TIMESTAMP=$$(date +%Y%m%d-%H%M%S)
-        BACKUP_FULL_PATH="$$BACKUP_PATH-$$TIMESTAMP"
-        
-        log "📍 Source: $$DEPLOYMENT_PATH"
-        log "📍 Backup: $$BACKUP_FULL_PATH"
-        
-        log "📊 Calculating deployment size..."
-        SIZE_INFO=$$(gsutil du -sh "$$DEPLOYMENT_PATH/" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
-        log "   Size: $$SIZE_INFO"
-        
-        # Read original repository info
-        ORIG_REPO_TYPE="unknown"
-        ORIG_REPO_URL="none"
-        if [ -f /workspace/original_repo_type.txt ]; then
-            ORIG_REPO_TYPE=$$(cat /workspace/original_repo_type.txt)
-        fi
-        if [ -f /workspace/original_repo_url.txt ]; then
-            ORIG_REPO_URL=$$(cat /workspace/original_repo_url.txt)
-        fi
-        
-        # Create backup metadata
-        cat > /tmp/backup_metadata.json <<EOF
-        {
-          "backup_created_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-          "original_path": "$$DEPLOYMENT_PATH",
-          "backup_path": "$$BACKUP_FULL_PATH",
-          "module": "${_MODULE_NAME}",
-          "deployment_id": "${_DEPLOYMENT_ID}",
-          "project_id": "${PROJECT_ID}",
-          "build_id": "${BUILD_ID}",
-          "size": "$$SIZE_INFO",
-          "operation": "pre_update_backup",
-          "triggered_by": "${_TRIGGERED_BY:-manual}",
-          "original_repository_type": "$$ORIG_REPO_TYPE",
-          "original_repository_url": "$$ORIG_REPO_URL"
-        }
-        EOF
-        
-        log "📦 Creating backup copy..."
-        
-        if gsutil -m cp -r "$$DEPLOYMENT_PATH" "$$BACKUP_FULL_PATH/" 2>&1 | tee /workspace/backup_output.txt; then
-            log "✅ Backup created successfully"
-            
-            # Upload metadata
-            gsutil cp /tmp/backup_metadata.json "$$BACKUP_FULL_PATH/backup_metadata.json" 2>/dev/null || log "⚠️  Metadata upload failed"
-            
-            log "📍 Backup location: $$BACKUP_FULL_PATH/"
-            echo "success" > /workspace/backup_status.txt
-            echo "$$BACKUP_FULL_PATH/" > /workspace/backup_location.txt
-        else
-            log "⚠️  Backup creation failed"
-            log "   Continuing with update (use caution!)"
-            cat /workspace/backup_output.txt | sed 's/^/   /'
-            echo "failed" > /workspace/backup_status.txt
-        fi
+        log "📊 Output summary:"
+        tofu output 2>/dev/null || log "No outputs defined"
+    else
+        log "⚠️  Output generation failed, creating empty output file"
+        echo "{}" > output.json
+        gsutil -m cp output.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output/output.json"
+    fi
+    
+    log "✅ State refresh and output generation completed"
+  dir: /workspace/modules/${_MODULE_NAME}
 
-  # ============================================
-  # STEP 3: Prepare Deployment Environment
-  # ============================================
-  - id: 'Prepare Deployment Environment'
-    name: '${_TERRAFORM_IMAGE_NAME}:latest'
-    secretEnv: ['GIT_TOKEN']
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
-        
-        echo "🚀 DEPLOYMENT UPDATE INITIATED"
-        echo "========================================"
-        echo "Module: ${_MODULE_NAME}"
-        echo "Deployment ID: ${_DEPLOYMENT_ID}"
-        echo "Project: ${PROJECT_ID}"
-        echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
-        echo "Timestamp: $$(date)"
-        echo "========================================"
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        # Get deployment mode
-        DEPLOYMENT_MODE="initial"
-        if [ -f /workspace/deployment_mode.txt ]; then
-            DEPLOYMENT_MODE=$$(cat /workspace/deployment_mode.txt)
-        fi
-        
-        log "📋 Deployment mode: $$DEPLOYMENT_MODE"
-        
-        # Create module directory
-        mkdir -p /workspace/modules/${_MODULE_NAME}
+- id: 'Archive and Upload Deployment Files'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -e
+    
+    log() {
+        echo "[$(date +'%H:%M:%S')] $$1"
+    }
+    
+    log "📦 Creating deployment archive..."
+    
+    # Create archive from parent directory to avoid "file changed" error
+    cd /workspace
+    tar -czf "${_MODULE_NAME}.tar.gz" -C "modules/${_MODULE_NAME}" .
+    
+    log "📤 Uploading deployment files..."
+    
+    # Upload the archive
+    gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
+    
+    # Create deployment completion marker
+    COMPLETION_MARKER="{\"updated_at\": \"$$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"deployment_id\": \"${_DEPLOYMENT_ID}\", \"module\": \"${_MODULE_NAME}\", \"status\": \"updated\"}"
+    echo "$$COMPLETION_MARKER" > /tmp/deployment_updated.json
+    gsutil cp /tmp/deployment_updated.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/deployment_updated.json"
+    
+    log "📋 Archive contents:"
+    tar -tzf "${_MODULE_NAME}.tar.gz" | head -20
+    
+    log "✅ Deployment files archived and uploaded"
+    log "ℹ️  Note: terraform.tfvars.json and backend.tf managed by Cloud Function"
+  dir: /workspace
+
+- id: 'Deployment Summary'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    log() {
+        echo "[$(date +'%H:%M:%S')] $$1"
+    }
+    
+    echo "========================================"
+    log "🎉 DEPLOYMENT UPDATE COMPLETED SUCCESSFULLY"
+    echo "========================================"
+    echo "Deployment Details:"
+    echo "  • Module: ${_MODULE_NAME}"
+    echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
+    echo "  • Project: ${PROJECT_ID}"
+    echo "  • Completed: $$(date)"
+    echo "========================================"
+    echo "📁 Deployment Files:"
+    echo "  • Archive: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz"
+    echo "  • Outputs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output/output.json"
+    echo "  • Logs: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/update/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+    echo "========================================"
+    
+    # Optional: Show final state summary
+    if [[ -f "/workspace/modules/${_MODULE_NAME}/terraform.tfstate" ]]; then
+        echo "📊 Final State Summary:"
         cd /workspace/modules/${_MODULE_NAME}
-        
-        log "🧹 Cleaning module workspace..."
-        rm -rf ./* .terraform .terraform.lock.hcl 2>/dev/null || log "Workspace already clean"
-        
-        # ========================================
-        # Determine update strategy
-        # ========================================
-        UPDATE_MODE="gcs_only"
-        if [ -f /workspace/update_mode.txt ]; then
-            UPDATE_MODE=$$(cat /workspace/update_mode.txt)
-        fi
-        
-        log "📋 Update mode: $$UPDATE_MODE"
-        
-        # ========================================
-        # STRATEGY 1: Git Update (Code Changes)
-        # ========================================
-        if [ "$$UPDATE_MODE" = "git_update" ]; then
-            log "🔄 Git-based update - fetching latest code"
-            
-            # Verify Git token
-            if [ -z "$$GIT_TOKEN" ]; then
-                log "❌ ERROR: Git token not available"
-                log "   Secret: ${_GITHUB_TOKEN_SECRET_NAME}"
-                exit 1
-            fi
-            
-            # Determine module source (partner or platform)
-            MODULE_SOURCE="platform"
-            if [ -f /workspace/module_source.txt ]; then
-                MODULE_SOURCE=$$(cat /workspace/module_source.txt)
-            fi
-            
-            if [ "$$MODULE_SOURCE" = "partner" ]; then
-                # Use partner repository for module code (READ-ONLY)
-                REPO_URL="${_MODULE_GIT_REPO_URL}"
-                REPO_TYPE="partner"
-                log "📦 Using PARTNER repository for module code (read-only)"
-                log "   Repository: $$REPO_URL"
-            else
-                # Use platform repository for module code
-                REPO_URL="${_GIT_REPO_URL}"
-                REPO_TYPE="platform"
-                log "📦 Using PLATFORM repository for module code"
-                log "   Repository: $$REPO_URL"
-            fi
-            
-            # FIXED: Normalize repo URL and add error handling
-            CLEAN_REPO_URL="$${REPO_URL%.git}"
-            
-            log "🔄 Cloning module repository..."
-            
-            if timeout 300 git clone "https://$$GIT_TOKEN@github.com/$$CLEAN_REPO_URL.git" /workspace/module_repo 2>&1 | tee /tmp/clone_output.txt; then
-                log "✅ Module repository cloned successfully"
-                
-                # Copy module files
-                if [ -d "/workspace/module_repo/modules/${_MODULE_NAME}" ]; then
-                    cp -r /workspace/module_repo/modules/${_MODULE_NAME}/* . 2>/dev/null || cp -r /workspace/module_repo/modules/${_MODULE_NAME}/. .
-                    log "✅ Module files copied"
-                else
-                    log "❌ ERROR: Module not found in repository"
-                    log "   Expected: /workspace/module_repo/modules/${_MODULE_NAME}"
-                    log ""
-                    log "   Available modules:"
-                    ls -la /workspace/module_repo/modules/ 2>/dev/null | sed 's/^/   /' || log "   No modules directory"
-                    exit 1
-                fi
-                
-                # Clean up
-                rm -rf /workspace/module_repo
-                
-                # Save repository info
-                echo "$$REPO_TYPE" > /workspace/repo_type.txt
-                echo "$$REPO_URL" > /workspace/repo_url.txt
-            else
-                log "❌ ERROR: Failed to clone module repository"
-                log "   Repository: $$REPO_URL"
-                log "   Type: $$REPO_TYPE"
-                log ""
-                log "📋 Clone error:"
-                cat /tmp/clone_output.txt | grep -v "$$GIT_TOKEN" | tail -10 | sed 's/^/   /'
-                log ""
-                log "💡 Possible issues:"
-                log "   • Invalid repository URL"
-                log "   • Access token expired or lacks permissions"
-                log "   • Repository is private and token doesn't have access"
-                log "   • Network timeout or GitHub API rate limit"
-                exit 1
-            fi
-            
-            # Download configuration from GCS
-            log "⬇️  Downloading configuration from GCS..."
-            
-            FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
-            
-            if gsutil cp "$$FILES_PATH/terraform.tfvars.json" ./terraform.tfvars.json 2>/dev/null; then
-                log "✅ terraform.tfvars.json downloaded"
-            else
-                log "❌ ERROR: terraform.tfvars.json not found"
-                exit 1
-            fi
-            
-            if gsutil cp "$$FILES_PATH/backend.tf" ./backend.tf 2>/dev/null; then
-                log "✅ backend.tf downloaded"
-            else
-                log "ℹ️  backend.tf not found, will create default"
-            fi
-            
-        # ========================================
-        # STRATEGY 2: GCS Archive (Config-Only Update)
-        # ========================================
-        elif [ "$$DEPLOYMENT_MODE" = "update" ]; then
-            log "📦 Downloading existing deployment files from GCS..."
-            
-            FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
-            ARCHIVE_DOWNLOADED=false
-            ARCHIVE_FILE=""
-            
-            # Try 1: Standard archive
-            log "🔄 Attempt 1: Trying ${_MODULE_NAME}.tar.gz..."
-            if gsutil cp "$$FILES_PATH/${_MODULE_NAME}.tar.gz" ./module.tar.gz 2>/dev/null; then
-                log "✅ Downloaded standard archive"
-                ARCHIVE_DOWNLOADED=true
-                ARCHIVE_FILE="module.tar.gz"
-            else
-                log "⚠️  Standard archive not found"
-                
-                # Try 2: Latest update archive
-                log "🔄 Attempt 2: Searching for update archives..."
-                LATEST_UPDATE=$$(gsutil ls "$$FILES_PATH/${_MODULE_NAME}-update-*.tar.gz" 2>/dev/null | sort -r | head -n 1 || echo "")
-                
-                if [ -n "$$LATEST_UPDATE" ]; then
-                    log "📦 Found: $$LATEST_UPDATE"
-                    ARCHIVE_NAME=$$(basename "$$LATEST_UPDATE")
-                    
-                    if gsutil cp "$$LATEST_UPDATE" ./$$ARCHIVE_NAME 2>/dev/null; then
-                        log "✅ Downloaded update archive"
-                        ARCHIVE_DOWNLOADED=true
-                        ARCHIVE_FILE="$$ARCHIVE_NAME"
-                    fi
-                else
-                    log "⚠️  No update archives found"
-                    
-                    # Try 3: Latest timestamped final archive
-                    log "🔄 Attempt 3: Searching for final archives..."
-                    LATEST_FINAL=$$(gsutil ls "$$FILES_PATH/${_MODULE_NAME}-final-*.tar.gz" 2>/dev/null | sort -r | head -n 1 || echo "")
-                    
-                    if [ -n "$$LATEST_FINAL" ]; then
-                        log "📦 Found: $$LATEST_FINAL"
-                        ARCHIVE_NAME=$$(basename "$$LATEST_FINAL")
-                        
-                        if gsutil cp "$$LATEST_FINAL" ./$$ARCHIVE_NAME 2>/dev/null; then
-                            log "✅ Downloaded final archive"
-                            ARCHIVE_DOWNLOADED=true
-                            ARCHIVE_FILE="$$ARCHIVE_NAME"
-                        fi
-                    else
-                        log "⚠️  No final archives found"
-                        
-                        # Try 4: Initial archive
-                        log "🔄 Attempt 4: Trying initial archives..."
-                        LATEST_INITIAL=$$(gsutil ls "$$FILES_PATH/${_MODULE_NAME}-initial*.tar.gz" 2>/dev/null | sort -r | head -n 1 || echo "")
-                        
-                        if [ -n "$$LATEST_INITIAL" ]; then
-                            log "📦 Found: $$LATEST_INITIAL"
-                            ARCHIVE_NAME=$$(basename "$$LATEST_INITIAL")
-                            
-                            if gsutil cp "$$LATEST_INITIAL" ./$$ARCHIVE_NAME 2>/dev/null; then
-                                log "✅ Downloaded initial archive"
-                                ARCHIVE_DOWNLOADED=true
-                                ARCHIVE_FILE="$$ARCHIVE_NAME"
-                            fi
-                        fi
-                    fi
-                fi
-            fi
-            
-            if [ "$$ARCHIVE_DOWNLOADED" = false ]; then
-                log "❌ ERROR: Could not download any deployment archive"
-                log ""
-                log "📋 Available files in GCS:"
-                gsutil ls "$$FILES_PATH/" 2>/dev/null | sed 's/^/   /' || log "   Could not list files"
-                log ""
-                log "💡 To update with new code, provide _GIT_REPO_URL"
-                exit 1
-            fi
-            
-            # FIXED: Validate archive before extraction
-            log "🔍 Validating archive: $$ARCHIVE_FILE"
-            
-            if tar -tzf "$$ARCHIVE_FILE" > /tmp/archive_contents.txt 2>&1; then
-                FILE_COUNT=$$(cat /tmp/archive_contents.txt | wc -l)
-                log "✅ Archive is valid ($$FILE_COUNT entries)"
-            else
-                log "❌ ERROR: Archive is corrupted or invalid"
-                log "   Archive: $$ARCHIVE_FILE"
-                ARCHIVE_SIZE=$$(du -h "$$ARCHIVE_FILE" 2>/dev/null | cut -f1 || echo "unknown")
-                log "   Size: $$ARCHIVE_SIZE"
-                exit 1
-            fi
-            
-            # Extract archive
-            log "📂 Extracting $$ARCHIVE_FILE..."
-            if tar -xzf "$$ARCHIVE_FILE" 2>&1 | tee /tmp/extract_output.txt; then
-                log "✅ Files extracted successfully"
-                
-                # Show warnings if any
-                if [ -s /tmp/extract_output.txt ]; then
-                    log "⚠️  Extraction warnings:"
-                    cat /tmp/extract_output.txt | sed 's/^/   /'
-                fi
-                
-                rm -f "$$ARCHIVE_FILE"
-            else
-                log "❌ ERROR: Archive extraction failed"
-                cat /tmp/extract_output.txt | sed 's/^/   /'
-                exit 1
-            fi
-            
-            # Save repository info
-            echo "gcs" > /workspace/repo_type.txt
-            echo "archive" > /workspace/repo_url.txt
-            
-        # ========================================
-        # STRATEGY 3: Initial Deployment
-        # ========================================
-        else
-            log "🆕 Initial deployment - this shouldn't happen in UPDATE"
-            log "⚠️  WARNING: No existing deployment found"
-            log "   This UPDATE operation will act as initial CREATE"
-            
-            echo "initial" > /workspace/repo_type.txt
-            echo "none" > /workspace/repo_url.txt
-        fi
-        
-        # ========================================
-        # FIXED: Verify critical files after extraction/cloning
-        # ========================================
-        log "🔍 Verifying critical files..."
-        
-        CRITICAL_MISSING=0
-        
-        # Check for Terraform files
-        TF_COUNT=$$(find . -maxdepth 1 -name "*.tf" -type f | wc -l)
-        if [ $$TF_COUNT -eq 0 ]; then
-            log "❌ ERROR: No Terraform files found"
-            CRITICAL_MISSING=1
-        else
-            log "✅ Found $$TF_COUNT Terraform files"
-        fi
-        
-        # Check for terraform.tfvars.json
-        if [ ! -f "terraform.tfvars.json" ]; then
-            log "❌ ERROR: terraform.tfvars.json missing"
-            CRITICAL_MISSING=1
-        else
-            log "✅ terraform.tfvars.json present"
-        fi
-        
-        # backend.tf is optional (will be created if missing)
-        if [ ! -f "backend.tf" ]; then
-            log "ℹ️  backend.tf not found (will create default)"
-        else
-            log "✅ backend.tf present"
-        fi
-        
-        if [ $$CRITICAL_MISSING -eq 1 ]; then
-            log "❌ ERROR: Critical files missing - cannot proceed"
-            log ""
-            log "📋 Current directory contents:"
-            ls -la | sed 's/^/   /'
-            exit 1
-        fi
-        
-        log "✅ All critical files verified"
-        
-        log "📋 Workspace contents:"
-        ls -la | head -20 | sed 's/^/   /'
-        
-        log "✅ Deployment environment prepared"
-    dir: /workspace
+        tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || echo "State summary unavailable"
+    fi
+    
+    echo "========================================"
+  dir: /workspace
 
-  # ============================================
-  # STEP 4: Verify Backend Configuration
-  # ============================================
-  - id: 'Verify Backend Configuration'
-    name: '${_TERRAFORM_IMAGE_NAME}:latest'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        log "🔍 Verifying backend configuration..."
-        
-        # Check if backend.tf exists
-        if [ ! -f backend.tf ]; then
-            log "⚠️  backend.tf not found, creating default..."
-            
-            cat > backend.tf <<'EOF'
-        terraform {
-          backend "gcs" {
-            bucket = "${_DEPLOYMENT_BUCKET_ID}"
-            prefix = "deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/state"
-          }
-        }
-        EOF
-            
-            # Substitute variables
-            sed -i "s/\${_DEPLOYMENT_BUCKET_ID}/${_DEPLOYMENT_BUCKET_ID}/g" backend.tf
-            sed -i "s/\${_MODULE_NAME}/${_MODULE_NAME}/g" backend.tf
-            sed -i "s/\${_DEPLOYMENT_ID}/${_DEPLOYMENT_ID}/g" backend.tf
-            
-            log "✅ Default backend.tf created"
-        fi
-        
-        log "📄 Backend configuration:"
-        cat backend.tf | sed 's/^/   /'
-        
-        # Verify terraform.tfvars.json
-        if [ ! -f terraform.tfvars.json ]; then
-            log "❌ ERROR: terraform.tfvars.json not found"
-            exit 1
-        fi
-        
-        # Validate JSON
-        if command -v jq >/dev/null 2>&1; then
-            if jq empty terraform.tfvars.json 2>/dev/null; then
-                VAR_COUNT=$$(jq 'keys | length' terraform.tfvars.json)
-                log "✅ terraform.tfvars.json valid ($$VAR_COUNT variables)"
-            else
-                log "❌ ERROR: terraform.tfvars.json is invalid JSON"
-                exit 1
-            fi
-        fi
-        
-        log "✅ Backend configuration verified"
-        log "   State will be stored in GCS"
-    dir: /workspace/modules/${_MODULE_NAME}
-
-  # ============================================
-  # STEP 5: Initialize Terraform
-  # ============================================
-  - id: 'Initialize Terraform'
-    name: '${_TERRAFORM_IMAGE_NAME}:latest'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        log "🔧 Initializing Terraform/Tofu..."
-        
-        # Show version
-        tofu version || terraform version || log "Could not determine version"
-        
-        DEPLOYMENT_MODE="initial"
-        if [ -f /workspace/deployment_mode.txt ]; then
-            DEPLOYMENT_MODE=$$(cat /workspace/deployment_mode.txt)
-        fi
-        
-        if [ "$$DEPLOYMENT_MODE" = "update" ]; then
-            log "🔄 Re-initializing existing deployment with upgrade"
-            
-            # FIXED: Remove old lock file to prevent conflicts
-            if [ -f .terraform.lock.hcl ]; then
-                log "⚠️  Removing existing lock file"
-                rm -f .terraform.lock.hcl
-            fi
-            
-            if tofu init -reconfigure -upgrade -no-color 2>&1 | tee /workspace/init_output.txt; then
-                log "✅ Initialization successful"
-                
-                # Verify lock file was created
-                if [ -f .terraform.lock.hcl ]; then
-                    log "✅ Lock file generated"
-                    PROVIDER_COUNT=$$(grep -c "provider" .terraform.lock.hcl || echo "0")
-                    log "   Providers: $$PROVIDER_COUNT"
-                fi
-            else
-                log "❌ Initialization failed"
-                log ""
-                log "📋 Initialization output:"
-                cat /workspace/init_output.txt | sed 's/^/   /'
-                exit 1
-            fi
-        else
-            log "🆕 First time initialization"
-            
-            # Remove any existing lock file
-            if [ -f .terraform.lock.hcl ]; then
-                log "⚠️  Removing existing lock file"
-                rm -f .terraform.lock.hcl
-            fi
-            
-            if tofu init -upgrade -no-color 2>&1 | tee /workspace/init_output.txt; then
-                log "✅ Initialization successful"
-                
-                # Verify lock file was created
-                if [ -f .terraform.lock.hcl ]; then
-                    log "✅ Lock file generated"
-                    PROVIDER_COUNT=$$(grep -c "provider" .terraform.lock.hcl || echo "0")
-                    log "   Providers: $$PROVIDER_COUNT"
-                fi
-            else
-                log "❌ Initialization failed"
-                log ""
-                log "📋 Initialization output:"
-                cat /workspace/init_output.txt | sed 's/^/   /'
-                exit 1
-            fi
-        fi
-        
-        # Check existing state
-        if tofu state list > /dev/null 2>&1; then
-            RESOURCE_COUNT=$$(tofu state list | wc -l)
-            log "📊 Found $$RESOURCE_COUNT resources in existing state"
-            echo "$$RESOURCE_COUNT" > /workspace/existing_resource_count.txt
-        else
-            log "ℹ️  No existing state (new deployment)"
-            echo "0" > /workspace/existing_resource_count.txt
-        fi
-        
-        log "✅ Terraform initialization completed"
-    dir: /workspace/modules/${_MODULE_NAME}
-
-  # ============================================
-  # STEP 6: Validate Configuration
-  # ============================================
-  - id: 'Validate Configuration'
-    name: '${_TERRAFORM_IMAGE_NAME}:latest'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        log "🔍 Validating Terraform configuration..."
-        
-        if tofu validate -no-color 2>&1 | tee /workspace/validate_output.txt; then
-            log "✅ Configuration is valid"
-        else
-            log "❌ Configuration validation failed"
-            log ""
-            log "📋 Validation output:"
-            cat /workspace/validate_output.txt | sed 's/^/   /'
-            exit 1
-        fi
-    dir: /workspace/modules/${_MODULE_NAME}
-
-  # ============================================
-  # STEP 7: Generate Terraform Plan
-  # ============================================
-  - id: 'Generate Terraform Plan'
-    name: '${_TERRAFORM_IMAGE_NAME}:latest'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        log "📋 Generating Terraform execution plan..."
-        
-        set +e
-        tofu plan -out=tfplan -no-color -compact-warnings -detailed-exitcode 2>&1 | tee /workspace/plan_output.txt
-        PLAN_EXIT_CODE=$${PIPESTATUS[0]}
-        set -e
-        
-        case $$PLAN_EXIT_CODE in
-            0)
-                log "ℹ️  No changes detected"
-                echo "NO_CHANGES" > /workspace/plan_status.txt
-                ;;
-            2)
-                log "📊 Changes detected"
-                echo "HAS_CHANGES" > /workspace/plan_status.txt
-                
-                # Extract and display summary
-                if grep -E "Plan:" /workspace/plan_output.txt > /tmp/plan_summary.txt 2>/dev/null; then
-                    log "📋 Plan summary:"
-                    cat /tmp/plan_summary.txt | sed 's/^/   /'
-                fi
-                ;;
-            *)
-                log "❌ Planning failed"
-                log ""
-                log "📋 Plan output:"
-                cat /workspace/plan_output.txt | tail -50 | sed 's/^/   /'
-                exit 1
-                ;;
-        esac
-        
-        # Save plan in JSON format
-        if tofu show -json tfplan > /workspace/tfplan.json 2>/dev/null; then
-            log "✅ Plan saved in JSON format"
-        fi
-    dir: /workspace/modules/${_MODULE_NAME}
-
-  # ============================================
-  # STEP 8: Apply Infrastructure Changes
-  # ============================================
-  - id: 'Apply Infrastructure Changes'
-    name: '${_TERRAFORM_IMAGE_NAME}:latest'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        PLAN_STATUS="HAS_CHANGES"
-        if [ -f /workspace/plan_status.txt ]; then
-            PLAN_STATUS=$$(cat /workspace/plan_status.txt)
-        fi
-        
-        if [ "$$PLAN_STATUS" = "NO_CHANGES" ]; then
-            log "ℹ️  No changes to apply"
-            echo "skipped" > /workspace/apply_status.txt
-            exit 0
-        fi
-        
-        log "🚀 Applying infrastructure changes..."
-        
-        if tofu apply -auto-approve -no-color tfplan 2>&1 | tee /workspace/apply_output.txt; then
-            log "✅ Apply successful"
-            echo "success" > /workspace/apply_status.txt
-        else
-            log "❌ Apply failed"
-            log ""
-            log "📋 Apply output:"
-            tail -50 /workspace/apply_output.txt | sed 's/^/   /'
-            echo "failed" > /workspace/apply_status.txt
-            exit 1
-        fi
-    dir: /workspace/modules/${_MODULE_NAME}
-
-  # ============================================
-  # STEP 9: Refresh State and Generate Outputs
-  # ============================================
-  - id: 'Refresh State and Generate Outputs'
-    name: '${_TERRAFORM_IMAGE_NAME}:latest'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        log "🔄 Refreshing state..."
-        
-        if tofu refresh -no-color 2>&1 | tee /workspace/refresh_output.txt; then
-            log "✅ State refreshed"
-        else
-            log "⚠️  State refresh had issues (non-fatal)"
-        fi
-        
-        log "📤 Generating outputs..."
-        
-        if tofu output -json > output.json 2>/dev/null; then
-            log "✅ Outputs generated"
-            
-            # Display outputs
-            if command -v jq >/dev/null 2>&1; then
-                OUTPUT_COUNT=$$(jq 'keys | length' output.json 2>/dev/null || echo "0")
-                log "   Output count: $$OUTPUT_COUNT"
-                
-                if [ $$OUTPUT_COUNT -gt 0 ]; then
-                    log "📋 Outputs:"
-                    jq -r 'keys[]' output.json 2>/dev/null | head -5 | sed 's/^/   • /' || true
-                fi
-            fi
-            
-            # Upload to GCS
-            OUTPUT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output"
-            if gsutil -h "Content-Type:application/json" cp output.json "$$OUTPUT_PATH/output.json" 2>/dev/null; then
-                log "✅ Outputs uploaded to GCS"
-            fi
-        else
-            log "ℹ️  No outputs defined"
-            echo "{}" > output.json
-        fi
-        
-        # Get final resource count
-        if tofu state list > /dev/null 2>&1; then
-            FINAL_RESOURCE_COUNT=$$(tofu state list | wc -l)
-            echo "$$FINAL_RESOURCE_COUNT" > /workspace/final_resource_count.txt
-            log "📊 Final resource count: $$FINAL_RESOURCE_COUNT"
-        fi
-    dir: /workspace/modules/${_MODULE_NAME}
-
-  # ============================================
-  # STEP 10: Archive and Upload to GCS (PRIORITY 1 FIX)
-  # ============================================
-  - id: 'Archive and Upload to GCS'
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        log "📦 Preparing deployment archive..."
-        
-        cd /workspace/modules/${_MODULE_NAME}
-        
-        # ========================================
-        # PRIORITY 1 FIX: Verify critical files exist before archiving
-        # ========================================
-        log "🔍 Verifying critical files before archiving..."
-        
-        CRITICAL_MISSING=0
-        
-        if [ ! -f "backend.tf" ]; then
-            log "❌ ERROR: backend.tf missing"
-            CRITICAL_MISSING=1
-        else
-            log "✅ backend.tf present"
-        fi
-        
-        if [ ! -f "terraform.tfvars.json" ]; then
-            log "❌ ERROR: terraform.tfvars.json missing"
-            CRITICAL_MISSING=1
-        else
-            log "✅ terraform.tfvars.json present"
-        fi
-        
-        TF_COUNT=$$(find . -maxdepth 1 -name "*.tf" -type f | wc -l)
-        if [ $$TF_COUNT -eq 0 ]; then
-            log "❌ ERROR: No Terraform files found"
-            CRITICAL_MISSING=1
-        else
-            log "✅ Found $$TF_COUNT Terraform files"
-        fi
-        
-        if [ $$CRITICAL_MISSING -eq 1 ]; then
-            log "❌ ERROR: Critical files missing - cannot create archive"
-            log ""
-            log "📋 Current directory contents:"
-            ls -la | sed 's/^/   /'
-            exit 1
-        fi
-        
-        log "✅ All critical files verified"
-        
-        # ========================================
-        # PRIORITY 1 FIX: Make archive creation fail the build on error
-        # ========================================
-        TIMESTAMP=$$(date +%Y%m%d-%H%M%S)
-        ARCHIVE_NAME="${_MODULE_NAME}-update-$$TIMESTAMP.tar.gz"
-        
-        log "📦 Creating archive: $$ARCHIVE_NAME"
-        
-        if tar -czf "/workspace/$$ARCHIVE_NAME" \
-            --exclude='.terraform/providers' \
-            --exclude='*.tfstate.backup' \
-            --exclude='tfplan' \
-            --exclude='.git' \
-            . 2>&1 | tee /tmp/tar_output.txt; then
-            
-            ARCHIVE_SIZE=$$(du -h "/workspace/$$ARCHIVE_NAME" | cut -f1)
-            log "✅ Archive created successfully ($$ARCHIVE_SIZE)"
-        else
-            log "❌ ERROR: Archive creation failed"
-            log ""
-            log "📋 Tar output:"
-            cat /tmp/tar_output.txt | sed 's/^/   /'
-            log ""
-            log "⚠️  This archive is REQUIRED for future UPDATE and DESTROY operations"
-            exit 1
-        fi
-        
-        # Verify archive file exists and is not empty
-        if [ ! -f "/workspace/$$ARCHIVE_NAME" ]; then
-            log "❌ ERROR: Archive file not found after creation"
-            exit 1
-        fi
-        
-        ARCHIVE_SIZE_BYTES=$$(stat -f%z "/workspace/$$ARCHIVE_NAME" 2>/dev/null || stat -c%s "/workspace/$$ARCHIVE_NAME" 2>/dev/null || echo "0")
-        if [ "$$ARCHIVE_SIZE_BYTES" -lt 1024 ]; then
-            log "❌ ERROR: Archive file is too small ($$ARCHIVE_SIZE_BYTES bytes)"
-            log "   This indicates the archive may be corrupted or empty"
-            exit 1
-        fi
-        
-        log "✅ Archive integrity verified"
-        
-        # ========================================
-        # PRIORITY 1 FIX: Make GCS uploads fail the build on error
-        # ========================================
-        FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
-        
-        log "📤 Uploading to GCS..."
-        log "   Destination: $$FILES_PATH"
-        
-        # Upload timestamped archive (CRITICAL)
-        log "📤 Uploading timestamped archive..."
-        if gsutil -h "Content-Type:application/gzip" \
-                  cp "/workspace/$$ARCHIVE_NAME" "$$FILES_PATH/$$ARCHIVE_NAME" 2>&1 | tee /tmp/upload_timestamped.txt; then
-            log "✅ Timestamped archive uploaded: $$ARCHIVE_NAME"
-        else
-            log "❌ ERROR: Failed to upload timestamped archive"
-            log ""
-            log "📋 Upload error:"
-            cat /tmp/upload_timestamped.txt | sed 's/^/   /'
-            log ""
-            log "⚠️  This archive is REQUIRED for future UPDATE and DESTROY operations"
-            exit 1
-        fi
-        
-        # Upload as latest (CRITICAL)
-        log "📤 Uploading latest archive..."
-        if gsutil cp "/workspace/$$ARCHIVE_NAME" "$$FILES_PATH/${_MODULE_NAME}.tar.gz" 2>&1 | tee /tmp/upload_latest.txt; then
-            log "✅ Latest archive uploaded: ${_MODULE_NAME}.tar.gz"
-        else
-            log "❌ ERROR: Failed to upload latest archive"
-            log ""
-            log "📋 Upload error:"
-            cat /tmp/upload_latest.txt | sed 's/^/   /'
-            log ""
-            log "⚠️  This archive is REQUIRED for future UPDATE and DESTROY operations"
-            exit 1
-        fi
-        
-        # Verify uploads by listing
-        log "🔍 Verifying uploads..."
-        if gsutil ls "$$FILES_PATH/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
-            log "✅ Latest archive verified in GCS"
-        else
-            log "❌ ERROR: Latest archive not found in GCS after upload"
-            exit 1
-        fi
-        
-        if gsutil ls "$$FILES_PATH/$$ARCHIVE_NAME" > /dev/null 2>&1; then
-            log "✅ Timestamped archive verified in GCS"
-        else
-            log "❌ ERROR: Timestamped archive not found in GCS after upload"
-            exit 1
-        fi
-        
-        # Upload configuration files separately for easy access (non-critical)
-        log "📤 Uploading configuration files..."
-        
-        if [ -f terraform.tfvars.json ]; then
-            if gsutil -h "Content-Type:application/json" \
-                      cp terraform.tfvars.json "$$FILES_PATH/terraform.tfvars.json" 2>/dev/null; then
-                log "✅ terraform.tfvars.json uploaded"
-            else
-                log "⚠️  Failed to upload terraform.tfvars.json (non-critical)"
-            fi
-        fi
-        
-        if [ -f backend.tf ]; then
-            if gsutil -h "Content-Type:text/plain" \
-                      cp backend.tf "$$FILES_PATH/backend.tf" 2>/dev/null; then
-                log "✅ backend.tf uploaded"
-            else
-                log "⚠️  Failed to upload backend.tf (non-critical)"
-            fi
-        fi
-        
-        log "✅ All critical files uploaded and verified successfully"
-
-  # ============================================
-  # STEP 11: Update Deployment Metadata
-  # ============================================
-  - id: 'Update Deployment Metadata'
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        log "📝 Updating deployment metadata..."
-        
-        # Get statuses
-        APPLY_STATUS="success"
-        if [ -f /workspace/apply_status.txt ]; then
-            APPLY_STATUS=$$(cat /workspace/apply_status.txt)
-        fi
-        
-        DEPLOYMENT_MODE="initial"
-        if [ -f /workspace/deployment_mode.txt ]; then
-            DEPLOYMENT_MODE=$$(cat /workspace/deployment_mode.txt)
-        fi
-        
-        BACKUP_STATUS="unknown"
-        BACKUP_LOCATION=""
-        if [ -f /workspace/backup_status.txt ]; then
-            BACKUP_STATUS=$$(cat /workspace/backup_status.txt)
-        fi
-        if [ -f /workspace/backup_location.txt ]; then
-            BACKUP_LOCATION=$$(cat /workspace/backup_location.txt)
-        fi
-        
-        # Read repository info
-        REPO_TYPE="gcs"
-        REPO_URL="archive"
-        if [ -f /workspace/repo_type.txt ]; then
-            REPO_TYPE=$$(cat /workspace/repo_type.txt)
-        fi
-        if [ -f /workspace/repo_url.txt ]; then
-            REPO_URL=$$(cat /workspace/repo_url.txt)
-        fi
-        
-        # Get resource counts
-        EXISTING_COUNT=0
-        FINAL_COUNT=0
-        if [ -f /workspace/existing_resource_count.txt ]; then
-            EXISTING_COUNT=$$(cat /workspace/existing_resource_count.txt)
-        fi
-        if [ -f /workspace/final_resource_count.txt ]; then
-            FINAL_COUNT=$$(cat /workspace/final_resource_count.txt)
-        fi
-        
-        # Create deployment metadata with repository info
-        cat > /tmp/deployment_update.json <<EOF
-        {
-          "updated_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-          "deployment_id": "${_DEPLOYMENT_ID}",
-          "module": "${_MODULE_NAME}",
-          "project_id": "${PROJECT_ID}",
-          "build_id": "${BUILD_ID}",
-          "operation": "update",
-          "deployment_mode": "$$DEPLOYMENT_MODE",
-          "status": "$$APPLY_STATUS",
-          "backup_status": "$$BACKUP_STATUS",
-          "backup_location": "$$BACKUP_LOCATION",
-          "module_source": "$$REPO_TYPE",
-          "module_repository": "$$REPO_URL",
-          "platform_repo": "${_GIT_REPO_URL:-none}",
-          "partner_repo": "${_MODULE_GIT_REPO_URL:-none}",
-          "triggered_by": "${_TRIGGERED_BY:-manual}",
-          "resources": {
-            "before": $$EXISTING_COUNT,
-            "after": $$FINAL_COUNT,
-            "changed": $$((FINAL_COUNT - EXISTING_COUNT))
-          },
-          "storage": {
-            "type": "gcs",
-            "bucket": "${_DEPLOYMENT_BUCKET_ID}",
-            "state_path": "deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/state/",
-            "files_path": "deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/",
-            "output_path": "deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output/"
-          }
-        }
-        EOF
-        
-        FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
-        
-        if gsutil -h "Content-Type:application/json" \
-                  cp /tmp/deployment_update.json "$$FILES_PATH/deployment_update.json" 2>/dev/null; then
-            log "✅ Deployment metadata uploaded to GCS"
-        else
-            log "⚠️  Failed to upload metadata (non-critical)"
-        fi
-
-  # ============================================
-  # STEP 12: Update Summary
-  # ============================================
-  - id: 'Update Summary'
-    name: '${_TERRAFORM_IMAGE_NAME}:latest'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        APPLY_STATUS="success"
-        if [ -f /workspace/apply_status.txt ]; then
-            APPLY_STATUS=$$(cat /workspace/apply_status.txt)
-        fi
-        
-        DEPLOYMENT_MODE="initial"
-        if [ -f /workspace/deployment_mode.txt ]; then
-            DEPLOYMENT_MODE=$$(cat /workspace/deployment_mode.txt)
-        fi
-        
-        BACKUP_STATUS="unknown"
-        BACKUP_LOCATION=""
-        if [ -f /workspace/backup_status.txt ]; then
-            BACKUP_STATUS=$$(cat /workspace/backup_status.txt)
-        fi
-        if [ -f /workspace/backup_location.txt ]; then
-            BACKUP_LOCATION=$$(cat /workspace/backup_location.txt)
-        fi
-        
-        EXISTING_COUNT=0
-        FINAL_COUNT=0
-        if [ -f /workspace/existing_resource_count.txt ]; then
-            EXISTING_COUNT=$$(cat /workspace/existing_resource_count.txt)
-        fi
-        if [ -f /workspace/final_resource_count.txt ]; then
-            FINAL_COUNT=$$(cat /workspace/final_resource_count.txt)
-        fi
-        
-        echo "========================================"
-        if [ "$$APPLY_STATUS" = "success" ]; then
-            log "🎉 UPDATE COMPLETED SUCCESSFULLY"
-        elif [ "$$APPLY_STATUS" = "skipped" ]; then
-            log "ℹ️  UPDATE COMPLETED (NO CHANGES)"
-        else
-            log "❌ UPDATE FAILED"
-        fi
-        echo "========================================"
-        echo "Deployment Details:"
-        echo "  • Module: ${_MODULE_NAME}"
-        echo "  • Deployment ID: ${_DEPLOYMENT_ID}"
-        echo "  • Project: ${PROJECT_ID}"
-        echo "  • Build ID: ${BUILD_ID}"
-        echo "  • Mode: $$DEPLOYMENT_MODE"
-        echo "  • Completed: $$(date)"
-        echo "========================================"
-        echo "Repository Configuration:"
-        echo "  • Platform repo: ${_GIT_REPO_URL:-none} (read-only)"
-        
-        if [ -n "${_MODULE_GIT_REPO_URL}" ] && [ "${_MODULE_GIT_REPO_URL}" != "none" ] && [ "${_MODULE_GIT_REPO_URL}" != "" ]; then
-            echo "  • Partner repo: ${_MODULE_GIT_REPO_URL} (read-only)"
-        fi
-        
-        echo "========================================"
-        echo "Backup Information:"
-        echo "  • Backup status: $$BACKUP_STATUS"
-        if [ -n "$$BACKUP_LOCATION" ]; then
-            echo "  • Backup location: $$BACKUP_LOCATION"
-        fi
-        echo "========================================"
-        echo "Storage (All writes to GCS):"
-        echo "  • State: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/state/"
-        echo "  • Files: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
-        echo "  • Outputs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output/"
-        echo "  • Logs: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/update/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
-        echo "========================================"
-        echo "Resource Changes:"
-        echo "  • Before: $$EXISTING_COUNT resources"
-        echo "  • After: $$FINAL_COUNT resources"
-        echo "  • Change: $$((FINAL_COUNT - EXISTING_COUNT))"
-        echo "========================================"
-        
-        cd /workspace/modules/${_MODULE_NAME}
-        
-        if tofu state list > /dev/null 2>&1; then
-            RESOURCE_COUNT=$$(tofu state list | wc -l)
-            
-            if [ $$RESOURCE_COUNT -gt 0 ]; then
-                echo ""
-                echo "  Current Resources (first 10):"
-                tofu state list | head -10 | sed 's/^/    /'
-                
-                if [ $$RESOURCE_COUNT -gt 10 ]; then
-                    echo "    ... and $$((RESOURCE_COUNT - 10)) more"
-                fi
-            fi
-        fi
-        
-        echo "========================================"
-        log "✅ Update complete - all data written to GCS"
-
-  # ============================================
-  # CLEANUP: Release Lock
-  # ============================================
-  - id: 'Release Deployment Lock (Cleanup)'
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
-    entrypoint: 'bash'
-    waitFor: ['-']
-    args:
-      - '-c'
-      - |
-        set +e
-        
-        log() {
-            echo "[$$(date +'%H:%M:%S')] $$1"
-        }
-        
-        log "🧹 CLEANUP: Releasing deployment lock"
-        
-        if [ -f /workspace/lock_path.txt ]; then
-            LOCK_PATH=$$(cat /workspace/lock_path.txt)
-            
-            if gsutil cp "$$LOCK_PATH" /tmp/lock.json 2>/dev/null; then
-                LOCK_BUILD_ID=$$(cat /tmp/lock.json | grep -o '"build_id":"[^"]*"' | cut -d'"' -f4 2>/dev/null)
-                
-                if [ "$$LOCK_BUILD_ID" = "${BUILD_ID}" ]; then
-                    if gsutil rm "$$LOCK_PATH" 2>/dev/null; then
-                        log "✅ Lock released successfully"
-                    else
-                        log "⚠️  Failed to release lock"
-                    fi
-                else
-                    log "⚠️  Lock owned by different build: $$LOCK_BUILD_ID"
-                fi
-            else
-                log "ℹ️  Lock already released or not found"
-            fi
-        else
-            log "ℹ️  No lock path found"
-        fi
-        
-        exit 0
-
-# ============================================
-# Secret Configuration
-# ============================================
+# ✅ Dynamic secret configuration
 availableSecrets:
   secretManager:
-    - versionName: projects/${PROJECT_ID}/secrets/${_GITHUB_TOKEN_SECRET_NAME}/versions/latest
-      env: 'GIT_TOKEN'
+  - versionName: projects/${PROJECT_ID}/secrets/${_GITHUB_TOKEN_SECRET_NAME}/versions/latest
+    env: 'GIT_TOKEN'
 
-# ============================================
-# Build Options
-# ============================================
 options:
   logging: GCS_ONLY
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
-  substitutionOption: 'ALLOW_LOOSE'
+  substitutionOption: 'ALLOW_LOOSE'  # ✅ Allow empty substitutions
+  # machineType: 'E2_HIGHCPU_8'  # More power for Terraform operations
 
-# ============================================
-# Substitution Variables
-# ============================================
+# ✅ Add default substitutions
 substitutions:
   _DEPLOYMENT_ID: "none"
   _MODULE_NAME: "unknown"
   _DEPLOYMENT_BUCKET_ID: "rad-deployments-2b65"
   _TERRAFORM_IMAGE_NAME: "us-central1-docker.pkg.dev/tec-rad-ui-2b65/opentofu-images/opentofu"
-  _GIT_REPO_URL: "none"                    # Platform repository (for code updates)
-  _MODULE_GIT_REPO_URL: ""                 # Partner repository (read-only, optional)
-  _GITHUB_TOKEN_SECRET_NAME: "git-access-token"
-  _TRIGGERED_BY: "manual"
+  _GIT_REPO_URL: "techequitycloud/rad-modules"  # Default platform repo
+  _MODULE_GIT_REPO_URL: ""  # Empty by default, overridden for partner modules
+  _GITHUB_TOKEN_SECRET_NAME: "git-access-token"  # Default token for platform modules
 
-# ============================================
-# Logs Configuration
-# ============================================
 logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/update/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
-
-# ============================================
-# Timeout
-# ============================================
 timeout: 7200s
