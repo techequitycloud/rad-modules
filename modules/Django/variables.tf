@@ -147,13 +147,6 @@ variable "django_superuser_username" {
   default     = "admin"
 }
 
-variable "django_superuser_password" {
-  description = "Password for the Django superuser. If not provided, one will be generated. {{UIMeta group=0 order=804 }}"
-  type        = string
-  sensitive   = true
-  default     = null
-}
-
 # GROUP 8: Tenant
 
 variable "configure_monitoring" {
