@@ -75,7 +75,7 @@ resource "google_secret_manager_secret" "dev_superuser_password" {
 
 resource "google_secret_manager_secret_version" "dev_superuser_password" {
   secret      = google_secret_manager_secret.dev_superuser_password.id
-  secret_data = try(length(var.django_superuser_password) > 0 ? var.django_superuser_password : random_password.dev_superuser_password.result, random_password.dev_superuser_password.result)
+  secret_data = var.django_superuser_password != null && var.django_superuser_password != "" ? var.django_superuser_password : random_password.dev_superuser_password.result
 
   depends_on = [
     google_secret_manager_secret.dev_superuser_password,
