@@ -28,12 +28,6 @@ fi
 echo "Listing files in $(pwd):"
 ls -la
 
-cat <<EOF > $(pwd)/Dockerfile # to create Dockerfile
-FROM cyclos/cyclos:latest
-ADD cyclos.properties \\\$CYCLOS_HOME/WEB-INF/classes
-ADD hazelcast.xml \\\$CYCLOS_HOME/WEB-INF/classes
-EOF
-  
 # Attempt to submit the build
 if ! gcloud --project="${PROJECT_ID}" builds submit . --config cloudbuild.yaml $SA_ARG; then
     echo "Initial build failed, retrying..."
@@ -45,4 +39,3 @@ if ! gcloud --project="${PROJECT_ID}" builds submit . --config cloudbuild.yaml $
 fi
 
 rm -rf cyclos-${APP_VERSION}*
-
