@@ -16,7 +16,7 @@
 # Bucket Cleanup Resources (executed on destroy)
 #########################################################################
 
-# Cleanup dev storage bucket contents
+# Cleanup storage bucket contents
 resource "null_resource" "cleanup_storage" {
   triggers = {
     bucket_name = "${var.application_name}${var.tenant_deployment_id}${local.random_id}"

@@ -21,21 +21,21 @@ resource "random_password" "django_secret_key" {
   special = false
 }
 
-resource "random_password" "dev_superuser_password" {
+resource "random_password" "superuser_password" {
   length  = 16
   special = true
   override_special = "_%@"
 }
 
-# NOTE: Database passwords (dev_db_password, qa_db_password, prod_db_password) 
+# NOTE: Database passwords (db_password)
 # are already defined in database.tf - DO NOT duplicate them here
 
 #########################################################################
-# Dev Secrets
+# Secrets
 #########################################################################
 
-resource "google_secret_manager_secret" "dev_application_settings" {
-  secret_id = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-dev-application-settings"
+resource "google_secret_manager_secret" "application_settings" {
+  secret_id = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-application-settings"
   replication {
     user_managed {
       replicas {
@@ -46,23 +46,23 @@ resource "google_secret_manager_secret" "dev_application_settings" {
   project = local.project.project_id
 }
 
-resource "google_secret_manager_secret_version" "dev_application_settings" {
-  secret      = google_secret_manager_secret.dev_application_settings.id
+resource "google_secret_manager_secret_version" "application_settings" {
+  secret      = google_secret_manager_secret.application_settings.id
   secret_data = <<EOT
 DEBUG=True
 SECRET_KEY="${random_password.django_secret_key.result}"
 GS_BUCKET_NAME="${google_storage_bucket.storage.name}"
-DATABASE_URL="postgres://${google_sql_user.dev_user.name}:${google_sql_user.dev_user.password}@/${google_sql_database.dev_db.name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+DATABASE_URL="postgres://${google_sql_user.user.name}:${google_sql_user.user.password}@/${google_sql_database.db.name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
 
   depends_on = [
-    google_secret_manager_secret.dev_application_settings,
+    google_secret_manager_secret.application_settings,
     random_password.django_secret_key
   ]
 }
 
-resource "google_secret_manager_secret" "dev_superuser_password" {
-  secret_id = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-dev-superuser-password"
+resource "google_secret_manager_secret" "superuser_password" {
+  secret_id = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-superuser-password"
   replication {
     user_managed {
       replicas {
@@ -73,13 +73,13 @@ resource "google_secret_manager_secret" "dev_superuser_password" {
   project = local.project.project_id
 }
 
-resource "google_secret_manager_secret_version" "dev_superuser_password" {
-  secret      = google_secret_manager_secret.dev_superuser_password.id
-  secret_data = random_password.dev_superuser_password.result
+resource "google_secret_manager_secret_version" "superuser_password" {
+  secret      = google_secret_manager_secret.superuser_password.id
+  secret_data = random_password.superuser_password.result
 
   depends_on = [
-    google_secret_manager_secret.dev_superuser_password,
-    random_password.dev_superuser_password
+    google_secret_manager_secret.superuser_password,
+    random_password.superuser_password
   ]
 }
 
@@ -88,8 +88,8 @@ resource "google_secret_manager_secret_version" "dev_superuser_password" {
 # NOTE: The random_password resources are in database.tf
 #########################################################################
 
-resource "google_secret_manager_secret" "dev_db_password" {
-  secret_id = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-dev-db-password"
+resource "google_secret_manager_secret" "db_password" {
+  secret_id = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-db-password"
   replication {
     user_managed {
       replicas {
@@ -100,21 +100,21 @@ resource "google_secret_manager_secret" "dev_db_password" {
   project = local.project.project_id
 }
 
-resource "google_secret_manager_secret_version" "dev_db_password" {
-  secret      = google_secret_manager_secret.dev_db_password.id
-  secret_data = random_password.dev_db_password.result
+resource "google_secret_manager_secret_version" "db_password" {
+  secret      = google_secret_manager_secret.db_password.id
+  secret_data = random_password.db_password.result
 
   depends_on = [
-    google_secret_manager_secret.dev_db_password,
-    random_password.dev_db_password
+    google_secret_manager_secret.db_password,
+    random_password.db_password
   ]
 }
 
-data "google_secret_manager_secret_version" "dev_db_password" {
-  secret     = google_secret_manager_secret.dev_db_password.id
+data "google_secret_manager_secret_version" "db_password" {
+  secret     = google_secret_manager_secret.db_password.id
   version    = "latest"
   
   depends_on = [
-    google_secret_manager_secret_version.dev_db_password
+    google_secret_manager_secret_version.db_password
   ]
 }
