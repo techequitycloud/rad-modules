@@ -86,7 +86,7 @@ locals {
   nfs_server_sa_email   = "nfsserver-sa@${local.project.project_id}.iam.gserviceaccount.com"
   setup_server_sa_email = "setupserver-sa@${local.project.project_id}.iam.gserviceaccount.com"
 
-  project_sa_id           = "projects/${local.project.project_id}/serviceAccounts/project-sa@${local.project.project_id}.iam.gserviceaccount.com"
+  project_sa_id = "projects/${local.project.project_id}/serviceAccounts/project-sa@${local.project.project_id}.iam.gserviceaccount.com"
 }
 
 ########################################################################################
@@ -97,17 +97,21 @@ output "existing_service_accounts" {
   description = "List of existing service accounts"
   value = [
     for sa_name, exists in {
-      "project-sa"      = local.project_sa_exists
-      "cloudbuild-sa"   = local.cloud_build_sa_exists
-      "clouddeploy-sa"  = local.cloud_deploy_sa_exists
-      "gke-sa"          = local.gke_sa_exists
-      "cloudrun-sa"     = local.cloud_run_sa_exists
-      "cloudsql-sa"     = local.cloud_sql_sa_exists
-      "nfsserver-sa"    = local.nfs_server_sa_exists
-      "setupserver-sa"  = local.setup_server_sa_exists
+      "project-sa"     = local.project_sa_exists
+      "cloudbuild-sa"  = local.cloud_build_sa_exists
+      "clouddeploy-sa" = local.cloud_deploy_sa_exists
+      "gke-sa"         = local.gke_sa_exists
+      "cloudrun-sa"    = local.cloud_run_sa_exists
+      "cloudsql-sa"    = local.cloud_sql_sa_exists
+      "nfsserver-sa"   = local.nfs_server_sa_exists
+      "setupserver-sa" = local.setup_server_sa_exists
     } : sa_name if exists
   ]
 }
+
+########################################################################################
+# Cloud Run Service Account IAM Bindings
+########################################################################################
 
 resource "google_project_iam_member" "cloudsql_client" {
   project = local.project.project_id
@@ -121,16 +125,18 @@ resource "google_project_iam_member" "secret_accessor" {
   member  = "serviceAccount:${local.cloud_run_sa_email}"
 }
 
-resource "google_service_account" "n8n_sa" {
-  account_id   = "n8n-sa-${var.tenant_deployment_id}"
-  display_name = "n8n Service Account"
-  project      = local.project.project_id
-}
+########################################################################################
+# HMAC Key for Cloud Run Service Account (used by n8n)
+########################################################################################
 
 resource "google_storage_hmac_key" "n8n_key" {
-  service_account_email = google_service_account.n8n_sa.email
+  service_account_email = local.cloud_run_sa_email
   project               = local.project.project_id
 }
+
+########################################################################################
+# Project Service Account Token Creator Role
+########################################################################################
 
 resource "google_service_account_iam_binding" "resource_creator_identity_token_creator_role" {
   count = var.resource_creator_identity != null && var.resource_creator_identity != "" ? 1 : 0
