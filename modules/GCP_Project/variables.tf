@@ -91,6 +91,18 @@ variable "billing_account_id" {
   type        = string
 }
 
+variable "billing_budget_amount" {
+  description = "The amount of the budget for the project. {{UIMeta group=1 order=205 }}"
+  type        = number
+  default     = 50
+}
+
+variable "billing_budget_alert_emails" {
+  description = "List of emails to send budget alerts to. {{UIMeta group=1 order=206 }}"
+  type        = list(string)
+  default     = []
+}
+
 # GROUP 2: Project
 
 variable "project_id_prefix" {
