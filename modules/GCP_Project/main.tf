@@ -29,6 +29,22 @@ locals {
     "logging.googleapis.com",
     "monitoring.googleapis.com",
     "clouddeploy.googleapis.com",
+    "cloudbilling.googleapis.com",
+    "iam.googleapis.com",
+    "firebase.googleapis.com",
+    "firebasehosting.googleapis.com",
+    "firebaserules.googleapis.com",
+    "firestore.googleapis.com",
+    "identitytoolkit.googleapis.com",
+    "fcm.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "storage-api.googleapis.com",
+    "storage-component.googleapis.com",
+    "dns.googleapis.com",
+    "cloudtrace.googleapis.com",
+    "clouderrorreporting.googleapis.com",
+    "cloudtasks.googleapis.com",
+    "cloudscheduler.googleapis.com",
   ]
 
   quota_apis = var.enable_quota_overrides ? [
