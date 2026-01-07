@@ -50,3 +50,9 @@ resource "google_project_iam_member" "devops_permissions" {
   role    = each.value.role
   member  = "user:${each.value.user}"
 }
+
+resource "google_service_account_iam_member" "rad_agent_impersonation" {
+  service_account_id = google_service_account.rad_agent.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+}
