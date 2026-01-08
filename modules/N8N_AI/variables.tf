@@ -63,7 +63,7 @@ variable "deployment_id" {
 }
 
 variable "agent_service_account" {
-  description = "Grant your GCP_Project agent service account IAM Owner role on the target deployment project, if using an external Google Cloud project. Enter the GCP_Project agent service account e.g. rad-agent@GCP_PROJECT_ID.iam.gserviceaccount.com {{UIMeta group=1 order=102 updatesafe }}"
+  description = "If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account, e.g. rad-agent@gcp-project.sr65.iam.gserviceaccount.com, and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=1 order=200 updatesafe }}"
   type        = string
   default     = null
 }
