@@ -23,7 +23,13 @@ variable "module_description" {
 variable "module_dependency" {
   description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=102 }}"
   type        = list(string)
-  default     = ["Cloud Run", "Cloud SQL", "Secret Manager", "Cloud IAM"]
+  default     = ["GCP_Services"]
+}
+
+variable "module_services" {
+  description = "Specify the module services. {{UIMeta group=0 order=102 }}"
+  type        = list(string)
+  default     = ["Cloud Run", "Cloud Build", "Artifact Registry", "Cloud Storage", "Cloud SQL", "Cloud IAM", "Cloud Networking"]
 }
 
 variable "credit_cost" {
