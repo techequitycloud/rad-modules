@@ -107,30 +107,6 @@ variable "availability_regions" {
   default     = ["us-central1"]
 }
 
-variable "gce_subnet_cidr_range" {
-  description = "List of GCE subnet CIDR blocks. {{UIMeta group=0 order=303 }}"
-  type = list(string)
-  default = ["10.142.192.0/23", "10.142.190.0/23"]
-}
-
-variable "gke_subnet_cidr_range" {
-  description = "List of GKE subnet CIDR blocks. {{UIMeta group=0 order=304 }}"
-  type = list(string)
-  default = ["10.132.0.0/20", "10.128.0.0/20"]
-}
-
-variable "gke_pod_cidr_block" {
-  description = "List of GKE pod CIDR blocks. {{UIMeta group=0 order=305 }}"
-  type = list(string)
-  default = ["10.101.0.0/16", "10.100.0.0/16"]
-}
-
-variable "gke_service_cidr_block" {
-  description = "List of GKE service CIDR blocks. {{UIMeta group=0 order=306 }}"
-  type = list(string)
-  default = ["10.11.0.0/20", "10.10.0.0/20"]
-}
-
 # GROUP 4: SQL
 
 variable "create_postgres" {
@@ -199,42 +175,4 @@ variable "network_filesystem_capacity" {
   description = "Size of NFS server disks. {{UIMeta group=0 order=603 }}"
   type        = number
   default     = 10
-}
-
-# GROUP 14: GKE
-
-variable "create_google_kubernetes_engine" {
-  description = "Select to create GKE cluster {{UIMeta group=0 order=1401 }}"
-  type        = bool
-  default     = false 
-}
-
-variable "google_kubernetes_engine_server" {
-  description = "Name that will be assigned to the GKE cluster. {{UIMeta group=0 order=1402 }}"
-  type        = string
-  default     = "gke-cluster"
-}
-
-variable "configure_config_management" {
-  description = "Select to configure Config Management. GKE cluster is required. {{UIMeta group=0 order=1403 }}"
-  type        = bool
-  default     = false
-}
-
-variable "configure_policy_controller" {
-  description = "Select to configure policy controller. GKE cluster is required. {{UIMeta group=0 order=1404 }}"
-  type        = bool
-  default     = false
-}
-
-variable "configure_cloud_service_mesh" {
-  description = "Select to configure Cloud Service Mesh. GKE cluster is required. {{UIMeta group=0 order=1405 }}"
-  type        = bool
-  default     = false
-}
-
-variable "configure_security_posture_service" {
-  description = "Select to configure Security Posture Service. GKE cluster is required. {{UIMeta group=0 order=1406 }}"
-  type        = bool
-  default     = false
 }
