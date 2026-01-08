@@ -80,7 +80,7 @@ variable "trusted_users" {
   default     = []
 }
 
-# GROUP 2: Application Project
+# GROUP 2: Project
 
 variable "existing_project_id" {
   description = "Select an existing project on the RAD platform or enter the project ID of an external GCP project. You must grant Owner role to the RAD GCP Project agent service account when deploying into an external project. {{UIMeta group=2 order=200 }}"
@@ -102,9 +102,14 @@ variable "network_name" {
 }
 
 variable "availability_regions" {
-  description = "The two regions where compute resources can be configured. The deployment might fail if sufficient resources not available in chosen region. {{UIMeta group=2 order=302 }}"
+  description = "The one or two regions where resources should be configured. The deployment might fail if sufficient resources not available in chosen region. {{UIMeta group=2 order=302 }}"
   type        = list(string)
   default     = ["us-central1"]
+  
+  validation {
+    condition     = length(var.availability_regions) > 0
+    error_message = "At least one availability region must be specified."
+  }
 }
 
 # GROUP 4: SQL
@@ -157,7 +162,7 @@ variable "mysql_tier" {
   default     = "db-custom-1-3840"
 }
 
-# GROUP 6: NFS Service
+# GROUP 5: NFS
 
 variable "create_network_filesystem" {
   description = "Select to create NFS server using Compute Engine instances. {{UIMeta group=0 order=601}}"
@@ -175,4 +180,29 @@ variable "network_filesystem_capacity" {
   description = "Size of NFS server disks. {{UIMeta group=0 order=603 }}"
   type        = number
   default     = 10
+}
+
+# GROUP 6: Network
+
+variable "gce_subnet_cidr_range" {
+  description = "List of CIDR ranges for GCE subnets, one per availability region"
+  type        = list(string)
+  default     = [
+    "10.0.0.0/24",
+    "10.0.1.0/24",
+    "10.0.2.0/24"
+  ]
+  
+  validation {
+    condition     = length(var.gce_subnet_cidr_range) > 0
+    error_message = "At least one CIDR range must be specified for GCE subnets."
+  }
+  
+  validation {
+    condition = alltrue([
+      for cidr in var.gce_subnet_cidr_range : 
+      can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$", cidr))
+    ])
+    error_message = "All CIDR ranges must be in valid format (e.g., 10.0.0.0/24)."
+  }
 }
