@@ -38,6 +38,12 @@ variable "credit_cost" {
   default     = 100
 }
 
+variable "agent_service_account" {
+  description = "Service account that has permissions on a target project. Set this only if using an existing external Google Cloud project. {{UIMeta group=1 order=104 updatesafe }}"
+  type        = string
+  default     = null
+}
+
 variable "require_credit_purchases" {
   description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
   type        = bool
