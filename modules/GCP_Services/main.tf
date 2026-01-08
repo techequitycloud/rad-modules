@@ -105,26 +105,13 @@ resource "time_sleep" "wait_for_apis" {
 }
 
 # Data source to fetch the list of available compute zones in the region
-# This will implicitly verify compute.googleapis.com is working
 data "google_compute_zones" "available_zones" {
   project = local.project.project_id
   region  = local.region
   status  = "UP" 
 
   depends_on = [
-    google_project_service.gcp_services,
-    time_sleep.wait_for_apis
-  ]
-}
-
-# Data source to fetch the list of available compute zones in the region
-data "google_compute_zones" "available_zones" {
-  project = local.project.project_id
-  region  = local.region
-  status  = "UP" 
-
-  depends_on = [
-    data.google_compute_zones.available_zones
+    resource.time_sleep.wait_for_apis
   ]
 }
 
