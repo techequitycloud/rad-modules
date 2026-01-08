@@ -13,7 +13,7 @@
 # limitations under the License.
 
 output "agent_project_id" {
-  description = "Project ID of the agent project"
+  description = "Project ID of the GCP project"
   value       = google_project.project.project_id
 }
 
