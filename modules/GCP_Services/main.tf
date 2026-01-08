@@ -118,42 +118,92 @@ resource "google_project_service" "enabled_services" {
 }
 
 # Simple verification that APIs are ready
-resource "null_resource" "api_poll" {
-  depends_on = [
-    google_project_service.enabled_services
-  ]
+# Enable required services
+resource "google_project_service" "gcp_services" {
+  for_each = toset(local.all_services)
   
+  project                    = var.existing_project_id
+  service                    = each.value
+  disable_dependent_services = false
+  disable_on_destroy         = false
+}
+
+# Initial wait for API enablement to start
+resource "time_sleep" "wait_for_apis" {
+  depends_on = [google_project_service.gcp_services]
+  create_duration = "30s"
+}
+
+# Poll and verify APIs are fully enabled
+resource "null_resource" "api_poll" {
+  triggers = {
+    services = join(",", [for s in google_project_service.gcp_services : s.service])
+  }
+
   provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
+      #!/bin/bash
+      set -e
+      
       echo "=========================================="
       echo "Verifying API enablement"
-      echo "Project: ${local.project.project_id}"
+      echo "Project: ${var.existing_project_id}"
       echo "=========================================="
       
-      # Just verify a few critical APIs
       CRITICAL_APIS=(
         "container.googleapis.com"
         "compute.googleapis.com"
         "iam.googleapis.com"
       )
       
-      for api in "$${CRITICAL_APIS[@]}"; do
-        if gcloud services list --enabled \
-          --project="${local.project.project_id}" \
-          --filter="config.name:$api" \
-          --format="value(config.name)" 2>/dev/null | grep -q "$api"; then
-          echo "✓ $api is enabled"
-        else
-          echo "❌ $api is NOT enabled"
-          exit 1
+      MAX_WAIT=180
+      ELAPSED=0
+      SLEEP_INTERVAL=15
+      
+      echo ""
+      echo "⏳ Waiting for APIs to be fully enabled (max ${MAX_WAIT}s)..."
+      echo ""
+      
+      while [ $ELAPSED -lt $MAX_WAIT ]; do
+        ALL_ENABLED=true
+        
+        for api in "$${CRITICAL_APIS[@]}"; do
+          if gcloud services list --enabled \
+            --project="${var.existing_project_id}" \
+            --filter="config.name:$api" \
+            --format="value(config.name)" 2>/dev/null | grep -q "$api"; then
+            echo "  ✓ $api is enabled"
+          else
+            echo "  ⏳ $api is not yet enabled"
+            ALL_ENABLED=false
+          fi
+        done
+        
+        if [ "$ALL_ENABLED" = true ]; then
+          echo ""
+          echo "✅ All critical APIs are enabled and ready!"
+          exit 0
         fi
+        
+        echo ""
+        echo "⏳ Retrying in ${SLEEP_INTERVAL}s... (elapsed: ${ELAPSED}s)"
+        sleep $SLEEP_INTERVAL
+        ELAPSED=$((ELAPSED + SLEEP_INTERVAL))
       done
       
       echo ""
-      echo "✓ All critical APIs are enabled and ready!"
+      echo "❌ Timeout: APIs not enabled after ${MAX_WAIT}s"
+      echo "This may indicate a permission issue or API quota problem"
+      exit 1
     EOT
+    
+    interpreter = ["/bin/bash", "-c"]
   }
+
+  depends_on = [
+    google_project_service.gcp_services,
+    time_sleep.wait_for_apis
+  ]
 }
 
 #########################################################################
