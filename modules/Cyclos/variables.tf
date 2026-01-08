@@ -50,6 +50,12 @@ variable "deployment_id" {
   default     = null
 }
 
+variable "agent_service_account" {
+  description = "Service account that has permissions on a target project. Set this only if using an existing external Google Cloud project. {{UIMeta group=1 order=200 updatesafe }}"
+  type        = string
+  default     = null
+}
+
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=102 updatesafe }}"
   type        = string
@@ -65,7 +71,7 @@ variable "trusted_users" {
 # GROUP 2: Application Project
 
 variable "existing_project_id" {
-  description = "Enter the project ID of the destination project. {{UIMeta group=1 order=200 updatesafe }}"
+  description = "Enter the project ID of the destination project. {{UIMeta group=1 order=201 updatesafe }}"
   type        = string
 }
 
