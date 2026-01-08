@@ -71,7 +71,7 @@ variable "trusted_users" {
 # GROUP 2: Application Project
 
 variable "existing_project_id" {
-  description = "Enter the project ID of the destination project. {{UIMeta group=1 order=201 updatesafe }}"
+  description = "Select an existing project on the RAD platform or enter the project ID of an external GCP project. You must grant Owner role to the RAD GCP Project agent service account when deploying into an external project. {{UIMeta group=2 order=200 }}"
   type        = string
 }
 
