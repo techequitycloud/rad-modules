@@ -28,8 +28,8 @@ variable "module_dependency" {
 
 variable "module_services" {
   description = "Specify the module services. {{UIMeta group=0 order=102 }}"
-  type = list(string)
-  default = ["GCP", "Cloud Run", "Cloud SQL", "Secret Manager", "Cloud IAM"]
+  type        = list(string)
+  default     = ["Cloud Run", "Cloud Build", "Artifact Registry", "Cloud Storage", "Cloud SQL", "Cloud IAM", "Cloud Networking"]
 }
 
 variable "credit_cost" {
