@@ -12,31 +12,54 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Google Cloud provider configuration with impersonation
+# Provider configuration for Google Cloud with impersonation capabilities.
 provider "google" {
-  alias  = "impersonated" 
+  alias = "impersonated"  # Alias used to reference this specific provider configuration
+
+  # Scopes define the level of access the provider will have. In this case, full access to cloud platform resources and user email.
   scopes = [
-    "https://www.googleapis.com/auth/cloud-platform", 
-    "https://www.googleapis.com/auth/userinfo.email"  
+    "https://www.googleapis.com/auth/cloud-platform",
+    "https://www.googleapis.com/auth/userinfo.email"
   ]
 }
 
-# Data source to acquire an access token for a service account with impersonation
+# Local variables to determine which service account to use for impersonation
+locals {
+  # Use agent_service_account if provided, otherwise fall back to resource_creator_identity
+  # This supports the impersonation chain: rad-module-creator -> rad-agent -> target project
+  target_service_account = coalesce(
+    try(var.agent_service_account, null),
+    var.resource_creator_identity
+  )
+  
+  # Determine if we should use impersonation
+  use_impersonation = local.target_service_account != null && length(local.target_service_account) > 0
+}
+
+# Data source to obtain an access token for a service account with impersonation.
+# This enables the impersonation chain:
+# 1. Cloud Build runs as rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com
+# 2. rad-module-creator impersonates rad-agent@gcp-project-eb45.iam.gserviceaccount.com
+# 3. rad-agent has Owner permissions on the target project
 data "google_service_account_access_token" "default" {
-  count                  = length(var.resource_creator_identity) != 0 ? 1 : 0 
-  provider               = google.impersonated 
-  scopes                 = ["userinfo-email", "cloud-platform"] 
-  target_service_account = var.resource_creator_identity 
-  lifetime               = "3600s" 
+  count                  = local.use_impersonation ? 1 : 0  # Create this data source only if impersonation is needed
+  provider               = google.impersonated  # Use the impersonated provider instance
+  scopes                 = ["userinfo-email", "cloud-platform"]  # Scopes for the access token, shorter form without full URL
+  target_service_account = local.target_service_account  # The service account to impersonate (rad-agent)
+  lifetime               = "3600s"  # The lifetime of the generated access token (1 hour)
 }
 
-# Default Google Cloud provider configuration using the access token if available
+# Default provider configuration for Google Cloud using the generated access token if available.
 provider "google" {
-  access_token = length(var.resource_creator_identity) != 0 ? data.google_service_account_access_token.default[0].access_token : null 
+  project      = var.existing_project_id  # Target project where resources will be created
+  region       = var.availability_regions[0]  # Primary region for resources
+  access_token = local.use_impersonation ? data.google_service_account_access_token.default[0].access_token : null  # Use the access token from impersonation
 }
 
-# Google Cloud beta provider configuration using the access token if available
+# Beta provider configuration for Google Cloud using the generated access token if available.
+# This is needed for beta/preview features
 provider "google-beta" {
-  access_token = length(var.resource_creator_identity) != 0 ? data.google_service_account_access_token.default[0].access_token : null 
+  project      = var.existing_project_id  # Target project where resources will be created
+  region       = var.availability_regions[0]  # Primary region for resources
+  access_token = local.use_impersonation ? data.google_service_account_access_token.default[0].access_token : null  # Use the access token from impersonation
 }
-
