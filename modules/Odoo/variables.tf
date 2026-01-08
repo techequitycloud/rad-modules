@@ -145,7 +145,7 @@ variable "tenant_deployment_id" {
 variable "configure_environment" {
   description = "Select to configure environment. {{UIMeta group=0 order=703 }}"
   type        = bool
-  default     = true
+  default     = false
 }
 
 # GROUP 8: Tenant
