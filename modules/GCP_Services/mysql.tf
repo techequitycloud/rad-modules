@@ -86,7 +86,6 @@ resource "google_sql_user" "mysql_root_user" {
   depends_on = [
     google_sql_database_instance.postgres_instance,
     google_sql_database_instance.mysql_instance,
-    google_container_cluster.gke_autopilot_cluster,
     random_password.root_password,
   ]
 }
