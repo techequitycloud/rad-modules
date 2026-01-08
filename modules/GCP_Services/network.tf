@@ -32,7 +32,6 @@ resource "google_compute_network" "vpc_network" {
   auto_create_subnetworks = false
 
   depends_on   = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -276,6 +275,5 @@ resource "google_service_networking_connection" "psconnect" {
 
   depends_on = [
     google_compute_global_address.psconnect_private_ip_alloc,  
-    null_resource.api_poll,
   ]
 }
