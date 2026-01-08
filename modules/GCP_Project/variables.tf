@@ -94,7 +94,7 @@ variable "billing_account_id" {
 variable "billing_budget_amount" {
   description = "The amount of the budget for the project. {{UIMeta group=1 order=205 }}"
   type        = number
-  default     = 50
+  default     = 10
 }
 
 variable "billing_budget_alert_emails" {
