@@ -20,7 +20,6 @@ locals {
   network_name   = var.network_name
   vpc_network_id = google_compute_network.vpc_network.id
   gce_subnet_id  = google_compute_subnetwork.gce_subnetwork[local.region].id
-  gke_subnet_id  = google_compute_subnetwork.gke_subnetwork[local.region].id
 }
 
 ########################################################################################
@@ -39,7 +38,6 @@ resource "google_compute_network" "vpc_network" {
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
     google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
     google_service_account.cloud_sql_sa_admin,
     google_service_account.setup_server_sa_admin,
   ]
@@ -64,34 +62,6 @@ resource "google_compute_subnetwork" "gce_subnetwork" {
 }
 
 #########################################################################
-# Create GKE subnetworks only if VPC doesn't exist
-#########################################################################
-
-resource "google_compute_subnetwork" "gke_subnetwork" {
-  for_each = toset(var.availability_regions)
-  
-  project       = local.project.project_id 
-  name          = "gke-vpc-subnet-${each.key}"  
-  ip_cidr_range = element(var.gke_subnet_cidr_range, index(var.availability_regions, each.key))  
-  region        = each.key  
-  network       = local.vpc_network_id
-
-  secondary_ip_range {
-    range_name    = "pods-range"
-    ip_cidr_range = element(var.gke_pod_cidr_block, index(var.availability_regions, each.key))  
-  }
-
-  secondary_ip_range {
-    range_name    = "services-range"
-    ip_cidr_range = element(var.gke_service_cidr_block, index(var.availability_regions, each.key))  
-  }
-
-  depends_on = [
-    google_compute_network.vpc_network,
-  ] 
-}
-
-#########################################################################
 # Firewall Rules in vpc (only create if VPC doesn't exist)
 #########################################################################
 
@@ -104,15 +74,7 @@ locals {
     )
   ]
 
-  gke_subnet_cidrs = [
-    for i, region in var.availability_regions : 
-    try(
-      var.gke_subnet_cidr_range[i],
-      var.gke_subnet_cidr_range[i % length(var.gke_subnet_cidr_range)]
-    )
-  ]
-
-  all_internal_cidrs = sort(concat(local.gce_subnet_cidrs, local.gke_subnet_cidrs))
+  all_internal_cidrs = local.gce_subnet_cidrs
 
   base_firewall_rules = [
     {
@@ -225,7 +187,6 @@ locals {
 locals {
   validation_errors = concat(
     length(var.gce_subnet_cidr_range) == 0 ? ["GCE subnet CIDR range cannot be empty"] : [],
-    length(var.gke_subnet_cidr_range) == 0 ? ["GKE subnet CIDR range cannot be empty"] : [],
     length(var.availability_regions) == 0 ? ["Availability regions cannot be empty"] : []
   )
 }
@@ -254,7 +215,6 @@ resource "google_compute_firewall" "custom_rules" {
 
   depends_on = [
     google_compute_subnetwork.gce_subnetwork,
-    google_compute_subnetwork.gke_subnetwork,
   ]
 }
 
