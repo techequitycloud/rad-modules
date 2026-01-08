@@ -121,12 +121,11 @@ resource "null_resource" "api_poll" {
       echo "=========================================="
       
       CRITICAL_APIS=(
-        "container.googleapis.com"
         "compute.googleapis.com"
         "iam.googleapis.com"
       )
       
-      MAX_WAIT=180
+      MAX_WAIT=360
       ELAPSED=0
       SLEEP_INTERVAL=15
       
