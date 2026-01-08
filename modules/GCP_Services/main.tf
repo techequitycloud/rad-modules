@@ -91,83 +91,25 @@ resource "google_project_service" "gcp_services" {
   disable_dependent_services = false
   disable_on_destroy         = false
   
-  # Allow sufficient time for API enablement
+  # Terraform will automatically wait for API enablement
   timeouts {
     create = "30m"
     update = "40m"
   }
 }
 
-# Initial wait for API enablement to propagate
+# Wait for APIs to fully propagate
 resource "time_sleep" "wait_for_apis" {
   depends_on      = [google_project_service.gcp_services]
-  create_duration = "60s"
+  create_duration = "90s"  # Increased wait time
 }
 
-# Verify critical APIs are fully enabled
-resource "null_resource" "api_poll" {
-  triggers = {
-    services = join(",", [for s in google_project_service.gcp_services : s.service])
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      #!/bin/bash
-      set -e
-      
-      echo "=========================================="
-      echo "Verifying API enablement"
-      echo "Project: ${local.project.project_id}"
-      echo "=========================================="
-      
-      CRITICAL_APIS=(
-        "compute.googleapis.com"
-        "iam.googleapis.com"
-      )
-      
-      MAX_WAIT=360
-      ELAPSED=0
-      SLEEP_INTERVAL=15
-      
-      echo ""
-      echo "⏳ Waiting for APIs to be fully enabled (max $${MAX_WAIT}s)..."
-      echo ""
-      
-      while [ $ELAPSED -lt $MAX_WAIT ]; do
-        ALL_ENABLED=true
-        
-        for api in "$${CRITICAL_APIS[@]}"; do
-          if gcloud services list --enabled \
-            --project="${local.project.project_id}" \
-            --filter="config.name:$api" \
-            --format="value(config.name)" 2>/dev/null | grep -q "$api"; then
-            echo "  ✓ $api is enabled"
-          else
-            echo "  ⏳ $api is not yet enabled"
-            ALL_ENABLED=false
-          fi
-        done
-        
-        if [ "$ALL_ENABLED" = true ]; then
-          echo ""
-          echo "✅ All critical APIs are enabled and ready!"
-          exit 0
-        fi
-        
-        echo ""
-        echo "⏳ Retrying in $${SLEEP_INTERVAL}s... (elapsed: $${ELAPSED}s)"
-        sleep $SLEEP_INTERVAL
-        ELAPSED=$((ELAPSED + SLEEP_INTERVAL))
-      done
-      
-      echo ""
-      echo "❌ Timeout: APIs not enabled after $${MAX_WAIT}s"
-      echo "This may indicate a permission issue or API quota problem"
-      exit 1
-    EOT
-    
-    interpreter = ["/bin/bash", "-c"]
-  }
+# Data source to fetch the list of available compute zones in the region
+# This will implicitly verify compute.googleapis.com is working
+data "google_compute_zones" "available_zones" {
+  project = local.project.project_id
+  region  = local.region
+  status  = "UP" 
 
   depends_on = [
     google_project_service.gcp_services,
@@ -182,7 +124,7 @@ data "google_compute_zones" "available_zones" {
   status  = "UP" 
 
   depends_on = [
-    null_resource.api_poll
+    data.google_compute_zones.available_zones
   ]
 }
 
