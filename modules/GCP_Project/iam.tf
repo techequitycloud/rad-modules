@@ -52,7 +52,7 @@ resource "google_project_iam_member" "devops_permissions" {
 }
 
 resource "google_service_account_iam_member" "rad_agent_impersonation" {
-  service_account_id = google_service_account.rad_agent.name
+  service_account_id = google_service_account.rad_agent.id
   role               = "roles/iam.serviceAccountTokenCreator"
   member             = "serviceAccount:rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
