@@ -27,11 +27,6 @@ output "host_project_id" {
   value = var.existing_project_id
 }
 
-output "gke_cluster" {
-  value       = var.create_google_kubernetes_engine ? data.google_container_cluster.google_kubernetes_engine_server[0].name : null  # Reference the cluster name from the module
-  description = "The name of the GKE cluster."
-}
-
 output "nfs_server_ip" {
   value       = var.create_network_filesystem ? google_compute_address.static_internal_ip[0].address : null # Reference the static IP address
   description = "The static internal IP address for the NFS server."
