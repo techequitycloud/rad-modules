@@ -21,7 +21,6 @@ locals {
   project_sa_email      = "project-sa@${local.project.project_id}.iam.gserviceaccount.com"
   cloudbuild_sa_email  = "cloudbuild-sa@${local.project.project_id}.iam.gserviceaccount.com"
   clouddeploy_sa_email = "clouddeploy-sa@${local.project.project_id}.iam.gserviceaccount.com"
-  gke_sa_email          = "gke-sa@${local.project.project_id}.iam.gserviceaccount.com"
   cloudrun_sa_email    = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
   cloudsql_sa_email    = "cloudsql-sa@${local.project.project_id}.iam.gserviceaccount.com"
   nfsserver_sa_email   = "nfsserver-sa@${local.project.project_id}.iam.gserviceaccount.com"
@@ -31,7 +30,6 @@ locals {
   project_sa_id      = "projects/${local.project.project_id}/serviceAccounts/${local.project_sa_email}"
   cloudbuild_sa_id   = "projects/${local.project.project_id}/serviceAccounts/${local.cloudbuild_sa_email}"
   clouddeploy_sa_id  = "projects/${local.project.project_id}/serviceAccounts/${local.clouddeploy_sa_email}"
-  gke_sa_id          = "projects/${local.project.project_id}/serviceAccounts/${local.gke_sa_email}"
   cloudrun_sa_id     = "projects/${local.project.project_id}/serviceAccounts/${local.cloudrun_sa_email}"
   cloudsql_sa_id     = "projects/${local.project.project_id}/serviceAccounts/${local.cloudsql_sa_email}"
   nfsserver_sa_id    = "projects/${local.project.project_id}/serviceAccounts/${local.nfsserver_sa_email}"
@@ -60,7 +58,6 @@ resource "google_service_account_iam_member" "trusted_user_token_creator_role" {
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
     google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
     google_service_account.cloud_sql_sa_admin,
     google_service_account.setup_server_sa_admin,
   ]
@@ -83,7 +80,6 @@ resource "google_service_account_iam_binding" "resource_creator_identity_token_c
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
     google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
     google_service_account.cloud_sql_sa_admin,
     google_service_account.setup_server_sa_admin,
   ]
@@ -120,7 +116,6 @@ resource "google_project_iam_member" "project_sa_admin" {
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
     google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
     google_service_account.cloud_sql_sa_admin,
     google_service_account.setup_server_sa_admin,
   ]
@@ -181,7 +176,6 @@ resource "google_project_iam_member" "cloud_build_sa" {
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
     google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
     google_service_account.cloud_sql_sa_admin,
     google_service_account.setup_server_sa_admin,
   ]
@@ -228,7 +222,6 @@ resource "google_project_iam_member" "cloud_build_agent_sa" {
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
     google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
     google_service_account.cloud_sql_sa_admin,
     google_service_account.setup_server_sa_admin,
   ]
@@ -280,7 +273,6 @@ resource "google_project_iam_member" "cloud_deploy_sa" {
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
     google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
     google_service_account.cloud_sql_sa_admin,
     google_service_account.setup_server_sa_admin,
   ]
@@ -296,58 +288,6 @@ locals {
     "roles/storage.objectAdmin",
     "roles/run.admin",
     "roles/container.developer",
-  ]
-}
-
-#########################################################################
-# GCP project service account (Used by GKE)
-#########################################################################
-
-# Service account for GCP identity within Kubernetes
-resource "google_service_account" "gke_sa_admin" {
-  project      = local.project.project_id
-  account_id   = "gke-sa"        # Account ID for the service account
-  description  = "Service account for GKE cluster operations"
-  display_name = "GKE Service Account"      # Display name for the service account
-
-  depends_on = [
-    null_resource.api_poll               # Dependency on a time delay, ensuring it's created after a certain time period
-  ]
-}
-
-# IAM permissions for service account on the project (only if SA exists or was created)
-resource "google_project_iam_member" "gke_sa" {
-  for_each = toset(local.gke_sa_project_roles) 
-
-  project  = local.project.project_id          
-  member   = "serviceAccount:${local.gke_sa_email}" 
-  role     = each.key                          
-
-  depends_on = [
-    null_resource.api_poll,
-    google_service_account.project_sa_admin,
-    google_service_account.cloud_run_sa_admin,
-    google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
-    google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
-    google_service_account.cloud_sql_sa_admin,
-    google_service_account.setup_server_sa_admin,
-  ]
-}
-
-locals {
-  gke_sa_project_roles = [
-    "roles/storage.objectAdmin",
-    "roles/storage.objectViewer",
-    "roles/artifactregistry.reader",
-    "roles/storage.admin",
-    "roles/monitoring.viewer",
-    "roles/logging.logWriter",
-    "roles/stackdriver.resourceMetadata.writer",
-    "roles/container.defaultNodeServiceAccount",
-    "roles/monitoring.metricWriter",
-    "roles/compute.networkUser",
   ]
 }
 
@@ -391,7 +331,6 @@ resource "google_project_iam_member" "cloud_run_sa" {
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
     google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
     google_service_account.cloud_sql_sa_admin,
     google_service_account.setup_server_sa_admin,
   ]
@@ -410,7 +349,6 @@ resource "google_project_iam_member" "cloudrun_agent_shared_vpc_access" {
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
     google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
     google_service_account.cloud_sql_sa_admin,
     google_service_account.setup_server_sa_admin,
   ]
@@ -454,7 +392,6 @@ resource "google_project_iam_member" "cloud_sql_sa" {
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
     google_service_account.nfs_server_sa_admin,
-    google_service_account.gke_sa_admin,
     google_service_account.cloud_sql_sa_admin,
     google_service_account.setup_server_sa_admin,
   ]
@@ -501,7 +438,6 @@ resource "google_project_iam_member" "nfs_server_sa" {
     google_service_account.cloud_build_sa_admin,
     google_service_account.cloud_deploy_sa_admin,
     google_service_account.cloud_sql_sa_admin,
-    google_service_account.gke_sa_admin,
     google_service_account.nfs_server_sa_admin,
     google_service_account.setup_server_sa_admin,
   ]
@@ -555,7 +491,6 @@ resource "google_project_iam_member" "setup_server_sa" {
     google_service_account.cloud_deploy_sa_admin,
     google_service_account.nfs_server_sa_admin,
     google_service_account.cloud_sql_sa_admin,
-    google_service_account.gke_sa_admin,
     google_service_account.setup_server_sa_admin,
   ]
 }
