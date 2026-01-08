@@ -54,5 +54,5 @@ resource "google_project_iam_member" "devops_permissions" {
 resource "google_service_account_iam_member" "rad_agent_impersonation" {
   service_account_id = google_service_account.rad_agent.id
   role               = "roles/iam.serviceAccountTokenCreator"
-  member             = var.resource_creator_identity
+  member             = "serviceAccount:${var.resource_creator_identity}"
 }
