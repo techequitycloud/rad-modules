@@ -165,19 +165,19 @@ variable "mysql_tier" {
 # GROUP 5: NFS
 
 variable "create_network_filesystem" {
-  description = "Select to create NFS server using Compute Engine instances. {{UIMeta group=0 order=601}}"
+  description = "Select to create NFS server using Compute Engine instances. {{UIMeta group=0 order=501}}"
   type        = bool
   default     = true
 }
 
 variable "network_filesystem_machine" {
-  description = "NFS server machine type. {{UIMeta group=0 order=602 }}"
+  description = "NFS server machine type. {{UIMeta group=0 order=502 }}"
   type        = string
   default     = "e2-small"
 }
 
 variable "network_filesystem_capacity" {
-  description = "Size of NFS server disks. {{UIMeta group=0 order=603 }}"
+  description = "Size of NFS server disks. {{UIMeta group=0 order=503 }}"
   type        = number
   default     = 10
 }
@@ -185,7 +185,7 @@ variable "network_filesystem_capacity" {
 # GROUP 6: Network
 
 variable "gce_subnet_cidr_range" {
-  description = "List of CIDR ranges for GCE subnets, one per availability region"
+  description = "List of CIDR ranges for GCE subnets, one per availability region. {{UIMeta group=0 order=601 }}"
   type        = list(string)
   default     = [
     "10.0.0.0/24",
