@@ -41,6 +41,7 @@ locals {
   ])
 }
 
+# Grant DevOps roles to trusted users on the agent project
 resource "google_project_iam_member" "devops_permissions" {
   for_each = {
     for entry in local.user_roles : "${entry.user}-${entry.role}" => entry
@@ -51,8 +52,15 @@ resource "google_project_iam_member" "devops_permissions" {
   member  = "user:${each.value.user}"
 }
 
+# Grant rad-module-creator permission to impersonate rad-agent
+# This enables the impersonation chain for deploying to target projects
 resource "google_service_account_iam_member" "rad_agent_impersonation" {
   service_account_id = google_service_account.rad_agent.id
   role               = "roles/iam.serviceAccountTokenCreator"
   member             = "serviceAccount:${var.resource_creator_identity}"
+  
+  depends_on = [
+    google_service_account.rad_agent,
+    google_project_service.enabled_services  # Ensure IAM API is enabled
+  ]
 }
