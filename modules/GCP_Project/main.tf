@@ -14,7 +14,7 @@
 
 locals {
   random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
-  project = format("%s-%s", var.project_id_prefix, local.random_id)
+  project   = format("%s-%s", var.project_id_prefix, local.random_id)
 
   default_apis = [
     "cloudresourcemanager.googleapis.com",
@@ -53,7 +53,7 @@ locals {
   ] : []
 
   project_services = var.enable_services ? local.default_apis : []
-  all_services = distinct(concat(local.project_services, local.quota_apis))
+  all_services     = distinct(concat(local.project_services, local.quota_apis))
 }
 
 resource "random_id" "default" {
