@@ -52,7 +52,6 @@ resource "google_service_account_iam_member" "trusted_user_token_creator_role" {
   service_account_id = local.project_sa_id
 
   depends_on = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -74,7 +73,6 @@ resource "google_service_account_iam_binding" "resource_creator_identity_token_c
   ]
 
   depends_on = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -95,10 +93,6 @@ resource "google_service_account" "project_sa_admin" {
   account_id   = "project-sa"
   display_name = "Project Service Account Admin"
   description  = "Service account for project-level administration"
-
-  depends_on   = [
-    null_resource.api_poll
-  ]
 }
 
 # IAM permissions for service account on the project (only if SA exists or was created)
@@ -110,7 +104,6 @@ resource "google_project_iam_member" "project_sa_admin" {
   role     = each.key                          
 
   depends_on = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -155,10 +148,6 @@ resource "google_service_account" "cloud_build_sa_admin" {
   account_id   = "cloudbuild-sa"
   display_name = "Cloud Build Service Account"
   description  = "Service account for Cloud Build operations"
-
-  depends_on   = [
-    null_resource.api_poll
-  ]
 }
 
 # IAM permissions for service account on the project (only if SA exists or was created)
@@ -170,7 +159,6 @@ resource "google_project_iam_member" "cloud_build_sa" {
   role     = each.key                          
 
   depends_on = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -216,7 +204,6 @@ resource "google_project_iam_member" "cloud_build_agent_sa" {
   role     = each.key                          
 
   depends_on = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -252,10 +239,6 @@ resource "google_service_account" "cloud_deploy_sa_admin" {
   account_id   = "clouddeploy-sa"
   display_name = "Cloud Deploy Service Account"
   description  = "Service account for Cloud Deploy operations"
-
-  depends_on   = [
-    null_resource.api_poll
-  ]
 }
 
 # IAM permissions for service account on the project (only if SA exists or was created)
@@ -267,7 +250,6 @@ resource "google_project_iam_member" "cloud_deploy_sa" {
   role     = each.key                          
 
   depends_on = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -301,10 +283,6 @@ resource "google_service_account" "cloud_run_sa_admin" {
   account_id   = "cloudrun-sa"
   display_name = "Cloud Run Service Account"
   description  = "Service account for Cloud Run operations"
-
-  depends_on   = [
-    null_resource.api_poll
-  ]
 }
 
 locals {
@@ -325,7 +303,6 @@ resource "google_project_iam_member" "cloud_run_sa" {
   role     = each.key                          
 
   depends_on = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -343,7 +320,6 @@ resource "google_project_iam_member" "cloudrun_agent_shared_vpc_access" {
   member  = "serviceAccount:service-${local.project_number}@serverless-robot-prod.iam.gserviceaccount.com"
 
   depends_on   = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -363,11 +339,6 @@ resource "google_service_account" "cloud_sql_sa_admin" {
   account_id   = "cloudsql-sa"
   display_name = "Service Account to connect Cloud SQL"
   description  = "Service account for Cloud SQL operations"
-
-  # This service account should be created after a certain delay to ensure dependencies are ready
-  depends_on = [
-    null_resource.api_poll
-  ]
 }
 
 locals {
@@ -386,7 +357,6 @@ resource "google_project_iam_member" "cloud_sql_sa" {
   role     = each.key                         
 
   depends_on = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -407,11 +377,6 @@ resource "google_service_account" "nfs_server_sa_admin" {
   account_id   = "nfsserver-sa"                        # Unique ID for the service account
   display_name = "NFS Server Service Account"          # Human-readable name for the service account
   description  = "Service account for NFS server operations"
-  
-  # Ensures that creation of the service account waits for a specific time period
-  depends_on  = [
-    null_resource.api_poll
-  ]
 }
 
 # List of roles assigned to the NFS service account within the project
@@ -432,7 +397,6 @@ resource "google_project_iam_member" "nfs_server_sa" {
 
   # Ensures that this resource is created
   depends_on = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
@@ -452,11 +416,6 @@ resource "google_service_account" "setup_server_sa_admin" {
   account_id   = "setupserver-sa"
   display_name = "Service Account for Setup Server"
   description  = "Service account for setup server operations"
-
-  # This service account should be created after a certain delay to ensure dependencies are ready
-  depends_on = [
-    null_resource.api_poll
-  ]
 }
 
 # List of roles assigned to the setup server service account within the project
@@ -484,7 +443,6 @@ resource "google_project_iam_member" "setup_server_sa" {
 
   # Ensures that this resource is created
   depends_on = [
-    null_resource.api_poll,
     google_service_account.project_sa_admin,
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
