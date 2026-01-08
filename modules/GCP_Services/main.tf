@@ -45,7 +45,6 @@ locals {
     "networkmanagement.googleapis.com",
     "servicenetworking.googleapis.com",
     "dns.googleapis.com",
-    "container.googleapis.com",
     "sql-component.googleapis.com",
     "sqladmin.googleapis.com",
     "secretmanager.googleapis.com",
