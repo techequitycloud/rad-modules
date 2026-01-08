@@ -76,23 +76,13 @@ locals {
   project_services = var.enable_services ? local.default_apis : []
 }
 
-# Data source to fetch the list of available compute zones in the region
-data "google_compute_zones" "available_zones" {
-  project = local.project.project_id
-  region  = local.region
-  status  = "UP" 
-
-  depends_on = [
-    null_resource.api_poll
-  ]
-}
-
 # Generate a random ID if a deployment ID is not provided
 resource "random_id" "default" {
   count       = var.deployment_id == null ? 1 : 0 
   byte_length = 2 
 }
 
+# Data source to fetch existing project
 data "google_project" "existing_project" {
   project_id = trimspace(var.existing_project_id)
 }
@@ -101,40 +91,30 @@ data "google_project" "existing_project" {
 # Enable APIs
 #########################################################################
 
-# Resource to enable APIs on the selected Google Cloud project
-resource "google_project_service" "enabled_services" {
+# Enable required services on the project
+resource "google_project_service" "gcp_services" {
   for_each = toset(local.project_services)
-  project  = local.project.project_id
-  service  = each.value
+  
+  project = local.project.project_id
+  service = each.value
   
   disable_dependent_services = false
   disable_on_destroy         = false
   
-  # ✅ This is the key - Terraform will wait for the API to be enabled
+  # Allow sufficient time for API enablement
   timeouts {
     create = "30m"
     update = "40m"
   }
 }
 
-# Simple verification that APIs are ready
-# Enable required services
-resource "google_project_service" "gcp_services" {
-  for_each = toset(local.all_services)
-  
-  project                    = var.existing_project_id
-  service                    = each.value
-  disable_dependent_services = false
-  disable_on_destroy         = false
-}
-
-# Initial wait for API enablement to start
+# Initial wait for API enablement to propagate
 resource "time_sleep" "wait_for_apis" {
-  depends_on = [google_project_service.gcp_services]
-  create_duration = "30s"
+  depends_on      = [google_project_service.gcp_services]
+  create_duration = "60s"
 }
 
-# Poll and verify APIs are fully enabled
+# Verify critical APIs are fully enabled
 resource "null_resource" "api_poll" {
   triggers = {
     services = join(",", [for s in google_project_service.gcp_services : s.service])
@@ -147,7 +127,7 @@ resource "null_resource" "api_poll" {
       
       echo "=========================================="
       echo "Verifying API enablement"
-      echo "Project: ${var.existing_project_id}"
+      echo "Project: ${local.project.project_id}"
       echo "=========================================="
       
       CRITICAL_APIS=(
@@ -161,7 +141,7 @@ resource "null_resource" "api_poll" {
       SLEEP_INTERVAL=15
       
       echo ""
-      echo "⏳ Waiting for APIs to be fully enabled (max ${MAX_WAIT}s)..."
+      echo "⏳ Waiting for APIs to be fully enabled (max $${MAX_WAIT}s)..."
       echo ""
       
       while [ $ELAPSED -lt $MAX_WAIT ]; do
@@ -169,7 +149,7 @@ resource "null_resource" "api_poll" {
         
         for api in "$${CRITICAL_APIS[@]}"; do
           if gcloud services list --enabled \
-            --project="${var.existing_project_id}" \
+            --project="${local.project.project_id}" \
             --filter="config.name:$api" \
             --format="value(config.name)" 2>/dev/null | grep -q "$api"; then
             echo "  ✓ $api is enabled"
@@ -186,13 +166,13 @@ resource "null_resource" "api_poll" {
         fi
         
         echo ""
-        echo "⏳ Retrying in ${SLEEP_INTERVAL}s... (elapsed: ${ELAPSED}s)"
+        echo "⏳ Retrying in $${SLEEP_INTERVAL}s... (elapsed: $${ELAPSED}s)"
         sleep $SLEEP_INTERVAL
         ELAPSED=$((ELAPSED + SLEEP_INTERVAL))
       done
       
       echo ""
-      echo "❌ Timeout: APIs not enabled after ${MAX_WAIT}s"
+      echo "❌ Timeout: APIs not enabled after $${MAX_WAIT}s"
       echo "This may indicate a permission issue or API quota problem"
       exit 1
     EOT
@@ -203,6 +183,17 @@ resource "null_resource" "api_poll" {
   depends_on = [
     google_project_service.gcp_services,
     time_sleep.wait_for_apis
+  ]
+}
+
+# Data source to fetch the list of available compute zones in the region
+data "google_compute_zones" "available_zones" {
+  project = local.project.project_id
+  region  = local.region
+  status  = "UP" 
+
+  depends_on = [
+    null_resource.api_poll
   ]
 }
 
