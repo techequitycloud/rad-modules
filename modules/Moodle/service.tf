@@ -74,14 +74,14 @@ resource "google_cloud_run_v2_service" "app_service" {
 
       env {
         name  = "DB_USER"
-        value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+        value = "app${var.application_database_user}${var.tenant_deployment_id}${local.random_id}"
       }
 
       env {
         name = "DB_PASSWORD"
         value_source {
           secret_key_ref {
-            secret = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
+            secret = google_secret_manager_secret.db_password.secret_id
             version = "latest"
           }
         }
@@ -106,7 +106,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     vpc_access {
       network_interfaces {
         network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
-        subnetwork = "projects/${local.project.project_id}/regions/${each.key}/subnetworks/gce-vpc-subnet-${each.key}"
+        subnetwork = "projects/${local.project.project_id}/regions/${each.key}/subnetworks/${lookup(local.subnet_name_lookup, each.key, "gce-vpc-subnet-${each.key}")}"
         tags = ["nfsserver"]
       }
     }
@@ -139,8 +139,8 @@ resource "google_cloud_run_v2_service" "app_service" {
   }
 
   depends_on = [
-    null_resource.import_db,
-    null_resource.import_nfs,
+    null_resource.execute_import_db_job,
+    null_resource.execute_nfs_setup_job,
     google_secret_manager_secret_version.db_password,
     null_resource.build_and_push_application_image,
   ]
