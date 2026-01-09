@@ -70,8 +70,8 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           }
         }
 
-        command = ["/bin/sh"]
-        args = ["-c", <<-EOF
+        command = ["/bin/sh", "-c"]
+        args = [<<-EOT
           set -e
           
           echo "================================================"
@@ -131,7 +131,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           \$\$;
           ALTER ROLE $DB_USER CREATEDB;
           GRANT ALL PRIVILEGES ON DATABASE postgres TO $DB_USER;
-          SQL
+SQL
           
           # Create Database if not exists
           echo "Checking if database exists..."
@@ -145,7 +145,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           
           # Install Extensions
           echo "Installing PostgreSQL extensions..."
-          psql -h $DB_HOST -U postgres -d $DB_NAME <<SQL
+          psql -h $DB_HOST -U postgres -d $DB_NAME <<'SQL'
           CREATE EXTENSION IF NOT EXISTS cube;
           CREATE EXTENSION IF NOT EXISTS earthdistance;
           CREATE EXTENSION IF NOT EXISTS postgis;
@@ -158,12 +158,13 @@ resource "google_cloud_run_v2_job" "import_db_job" {
             echo "Downloading backup from Google Drive..."
             echo "File ID: $BACKUP_FILEID"
             
-            if gdown $BACKUP_FILEID -O ${DB_NAME}.zip; then
+            BACKUP_FILE="$DB_NAME.zip"
+            if gdown $BACKUP_FILEID -O "$BACKUP_FILE"; then
               echo "✓ Backup downloaded"
               
-              if [ -f "${DB_NAME}.zip" ]; then
+              if [ -f "$BACKUP_FILE" ]; then
                 echo "Extracting backup..."
-                unzip -q ${DB_NAME}.zip -d restore_dir
+                unzip -q "$BACKUP_FILE" -d restore_dir
                 echo "✓ Backup extracted"
                 
                 export PGPASSWORD=$DB_PASS
@@ -200,7 +201,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           echo "================================================"
           echo "✓ DB Import Job Completed Successfully"
           echo "================================================"
-        EOF
+        EOT
         ]
       }
 
