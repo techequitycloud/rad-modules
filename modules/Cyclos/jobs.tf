@@ -118,7 +118,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           # Create/Update Role
           echo "Creating/updating database role..."
           psql -h $DB_HOST -U postgres -d postgres <<SQL
-          DO $$
+          DO \$\$
           BEGIN
             IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER') THEN
               CREATE ROLE $DB_USER WITH LOGIN PASSWORD '$DB_PASS';
@@ -128,10 +128,10 @@ resource "google_cloud_run_v2_job" "import_db_job" {
               RAISE NOTICE 'Role $DB_USER updated';
             END IF;
           END
-          $$;
+          \$\$;
           ALTER ROLE $DB_USER CREATEDB;
           GRANT ALL PRIVILEGES ON DATABASE postgres TO $DB_USER;
-          SQL
+SQL
           
           # Create Database if not exists
           echo "Checking if database exists..."
