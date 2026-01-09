@@ -14,7 +14,7 @@
 
 # Configuration for a notification channel in Google Cloud Monitoring.
 resource "google_monitoring_notification_channel" "email" {
-  count   = var.configure_monitoring ? 1 : 0  # Updated count condition
+  count   = (var.configure_monitoring && length(var.trusted_users) > 0) ? 1 : 0  # Updated count condition with validation
   # Specifies the project in which the notification channel is created.
   project = local.project.project_id
   # Human-readable name for the notification channel.

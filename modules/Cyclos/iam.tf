@@ -34,46 +34,7 @@ resource "google_secret_manager_secret_iam_member" "db_password" {
 # IAM permissions for impersonated service account
 #########################################################################
 
-# Note: roles/compute.osLoginExternalUser cannot be granted at project level
-# It requires organization-level permissions. Since we're using IAP tunneling
-# and metadata-based SSH, we don't need this role.
-
-# Grant Compute Instance Admin role for listing and managing instances
-resource "google_project_iam_member" "impersonation_compute_admin" {
-  count   = local.impersonation_service_account != "" ? 1 : 0
-  project = local.project.project_id
-  role    = "roles/compute.instanceAdmin.v1"
-  member  = "serviceAccount:${local.impersonation_service_account}"
-}
-
-# Grant IAP Tunnel User role for IAP tunneling (required when no external IP)
-resource "google_project_iam_member" "impersonation_iap_tunnel" {
-  count   = local.impersonation_service_account != "" ? 1 : 0
-  project = local.project.project_id
-  role    = "roles/iap.tunnelResourceAccessor"
-  member  = "serviceAccount:${local.impersonation_service_account}"
-}
-
-# Grant Service Account User role to allow acting as the service account
-resource "google_project_iam_member" "impersonation_sa_user" {
-  count   = local.impersonation_service_account != "" ? 1 : 0
-  project = local.project.project_id
-  role    = "roles/iam.serviceAccountUser"
-  member  = "serviceAccount:${local.impersonation_service_account}"
-}
-
-# Grant Compute Viewer role for listing compute resources
-resource "google_project_iam_member" "impersonation_compute_viewer" {
-  count   = local.impersonation_service_account != "" ? 1 : 0
-  project = local.project.project_id
-  role    = "roles/compute.viewer"
-  member  = "serviceAccount:${local.impersonation_service_account}"
-}
-
-# Grant Compute OS Admin Login role for SSH access via metadata
-resource "google_project_iam_member" "impersonation_os_admin_login" {
-  count   = local.impersonation_service_account != "" ? 1 : 0
-  project = local.project.project_id
-  role    = "roles/compute.osAdminLogin"
-  member  = "serviceAccount:${local.impersonation_service_account}"
-}
+# Note: Since we removed NFS dependency and no longer SSH into compute instances,
+# compute-related IAM roles (instanceAdmin, iap.tunnelResourceAccessor,
+# compute.viewer, osAdminLogin) have been removed. Cloud Build handles its own
+# IAM permissions automatically.

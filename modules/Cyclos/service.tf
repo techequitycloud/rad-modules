@@ -22,7 +22,6 @@ resource "google_cloud_run_v2_service" "app_service" {
 
   template {
     service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
-    session_affinity = true
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
     timeout = "300s"
 
@@ -40,8 +39,8 @@ resource "google_cloud_run_v2_service" "app_service" {
         startup_cpu_boost = true
         cpu_idle = true
         limits = {
-          cpu    = "1"
-          memory = "2Gi"
+          cpu    = "2"
+          memory = "4Gi"
         }
       }
 
@@ -49,7 +48,7 @@ resource "google_cloud_run_v2_service" "app_service" {
         initial_delay_seconds = 60
         timeout_seconds       = 30
         period_seconds        = 60
-        failure_threshold     = 1
+        failure_threshold     = 3
         tcp_socket {
           port = 8080
         }
@@ -73,7 +72,7 @@ resource "google_cloud_run_v2_service" "app_service" {
 
       env {
         name  = "DB_USER"
-        value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+        value = "app${var.application_database_user}${var.tenant_deployment_id}${local.random_id}"
       }
 
       env {
@@ -90,6 +89,12 @@ resource "google_cloud_run_v2_service" "app_service" {
         name  = "DB_HOST"
         value = "${local.db_internal_ip}"
       }
+
+      # Mount Cloud Storage bucket (replaces NFS for file storage)
+      volume_mounts {
+        name       = "gcs-data"
+        mount_path = "/data"
+      }
     }
 
     vpc_access {
@@ -101,14 +106,16 @@ resource "google_cloud_run_v2_service" "app_service" {
     }
 
     scaling {
-      min_instance_count = 1
+      min_instance_count = 0
       max_instance_count = 1
     }
 
+    # Mount Cloud Storage bucket for file storage (replaces NFS)
     volumes {
-      name = "cloudsql"
-      cloud_sql_instance {
-        instances = ["${local.project.project_id}:${local.region}:${local.db_instance_name}"]
+      name = "gcs-data"
+      gcs {
+        bucket    = var.create_cloud_storage ? local.data_bucket_name : ""
+        read_only = false
       }
     }
   }
@@ -123,7 +130,6 @@ resource "google_cloud_run_v2_service" "app_service" {
     null_resource.import_db,
     null_resource.build_and_push_application_image,
     google_secret_manager_secret_version.db_password,
-    null_resource.build_and_push_application_image,
   ]
 }
 

@@ -68,10 +68,13 @@ while [ $attempt -lt $max_attempts ]; do
     break
   fi
 
-  # If services were found and attempted, increment attempt and retry
+  # If services were found and attempted, increment attempt and retry with exponential backoff
   attempt=$((attempt + 1))
-  echo "Retrying... Attempt $attempt of $max_attempts."
-  sleep 10
+  if [ $attempt -lt $max_attempts ]; then
+    backoff_time=$((2 ** attempt))  # Exponential backoff: 2, 4, 8 seconds
+    echo "Retrying... Attempt $attempt of $max_attempts. Waiting ${backoff_time}s..."
+    sleep $backoff_time
+  fi
 done
 
 # Display databases
@@ -164,11 +167,12 @@ EOF
 
     # Increment the attempt number
     ((attempt_num++))
-    
-    # Wait before the next attempt
+
+    # Wait before the next attempt with exponential backoff
     if [ $attempt_num -le $max_retries ]; then
-        echo "Waiting 10 seconds before next attempt..."
-        sleep 10
+        backoff_time=$((2 ** attempt_num))  # Exponential backoff: 2, 4, 8, 16, 32 seconds
+        echo "Waiting ${backoff_time}s before next attempt..."
+        sleep $backoff_time
     fi
 done
 
