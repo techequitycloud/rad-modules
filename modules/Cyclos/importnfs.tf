@@ -95,6 +95,7 @@ resource "null_resource" "import_nfs" {
           --zone ${data.google_compute_zones.available_zones.names[0]} \
           $IMPERSONATE_FLAG \
           --tunnel-through-iap \
+          --no-oslogin \
           --command="sudo bash -s" < ${path.module}/scripts/app/import-nfs.sh; then
           echo "SSH command succeeded"
           break
@@ -119,5 +120,6 @@ resource "null_resource" "import_nfs" {
     google_project_iam_member.impersonation_iap_tunnel,
     google_project_iam_member.impersonation_sa_user,
     google_project_iam_member.impersonation_compute_viewer,
+    google_project_iam_member.impersonation_os_admin_login,
   ]
 }
