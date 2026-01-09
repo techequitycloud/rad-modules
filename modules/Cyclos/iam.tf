@@ -34,13 +34,9 @@ resource "google_secret_manager_secret_iam_member" "db_password" {
 # IAM permissions for impersonated service account
 #########################################################################
 
-# Grant OS Login External User role for SSH access to external organization instances
-resource "google_project_iam_member" "impersonation_os_login_external" {
-  count   = local.impersonation_service_account != "" ? 1 : 0
-  project = local.project.project_id
-  role    = "roles/compute.osLoginExternalUser"
-  member  = "serviceAccount:${local.impersonation_service_account}"
-}
+# Note: roles/compute.osLoginExternalUser cannot be granted at project level
+# It requires organization-level permissions. Since we're using IAP tunneling
+# and metadata-based SSH, we don't need this role.
 
 # Grant Compute Instance Admin role for listing and managing instances
 resource "google_project_iam_member" "impersonation_compute_admin" {
@@ -71,5 +67,13 @@ resource "google_project_iam_member" "impersonation_compute_viewer" {
   count   = local.impersonation_service_account != "" ? 1 : 0
   project = local.project.project_id
   role    = "roles/compute.viewer"
+  member  = "serviceAccount:${local.impersonation_service_account}"
+}
+
+# Grant Compute OS Admin Login role for SSH access via metadata
+resource "google_project_iam_member" "impersonation_os_admin_login" {
+  count   = local.impersonation_service_account != "" ? 1 : 0
+  project = local.project.project_id
+  role    = "roles/compute.osAdminLogin"
   member  = "serviceAccount:${local.impersonation_service_account}"
 }
