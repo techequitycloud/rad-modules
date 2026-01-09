@@ -89,12 +89,6 @@ resource "google_cloud_run_v2_service" "app_service" {
         name  = "DB_HOST"
         value = "${local.db_internal_ip}"
       }
-
-      # Mount Cloud Storage bucket (replaces NFS for file storage)
-      volume_mounts {
-        name       = "gcs-data"
-        mount_path = "/data"
-      }
     }
 
     vpc_access {
@@ -106,17 +100,8 @@ resource "google_cloud_run_v2_service" "app_service" {
     }
 
     scaling {
-      min_instance_count = 0
+      min_instance_count = 1
       max_instance_count = 1
-    }
-
-    # Mount Cloud Storage bucket for file storage (replaces NFS)
-    volumes {
-      name = "gcs-data"
-      gcs {
-        bucket    = var.create_cloud_storage ? local.data_bucket_name : ""
-        read_only = false
-      }
     }
   }
 
