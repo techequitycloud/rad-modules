@@ -115,7 +115,6 @@ resource "null_resource" "import_nfs" {
   depends_on = [
     local_file.import_nfs_script_output,
     null_resource.build_and_push_application_image,
-    google_project_iam_member.impersonation_os_login_external,
     google_project_iam_member.impersonation_compute_admin,
     google_project_iam_member.impersonation_iap_tunnel,
     google_project_iam_member.impersonation_sa_user,
