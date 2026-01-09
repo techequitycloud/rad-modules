@@ -102,7 +102,6 @@ locals {
   
   # ✅ Step 3: Use discovered regions or fall back to default
   regions_list = length(local.discovered_regions_filtered) > 0 ? local.discovered_regions_filtered : ["us-central1"]
-  region       = local.regions_list[0]
   
   # ✅ Safe parsing for other fields
   subnet_names   = try(jsondecode(data.external.check_network.result.subnet_names), [])
