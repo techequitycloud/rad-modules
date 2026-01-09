@@ -69,7 +69,7 @@ resource "google_sql_database_instance" "postgres_instance" {
   depends_on = [
     null_resource.wait_for_dependencies,
     random_password.root_password,
-    google_sql_database_instance.mysql_instance,  # Wait for MySQL to complete first
+    google_sql_database_instance.mysql_instance,
   ]
 }
 
@@ -89,7 +89,6 @@ resource "null_resource" "wait_for_dependencies" {
 # Secret Manager resources for database
 #########################################################################
 
-# Resource for creating a secret in Google Secret Manager to store the database password
 resource "google_secret_manager_secret" "pgsql_root_password" {
   count      = var.create_postgres ? 1 : 0
   project    = local.project.project_id  
@@ -104,7 +103,6 @@ resource "google_secret_manager_secret" "pgsql_root_password" {
   ]
 }
 
-# Resource for adding a version of the secret with the actual database password
 resource "google_secret_manager_secret_version" "pgsql_root_password" {
   count       = var.create_postgres ? 1 : 0
   secret      = google_secret_manager_secret.pgsql_root_password[0].id   
@@ -115,7 +113,7 @@ resource "google_secret_manager_secret_version" "pgsql_root_password" {
   ]
 }
 
-# Simple wait for secret propagation (no polling needed)
+# Simple wait for secret propagation
 resource "time_sleep" "wait_for_pgsql_secret" {
   count           = var.create_postgres ? 1 : 0
   create_duration = "10s"
@@ -125,7 +123,7 @@ resource "time_sleep" "wait_for_pgsql_secret" {
   ]
 }
 
-# Data source for accessing the latest version of the secret when it's ready
+# Data source for accessing the latest version of the secret
 data "google_secret_manager_secret_version" "pgsql_root_password" {
   count    = var.create_postgres ? 1 : 0
   provider = google  
