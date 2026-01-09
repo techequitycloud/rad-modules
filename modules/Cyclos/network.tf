@@ -22,13 +22,10 @@ data "external" "check_network" {
     PROJECT_ID="${var.existing_project_id}"  # ✅ FIXED: Use variable instead of local
     NETWORK_NAME="${var.network_name}"
     
-    # Use agent service account if available, otherwise use resource creator
-    if [ -n "${var.agent_service_account}" ]; then
-      SA_ARG="--impersonate-service-account=${var.agent_service_account}"
-      >&2 echo "Using agent service account: ${var.agent_service_account}"
-    elif [ -n "${var.resource_creator_identity}" ]; then
-      SA_ARG="--impersonate-service-account=${var.resource_creator_identity}"
-      >&2 echo "Using resource creator service account: ${var.resource_creator_identity}"
+    # Use the pre-determined impersonation service account
+    if [ -n "${local.impersonation_service_account}" ]; then
+      SA_ARG="--impersonate-service-account=${local.impersonation_service_account}"
+      >&2 echo "Using impersonation service account: ${local.impersonation_service_account}"
     else
       SA_ARG=""
       >&2 echo "No service account impersonation"
