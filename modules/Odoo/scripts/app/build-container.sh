@@ -20,11 +20,26 @@
 PROJECT_ID=$1
 SERVICE_ACCOUNT=$2
 
+# Only apply IAM binding if SERVICE_ACCOUNT is provided and not empty
 if [ -n "${SERVICE_ACCOUNT}" ]; then
     SA_ARG="--impersonate-service-account=${SERVICE_ACCOUNT}"
+
+    # We don't need to add IAM policy binding here as the impersonated account
+    # should already have Owner permissions on the target project.
+    # The previous script attempted to add roles/storage.objectViewer which might be
+    # redundant or fail if the impersonating account lacks permission to set IAM policies.
+    # However, to be safe and match Cyclos pattern, we can keep it but suppress errors if needed.
+
+    echo "Using impersonation service account: ${SERVICE_ACCOUNT}"
+
+    # Attempt to grant storage.objectViewer, but don't fail if it errors (e.g. if already exists or insufficient permission to grant)
+    # This matches the behavior seen in Cyclos script (though Cyclos script doesn't explicitly suppress errors, the `builds submit` is the critical part)
     gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --member="serviceAccount:${SERVICE_ACCOUNT}" \
-    --role="roles/storage.objectViewer" --no-user-output-enabled 
+    --role="roles/storage.objectViewer" --no-user-output-enabled || echo "Warning: Failed to add IAM binding, proceeding..."
+else
+    echo "No impersonation service account provided."
+    SA_ARG=""
 fi
 
 # Attempt to submit the build

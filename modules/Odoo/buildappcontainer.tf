@@ -58,7 +58,8 @@ resource "null_resource" "build_and_push_application_image" {
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     working_dir = "${path.module}/scripts/app"  # The directory where build scripts are located
-    command = "bash build-container.sh \"${local.project.project_id}\" \"${var.resource_creator_identity}\""
+    # Updated to pass local.impersonation_service_account instead of var.resource_creator_identity
+    command = "bash build-container.sh \"${local.project.project_id}\" \"${local.impersonation_service_account}\""
   }
 
   # Dependencies to ensure resources are created in the correct order
@@ -68,4 +69,3 @@ resource "null_resource" "build_and_push_application_image" {
     google_artifact_registry_repository.application_image,
   ]
 }
-
