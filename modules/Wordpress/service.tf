@@ -98,11 +98,6 @@ resource "google_cloud_run_v2_service" "app_service" {
         value = "false"
       }
 
-      # volume_mounts {
-      #   name      = "nfs-data-volume"
-      #   mount_path = "/var/www/html"
-      # }
-
       volume_mounts {
         name      = "gcs-data-volume"
         mount_path = "/var/www/html/wp-content"
@@ -132,17 +127,9 @@ resource "google_cloud_run_v2_service" "app_service" {
     volumes {
       name = "gcs-data-volume"
       gcs {
-        bucket = "${local.data_bucket_name}"  # Replace with your GCS bucket name
+        bucket = "${local.data_bucket_name}"
       }
     }
-
-    # volumes {
-    #   name = "nfs-data-volume"
-    #   nfs {
-    #     server = "${local.nfs_internal_ip}"
-    #     path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
-    #   }
-    # }
   }
 
   traffic {
@@ -152,8 +139,7 @@ resource "google_cloud_run_v2_service" "app_service" {
   }
 
   depends_on = [
-    null_resource.import_db,
-    null_resource.import_nfs,
+    null_resource.execute_import_db_job,
     google_secret_manager_secret_version.db_password,
     null_resource.build_and_push_application_image,
   ]

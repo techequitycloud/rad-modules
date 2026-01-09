@@ -152,7 +152,7 @@ variable "configure_environment" {
 # GROUP 8: Tenant
 
 variable "configure_monitoring" {
-  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring for NFS virtual machine. {{UIMeta group=0 order=805}}"
+  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application. {{UIMeta group=0 order=805}}"
   type        = bool
   default     = true
 }
