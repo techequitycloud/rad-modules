@@ -52,7 +52,6 @@ data "google_service_account_access_token" "default" {
 # Default provider configuration for Google Cloud using the generated access token if available.
 provider "google" {
   project      = var.existing_project_id  # Target project where resources will be created
-  region       = local.region  # Primary region for resources
   access_token = local.use_impersonation ? data.google_service_account_access_token.default[0].access_token : null  # Use the access token from impersonation
 }
 
@@ -60,6 +59,5 @@ provider "google" {
 # This is needed for beta/preview features
 provider "google-beta" {
   project      = var.existing_project_id  # Target project where resources will be created
-  region       = local.region  # Primary region for resources
   access_token = local.use_impersonation ? data.google_service_account_access_token.default[0].access_token : null  # Use the access token from impersonation
 }
