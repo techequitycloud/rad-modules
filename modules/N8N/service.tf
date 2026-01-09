@@ -98,11 +98,11 @@ resource "google_cloud_run_v2_service" "app_service" {
       }
       env {
         name  = "DB_POSTGRESDB_DATABASE"
-        value = google_sql_database.db.name
+        value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
       }
       env {
         name  = "DB_POSTGRESDB_USER"
-        value = google_sql_user.user.name
+        value = "app${var.application_database_user}${var.tenant_deployment_id}${local.random_id}"
       }
       env {
         name  = "DB_POSTGRESDB_HOST"
@@ -144,7 +144,7 @@ resource "google_cloud_run_v2_service" "app_service" {
         name = "DB_POSTGRESDB_PASSWORD"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.db_password.secret_id
+            secret  = google_secret_manager_secret.db_password[0].secret_id
             version = "latest"
           }
         }
@@ -208,8 +208,7 @@ resource "google_cloud_run_v2_service" "app_service" {
   }
 
   depends_on = [
-    google_sql_database.db,
-    google_sql_user.user,
+    null_resource.execute_import_db_job,
     google_secret_manager_secret_version.db_password,
     google_secret_manager_secret_version.encryption_key,
     google_project_iam_member.cloudsql_client,

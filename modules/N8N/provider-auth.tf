@@ -23,19 +23,6 @@ provider "google" {
   ]
 }
 
-# Local variables to determine which service account to use for impersonation
-locals {
-  # Use agent_service_account if provided, otherwise fall back to resource_creator_identity
-  # This supports the impersonation chain: rad-module-creator -> rad-agent -> target project
-  target_service_account = coalesce(
-    try(var.agent_service_account, null),
-    var.resource_creator_identity
-  )
-  
-  # Determine if we should use impersonation
-  use_impersonation = local.target_service_account != null && length(local.target_service_account) > 0
-}
-
 # Data source to obtain an access token for a service account with impersonation.
 # This enables the impersonation chain:
 # 1. Cloud Build runs as rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com
@@ -45,7 +32,7 @@ data "google_service_account_access_token" "default" {
   count                  = local.use_impersonation ? 1 : 0  # Create this data source only if impersonation is needed
   provider               = google.impersonated  # Use the impersonated provider instance
   scopes                 = ["userinfo-email", "cloud-platform"]  # Scopes for the access token, shorter form without full URL
-  target_service_account = local.target_service_account  # The service account to impersonate (rad-agent)
+  target_service_account = local.impersonation_service_account  # The service account to impersonate (rad-agent)
   lifetime               = "3600s"  # The lifetime of the generated access token (1 hour)
 }
 
