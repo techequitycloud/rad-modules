@@ -29,7 +29,7 @@ resource "random_password" "additional_user_password" {
 
 # Resource for creating a secret in Google Secret Manager to store the database password
 resource "google_secret_manager_secret" "db_password" {
-  count      = local.sql_server_exists ? 1 : 0  
+  count      = local.sql_server_exists == "true" ? 1 : 0
   project    = local.project.project_id  
   secret_id  = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
 
@@ -40,7 +40,7 @@ resource "google_secret_manager_secret" "db_password" {
 
 # Resource for adding a version of the secret with the actual database password
 resource "google_secret_manager_secret_version" "db_password" {
-  count       = local.sql_server_exists ? 1 : 0 
+  count       = local.sql_server_exists == "true" ? 1 : 0
   secret      = google_secret_manager_secret.db_password[0].id
   secret_data = random_password.additional_user_password.result       
 
@@ -52,6 +52,7 @@ resource "google_secret_manager_secret_version" "db_password" {
 
 # Resource to introduce a delay after creating a secret version
 resource "time_sleep" "db_password" {
+  count      = local.sql_server_exists == "true" ? 1 : 0
   depends_on = [
     google_secret_manager_secret_version.db_password
   ]
@@ -61,7 +62,7 @@ resource "time_sleep" "db_password" {
 
 # Data source for accessing the latest version of the secret when it's ready
 data "google_secret_manager_secret_version" "db_password" {
-  count    = local.sql_server_exists ? 1 : 0  
+  count    = local.sql_server_exists == "true" ? 1 : 0
   project  = local.project.project_id
   provider = google  
 
