@@ -118,5 +118,10 @@ resource "null_resource" "import_db" {
     google_secret_manager_secret.db_password,
     local_file.import_db_script_output,
     null_resource.import_nfs,
+    google_project_iam_member.impersonation_os_login_external,
+    google_project_iam_member.impersonation_compute_admin,
+    google_project_iam_member.impersonation_iap_tunnel,
+    google_project_iam_member.impersonation_sa_user,
+    google_project_iam_member.impersonation_compute_viewer,
   ]
 }
