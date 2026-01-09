@@ -77,35 +77,35 @@ apk add --no-cache postgresql-client python3 py3-pip unzip sudo curl
 # Install gdown via pip (using --break-system-packages as per Alpine 3.19+ policy or use venv)
 pip3 install gdown --break-system-packages
 
-export PGPASSWORD=$ROOT_PASS
-export DB_PASS=$DB_PASS
+export PGPASSWORD=$$ROOT_PASS
+export DB_PASS=$$DB_PASS
 
-echo "Checking connectivity to $DB_HOST..."
+echo "Checking connectivity to $$DB_HOST..."
 # Create/Update Role
-psql -h $DB_HOST -U postgres -d postgres <<SQL
-DO \$\$
+psql -h $$DB_HOST -U postgres -d postgres <<SQL
+DO \$$\$$
 BEGIN
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER') THEN
-    CREATE ROLE $DB_USER WITH LOGIN PASSWORD '$DB_PASS';
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$$DB_USER') THEN
+    CREATE ROLE $$DB_USER WITH LOGIN PASSWORD '$$DB_PASS';
   ELSE
-    ALTER ROLE $DB_USER WITH PASSWORD '$DB_PASS';
+    ALTER ROLE $$DB_USER WITH PASSWORD '$$DB_PASS';
   END IF;
 END
-\$\$;
-ALTER ROLE $DB_USER CREATEDB;
-GRANT ALL PRIVILEGES ON DATABASE postgres TO $DB_USER;
+\$$\$$;
+ALTER ROLE $$DB_USER CREATEDB;
+GRANT ALL PRIVILEGES ON DATABASE postgres TO $$DB_USER;
 SQL
 
 # Create Database if not exists
-if ! psql -h $DB_HOST -U postgres -lqt | cut -d \| -f 1 | grep -qw $DB_NAME; then
-  echo "Creating database $DB_NAME..."
-  psql -h $DB_HOST -U postgres -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+if ! psql -h $$DB_HOST -U postgres -lqt | cut -d \| -f 1 | grep -qw $$DB_NAME; then
+  echo "Creating database $$DB_NAME..."
+  psql -h $$DB_HOST -U postgres -c "CREATE DATABASE $$DB_NAME OWNER $$DB_USER;"
 else
-  echo "Database $DB_NAME already exists."
+  echo "Database $$DB_NAME already exists."
 fi
 
 # Extensions
-psql -h $DB_HOST -U postgres -d $DB_NAME <<SQL
+psql -h $$DB_HOST -U postgres -d $$DB_NAME <<SQL
 CREATE EXTENSION IF NOT EXISTS cube;
 CREATE EXTENSION IF NOT EXISTS earthdistance;
 CREATE EXTENSION IF NOT EXISTS postgis;
@@ -113,19 +113,19 @@ CREATE EXTENSION IF NOT EXISTS unaccent;
 SQL
 
 # Download and Restore Backup if provided
-if [ -n "$BACKUP_FILEID" ]; then
+if [ -n "$$BACKUP_FILEID" ]; then
   echo "Downloading backup..."
-  gdown $BACKUP_FILEID -O ${DB_NAME}.zip
+  gdown $$BACKUP_FILEID -O $${DB_NAME}.zip
   
-  if [ -f "${DB_NAME}.zip" ]; then
+  if [ -f "$${DB_NAME}.zip" ]; then
     echo "Restoring backup..."
-    unzip ${DB_NAME}.zip -d restore_dir
-    export PGPASSWORD=$DB_PASS
+    unzip $${DB_NAME}.zip -d restore_dir
+    export PGPASSWORD=$$DB_PASS
     # Find dump.sql inside restore_dir (it might be in a subdir)
-    DUMP_FILE=$(find restore_dir -name "dump.sql" | head -n 1)
+    DUMP_FILE=$$(find restore_dir -name "dump.sql" | head -n 1)
     
-    if [ -n "$DUMP_FILE" ]; then
-        psql -h $DB_HOST -U $DB_USER -d $DB_NAME < "$DUMP_FILE"
+    if [ -n "$$DUMP_FILE" ]; then
+        psql -h $$DB_HOST -U $$DB_USER -d $$DB_NAME < "$$DUMP_FILE"
         echo "Restore complete."
     else
         echo "dump.sql not found in zip archive."
