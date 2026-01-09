@@ -103,6 +103,10 @@ resource "google_secret_manager_secret" "mysql_root_password" {
   replication {
     auto {} 
   }
+
+  depends_on = [
+    google_sql_database_instance.mysql_instance,
+  ]
 }
 
 # Resource for adding a version of the secret with the actual database password
@@ -112,7 +116,17 @@ resource "google_secret_manager_secret_version" "mysql_root_password" {
   secret_data = random_password.root_password.result            
 
   depends_on = [
-    google_secret_manager_secret.mysql_root_password
+    google_secret_manager_secret.mysql_root_password,
+  ]
+}
+
+# Simple wait for secret propagation (no polling needed)
+resource "time_sleep" "wait_for_mysql_secret" {
+  count           = var.create_mysql ? 1 : 0
+  create_duration = "10s"
+  
+  depends_on = [
+    google_secret_manager_secret_version.mysql_root_password
   ]
 }
 
@@ -125,38 +139,7 @@ data "google_secret_manager_secret_version" "mysql_root_password" {
   version  = "latest"  
 
   depends_on = [
-    null_resource.mysql_secret_poll
+    google_secret_manager_secret_version.mysql_root_password,
+    time_sleep.wait_for_mysql_secret
   ]
-}
-
-# Resource to introduce a delay after creating a secret version
-resource "null_resource" "mysql_secret_poll" {
-  count    = var.create_mysql ? 1 : 0
-
-  depends_on = [
-    google_secret_manager_secret_version.mysql_root_password
-  ]
-
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command = <<EOT
-      #!/bin/bash
-      MAX_RETRIES=18
-      RETRY_INTERVAL=5
-      SECRET_ID="${google_secret_manager_secret.mysql_root_password[0].secret_id}"
-      PROJECT_ID="${local.project.project_id}"
-
-      for ((i=1; i<=MAX_RETRIES; i++)); do
-        if gcloud secrets versions access latest --secret="$SECRET_ID" --project="$PROJECT_ID" &> /dev/null; then
-          echo "Secret is ready."
-          exit 0
-        fi
-        echo "Waiting for secret to be ready... (Attempt $i/$MAX_RETRIES)"
-        sleep $RETRY_INTERVAL
-      done
-
-      echo "Timeout: Secret not ready after $(($MAX_RETRIES * $RETRY_INTERVAL)) seconds."
-      exit 1
-EOT
-  }
 }
