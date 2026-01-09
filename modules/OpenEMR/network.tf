@@ -85,12 +85,32 @@ EOF
 # Local variables for network resources
 ########################################################################################
 
+########################################################################################
+# Local variables for network resources
+########################################################################################
+
 locals {
-  network_exists    = data.external.check_network.result.network_exists == "true"
-  regions_list     = jsondecode(data.external.check_network.result.regions)
-  subnet_names     = jsondecode(data.external.check_network.result.subnet_names)
-  subnet_cidrs     = jsondecode(data.external.check_network.result.subnet_cidrs)
-  subnet_details   = jsondecode(data.external.check_network.result.subnet_details)
+  network_exists = data.external.check_network.result.network_exists == "true"
+  
+  # ✅ Step 1: Safely parse the regions JSON
+  discovered_regions_raw = try(
+    jsondecode(data.external.check_network.result.regions),
+    []
+  )
+  
+  # ✅ Step 2: Filter out invalid entries
+  discovered_regions_filtered = [
+    for region in local.discovered_regions_raw : region
+    if region != null && region != "" && can(regex("^[a-z]+-[a-z]+[0-9]$", region))
+  ]
+  
+  # ✅ Step 3: Use discovered regions or fall back to default
+  regions_list = length(local.discovered_regions_filtered) > 0 ? local.discovered_regions_filtered : ["us-central1"]
+  
+  # ✅ Safe parsing for other fields
+  subnet_names   = try(jsondecode(data.external.check_network.result.subnet_names), [])
+  subnet_cidrs   = try(jsondecode(data.external.check_network.result.subnet_cidrs), [])
+  subnet_details = try(jsondecode(data.external.check_network.result.subnet_details), [])
 }
 
 ########################################################################################
