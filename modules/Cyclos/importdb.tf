@@ -18,7 +18,7 @@
 
 # Create db import script
 resource "local_file" "import_db_script_output" {
-  count    = local.sql_instance_exists ? 1 : 0  
+  count    = local.sql_server_exists ? 1 : 0  
   filename = "${path.module}/scripts/app/import-db.sh"
   content = templatefile("${path.module}/scripts/app/import_db.tpl", {
     PROJECT_ID          = local.project.project_id
@@ -41,7 +41,7 @@ resource "local_file" "import_db_script_output" {
 
 # Resource to import db
 resource "null_resource" "import_db" {
-  count    = local.sql_instance_exists ? 1 : 0  
+  count    = local.sql_server_exists ? 1 : 0  
     
   # Triggers that cause the resource to be updated/recreated
   triggers = {
