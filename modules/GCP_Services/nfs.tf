@@ -57,7 +57,7 @@ resource "google_compute_instance_template" "nfs_server" {
   tags                      = ["nfsserver"]
 
   metadata = {
-    enable-oslogin = true
+    enable-oslogin = false
   }
 
   disk {
