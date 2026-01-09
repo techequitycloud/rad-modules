@@ -115,6 +115,16 @@ resource "google_secret_manager_secret_version" "pgsql_root_password" {
   ]
 }
 
+# Simple wait for secret propagation (no polling needed)
+resource "time_sleep" "wait_for_pgsql_secret" {
+  count           = var.create_postgres ? 1 : 0
+  create_duration = "10s"
+  
+  depends_on = [
+    google_secret_manager_secret_version.pgsql_root_password
+  ]
+}
+
 # Data source for accessing the latest version of the secret when it's ready
 data "google_secret_manager_secret_version" "pgsql_root_password" {
   count    = var.create_postgres ? 1 : 0
@@ -124,38 +134,7 @@ data "google_secret_manager_secret_version" "pgsql_root_password" {
   version  = "latest"  
 
   depends_on = [
-    null_resource.pgsql_secret_poll,
+    google_secret_manager_secret_version.pgsql_root_password,
+    time_sleep.wait_for_pgsql_secret
   ]
-}
-
-# Resource to introduce a delay after creating a secret version
-resource "null_resource" "pgsql_secret_poll" {
-  count    = var.create_postgres ? 1 : 0
-
-  depends_on = [
-    google_secret_manager_secret_version.pgsql_root_password
-  ]
-
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command = <<EOT
-      #!/bin/bash
-      MAX_RETRIES=18
-      RETRY_INTERVAL=5
-      SECRET_ID="${google_secret_manager_secret.pgsql_root_password[0].secret_id}"
-      PROJECT_ID="${local.project.project_id}"
-
-      for ((i=1; i<=MAX_RETRIES; i++)); do
-        if gcloud secrets versions access latest --secret="$SECRET_ID" --project="$PROJECT_ID" &> /dev/null; then
-          echo "Secret is ready."
-          exit 0
-        fi
-        echo "Waiting for secret to be ready... (Attempt $i/$MAX_RETRIES)"
-        sleep $RETRY_INTERVAL
-      done
-
-      echo "Timeout: Secret not ready after $(($MAX_RETRIES * $RETRY_INTERVAL)) seconds."
-      exit 1
-EOT
-  }
 }
