@@ -39,7 +39,6 @@ resource "google_compute_address" "static_internal_ip" {
 
   depends_on = [
     google_service_networking_connection.psconnect,
-    null_resource.api_poll,
   ]
 }
 
@@ -89,7 +88,6 @@ resource "google_compute_instance_template" "nfs_server" {
   }
 
   depends_on = [
-    null_resource.api_poll,
     google_compute_resource_policy.daily_snapshot,
     google_compute_address.static_internal_ip,
     google_service_account.nfs_server_sa_admin,
@@ -209,7 +207,6 @@ resource "google_compute_resource_policy" "daily_snapshot" {
 
   depends_on = [
     google_service_networking_connection.psconnect,
-    null_resource.api_poll,
   ]
 }
 
