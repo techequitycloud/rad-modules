@@ -115,19 +115,3 @@ locals {
   subnet_cidrs   = try(jsondecode(data.external.check_network.result.subnet_cidrs), [])
   subnet_details = try(jsondecode(data.external.check_network.result.subnet_details), [])
 }
-
-########################################################################################
-# Network information output
-########################################################################################
-
-output "network_info" {
-  description = "Information about the existing VPC network"
-  value = {
-    network_exists  = local.network_exists
-    regions         = local.regions_list
-    subnet_names    = local.subnet_names
-    subnet_cidrs    = local.subnet_cidrs
-    subnet_details  = local.subnet_details
-    subnet_count    = length(local.subnet_names)
-  }
-}

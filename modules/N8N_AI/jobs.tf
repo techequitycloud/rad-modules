@@ -183,9 +183,9 @@ resource "null_resource" "execute_import_db_job" {
 
       # Set impersonation flag if service account is provided
       IMPERSONATE_FLAG=""
-      if [ -n "${local.target_service_account}" ]; then
-        IMPERSONATE_FLAG="--impersonate-service-account=${local.target_service_account}"
-        echo "Using impersonation: ${local.target_service_account}"
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+        echo "Using impersonation: ${local.impersonation_service_account}"
       fi
 
       # Wait for IAM permissions to propagate

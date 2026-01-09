@@ -18,6 +18,7 @@
 
 # IAM member resource to grant the service account access to the secret in Secret Manager
 resource "google_secret_manager_secret_iam_member" "db_password" {
+  count     = var.configure_environment ? 1 : 0
   project   = local.project.project_id
   secret_id = google_secret_manager_secret.db_password.secret_id
   role      = "roles/secretmanager.secretAccessor"
@@ -29,3 +30,11 @@ resource "google_secret_manager_secret_iam_member" "db_password" {
   ]
 }
 
+#########################################################################
+# IAM permissions for impersonated service account
+#########################################################################
+
+# Note: Since we removed NFS dependency and no longer SSH into compute instances,
+# compute-related IAM roles (instanceAdmin, iap.tunnelResourceAccessor,
+# compute.viewer, osAdminLogin) have been removed. Cloud Build handles its own
+# IAM permissions automatically.

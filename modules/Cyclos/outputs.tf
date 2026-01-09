@@ -42,3 +42,50 @@ output "service_info" {
     cloud_secret_manager = var.configure_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
   }
 }
+
+########################################################################################
+# Local variables output
+########################################################################################
+
+output "sql_instance_info" {
+  value = {
+    instance_exists  = local.sql_server_exists
+    database_version = local.database_version
+    instance_name    = local.db_instance_name
+    instance_region  = local.db_instance_region
+    instance_ip      = local.db_internal_ip
+    # root_password    = local.db_root_password
+  }
+}
+
+########################################################################################
+# Local variables output
+########################################################################################
+
+output "existing_service_accounts" {
+  description = "List of existing service accounts"
+  value = [
+    for sa_name, exists in {
+      "project-sa"      = local.project_sa_exists
+      "cloudbuild-sa"   = local.cloud_build_sa_exists
+      "cloudrun-sa"     = local.cloud_run_sa_exists
+      "cloudsql-sa"     = local.cloud_sql_sa_exists
+    } : sa_name if exists
+  ]
+}
+
+########################################################################################
+# Network information output
+########################################################################################
+
+output "network_info" {
+  description = "Information about the existing VPC network"
+  value = {
+    network_exists  = local.network_exists
+    regions         = local.regions_list
+    subnet_names    = local.subnet_names
+    subnet_cidrs    = local.subnet_cidrs
+    subnet_details  = local.subnet_details
+    subnet_count    = length(local.subnet_names)
+  }
+}

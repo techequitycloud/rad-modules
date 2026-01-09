@@ -1,5 +1,5 @@
 # Deployment
-resource_creator_identity = "" # "REPLACE_WITH_TERRAFORM_SERVICE_ACCOUNT"
+agent_service_account = "" # "REPLACE_WITH_TERRAFORM_SERVICE_ACCOUNT"
 
 # Project
 existing_project_id = "qwiklabs-gcp-02-20bdd77062d7"

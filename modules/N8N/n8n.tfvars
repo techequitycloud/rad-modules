@@ -1,6 +1,6 @@
 # Deployment
 tenant_deployment_id = "demo"
-resource_creator_identity = "" # "REPLACE_WITH_TERRAFORM_SERVICE_ACCOUNT"
+agent_service_account = "" # "REPLACE_WITH_TERRAFORM_SERVICE_ACCOUNT"
 trusted_users = ["student-01-a7587da03fc7@qwiklabs.net"]
 
 # Project

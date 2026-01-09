@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+ 
 #########################################################################
 # Create config files
 #########################################################################
@@ -20,7 +20,7 @@
 resource "local_file" "app_dockerfile" {
   count          = var.configure_environment ? 1 : 0
   filename       = "${path.module}/scripts/app/Dockerfile"
-  content        = templatefile("${path.module}/scripts/app/dockerfile.tpl", {
+  content        = templatefile("${path.module}/scripts/app/Dockerfile.tpl", {
     APP_VERSION  = "${var.application_version}"
   })
 }
@@ -35,7 +35,7 @@ resource "local_file" "app_cloudbuild" {
     IMAGE_REGION  = local.region
     IMAGE_NAME    = var.application_name
     IMAGE_VERSION = "${var.application_version}"
-    REPO_NAME     = "${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+    REPO_NAME     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
   })
 }
 
@@ -48,15 +48,14 @@ resource "null_resource" "build_and_push_application_image" {
   count    = var.configure_environment ? 1 : 0
   # Trigger based on the hash of the build-container.sh script
   triggers = {
-    script_hash = filesha256("${path.module}/scripts/app/build-container.sh")
-    # always_run = "${timestamp()}" # Trigger to always run on apply
+    script_hash     = filesha256("${path.module}/scripts/app/build-container.sh")
+    dockerfile_hash = filesha256("${path.module}/scripts/app/Dockerfile.tpl")
   }
-
+  
   # Provisioner to execute a local script that builds and pushes the container image
   provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
     working_dir = "${path.module}/scripts/app"  # The directory where build scripts are located
-    command = "bash build-container.sh \"${local.project.project_id}\" \"${var.resource_creator_identity}\""
+    command = "bash build-container.sh \"${local.project.project_id}\" \"${local.impersonation_service_account}\""
   }
 
   # Dependencies to ensure resources are created in the correct order

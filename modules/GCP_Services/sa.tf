@@ -63,13 +63,13 @@ resource "google_service_account_iam_member" "trusted_user_token_creator_role" {
 }
 
 resource "google_service_account_iam_binding" "resource_creator_identity_token_creator_role" {
-  count = var.resource_creator_identity != null && var.resource_creator_identity != "" ? 1 : 0
+  count = local.impersonation_service_account != null && local.impersonation_service_account != "" ? 1 : 0
   
   service_account_id = local.project_sa_id
   role               = "roles/iam.serviceAccountTokenCreator"
 
   members = [
-    "serviceAccount:${var.resource_creator_identity}"
+    "serviceAccount:${local.impersonation_service_account}"
   ]
 
   depends_on = [

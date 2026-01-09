@@ -17,13 +17,7 @@
 #########################################################################
 
 data "external" "sql_instance_info" {
-  program = [
-    "bash",
-    "${path.module}/scripts/app/get-sqlserver-info.sh",
-    local.project.project_id,
-    "MYSQL",
-    var.resource_creator_identity
-  ]
+  program = ["bash", "${path.module}/scripts/app/get-sqlserver-info.sh", local.project.project_id, "MYSQL", local.impersonation_service_account]
 }
 
 #########################################################################
@@ -31,35 +25,10 @@ data "external" "sql_instance_info" {
 #########################################################################
 
 locals {
-  # ✅ Convert string "true"/"false" to boolean
-  sql_server_exists = try(
-    data.external.sql_instance_info.result["sql_server_exists"] == "true",
-    false
-  )
-  
-  # ✅ Use empty string as default for missing values
-  db_instance_name = try(
-    data.external.sql_instance_info.result["instance_name"],
-    ""
-  )
-  
-  db_instance_region = try(
-    data.external.sql_instance_info.result["instance_region"],
-    ""
-  )
-  
-  database_version = try(
-    data.external.sql_instance_info.result["database_version"],
-    ""
-  )
-  
-  db_internal_ip = try(
-    data.external.sql_instance_info.result["instance_ip"],
-    ""
-  )
-  
-  db_root_password = try(
-    data.external.sql_instance_info.result["root_password"],
-    ""
-  )
+  sql_server_exists = try(data.external.sql_instance_info.result["sql_server_exists"], "")
+  db_instance_name = try(data.external.sql_instance_info.result["instance_name"], "")
+  db_instance_region = try(data.external.sql_instance_info.result["instance_region"], "")
+  database_version = try(data.external.sql_instance_info.result["database_version"], "")
+  db_internal_ip = try(data.external.sql_instance_info.result["instance_ip"], "")
+  db_root_password = try(data.external.sql_instance_info.result["root_password"], "")
 }

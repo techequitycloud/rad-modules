@@ -19,11 +19,16 @@
 data "external" "check_network" {
   program = ["bash", "-c", <<-EOT
     set -e
-    PROJECT_ID="${local.project.project_id}"
+    PROJECT_ID="${var.existing_project_id}"  # ✅ FIXED: Use variable instead of local
     NETWORK_NAME="${var.network_name}"
     
-    if [ -n "${var.resource_creator_identity}" ]; then
-      SA_ARG="--impersonate-service-account=${var.resource_creator_identity}"
+    # Use the pre-determined impersonation service account
+    if [ -n "${local.impersonation_service_account}" ]; then
+      SA_ARG="--impersonate-service-account=${local.impersonation_service_account}"
+      >&2 echo "Using impersonation service account: ${local.impersonation_service_account}"
+    else
+      SA_ARG=""
+      >&2 echo "No service account impersonation"
     fi
     
     # Check if VPC network exists
@@ -79,6 +84,11 @@ data "external" "check_network" {
 EOF
   EOT
   ]
+  
+  # ✅ ADDED: Explicit dependency
+  depends_on = [
+    data.google_project.existing_project
+  ]
 }
 
 ########################################################################################
@@ -86,23 +96,22 @@ EOF
 ########################################################################################
 
 locals {
-  network_exists    = data.external.check_network.result.network_exists == "true"
-  regions_list     = jsondecode(data.external.check_network.result.regions)
-  subnet_names     = jsondecode(data.external.check_network.result.subnet_names)
-  subnet_cidrs     = jsondecode(data.external.check_network.result.subnet_cidrs)
-  subnet_details   = jsondecode(data.external.check_network.result.subnet_details)
-}
-
-########################################################################################
-# Local variables output
-########################################################################################
-
-output "network_info" {
-  value = local.network_exists ? {
-    network_exists  = local.network_exists
-    regions         = local.regions_list
-    subnet_names    = local.subnet_names
-    subnet_cidrs    = local.subnet_cidrs
-    subnet_details  = local.subnet_details
-  } : null
+  network_exists = data.external.check_network.result.network_exists == "true"
+  
+  # ✅ FIXED: Safe parsing with fallback
+  discovered_regions_raw = try(jsondecode(data.external.check_network.result.regions), [])
+  
+  # Filter out invalid regions
+  discovered_regions = [
+    for region in local.discovered_regions_raw : region
+    if region != null && region != ""
+  ]
+  
+  # ✅ CRITICAL: Always provide fallback to prevent empty list
+  regions_list = length(local.discovered_regions) > 0 ? local.discovered_regions : ["us-central1"]
+  
+  # ✅ FIXED: Safe parsing for all fields
+  subnet_names   = try(jsondecode(data.external.check_network.result.subnet_names), [])
+  subnet_cidrs   = try(jsondecode(data.external.check_network.result.subnet_cidrs), [])
+  subnet_details = try(jsondecode(data.external.check_network.result.subnet_details), [])
 }

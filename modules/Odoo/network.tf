@@ -19,7 +19,7 @@
 data "external" "check_network" {
   program = ["bash", "-c", <<-EOT
     set -e
-    PROJECT_ID="${var.existing_project_id}"
+    PROJECT_ID="${var.existing_project_id}"  # ✅ FIXED: Use variable instead of local
     NETWORK_NAME="${var.network_name}"
     
     # Use the pre-determined impersonation service account
@@ -84,7 +84,8 @@ data "external" "check_network" {
 EOF
   EOT
   ]
-
+  
+  # ✅ ADDED: Explicit dependency
   depends_on = [
     data.google_project.existing_project
   ]
@@ -97,34 +98,21 @@ EOF
 locals {
   network_exists = data.external.check_network.result.network_exists == "true"
   
-  # Safe parsing with fallback
+  # ✅ FIXED: Safe parsing with fallback
   discovered_regions_raw = try(jsondecode(data.external.check_network.result.regions), [])
   
   # Filter out invalid regions
-  discovered_regions_filtered = [
+  discovered_regions = [
     for region in local.discovered_regions_raw : region
-    if region != null && region != "" && can(regex("^[a-z]+-[a-z]+[0-9]$", region))
+    if region != null && region != ""
   ]
   
-  # Always provide fallback to prevent empty list
-  regions_list = length(local.discovered_regions_filtered) > 0 ? local.discovered_regions_filtered : ["us-central1"]
+  # ✅ CRITICAL: Always provide fallback to prevent empty list
+  regions_list = length(local.discovered_regions) > 0 ? local.discovered_regions : ["us-central1"]
   
-  # Safe parsing for all fields
+  # ✅ FIXED: Safe parsing for all fields
   subnet_names   = try(jsondecode(data.external.check_network.result.subnet_names), [])
   subnet_cidrs   = try(jsondecode(data.external.check_network.result.subnet_cidrs), [])
   subnet_details = try(jsondecode(data.external.check_network.result.subnet_details), [])
 }
 
-########################################################################################
-# Local variables output
-########################################################################################
-
-output "network_info" {
-  value = local.network_exists ? {
-    network_exists  = local.network_exists
-    regions         = local.regions_list
-    subnet_names    = local.subnet_names
-    subnet_cidrs    = local.subnet_cidrs
-    subnet_details  = local.subnet_details
-  } : null
-}

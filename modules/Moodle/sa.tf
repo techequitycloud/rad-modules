@@ -22,7 +22,7 @@ data "external" "check_service_accounts" {
     if [ -n "${local.impersonation_service_account}" ]; then
       SA_ARG="--impersonate-service-account=${local.impersonation_service_account}"
     fi
-
+    
     # Function to check if service account exists
     check_sa() {
       local sa_id="$1"
@@ -32,7 +32,7 @@ data "external" "check_service_accounts" {
         echo "false"
       fi
     }
-
+    
     # Check only service accounts used in Cloud Run deployment
     PROJECT_SA_EXISTS=$(check_sa "${local.project.project_id}")
     CLOUD_BUILD_SA_EXISTS=$(check_sa "cloudbuild-sa")
@@ -71,20 +71,4 @@ locals {
   cloud_sql_sa_email    = "cloudsql-sa@${local.project.project_id}.iam.gserviceaccount.com"
 
   project_sa_id           = "projects/${local.project.project_id}/serviceAccounts/project-sa@${local.project.project_id}.iam.gserviceaccount.com"
-}
-
-########################################################################################
-# Local variables output
-########################################################################################
-
-output "existing_service_accounts" {
-  description = "List of existing service accounts"
-  value = [
-    for sa_name, exists in {
-      "project-sa"      = local.project_sa_exists
-      "cloudbuild-sa"   = local.cloud_build_sa_exists
-      "cloudrun-sa"     = local.cloud_run_sa_exists
-      "cloudsql-sa"     = local.cloud_sql_sa_exists
-    } : sa_name if exists
-  ]
 }
