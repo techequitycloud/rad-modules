@@ -150,12 +150,6 @@ variable "configure_monitoring" {
   default     = true
 }
 
-variable "configure_backups" {
-  description = "Select this checkbox to schedule daily application backups. Configures a Cloud Scheduler trigger to execute a Cloud Run backup job. {{UIMeta group=0 order=806 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
 variable "application_backup_fileid" {
   description = "Enter application backup file ID. When enabled, terraform attempts to download the file from Google Drive, and if found, imports the backup files during deployment. {{UIMeta group=0 order=808 updatesafe}}"
   type        = string
