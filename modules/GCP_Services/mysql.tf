@@ -51,15 +51,16 @@ resource "google_sql_database_instance" "mysql_instance" {
       start_time                     = "04:00"
     }
 
-    database_flags {
-      name  = "max_connections"
-      value = "30000"
-    }
-
-    # Additional security flags
-    database_flags {
-      name  = "local_infile"
-      value = "off"
+    # Database flags for performance and security
+    dynamic "database_flags" {
+      for_each = [
+        { name = "max_connections", value = "30000" },
+        { name = "local_infile", value = "off" }
+      ]
+      content {
+        name  = database_flags.value.name
+        value = database_flags.value.value
+      }
     }
   }
 
@@ -76,7 +77,7 @@ resource "google_sql_database_instance" "mysql_instance" {
 }
 
 resource "google_sql_user" "mysql_root_user" {
-  count      = var.create_mysql ? 1 : 0
+  count    = var.create_mysql ? 1 : 0
   name     = "root"
   instance = google_sql_database_instance.mysql_instance[0].name
   host     = "%"  # Allow connections from any host within the private network
@@ -84,7 +85,6 @@ resource "google_sql_user" "mysql_root_user" {
   project  = local.project.project_id
 
   depends_on = [
-    google_sql_database_instance.postgres_instance,
     google_sql_database_instance.mysql_instance,
     random_password.root_password,
   ]
@@ -120,7 +120,7 @@ resource "google_secret_manager_secret_version" "mysql_root_password" {
   ]
 }
 
-# Simple wait for secret propagation (no polling needed)
+# Simple wait for secret propagation
 resource "time_sleep" "wait_for_mysql_secret" {
   count           = var.create_mysql ? 1 : 0
   create_duration = "10s"
