@@ -100,7 +100,6 @@ resource "google_secret_manager_secret" "pgsql_root_password" {
   }
 
   depends_on = [
-    null_resource.api_poll,
     google_sql_database_instance.postgres_instance,
   ]
 }
