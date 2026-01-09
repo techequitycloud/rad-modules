@@ -18,7 +18,7 @@
 
 # IAM member resource to grant the service account access to the secret in Secret Manager
 resource "google_secret_manager_secret_iam_member" "db_password" {
-  count = var.configure_environment ? 1 : 0
+  count     = var.configure_environment ? 1 : 0
   project   = local.project.project_id
   secret_id = google_secret_manager_secret.db_password[0].secret_id
   role      = "roles/secretmanager.secretAccessor"
@@ -28,4 +28,48 @@ resource "google_secret_manager_secret_iam_member" "db_password" {
   depends_on = [
     google_secret_manager_secret.db_password,
   ]
+}
+
+#########################################################################
+# IAM permissions for impersonated service account
+#########################################################################
+
+# Grant OS Login External User role for SSH access to external organization instances
+resource "google_project_iam_member" "impersonation_os_login_external" {
+  count   = local.impersonation_service_account != "" ? 1 : 0
+  project = local.project.project_id
+  role    = "roles/compute.osLoginExternalUser"
+  member  = "serviceAccount:${local.impersonation_service_account}"
+}
+
+# Grant Compute Instance Admin role for listing and managing instances
+resource "google_project_iam_member" "impersonation_compute_admin" {
+  count   = local.impersonation_service_account != "" ? 1 : 0
+  project = local.project.project_id
+  role    = "roles/compute.instanceAdmin.v1"
+  member  = "serviceAccount:${local.impersonation_service_account}"
+}
+
+# Grant IAP Tunnel User role for IAP tunneling (required when no external IP)
+resource "google_project_iam_member" "impersonation_iap_tunnel" {
+  count   = local.impersonation_service_account != "" ? 1 : 0
+  project = local.project.project_id
+  role    = "roles/iap.tunnelResourceAccessor"
+  member  = "serviceAccount:${local.impersonation_service_account}"
+}
+
+# Grant Service Account User role to allow acting as the service account
+resource "google_project_iam_member" "impersonation_sa_user" {
+  count   = local.impersonation_service_account != "" ? 1 : 0
+  project = local.project.project_id
+  role    = "roles/iam.serviceAccountUser"
+  member  = "serviceAccount:${local.impersonation_service_account}"
+}
+
+# Grant Compute Viewer role for listing compute resources
+resource "google_project_iam_member" "impersonation_compute_viewer" {
+  count   = local.impersonation_service_account != "" ? 1 : 0
+  project = local.project.project_id
+  role    = "roles/compute.viewer"
+  member  = "serviceAccount:${local.impersonation_service_account}"
 }
