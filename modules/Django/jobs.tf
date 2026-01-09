@@ -328,7 +328,30 @@ resource "null_resource" "execute_migrate" {
   }
 
   provisioner "local-exec" {
-      command = "gcloud run jobs execute ${google_cloud_run_v2_job.migrate[0].name} --region ${local.region} --project ${local.project.project_id} --wait"
+    interpreter = ["/bin/bash", "-c"]
+    command = <<EOT
+      echo "Executing migrate job..."
+
+      # Set impersonation flag if service account is provided
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+        echo "Using impersonation: ${local.impersonation_service_account}"
+      fi
+
+      gcloud run jobs execute ${google_cloud_run_v2_job.migrate[0].name} \
+        --region ${local.region} \
+        --project ${local.project.project_id} \
+        $IMPERSONATE_FLAG \
+        --wait
+
+      if [ $? -eq 0 ]; then
+        echo "✓ Migrate job completed successfully"
+      else
+        echo "✗ Migrate job failed"
+        exit 1
+      fi
+    EOT
   }
   depends_on = [
       google_cloud_run_v2_job.migrate,
@@ -344,8 +367,26 @@ resource "null_resource" "execute_createuser" {
   }
 
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command = <<EOT
+      echo "Executing createuser job..."
+
+      # Set impersonation flag if service account is provided
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+        echo "Using impersonation: ${local.impersonation_service_account}"
+      fi
+
       # Ignore failure if user already exists
-      command = "gcloud run jobs execute ${google_cloud_run_v2_job.createuser[0].name} --region ${local.region} --project ${local.project.project_id} --wait || true"
+      gcloud run jobs execute ${google_cloud_run_v2_job.createuser[0].name} \
+        --region ${local.region} \
+        --project ${local.project.project_id} \
+        $IMPERSONATE_FLAG \
+        --wait || true
+
+      echo "✓ Createuser job execution attempted"
+    EOT
   }
   depends_on = [
       null_resource.execute_migrate, # Run after migrate

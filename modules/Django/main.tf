@@ -27,6 +27,7 @@ locals {
   # Determine if we should use impersonation
   use_impersonation = local.impersonation_service_account != null && local.impersonation_service_account != ""
 
+  region  = tolist(local.regions_list)[0]
   regions = tolist(local.regions_list)
   project_number = try(data.google_project.existing_project.number, "")
 }
