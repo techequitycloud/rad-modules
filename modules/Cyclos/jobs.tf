@@ -148,8 +148,6 @@ EOF
   
   depends_on = [
     data.google_secret_manager_secret_version.db_password,
-    # google_project_iam_member.secret_accessor, # Assumed to be handled in iam.tf or broadly
-    # google_project_iam_member.cloudsql_client
   ]
 }
 
@@ -164,9 +162,23 @@ resource "null_resource" "execute_import_db_job" {
     interpreter = ["/bin/bash", "-c"]
     command = <<EOT
       echo "Executing DB import job..."
+      
+      # Set impersonation flag if service account is provided
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+        echo "Using impersonation: ${local.impersonation_service_account}"
+      fi
+      
+      # Wait for IAM permissions to propagate
+      echo "Waiting for IAM permissions to propagate..."
+      sleep 15
+      
+      # Execute the Cloud Run job
       gcloud run jobs execute ${google_cloud_run_v2_job.import_db_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
+        $IMPERSONATE_FLAG \
         --wait
 
       if [ $? -eq 0 ]; then
@@ -180,6 +192,9 @@ resource "null_resource" "execute_import_db_job" {
 
   depends_on = [
     google_cloud_run_v2_job.import_db_job,
-    google_secret_manager_secret_version.db_password
+    google_secret_manager_secret_version.db_password,
+    google_project_iam_member.impersonation_run_admin,
+    google_project_iam_member.cloudrun_sa_sql_client,
+    google_project_iam_member.cloudrun_sa_secret_accessor,
   ]
 }
