@@ -72,7 +72,6 @@ steps:
       bash ${path.module}/scripts/app/import-db.sh
 timeout: 1800s
 options:
-  machineType: 'N1_HIGHCPU_8'
   logging: CLOUD_LOGGING_ONLY
 CLOUDBUILD
 
@@ -80,7 +79,7 @@ CLOUDBUILD
       gcloud builds submit ${path.module}/scripts/app \
         --config=${path.module}/scripts/app/cloudbuild-db-import.yaml \
         --project=${local.project.project_id} \
-        $IMPERSONATE_FLAG
+        $IMPERSONATE_FLAG || exit 1
 
       # Clean up
       rm -f ${path.module}/scripts/app/cloudbuild-db-import.yaml

@@ -127,7 +127,7 @@ variable "tenant_deployment_id" {
 variable "configure_environment" {
   description = "Select to configure environment. Code is committed to the branch in the github repository. {{UIMeta group=0 order=703 updatesafe }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 # GROUP 8: Tenant
