@@ -52,13 +52,25 @@ resource "null_resource" "import_nfs" {
       max_attempts=3
       attempt=0
 
+      # Set impersonation flag if service account is provided
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+      fi
+
       # Loop until the NFS VM instance is in RUNNING status or max attempts reached
       while [ $attempt -lt $max_attempts ]; do
         # Get the instance name using the internal IP address
-        NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(NAME)")
+        NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list \
+          --filter="INTERNAL_IP=${local.nfs_internal_ip}" \
+          --format="value(NAME)" \
+          $IMPERSONATE_FLAG)
                 
         # Check the status of the instance
-        status=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(status)")
+        status=$(gcloud --project ${local.project.project_id} compute instances list \
+          --filter="INTERNAL_IP=${local.nfs_internal_ip}" \
+          --format="value(status)" \
+          $IMPERSONATE_FLAG)
                 
         if [ "$status" = "RUNNING" ]; then
           echo "Instance is running."
@@ -78,22 +90,16 @@ resource "null_resource" "import_nfs" {
 
       # Ensure application directory is empty and execute the script
       for i in {1..5}; do
-        if [ -z "${local.impersonation_service_account}" ]; then 
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-nfs.sh; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
+        if gcloud compute ssh --project ${local.project.project_id} \
+          --quiet $NFS_VM \
+          --zone ${data.google_compute_zones.available_zones.names[0]} \
+          $IMPERSONATE_FLAG \
+          --command="sudo bash -s" < ${path.module}/scripts/app/import-nfs.sh; then
+          echo "SSH command succeeded"
+          break
         else
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-nfs.sh --impersonate-service-account=${local.impersonation_service_account}; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
+          echo "SSH attempt $i failed, retrying in 30 seconds..."
+          sleep 30
         fi
 
         # If the last attempt fails, exit with error
