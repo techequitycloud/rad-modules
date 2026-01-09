@@ -23,6 +23,21 @@ locals {
   region  = tolist(local.regions_list)[0]
   regions = tolist(local.regions_list)
   project_number = try(data.google_project.existing_project.number, "")
+
+  # Set impersonation service account based on agent service account availability
+  # Falls back to resource_creator_identity if agent_service_account is not set
+  impersonation_service_account = var.agent_service_account != null && var.agent_service_account != "" ? var.agent_service_account : var.resource_creator_identity
+
+  # Determine if we should use impersonation
+  use_impersonation = local.impersonation_service_account != null && local.impersonation_service_account != ""
+
+  # Subnet lookup map: region -> subnet_name
+  subnet_name_lookup = {
+    for s in local.subnet_details : s.region => s.name
+  }
+
+  # Subnet for the primary region
+  subnet_name = lookup(local.subnet_name_lookup, local.region, "gce-vpc-subnet-${local.region}")
 }
 
 data "google_compute_zones" "available_zones" {

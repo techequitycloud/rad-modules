@@ -27,8 +27,14 @@ resource "random_password" "superuser_password" {
   override_special = "_%@"
 }
 
-# NOTE: Database passwords (db_password)
-# are already defined in database.tf - DO NOT duplicate them here
+resource "random_password" "db_password" {
+  length  = 30
+  special = false
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
 
 #########################################################################
 # Secrets
@@ -52,12 +58,13 @@ resource "google_secret_manager_secret_version" "application_settings" {
 DEBUG=True
 SECRET_KEY="${random_password.django_secret_key.result}"
 GS_BUCKET_NAME="${google_storage_bucket.storage.name}"
-DATABASE_URL="postgres://${google_sql_user.user.name}:${google_sql_user.user.password}@/${google_sql_database.db.name}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+DATABASE_URL="postgres://${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}:${random_password.db_password.result}@/${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
 
   depends_on = [
     google_secret_manager_secret.application_settings,
-    random_password.django_secret_key
+    random_password.django_secret_key,
+    random_password.db_password
   ]
 }
 
@@ -84,8 +91,7 @@ resource "google_secret_manager_secret_version" "superuser_password" {
 }
 
 #########################################################################
-# Database Password Secrets (for OpenEMR)
-# NOTE: The random_password resources are in database.tf
+# Database Password Secrets
 #########################################################################
 
 resource "google_secret_manager_secret" "db_password" {

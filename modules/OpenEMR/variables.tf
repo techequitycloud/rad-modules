@@ -132,7 +132,7 @@ variable "application_version" {
 # GROUP 7: Tenant
 
 variable "tenant_deployment_id" {
-  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=1 order=701 updatesafe}}"
+  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=2 order=701 updatesafe}}"
   type        = string
 }
 
@@ -148,12 +148,6 @@ variable "configure_monitoring" {
   description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring for NFS virtual machine. {{UIMeta group=0 order=805 updatesafe}}"
   type        = bool
   default     = true
-}
-
-variable "configure_backups" {
-  description = "Select this checkbox to schedule daily application backups. Configures a Cloud Scheduler trigger to execute a Cloud Run backup job. {{UIMeta group=0 order=806 updatesafe }}"
-  type        = bool
-  default     = false
 }
 
 variable "application_backup_fileid" {

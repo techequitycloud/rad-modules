@@ -40,8 +40,6 @@ data "external" "check_service_accounts" {
     GKE_SA_EXISTS=$(check_sa "gke-sa")
     CLOUD_RUN_SA_EXISTS=$(check_sa "cloudrun-sa")
     CLOUD_SQL_SA_EXISTS=$(check_sa "cloudsql-sa")
-    NFS_SERVER_SA_EXISTS=$(check_sa "nfsserver-sa")
-    SETUP_SERVER_SA_EXISTS=$(check_sa "setupserver-sa")
 
     # Output JSON
     cat <<EOF
@@ -51,9 +49,7 @@ data "external" "check_service_accounts" {
   "cloud_deploy_sa_exists": "$CLOUD_DEPLOY_SA_EXISTS",
   "gke_sa_exists": "$GKE_SA_EXISTS",
   "cloud_run_sa_exists": "$CLOUD_RUN_SA_EXISTS",
-  "cloud_sql_sa_exists": "$CLOUD_SQL_SA_EXISTS",
-  "nfs_server_sa_exists": "$NFS_SERVER_SA_EXISTS",
-  "setup_server_sa_exists": "$SETUP_SERVER_SA_EXISTS"
+  "cloud_sql_sa_exists": "$CLOUD_SQL_SA_EXISTS"
 }
 EOF
   EOT
@@ -73,8 +69,6 @@ locals {
   gke_sa_exists          = data.external.check_service_accounts.result["gke_sa_exists"] == "true"
   cloud_run_sa_exists    = data.external.check_service_accounts.result["cloud_run_sa_exists"] == "true"
   cloud_sql_sa_exists    = data.external.check_service_accounts.result["cloud_sql_sa_exists"] == "true"
-  nfs_server_sa_exists   = data.external.check_service_accounts.result["nfs_server_sa_exists"] == "true"
-  setup_server_sa_exists = data.external.check_service_accounts.result["setup_server_sa_exists"] == "true"
 
   # Service account references (existing or newly created)
   project_sa_email      = "project-sa@${local.project.project_id}.iam.gserviceaccount.com"
@@ -83,8 +77,6 @@ locals {
   gke_sa_email          = "gke-sa@${local.project.project_id}.iam.gserviceaccount.com"
   cloud_run_sa_email    = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
   cloud_sql_sa_email    = "cloudsql-sa@${local.project.project_id}.iam.gserviceaccount.com"
-  nfs_server_sa_email   = "nfsserver-sa@${local.project.project_id}.iam.gserviceaccount.com"
-  setup_server_sa_email = "setupserver-sa@${local.project.project_id}.iam.gserviceaccount.com"
 
   project_sa_id           = "projects/${local.project.project_id}/serviceAccounts/project-sa@${local.project.project_id}.iam.gserviceaccount.com"
 }
@@ -103,8 +95,6 @@ output "existing_service_accounts" {
       "gke-sa"          = local.gke_sa_exists
       "cloudrun-sa"     = local.cloud_run_sa_exists
       "cloudsql-sa"     = local.cloud_sql_sa_exists
-      "nfsserver-sa"    = local.nfs_server_sa_exists
-      "setupserver-sa"  = local.setup_server_sa_exists
     } : sa_name if exists
   ]
 }

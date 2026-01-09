@@ -35,12 +35,6 @@ output "private_storage_info" {
   }
 }
 
-output "nfs_server_info" {
-  value = {
-    nfs_server_ip = local.nfs_server_exists ? local.nfs_internal_ip : "" 
-  }
-}
-
 output "application_info" {
   value = {
     application_url  = var.configure_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}-${local.project_number}.${local.region}.run.app" : ""

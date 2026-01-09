@@ -19,11 +19,16 @@
 data "external" "check_network" {
   program = ["bash", "-c", <<-EOT
     set -e
-    PROJECT_ID="${local.project.project_id}"
+    PROJECT_ID="${var.existing_project_id}"
     NETWORK_NAME="${var.network_name}"
     
-    if [ -n "${var.resource_creator_identity}" ]; then
-      SA_ARG="--impersonate-service-account=${var.resource_creator_identity}"
+    # Use the pre-determined impersonation service account
+    if [ -n "${local.impersonation_service_account}" ]; then
+      SA_ARG="--impersonate-service-account=${local.impersonation_service_account}"
+      >&2 echo "Using impersonation service account: ${local.impersonation_service_account}"
+    else
+      SA_ARG=""
+      >&2 echo "No service account impersonation"
     fi
     
     # Check if VPC network exists
@@ -79,11 +84,11 @@ data "external" "check_network" {
 EOF
   EOT
   ]
-}
 
-########################################################################################
-# Local variables for network resources
-########################################################################################
+  depends_on = [
+    data.google_project.existing_project
+  ]
+}
 
 ########################################################################################
 # Local variables for network resources
@@ -92,22 +97,19 @@ EOF
 locals {
   network_exists = data.external.check_network.result.network_exists == "true"
   
-  # ✅ Step 1: Safely parse the regions JSON
-  discovered_regions_raw = try(
-    jsondecode(data.external.check_network.result.regions),
-    []
-  )
+  # Safe parsing with fallback
+  discovered_regions_raw = try(jsondecode(data.external.check_network.result.regions), [])
   
-  # ✅ Step 2: Filter out invalid entries
+  # Filter out invalid regions
   discovered_regions_filtered = [
     for region in local.discovered_regions_raw : region
     if region != null && region != "" && can(regex("^[a-z]+-[a-z]+[0-9]$", region))
   ]
   
-  # ✅ Step 3: Use discovered regions or fall back to default
+  # Always provide fallback to prevent empty list
   regions_list = length(local.discovered_regions_filtered) > 0 ? local.discovered_regions_filtered : ["us-central1"]
   
-  # ✅ Safe parsing for other fields
+  # Safe parsing for all fields
   subnet_names   = try(jsondecode(data.external.check_network.result.subnet_names), [])
   subnet_cidrs   = try(jsondecode(data.external.check_network.result.subnet_cidrs), [])
   subnet_details = try(jsondecode(data.external.check_network.result.subnet_details), [])

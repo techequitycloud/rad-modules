@@ -27,13 +27,7 @@ provider "google" {
 locals {
   # Use agent_service_account if provided, otherwise fall back to resource_creator_identity
   # This supports the impersonation chain: rad-module-creator -> rad-agent -> target project
-  target_service_account = coalesce(
-    try(var.agent_service_account, null),
-    var.resource_creator_identity
-  )
-  
-  # Determine if we should use impersonation
-  use_impersonation = local.target_service_account != null && length(local.target_service_account) > 0
+  target_service_account = local.impersonation_service_account
 }
 
 # Data source to obtain an access token for a service account with impersonation.
@@ -52,7 +46,6 @@ data "google_service_account_access_token" "default" {
 # Default provider configuration for Google Cloud using the generated access token if available.
 provider "google" {
   project      = var.existing_project_id  # Target project where resources will be created
-  region       = local.region  # Primary region for resources
   access_token = local.use_impersonation ? data.google_service_account_access_token.default[0].access_token : null  # Use the access token from impersonation
 }
 
@@ -60,6 +53,5 @@ provider "google" {
 # This is needed for beta/preview features
 provider "google-beta" {
   project      = var.existing_project_id  # Target project where resources will be created
-  region       = local.region  # Primary region for resources
   access_token = local.use_impersonation ? data.google_service_account_access_token.default[0].access_token : null  # Use the access token from impersonation
 }

@@ -13,6 +13,100 @@
 # limitations under the License.
 
 # ============================================================================
+# NFS Setup Job
+# ============================================================================
+
+resource "google_cloud_run_v2_job" "nfs_setup_job" {
+  count      = local.nfs_server_exists ? 1 : 0
+  project    = local.project.project_id
+  name       = "nfs-setup-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+  location   = local.region
+  deletion_protection = false
+
+  template {
+    template {
+      service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+      max_retries     = 0
+      timeout         = "600s"
+      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
+
+      containers {
+        image = "alpine:3.19"
+
+        env {
+          name  = "DIR_NAME"
+          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+        }
+
+        command = ["/bin/sh"]
+        args    = ["-c", file("${path.module}/scripts/app/nfs_setup_job.sh")]
+
+        volume_mounts {
+          name       = "nfs-root-volume"
+          mount_path = "/mnt/nfs"
+        }
+      }
+
+      volumes {
+        name = "nfs-root-volume"
+        nfs {
+          server = "${local.nfs_internal_ip}"
+          path   = "/share"
+        }
+      }
+
+      vpc_access {
+        network_interfaces {
+          network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
+        }
+        egress = "PRIVATE_RANGES_ONLY"
+      }
+    }
+  }
+}
+
+resource "null_resource" "execute_nfs_setup_job" {
+  count = local.nfs_server_exists ? 1 : 0
+
+  triggers = {
+    job_id = google_cloud_run_v2_job.nfs_setup_job[0].id
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command = <<EOT
+      echo "Executing NFS setup job..."
+
+      # Set impersonation flag if service account is provided
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+        echo "Using impersonation: ${local.impersonation_service_account}"
+      fi
+
+      # Execute the Cloud Run job
+      gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
+        --region ${local.region} \
+        --project ${local.project.project_id} \
+        $IMPERSONATE_FLAG \
+        --wait
+
+      if [ $? -eq 0 ]; then
+        echo "✓ NFS setup job completed successfully"
+      else
+        echo "✗ NFS setup job failed"
+        exit 1
+      fi
+    EOT
+  }
+
+  depends_on = [
+    google_cloud_run_v2_job.nfs_setup_job
+  ]
+}
+
+# ============================================================================
 # Import DB Job
 # ============================================================================
 
@@ -75,6 +169,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           network = "projects/${local.project.project_id}/global/networks/${var.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
         }
+        egress = "PRIVATE_RANGES_ONLY"
       }
     }
   }
@@ -97,9 +192,18 @@ resource "null_resource" "execute_import_db_job" {
     interpreter = ["/bin/bash", "-c"]
     command = <<EOT
       echo "Executing DB import job..."
+
+      # Set impersonation flag if service account is provided
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+        echo "Using impersonation: ${local.impersonation_service_account}"
+      fi
+
       gcloud run jobs execute ${google_cloud_run_v2_job.import_db_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
+        $IMPERSONATE_FLAG \
         --wait
 
       if [ $? -eq 0 ]; then
@@ -160,15 +264,6 @@ resource "google_cloud_run_v2_job" "init_db_job" {
           }
         }
         
-        # Override entrypoint to ensure we just run initialization
-        # The image entrypoint is ["/usr/bin/tini", "--", "/cloudrun-entrypoint.sh"]
-        # CMD is /entrypoint.sh odoo
-        # We want to run: /cloudrun-entrypoint.sh /entrypoint.sh odoo -i base --stop-after-init
-        
-        # Since the ENTRYPOINT is /usr/bin/tini -- /cloudrun-entrypoint.sh,
-        # providing args will pass them to /cloudrun-entrypoint.sh, which execs "$@"
-        # So we pass: /entrypoint.sh odoo -i base --stop-after-init
-        
         args = ["/entrypoint.sh", "odoo", "-i", "base", "--stop-after-init"]
         
         volume_mounts {
@@ -202,6 +297,7 @@ resource "google_cloud_run_v2_job" "init_db_job" {
           network = "projects/${local.project.project_id}/global/networks/${var.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
         }
+        egress = "PRIVATE_RANGES_ONLY"
       }
     }
   }
@@ -210,7 +306,8 @@ resource "google_cloud_run_v2_job" "init_db_job" {
     null_resource.build_and_push_application_image,
     google_project_iam_member.secret_accessor,
     google_project_iam_member.cloudsql_client,
-    null_resource.execute_import_db_job # Ensure DB is created first
+    null_resource.execute_import_db_job, # Ensure DB is created first
+    null_resource.execute_nfs_setup_job  # Ensure NFS is ready
   ]
 }
 
@@ -225,9 +322,18 @@ resource "null_resource" "execute_init_db_job" {
     interpreter = ["/bin/bash", "-c"]
     command = <<EOT
       echo "Executing DB Initialization job..."
+
+      # Set impersonation flag if service account is provided
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+        echo "Using impersonation: ${local.impersonation_service_account}"
+      fi
+
       gcloud run jobs execute ${google_cloud_run_v2_job.init_db_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
+        $IMPERSONATE_FLAG \
         --wait
 
       if [ $? -eq 0 ]; then
@@ -241,6 +347,7 @@ resource "null_resource" "execute_init_db_job" {
 
   depends_on = [
     google_cloud_run_v2_job.init_db_job,
-    null_resource.execute_import_db_job
+    null_resource.execute_import_db_job,
+    null_resource.execute_nfs_setup_job
   ]
 }

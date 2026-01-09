@@ -45,10 +45,6 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           name  = "DB_USER"
           value = "app${var.application_database_user}${var.tenant_deployment_id}${local.random_id}"
         }
-        env {
-          name  = "BACKUP_FILEID"
-          value = "${var.application_backup_fileid}"
-        }
 
         env {
           name = "ROOT_PASS"
@@ -64,7 +60,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           name = "DB_PASS"
           value_source {
             secret_key_ref {
-              secret = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
+              secret = google_secret_manager_secret.db_password.secret_id
               version = "latest"
             }
           }
@@ -73,24 +69,19 @@ resource "google_cloud_run_v2_job" "import_db_job" {
         command = ["/bin/sh", "-c"]
         args = [<<-EOT
           set -e
-          
+
           echo "================================================"
           echo "Starting DB Import Job"
           echo "================================================"
           echo "DB_HOST: $DB_HOST"
           echo "DB_NAME: $DB_NAME"
           echo "DB_USER: $DB_USER"
-          echo "BACKUP_FILEID: $BACKUP_FILEID"
           echo "================================================"
-          
+
           # Install required packages
           echo "Installing packages..."
-          apk add --no-cache postgresql-client python3 py3-pip unzip curl netcat-openbsd
-          
-          # Install gdown
-          echo "Installing gdown..."
-          pip3 install gdown --break-system-packages
-          
+          apk add --no-cache postgresql-client netcat-openbsd
+
           # Test network connectivity
           echo "Testing connectivity to $DB_HOST on port 5432..."
           if nc -zv $DB_HOST 5432 2>&1; then
@@ -99,11 +90,10 @@ resource "google_cloud_run_v2_job" "import_db_job" {
             echo "✗ Cannot reach $DB_HOST:5432"
             exit 1
           fi
-          
+
           # Set passwords
           export PGPASSWORD=$ROOT_PASS
-          export DB_PASS=$DB_PASS
-          
+
           # Test PostgreSQL connection
           echo "Testing PostgreSQL connection..."
           if psql -h $DB_HOST -U postgres -d postgres -c "SELECT version();" > /dev/null 2>&1; then
@@ -114,7 +104,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
             psql -h $DB_HOST -U postgres -d postgres -c "SELECT version();" || true
             exit 1
           fi
-          
+
           # Create/Update Role
           echo "Creating/updating database role..."
           psql -h $DB_HOST -U postgres -d postgres <<SQL
@@ -133,7 +123,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           GRANT ALL PRIVILEGES ON DATABASE postgres TO $DB_USER;
           GRANT $DB_USER TO postgres;
 SQL
-          
+
           # Create Database if not exists
           echo "Checking if database exists..."
           if ! psql -h $DB_HOST -U postgres -lqt | cut -d \| -f 1 | grep -qw $DB_NAME; then
@@ -143,62 +133,20 @@ SQL
           else
             echo "✓ Database $DB_NAME already exists"
           fi
-          
+
           # Install Extensions
           echo "Installing PostgreSQL extensions..."
           psql -h $DB_HOST -U postgres -d $DB_NAME <<'SQL'
-          CREATE EXTENSION IF NOT EXISTS cube;
-          CREATE EXTENSION IF NOT EXISTS earthdistance;
-          CREATE EXTENSION IF NOT EXISTS postgis;
-          CREATE EXTENSION IF NOT EXISTS unaccent;
+          CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+          CREATE EXTENSION IF NOT EXISTS vector;
           SQL
           echo "✓ Extensions installed"
-          
-          # Download and Restore Backup if provided
-          if [ -n "$BACKUP_FILEID" ]; then
-            echo "Downloading backup from Google Drive..."
-            echo "File ID: $BACKUP_FILEID"
-            
-            BACKUP_FILE="$DB_NAME.zip"
-            if gdown $BACKUP_FILEID -O "$BACKUP_FILE"; then
-              echo "✓ Backup downloaded"
-              
-              if [ -f "$BACKUP_FILE" ]; then
-                echo "Extracting backup..."
-                unzip -q "$BACKUP_FILE" -d restore_dir
-                echo "✓ Backup extracted"
-                
-                export PGPASSWORD=$DB_PASS
-                
-                # Find dump.sql
-                DUMP_FILE=$(find restore_dir -name "dump.sql" | head -n 1)
-                
-                if [ -n "$DUMP_FILE" ]; then
-                  echo "Restoring database from $DUMP_FILE..."
-                  if psql -h $DB_HOST -U $DB_USER -d $DB_NAME < "$DUMP_FILE"; then
-                    echo "✓ Database restore complete"
-                  else
-                    echo "✗ Database restore failed"
-                    exit 1
-                  fi
-                else
-                  echo "✗ dump.sql not found in zip archive"
-                  echo "Contents of restore_dir:"
-                  find restore_dir -type f
-                  exit 1
-                fi
-              else
-                echo "✗ Zip file not found after download"
-                exit 1
-              fi
-            else
-              echo "✗ Failed to download backup"
-              exit 1
-            fi
-          else
-            echo "ℹ No backup file specified, skipping restore"
-          fi
-          
+
+          # Grant privileges
+          echo "Granting privileges..."
+          psql -h $DB_HOST -U postgres -d $DB_NAME -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
+          psql -h $DB_HOST -U postgres -d $DB_NAME -c "ALTER SCHEMA public OWNER TO \"$DB_USER\";"
+
           echo "================================================"
           echo "✓ DB Import Job Completed Successfully"
           echo "================================================"
@@ -215,9 +163,9 @@ SQL
       }
     }
   }
-  
+
   depends_on = [
-    data.google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret_version.db_password,
   ]
 }
 
@@ -232,18 +180,18 @@ resource "null_resource" "execute_import_db_job" {
     interpreter = ["/bin/bash", "-c"]
     command = <<EOT
       echo "Executing DB import job..."
-      
+
       # Set impersonation flag if service account is provided
       IMPERSONATE_FLAG=""
-      if [ -n "${local.impersonation_service_account}" ]; then
-        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
-        echo "Using impersonation: ${local.impersonation_service_account}"
+      if [ -n "${local.target_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.target_service_account}"
+        echo "Using impersonation: ${local.target_service_account}"
       fi
-      
+
       # Wait for IAM permissions to propagate
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
-      
+
       # Execute the Cloud Run job
       echo "Starting job execution..."
       gcloud run jobs execute ${google_cloud_run_v2_job.import_db_job[0].name} \
