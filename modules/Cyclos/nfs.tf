@@ -17,7 +17,7 @@
 #########################################################################
 
 data "external" "nfs_instance_info" {
-  program = ["bash", "${path.module}/scripts/app/get-nfsserver-info.sh", local.project.project_id, local.region, var.resource_creator_identity]
+  program = ["bash", "${path.module}/scripts/app/get-nfsserver-info.sh", local.project.project_id, local.region, local.impersonation_service_account]
 }
 
 #########################################################################
