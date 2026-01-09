@@ -12,53 +12,101 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Provider configuration for Google Cloud with impersonation capabilities.
-provider "google" {
-  alias = "impersonated"  # Alias used to reference this specific provider configuration
+#########################################################################
+# Configurations for nfs import
+#########################################################################
 
-  # Scopes define the level of access the provider will have. In this case, full access to cloud platform resources and user email.
-  scopes = [
-    "https://www.googleapis.com/auth/cloud-platform",
-    "https://www.googleapis.com/auth/userinfo.email"
+# Create db import script
+resource "local_file" "import_nfs_script_output" {
+  count    = local.nfs_server_exists ? 1 : 0  
+  filename = "${path.module}/scripts/app/import-nfs.sh"
+  content = templatefile("${path.module}/scripts/app/import_nfs.tpl", {
+    PROJECT_ID          = local.project.project_id
+    BACKUP_FILEID       = "${var.application_backup_fileid}"
+    DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+    APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
+    APP_REGION_2        = length(local.regions) > 1 ? local.regions[1] : ""
+    NFS_IP              = local.nfs_internal_ip
+    NFS_ZONE            = data.google_compute_zones.available_zones.names[0]
+  })
+}
+
+#########################################################################
+# Configurations for nfs import
+#########################################################################
+
+# Resource to import nfs
+resource "null_resource" "import_nfs" {
+  count    = local.nfs_server_exists ? 1 : 0  
+    
+  # Triggers that cause the resource to be updated/recreated
+  triggers = {
+    # always_run = "${timestamp()}"
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOF
+      # Maximum number of attempts
+      max_attempts=3
+      attempt=0
+
+      # Loop until the NFS VM instance is in RUNNING status or max attempts reached
+      while [ $attempt -lt $max_attempts ]; do
+        # Get the instance name using the internal IP address
+        NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(NAME)")
+                
+        # Check the status of the instance
+        status=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(status)")
+                
+        if [ "$status" = "RUNNING" ]; then
+          echo "Instance is running."
+          break
+        else
+          echo "Waiting for instance to be running... (Attempt $((attempt + 1)) of $max_attempts)"
+          sleep 10 # wait before retrying
+        fi
+                
+        attempt=$((attempt + 1))
+      done
+
+      if [ $attempt -eq $max_attempts ]; then
+        echo "Max attempts reached. Instance is not running."
+        exit 1
+      fi
+
+      # Ensure application directory is empty and execute the script
+      for i in {1..5}; do
+        if [ -z "${local.impersonation_service_account}" ]; then 
+          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-nfs.sh; then
+            echo "SSH command succeeded"
+            break
+          else
+            echo "SSH attempt $i failed, retrying in 30 seconds..."
+            sleep 30
+          fi
+        else
+          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-nfs.sh --impersonate-service-account=${local.impersonation_service_account}; then
+            echo "SSH command succeeded"
+            break
+          else
+            echo "SSH attempt $i failed, retrying in 30 seconds..."
+            sleep 30
+          fi
+        fi
+
+        # If the last attempt fails, exit with error
+        if [ "$i" -eq 5 ]; then
+          echo "SSH command failed after 5 attempts. Exiting..."
+          exit 1
+        fi
+      done
+    EOF
+  }
+
+  depends_on = [
+    local_file.import_nfs_script_output,
+    null_resource.build_and_push_application_image,
   ]
-}
-
-# Local variables to determine which service account to use for impersonation
-# NOTE: This should be defined in your main locals.tf file, included here for reference
-# locals {
-#   # Use agent_service_account if provided, otherwise fall back to resource_creator_identity
-#   # This supports the impersonation chain: rad-module-creator -> rad-agent -> target project
-#   impersonation_service_account = coalesce(
-#     try(var.agent_service_account, null),
-#     var.resource_creator_identity
-#   )
-#   
-#   # Determine if we should use impersonation
-#   use_impersonation = local.impersonation_service_account != null && length(local.impersonation_service_account) > 0
-# }
-
-# Data source to obtain an access token for a service account with impersonation.
-# This enables the impersonation chain:
-# 1. Cloud Build runs as rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com
-# 2. rad-module-creator impersonates rad-agent@gcp-project-eb45.iam.gserviceaccount.com
-# 3. rad-agent has Owner permissions on the target project
-data "google_service_account_access_token" "default" {
-  count                  = local.use_impersonation ? 1 : 0  # Create this data source only if impersonation is needed
-  provider               = google.impersonated  # Use the impersonated provider instance
-  scopes                 = ["userinfo-email", "cloud-platform"]  # Scopes for the access token, shorter form without full URL
-  target_service_account = local.impersonation_service_account  # The service account to impersonate (rad-agent)
-  lifetime               = "3600s"  # The lifetime of the generated access token (1 hour)
-}
-
-# Default provider configuration for Google Cloud using the generated access token if available.
-provider "google" {
-  project      = var.existing_project_id  # Target project where resources will be created
-  access_token = local.use_impersonation ? data.google_service_account_access_token.default[0].access_token : null  # Use the access token from impersonation
-}
-
-# Beta provider configuration for Google Cloud using the generated access token if available.
-# This is needed for beta/preview features
-provider "google-beta" {
-  project      = var.existing_project_id  # Target project where resources will be created
-  access_token = local.use_impersonation ? data.google_service_account_access_token.default[0].access_token : null  # Use the access token from impersonation
 }
