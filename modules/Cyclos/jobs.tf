@@ -193,8 +193,5 @@ resource "null_resource" "execute_import_db_job" {
   depends_on = [
     google_cloud_run_v2_job.import_db_job,
     google_secret_manager_secret_version.db_password,
-    google_project_iam_member.impersonation_run_admin,
-    google_project_iam_member.cloudrun_sa_sql_client,
-    google_project_iam_member.cloudrun_sa_secret_accessor,
   ]
 }
