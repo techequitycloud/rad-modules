@@ -95,6 +95,7 @@ resource "null_resource" "import_db" {
           --quiet $NFS_VM \
           --zone ${data.google_compute_zones.available_zones.names[0]} \
           $IMPERSONATE_FLAG \
+          --tunnel-through-iap \
           --command="sudo bash -s" < ${path.module}/scripts/app/import-db.sh; then
           echo "SSH command succeeded"
           break
