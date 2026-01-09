@@ -19,7 +19,7 @@
 data "external" "check_network" {
   program = ["bash", "-c", <<-EOT
     set -e
-    PROJECT_ID="${local.project.project_id}"
+    PROJECT_ID="${trimspace(var.existing_project_id)}"
     NETWORK_NAME="${var.network_name}"
     
     if [ -n "${var.resource_creator_identity}" ]; then
@@ -80,10 +80,6 @@ EOF
   EOT
   ]
 }
-
-########################################################################################
-# Local variables for network resources
-########################################################################################
 
 ########################################################################################
 # Local variables for network resources
