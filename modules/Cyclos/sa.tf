@@ -19,8 +19,8 @@
 data "external" "check_service_accounts" {
   program = ["bash", "-c", <<-EOT
     PROJECT_ID="${local.project.project_id}"
-    if [ -n "${var.resource_creator_identity}" ]; then
-      SA_ARG="--impersonate-service-account=${var.resource_creator_identity}"
+    if [ -n "${local.impersonation_service_account}" ]; then
+      SA_ARG="--impersonate-service-account=${local.impersonation_service_account}"
     fi
     
     # Function to check if service account exists
