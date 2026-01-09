@@ -95,7 +95,6 @@ resource "null_resource" "import_nfs" {
           --zone ${data.google_compute_zones.available_zones.names[0]} \
           $IMPERSONATE_FLAG \
           --tunnel-through-iap \
-          --no-oslogin \
           --command="sudo bash -s" < ${path.module}/scripts/app/import-nfs.sh; then
           echo "SSH command succeeded"
           break
