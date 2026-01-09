@@ -83,14 +83,6 @@ variable "network_name" {
   default     = "vpc-network"
 }
 
-# GROUP 5: Storage
-
-variable "create_cloud_storage" {
-  description = "Select to enable access to Cloud Storage. {{UIMeta group=0 order=501 updatesafe }}"
-  type        = bool
-  default     = true  # Change to true to create the resource
-}
-
 # GROUP 5: Deploy
 
 variable "application_name" {

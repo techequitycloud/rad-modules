@@ -29,12 +29,6 @@ output "cloud_sql_info" {
   }
 }
 
-output "private_storage_info" {
-  value = {
-    gcs_private_data_bucket = var.create_cloud_storage ? local.data_bucket_name : "" 
-  }
-}
-
 output "application_info" {
   value = {
     application_url  = var.configure_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}-${local.project_number}.${local.region}.run.app" : ""
