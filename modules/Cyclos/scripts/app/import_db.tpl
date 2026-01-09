@@ -72,7 +72,7 @@ while [ $attempt -lt $max_attempts ]; do
   attempt=$((attempt + 1))
   if [ $attempt -lt $max_attempts ]; then
     backoff_time=$((2 ** attempt))  # Exponential backoff: 2, 4, 8 seconds
-    echo "Retrying... Attempt $attempt of $max_attempts. Waiting ${backoff_time}s..."
+    echo "Retrying... Attempt $attempt of $max_attempts. Waiting $${backoff_time}s..."
     sleep $backoff_time
   fi
 done
@@ -171,7 +171,7 @@ EOF
     # Wait before the next attempt with exponential backoff
     if [ $attempt_num -le $max_retries ]; then
         backoff_time=$((2 ** attempt_num))  # Exponential backoff: 2, 4, 8, 16, 32 seconds
-        echo "Waiting ${backoff_time}s before next attempt..."
+        echo "Waiting $${backoff_time}s before next attempt..."
         sleep $backoff_time
     fi
 done
