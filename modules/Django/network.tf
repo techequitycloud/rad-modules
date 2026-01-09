@@ -19,11 +19,11 @@
 data "external" "check_network" {
   program = ["bash", "-c", <<-EOT
     set -e
-    PROJECT_ID="${local.project.project_id}"
+    PROJECT_ID="${trimspace(var.existing_project_id)}"
     NETWORK_NAME="${var.network_name}"
     
-    if [ -n "${var.resource_creator_identity}" ]; then
-      SA_ARG="--impersonate-service-account=${var.resource_creator_identity}"
+    if [ -n "${local.impersonation_service_account}" ]; then
+      SA_ARG="--impersonate-service-account=${local.impersonation_service_account}"
     fi
     
     # Check if VPC network exists
@@ -85,10 +85,6 @@ EOF
 # Local variables for network resources
 ########################################################################################
 
-########################################################################################
-# Local variables for network resources
-########################################################################################
-
 locals {
   network_exists = data.external.check_network.result.network_exists == "true"
   
@@ -106,6 +102,7 @@ locals {
   
   # ✅ Step 3: Use discovered regions or fall back to default
   regions_list = length(local.discovered_regions_filtered) > 0 ? local.discovered_regions_filtered : ["us-central1"]
+  region       = local.regions_list[0]
   
   # ✅ Safe parsing for other fields
   subnet_names   = try(jsondecode(data.external.check_network.result.subnet_names), [])
@@ -114,7 +111,7 @@ locals {
 }
 
 ########################################################################################
-# Local variables output
+# Network information output
 ########################################################################################
 
 output "network_info" {
