@@ -23,20 +23,6 @@ provider "google" {
   ]
 }
 
-# Local variables to determine which service account to use for impersonation
-# NOTE: This should be defined in your main locals.tf file, included here for reference
-# locals {
-#   # Use agent_service_account if provided, otherwise fall back to resource_creator_identity
-#   # This supports the impersonation chain: rad-module-creator -> rad-agent -> target project
-#   impersonation_service_account = coalesce(
-#     try(var.agent_service_account, null),
-#     var.resource_creator_identity
-#   )
-#   
-#   # Determine if we should use impersonation
-#   use_impersonation = local.impersonation_service_account != null && length(local.impersonation_service_account) > 0
-# }
-
 # Data source to obtain an access token for a service account with impersonation.
 # This enables the impersonation chain:
 # 1. Cloud Build runs as rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com

@@ -27,6 +27,9 @@ locals {
   # Set impersonation service account based on agent service account availability
   # Falls back to resource_creator_identity if agent_service_account is not set
   impersonation_service_account = var.agent_service_account != null && var.agent_service_account != "" ? var.agent_service_account : var.resource_creator_identity
+
+  # Determine if we should use impersonation
+  use_impersonation = local.impersonation_service_account != null && local.impersonation_service_account != ""
 }
 
 data "google_compute_zones" "available_zones" {
