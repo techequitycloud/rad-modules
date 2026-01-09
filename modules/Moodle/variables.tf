@@ -12,141 +12,54 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# GROUP 1: Deployment 
+# Provider configuration for Google Cloud with impersonation capabilities.
+provider "google" {
+  alias = "impersonated"  # Alias used to reference this specific provider configuration
 
-variable "module_description" {
-  description = "The description of the module. {{UIMeta group=0 order=100 }}"
-  type        = string
-  default     = "This module deploys Moodle, a popular open-source Learning Management System (LMS), on Google Cloud Run, providing a serverless environment with a database, file storage, and networking to create and deliver online courses."
+  # Scopes define the level of access the provider will have. In this case, full access to cloud platform resources and user email.
+  scopes = [
+    "https://www.googleapis.com/auth/cloud-platform",
+    "https://www.googleapis.com/auth/userinfo.email"
+  ]
 }
 
-variable "module_dependency" {
-  description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=102 }}"
-  type        = list(string)
-  default     = ["GCP_Services"]
+# Local variables to determine which service account to use for impersonation
+locals {
+  # Use agent_service_account if provided, otherwise fall back to resource_creator_identity
+  # This supports the impersonation chain: rad-module-creator -> rad-agent -> target project
+  target_service_account = coalesce(
+    try(var.agent_service_account, null),
+    var.resource_creator_identity
+  )
+  
+  # Determine if we should use impersonation
+  use_impersonation = local.target_service_account != null && length(local.target_service_account) > 0
 }
 
-variable "module_services" {
-  description = "Specify the module services. {{UIMeta group=0 order=102 }}"
-  type        = list(string)
-  default     = ["Cloud Run", "Cloud Build", "Artifact Registry", "Cloud Storage", "Cloud SQL", "Cloud IAM", "Cloud Networking"]
+# Data source to obtain an access token for a service account with impersonation.
+# This enables the impersonation chain:
+# 1. Cloud Build runs as rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com
+# 2. rad-module-creator impersonates rad-agent@gcp-project-eb45.iam.gserviceaccount.com
+# 3. rad-agent has Owner permissions on the target project
+data "google_service_account_access_token" "default" {
+  count                  = local.use_impersonation ? 1 : 0  # Create this data source only if impersonation is needed
+  provider               = google.impersonated  # Use the impersonated provider instance
+  scopes                 = ["userinfo-email", "cloud-platform"]  # Scopes for the access token, shorter form without full URL
+  target_service_account = local.target_service_account  # The service account to impersonate (rad-agent)
+  lifetime               = "3600s"  # The lifetime of the generated access token (1 hour)
 }
 
-variable "credit_cost" {
-  description = "Specify the module cost {{UIMeta group=0 order=103 }}"
-  type        = number
-  default     = 100
+# Default provider configuration for Google Cloud using the generated access token if available.
+provider "google" {
+  project      = var.existing_project_id  # Target project where resources will be created
+  region       = local.region  # Primary region for resources
+  access_token = local.use_impersonation ? data.google_service_account_access_token.default[0].access_token : null  # Use the access token from impersonation
 }
 
-variable "require_credit_purchases" {
-  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
-  type        = bool
-  default     = false
-}
-
-variable "enable_purge" {
-  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=105 }}"
-  type        = bool
-  default     = true
-}
-
-variable "public_access" {
-  description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
-  type = bool
-  default = true
-}
-
-variable "deployment_id" {
-  description = "Unique ID suffix for resources.  Leave blank to generate random ID."
-  type        = string
-  default     = null
-}
-
-variable "agent_service_account" {
-  description = "If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account, e.g. rad-agent@gcp-project.sr65.iam.gserviceaccount.com, and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=1 order=200 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=103 }}"
-  type        = string
-  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
-}
-
-variable "trusted_users" {
-  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=104 }}"
-  type        = list(string)
-  default     = []
-}
-
-# GROUP 2: Application Project
-
-variable "existing_project_id" {
-  description = "Select an existing project on the RAD platform or enter the project ID of an external GCP project. You must grant Owner role to the RAD GCP Project agent service account when deploying into an external project. {{UIMeta group=2 order=200 }}"
-  type        = string
-}
-
-# GROUP 3: Network
-
-variable "network_name" {
-  description = "Name to be assigned to the network. {{UIMeta group=0 order=301 }}"
-  type        = string
-  default     = "vpc-network"
-}
-
-# GROUP 5: Storage
-
-variable "create_cloud_storage" {
-  description = "Select to enable access to Cloud Storage. {{UIMeta group=0 order=501 }}"
-  type        = bool
-  default     = true  # Change to true to create the resource
-}
-
-# GROUP 5: Deploy
-
-variable "application_name" {
-  description = "Specify application name. The application name is used to identify configured resources alongside other attributes that ensures uniqueness. {{UIMeta group=0 order=501}}"
-  type        = string
-  default     = "moodle"
-}
-
-variable "application_database_user" {
-  description = "Specify application database user name. The actual database user name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=502}}"
-  type        = string
-  default     = "moodle"
-}
-
-variable "application_database_name" {
-  description = "Specify application database name. The actual database name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=503 }}"
-  type        = string
-  default     = "moodle"
-}
-
-variable "application_version" {
-  description = "Enter application version. Container images are tagged with this version number. {{UIMeta group=0 order=504}}"
-  type        = string
-  default     = "5.0.0"
-}
-
-# GROUP 7: Tenant
-
-variable "tenant_deployment_id" {
-  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=2 order=701}}"
-  type        = string
-  default     = ""
-}
-
-variable "configure_environment" {
-  description = "Select to configure environment. Code is committed to the branch in the github repository. {{UIMeta group=0 order=703 }}"
-  type        = bool
-  default     = false
-}
-
-# GROUP 8: Tenant
-
-variable "configure_monitoring" {
-  description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application, and CPU utilization monitoring for NFS virtual machine. {{UIMeta group=0 order=805}}"
-  type        = bool
-  default     = true
+# Beta provider configuration for Google Cloud using the generated access token if available.
+# This is needed for beta/preview features
+provider "google-beta" {
+  project      = var.existing_project_id  # Target project where resources will be created
+  region       = local.region  # Primary region for resources
+  access_token = local.use_impersonation ? data.google_service_account_access_token.default[0].access_token : null  # Use the access token from impersonation
 }
