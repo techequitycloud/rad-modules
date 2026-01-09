@@ -103,10 +103,6 @@ resource "google_secret_manager_secret" "mysql_root_password" {
   replication {
     auto {} 
   }
-
-  depends_on = [
-    null_resource.api_poll
-  ]
 }
 
 # Resource for adding a version of the secret with the actual database password
