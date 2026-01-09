@@ -35,7 +35,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
 
         env {
           name  = "DB_HOST"
-          value = local.db_internal_ip
+          value = "${local.db_internal_ip}"
         }
         env {
           name  = "DB_NAME"
@@ -47,7 +47,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
         }
         env {
           name  = "BACKUP_FILEID"
-          value = var.application_backup_fileid
+          value = "${var.application_backup_fileid}"
         }
 
         env {
@@ -71,136 +71,136 @@ resource "google_cloud_run_v2_job" "import_db_job" {
         }
 
         command = ["/bin/sh"]
-        args = ["-c", <<EOF
-set -e
-
-echo "================================================"
-echo "Starting DB Import Job"
-echo "================================================"
-echo "DB_HOST: $$DB_HOST"
-echo "DB_NAME: $$DB_NAME"
-echo "DB_USER: $$DB_USER"
-echo "BACKUP_FILEID: $$BACKUP_FILEID"
-echo "================================================"
-
-# Install required packages
-echo "Installing packages..."
-apk add --no-cache postgresql-client python3 py3-pip unzip curl netcat-openbsd
-
-# Install gdown
-echo "Installing gdown..."
-pip3 install gdown --break-system-packages
-
-# Test network connectivity
-echo "Testing connectivity to $$DB_HOST on port 5432..."
-if nc -zv $$DB_HOST 5432 2>&1; then
-  echo "✓ Port 5432 is reachable"
-else
-  echo "✗ Cannot reach $$DB_HOST:5432"
-  exit 1
-fi
-
-# Set passwords
-export PGPASSWORD=$$ROOT_PASS
-export DB_PASS=$$DB_PASS
-
-# Test PostgreSQL connection
-echo "Testing PostgreSQL connection..."
-if psql -h $$DB_HOST -U postgres -d postgres -c "SELECT version();" > /dev/null 2>&1; then
-  echo "✓ PostgreSQL connection successful"
-else
-  echo "✗ PostgreSQL connection failed"
-  echo "Attempting to get more details..."
-  psql -h $$DB_HOST -U postgres -d postgres -c "SELECT version();" || true
-  exit 1
-fi
-
-# Create/Update Role
-echo "Creating/updating database role..."
-psql -h $$DB_HOST -U postgres -d postgres <<SQL
-DO \$$\$$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$$DB_USER') THEN
-    CREATE ROLE $$DB_USER WITH LOGIN PASSWORD '$$DB_PASS';
-    RAISE NOTICE 'Role $$DB_USER created';
-  ELSE
-    ALTER ROLE $$DB_USER WITH PASSWORD '$$DB_PASS';
-    RAISE NOTICE 'Role $$DB_USER updated';
-  END IF;
-END
-\$$\$$;
-ALTER ROLE $$DB_USER CREATEDB;
-GRANT ALL PRIVILEGES ON DATABASE postgres TO $$DB_USER;
-SQL
-
-# Create Database if not exists
-echo "Checking if database exists..."
-if ! psql -h $$DB_HOST -U postgres -lqt | cut -d \| -f 1 | grep -qw $$DB_NAME; then
-  echo "Creating database $$DB_NAME..."
-  psql -h $$DB_HOST -U postgres -c "CREATE DATABASE $$DB_NAME OWNER $$DB_USER;"
-  echo "✓ Database created"
-else
-  echo "✓ Database $$DB_NAME already exists"
-fi
-
-# Install Extensions
-echo "Installing PostgreSQL extensions..."
-psql -h $$DB_HOST -U postgres -d $$DB_NAME <<SQL
-CREATE EXTENSION IF NOT EXISTS cube;
-CREATE EXTENSION IF NOT EXISTS earthdistance;
-CREATE EXTENSION IF NOT EXISTS postgis;
-CREATE EXTENSION IF NOT EXISTS unaccent;
-SQL
-echo "✓ Extensions installed"
-
-# Download and Restore Backup if provided
-if [ -n "$$BACKUP_FILEID" ]; then
-  echo "Downloading backup from Google Drive..."
-  echo "File ID: $$BACKUP_FILEID"
-  
-  if gdown $$BACKUP_FILEID -O $${DB_NAME}.zip; then
-    echo "✓ Backup downloaded"
-    
-    if [ -f "$${DB_NAME}.zip" ]; then
-      echo "Extracting backup..."
-      unzip -q $${DB_NAME}.zip -d restore_dir
-      echo "✓ Backup extracted"
-      
-      export PGPASSWORD=$$DB_PASS
-      
-      # Find dump.sql
-      DUMP_FILE=$$(find restore_dir -name "dump.sql" | head -n 1)
-      
-      if [ -n "$$DUMP_FILE" ]; then
-        echo "Restoring database from $$DUMP_FILE..."
-        if psql -h $$DB_HOST -U $$DB_USER -d $$DB_NAME < "$$DUMP_FILE"; then
-          echo "✓ Database restore complete"
-        else
-          echo "✗ Database restore failed"
-          exit 1
-        fi
-      else
-        echo "✗ dump.sql not found in zip archive"
-        echo "Contents of restore_dir:"
-        find restore_dir -type f
-        exit 1
-      fi
-    else
-      echo "✗ Zip file not found after download"
-      exit 1
-    fi
-  else
-    echo "✗ Failed to download backup"
-    exit 1
-  fi
-else
-  echo "ℹ No backup file specified, skipping restore"
-fi
-
-echo "================================================"
-echo "✓ DB Import Job Completed Successfully"
-echo "================================================"
-EOF
+        args = ["-c", <<-EOF
+          set -e
+          
+          echo "================================================"
+          echo "Starting DB Import Job"
+          echo "================================================"
+          echo "DB_HOST: $DB_HOST"
+          echo "DB_NAME: $DB_NAME"
+          echo "DB_USER: $DB_USER"
+          echo "BACKUP_FILEID: $BACKUP_FILEID"
+          echo "================================================"
+          
+          # Install required packages
+          echo "Installing packages..."
+          apk add --no-cache postgresql-client python3 py3-pip unzip curl netcat-openbsd
+          
+          # Install gdown
+          echo "Installing gdown..."
+          pip3 install gdown --break-system-packages
+          
+          # Test network connectivity
+          echo "Testing connectivity to $DB_HOST on port 5432..."
+          if nc -zv $DB_HOST 5432 2>&1; then
+            echo "✓ Port 5432 is reachable"
+          else
+            echo "✗ Cannot reach $DB_HOST:5432"
+            exit 1
+          fi
+          
+          # Set passwords
+          export PGPASSWORD=$ROOT_PASS
+          export DB_PASS=$DB_PASS
+          
+          # Test PostgreSQL connection
+          echo "Testing PostgreSQL connection..."
+          if psql -h $DB_HOST -U postgres -d postgres -c "SELECT version();" > /dev/null 2>&1; then
+            echo "✓ PostgreSQL connection successful"
+          else
+            echo "✗ PostgreSQL connection failed"
+            echo "Attempting to get more details..."
+            psql -h $DB_HOST -U postgres -d postgres -c "SELECT version();" || true
+            exit 1
+          fi
+          
+          # Create/Update Role
+          echo "Creating/updating database role..."
+          psql -h $DB_HOST -U postgres -d postgres <<SQL
+          DO \$\$
+          BEGIN
+            IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER') THEN
+              CREATE ROLE $DB_USER WITH LOGIN PASSWORD '$DB_PASS';
+              RAISE NOTICE 'Role $DB_USER created';
+            ELSE
+              ALTER ROLE $DB_USER WITH PASSWORD '$DB_PASS';
+              RAISE NOTICE 'Role $DB_USER updated';
+            END IF;
+          END
+          \$\$;
+          ALTER ROLE $DB_USER CREATEDB;
+          GRANT ALL PRIVILEGES ON DATABASE postgres TO $DB_USER;
+          SQL
+          
+          # Create Database if not exists
+          echo "Checking if database exists..."
+          if ! psql -h $DB_HOST -U postgres -lqt | cut -d \| -f 1 | grep -qw $DB_NAME; then
+            echo "Creating database $DB_NAME..."
+            psql -h $DB_HOST -U postgres -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+            echo "✓ Database created"
+          else
+            echo "✓ Database $DB_NAME already exists"
+          fi
+          
+          # Install Extensions
+          echo "Installing PostgreSQL extensions..."
+          psql -h $DB_HOST -U postgres -d $DB_NAME <<SQL
+          CREATE EXTENSION IF NOT EXISTS cube;
+          CREATE EXTENSION IF NOT EXISTS earthdistance;
+          CREATE EXTENSION IF NOT EXISTS postgis;
+          CREATE EXTENSION IF NOT EXISTS unaccent;
+          SQL
+          echo "✓ Extensions installed"
+          
+          # Download and Restore Backup if provided
+          if [ -n "$BACKUP_FILEID" ]; then
+            echo "Downloading backup from Google Drive..."
+            echo "File ID: $BACKUP_FILEID"
+            
+            if gdown $BACKUP_FILEID -O ${DB_NAME}.zip; then
+              echo "✓ Backup downloaded"
+              
+              if [ -f "${DB_NAME}.zip" ]; then
+                echo "Extracting backup..."
+                unzip -q ${DB_NAME}.zip -d restore_dir
+                echo "✓ Backup extracted"
+                
+                export PGPASSWORD=$DB_PASS
+                
+                # Find dump.sql
+                DUMP_FILE=$(find restore_dir -name "dump.sql" | head -n 1)
+                
+                if [ -n "$DUMP_FILE" ]; then
+                  echo "Restoring database from $DUMP_FILE..."
+                  if psql -h $DB_HOST -U $DB_USER -d $DB_NAME < "$DUMP_FILE"; then
+                    echo "✓ Database restore complete"
+                  else
+                    echo "✗ Database restore failed"
+                    exit 1
+                  fi
+                else
+                  echo "✗ dump.sql not found in zip archive"
+                  echo "Contents of restore_dir:"
+                  find restore_dir -type f
+                  exit 1
+                fi
+              else
+                echo "✗ Zip file not found after download"
+                exit 1
+              fi
+            else
+              echo "✗ Failed to download backup"
+              exit 1
+            fi
+          else
+            echo "ℹ No backup file specified, skipping restore"
+          fi
+          
+          echo "================================================"
+          echo "✓ DB Import Job Completed Successfully"
+          echo "================================================"
+        EOF
         ]
       }
 
