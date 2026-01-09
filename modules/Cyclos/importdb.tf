@@ -13,7 +13,7 @@
 # limitations under the License.
 
 #########################################################################
-# Configurations for db import
+# Configurations for backup import
 #########################################################################
 
 # Create db import script
@@ -23,20 +23,19 @@ resource "local_file" "import_db_script_output" {
   content = templatefile("${path.module}/scripts/app/import_db.tpl", {
     PROJECT_ID          = local.project.project_id
     BACKUP_FILEID       = "${var.application_backup_fileid}"
+    DB_IP               = local.db_internal_ip
     DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
     DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
-    DB_PASSWORD         = random_password.additional_user_password.result
-    DB_INSTANCE         = local.sql_instance_name
+    DB_PASS             = data.google_secret_manager_secret_version.db_password[count.index].secret_data
+    PG_PASS             = local.db_root_password
     APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
     APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
     APP_REGION_2        = length(local.regions) > 1 ? local.regions[1] : ""
-    NFS_IP              = local.nfs_internal_ip
-    NFS_ZONE            = data.google_compute_zones.available_zones.names[0]
   })
 }
 
 #########################################################################
-# Configurations for db import
+# Configurations for backup import
 #########################################################################
 
 # Resource to import db
@@ -114,8 +113,9 @@ resource "null_resource" "import_db" {
   }
 
   depends_on = [
+    data.google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret.db_password,
     local_file.import_db_script_output,
-    time_sleep.db_password,
     null_resource.import_nfs,
   ]
 }
