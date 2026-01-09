@@ -13,34 +13,35 @@
 # limitations under the License.
 
 #########################################################################
-# Configurations for backup import
+# Configurations for db import
 #########################################################################
 
 # Create db import script
 resource "local_file" "import_db_script_output" {
-  count    = local.sql_server_exists ? 1 : 0  
+  count    = local.sql_instance_exists ? 1 : 0  
   filename = "${path.module}/scripts/app/import-db.sh"
   content = templatefile("${path.module}/scripts/app/import_db.tpl", {
     PROJECT_ID          = local.project.project_id
     BACKUP_FILEID       = "${var.application_backup_fileid}"
-    DB_IP               = local.db_internal_ip
     DB_NAME             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
     DB_USER             = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
-    DB_PASS             = data.google_secret_manager_secret_version.db_password[count.index].secret_data
-    PG_PASS             = local.db_root_password
+    DB_PASSWORD         = random_password.additional_user_password.result
+    DB_INSTANCE         = local.sql_instance_name
     APP_NAME            = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
     APP_REGION_1        = length(local.regions) > 0 ? local.regions[0] : ""
     APP_REGION_2        = length(local.regions) > 1 ? local.regions[1] : ""
+    NFS_IP              = local.nfs_internal_ip
+    NFS_ZONE            = data.google_compute_zones.available_zones.names[0]
   })
 }
 
 #########################################################################
-# Configurations for backup import
+# Configurations for db import
 #########################################################################
 
 # Resource to import db
 resource "null_resource" "import_db" {
-  count    = local.sql_server_exists ? 1 : 0  
+  count    = local.sql_instance_exists ? 1 : 0  
     
   # Triggers that cause the resource to be updated/recreated
   triggers = {
@@ -53,13 +54,25 @@ resource "null_resource" "import_db" {
       max_attempts=3
       attempt=0
 
+      # Set impersonation flag if service account is provided
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+      fi
+
       # Loop until the NFS VM instance is in RUNNING status or max attempts reached
       while [ $attempt -lt $max_attempts ]; do
         # Get the instance name using the internal IP address
-        NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(NAME)")
+        NFS_VM=$(gcloud --project ${local.project.project_id} compute instances list \
+          --filter="INTERNAL_IP=${local.nfs_internal_ip}" \
+          --format="value(NAME)" \
+          $IMPERSONATE_FLAG)
                 
         # Check the status of the instance
-        status=$(gcloud --project ${local.project.project_id} compute instances list --filter="INTERNAL_IP=${local.nfs_internal_ip}" --format="value(status)")
+        status=$(gcloud --project ${local.project.project_id} compute instances list \
+          --filter="INTERNAL_IP=${local.nfs_internal_ip}" \
+          --format="value(status)" \
+          $IMPERSONATE_FLAG)
                 
         if [ "$status" = "RUNNING" ]; then
           echo "Instance is running."
@@ -78,23 +91,17 @@ resource "null_resource" "import_db" {
       fi
 
       # Ensure application directory is empty and execute the script
-      for i in {1..5}; do
-        if [ -z "${local.impersonation_service_account}" ]; then 
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-db.sh; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
+      for i in 1 2 3 4 5; do
+        if gcloud compute ssh --project ${local.project.project_id} \
+          --quiet $NFS_VM \
+          --zone ${data.google_compute_zones.available_zones.names[0]} \
+          $IMPERSONATE_FLAG \
+          --command="sudo bash -s" < ${path.module}/scripts/app/import-db.sh; then
+          echo "SSH command succeeded"
+          break
         else
-          if gcloud compute ssh --project ${local.project.project_id} --quiet $NFS_VM --zone ${data.google_compute_zones.available_zones.names[0]} --command="sudo bash -s" < ${path.module}/scripts/app/import-db.sh --impersonate-service-account=${local.impersonation_service_account}; then
-            echo "SSH command succeeded"
-            break
-          else
-            echo "SSH attempt $i failed, retrying in 30 seconds..."
-            sleep 30
-          fi
+          echo "SSH attempt $i failed, retrying in 30 seconds..."
+          sleep 30
         fi
 
         # If the last attempt fails, exit with error
@@ -107,9 +114,8 @@ resource "null_resource" "import_db" {
   }
 
   depends_on = [
-    data.google_secret_manager_secret_version.db_password,
-    google_secret_manager_secret.db_password,
     local_file.import_db_script_output,
+    time_sleep.db_password,
     null_resource.import_nfs,
   ]
 }
