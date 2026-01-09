@@ -131,6 +131,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           \$\$;
           ALTER ROLE $DB_USER CREATEDB;
           GRANT ALL PRIVILEGES ON DATABASE postgres TO $DB_USER;
+          GRANT $DB_USER TO postgres;
 SQL
           
           # Create Database if not exists
