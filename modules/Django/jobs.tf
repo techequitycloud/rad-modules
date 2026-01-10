@@ -114,6 +114,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           END
           \$\$;
           ALTER ROLE "$DB_USER" CREATEDB;
+          GRANT "$DB_USER" TO postgres;
           GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
 SQL
 
