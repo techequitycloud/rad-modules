@@ -208,7 +208,7 @@ resource "google_cloud_run_v2_job" "migrate" {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}${var.tenant_deployment_id}${local.random_id}/${var.application_name}:${var.application_version}"
+        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
         command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
 
         env {
@@ -259,7 +259,7 @@ resource "google_cloud_run_v2_job" "createuser" {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}${var.tenant_deployment_id}${local.random_id}/${var.application_name}:${var.application_version}"
+        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
 
         env {
             name = "DJANGO_SUPERUSER_PASSWORD"

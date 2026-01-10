@@ -97,11 +97,17 @@ resource "null_resource" "update_csrf_origin" {
 
   provisioner "local-exec" {
     command = <<EOF
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+        echo "Using impersonation: ${local.impersonation_service_account}"
+      fi
       URL=$(gcloud run services describe ${google_cloud_run_v2_service.app_service[0].name} --region ${local.region} --project ${local.project.project_id} --format 'value(uri)')
       gcloud run services update ${google_cloud_run_v2_service.app_service[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
-        --set-env-vars CLOUDRUN_SERVICE_URLS=$URL
+        --set-env-vars CLOUDRUN_SERVICE_URLS=$URL \
+        $IMPERSONATE_FLAG
     EOF
   }
   depends_on = [google_cloud_run_v2_service.app_service]
