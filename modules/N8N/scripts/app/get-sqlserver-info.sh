@@ -34,21 +34,13 @@ if [ -n "$INSTANCE_INFO" ] && [ "$INSTANCE_INFO" != "[]" ]; then
     DATABASE_VERSION=$(echo "$INSTANCE_INFO" | jq -r '.[0].databaseVersion // ""')
     PRIVATE_IP=$(echo "$INSTANCE_INFO" | jq -r '.[0].ipAddresses[]? | select(.type == "PRIVATE") | .ipAddress // ""')
 
-    # Try to get root password from secrets
-    if [ -n "$INSTANCE_NAME" ]; then
-        ROOT_PASSWORD=$(gcloud secrets versions access latest --project="${PROJECT_ID}" --secret="${INSTANCE_NAME}-root-password" $SA_ARG 2>/dev/null || echo "")
-    else
-        ROOT_PASSWORD=""
-    fi
-
     # Output with sql_server_exists = true
     echo '{'
     echo '"sql_server_exists": "true",'
     echo '"instance_name": "'"${INSTANCE_NAME}"'",'
     echo '"instance_region": "'"${INSTANCE_REGION}"'",'
     echo '"instance_ip": "'"${PRIVATE_IP}"'",'
-    echo '"database_version": "'"${DATABASE_VERSION}"'",'
-    echo '"root_password": "'"${ROOT_PASSWORD}"'"'
+    echo '"database_version": "'"${DATABASE_VERSION}"'"'
     echo '}'
 else
     # No instances found
@@ -57,7 +49,6 @@ else
     echo '"instance_name": "",'
     echo '"instance_region": "",'
     echo '"instance_ip": "",'
-    echo '"database_version": "",'
-    echo '"root_password": ""'
+    echo '"database_version": ""'
     echo '}'
 fi
