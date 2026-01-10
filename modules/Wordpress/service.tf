@@ -33,7 +33,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}${var.tenant_deployment_id}${local.random_id}/${var.application_name}:${var.application_version}"
+      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
       ports {
         container_port = 80
       }
