@@ -17,7 +17,7 @@
 # ============================================================================
 
 resource "google_cloud_run_v2_job" "import_db_job" {
-  count      = local.sql_server_exists == "true" ? 1 : 0
+  count      = local.sql_server_exists ? 1 : 0
   project    = local.project.project_id
   name       = "import-db-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location   = local.region
@@ -433,7 +433,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
 }
 
 resource "null_resource" "execute_import_db_job" {
-  count = local.sql_server_exists == "true" ? 1 : 0
+  count = local.sql_server_exists ? 1 : 0
 
   triggers = {
     job_id = google_cloud_run_v2_job.import_db_job[0].id
