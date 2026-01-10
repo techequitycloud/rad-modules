@@ -114,22 +114,22 @@ EOF
           # Create User if not exists
           echo "Checking/Creating user $DB_USER..."
           mysql --defaults-file=~/.my.cnf <<EOF
-CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';
-ALTER USER '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';
+CREATE USER IF NOT EXISTS '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
+ALTER USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASS';
 FLUSH PRIVILEGES;
 EOF
           echo "✓ User processed"
 
           # Create Database if not exists
           echo "Checking/Creating database $DB_NAME..."
-          mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
           echo "✓ Database processed"
 
           # Grant Privileges
           echo "Granting privileges..."
           mysql --defaults-file=~/.my.cnf <<EOF
-GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
-GRANT GRANT OPTION ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
+GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
+GRANT GRANT OPTION ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
 FLUSH PRIVILEGES;
 EOF
           echo "✓ Privileges granted"

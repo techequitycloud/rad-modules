@@ -58,12 +58,12 @@ resource "time_sleep" "db_password_sleep" {
 }
 
 # Data source for accessing the latest version of the secret when it's ready
-data "google_secret_manager_secret_version" "db_password_data" {
+data "google_secret_manager_secret_version" "db_password" {
   project  = local.project.project_id
-  provider = google  
+  provider = google
 
   secret   = google_secret_manager_secret.db_password.id
-  version  = "latest"  
+  version  = "latest"
 
   depends_on = [
     time_sleep.db_password_sleep,
