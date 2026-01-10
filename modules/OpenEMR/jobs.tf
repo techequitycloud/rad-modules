@@ -430,6 +430,10 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
       }
     }
   }
+
+  depends_on = [
+    data.google_secret_manager_secret_version.db_password,
+  ]
 }
 
 resource "null_resource" "execute_import_db_job" {

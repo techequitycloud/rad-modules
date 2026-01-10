@@ -22,6 +22,7 @@ resource "local_file" "app_dockerfile" {
   filename       = "${path.module}/scripts/app/dockerfile"
   content        = templatefile("${path.module}/scripts/app/dockerfile.tpl", {
     APP_VERSION  = "${var.application_version}"
+    APP_SHA      = "${var.application_sha}"
   })
 }
 
