@@ -20,17 +20,10 @@
 locals {
   random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
 
-  project = ((length(data.google_project.existing_project) > 0 
-        ? data.google_project.existing_project  
-        : null) 
-  ) 
-
-  # Set impersonation service account based on agent service account availability
-  # Falls back to resource_creator_identity if agent_service_account is not set
-  impersonation_service_account = var.agent_service_account != null && var.agent_service_account != "" ? var.agent_service_account : var.resource_creator_identity
-
-  # Determine if we should use impersonation
-  use_impersonation = local.impersonation_service_account != null && local.impersonation_service_account != ""
+  project = ((length(data.google_project.existing_project) > 0
+        ? data.google_project.existing_project
+        : null)
+  )
 
   region  = tolist(var.availability_regions)[0]
   regions = tolist(var.availability_regions)

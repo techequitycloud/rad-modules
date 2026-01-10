@@ -55,10 +55,10 @@ resource "google_cloud_run_v2_service" "app_service" {
           path = "/healthz"
           port = 5678
         }
-        initial_delay_seconds = 10
-        timeout_seconds       = 3
+        initial_delay_seconds = 20
+        timeout_seconds       = 5
         period_seconds        = 10
-        failure_threshold     = 3
+        failure_threshold     = 10
       }
 
       # Liveness probe - checks if n8n is running

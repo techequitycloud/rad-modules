@@ -56,9 +56,9 @@ resource "google_cloud_run_v2_service" "qdrant_service" {
           path = "/readyz"
           port = 6333
         }
-        initial_delay_seconds = 5
+        initial_delay_seconds = 15
         period_seconds        = 10
-        failure_threshold     = 5
+        failure_threshold     = 10
       }
 
       # Storage Configuration
@@ -157,9 +157,9 @@ resource "google_cloud_run_v2_service" "ollama_service" {
           path = "/"
           port = 11434
         }
-        initial_delay_seconds = 10
+        initial_delay_seconds = 20
         period_seconds        = 10
-        failure_threshold     = 5
+        failure_threshold     = 10
       }
 
       # Storage Configuration
