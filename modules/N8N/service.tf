@@ -211,7 +211,6 @@ resource "google_cloud_run_v2_service" "app_service" {
     null_resource.execute_import_db_job,
     google_secret_manager_secret_version.db_password,
     google_secret_manager_secret_version.encryption_key,
-    google_project_iam_member.cloudsql_client,
     google_storage_bucket.storage,
     google_project_iam_member.storage_admin
   ]
