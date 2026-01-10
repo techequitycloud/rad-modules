@@ -190,7 +190,7 @@ resource "null_resource" "execute_import_db_job" {
 
       # Wait for IAM permissions to propagate
       echo "Waiting for IAM permissions to propagate..."
-      sleep 15
+      sleep 30
 
       # Execute the Cloud Run job
       echo "Starting job execution..."

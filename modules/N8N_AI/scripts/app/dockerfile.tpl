@@ -1,7 +1,5 @@
-FROM n8nio/n8n:latest
+FROM n8nio/n8n:${APP_VERSION}
 
-USER root
-RUN npm install -g n8n
 USER node
 
 CMD ["n8n", "start"]
