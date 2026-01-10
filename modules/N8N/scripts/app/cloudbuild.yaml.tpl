@@ -15,7 +15,7 @@
 # [START cloudbuild_quickstart_build]
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', '${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}', '-f', 'dockerfile', '.']
+  args: ['build', '--pull', '--no-cache', '-t', '${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}', '-f', 'dockerfile', '.']
 - name: 'gcr.io/cloud-builders/docker'
   args: ['tag', '${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}', '${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}']
 - name: 'gcr.io/cloud-builders/docker'
