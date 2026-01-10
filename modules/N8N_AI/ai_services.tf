@@ -22,7 +22,7 @@ resource "google_cloud_run_v2_service" "qdrant_service" {
   name                = "qdrant-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location            = local.region
   deletion_protection = false
-  ingress             = "INGRESS_TRAFFIC_ALL"
+  ingress             = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 
   template {
     service_account       = local.cloud_run_sa_email
@@ -98,7 +98,7 @@ resource "google_cloud_run_v2_service" "qdrant_service" {
 
   depends_on = [
     google_storage_bucket.storage,
-    google_project_iam_member.storage_admin
+    google_storage_bucket_iam_member.storage_admin
   ]
 }
 
@@ -124,7 +124,7 @@ resource "google_cloud_run_v2_service" "ollama_service" {
   name                = "ollama-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location            = local.region
   deletion_protection = false
-  ingress             = "INGRESS_TRAFFIC_ALL"
+  ingress             = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 
   template {
     service_account       = local.cloud_run_sa_email
@@ -201,7 +201,7 @@ resource "google_cloud_run_v2_service" "ollama_service" {
 
   depends_on = [
     google_storage_bucket.storage,
-    google_project_iam_member.storage_admin
+    google_storage_bucket_iam_member.storage_admin
   ]
 }
 

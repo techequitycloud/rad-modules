@@ -56,7 +56,7 @@ resource "google_storage_bucket" "storage" {
 
 resource "google_storage_bucket_iam_member" "storage_admin" {
   bucket = google_storage_bucket.storage.name
-  role   = "roles/storage.admin"
+  role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${local.cloud_run_sa_email}"
 }
 

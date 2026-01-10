@@ -213,7 +213,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     google_secret_manager_secret_version.db_password,
     google_secret_manager_secret_version.encryption_key,
     google_storage_bucket.storage,
-    google_project_iam_member.storage_admin
+    google_storage_bucket_iam_member.storage_admin
   ]
 }
 
@@ -227,11 +227,4 @@ resource "google_cloud_run_service_iam_binding" "app_service" {
   members = [
     "allUsers"
   ]
-}
-
-# IAM binding for GCS bucket access
-resource "google_project_iam_member" "storage_admin" {
-  project = local.project.project_id
-  role    = "roles/storage.objectAdmin"
-  member  = "serviceAccount:${local.cloud_run_sa_email}"
 }

@@ -14,7 +14,7 @@
 
 # Configure alert policy for compute engine instances
 resource "google_monitoring_alert_policy" "alert_policy" {
-  count   = var.configure_monitoring ? 1 : 0  # Updated count condition
+  count   = var.configure_monitoring && local.sql_server_exists ? 1 : 0  # Updated count condition
   project = local.project.project_id
   display_name = "app${var.application_name}-cpu-utilization-alert-policy-${var.tenant_deployment_id}-${local.random_id}"
   documentation {
@@ -50,7 +50,7 @@ resource "google_monitoring_alert_policy" "alert_policy" {
 
 # Configuration for a notification channel in Google Cloud Monitoring.
 resource "google_monitoring_notification_channel" "email" {
-  count   = var.configure_monitoring ? 1 : 0  # Updated count condition
+  count   = var.configure_monitoring && local.sql_server_exists ? 1 : 0  # Updated count condition
   # Specifies the project in which the notification channel is created.
   project = local.project.project_id
   # Human-readable name for the notification channel.
@@ -70,7 +70,7 @@ resource "google_monitoring_notification_channel" "email" {
 #########################################################################
 # Define a service for Cloud Run to be monitored.
 resource "google_monitoring_service" "cloud_run" {
-  count =  (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
+  count =  (var.configure_monitoring && var.configure_environment && local.sql_server_exists) ? length(local.regions) : 0
   service_id   = "app${var.application_name}-monitoring-service-${var.tenant_deployment_id}-${local.random_id}-${local.regions[count.index]}"
   display_name = "app${var.application_name}-monitoring-service-${var.tenant_deployment_id}-${local.random_id}"
   project      = local.project.project_id
@@ -95,7 +95,7 @@ resource "google_monitoring_service" "cloud_run" {
 
 # Define a Service Level Objective (SLO) for Cloud Run service latency.
 resource "google_monitoring_slo" "latency_slo" {
-  count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
+  count = (var.configure_monitoring && var.configure_environment && local.sql_server_exists) ? length(local.regions) : 0
   service      = google_monitoring_service.cloud_run[count.index].service_id
   slo_id       = "app${var.application_name}-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
   display_name = "app${var.application_name}-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
@@ -121,7 +121,7 @@ resource "google_monitoring_slo" "latency_slo" {
 
 # Define a Service Level Objective (SLO) for Cloud Run service availability.
 resource "google_monitoring_slo" "availability_slo" {
-  count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
+  count = (var.configure_monitoring && var.configure_environment && local.sql_server_exists) ? length(local.regions) : 0
   service      = google_monitoring_service.cloud_run[count.index].service_id
   slo_id       = "app${var.application_name}-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
   display_name = "app${var.application_name}-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
@@ -144,7 +144,7 @@ resource "google_monitoring_slo" "availability_slo" {
 
 # Define an uptime check configuration for monitoring service availability.
 resource "google_monitoring_uptime_check_config" "https" {
-  count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
+  count = (var.configure_monitoring && var.configure_environment && local.sql_server_exists) ? length(local.regions) : 0
   project = local.project.project_id
   display_name = "app${var.application_name}-uptime-check-config-${var.tenant_deployment_id}-${local.random_id}"
   timeout = "60s"

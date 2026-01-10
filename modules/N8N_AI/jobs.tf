@@ -25,7 +25,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
 
   template {
     template {
-      service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+      service_account = local.cloud_run_sa_email
       max_retries     = 0
       timeout         = "600s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"

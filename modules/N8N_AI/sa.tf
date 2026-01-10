@@ -73,11 +73,3 @@ locals {
   project_sa_id           = "projects/${local.project.project_id}/serviceAccounts/project-sa@${local.project.project_id}.iam.gserviceaccount.com"
 }
 
-########################################################################################
-# HMAC Key for Cloud Run Service Account (used by n8n)
-########################################################################################
-
-resource "google_storage_hmac_key" "n8n_key" {
-  service_account_email = local.cloud_run_sa_email
-  project               = local.project.project_id
-}
