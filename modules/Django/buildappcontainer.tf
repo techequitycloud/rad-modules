@@ -19,8 +19,8 @@
 # Resource for creating a Dockerfile from a template, which will be used to build the application's container image.
 resource "local_file" "app_dockerfile" {
   count          = var.configure_environment ? 1 : 0
-  filename       = "${path.module}/scripts/app/Dockerfile"
-  content        = templatefile("${path.module}/scripts/app/Dockerfile.tpl", {
+  filename       = "${path.module}/scripts/app/dockerfile"
+  content        = templatefile("${path.module}/scripts/app/dockerfile.tpl", {
     APP_VERSION  = "${var.application_version}"
   })
 }
