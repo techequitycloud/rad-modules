@@ -19,7 +19,7 @@
 # IAM member resource to grant the service account access to the secret in Secret Manager
 resource "google_secret_manager_secret_iam_member" "db_password" {
   project   = local.project.project_id
-  secret_id = google_secret_manager_secret.db_password.secret_id
+  secret_id = google_secret_manager_secret.db_password[0].secret_id 
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
 
