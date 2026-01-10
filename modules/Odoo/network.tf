@@ -114,5 +114,10 @@ locals {
   subnet_names   = try(jsondecode(data.external.check_network.result.subnet_names), [])
   subnet_cidrs   = try(jsondecode(data.external.check_network.result.subnet_cidrs), [])
   subnet_details = try(jsondecode(data.external.check_network.result.subnet_details), [])
+
+  # Map of region to subnet name
+  subnet_map = {
+    for subnet in local.subnet_details : subnet.region => subnet.name
+  }
 }
 
