@@ -48,7 +48,12 @@ resource "google_cloud_run_v2_job" "import_db_job" {
 
         env {
           name = "ROOT_PASS"
-          value = local.db_root_password
+          value_source {
+            secret_key_ref {
+              secret = "${local.db_instance_name}-root-password"
+              version = "latest"
+            }
+          }
         }
 
         env {

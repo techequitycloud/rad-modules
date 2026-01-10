@@ -125,18 +125,40 @@ resource "google_cloud_run_v2_service" "app_service" {
         value = "true"
       }
 
-      # Storage Configuration - Filesystem mode with GCS FUSE
-      env {
-        name  = "N8N_AVAILABLE_BINARY_DATA_MODES"
-        value = "filesystem"
-      }
+      # Storage Configuration - S3 mode with GCS
       env {
         name  = "N8N_DEFAULT_BINARY_DATA_MODE"
-        value = "filesystem"
+        value = "s3"
       }
       env {
-        name  = "N8N_BINARY_DATA_STORAGE_PATH"
-        value = "/files"
+        name  = "N8N_S3_ENDPOINT"
+        value = "https://storage.googleapis.com"
+      }
+      env {
+        name  = "N8N_S3_BUCKET_NAME"
+        value = google_storage_bucket.storage.name
+      }
+      env {
+        name  = "N8N_S3_REGION"
+        value = local.region
+      }
+      env {
+        name = "N8N_S3_ACCESS_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.storage_access_key.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "N8N_S3_ACCESS_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.storage_secret_key.secret_id
+            version = "latest"
+          }
+        }
       }
 
       # Secrets
@@ -165,11 +187,6 @@ resource "google_cloud_run_v2_service" "app_service" {
         name       = "cloudsql"
         mount_path = "/cloudsql"
       }
-      
-      volume_mounts {
-        name       = "gcs-data"
-        mount_path = "/files"
-      }
     }
 
     vpc_access {
@@ -191,14 +208,6 @@ resource "google_cloud_run_v2_service" "app_service" {
         instances = ["${local.project.project_id}:${local.region}:${local.db_instance_name}"]
       }
     }
-
-    volumes {
-      name = "gcs-data"
-      gcs {
-        bucket    = google_storage_bucket.storage.name
-        read_only = false
-      }
-    }
   }
 
   traffic {
@@ -212,7 +221,9 @@ resource "google_cloud_run_v2_service" "app_service" {
     google_secret_manager_secret_version.db_password,
     google_secret_manager_secret_version.encryption_key,
     google_storage_bucket.storage,
-    google_project_iam_member.storage_admin
+    google_project_iam_member.storage_admin,
+    google_secret_manager_secret_version.storage_access_key,
+    google_secret_manager_secret_version.storage_secret_key
   ]
 }
 
