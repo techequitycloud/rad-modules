@@ -150,11 +150,10 @@ resource "google_cloud_run_v2_service" "app_service" {
     null_resource.execute_import_db_job,
     null_resource.execute_nfs_setup_job, # Updated to use the new job
     null_resource.build_and_push_application_image,
-    google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret_iam_member.db_password,
     google_cloud_run_v2_job.init_db_job,
   ]
 }
-
 resource "google_cloud_run_service_iam_binding" "app" {
   for_each = var.configure_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
 
