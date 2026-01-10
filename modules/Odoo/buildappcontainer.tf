@@ -16,7 +16,7 @@
 # Create config files
 #########################################################################
 
-# Resource for creating a Dockerfile from a template, which will be used to build the application's container image.
+# Resource for creating a dockerfile from a template, which will be used to build the application's container image.
 resource "local_file" "app_dockerfile" {
   count          = var.configure_environment ? 1 : 0
   filename       = "${path.module}/scripts/app/dockerfile"
@@ -51,7 +51,7 @@ resource "null_resource" "build_and_push_application_image" {
   # Trigger based on the hash of the build-container.sh script
   triggers = {
     script_hash     = filesha256("${path.module}/scripts/app/build-container.sh")
-    dockerfile_hash = filesha256("${path.module}/scripts/app/Dockerfile.tpl")
+    dockerfile_hash = filesha256("${path.module}/scripts/app/dockerfile.tpl")
   }
   
   # Provisioner to execute a local script that builds and pushes the container image
