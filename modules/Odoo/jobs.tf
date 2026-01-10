@@ -303,7 +303,6 @@ resource "google_cloud_run_v2_job" "init_db_job" {
   depends_on = [
     null_resource.build_and_push_application_image,
     google_project_iam_member.secret_accessor,
-    google_project_iam_member.cloudsql_client,
     null_resource.execute_import_db_job, # Ensure DB is created first
     null_resource.execute_nfs_setup_job  # Ensure NFS is ready
   ]
