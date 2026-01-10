@@ -74,7 +74,7 @@ resource "google_cloud_run_v2_service" "app_service" {
   depends_on = [
     null_resource.build_and_push_application_image,
     google_secret_manager_secret_version.application_settings,
-    google_project_iam_member.secret_accessor,
+    google_project_iam_member.db_password,
     google_project_iam_member.cloudsql_client,
     google_storage_bucket.storage,
   ]
