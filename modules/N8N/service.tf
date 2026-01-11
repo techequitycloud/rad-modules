@@ -52,7 +52,7 @@ resource "google_cloud_run_v2_service" "app_service" {
       # Startup probe - gives n8n time to initialize
       startup_probe {
         http_get {
-          path = "/healthz"
+          path = "/"  # ✅ Changed from /healthz to /
           port = 5678
         }
         initial_delay_seconds = 10
@@ -64,7 +64,7 @@ resource "google_cloud_run_v2_service" "app_service" {
       # Liveness probe - checks if n8n is running
       liveness_probe {
         http_get {
-          path = "/healthz"
+          path = "/"  # ✅ Changed from /healthz to /
           port = 5678
         }
         initial_delay_seconds = 30
@@ -216,6 +216,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     percent = 100
   }
 
+  # ✅ Fixed dependencies
   depends_on = [
     null_resource.execute_import_db_job,
     google_secret_manager_secret_version.db_password,
@@ -223,7 +224,9 @@ resource "google_cloud_run_v2_service" "app_service" {
     google_storage_bucket.storage,
     google_project_iam_member.storage_admin,
     google_secret_manager_secret_version.storage_access_key,
-    google_secret_manager_secret_version.storage_secret_key
+    google_secret_manager_secret.storage_secret_key,  # ✅ Changed to secret (not version)
+    google_storage_hmac_key.n8n_key,                  # ✅ Added HMAC key dependency
+    null_resource.cleanup_hmac_keys                    # ✅ Added cleanup dependency
   ]
 }
 
