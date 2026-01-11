@@ -22,7 +22,7 @@ resource "google_cloud_run_v2_service" "app_service" {
   ingress             = "INGRESS_TRAFFIC_ALL"
 
   template {
-    service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+    service_account = local.cloud_run_sa_email
     session_affinity = true
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
     timeout = "300s"
