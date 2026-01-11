@@ -61,8 +61,12 @@ RUN echo 'deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main' > /etc/a
     && gpg --batch --armor --export "$repokey" > /etc/apt/trusted.gpg.d/pgdg.gpg.asc \
     && gpgconf --kill all \
     && rm -rf "$GNUPGHOME" \
-    && apt-get update  \
-    && apt-get install --no-install-recommends -y postgresql-client-16 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean \
+    && (apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=120 --allow-releaseinfo-change || \
+        (sleep 5 && apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=120 --allow-releaseinfo-change) || \
+        (sleep 10 && apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=120 --allow-releaseinfo-change)) \
+    && apt-get install --no-install-recommends -y -o Acquire::Retries=3 postgresql-client-16 \
     && rm -f /etc/apt/sources.list.d/pgdg.list \
     && rm -rf /var/lib/apt/lists/*
 
@@ -127,7 +131,7 @@ ENV ODOO_RC /etc/odoo/odoo.conf
 COPY wait-for-psql.py /usr/local/bin/wait-for-psql.py
 
 # Set default user when running the container
-# USER odoo
+USER odoo
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/cloudrun-entrypoint.sh"]
 CMD /entrypoint.sh odoo

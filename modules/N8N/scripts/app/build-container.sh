@@ -24,6 +24,7 @@ else
     SA_ARG=""
 fi
 
+<<<<<<< HEAD
 MAX_ATTEMPTS=4
 ATTEMPT=1
 
@@ -49,4 +50,30 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
 done
 
 echo "❌ Build failed after $MAX_ATTEMPTS attempts. Exiting."
+=======
+# Attempt to submit the build with exponential backoff
+MAX_RETRIES=3
+RETRY_COUNT=0
+RETRY_DELAY=30
+
+while [ $RETRY_COUNT -le $MAX_RETRIES ]; do
+    if [ $RETRY_COUNT -eq 0 ]; then
+        echo "Attempting build (attempt 1)..."
+    else
+        echo "Build failed. Retrying in ${RETRY_DELAY} seconds (attempt $((RETRY_COUNT + 1))/$((MAX_RETRIES + 1)))..."
+        sleep $RETRY_DELAY
+        # Exponential backoff: double the delay for next retry
+        RETRY_DELAY=$((RETRY_DELAY * 2))
+    fi
+
+    if gcloud --project="${PROJECT_ID}" builds submit . --config cloudbuild.yaml $SA_ARG; then
+        echo "Build completed successfully!"
+        exit 0
+    fi
+
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+done
+
+echo "Build failed after $((MAX_RETRIES + 1)) attempts. Exiting."
+>>>>>>> 9bf274be24057c716e4a3512800489f8c2ff8686
 exit 1

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 steps:
+<<<<<<< HEAD
 # Build with Kaniko (more reliable than Docker in Cloud Build)
 - name: 'gcr.io/kaniko-project/executor:latest'
   args:
@@ -24,6 +25,14 @@ steps:
     - '--cache-ttl=24h'
   timeout: '1800s'
 
+=======
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '--pull', '--no-cache', '-t', '${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}', '-f', 'dockerfile', '.']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['tag', '${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}', '${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', '${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}']
+>>>>>>> 9bf274be24057c716e4a3512800489f8c2ff8686
 serviceAccount: 'projects/${PROJECT_ID}/serviceAccounts/cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com'
 
 options:

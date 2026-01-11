@@ -58,7 +58,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
       vpc_access {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
         }
         egress = "PRIVATE_RANGES_ONLY"
       }
@@ -167,7 +167,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
       vpc_access {
         network_interfaces {
           network = "projects/${local.project.project_id}/global/networks/${var.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
         }
         egress = "PRIVATE_RANGES_ONLY"
       }
@@ -293,7 +293,7 @@ resource "google_cloud_run_v2_job" "init_db_job" {
       vpc_access {
         network_interfaces {
           network = "projects/${local.project.project_id}/global/networks/${var.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
         }
         egress = "PRIVATE_RANGES_ONLY"
       }

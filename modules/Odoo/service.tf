@@ -13,7 +13,7 @@
 # limitations under the License.
 
 resource "google_cloud_run_v2_service" "app_service" {
-  for_each            = var.configure_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
+  for_each            = (var.configure_environment && local.nfs_server_exists && local.sql_server_exists) ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
 
   project             = local.project.project_id
   name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
@@ -106,7 +106,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     vpc_access {
       network_interfaces {
         network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
-        subnetwork = "projects/${local.project.project_id}/regions/${each.key}/subnetworks/gce-vpc-subnet-${each.key}"
+        subnetwork = "projects/${local.project.project_id}/regions/${each.key}/subnetworks/${local.subnet_map[each.key]}"
         tags = ["nfsserver"]
       }
       egress = "PRIVATE_RANGES_ONLY"
@@ -155,7 +155,7 @@ resource "google_cloud_run_v2_service" "app_service" {
   ]
 }
 resource "google_cloud_run_service_iam_binding" "app" {
-  for_each = var.configure_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
+  for_each = (var.configure_environment && local.nfs_server_exists && local.sql_server_exists) ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
 
   project  = local.project.project_id  
   location = google_cloud_run_v2_service.app_service[each.key].location  # Access location using each.key
