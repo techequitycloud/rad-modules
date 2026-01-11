@@ -121,14 +121,27 @@ resource "google_secret_manager_secret" "storage_secret_key" {
   }
 }
 
-# Only create secret version if we have a new HMAC key with secret
-resource "google_secret_manager_secret_version" "storage_secret_key" {
-  count = local.n8n_hmac_secret != "" ? 1 : 0
+#########################################################################
+# HMAC Secret Version - Always create with appropriate value
+#########################################################################
 
-  secret      = google_secret_manager_secret.storage_secret_key.id
-  secret_data = local.n8n_hmac_secret
+# Generate a placeholder secret for cases where HMAC key already exists
+resource "random_password" "hmac_placeholder" {
+  length  = 40
+  special = false
+}
+
+# Always create secret version, but use placeholder if no real secret available
+resource "google_secret_manager_secret_version" "storage_secret_key" {
+  secret = google_secret_manager_secret.storage_secret_key.id
+  
+  # Use actual secret if available, otherwise use placeholder
+  secret_data = length(google_storage_hmac_key.n8n_key) > 0 ? (
+    google_storage_hmac_key.n8n_key[0].secret
+  ) : random_password.hmac_placeholder.result
 
   lifecycle {
+    # Ignore changes to prevent overwriting with placeholder on subsequent runs
     ignore_changes = [secret_data]
   }
 
@@ -139,70 +152,43 @@ resource "google_secret_manager_secret_version" "storage_secret_key" {
 }
 
 #########################################################################
-# Handle existing HMAC key scenario
+# Warning output for placeholder usage
 #########################################################################
 
-# If using existing HMAC key, try to preserve existing secret
-data "google_secret_manager_secret_version" "existing_storage_secret" {
-  count = local.hmac_secret_in_secret_manager ? 1 : 0
-
-  project = local.project.project_id
-  secret  = google_secret_manager_secret.storage_secret_key.id
-  version = "latest"
-
-  depends_on = [
-    google_secret_manager_secret.storage_secret_key
-  ]
-}
-
-# Create a placeholder secret version if using existing key and no secret exists
-resource "null_resource" "storage_secret_placeholder" {
-  count = local.hmac_secret_in_secret_manager ? 1 : 0
+resource "null_resource" "hmac_secret_warning" {
+  # Only warn if we're using a placeholder (no new HMAC key created)
+  count = length(google_storage_hmac_key.n8n_key) == 0 ? 1 : 0
 
   provisioner "local-exec" {
     command = <<-EOT
-      #!/bin/bash
-      
-      PROJECT_ID="${local.project.project_id}"
-      SECRET_ID="n8n-storage-secret-key-${var.tenant_deployment_id}-${local.random_id}"
-      
-      # Check if secret version exists
-      if ! gcloud secrets versions list "$SECRET_ID" --project="$PROJECT_ID" --limit=1 2>/dev/null | grep -q "ENABLED"; then
-        echo "⚠️  WARNING: No secret version exists for HMAC secret key"
-        echo "Creating placeholder - YOU MUST UPDATE THIS MANUALLY"
-        
-        # Create placeholder
-        echo "PLACEHOLDER_UPDATE_MANUALLY" | gcloud secrets versions add "$SECRET_ID" \
-          --project="$PROJECT_ID" \
-          --data-file=- 2>/dev/null || true
-        
-        echo ""
-        echo "=========================================="
-        echo "⚠️  ACTION REQUIRED ⚠️"
-        echo "=========================================="
-        echo ""
-        echo "The HMAC secret key is not available."
-        echo "A placeholder has been created."
-        echo ""
-        echo "To fix this, you must:"
-        echo "1. Delete the existing HMAC key:"
-        echo "   gcloud storage hmac delete ${local.active_key_id} --project=$PROJECT_ID"
-        echo ""
-        echo "2. Run terraform apply again to create a new key with secret"
-        echo ""
-      else
-        echo "✅ Secret version already exists, using existing value"
-      fi
+      echo ""
+      echo "⚠️  =========================================="
+      echo "⚠️  WARNING: Using Existing HMAC Key"
+      echo "⚠️  =========================================="
+      echo ""
+      echo "A placeholder secret has been created because an existing"
+      echo "HMAC key is being reused (secret not available)."
+      echo ""
+      echo "If n8n fails to access storage, you need to:"
+      echo "  1. Retrieve the actual HMAC secret from previous deployment"
+      echo "  2. Update the secret manually:"
+      echo "     echo 'YOUR_ACTUAL_SECRET' | gcloud secrets versions add \\"
+      echo "       n8n-storage-secret-key-${var.tenant_deployment_id}-${local.random_id} \\"
+      echo "       --project=${local.project.project_id} --data-file=-"
+      echo ""
+      echo "OR delete the HMAC key and redeploy:"
+      echo "  1. List keys: gcloud storage hmac list --project=${local.project.project_id}"
+      echo "  2. Delete key: gcloud storage hmac delete KEY_ID --project=${local.project.project_id}"
+      echo "  3. Run: terraform apply"
+      echo ""
     EOT
-    
-    interpreter = ["bash", "-c"]
   }
 
   triggers = {
-    secret_id = google_secret_manager_secret.storage_secret_key.id
+    always_run = timestamp()
   }
 
   depends_on = [
-    google_secret_manager_secret.storage_secret_key
+    google_secret_manager_secret_version.storage_secret_key
   ]
 }
