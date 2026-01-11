@@ -13,16 +13,16 @@
 # limitations under the License.
 
 resource "google_cloud_run_v2_service" "app_service" {
-  for_each            = (var.configure_environment && local.nfs_server_exists && local.sql_server_exists) ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
+  count               = (var.configure_environment && local.nfs_server_exists && local.sql_server_exists) ? 1 : 0
 
   project             = local.project.project_id
   name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
-  location            = each.key
+  location            = local.region
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
 
   template {
-    service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+    service_account = local.cloud_run_sa_email
     session_affinity = true
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
     timeout = "300s"
@@ -106,7 +106,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     vpc_access {
       network_interfaces {
         network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
-        subnetwork = "projects/${local.project.project_id}/regions/${each.key}/subnetworks/${local.subnet_map[each.key]}"
+        subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
         tags = ["nfsserver"]
       }
       egress = "PRIVATE_RANGES_ONLY"
@@ -149,17 +149,18 @@ resource "google_cloud_run_v2_service" "app_service" {
   depends_on = [
     null_resource.execute_import_db_job,
     null_resource.execute_nfs_setup_job, # Updated to use the new job
+    null_resource.execute_init_db_job, # Added DB init job execution dependency
     null_resource.build_and_push_application_image,
     google_secret_manager_secret_iam_member.db_password,
     google_cloud_run_v2_job.init_db_job,
   ]
 }
 resource "google_cloud_run_service_iam_binding" "app" {
-  for_each = (var.configure_environment && local.nfs_server_exists && local.sql_server_exists) ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
+  count    = (var.configure_environment && local.nfs_server_exists && local.sql_server_exists) ? 1 : 0
 
   project  = local.project.project_id  
-  location = google_cloud_run_v2_service.app_service[each.key].location  # Access location using each.key
-  service  = google_cloud_run_v2_service.app_service[each.key].name      # Access service name using each.key
+  location = local.region
+  service  = google_cloud_run_v2_service.app_service[0].name
   role     = "roles/run.invoker"
   members  = [
     "allUsers"

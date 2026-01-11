@@ -21,7 +21,7 @@ resource "google_secret_manager_secret_iam_member" "db_password" {
   project   = local.project.project_id
   secret_id = google_secret_manager_secret.db_password.secret_id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+  member    = "serviceAccount:${local.cloud_run_sa_email}"
 
   # Dependency to ensure the secret exists before this resource is created
   depends_on = [
