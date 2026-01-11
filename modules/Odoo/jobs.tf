@@ -223,52 +223,6 @@ resource "null_resource" "execute_import_db_job" {
 }
 
 # ============================================================================
-# Verify Application Image Exists
-# ============================================================================
-
-resource "null_resource" "verify_application_image" {
-  count = local.sql_server_exists ? 1 : 0
-
-  triggers = {
-    image_name = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
-  }
-
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command     = <<EOT
-      echo "Verifying Docker image exists..."
-      
-      IMAGE="${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
-      
-      IMPERSONATE_FLAG=""
-      if [ -n "${local.impersonation_service_account}" ]; then
-        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
-      fi
-      
-      # Wait up to 10 minutes for the image
-      for i in {1..60}; do
-        if gcloud artifacts docker images describe "$IMAGE" \
-           --project=${local.project.project_id} \
-           $IMPERSONATE_FLAG > /dev/null 2>&1; then
-          echo "✓ Image is available: $IMAGE"
-          exit 0
-        fi
-        echo "Waiting for image... ($i/60)"
-        sleep 10
-      done
-      
-      echo "✗ Image not found after 10 minutes: $IMAGE"
-      exit 1
-    EOT
-  }
-
-  depends_on = [
-    null_resource.build_and_push_application_image,
-    google_artifact_registry_repository.application_image
-  ]
-}
-
-# ============================================================================
 # Init Odoo DB Job (Installs base modules)
 # ============================================================================
 
@@ -366,7 +320,6 @@ resource "google_cloud_run_v2_job" "init_db_job" {
   }
 
   depends_on = [
-    null_resource.verify_application_image,              # ← Wait for image verification
     null_resource.build_and_push_application_image,
     google_artifact_registry_repository.application_image,
     google_secret_manager_secret_iam_member.db_password,
