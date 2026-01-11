@@ -125,10 +125,10 @@ resource "google_cloud_run_v2_service" "app_service" {
         value = "true"
       }
 
-      # Storage Configuration - S3 mode with GCS
+      # Storage Configuration - Filesystem mode (S3 requires license)
       env {
         name  = "N8N_DEFAULT_BINARY_DATA_MODE"
-        value = "s3"
+        value = "filesystem"
       }
       env {
         name  = "N8N_S3_ENDPOINT"
