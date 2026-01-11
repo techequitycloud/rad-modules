@@ -144,8 +144,5 @@ COPY wait-for-psql.py /usr/local/bin/wait-for-psql.py
 # Set default user when running the container
 USER odoo
 
-# Set umask for world-writable files
-RUN echo 'umask 0000' >> /home/odoo/.bashrc
-
-ENTRYPOINT ["/bin/sh", "-c", "umask 0000 && exec /usr/bin/tini -- /cloudrun-entrypoint.sh \"$@\"", "--"]
-CMD ["/entrypoint.sh", "odoo"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/cloudrun-entrypoint.sh"]
+CMD /entrypoint.sh odoo
