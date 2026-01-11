@@ -37,7 +37,7 @@ steps:
     }
     
     log "🧹 Cleaning workspace..."
-    rm -rfv /workspace/* 2>/dev/null || log "Workspace already clean"
+    rm -rfv /workspace/modules/${_MODULE_NAME} 2>/dev/null || log "Workspace already clean"
     
     # Create module directory structure
     mkdir -p /workspace/modules/${_MODULE_NAME}
