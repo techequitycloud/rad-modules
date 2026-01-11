@@ -9,8 +9,12 @@ ENV LANG en_US.UTF-8
 # Retrieve the target architecture to install the correct wkhtmltopdf package
 ARG TARGETARCH
 
-# Install some deps, lessc and less-plugin-clean-css, and wkhtmltopdf
+# Odoo version arguments
+ARG APP_VERSION=18.0
+ARG APP_RELEASE=20251008
+ARG APP_SHA=c15a8eb3791e805b9cd3078f2dd4e0d78130b1c2
 
+# Install some deps, lessc and less-plugin-clean-css, and wkhtmltopdf
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
     apt-get install -y --no-install-recommends \
@@ -109,12 +113,17 @@ COPY ./cloudrun-entrypoint.sh /
 RUN chmod +x /cloudrun-entrypoint.sh
 COPY ./odoo.conf /etc/odoo/
 
-# Set permissions and Mount /var/lib/odoo to allow restoring filestore and /mnt/extra-addons for users addons
+# ✅ FIXED: Set permissions and create all required directories
 RUN chown -R odoo:odoo /etc/odoo \
     && chmod 755 /etc/odoo \
     && chmod 644 /etc/odoo/odoo.conf \
-    && mkdir -p /mnt \
-    && chown -R odoo /mnt
+    && mkdir -p /mnt/filestore \
+    && mkdir -p /mnt/sessions \
+    && mkdir -p /var/lib/odoo \
+    && chown -R odoo:odoo /mnt \
+    && chown -R odoo:odoo /var/lib/odoo \
+    && chmod 755 /mnt/filestore \
+    && chmod 755 /mnt/sessions
 
 # Create addon directory
 RUN mkdir /extra-addons \
