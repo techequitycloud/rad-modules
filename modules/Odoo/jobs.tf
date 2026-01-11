@@ -70,7 +70,8 @@ resource "null_resource" "execute_nfs_setup_job" {
   count = local.nfs_server_exists ? 1 : 0
 
   triggers = {
-    job_id = google_cloud_run_v2_job.nfs_setup_job[0].id
+    script_hash = filesha256("${path.module}/scripts/app/nfs_setup_job.sh")
+    dir_name    = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
   }
 
   provisioner "local-exec" {
@@ -184,7 +185,8 @@ resource "null_resource" "execute_import_db_job" {
   count = local.sql_server_exists ? 1 : 0
 
   triggers = {
-    job_id = google_cloud_run_v2_job.import_db_job[0].id
+    script_hash = filesha256("${path.module}/scripts/app/import_db_job.sh")
+    db_name     = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
   }
 
   provisioner "local-exec" {
@@ -332,7 +334,9 @@ resource "null_resource" "execute_init_db_job" {
   count = local.sql_server_exists ? 1 : 0
 
   triggers = {
-    job_id = google_cloud_run_v2_job.init_db_job[0].id
+    script_hash   = filesha256("${path.module}/scripts/app/init_odoo_db.sh")
+    image_version = var.application_version
+    db_name       = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
   }
 
   provisioner "local-exec" {
