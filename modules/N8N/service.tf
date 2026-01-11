@@ -224,9 +224,14 @@ resource "google_cloud_run_v2_service" "app_service" {
     google_storage_bucket.storage,
     google_project_iam_member.storage_admin,
     google_secret_manager_secret_version.storage_access_key,
-    google_secret_manager_secret.storage_secret_key,  # ✅ Changed to secret (not version)
-    google_storage_hmac_key.n8n_key,                  # ✅ Added HMAC key dependency
-    null_resource.cleanup_hmac_keys                    # ✅ Added cleanup dependency
+    google_secret_manager_secret_version.storage_secret_key,
+    google_storage_hmac_key.n8n_key,
+    null_resource.cleanup_hmac_keys,
+    google_secret_manager_secret_iam_member.db_password,
+    google_secret_manager_secret_iam_member.storage_access_key,
+    google_secret_manager_secret_iam_member.storage_secret_key,
+    google_secret_manager_secret_iam_member.encryption_key,
+    google_storage_bucket_iam_member.storage_admin
   ]
 }
 

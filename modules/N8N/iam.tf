@@ -18,14 +18,51 @@
 
 # IAM member resource to grant the service account access to the secret in Secret Manager
 resource "google_secret_manager_secret_iam_member" "db_password" {
+  count     = local.sql_server_exists ? 1 : 0
   project   = local.project.project_id
-  secret_id = google_secret_manager_secret.db_password[0].secret_id 
+  secret_id = google_secret_manager_secret.db_password[0].secret_id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+  member    = "serviceAccount:${local.cloud_run_sa_email}"
 
   # Dependency to ensure the secret exists before this resource is created
   depends_on = [
     google_secret_manager_secret.db_password,
+  ]
+}
+
+# IAM member resource to grant the service account access to storage access key secret
+resource "google_secret_manager_secret_iam_member" "storage_access_key" {
+  project   = local.project.project_id
+  secret_id = google_secret_manager_secret.storage_access_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.cloud_run_sa_email}"
+
+  depends_on = [
+    google_secret_manager_secret.storage_access_key,
+  ]
+}
+
+# IAM member resource to grant the service account access to storage secret key secret
+resource "google_secret_manager_secret_iam_member" "storage_secret_key" {
+  project   = local.project.project_id
+  secret_id = google_secret_manager_secret.storage_secret_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.cloud_run_sa_email}"
+
+  depends_on = [
+    google_secret_manager_secret.storage_secret_key,
+  ]
+}
+
+# IAM member resource to grant the service account access to encryption key secret
+resource "google_secret_manager_secret_iam_member" "encryption_key" {
+  project   = local.project.project_id
+  secret_id = google_secret_manager_secret.encryption_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.cloud_run_sa_email}"
+
+  depends_on = [
+    google_secret_manager_secret.encryption_key,
   ]
 }
 
