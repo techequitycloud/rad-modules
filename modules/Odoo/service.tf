@@ -33,6 +33,7 @@ resource "google_cloud_run_v2_service" "app_service" {
 
     containers {
       image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+      
       ports {
         container_port = 80
       }
@@ -46,15 +47,17 @@ resource "google_cloud_run_v2_service" "app_service" {
         }
       }
 
+      # ← UPDATED: More generous startup probe settings
       startup_probe {
-        initial_delay_seconds = 120
-        timeout_seconds       = 60
-        period_seconds        = 120
-        failure_threshold     = 1
+        initial_delay_seconds = 180    # Wait 3 minutes before first check (was 120)
+        timeout_seconds       = 60     # Each probe times out after 60s
+        period_seconds        = 120    # Check every 2 minutes
+        failure_threshold     = 3      # Allow 3 failures (was 1)
         tcp_socket {
           port = 80
         }
       }
+      # Maximum startup time: 180 + (120 × 3) + 60 = 600 seconds (10 minutes)
 
       liveness_probe {
         initial_delay_seconds = 120
@@ -117,13 +120,15 @@ resource "google_cloud_run_v2_service" "app_service" {
       max_instance_count = 3
     }
 
-    volumes {
-      name = "cloudsql"
-      cloud_sql_instance {
-        instances = ["${local.project.project_id}:${local.region}:${local.db_instance_name}"]
-      }
-    }
+    # ← REMOVED: CloudSQL volume (not needed for direct IP connection)
+    # volumes {
+    #   name = "cloudsql"
+    #   cloud_sql_instance {
+    #     instances = ["${local.project.project_id}:${local.region}:${local.db_instance_name}"]
+    #   }
+    # }
 
+    # ← UPDATED: Added mount options for GCS FUSE
     volumes {
       name = "gcs-data-volume"
       gcs {
@@ -131,13 +136,12 @@ resource "google_cloud_run_v2_service" "app_service" {
         mount_options = [
           "uid=103",                    # Odoo user ID
           "gid=101",                    # Odoo group ID
-          "dir-mode=755",               # rwxr-xr-x
-          "file-mode=644",              # rw-r--r--
-          "allow_other",
-          "implicit-dirs",
+          "file-mode=644",              # rw-r--r-- (secure file permissions)
+          "dir-mode=755",               # rwxr-xr-x (secure directory permissions)
+          "implicit-dirs",              # Create virtual directories for nested objects
           "stat-cache-ttl=60s",         # Cache file metadata for 60s
           "type-cache-ttl=60s",         # Cache object types for 60s
-          "kernel-list-cache-ttl=60s"   # Cache directory listings
+          "kernel-list-cache-ttl=60s"   # Cache directory listings for 60s
         ]
       }
     }
@@ -159,13 +163,14 @@ resource "google_cloud_run_v2_service" "app_service" {
 
   depends_on = [
     null_resource.execute_import_db_job,
-    null_resource.execute_nfs_setup_job, # Updated to use the new job
-    null_resource.execute_init_db_job, # Added DB init job execution dependency
+    null_resource.execute_nfs_setup_job,
+    null_resource.execute_init_db_job,      # Ensure DB is initialized before service starts
     null_resource.build_and_push_application_image,
     google_secret_manager_secret_iam_member.db_password,
     google_cloud_run_v2_job.init_db_job,
   ]
 }
+
 resource "google_cloud_run_service_iam_binding" "app" {
   count    = (var.configure_environment && local.nfs_server_exists && local.sql_server_exists) ? 1 : 0
 

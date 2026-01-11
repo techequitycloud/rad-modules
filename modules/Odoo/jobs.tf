@@ -242,7 +242,7 @@ resource "google_cloud_run_v2_job" "init_db_job" {
     template {
       service_account = local.cloud_run_sa_email
       max_retries     = 0
-      timeout         = "600s"
+      timeout         = "1800s"  # ← CHANGED: Increased to 30 minutes (was 600s)
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
@@ -287,6 +287,14 @@ resource "google_cloud_run_v2_job" "init_db_job" {
         name = "gcs-data-volume"
         gcs {
           bucket = "${local.data_bucket_name}"
+          # ← ADDED: Mount options to match Odoo user/group
+          mount_options = [
+            "uid=103",              # Odoo user ID
+            "gid=101",              # Odoo group ID
+            "file-mode=644",        # rw-r--r-- (secure file permissions)
+            "dir-mode=755",         # rwxr-xr-x (secure directory permissions)
+            "implicit-dirs"         # Create virtual directories for nested objects
+          ]
         }
       }
 
