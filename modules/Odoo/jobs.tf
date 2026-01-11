@@ -25,7 +25,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
 
   template {
     template {
-      service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+      service_account = local.cloud_run_sa_email
       max_retries     = 0
       timeout         = "600s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
@@ -85,6 +85,10 @@ resource "null_resource" "execute_nfs_setup_job" {
         echo "Using impersonation: ${local.impersonation_service_account}"
       fi
 
+      # Wait for IAM permissions to propagate
+      echo "Waiting for IAM permissions to propagate..."
+      sleep 15
+
       # Execute the Cloud Run job
       gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
         --region ${local.region} \
@@ -119,7 +123,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
 
   template {
     template {
-      service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+      service_account = local.cloud_run_sa_email
       max_retries     = 0
       timeout         = "600s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
@@ -198,6 +202,10 @@ resource "null_resource" "execute_import_db_job" {
         echo "Using impersonation: ${local.impersonation_service_account}"
       fi
 
+      # Wait for IAM permissions to propagate
+      echo "Waiting for IAM permissions to propagate..."
+      sleep 15
+
       gcloud run jobs execute ${google_cloud_run_v2_job.import_db_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
@@ -232,7 +240,7 @@ resource "google_cloud_run_v2_job" "init_db_job" {
 
   template {
     template {
-      service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+      service_account = local.cloud_run_sa_email
       max_retries     = 0
       timeout         = "600s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
@@ -326,6 +334,10 @@ resource "null_resource" "execute_init_db_job" {
         IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
         echo "Using impersonation: ${local.impersonation_service_account}"
       fi
+
+      # Wait for IAM permissions to propagate
+      echo "Waiting for IAM permissions to propagate..."
+      sleep 15
 
       gcloud run jobs execute ${google_cloud_run_v2_job.init_db_job[0].name} \
         --region ${local.region} \
