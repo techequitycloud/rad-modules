@@ -17,17 +17,17 @@
 # ============================================================================
 
 resource "google_cloud_run_v2_job" "nfs_setup_job" {
-  count      = local.nfs_server_exists ? 1 : 0
-  project    = local.project.project_id
-  name       = "nfs-setup-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
-  location   = local.region
+  count               = local.nfs_server_exists ? 1 : 0
+  project             = local.project.project_id
+  name                = "nfs-setup-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+  location            = local.region
   deletion_protection = false
 
   template {
     template {
-      service_account = local.cloud_run_sa_email
-      max_retries     = 0
-      timeout         = "600s"
+      service_account       = local.cloud_run_sa_email
+      max_retries           = 0
+      timeout               = "600s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
@@ -50,7 +50,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
       volumes {
         name = "nfs-root-volume"
         nfs {
-          server = "${local.nfs_internal_ip}"
+          server = local.nfs_internal_ip
           path   = "/share"
         }
       }
@@ -75,21 +75,18 @@ resource "null_resource" "execute_nfs_setup_job" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<EOT
+    command     = <<EOT
       echo "Executing NFS setup job..."
 
-      # Set impersonation flag if service account is provided
       IMPERSONATE_FLAG=""
       if [ -n "${local.impersonation_service_account}" ]; then
         IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
         echo "Using impersonation: ${local.impersonation_service_account}"
       fi
 
-      # Wait for IAM permissions to propagate
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
-      # Execute the Cloud Run job
       gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
@@ -115,17 +112,17 @@ resource "null_resource" "execute_nfs_setup_job" {
 # ============================================================================
 
 resource "google_cloud_run_v2_job" "import_db_job" {
-  count      = local.sql_server_exists ? 1 : 0
-  project    = local.project.project_id
-  name       = "import-db-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
-  location   = local.region
+  count               = local.sql_server_exists ? 1 : 0
+  project             = local.project.project_id
+  name                = "import-db-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+  location            = local.region
   deletion_protection = false
 
   template {
     template {
-      service_account = local.cloud_run_sa_email
-      max_retries     = 0
-      timeout         = "600s"
+      service_account       = local.cloud_run_sa_email
+      max_retries           = 0
+      timeout               = "600s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
@@ -133,7 +130,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
 
         env {
           name  = "DB_HOST"
-          value = "${local.db_internal_ip}"
+          value = local.db_internal_ip
         }
         env {
           name  = "DB_NAME"
@@ -148,7 +145,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           name = "ROOT_PASS"
           value_source {
             secret_key_ref {
-              secret = "${local.db_instance_name}-root-password"
+              secret  = "${local.db_instance_name}-root-password"
               version = "latest"
             }
           }
@@ -158,26 +155,26 @@ resource "google_cloud_run_v2_job" "import_db_job" {
           name = "DB_PASS"
           value_source {
             secret_key_ref {
-              secret = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
+              secret  = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
               version = "latest"
             }
           }
         }
 
         command = ["/bin/sh"]
-        args = ["-c", file("${path.module}/scripts/app/import_db_job.sh")]
+        args    = ["-c", file("${path.module}/scripts/app/import_db_job.sh")]
       }
 
       vpc_access {
         network_interfaces {
-          network = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+          network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
         }
         egress = "PRIVATE_RANGES_ONLY"
       }
     }
   }
-  
+
   depends_on = [
     data.google_secret_manager_secret_version.db_password,
   ]
@@ -192,17 +189,15 @@ resource "null_resource" "execute_import_db_job" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<EOT
+    command     = <<EOT
       echo "Executing DB import job..."
 
-      # Set impersonation flag if service account is provided
       IMPERSONATE_FLAG=""
       if [ -n "${local.impersonation_service_account}" ]; then
         IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
         echo "Using impersonation: ${local.impersonation_service_account}"
       fi
 
-      # Wait for IAM permissions to propagate
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
@@ -228,21 +223,67 @@ resource "null_resource" "execute_import_db_job" {
 }
 
 # ============================================================================
+# Verify Application Image Exists
+# ============================================================================
+
+resource "null_resource" "verify_application_image" {
+  count = local.sql_server_exists ? 1 : 0
+
+  triggers = {
+    image_name = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<EOT
+      echo "Verifying Docker image exists..."
+      
+      IMAGE="${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+      
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+      fi
+      
+      # Wait up to 10 minutes for the image
+      for i in {1..60}; do
+        if gcloud artifacts docker images describe "$IMAGE" \
+           --project=${local.project.project_id} \
+           $IMPERSONATE_FLAG > /dev/null 2>&1; then
+          echo "✓ Image is available: $IMAGE"
+          exit 0
+        fi
+        echo "Waiting for image... ($i/60)"
+        sleep 10
+      done
+      
+      echo "✗ Image not found after 10 minutes: $IMAGE"
+      exit 1
+    EOT
+  }
+
+  depends_on = [
+    null_resource.build_and_push_application_image,
+    google_artifact_registry_repository.application_image
+  ]
+}
+
+# ============================================================================
 # Init Odoo DB Job (Installs base modules)
 # ============================================================================
 
 resource "google_cloud_run_v2_job" "init_db_job" {
-  count      = local.sql_server_exists ? 1 : 0
-  project    = local.project.project_id
-  name       = "init-db-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
-  location   = local.region
+  count               = local.sql_server_exists ? 1 : 0
+  project             = local.project.project_id
+  name                = "init-db-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+  location            = local.region
   deletion_protection = false
 
   template {
     template {
-      service_account = local.cloud_run_sa_email
-      max_retries     = 0
-      timeout         = "1800s"  # ← CHANGED: Increased to 30 minutes (was 600s)
+      service_account       = local.cloud_run_sa_email
+      max_retries           = 0
+      timeout               = "1800s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
@@ -250,7 +291,11 @@ resource "google_cloud_run_v2_job" "init_db_job" {
 
         env {
           name  = "DB_HOST"
-          value = "${local.db_internal_ip}"
+          value = local.db_internal_ip
+        }
+        env {
+          name  = "DB_PORT"
+          value = "5432"
         }
         env {
           name  = "DB_NAME"
@@ -264,21 +309,26 @@ resource "google_cloud_run_v2_job" "init_db_job" {
           name = "DB_PASSWORD"
           value_source {
             secret_key_ref {
-              secret = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
+              secret  = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
               version = "latest"
             }
           }
         }
-        
-        args = ["/entrypoint.sh", "odoo", "-i", "base", "--stop-after-init"]
-        
+        env {
+          name  = "DATA_DIR"
+          value = "/mnt/filestore"
+        }
+
+        command = ["/bin/sh"]
+        args    = ["-c", file("${path.module}/scripts/app/init_odoo_db.sh")]
+
         volume_mounts {
-          name      = "nfs-data-volume"
+          name       = "nfs-data-volume"
           mount_path = "/mnt"
         }
 
         volume_mounts {
-          name      = "gcs-data-volume"
+          name       = "gcs-data-volume"
           mount_path = "/extra-addons"
         }
       }
@@ -286,14 +336,13 @@ resource "google_cloud_run_v2_job" "init_db_job" {
       volumes {
         name = "gcs-data-volume"
         gcs {
-          bucket = "${local.data_bucket_name}"
-          # ← ADDED: Mount options to match Odoo user/group
+          bucket = local.data_bucket_name
           mount_options = [
-            "uid=103",              # Odoo user ID
-            "gid=101",              # Odoo group ID
-            "file-mode=644",        # rw-r--r-- (secure file permissions)
-            "dir-mode=755",         # rwxr-xr-x (secure directory permissions)
-            "implicit-dirs"         # Create virtual directories for nested objects
+            "uid=103",
+            "gid=101",
+            "file-mode=644",
+            "dir-mode=755",
+            "implicit-dirs"
           ]
         }
       }
@@ -301,14 +350,14 @@ resource "google_cloud_run_v2_job" "init_db_job" {
       volumes {
         name = "nfs-data-volume"
         nfs {
-          server = "${local.nfs_internal_ip}"
+          server = local.nfs_internal_ip
           path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
       }
 
       vpc_access {
         network_interfaces {
-          network = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+          network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
         }
         egress = "PRIVATE_RANGES_ONLY"
@@ -317,10 +366,12 @@ resource "google_cloud_run_v2_job" "init_db_job" {
   }
 
   depends_on = [
+    null_resource.verify_application_image,              # ← Wait for image verification
     null_resource.build_and_push_application_image,
+    google_artifact_registry_repository.application_image,
     google_secret_manager_secret_iam_member.db_password,
-    null_resource.execute_import_db_job, # Ensure DB is created first
-    null_resource.execute_nfs_setup_job  # Ensure NFS is ready
+    null_resource.execute_import_db_job,
+    null_resource.execute_nfs_setup_job
   ]
 }
 
@@ -333,17 +384,15 @@ resource "null_resource" "execute_init_db_job" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<EOT
+    command     = <<EOT
       echo "Executing DB Initialization job..."
 
-      # Set impersonation flag if service account is provided
       IMPERSONATE_FLAG=""
       if [ -n "${local.impersonation_service_account}" ]; then
         IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
         echo "Using impersonation: ${local.impersonation_service_account}"
       fi
 
-      # Wait for IAM permissions to propagate
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
