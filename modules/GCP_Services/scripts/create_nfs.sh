@@ -59,7 +59,7 @@ sudo grep -qxF "options lockd nlm_tcpport=4045" /etc/modprobe.d/lock.conf || ech
 sudo grep -qxF "options lockd nlm_udpport=4045" /etc/modprobe.d/lock.conf || echo "options lockd nlm_udpport=4045" | sudo tee -a /etc/modprobe.d/lock.conf
 sudo chmod -R 775 $MNT_DIR
 sudo chown -R nobody:nogroup $MNT_DIR
-sudo chmod 755 /etc/exports
+sudo chmod 777 /etc/exports
 # sudo grep -qxF '/share *(rw,sync,all_squash,no_subtree_check)' /etc/exports || echo '/share *(rw,sync,all_squash,no_subtree_check)' | sudo tee -a /etc/exports > /dev/null # Use this option to disallow root priviledges 
 sudo grep -qxF '/share *(rw,sync,no_root_squash,no_subtree_check)' /etc/exports || echo '/share *(rw,sync,no_root_squash,no_subtree_check)' | sudo tee -a /etc/exports > /dev/null
 sudo systemctl restart nfs-kernel-server
