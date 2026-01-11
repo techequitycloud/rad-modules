@@ -29,11 +29,10 @@ ATTEMPT=1
 
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
     echo "Attempting build (attempt $ATTEMPT/$MAX_ATTEMPTS)..."
-    
+
     if gcloud --project="${PROJECT_ID}" builds submit . \
         --config cloudbuild.yaml \
         --timeout=30m \
-        --suppress-logs \
         $SA_ARG; then
         echo "✅ Build completed successfully!"
         exit 0

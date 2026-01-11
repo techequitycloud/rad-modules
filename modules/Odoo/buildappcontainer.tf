@@ -52,6 +52,8 @@ resource "null_resource" "build_and_push_application_image" {
   triggers = {
     script_hash     = filesha256("${path.module}/scripts/app/build-container.sh")
     dockerfile_hash = filesha256("${path.module}/scripts/app/dockerfile.tpl")
+    repository_id   = google_artifact_registry_repository.application_image.repository_id
+    image_tag       = var.application_version
   }
   
   # Provisioner to execute a local script that builds and pushes the container image
