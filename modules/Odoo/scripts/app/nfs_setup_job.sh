@@ -6,12 +6,7 @@ echo "=== NFS Setup Job ==="
 MOUNT_POINT="/mnt/nfs"
 TARGET_DIR="${MOUNT_POINT}/${DIR_NAME}"
 
-# Odoo user UID and GID (from the Odoo container)
-ODOO_UID=103
-ODOO_GID=101
-
 echo "Target Directory: ${TARGET_DIR}"
-echo "Odoo User: UID=${ODOO_UID}, GID=${ODOO_GID}"
 
 # Ensure parent directory exists (it should if we mounted correctly)
 if [ ! -d "${MOUNT_POINT}" ]; then
@@ -21,6 +16,7 @@ fi
 
 if [ -d "${TARGET_DIR}" ]; then
   echo "Directory exists. Cleaning up contents..."
+  # Use find to delete to avoid argument list too long if many files
   find "${TARGET_DIR}" -mindepth 1 -delete
 else
   echo "Creating directory..."
@@ -34,24 +30,16 @@ mkdir -p "${TARGET_DIR}/sessions"
 mkdir -p "${TARGET_DIR}/addons"
 mkdir -p "${TARGET_DIR}/backups"
 
-# ✅ Set ownership to Odoo user
-echo "Setting ownership to Odoo user (${ODOO_UID}:${ODOO_GID})..."
-chown -R ${ODOO_UID}:${ODOO_GID} "${TARGET_DIR}"
+# ✅ FIXED: Use 777 permissions so ANY user can write
+echo "Setting permissions to 777 (world-writable)..."
+chmod -R 777 "${TARGET_DIR}"
 
-# ✅ Use 775 for directories (owner and group can write)
-echo "Setting directory permissions to 775..."
-find "${TARGET_DIR}" -type d -exec chmod 775 {} \;
+# ✅ OPTIONAL: Still set nobody:nogroup ownership for consistency
+chown -R 65534:65534 "${TARGET_DIR}" 2>/dev/null || true
 
-# ✅ Use 664 for files (owner and group can write)
-echo "Setting file permissions to 664..."
-find "${TARGET_DIR}" -type f -exec chmod 664 {} \; 2>/dev/null || true
-
-echo ""
-echo "=========================================="
-echo "✅ NFS setup complete!"
-echo "=========================================="
-echo "Created structure:"
+echo "NFS setup complete."
+echo "Created structure with 777 permissions:"
 ls -la "${TARGET_DIR}"
 echo ""
 echo "Subdirectories:"
-ls -la "${TARGET_DIR}/" 2>/dev/null || echo "(empty)"
+ls -la "${TARGET_DIR}/"
