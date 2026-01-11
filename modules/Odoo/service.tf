@@ -141,7 +141,6 @@ resource "google_cloud_run_v2_service" "app_service" {
           "implicit-dirs",              # Create virtual directories for nested objects
           "stat-cache-ttl=60s",         # Cache file metadata for 60s
           "type-cache-ttl=60s",         # Cache object types for 60s
-          "kernel-list-cache-ttl=60s"   # Cache directory listings for 60s
         ]
       }
     }
