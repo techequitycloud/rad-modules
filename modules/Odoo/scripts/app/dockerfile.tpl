@@ -110,7 +110,9 @@ RUN chmod +x /cloudrun-entrypoint.sh
 COPY ./odoo.conf /etc/odoo/
 
 # Set permissions and Mount /var/lib/odoo to allow restoring filestore and /mnt/extra-addons for users addons
-RUN chown odoo /etc/odoo/odoo.conf \
+RUN chown -R odoo:odoo /etc/odoo \
+    && chmod 755 /etc/odoo \
+    && chmod 644 /etc/odoo/odoo.conf \
     && mkdir -p /mnt \
     && chown -R odoo /mnt
 
