@@ -18,6 +18,7 @@
 
 # Cleanup script for database objects
 resource "null_resource" "cleanup_db_objects" {
+  count = local.sql_server_exists ? 1 : 0
   triggers = {
     user     = "${var.application_database_user}${var.tenant_deployment_id}${local.random_id}"
     database = "${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
@@ -74,6 +75,7 @@ resource "null_resource" "cleanup_db_objects" {
 #########################################################################
 
 resource "google_sql_database" "db" {
+  count    = local.sql_server_exists ? 1 : 0
   name     = "${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
   instance = local.db_instance_name
   project  = local.project.project_id
@@ -85,16 +87,8 @@ resource "google_sql_database" "db" {
   }
 }
 
-resource "random_password" "db_password" {
-  length  = 30
-  special = false
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
 resource "google_sql_user" "user" {
+  count    = local.sql_server_exists ? 1 : 0
   name     = "${var.application_database_user}${var.tenant_deployment_id}${local.random_id}"
   instance = local.db_instance_name
   project  = local.project.project_id
@@ -117,8 +111,9 @@ resource "google_sql_user" "user" {
 #########################################################################
 
 resource "null_resource" "force_delete_user" {
+  count = local.sql_server_exists ? 1 : 0
   triggers = {
-    user     = google_sql_user.user.name
+    user     = google_sql_user.user[0].name
     instance = local.db_instance_name
     project  = local.project.project_id
   }
@@ -165,8 +160,9 @@ resource "null_resource" "force_delete_user" {
 #########################################################################
 
 resource "null_resource" "force_delete_db" {
+  count = local.sql_server_exists ? 1 : 0
   triggers = {
-    database = google_sql_database.db.name
+    database = google_sql_database.db[0].name
     instance = local.db_instance_name
     project  = local.project.project_id
   }
@@ -229,9 +225,10 @@ resource "null_resource" "force_delete_db" {
 #########################################################################
 
 resource "null_resource" "final_cleanup" {
+  count = local.sql_server_exists ? 1 : 0
   triggers = {
-    user      = google_sql_user.user.name
-    db        = google_sql_database.db.name
+    user      = google_sql_user.user[0].name
+    db        = google_sql_database.db[0].name
     instance  = local.db_instance_name
     project   = local.project.project_id
   }

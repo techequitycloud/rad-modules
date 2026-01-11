@@ -17,9 +17,15 @@
 #########################################################################
 
 # Resource for creating a random password for database user
+resource "random_password" "db_password" {
+  length  = 30
+  special = false
+}
+
+# Resource for creating a random password for encryption key
 resource "random_password" "encryption_key" {
-  length           = 16
-  special          = false
+  length  = 16
+  special = false
 }
 
 #########################################################################
@@ -27,6 +33,7 @@ resource "random_password" "encryption_key" {
 #########################################################################
 
 resource "google_secret_manager_secret" "db_password" {
+  count      = local.sql_server_exists ? 1 : 0
   project    = local.project.project_id
   secret_id  = "n8n-db-password-${var.tenant_deployment_id}-${local.random_id}"
 
@@ -36,7 +43,8 @@ resource "google_secret_manager_secret" "db_password" {
 }
 
 resource "google_secret_manager_secret_version" "db_password" {
-  secret      = google_secret_manager_secret.db_password.id
+  count       = local.sql_server_exists ? 1 : 0
+  secret      = google_secret_manager_secret.db_password[0].id
   secret_data = random_password.db_password.result
 }
 
@@ -92,7 +100,8 @@ resource "google_secret_manager_secret_version" "storage_secret_key" {
 # --- Additional Data Sources for Scripts (DB Passwords) ---
 
 data "google_secret_manager_secret_version" "db_password" {
-  secret  = google_secret_manager_secret.db_password.id
+  count   = local.sql_server_exists ? 1 : 0
+  secret  = google_secret_manager_secret.db_password[0].id
   version = "latest"
   depends_on = [google_secret_manager_secret_version.db_password]
 }
