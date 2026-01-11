@@ -13,7 +13,7 @@
 # limitations under the License.
 
 resource "google_cloud_run_v2_service" "app_service" {
-  count               = var.configure_environment ? 1 : 0
+  count               = var.configure_environment && local.sql_server_exists ? 1 : 0
   project             = local.project.project_id
   name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
   location            = local.region
@@ -21,7 +21,7 @@ resource "google_cloud_run_v2_service" "app_service" {
   ingress             = "INGRESS_TRAFFIC_ALL"
 
   template {
-    service_account = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+    service_account = local.cloud_run_sa_email
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
     timeout = "300s"
 
@@ -119,9 +119,9 @@ resource "google_cloud_run_v2_service" "app_service" {
 }
 
 resource "google_cloud_run_service_iam_binding" "app_service_iam" {
-  count  = var.configure_environment ? 1 : 0
+  count  = var.configure_environment && local.sql_server_exists ? 1 : 0
 
-  project  = local.project.project_id  
+  project  = local.project.project_id
   location = local.region  # Access location using local.region
   service  = google_cloud_run_v2_service.app_service[count.index].name      # Access service name using local.region
   role     = "roles/run.invoker"
