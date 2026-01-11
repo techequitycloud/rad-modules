@@ -37,3 +37,6 @@ chmod 777 "${TARGET_DIR}/backups" 2>/dev/null || true
 # Skip chown on NFS - handle via export options instead
 echo "NFS setup complete."
 ls -la "${TARGET_DIR}" 2>/dev/null || echo "Directory created successfully"
+
+# Explicit exit to ensure job completes
+exit 0
