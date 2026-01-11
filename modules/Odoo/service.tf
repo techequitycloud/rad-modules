@@ -127,7 +127,18 @@ resource "google_cloud_run_v2_service" "app_service" {
     volumes {
       name = "gcs-data-volume"
       gcs {
-        bucket = "${local.data_bucket_name}"  # Replace with your GCS bucket name
+        bucket = "${local.data_bucket_name}"
+        mount_options = [
+          "uid=103",                    # Odoo user ID
+          "gid=101",                    # Odoo group ID
+          "dir-mode=755",               # rwxr-xr-x
+          "file-mode=644",              # rw-r--r--
+          "allow_other",
+          "implicit-dirs",
+          "stat-cache-ttl=60s",         # Cache file metadata for 60s
+          "type-cache-ttl=60s",         # Cache object types for 60s
+          "kernel-list-cache-ttl=60s"   # Cache directory listings
+        ]
       }
     }
 
