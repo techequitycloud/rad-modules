@@ -238,7 +238,7 @@ resource "google_cloud_run_v2_job" "init_db_job" {
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}${var.tenant_deployment_id}${local.random_id}/${var.application_name}:${var.application_version}"
+        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
 
         env {
           name  = "DB_HOST"

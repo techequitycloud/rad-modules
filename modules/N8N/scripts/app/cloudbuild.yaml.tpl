@@ -12,14 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# [START cloudbuild_quickstart_build]
 steps:
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', '${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}', '-f', 'dockerfile', '.']
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['tag', '${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}', '${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}']
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', '${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}']
+# Build with Kaniko (more reliable than Docker in Cloud Build)
+- name: 'gcr.io/kaniko-project/executor:latest'
+  args:
+    - '--dockerfile=dockerfile'
+    - '--context=dir://.'
+    - '--destination=${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}'
+    - '--destination=${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:latest'
+    - '--cache=true'
+    - '--cache-ttl=24h'
+  timeout: '1800s'
+
 serviceAccount: 'projects/${PROJECT_ID}/serviceAccounts/cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com'
+
 options:
   logging: CLOUD_LOGGING_ONLY
+  # machineType: 'E2_HIGHCPU_8'
+  
+timeout: '3600s'
