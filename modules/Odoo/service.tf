@@ -35,7 +35,7 @@ resource "google_cloud_run_v2_service" "app_service" {
       image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
       
       ports {
-        container_port = 80
+        container_port = 8069
       }
 
       resources {
@@ -54,7 +54,7 @@ resource "google_cloud_run_v2_service" "app_service" {
         period_seconds        = 120    # Check every 2 minutes
         failure_threshold     = 3      # Allow 3 failures (was 1)
         tcp_socket {
-          port = 80
+          port = 8069
         }
       }
       # Maximum startup time: 180 + (120 × 3) + 60 = 600 seconds (10 minutes)
@@ -66,7 +66,7 @@ resource "google_cloud_run_v2_service" "app_service" {
         failure_threshold     = 3
         http_get {
           path = "/web/health"
-          port = 80
+          port = 8069
         }
       }
 
