@@ -291,6 +291,8 @@ locals {
     "roles/run.admin",
     "roles/secretmanager.secretAccessor",
     "roles/storage.objectUser",
+    "roles/storage.objectAdmin",        # 🔧 ADDED: For storage bucket access
+    "roles/cloudsql.client",            # 🔧 ADDED: For Cloud SQL connection (CRITICAL FIX)
   ]
 }
 
