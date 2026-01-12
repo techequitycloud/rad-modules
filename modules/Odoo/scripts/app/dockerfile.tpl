@@ -133,7 +133,7 @@ RUN mkdir /extra-addons \
 # Copy addons 
 # COPY addons /extra-addons
 
-# Expose Odoo services
+# ✅ UPDATED: Expose port 8069 (non-privileged port)
 EXPOSE 8069 8071 8072
 
 # Set the default config file
@@ -145,4 +145,5 @@ COPY wait-for-psql.py /usr/local/bin/wait-for-psql.py
 USER odoo
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/cloudrun-entrypoint.sh"]
-CMD /entrypoint.sh odoo
+# ✅ UPDATED: Explicitly set HTTP port to 8069
+CMD ["/entrypoint.sh", "odoo", "--http-port=8069"]
