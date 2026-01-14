@@ -77,13 +77,13 @@ variable "folder_id" {
 variable "module_folder_id" {
   description = "Specify the RAD folder ID. {{UIMeta group=0 order=104 }}"
   type        = string
-  default     = "785897258084"
+  default     = "898880854637"
 }
 
 variable "organization_id" {
   description = "Organization ID where GCP Resources need to be deployed. {{UIMeta group=0 order=1 }}"
   type        = string
-  default     = ""
+  default     = "142439919440"
 }
 
 variable "billing_account_id" {
