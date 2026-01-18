@@ -48,7 +48,6 @@ locals {
     "roles/serviceusage.serviceUsageAdmin",
 
     # Essential Project-Level Roles
-    "roles/editor",
     "roles/viewer",
     "roles/iam.serviceAccountUser",
     "roles/serviceusage.serviceUsageConsumer",
