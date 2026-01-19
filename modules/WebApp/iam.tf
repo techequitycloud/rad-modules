@@ -72,7 +72,7 @@ resource "google_secret_manager_secret_iam_member" "github_token" {
   project   = local.project.project_id
   secret_id = local.github_token_secret
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+  member    = "serviceAccount:${local.cloudbuild_sa_email}"
 
   depends_on = [
     data.google_secret_manager_secret.github_token,
@@ -85,14 +85,15 @@ resource "google_project_iam_member" "cloudbuild_run_developer" {
 
   project = local.project.project_id
   role    = "roles/run.developer"
-  member  = "serviceAccount:${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+  member  = "serviceAccount:${local.cloudbuild_sa_email}"
 }
 
 # Grant Cloud Build service account permission to act as Cloud Run service account
 resource "google_service_account_iam_member" "cloudbuild_sa_user" {
   count = local.enable_cicd_trigger ? 1 : 0
 
-  service_account_id = "projects/${local.project.project_id}/serviceAccounts/${local.cloudrun_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+  # Use the full email format directly
+  service_account_id = local.cloud_run_sa_email
   role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+  member             = "serviceAccount:${local.cloudbuild_sa_email}"
 }
