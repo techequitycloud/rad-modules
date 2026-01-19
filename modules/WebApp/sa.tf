@@ -13,17 +13,6 @@
 # limitations under the License.
 
 ########################################################################################
-# Service account name definitions
-########################################################################################
-
-locals {
-  # Service account name prefixes (without domain)
-  cloudbuild_sa = "cloudbuild-sa"
-  cloudrun_sa   = "cloudrun-sa"
-  cloudsql_sa   = "cloudsql-sa"
-}
-
-########################################################################################
 # Use external data source to check service account existence
 ########################################################################################
 
@@ -46,9 +35,9 @@ data "external" "check_service_accounts" {
 
     # Check service accounts used in Cloud Run deployment
     PROJECT_SA_EXISTS=$(check_sa "project-sa")
-    CLOUD_BUILD_SA_EXISTS=$(check_sa "cloudbuild-sa")
-    CLOUD_RUN_SA_EXISTS=$(check_sa "cloudrun-sa")
-    CLOUD_SQL_SA_EXISTS=$(check_sa "cloudsql-sa")
+    CLOUD_BUILD_SA_EXISTS=$(check_sa "${local.cloudbuild_sa}")
+    CLOUD_RUN_SA_EXISTS=$(check_sa "${local.cloudrun_sa}")
+    CLOUD_SQL_SA_EXISTS=$(check_sa "${local.cloudsql_sa}")
 
     # Output JSON
     cat <<EOF
