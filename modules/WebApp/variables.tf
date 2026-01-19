@@ -190,7 +190,7 @@ variable "iap_config" {
     allowed_emails       = optional(list(string), [])
     allowed_domains      = optional(list(string), [])
   })
-  default = null
+  default = ""
 }
 
 # ===========================
