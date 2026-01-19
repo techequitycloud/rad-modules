@@ -215,3 +215,61 @@ output "deployment_summary" {
     container_image     = local.container_image
   }
 }
+
+#########################################################################
+# CI/CD Configuration Outputs
+#########################################################################
+
+output "cicd_enabled" {
+  description = "Whether CI/CD pipeline is enabled"
+  value       = local.enable_cicd_trigger
+}
+
+output "github_repository_url" {
+  description = "GitHub repository URL connected for CI/CD"
+  value       = local.enable_cicd_trigger ? local.github_repo_url : null
+}
+
+output "github_repository_owner" {
+  description = "GitHub repository owner/organization"
+  value       = local.enable_cicd_trigger ? local.github_repo_owner : null
+}
+
+output "github_repository_name" {
+  description = "GitHub repository name"
+  value       = local.enable_cicd_trigger ? local.github_repo_name : null
+}
+
+output "artifact_registry_repository" {
+  description = "Artifact Registry repository for container images"
+  value = local.enable_custom_build || local.enable_cicd_trigger ? {
+    name     = google_artifact_registry_repository.application_image[0].name
+    location = google_artifact_registry_repository.application_image[0].location
+    url      = "${google_artifact_registry_repository.application_image[0].location}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.application_image[0].repository_id}"
+  } : null
+}
+
+output "cloudbuild_trigger_name" {
+  description = "Cloud Build trigger name for CI/CD"
+  value       = local.enable_cicd_trigger ? google_cloudbuild_trigger.cicd_trigger[0].name : null
+}
+
+output "cloudbuild_trigger_id" {
+  description = "Cloud Build trigger ID for CI/CD"
+  value       = local.enable_cicd_trigger ? google_cloudbuild_trigger.cicd_trigger[0].trigger_id : null
+}
+
+output "cicd_configuration" {
+  description = "Complete CI/CD configuration details"
+  value = local.enable_cicd_trigger ? {
+    trigger_name        = google_cloudbuild_trigger.cicd_trigger[0].name
+    trigger_id          = google_cloudbuild_trigger.cicd_trigger[0].trigger_id
+    github_repo_url     = local.github_repo_url
+    github_repo_owner   = local.github_repo_owner
+    github_repo_name    = local.github_repo_name
+    branch_pattern      = var.cicd_trigger_config.branch_pattern
+    artifact_registry   = "${google_artifact_registry_repository.application_image[0].location}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.application_image[0].repository_id}"
+    container_image_url = local.container_image
+    cloudbuild_sa       = "${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+  } : null
+}
