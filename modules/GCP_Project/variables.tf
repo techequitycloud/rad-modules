@@ -37,7 +37,7 @@ variable "module_services" {
 variable "credit_cost" {
   description = "Specify the module cost {{UIMeta group=0 order=3 }}"
   type        = number
-  default     = 50
+  default     = 100
 }
 
 variable "require_credit_purchases" {
