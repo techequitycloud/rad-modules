@@ -7,12 +7,9 @@ locals {
 # Google Provider with optional service account impersonation
 provider "google" {
   project = var.existing_project_id
-  dynamic "default_labels" {
-    for_each = var.resource_labels != null ? [1] : []
-    content {
-      labels = var.resource_labels
-    }
-  }
+  
+  # ✅ FIXED: default_labels is an argument, not a block
+  default_labels = var.resource_labels != null ? var.resource_labels : {}
 
   # Service account impersonation configuration
   access_token = local.impersonation_enabled ? data.external.impersonation_token[0].result.access_token : null
@@ -20,12 +17,8 @@ provider "google" {
 
 provider "google-beta" {
   project = var.existing_project_id
-  dynamic "default_labels" {
-    for_each = var.resource_labels != null ? [1] : []
-    content {
-      labels = var.resource_labels
-    }
-  }
+  
+  default_labels = var.resource_labels != null ? var.resource_labels : {}
 
   # Service account impersonation configuration
   access_token = local.impersonation_enabled ? data.external.impersonation_token[0].result.access_token : null
