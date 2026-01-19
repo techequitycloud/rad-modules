@@ -31,7 +31,7 @@ variable "module_dependency" {
 variable "module_services" {
   description = "Specify the module services. {{UIMeta group=0 order=2 }}"
   type        = list(string)
-  default     = ["VPC Networking", "Cloud SQL", "Redis Cache", "Cloud IAM", "NFS Storage"]
+  default     = ["VPC Networking", "Cloud SQL", "Redis Cache", "Cloud IAM", "NFS Storage", "CI/CD Pipeline"]
 }
 
 variable "credit_cost" {
@@ -182,17 +182,69 @@ variable "mysql_database_availability_type" {
 }
 
 ################################################################################
-# GROUP 4: Cache Configuration (User-accessible)
+# GROUP 4: Deployment Configuration (User-accessible)
+################################################################################
+
+variable "enable_cicd" {
+  description = "Enable CI/CD pipeline with Cloud Build and Artifact Registry for automated container builds. {{UIMeta group=4 order=0 }}"
+  type        = bool
+  default     = false
+}
+
+variable "github_repository_url" {
+  description = "GitHub repository URL (e.g., https://github.com/username/repo). Required if CI/CD is enabled. {{UIMeta group=4 order=1 }}"
+  type        = string
+  default     = ""
+}
+
+variable "github_token" {
+  description = "GitHub personal access token for repository access. This will be stored securely in Secret Manager. Required if CI/CD is enabled. {{UIMeta group=4 order=2 }}"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "build_branch" {
+  description = "GitHub branch to trigger builds (e.g., main, master, develop). {{UIMeta group=4 order=3 }}"
+  type        = string
+  default     = "main"
+}
+
+variable "container_image_source" {
+  description = "Container image source. Use 'custom' to build from GitHub repository, or provide a prebuilt image URL (e.g., gcr.io/cloudrun/hello). {{UIMeta group=4 order=4 }}"
+  type        = string
+  default     = "custom"
+}
+
+variable "dockerfile_path" {
+  description = "Path to Dockerfile in repository relative to root (e.g., Dockerfile, ./docker/Dockerfile). {{UIMeta group=4 order=5 }}"
+  type        = string
+  default     = "Dockerfile"
+}
+
+variable "build_timeout" {
+  description = "Cloud Build timeout in seconds. {{UIMeta group=4 order=6 }}"
+  type        = number
+  default     = 600
+
+  validation {
+    condition     = var.build_timeout >= 60 && var.build_timeout <= 7200
+    error_message = "Build timeout must be between 60 and 7200 seconds."
+  }
+}
+
+################################################################################
+# GROUP 5: Cache Configuration (User-accessible)
 ################################################################################
 
 variable "redis_tier" {
-  description = "The service tier of the Redis instance. BASIC provides a standalone instance; STANDARD_HA provides high availability. {{UIMeta group=4 order=0 options=BASIC,STANDARD_HA }}"
+  description = "The service tier of the Redis instance. BASIC provides a standalone instance; STANDARD_HA provides high availability. {{UIMeta group=5 order=0 options=BASIC,STANDARD_HA }}"
   type        = string
   default     = "BASIC"
 }
 
 variable "redis_memory_size_gb" {
-  description = "Memory size in GB for the Redis instance. {{UIMeta group=4 order=1 }}"
+  description = "Memory size in GB for the Redis instance. {{UIMeta group=5 order=1 }}"
   type        = number
   default     = 1
 
@@ -244,6 +296,39 @@ variable "redis_connect_mode" {
   description = "Network connection mode for Redis. {{UIMeta group=0 order=51 options=DIRECT_PEERING,PRIVATE_SERVICE_ACCESS }}"
   type        = string
   default     = "DIRECT_PEERING"
+}
+
+################################################################################
+# GROUP 0: Advanced Configuration (Admin-only) - CI/CD
+################################################################################
+
+variable "artifact_registry_format" {
+  description = "Format of the Artifact Registry repository. {{UIMeta group=0 order=60 options=DOCKER,NPM,PYTHON }}"
+  type        = string
+  default     = "DOCKER"
+}
+
+variable "artifact_registry_mode" {
+  description = "Mode of the Artifact Registry repository. {{UIMeta group=0 order=61 options=STANDARD_REPOSITORY }}"
+  type        = string
+  default     = "STANDARD_REPOSITORY"
+}
+
+variable "cloudbuild_machine_type" {
+  description = "Machine type for Cloud Build. {{UIMeta group=0 order=62 options=E2_HIGHCPU_8,E2_HIGHCPU_32,N1_HIGHCPU_8,N1_HIGHCPU_32 }}"
+  type        = string
+  default     = "E2_HIGHCPU_8"
+}
+
+variable "cloudbuild_disk_size_gb" {
+  description = "Disk size in GB for Cloud Build. {{UIMeta group=0 order=63 }}"
+  type        = number
+  default     = 100
+
+  validation {
+    condition     = var.cloudbuild_disk_size_gb >= 10 && var.cloudbuild_disk_size_gb <= 1000
+    error_message = "Disk size must be between 10 and 1000 GB."
+  }
 }
 
 ################################################################################
