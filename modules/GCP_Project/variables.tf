@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=0 }}"
   type        = string
-  default     = "This module creates a foundational Google Cloud project, enables the necessary APIs for budget configuration, and serves as the basis for deploying other application modules."
+  default     = "This module creates a Google Cloud project, enables the necessary APIs for budget configuration, and serves as the basis for configuring Google Cloud services required by application modules."
 }
 
 variable "module_dependency" {
