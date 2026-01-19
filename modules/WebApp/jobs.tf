@@ -25,6 +25,9 @@ locals {
 
   # Determine subnet for the region
   subnet_map = local.region_to_subnet
+
+  # ✅ NEW: Unique NFS path scoped to tenant and deployment
+  nfs_unique_path = "/share/${local.resource_prefix}"
 }
 
 # ============================================================================
@@ -42,7 +45,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
     template {
       service_account       = local.cloud_run_sa_email
       max_retries           = 0
-      timeout               = "120s"  # ✅ Reduced timeout
+      timeout               = "120s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
@@ -53,13 +56,21 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
           value = local.resource_prefix
         }
 
+        # ✅ NEW: Pass the unique NFS path as environment variable
+        env {
+          name  = "NFS_BASE_PATH"
+          value = local.nfs_unique_path
+        }
+
         command = ["/bin/sh", "-c"]
         args = [<<-EOT
           set -e
           echo "=== NFS Setup Job ==="
+          echo "Tenant/Deployment: $${DIR_NAME}"
+          echo "NFS Path: $${NFS_BASE_PATH}"
           
           MOUNT_POINT="/mnt/nfs"
-          TARGET_DIR="$${MOUNT_POINT}/$${DIR_NAME}"
+          TARGET_DIR="$${MOUNT_POINT}"
           
           echo "Target Directory: $${TARGET_DIR}"
           
@@ -68,18 +79,13 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
             exit 1
           fi
           
-          if [ -d "$${TARGET_DIR}" ]; then
-            echo "Directory exists. Cleaning up contents..."
-            find "$${TARGET_DIR}" -mindepth 1 -delete
-          else
-            echo "Creating directory..."
-            mkdir -p "$${TARGET_DIR}"
-          fi
+          # Create subdirectories for this deployment
+          echo "Creating deployment-specific subdirectories..."
           
           echo "Setting permissions (NFS-safe)..."
-          chmod 777 "$${TARGET_DIR}" 2>/dev/null || echo "Warning: chmod failed"
+          chmod 777 "$${TARGET_DIR}" 2>/dev/null || echo "Warning: chmod on root failed"
           
-          echo "NFS setup complete."
+          echo "NFS setup complete for deployment: $${DIR_NAME}"
           ls -la "$${TARGET_DIR}" 2>/dev/null || echo "Directory created successfully"
           
           # Ensure clean exit
@@ -89,16 +95,17 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
         ]
 
         volume_mounts {
-          name       = "nfs-root-volume"
+          name       = "nfs-deployment-volume"
           mount_path = "/mnt/nfs"
         }
       }
 
       volumes {
-        name = "nfs-root-volume"
+        name = "nfs-deployment-volume"
         nfs {
           server = local.nfs_internal_ip
-          path   = "/share"
+          # ✅ CHANGED: Mount unique path per deployment
+          path   = local.nfs_unique_path
         }
       }
 
@@ -117,14 +124,17 @@ resource "null_resource" "execute_nfs_setup_job" {
   count = local.nfs_enabled && local.nfs_server_exists ? 1 : 0
 
   triggers = {
-    script_hash = filesha256("${path.module}/scripts/app/nfs_setup_job.sh")
+    # Hash the inline script content instead of external file
+    script_hash = sha256(google_cloud_run_v2_job.nfs_setup_job[0].template[0].template[0].containers[0].args[0])
     dir_name    = local.resource_prefix
+    nfs_path    = local.nfs_unique_path
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<EOT
-      echo "Executing NFS setup job..."
+      echo "Executing NFS setup job for deployment: ${local.resource_prefix}"
+      echo "NFS Path: ${local.nfs_unique_path}"
 
       IMPERSONATE_FLAG=""
       if [ -n "${local.impersonation_service_account}" ]; then
@@ -135,7 +145,7 @@ resource "null_resource" "execute_nfs_setup_job" {
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
-      # ✅ ADDED: Set a timeout for the gcloud command itself
+      # Set a timeout for the gcloud command itself
       timeout 180 gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
@@ -157,7 +167,7 @@ resource "null_resource" "execute_nfs_setup_job" {
           fi
         }
 
-      echo "✓ NFS setup job completed successfully"
+      echo "✓ NFS setup job completed successfully for ${local.resource_prefix}"
     EOT
   }
 
@@ -227,11 +237,11 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
           each.value.script_path != null ? ["-c", file(each.value.script_path)] : null
         )
 
-        # NFS volume mount (if enabled)
+        # NFS volume mount (if enabled) - ✅ UPDATED: Use deployment-specific path
         dynamic "volume_mounts" {
           for_each = each.value.mount_nfs && local.nfs_enabled && local.nfs_server_exists ? [1] : []
           content {
-            name       = local.nfs_volume_name
+            name       = "nfs-deployment-volume"
             mount_path = local.nfs_mount_path
           }
         }
@@ -250,14 +260,14 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
         }
       }
 
-      # NFS volume (if enabled)
+      # NFS volume (if enabled) - ✅ UPDATED: Use deployment-specific path
       dynamic "volumes" {
         for_each = each.value.mount_nfs && local.nfs_enabled && local.nfs_server_exists ? [1] : []
         content {
-          name = local.nfs_volume_name
+          name = "nfs-deployment-volume"
           nfs {
             server = local.nfs_internal_ip
-            path   = local.nfs_share_path
+            path   = local.nfs_unique_path
           }
         }
       }
@@ -316,7 +326,7 @@ resource "null_resource" "execute_initialization_jobs" {
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<EOT
-      echo "Executing initialization job: ${each.key}..."
+      echo "Executing initialization job: ${each.key} for deployment: ${local.resource_prefix}"
 
       IMPERSONATE_FLAG=""
       if [ -n "${local.impersonation_service_account}" ]; then
