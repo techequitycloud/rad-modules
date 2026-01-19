@@ -54,8 +54,9 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
         count = "1"
       }
       aggregations {
-        alignment_period   = "60s"
-        per_series_aligner = "ALIGN_MEAN"
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_DELTA"
+        cross_series_reducer = "REDUCE_PERCENTILE_99"
       }
     }
   }
@@ -99,8 +100,9 @@ resource "google_monitoring_alert_policy" "memory_alert" {
         count = "1"
       }
       aggregations {
-        alignment_period   = "60s"
-        per_series_aligner = "ALIGN_MEAN"
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_DELTA"
+        cross_series_reducer = "REDUCE_PERCENTILE_99"
       }
     }
   }
