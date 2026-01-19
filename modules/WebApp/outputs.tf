@@ -132,7 +132,7 @@ output "container_image" {
 
 output "container_registry" {
   description = "Artifact Registry repository name"
-  value       = local.enable_custom_build ? google_artifact_registry_repository.application_image[0].name : null
+  value       = local.enable_custom_build ? data.google_artifact_registry_repository.application_image[0].name : null
 }
 
 #########################################################################
@@ -243,9 +243,9 @@ output "github_repository_name" {
 output "artifact_registry_repository" {
   description = "Artifact Registry repository for container images"
   value = local.enable_custom_build || local.enable_cicd_trigger ? {
-    name     = google_artifact_registry_repository.application_image[0].name
-    location = google_artifact_registry_repository.application_image[0].location
-    url      = "${google_artifact_registry_repository.application_image[0].location}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.application_image[0].repository_id}"
+    name     = data.google_artifact_registry_repository.application_image[0].name
+    location = data.google_artifact_registry_repository.application_image[0].location
+    url      = "${data.google_artifact_registry_repository.application_image[0].location}-docker.pkg.dev/${local.project.project_id}/${data.google_artifact_registry_repository.application_image[0].repository_id}"
   } : null
 }
 
@@ -268,7 +268,7 @@ output "cicd_configuration" {
     github_repo_owner   = local.github_repo_owner
     github_repo_name    = local.github_repo_name
     branch_pattern      = var.cicd_trigger_config.branch_pattern
-    artifact_registry   = "${google_artifact_registry_repository.application_image[0].location}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.application_image[0].repository_id}"
+    artifact_registry   = "${data.google_artifact_registry_repository.application_image[0].location}-docker.pkg.dev/${local.project.project_id}/${data.google_artifact_registry_repository.application_image[0].repository_id}"
     container_image_url = local.container_image
     cloudbuild_sa       = "${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
   } : null

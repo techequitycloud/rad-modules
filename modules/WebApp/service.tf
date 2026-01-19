@@ -202,6 +202,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     google_secret_manager_secret_iam_member.additional_secrets,
     null_resource.execute_nfs_setup_job,
     null_resource.execute_initialization_jobs,
+    null_resource.build_placeholder_image,
   ]
 }
 

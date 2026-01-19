@@ -55,7 +55,7 @@ resource "null_resource" "build_and_push_application_image" {
   triggers = {
     script_hash     = fileexists("${path.module}/scripts/app/build-container.sh") ? filesha256("${path.module}/scripts/app/build-container.sh") : timestamp()
     dockerfile_hash = var.container_build_config.dockerfile_content != null ? sha256(var.container_build_config.dockerfile_content) : timestamp()
-    repository_id   = google_artifact_registry_repository.application_image[0].repository_id
+    repository_id   = data.google_artifact_registry_repository.application_image[0].repository_id
     image_tag       = local.application_version
     build_args      = sha256(jsonencode(var.container_build_config.build_args))
   }
@@ -68,6 +68,6 @@ resource "null_resource" "build_and_push_application_image" {
   depends_on = [
     local_file.app_dockerfile,
     local_file.app_cloudbuild,
-    google_artifact_registry_repository.application_image,
+    data.google_artifact_registry_repository.application_image,
   ]
 }
