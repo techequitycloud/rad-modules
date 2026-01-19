@@ -63,11 +63,15 @@ locals {
   cloud_run_sa_exists   = data.external.check_service_accounts.result["cloud_run_sa_exists"] == "true"
   cloud_sql_sa_exists   = data.external.check_service_accounts.result["cloud_sql_sa_exists"] == "true"
 
-  # Service account references (existing or newly created)
+  # Service account email references (existing or newly created)
   project_sa_email     = "project-sa@${local.project.project_id}.iam.gserviceaccount.com"
   cloud_build_sa_email = "${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
   cloud_run_sa_email   = "${local.cloudrun_sa}@${local.project.project_id}.iam.gserviceaccount.com"
   cloud_sql_sa_email   = "${local.cloudsql_sa}@${local.project.project_id}.iam.gserviceaccount.com"
 
-  project_sa_id = "projects/${local.project.project_id}/serviceAccounts/project-sa@${local.project.project_id}.iam.gserviceaccount.com"
+  # Service account resource IDs (required for IAM bindings)
+  project_sa_id     = "projects/${local.project.project_id}/serviceAccounts/${local.project_sa_email}"
+  cloud_build_sa_id = "projects/${local.project.project_id}/serviceAccounts/${local.cloud_build_sa_email}"
+  cloud_run_sa_id   = "projects/${local.project.project_id}/serviceAccounts/${local.cloud_run_sa_email}"
+  cloud_sql_sa_id   = "projects/${local.project.project_id}/serviceAccounts/${local.cloud_sql_sa_email}"
 }

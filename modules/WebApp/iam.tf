@@ -92,8 +92,8 @@ resource "google_project_iam_member" "cloudbuild_run_developer" {
 resource "google_service_account_iam_member" "cloudbuild_sa_user" {
   count = local.enable_cicd_trigger ? 1 : 0
 
-  # Use the full email format directly
-  service_account_id = local.cloud_run_sa_email
+  # Use the full resource ID format (projects/.../serviceAccounts/...)
+  service_account_id = local.cloud_run_sa_id
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${local.cloud_build_sa_email}"
 }
