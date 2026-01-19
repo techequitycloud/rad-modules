@@ -185,8 +185,8 @@ variable "enable_iap" {
 variable "iap_config" {
   description = "IAP configuration (requires enable_iap=true, advanced). {{UIMeta group=0 order=126 updatesafe }}"
   type = object({
-    oauth2_client_id     = string
-    oauth2_client_secret = string
+    oauth2_client_id     = optional(string)
+    oauth2_client_secret = optional(string)
     allowed_emails       = optional(list(string), [])
     allowed_domains      = optional(list(string), [])
   })
@@ -340,6 +340,40 @@ variable "container_build_config" {
   })
   default = {
     enabled = false
+  }
+}
+
+variable "github_repository_url" {
+  description = "GitHub repository URL for automated CI/CD (e.g., 'https://github.com/username/repo'). Required when using Cloud Build triggers for automated deployments. {{UIMeta group=4 order=405 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "github_token_secret_name" {
+  description = "Name of the secret in Secret Manager containing the GitHub personal access token. This token is used by Cloud Build to access your private repository. Leave blank if repository is public. {{UIMeta group=4 order=406 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "enable_cicd_trigger" {
+  description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=4 order=407 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "cicd_trigger_config" {
+  description = "Cloud Build trigger configuration for automated CI/CD pipeline. Configure branch patterns, included/ignored files, and build settings. {{UIMeta group=4 order=408 updatesafe }}"
+  type = object({
+    branch_pattern     = optional(string, "^main$")
+    included_files     = optional(list(string), [])
+    ignored_files      = optional(list(string), [])
+    trigger_name       = optional(string, null)
+    description        = optional(string, "Automated build and deployment trigger")
+    substitutions      = optional(map(string), {})
+  })
+  default = {
+    branch_pattern = "^main$"
+    description    = "Automated build and deployment trigger"
   }
 }
 

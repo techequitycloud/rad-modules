@@ -17,8 +17,9 @@
 #########################################################################
 
 # Resource for creating a Google Artifact Registry repository to store application images
+# Created when either custom build is enabled OR CI/CD trigger is enabled
 resource "google_artifact_registry_repository" "application_image" {
-  count = local.enable_custom_build ? 1 : 0
+  count = local.enable_custom_build || local.enable_cicd_trigger ? 1 : 0
 
   project       = local.project.project_id
   location      = local.region
