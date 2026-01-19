@@ -37,7 +37,7 @@ resource "local_file" "app_cloudbuild" {
     IMAGE_REGION  = local.region
     IMAGE_NAME    = local.application_name
     IMAGE_VERSION = local.application_version
-    REPO_NAME     = var.container_build_config.artifact_repo_name
+    REPO_NAME     = local.artifact_repo_id
     DOCKERFILE    = var.container_build_config.dockerfile_path
     CONTEXT_PATH  = var.container_build_config.context_path
     BUILD_ARGS    = var.container_build_config.build_args

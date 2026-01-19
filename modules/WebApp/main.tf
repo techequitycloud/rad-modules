@@ -66,6 +66,10 @@ locals {
   # Cloud Run service name
   service_name = local.resource_prefix
 
+  # Scoped resource names for multi-tenancy
+  # Artifact Registry repository name scoped to tenant and deployment
+  artifact_repo_id = "${var.container_build_config.artifact_repo_name}-${local.tenant_id}-${local.deployment_id}"
+
   # Container configuration
   container_image_source = var.container_image_source
 
@@ -76,7 +80,7 @@ locals {
   # 4. Default: use hello world placeholder
   container_image = (
     local.container_image_source == "custom" && (var.container_build_config.enabled || local.enable_cicd_trigger) ?
-    "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.container_build_config.artifact_repo_name}/${local.application_name}:${local.application_version}" :
+    "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}" :
     var.container_image != null ? var.container_image :
     "gcr.io/cloudrun/hello" # Default hello world image
   )
@@ -157,6 +161,9 @@ locals {
 
   # CI/CD trigger configuration
   cicd_trigger_name = var.cicd_trigger_config.trigger_name != null ? var.cicd_trigger_config.trigger_name : "${local.resource_prefix}-cicd-trigger"
+
+  # GitHub repository resource name scoped to tenant and deployment
+  github_repository_resource_name = "${local.resource_prefix}-repo"
 
   # Labels
   common_labels = merge(
