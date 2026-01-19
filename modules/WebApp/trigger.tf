@@ -51,11 +51,12 @@ resource "google_cloudbuildv2_connection" "github_connection" {
 }
 
 # Create repository link
+# Repository name is scoped to tenant_id and deployment_id for complete deployment isolation
 resource "google_cloudbuildv2_repository" "github_repository" {
   count             = local.enable_cicd_trigger ? 1 : 0
   project           = local.project.project_id
   location          = local.region
-  name              = local.github_repo_name != null ? local.github_repo_name : "repo"
+  name              = local.github_repository_resource_name
   parent_connection = google_cloudbuildv2_connection.github_connection[0].name
   remote_uri        = local.github_repo_url
 }
@@ -128,7 +129,7 @@ resource "google_cloudbuild_trigger" "cicd_trigger" {
         _IMAGE_REGION      = local.region
         _IMAGE_NAME        = local.application_name
         _IMAGE_VERSION     = local.application_version
-        _REPO_NAME         = var.container_build_config.artifact_repo_name
+        _REPO_NAME         = local.artifact_repo_id
         _DOCKERFILE        = var.container_build_config.dockerfile_path
         _CONTEXT_PATH      = var.container_build_config.context_path
         _CLOUD_RUN_SERVICE = local.service_name
@@ -199,15 +200,15 @@ steps:
     args:
       - 'build'
       - '-t'
-      - '${local.region}-docker.pkg.dev/${local.project.project_id}/${var.container_build_config.artifact_repo_name}/${local.application_name}:${local.application_version}'
+      - '${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}'
       - '-t'
-      - '${local.region}-docker.pkg.dev/${local.project.project_id}/${var.container_build_config.artifact_repo_name}/${local.application_name}:latest'
+      - '${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:latest'
       - '-f'
       - 'Dockerfile.placeholder'
       - '.'
 images:
-  - '${local.region}-docker.pkg.dev/${local.project.project_id}/${var.container_build_config.artifact_repo_name}/${local.application_name}:${local.application_version}'
-  - '${local.region}-docker.pkg.dev/${local.project.project_id}/${var.container_build_config.artifact_repo_name}/${local.application_name}:latest'
+  - '${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}'
+  - '${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:latest'
 YAML
 
       # Build placeholder image with Cloud Build

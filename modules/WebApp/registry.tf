@@ -22,7 +22,7 @@ data "external" "check_artifact_repo" {
 
   program = ["bash", "-c", <<-EOT
     PROJECT_ID="${local.project.project_id}"
-    REPO_NAME="${var.container_build_config.artifact_repo_name}"
+    REPO_NAME="${local.artifact_repo_id}"
     LOCATION="${local.region}"
 
     if [ -n "${local.impersonation_service_account}" ]; then
@@ -45,13 +45,14 @@ data "external" "check_artifact_repo" {
 # Resource for creating a Google Artifact Registry repository to store application images
 # Created when either custom build is enabled OR CI/CD trigger is enabled
 # Only creates if the repository doesn't already exist
+# Repository name is scoped to tenant_id and deployment_id for complete deployment isolation
 resource "google_artifact_registry_repository" "application_image" {
   count = (local.enable_custom_build || local.enable_cicd_trigger) && try(data.external.check_artifact_repo[0].result.exists, "false") == "false" ? 1 : 0
 
   project       = local.project.project_id
   location      = local.region
-  repository_id = var.container_build_config.artifact_repo_name
-  description   = "Artifact registry repository for ${local.application_display_name}"
+  repository_id = local.artifact_repo_id
+  description   = "Artifact registry repository for ${local.application_display_name} (tenant: ${local.tenant_id}, deployment: ${local.deployment_id})"
   format        = "DOCKER"
   labels        = local.common_labels
 }
@@ -62,7 +63,7 @@ data "google_artifact_registry_repository" "application_image" {
 
   project       = local.project.project_id
   location      = local.region
-  repository_id = var.container_build_config.artifact_repo_name
+  repository_id = local.artifact_repo_id
 
   depends_on = [
     google_artifact_registry_repository.application_image

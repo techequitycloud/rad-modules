@@ -13,6 +13,58 @@
 # limitations under the License.
 
 #########################################################################
+# Image Build Gate
+# This resource acts as a conditional dependency gate for image builds
+#########################################################################
+
+resource "null_resource" "image_build_gate" {
+  count = var.configure_environment ? 1 : 0
+
+  # This resource doesn't execute anything, it just serves as a dependency gate
+  triggers = {
+    container_image = local.container_image
+    timestamp       = timestamp()
+  }
+
+  # Conditionally depend on build resources based on configuration
+  depends_on = [
+    # Depend on placeholder image build if CI/CD is enabled with custom image
+    # Note: Uses concat to create conditional dependency list
+  ]
+
+  # Add explicit lifecycle to handle dependencies
+  lifecycle {
+    replace_triggered_by = []
+  }
+}
+
+# Conditional dependency on CI/CD placeholder build
+resource "null_resource" "cicd_image_dependency" {
+  count = var.configure_environment && local.enable_cicd_trigger && local.container_image_source == "custom" ? 1 : 0
+
+  triggers = {
+    build_complete = timestamp()
+  }
+
+  depends_on = [
+    null_resource.build_placeholder_image
+  ]
+}
+
+# Conditional dependency on custom build
+resource "null_resource" "custom_build_dependency" {
+  count = var.configure_environment && local.enable_custom_build && !local.enable_cicd_trigger ? 1 : 0
+
+  triggers = {
+    build_complete = timestamp()
+  }
+
+  depends_on = [
+    null_resource.build_and_push_application_image
+  ]
+}
+
+#########################################################################
 # Cloud Run Service
 #########################################################################
 
@@ -202,7 +254,8 @@ resource "google_cloud_run_v2_service" "app_service" {
     google_secret_manager_secret_iam_member.additional_secrets,
     null_resource.execute_nfs_setup_job,
     null_resource.execute_initialization_jobs,
-    null_resource.build_placeholder_image,
+    null_resource.cicd_image_dependency,
+    null_resource.custom_build_dependency,
   ]
 }
 
