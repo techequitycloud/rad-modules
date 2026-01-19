@@ -67,8 +67,8 @@ locals {
   service_name = local.resource_prefix
 
   # Scoped resource names for multi-tenancy
-  # Artifact Registry repository name scoped to tenant and deployment
-  artifact_repo_id = "${var.container_build_config.artifact_repo_name}-${local.tenant_id}-${local.deployment_id}"
+  # Artifact Registry repository name scoped to tenant and deployment (tenant-first for easier identification)
+  artifact_repo_id = "${local.tenant_id}-${local.deployment_id}-${var.container_build_config.artifact_repo_name}"
 
   # Container configuration
   container_image_source = var.container_image_source
@@ -159,11 +159,11 @@ locals {
   github_repo_owner = length(local.github_repo_parts) >= 2 ? local.github_repo_parts[0] : null
   github_repo_name  = length(local.github_repo_parts) >= 2 ? local.github_repo_parts[1] : null
 
-  # CI/CD trigger configuration
-  cicd_trigger_name = var.cicd_trigger_config.trigger_name != null ? var.cicd_trigger_config.trigger_name : "${local.resource_prefix}-cicd-trigger"
+  # CI/CD trigger configuration (tenant-first for easier identification)
+  cicd_trigger_name = var.cicd_trigger_config.trigger_name != null ? var.cicd_trigger_config.trigger_name : "${local.tenant_id}-${local.deployment_id}-${local.application_name}-trigger"
 
-  # GitHub repository resource name scoped to tenant and deployment
-  github_repository_resource_name = "${local.resource_prefix}-repo"
+  # GitHub repository resource name scoped to tenant and deployment (tenant-first for easier identification)
+  github_repository_resource_name = "${local.tenant_id}-${local.deployment_id}-${local.application_name}-repo"
 
   # Labels
   common_labels = merge(

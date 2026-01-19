@@ -68,6 +68,7 @@ resource "null_resource" "build_and_push_application_image" {
   depends_on = [
     local_file.app_dockerfile,
     local_file.app_cloudbuild,
+    google_artifact_registry_repository.application_image,
     data.google_artifact_registry_repository.application_image,
   ]
 }
