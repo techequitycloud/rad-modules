@@ -229,9 +229,6 @@ alert_policies = [
 
 # Feature Flags
 configure_environment = true
-enable_custom_domain  = false
-enable_cdn            = false
-enable_iap            = false
 
 # Execution Environment
 execution_environment = "gen2"
