@@ -53,10 +53,11 @@ resource "google_cloudbuildv2_connection" "github_connection" {
 
 # Wait for GitHub connection to complete installation
 # The GitHub App installation must be in COMPLETE state before creating repository
+# Increased to 180s (3 minutes) as installation can take longer than 60s
 resource "time_sleep" "wait_for_github_connection" {
   count = local.enable_cicd_trigger ? 1 : 0
 
-  create_duration = "60s"
+  create_duration = "180s"
 
   depends_on = [
     google_cloudbuildv2_connection.github_connection

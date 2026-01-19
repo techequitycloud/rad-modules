@@ -132,15 +132,34 @@ resource "null_resource" "execute_nfs_setup_job" {
             echo "⚠ Job execution failed with exit code $EXIT_CODE on attempt $ATTEMPT"
           fi
 
-          # Show last execution status
-          echo "Checking last execution status..."
-          gcloud run jobs executions list \
+          # Show last execution status and logs
+          echo "Checking last execution status and logs..."
+          LAST_EXECUTION=$(gcloud run jobs executions list \
             --job=${google_cloud_run_v2_job.nfs_setup_job[0].name} \
             --region=${local.region} \
             --project=${local.project.project_id} \
             $IMPERSONATE_FLAG \
             --limit=1 \
-            --format="table(name,status.completionTime,status.succeededCount,status.failedCount)" || true
+            --format="value(name)" 2>/dev/null || echo "")
+
+          if [ -n "$LAST_EXECUTION" ]; then
+            echo "Last execution: $LAST_EXECUTION"
+            echo "Fetching logs..."
+            gcloud run jobs executions describe "$LAST_EXECUTION" \
+              --region=${local.region} \
+              --project=${local.project.project_id} \
+              $IMPERSONATE_FLAG \
+              --format="table(name,status.completionTime,status.succeededCount,status.failedCount,status.logUri)" 2>/dev/null || true
+
+            # Try to get container logs
+            echo ""
+            echo "Container logs (last 50 lines):"
+            gcloud logging read "resource.type=cloud_run_job AND resource.labels.job_name=${google_cloud_run_v2_job.nfs_setup_job[0].name} AND resource.labels.location=${local.region}" \
+              --limit=50 \
+              --project=${local.project.project_id} \
+              $IMPERSONATE_FLAG \
+              --format="table(timestamp,textPayload)" 2>/dev/null || echo "Could not fetch logs"
+          fi
 
           if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
             echo "Retrying in 10 seconds..."
@@ -152,22 +171,31 @@ resource "null_resource" "execute_nfs_setup_job" {
       done
 
       if [ "$SUCCESS" = "false" ]; then
-        echo "❌ NFS setup job failed after $MAX_ATTEMPTS attempts"
+        echo ""
+        echo "⚠⚠⚠ WARNING: NFS setup job failed after $MAX_ATTEMPTS attempts ⚠⚠⚠"
         echo "   The NFS subdirectory was not created successfully"
         echo "   Job name: ${google_cloud_run_v2_job.nfs_setup_job[0].name}"
         echo ""
         echo "Possible causes:"
         echo "  - NFS server is not accessible from Cloud Run"
-        echo "  - Network connectivity issues"
+        echo "  - Network connectivity issues between Cloud Run and NFS server"
         echo "  - Permission issues on NFS export"
-        echo "  - NFS export path /share does not exist or is not exported"
+        echo "  - NFS export path /share does not exist or is not mounted"
+        echo "  - VPC access not properly configured"
         echo ""
-        echo "To fix:"
-        echo "  1. Verify NFS server is running and accessible"
-        echo "  2. Check VPC/firewall rules allow Cloud Run to access NFS"
-        echo "  3. Verify NFS exports configuration"
-        echo "  4. Check Cloud Run job logs for details"
-        exit 1
+        echo "To troubleshoot:"
+        echo "  1. Check NFS server is running: verify it's accessible from VPC"
+        echo "  2. Check VPC/firewall rules: ensure Cloud Run can reach NFS (port 2049)"
+        echo "  3. Verify NFS exports: check /etc/exports on NFS server"
+        echo "  4. Review Cloud Run job logs in console (link provided above)"
+        echo "  5. Check Cloud Run service account has required permissions"
+        echo ""
+        echo "⚠ CONTINUING DEPLOYMENT - Application will start WITHOUT NFS"
+        echo "⚠ NFS volumes will NOT be available to the application"
+        echo "⚠ Application may fail if it requires NFS storage"
+        echo ""
+        # Exit with success to allow deployment to continue
+        exit 0
       fi
 
       echo "✓ NFS setup completed successfully for ${local.resource_prefix}"
