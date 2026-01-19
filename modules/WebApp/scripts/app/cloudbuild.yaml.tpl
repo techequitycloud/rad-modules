@@ -16,12 +16,15 @@ steps:
 # Build with Kaniko (more reliable than Docker in Cloud Build)
 - name: 'gcr.io/kaniko-project/executor:latest'
   args:
-    - '--dockerfile=dockerfile'
+    - '--dockerfile=${DOCKERFILE}'
     - '--context=dir://.'
     - '--destination=${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}'
     - '--destination=${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:latest'
     - '--cache=true'
     - '--cache-ttl=24h'
+    %{ for arg, val in BUILD_ARGS ~}
+    - '--build-arg=${arg}=${val}'
+    %{ endfor ~}
   timeout: '1800s'
 
 serviceAccount: 'projects/${PROJECT_ID}/serviceAccounts/cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com'

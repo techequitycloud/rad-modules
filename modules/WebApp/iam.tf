@@ -32,16 +32,12 @@ resource "google_secret_manager_secret_iam_member" "db_password" {
 
 # Grant Cloud Run service account access to additional secrets
 resource "google_secret_manager_secret_iam_member" "additional_secrets" {
-  for_each = google_secret_manager_secret.additional_secrets
+  for_each = var.secret_environment_variables
 
   project   = local.project.project_id
-  secret_id = each.value.secret_id
+  secret_id = each.value
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${local.cloud_run_sa_email}"
-
-  depends_on = [
-    google_secret_manager_secret.additional_secrets,
-  ]
 }
 
 #########################################################################
