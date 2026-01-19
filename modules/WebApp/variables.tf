@@ -158,40 +158,6 @@ variable "service_labels" {
   default     = {}
 }
 
-variable "enable_custom_domain" {
-  description = "Enable custom domain mapping (advanced). {{UIMeta group=0 order=122 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "custom_domain" {
-  description = "Custom domain for the application (requires enable_custom_domain=true). {{UIMeta group=0 order=123 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "enable_cdn" {
-  description = "Enable Cloud CDN (requires load balancer, advanced). {{UIMeta group=0 order=124 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "enable_iap" {
-  description = "Enable Identity-Aware Proxy (advanced). {{UIMeta group=0 order=125 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "iap_config" {
-  description = "IAP configuration (requires enable_iap=true, advanced). {{UIMeta group=0 order=126 updatesafe }}"
-  type = object({
-    oauth2_client_id     = optional(string, "")
-    oauth2_client_secret = optional(string, "")
-    allowed_emails       = optional(list(string), [])
-    allowed_domains      = optional(list(string), [])
-  })
-  default = null
-}
 
 # ===========================
 # GROUP 1: External Project Configuration
