@@ -12,197 +12,367 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# GROUP 1: Deployment 
+################################################################################
+# GROUP 0: Module Administration (Admin-only)
+################################################################################
 
 variable "module_description" {
-  description = "The description of the module. {{UIMeta group=0 order=100 }}"
+  description = "The description of the module. {{UIMeta group=0 order=0 }}"
   type        = string
-  default     = "This module configures foundational Google Cloud serverless platform services, preparing your project by enabling the necessary APIs and services required for other application modules to function correctly."
+  default     = "This module configures foundational Google Cloud serverless platform services for modern application development (vibe coding), including Cloud Run, Cloud Build, Artifact Registry, Cloud SQL, Redis, Cloud Storage, and VPC networking. It prepares your project with the necessary infrastructure for deploying containerized applications and serverless workloads."
 }
 
 variable "module_dependency" {
-  description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=102 }}"
+  description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=1 }}"
   type        = list(string)
   default     = ["GCP_Project"]
 }
 
 variable "module_services" {
-  description = "Specify the module services. {{UIMeta group=0 order=102 }}"
+  description = "Specify the module services. {{UIMeta group=0 order=2 }}"
   type        = list(string)
-  default     = ["Cloud SQL", "Compute Engine", "Cloud IAM", "Cloud Networking"]
+  default     = ["Cloud Run", "Cloud Build", "Artifact Registry", "Cloud SQL", "Redis Cache", "Cloud Storage", "VPC Networking", "Cloud IAM"]
 }
 
 variable "credit_cost" {
-  description = "Specify the module cost {{UIMeta group=0 order=103 }}"
+  description = "Specify the module cost {{UIMeta group=0 order=3 }}"
   type        = number
   default     = 100
 }
 
 variable "require_credit_purchases" {
-  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
+  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=4 }}"
   type        = bool
   default     = false
 }
 
 variable "enable_purge" {
-  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=105 }}"
+  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=5 }}"
   type        = bool
   default     = true
 }
 
 variable "public_access" {
-  description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
+  description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=6 }}"
   type = bool
   default = true
 }
 
 variable "deployment_id" {
-  description = "Unique ID suffix for resources.  Leave blank to generate random ID."
-  type        = string
-  default     = null
-}
-
-variable "agent_service_account" {
-  description = "If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account, e.g. rad-agent@gcp-project.sr65.iam.gserviceaccount.com, and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=1 order=200 updatesafe }}"
+  description = "Unique ID suffix for resources.  Leave blank to generate random ID. {{UIMeta group=0 order=10 }}"
   type        = string
   default     = null
 }
 
 variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=102 }}"
+  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=11 }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "trusted_users" {
-  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=103 }}"
+  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=12 }}"
   type        = list(string)
   default     = []
 }
 
-# GROUP 2: Project
-
-variable "existing_project_id" {
-  description = "Select an existing project on the RAD platform or enter the project ID of an external GCP project. You must grant Owner role to the RAD GCP Project agent service account when deploying into an external project. {{UIMeta group=2 order=200 }}"
-  type        = string
-}
-
 variable "enable_services" {
-  description = "Enable project APIs. {{UIMeta group=0 order=202 }}"
+  description = "Enable project APIs. {{UIMeta group=0 order=20 }}"
   type        = bool
   default     = true
 }
 
-# GROUP 3: Network
-
 variable "network_name" {
-  description = "Name to be assigned to the network. {{UIMeta group=0 order=301 }}"
+  description = "Name to be assigned to the VPC network. {{UIMeta group=0 order=30 }}"
   type        = string
   default     = "vpc-network"
 }
 
-variable "availability_regions" {
-  description = "The one or two regions where resources should be configured. The deployment might fail if sufficient resources not available in chosen region. {{UIMeta group=2 order=302 }}"
-  type        = list(string)
-  default     = ["us-central1"]
-  
-  validation {
-    condition     = length(var.availability_regions) > 0
-    error_message = "At least one availability region must be specified."
-  }
-}
-
-# GROUP 4: SQL
-
-variable "create_postgres" {
-  description = "Select to create postgres database instance. {{UIMeta group=3 order=400 }}"
-  type        = bool
-  default     = true  # Change to true to create the resource
-}
-
-variable "create_mysql" {
-  description = "Select to create mysql database instance. {{UIMeta group=3 order=401 }}"
-  type        = bool
-  default     = false  # Change to true to create the resource
-}
-
-variable "postgres_database_version" {
-  description = "Database Server version to use. {{UIMeta group=0 order=402 options=POSTGRES_16 }}"
-  type        = string
-  default     = "POSTGRES_16"
-}
-
-variable "postgres_database_availability_type" {
-  description = "The availability type of the Cloud SQL instance. {{UIMeta group=0 order=403 options=REGIONAL,ZONAL }}"
-  type        = string
-  default     = "ZONAL"
-}
-
-variable "postgres_tier" {
-  description = "The machine type to use. Postgres supports only shared-core machine types, and custom machine types such as `db-custom-2-13312`. {{UIMeta group=0 order=404 }}"
-  type        = string
-  default     = "db-custom-1-3840"
-}
-
-variable "mysql_database_version" {
-  description = "Database Server version to use. {{UIMeta group=0 order=405 options=MYSQL_8_0 }}"
-  type        = string
-  default     = "MYSQL_8_0"
-}
-
-variable "mysql_database_availability_type" {
-  description = "The availability type of the Cloud SQL instance. {{UIMeta group=0 order=406 options=REGIONAL,ZONAL }}"
-  type        = string
-  default     = "ZONAL"
-}
-
-variable "mysql_tier" {
-  description = "The machine type to use. Postgres supports only shared-core machine types, and custom machine types such as `db-custom-2-13312`. {{UIMeta group=0 order=407 }}"
-  type        = string
-  default     = "db-custom-1-3840"
-}
-
-# GROUP 5: NFS
-
-variable "create_network_filesystem" {
-  description = "Select to create NFS server using Compute Engine instances. {{UIMeta group=0 order=501}}"
-  type        = bool
-  default     = true
-}
-
-variable "network_filesystem_machine" {
-  description = "NFS server machine type. {{UIMeta group=0 order=502 }}"
-  type        = string
-  default     = "e2-small"
-}
-
-variable "network_filesystem_capacity" {
-  description = "Size of NFS server disks. {{UIMeta group=0 order=503 }}"
-  type        = number
-  default     = 10
-}
-
-# GROUP 6: Network
-
 variable "gce_subnet_cidr_range" {
-  description = "List of CIDR ranges for GCE subnets, one per availability region. {{UIMeta group=0 order=601 }}"
+  description = "List of CIDR ranges for GCE subnets, one per availability region. {{UIMeta group=0 order=31 }}"
   type        = list(string)
   default     = [
     "10.0.0.0/24",
     "10.0.1.0/24",
     "10.0.2.0/24"
   ]
-  
+
   validation {
     condition     = length(var.gce_subnet_cidr_range) > 0
     error_message = "At least one CIDR range must be specified for GCE subnets."
   }
-  
+
   validation {
     condition = alltrue([
-      for cidr in var.gce_subnet_cidr_range : 
+      for cidr in var.gce_subnet_cidr_range :
       can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$", cidr))
     ])
     error_message = "All CIDR ranges must be in valid format (e.g., 10.0.0.0/24)."
   }
+}
+
+################################################################################
+# GROUP 1: Project Configuration (User-accessible)
+################################################################################
+
+variable "existing_project_id" {
+  description = "Select an existing project on the RAD platform or enter the project ID of an external GCP project. You must grant Owner role to the RAD GCP Project agent service account when deploying into an external project. {{UIMeta group=1 order=0 }}"
+  type        = string
+}
+
+variable "agent_service_account" {
+  description = "If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account, e.g. rad-agent@gcp-project.sr65.iam.gserviceaccount.com, and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=1 order=1 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "availability_regions" {
+  description = "The one or two regions where resources should be configured. The deployment might fail if sufficient resources not available in chosen region. {{UIMeta group=1 order=2 }}"
+  type        = list(string)
+  default     = ["us-central1"]
+
+  validation {
+    condition     = length(var.availability_regions) > 0
+    error_message = "At least one availability region must be specified."
+  }
+}
+
+################################################################################
+# GROUP 2: Service Selection (User-accessible)
+################################################################################
+
+variable "create_postgres" {
+  description = "Select to create PostgreSQL database instance. {{UIMeta group=2 order=0 }}"
+  type        = bool
+  default     = true
+}
+
+variable "create_mysql" {
+  description = "Select to create MySQL database instance. {{UIMeta group=2 order=1 }}"
+  type        = bool
+  default     = false
+}
+
+variable "create_redis" {
+  description = "Select to create Redis cache instance for application caching and session storage. {{UIMeta group=2 order=2 }}"
+  type        = bool
+  default     = false
+}
+
+variable "create_artifact_registry" {
+  description = "Select to create Artifact Registry repository for Docker images. {{UIMeta group=2 order=3 }}"
+  type        = bool
+  default     = true
+}
+
+variable "create_storage_bucket" {
+  description = "Select to create Cloud Storage bucket for application file storage. {{UIMeta group=2 order=4 }}"
+  type        = bool
+  default     = true
+}
+
+variable "create_vpc_connector" {
+  description = "Select to create VPC Access Connector for Cloud Run and Cloud Functions to access VPC resources. {{UIMeta group=2 order=5 }}"
+  type        = bool
+  default     = false
+}
+
+variable "create_pubsub_topic" {
+  description = "Select to create Pub/Sub topic for event-driven messaging. {{UIMeta group=2 order=6 }}"
+  type        = bool
+  default     = false
+}
+
+variable "create_network_filesystem" {
+  description = "Select to create NFS server using Compute Engine instances for shared file storage. {{UIMeta group=2 order=7 }}"
+  type        = bool
+  default     = false
+}
+
+################################################################################
+# GROUP 3: Database Configuration (User-accessible)
+################################################################################
+
+variable "postgres_database_availability_type" {
+  description = "The availability type of the PostgreSQL instance. ZONAL is cost-effective for development; REGIONAL provides high availability for production. {{UIMeta group=3 order=0 options=ZONAL,REGIONAL }}"
+  type        = string
+  default     = "ZONAL"
+}
+
+variable "mysql_database_availability_type" {
+  description = "The availability type of the MySQL instance. ZONAL is cost-effective for development; REGIONAL provides high availability for production. {{UIMeta group=3 order=1 options=ZONAL,REGIONAL }}"
+  type        = string
+  default     = "ZONAL"
+}
+
+################################################################################
+# GROUP 4: Cache Configuration (User-accessible)
+################################################################################
+
+variable "redis_tier" {
+  description = "The service tier of the Redis instance. BASIC provides a standalone instance; STANDARD_HA provides high availability. {{UIMeta group=4 order=0 options=BASIC,STANDARD_HA }}"
+  type        = string
+  default     = "BASIC"
+}
+
+variable "redis_memory_size_gb" {
+  description = "Memory size in GB for the Redis instance. {{UIMeta group=4 order=1 }}"
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.redis_memory_size_gb >= 1 && var.redis_memory_size_gb <= 300
+    error_message = "Redis memory size must be between 1 and 300 GB."
+  }
+}
+
+################################################################################
+# GROUP 5: Storage Configuration (User-accessible)
+################################################################################
+
+variable "storage_bucket_location" {
+  description = "Location for the Cloud Storage bucket. Use region name for regional bucket or multi-region like 'US' or 'EU'. {{UIMeta group=5 order=0 }}"
+  type        = string
+  default     = ""
+}
+
+variable "storage_bucket_storage_class" {
+  description = "Storage class for the bucket. STANDARD for frequently accessed data, NEARLINE for monthly access, COLDLINE for quarterly access, ARCHIVE for yearly access. {{UIMeta group=5 order=1 options=STANDARD,NEARLINE,COLDLINE,ARCHIVE }}"
+  type        = string
+  default     = "STANDARD"
+}
+
+variable "storage_bucket_versioning" {
+  description = "Enable object versioning for the bucket. {{UIMeta group=5 order=2 }}"
+  type        = bool
+  default     = false
+}
+
+################################################################################
+# GROUP 0: Advanced Configuration (Admin-only) - Database
+################################################################################
+
+variable "postgres_database_version" {
+  description = "PostgreSQL database version to use. {{UIMeta group=0 order=40 options=POSTGRES_16,POSTGRES_15,POSTGRES_14 }}"
+  type        = string
+  default     = "POSTGRES_16"
+}
+
+variable "postgres_tier" {
+  description = "The machine type to use for PostgreSQL. Supports shared-core and custom machine types such as `db-custom-2-13312`. {{UIMeta group=0 order=41 }}"
+  type        = string
+  default     = "db-custom-1-3840"
+}
+
+variable "mysql_database_version" {
+  description = "MySQL database version to use. {{UIMeta group=0 order=42 options=MYSQL_8_0,MYSQL_5_7 }}"
+  type        = string
+  default     = "MYSQL_8_0"
+}
+
+variable "mysql_tier" {
+  description = "The machine type to use for MySQL. Supports shared-core and custom machine types such as `db-custom-2-13312`. {{UIMeta group=0 order=43 }}"
+  type        = string
+  default     = "db-custom-1-3840"
+}
+
+################################################################################
+# GROUP 0: Advanced Configuration (Admin-only) - Cache
+################################################################################
+
+variable "redis_version" {
+  description = "Redis version to use. {{UIMeta group=0 order=50 options=REDIS_7_2,REDIS_7_0,REDIS_6_X }}"
+  type        = string
+  default     = "REDIS_7_2"
+}
+
+variable "redis_connect_mode" {
+  description = "Network connection mode for Redis. {{UIMeta group=0 order=51 options=DIRECT_PEERING,PRIVATE_SERVICE_ACCESS }}"
+  type        = string
+  default     = "DIRECT_PEERING"
+}
+
+################################################################################
+# GROUP 0: Advanced Configuration (Admin-only) - Artifact Registry
+################################################################################
+
+variable "artifact_registry_format" {
+  description = "Format of the Artifact Registry repository. {{UIMeta group=0 order=60 options=DOCKER,NPM,PYTHON,APT,YUM,MAVEN }}"
+  type        = string
+  default     = "DOCKER"
+}
+
+variable "artifact_registry_mode" {
+  description = "Mode of the Artifact Registry repository. {{UIMeta group=0 order=61 options=STANDARD_REPOSITORY,VIRTUAL_REPOSITORY,REMOTE_REPOSITORY }}"
+  type        = string
+  default     = "STANDARD_REPOSITORY"
+}
+
+################################################################################
+# GROUP 0: Advanced Configuration (Admin-only) - VPC Connector
+################################################################################
+
+variable "vpc_connector_machine_type" {
+  description = "Machine type for VPC Access Connector. {{UIMeta group=0 order=70 options=e2-micro,e2-standard-4,f1-micro }}"
+  type        = string
+  default     = "e2-micro"
+}
+
+variable "vpc_connector_min_instances" {
+  description = "Minimum number of VPC connector instances. {{UIMeta group=0 order=71 }}"
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.vpc_connector_min_instances >= 2 && var.vpc_connector_min_instances <= 10
+    error_message = "Minimum instances must be between 2 and 10."
+  }
+}
+
+variable "vpc_connector_max_instances" {
+  description = "Maximum number of VPC connector instances. {{UIMeta group=0 order=72 }}"
+  type        = number
+  default     = 3
+
+  validation {
+    condition     = var.vpc_connector_max_instances >= 2 && var.vpc_connector_max_instances <= 10
+    error_message = "Maximum instances must be between 2 and 10."
+  }
+}
+
+variable "vpc_connector_ip_cidr_range" {
+  description = "CIDR range for VPC Access Connector. Must be /28 and not overlap with existing subnets. {{UIMeta group=0 order=73 }}"
+  type        = string
+  default     = "10.8.0.0/28"
+
+  validation {
+    condition     = can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}/28$", var.vpc_connector_ip_cidr_range))
+    error_message = "VPC Connector CIDR must be a valid /28 range (e.g., 10.8.0.0/28)."
+  }
+}
+
+################################################################################
+# GROUP 0: Advanced Configuration (Admin-only) - Pub/Sub
+################################################################################
+
+variable "pubsub_message_retention_duration" {
+  description = "How long to retain unacknowledged messages. {{UIMeta group=0 order=80 }}"
+  type        = string
+  default     = "604800s"  # 7 days
+}
+
+################################################################################
+# GROUP 0: Advanced Configuration (Admin-only) - NFS
+################################################################################
+
+variable "network_filesystem_machine" {
+  description = "NFS server machine type. {{UIMeta group=0 order=90 }}"
+  type        = string
+  default     = "e2-small"
+}
+
+variable "network_filesystem_capacity" {
+  description = "Size of NFS server disks in GB. {{UIMeta group=0 order=91 }}"
+  type        = number
+  default     = 10
 }

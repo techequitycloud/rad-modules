@@ -57,9 +57,8 @@ locals {
     "websecurityscanner.googleapis.com",
     "containersecurity.googleapis.com",
     "cloudscheduler.googleapis.com",
-    "cloudresourcemanager.googleapis.com",
     "redis.googleapis.com",
-    "memorystore.googleapis.com",
+    "vpcaccess.googleapis.com",
     "firestore.googleapis.com",
    ]
 
