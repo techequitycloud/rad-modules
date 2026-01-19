@@ -177,17 +177,36 @@ resource "null_resource" "build_placeholder_image" {
   provisioner "local-exec" {
     working_dir = "${path.module}/scripts/app"
     command     = <<-EOT
+      # Create a cloudbuild.yaml for the placeholder image
+      cat > cloudbuild-placeholder.yaml <<'YAML'
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${local.region}-docker.pkg.dev/${local.project.project_id}/${var.container_build_config.artifact_repo_name}/${local.application_name}:${local.application_version}'
+      - '-t'
+      - '${local.region}-docker.pkg.dev/${local.project.project_id}/${var.container_build_config.artifact_repo_name}/${local.application_name}:latest'
+      - '-f'
+      - 'Dockerfile.placeholder'
+      - '.'
+images:
+  - '${local.region}-docker.pkg.dev/${local.project.project_id}/${var.container_build_config.artifact_repo_name}/${local.application_name}:${local.application_version}'
+  - '${local.region}-docker.pkg.dev/${local.project.project_id}/${var.container_build_config.artifact_repo_name}/${local.application_name}:latest'
+YAML
+
       # Build placeholder image with Cloud Build
       gcloud builds submit \
         --project="${local.project.project_id}" \
         --region="${local.region}" \
-        --tag="${local.region}-docker.pkg.dev/${local.project.project_id}/${var.container_build_config.artifact_repo_name}/${local.application_name}:${local.application_version}" \
-        --tag="${local.region}-docker.pkg.dev/${local.project.project_id}/${var.container_build_config.artifact_repo_name}/${local.application_name}:latest" \
+        --config=cloudbuild-placeholder.yaml \
         --service-account="projects/${local.project.project_id}/serviceAccounts/${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com" \
         ${local.impersonation_service_account != "" ? "--impersonate-service-account=${local.impersonation_service_account}" : ""} \
-        --dockerfile=Dockerfile.placeholder \
         --timeout=10m \
         .
+
+      # Clean up temporary file
+      rm -f cloudbuild-placeholder.yaml
     EOT
   }
 

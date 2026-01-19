@@ -79,6 +79,21 @@ resource "google_secret_manager_secret_iam_member" "github_token" {
   ]
 }
 
+# Grant default Cloud Build service account access to GitHub token secret
+# (Cloud Build v2 connections use the default service account)
+resource "google_secret_manager_secret_iam_member" "github_token_default_sa" {
+  count = local.enable_cicd_trigger && local.github_token_secret != null ? 1 : 0
+
+  project   = local.project.project_id
+  secret_id = local.github_token_secret
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:service-${local.project.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+
+  depends_on = [
+    data.google_secret_manager_secret.github_token,
+  ]
+}
+
 # Grant Cloud Build service account permission to deploy to Cloud Run
 resource "google_project_iam_member" "cloudbuild_run_developer" {
   count = local.enable_cicd_trigger ? 1 : 0
