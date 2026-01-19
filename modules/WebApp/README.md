@@ -27,7 +27,6 @@ The WebApp module is designed to be a universal deployment platform that abstrac
 ### Flexibility
 - **Database Type Agnostic**: Support for MySQL, PostgreSQL, and SQL Server
 - **Container Options**: Use pre-built images or build custom containers
-- **CI/CD Integration**: Automated GitHub-triggered builds and deployments
 - **Custom Initialization Jobs**: Define arbitrary Cloud Run jobs for setup tasks
 - **Flexible Volume Mounts**: Configure NFS and GCS FUSE mounts
 - **Resource Configuration**: Customize CPU, memory, and scaling settings
@@ -74,9 +73,8 @@ Before using this module, ensure you have:
 1. **GCP Project** with the following APIs enabled:
    - Cloud Run API
    - Cloud SQL Admin API
-   - Cloud Build API (if using custom containers or CI/CD)
-   - Cloud Build v2 API (if using CI/CD with GitHub)
-   - Artifact Registry API (if using custom containers or CI/CD)
+   - Cloud Build API (if using custom containers)
+   - Artifact Registry API (if using custom containers)
    - Compute Engine API
    - Secret Manager API
    - Cloud Monitoring API
@@ -267,125 +265,6 @@ module "webapp" {
 }
 ```
 
-### CI/CD with GitHub Integration
-
-This example shows how to set up automated CI/CD pipeline with GitHub integration:
-
-```hcl
-module "webapp" {
-  source = "./modules/WebApp"
-
-  # Project Configuration
-  existing_project_id  = "my-gcp-project"
-  tenant_deployment_id = "prod"
-  deployment_region    = "us-central1"
-
-  # Application Configuration
-  application_name        = "nodejs-app"
-  application_version     = "1.0.0"
-  application_description = "Node.js Application with CI/CD"
-
-  # Container Configuration - CI/CD Pipeline
-  container_image_source = "custom"
-  container_build_config = {
-    enabled            = true
-    dockerfile_path    = "Dockerfile"
-    context_path       = "."
-    artifact_repo_name = "nodejs-repo"
-    build_args = {
-      NODE_ENV = "production"
-    }
-  }
-  container_port = 3000
-
-  # GitHub Integration for CI/CD
-  enable_cicd_trigger      = true
-  github_repository_url    = "https://github.com/myorg/nodejs-app"
-  github_token_secret_name = "github-token"  # Secret must exist in Secret Manager
-
-  cicd_trigger_config = {
-    branch_pattern = "^main$"  # Trigger on pushes to main branch
-    description    = "Automated build and deployment for Node.js app"
-    included_files = ["src/**", "package.json", "Dockerfile"]
-    ignored_files  = ["*.md", "docs/**"]
-  }
-
-  # Database Configuration
-  database_type             = "MYSQL_8_0"
-  application_database_name = "nodejs"
-  application_database_user = "nodejs"
-
-  # Resource Configuration
-  container_resources = {
-    cpu_limit    = "1000m"
-    memory_limit = "2Gi"
-  }
-
-  # Scaling Configuration
-  min_instance_count = 0
-  max_instance_count = 5
-
-  # Environment Variables
-  environment_variables = {
-    NODE_ENV = "production"
-    API_URL  = "https://api.example.com"
-  }
-
-  secret_environment_variables = {
-    JWT_SECRET = "jwt-secret-key"
-  }
-}
-```
-
-#### Setting up CI/CD
-
-To enable CI/CD with GitHub integration:
-
-1. **Create GitHub Personal Access Token**:
-   - Go to GitHub Settings > Developer Settings > Personal Access Tokens
-   - Create a token with `repo` and `read:packages` scopes
-   - Store the token in Secret Manager:
-     ```bash
-     echo -n "ghp_your_token_here" | gcloud secrets create github-token \
-       --project=my-gcp-project \
-       --data-file=-
-     ```
-
-2. **Configure the Module** with CI/CD variables:
-   - `enable_cicd_trigger = true`
-   - `github_repository_url` - Your repository URL
-   - `github_token_secret_name` - Name of secret in Secret Manager
-
-3. **Deploy the Infrastructure**:
-   ```bash
-   terraform init
-   terraform apply
-   ```
-
-4. **Push to GitHub**: The CI/CD pipeline will automatically:
-   - Build your Docker container from the repository
-   - Push the image to Artifact Registry
-   - Deploy the new version to Cloud Run
-   - Tag images with commit SHA for traceability
-
-#### CI/CD Pipeline Behavior
-
-When CI/CD is enabled:
-- **Initial Deployment**: A placeholder container is deployed to ensure Cloud Run service starts immediately
-- **Automated Builds**: Pushes to the configured branch trigger automatic builds
-- **Zero-Downtime Deployments**: Cloud Run handles rolling updates automatically
-- **Container Tagging**: Images are tagged with version, `latest`, and commit SHA
-- **Build Caching**: Kaniko caching (24h TTL) speeds up subsequent builds
-
-#### Accessing CI/CD Information
-
-After deployment, outputs include:
-- `cicd_enabled` - Whether CI/CD is active
-- `github_repository_url` - Connected repository
-- `artifact_registry_repository` - Container registry details
-- `cloudbuild_trigger_name` - Trigger name for monitoring
-- `cicd_configuration` - Complete CI/CD setup details
-
 ## Module Inputs
 
 ### Required Variables
@@ -428,28 +307,6 @@ After deployment, outputs include:
   context_path       = string (default: ".")
   build_args         = map(string) (default: {})
   artifact_repo_name = string (default: "webapp-repo")
-}
-```
-
-### CI/CD Configuration
-
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `enable_cicd_trigger` | bool | false | Enable automated Cloud Build trigger for CI/CD |
-| `github_repository_url` | string | null | GitHub repository URL (e.g., "https://github.com/owner/repo") |
-| `github_token_secret_name` | string | null | Name of secret in Secret Manager containing GitHub token |
-| `cicd_trigger_config` | object | See below | Cloud Build trigger configuration |
-
-#### CI/CD Trigger Config Object
-
-```hcl
-{
-  branch_pattern = string (default: "^main$")
-  included_files = list(string) (default: [])
-  ignored_files  = list(string) (default: [])
-  trigger_name   = string (optional, auto-generated)
-  description    = string (default: "Automated build and deployment trigger")
-  substitutions  = map(string) (default: {})
 }
 ```
 
