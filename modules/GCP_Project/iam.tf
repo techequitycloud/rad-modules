@@ -18,8 +18,6 @@ locals {
     "roles/aiplatform.user",
     "roles/aiplatform.admin",
     "roles/ml.developer",
-    "roles/cloudvision.user",
-    "roles/language.user",
 
     # Development & Deployment Roles
     "roles/run.admin",
