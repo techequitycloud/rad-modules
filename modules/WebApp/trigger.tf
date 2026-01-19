@@ -16,6 +16,17 @@
 # GitHub Repository Connection
 #########################################################################
 
+# Wait for IAM permissions to propagate before creating Cloud Build v2 connection
+resource "time_sleep" "wait_for_iam" {
+  count = local.enable_cicd_trigger && local.github_token_secret != null ? 1 : 0
+
+  create_duration = "30s"
+
+  depends_on = [
+    google_secret_manager_secret_iam_member.github_token_default_sa
+  ]
+}
+
 # Create GitHub connection for Cloud Build
 resource "google_cloudbuildv2_connection" "github_connection" {
   count    = local.enable_cicd_trigger ? 1 : 0
@@ -33,6 +44,10 @@ resource "google_cloudbuildv2_connection" "github_connection" {
       }
     }
   }
+
+  depends_on = [
+    time_sleep.wait_for_iam
+  ]
 }
 
 # Create repository link
@@ -134,7 +149,7 @@ resource "google_cloudbuild_trigger" "cicd_trigger" {
 
   depends_on = [
     google_cloudbuildv2_repository.github_repository,
-    google_artifact_registry_repository.application_image
+    data.google_artifact_registry_repository.application_image
   ]
 }
 
@@ -171,7 +186,7 @@ resource "null_resource" "build_placeholder_image" {
 
   triggers = {
     dockerfile_hash = local_file.placeholder_dockerfile[0].content
-    repository_id   = google_artifact_registry_repository.application_image[0].repository_id
+    repository_id   = data.google_artifact_registry_repository.application_image[0].repository_id
   }
 
   provisioner "local-exec" {
@@ -212,6 +227,6 @@ YAML
 
   depends_on = [
     local_file.placeholder_dockerfile,
-    google_artifact_registry_repository.application_image
+    data.google_artifact_registry_repository.application_image
   ]
 }
