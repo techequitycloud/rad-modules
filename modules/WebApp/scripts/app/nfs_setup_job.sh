@@ -68,13 +68,21 @@ fi
 # Verify the setup
 echo ""
 echo "Step 5: Verifying setup..."
-if [ -d "${TARGET_DIR}" ]; then
-  echo "✓ Target directory verified:"
-  ls -lad "${TARGET_DIR}" || echo "Directory exists but cannot list details"
-else
-  echo "❌ Error: Target directory verification failed"
+if [ ! -d "${TARGET_DIR}" ]; then
+  echo "❌ Error: Target directory does not exist after creation attempt"
   exit 1
 fi
+
+# Try to verify we can write to the directory
+if ! touch "${TARGET_DIR}/.test_write" 2>/dev/null; then
+  echo "❌ Error: Cannot write to target directory"
+  echo "This may be due to permission or NFS mount issues"
+  exit 1
+fi
+rm -f "${TARGET_DIR}/.test_write" 2>/dev/null || true
+
+echo "✓ Target directory verified and writable:"
+ls -lad "${TARGET_DIR}" || echo "Directory exists but cannot list details"
 
 # Final cleanup
 echo ""

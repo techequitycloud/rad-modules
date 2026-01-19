@@ -153,11 +153,21 @@ resource "null_resource" "execute_nfs_setup_job" {
 
       if [ "$SUCCESS" = "false" ]; then
         echo "❌ NFS setup job failed after $MAX_ATTEMPTS attempts"
-        echo "⚠ WARNING: Continuing deployment despite NFS setup failure"
-        echo "   You may need to manually verify NFS setup or disable NFS"
+        echo "   The NFS subdirectory was not created successfully"
         echo "   Job name: ${google_cloud_run_v2_job.nfs_setup_job[0].name}"
-        # Don't fail the deployment, just warn
-        exit 0
+        echo ""
+        echo "Possible causes:"
+        echo "  - NFS server is not accessible from Cloud Run"
+        echo "  - Network connectivity issues"
+        echo "  - Permission issues on NFS export"
+        echo "  - NFS export path /share does not exist or is not exported"
+        echo ""
+        echo "To fix:"
+        echo "  1. Verify NFS server is running and accessible"
+        echo "  2. Check VPC/firewall rules allow Cloud Run to access NFS"
+        echo "  3. Verify NFS exports configuration"
+        echo "  4. Check Cloud Run job logs for details"
+        exit 1
       fi
 
       echo "✓ NFS setup completed successfully for ${local.resource_prefix}"
