@@ -318,7 +318,7 @@ variable "github_repository_url" {
 variable "github_token_secret_name" {
   description = "Name of the secret in Secret Manager containing the GitHub personal access token. This token is used by Cloud Build to access your private repository. Leave blank if repository is public. {{UIMeta group=4 order=406 updatesafe }}"
   type        = string
-  default     = null
+  default     = "github-token"
 }
 
 variable "enable_cicd_trigger" {
