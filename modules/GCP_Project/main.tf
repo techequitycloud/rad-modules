@@ -17,50 +17,67 @@ locals {
   project   = format("%s-%s", var.project_id_prefix, local.random_id)
 
   default_apis = [
+    # Core Infrastructure & Management
     "cloudresourcemanager.googleapis.com",
     "serviceusage.googleapis.com",
-    "run.googleapis.com",
-    "sqladmin.googleapis.com",
-    "artifactregistry.googleapis.com",
-    "secretmanager.googleapis.com",
-    "cloudbuild.googleapis.com",
     "compute.googleapis.com",
     "servicenetworking.googleapis.com",
-    "logging.googleapis.com",
-    "monitoring.googleapis.com",
-    "clouddeploy.googleapis.com",
     "cloudbilling.googleapis.com",
     "iam.googleapis.com",
+    
+    # Application Deployment
+    "run.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "clouddeploy.googleapis.com",
+    "cloudbuild.googleapis.com",
+    
+    # Database & Storage
+    "sqladmin.googleapis.com",
+    "firestore.googleapis.com",
+    "datastore.googleapis.com",
+    "bigquery.googleapis.com",
+    "redis.googleapis.com",
+    "memcache.googleapis.com",
+    "storage.googleapis.com",  # ✅ FIXED: Replaced storage-api and storage-component
+    
+    # Firebase Services
     "firebase.googleapis.com",
     "firebasehosting.googleapis.com",
     "firebaserules.googleapis.com",
-    "firestore.googleapis.com",
     "identitytoolkit.googleapis.com",
     "fcm.googleapis.com",
-    "cloudfunctions.googleapis.com",
-    "storage-api.googleapis.com",
-    "storage-component.googleapis.com",
-    "dns.googleapis.com",
-    "cloudtrace.googleapis.com",
-    "clouderrorreporting.googleapis.com",
-    "cloudtasks.googleapis.com",
-    "cloudscheduler.googleapis.com",
-    # Developer & Coding Services
-    "containeranalysis.googleapis.com",
-    "binaryauthorization.googleapis.com",
+    
+    # Security & Secrets
+    "secretmanager.googleapis.com",
+    "artifactregistry.googleapis.com",
     "cloudkms.googleapis.com",
-    "pubsub.googleapis.com",
-    "bigquery.googleapis.com",
-    "datastore.googleapis.com",
-    "redis.googleapis.com",
-    "memcache.googleapis.com",
-    "vpcaccess.googleapis.com",
+    "binaryauthorization.googleapis.com",
     "iap.googleapis.com",
     "certificatemanager.googleapis.com",
+    
+    # Monitoring & Operations
+    "logging.googleapis.com",
+    "monitoring.googleapis.com",
+    "cloudtrace.googleapis.com",
+    "clouderrorreporting.googleapis.com",
     "cloudprofiler.googleapis.com",
-    "clouddebugger.googleapis.com",
-    "apigateway.googleapis.com",
+    # ❌ REMOVED: clouddebugger.googleapis.com (deprecated May 2022, shut down May 2023)
+    
+    # Networking
+    "dns.googleapis.com",
+    "vpcaccess.googleapis.com",
+    
+    # Developer & Coding Services
+    "containeranalysis.googleapis.com",
+    "pubsub.googleapis.com",
+    
+    # Messaging & Events
+    "cloudtasks.googleapis.com",
+    "cloudscheduler.googleapis.com",
     "eventarc.googleapis.com",
+    
+    # Integration & Workflows
+    "apigateway.googleapis.com",
     "workflows.googleapis.com",
     "connectgateway.googleapis.com",
   ]
