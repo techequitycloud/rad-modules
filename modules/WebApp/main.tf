@@ -132,9 +132,10 @@ locals {
   ingress_settings   = var.ingress_settings
 
   # Service accounts (will be populated by data sources)
-  cloudrun_sa   = var.cloudrun_service_account != null ? var.cloudrun_service_account : "cloudrun-sa"
-  cloudbuild_sa = var.cloudbuild_service_account != null ? var.cloudbuild_service_account : "cloudbuild-sa"
-  cloudsql_sa   = var.cloudsql_service_account != null ? var.cloudsql_service_account : "cloudsql-sa"
+  # Handle both null and empty string cases
+  cloudrun_sa   = var.cloudrun_service_account != null && var.cloudrun_service_account != "" ? var.cloudrun_service_account : "cloudrun-sa"
+  cloudbuild_sa = var.cloudbuild_service_account != null && var.cloudbuild_service_account != "" ? var.cloudbuild_service_account : "cloudbuild-sa"
+  cloudsql_sa   = var.cloudsql_service_account != null && var.cloudsql_service_account != "" ? var.cloudsql_service_account : "cloudsql-sa"
 
   # Monitoring configuration
   configure_monitoring = var.configure_monitoring
