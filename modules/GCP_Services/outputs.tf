@@ -53,34 +53,6 @@ output "mysql_instance_connection_name" {
 }
 
 #########################################################################
-# Artifact Registry Outputs
-#########################################################################
-
-output "artifact_registry_repository_id" {
-  value       = var.create_artifact_registry ? google_artifact_registry_repository.main[0].id : null
-  description = "The ID of the Artifact Registry repository."
-}
-
-output "artifact_registry_repository_url" {
-  value       = var.create_artifact_registry ? "${google_artifact_registry_repository.main[0].location}-docker.pkg.dev/${local.project.project_id}/${google_artifact_registry_repository.main[0].repository_id}" : null
-  description = "The URL for pushing/pulling images to/from Artifact Registry."
-}
-
-#########################################################################
-# Cloud Storage Outputs
-#########################################################################
-
-output "storage_bucket_name" {
-  value       = var.create_storage_bucket ? google_storage_bucket.app_storage[0].name : null
-  description = "The name of the Cloud Storage bucket."
-}
-
-output "storage_bucket_url" {
-  value       = var.create_storage_bucket ? google_storage_bucket.app_storage[0].url : null
-  description = "The URL of the Cloud Storage bucket."
-}
-
-#########################################################################
 # Redis Outputs
 #########################################################################
 
@@ -97,39 +69,6 @@ output "redis_port" {
 output "redis_connection_string" {
   value       = var.create_redis ? "${google_redis_instance.cache[0].host}:${google_redis_instance.cache[0].port}" : null
   description = "The Redis connection string (host:port)."
-}
-
-#########################################################################
-# VPC Connector Outputs
-#########################################################################
-
-output "vpc_connector_id" {
-  value       = var.create_vpc_connector ? google_vpc_access_connector.serverless_connector[0].id : null
-  description = "The ID of the VPC Access Connector."
-}
-
-output "vpc_connector_name" {
-  value       = var.create_vpc_connector ? google_vpc_access_connector.serverless_connector[0].name : null
-  description = "The name of the VPC Access Connector for use in Cloud Run services."
-}
-
-#########################################################################
-# Pub/Sub Outputs
-#########################################################################
-
-output "pubsub_topic_name" {
-  value       = var.create_pubsub_topic ? google_pubsub_topic.events[0].name : null
-  description = "The name of the Pub/Sub topic."
-}
-
-output "pubsub_topic_id" {
-  value       = var.create_pubsub_topic ? google_pubsub_topic.events[0].id : null
-  description = "The ID of the Pub/Sub topic."
-}
-
-output "pubsub_subscription_name" {
-  value       = var.create_pubsub_topic ? google_pubsub_subscription.events_subscription[0].name : null
-  description = "The name of the Pub/Sub subscription."
 }
 
 #########################################################################
