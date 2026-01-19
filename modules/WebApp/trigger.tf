@@ -28,11 +28,12 @@ resource "time_sleep" "wait_for_iam" {
 }
 
 # Create GitHub connection for Cloud Build
+# Connection name is scoped to tenant_id and deployment_id for complete deployment isolation
 resource "google_cloudbuildv2_connection" "github_connection" {
   count    = local.enable_cicd_trigger ? 1 : 0
   project  = local.project.project_id
   location = local.region
-  name     = "${local.resource_prefix}-github-conn"
+  name     = "${local.tenant_id}-${local.deployment_id}-${local.application_name}-github-conn"
 
   github_config {
     app_installation_id = null # Will use GitHub App installation
@@ -50,6 +51,18 @@ resource "google_cloudbuildv2_connection" "github_connection" {
   ]
 }
 
+# Wait for GitHub connection to complete installation
+# The GitHub App installation must be in COMPLETE state before creating repository
+resource "time_sleep" "wait_for_github_connection" {
+  count = local.enable_cicd_trigger ? 1 : 0
+
+  create_duration = "60s"
+
+  depends_on = [
+    google_cloudbuildv2_connection.github_connection
+  ]
+}
+
 # Create repository link
 # Repository name is scoped to tenant_id and deployment_id for complete deployment isolation
 resource "google_cloudbuildv2_repository" "github_repository" {
@@ -59,6 +72,10 @@ resource "google_cloudbuildv2_repository" "github_repository" {
   name              = local.github_repository_resource_name
   parent_connection = google_cloudbuildv2_connection.github_connection[0].name
   remote_uri        = local.github_repo_url
+
+  depends_on = [
+    time_sleep.wait_for_github_connection
+  ]
 }
 
 #########################################################################
@@ -228,6 +245,7 @@ YAML
 
   depends_on = [
     local_file.placeholder_dockerfile,
+    google_artifact_registry_repository.application_image,
     data.google_artifact_registry_repository.application_image
   ]
 }
