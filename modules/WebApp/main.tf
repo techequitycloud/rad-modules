@@ -86,10 +86,12 @@ locals {
   )
 
   # NFS configuration
-  nfs_enabled    = var.nfs_enabled
-  nfs_mount_path = var.nfs_mount_path
-  nfs_volume_name = "nfs-data-volume"
-  nfs_share_path = "/share/${local.resource_prefix}"
+  nfs_enabled         = var.nfs_enabled
+  nfs_mount_path      = var.nfs_mount_path
+  nfs_volume_name     = "nfs-data-volume"
+  nfs_root_path       = "/share"  # NFS server export path (only /share is exported)
+  nfs_share_path      = "/share/${local.resource_prefix}"  # Full path including subdirectory
+  nfs_subdirectory    = local.resource_prefix  # Subdirectory name for this deployment
 
   # Storage buckets
   storage_buckets = var.create_cloud_storage ? {

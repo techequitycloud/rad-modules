@@ -117,8 +117,18 @@ output "nfs_mount_path" {
 }
 
 output "nfs_share_path" {
-  description = "NFS share path on server"
+  description = "NFS share path on server (full path including subdirectory)"
   value       = local.nfs_enabled && local.nfs_server_exists ? local.nfs_share_path : null
+}
+
+output "nfs_root_path" {
+  description = "NFS root export path (mounted in container)"
+  value       = local.nfs_enabled && local.nfs_server_exists ? local.nfs_root_path : null
+}
+
+output "nfs_container_path" {
+  description = "Path where application can access NFS data inside container"
+  value       = local.nfs_enabled && local.nfs_server_exists ? "${local.nfs_mount_path}/${local.nfs_subdirectory}" : null
 }
 
 #########################################################################

@@ -41,7 +41,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
   template {
     template {
       service_account       = local.cloud_run_sa_email
-      max_retries           = 0
+      max_retries           = 1
       timeout               = "600s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
@@ -87,12 +87,15 @@ resource "null_resource" "execute_nfs_setup_job" {
   triggers = {
     script_hash = filesha256("${path.module}/scripts/app/nfs_setup_job.sh")
     dir_name    = local.resource_prefix
+    job_name    = google_cloud_run_v2_job.nfs_setup_job[0].name
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<EOT
-      echo "Executing NFS setup job..."
+      echo "Executing NFS setup job for deployment: ${local.resource_prefix}"
+      echo "NFS Root: ${local.nfs_root_path}"
+      echo "NFS Subdirectory: ${local.nfs_subdirectory}"
 
       IMPERSONATE_FLAG=""
       if [ -n "${local.impersonation_service_account}" ]; then
@@ -103,18 +106,61 @@ resource "null_resource" "execute_nfs_setup_job" {
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
-      gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
-        --region ${local.region} \
-        --project ${local.project.project_id} \
-        $IMPERSONATE_FLAG \
-        --wait
+      # Execute job with timeout and retry logic
+      MAX_ATTEMPTS=3
+      ATTEMPT=1
+      SUCCESS=false
 
-      if [ $? -eq 0 ]; then
-        echo "✓ NFS setup job completed successfully"
-      else
-        echo "✗ NFS setup job failed"
-        exit 1
+      while [ $ATTEMPT -le $MAX_ATTEMPTS ] && [ "$SUCCESS" = "false" ]; do
+        echo "Attempt $ATTEMPT of $MAX_ATTEMPTS..."
+
+        # Set timeout to 5 minutes for job execution
+        if timeout 300 gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
+          --region ${local.region} \
+          --project ${local.project.project_id} \
+          $IMPERSONATE_FLAG \
+          --wait 2>&1 | tee /tmp/nfs_job_output.log; then
+
+          echo "✓ NFS setup job completed successfully on attempt $ATTEMPT"
+          SUCCESS=true
+        else
+          EXIT_CODE=$?
+
+          if [ $EXIT_CODE -eq 124 ]; then
+            echo "⚠ Job execution timed out after 5 minutes on attempt $ATTEMPT"
+          else
+            echo "⚠ Job execution failed with exit code $EXIT_CODE on attempt $ATTEMPT"
+          fi
+
+          # Show last execution status
+          echo "Checking last execution status..."
+          gcloud run jobs executions list \
+            --job=${google_cloud_run_v2_job.nfs_setup_job[0].name} \
+            --region=${local.region} \
+            --project=${local.project.project_id} \
+            $IMPERSONATE_FLAG \
+            --limit=1 \
+            --format="table(name,status.completionTime,status.succeededCount,status.failedCount)" || true
+
+          if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+            echo "Retrying in 10 seconds..."
+            sleep 10
+          fi
+
+          ATTEMPT=$((ATTEMPT + 1))
+        fi
+      done
+
+      if [ "$SUCCESS" = "false" ]; then
+        echo "❌ NFS setup job failed after $MAX_ATTEMPTS attempts"
+        echo "⚠ WARNING: Continuing deployment despite NFS setup failure"
+        echo "   You may need to manually verify NFS setup or disable NFS"
+        echo "   Job name: ${google_cloud_run_v2_job.nfs_setup_job[0].name}"
+        # Don't fail the deployment, just warn
+        exit 0
       fi
+
+      echo "✓ NFS setup completed successfully for ${local.resource_prefix}"
     EOT
   }
 
@@ -208,13 +254,15 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
       }
 
       # NFS volume (if enabled)
+      # Note: We mount the NFS root path (/share), not the subdirectory
+      # The subdirectory is accessed via the mount_path
       dynamic "volumes" {
         for_each = each.value.mount_nfs && local.nfs_enabled && local.nfs_server_exists ? [1] : []
         content {
           name = local.nfs_volume_name
           nfs {
             server = local.nfs_internal_ip
-            path   = local.nfs_share_path
+            path   = local.nfs_root_path
           }
         }
       }
@@ -284,17 +332,34 @@ resource "null_resource" "execute_initialization_jobs" {
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
-      gcloud run jobs execute ${google_cloud_run_v2_job.initialization_jobs[each.key].name} \
+      # Execute job with timeout
+      if timeout 600 gcloud run jobs execute ${google_cloud_run_v2_job.initialization_jobs[each.key].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         $IMPERSONATE_FLAG \
-        --wait
+        --wait; then
 
-      if [ $? -eq 0 ]; then
         echo "✓ Job ${each.key} completed successfully"
       else
-        echo "✗ Job ${each.key} failed"
-        exit 1
+        EXIT_CODE=$?
+
+        if [ $EXIT_CODE -eq 124 ]; then
+          echo "⚠ Job ${each.key} timed out after 10 minutes"
+        else
+          echo "✗ Job ${each.key} failed with exit code $EXIT_CODE"
+        fi
+
+        # Show last execution status
+        echo "Checking last execution status..."
+        gcloud run jobs executions list \
+          --job=${google_cloud_run_v2_job.initialization_jobs[each.key].name} \
+          --region=${local.region} \
+          --project=${local.project.project_id} \
+          $IMPERSONATE_FLAG \
+          --limit=1 \
+          --format="table(name,status.completionTime,status.succeededCount,status.failedCount)" || true
+
+        exit $EXIT_CODE
       fi
     EOT
   }
