@@ -68,8 +68,14 @@ locals {
 
   # Container configuration
   container_image_source = var.container_image_source
+
+  # Container image logic:
+  # 1. If custom build with CI/CD enabled: use pipeline-built image from Artifact Registry
+  # 2. If custom build without CI/CD: use one-time built image
+  # 3. If prebuilt selected: use provided container_image URL
+  # 4. Default: use hello world placeholder
   container_image = (
-    local.container_image_source == "custom" && var.container_build_config.enabled ?
+    local.container_image_source == "custom" && (var.container_build_config.enabled || local.enable_cicd_trigger) ?
     "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.container_build_config.artifact_repo_name}/${local.application_name}:${local.application_version}" :
     var.container_image != null ? var.container_image :
     "gcr.io/cloudrun/hello" # Default hello world image
@@ -137,6 +143,19 @@ locals {
   # Feature flags
   configure_environment = var.configure_environment
   enable_custom_build   = var.container_build_config.enabled && local.container_image_source == "custom"
+
+  # CI/CD Configuration
+  enable_cicd_trigger = var.enable_cicd_trigger && var.github_repository_url != null
+  github_repo_url     = var.github_repository_url
+  github_token_secret = var.github_token_secret_name
+
+  # Parse GitHub repository URL to extract owner and name
+  github_repo_parts = local.github_repo_url != null ? split("/", trimprefix(trimprefix(local.github_repo_url, "https://github.com/"), "http://github.com/")) : []
+  github_repo_owner = length(local.github_repo_parts) >= 2 ? local.github_repo_parts[0] : null
+  github_repo_name  = length(local.github_repo_parts) >= 2 ? local.github_repo_parts[1] : null
+
+  # CI/CD trigger configuration
+  cicd_trigger_name = var.cicd_trigger_config.trigger_name != null ? var.cicd_trigger_config.trigger_name : "${local.resource_prefix}-cicd-trigger"
 
   # Labels
   common_labels = merge(

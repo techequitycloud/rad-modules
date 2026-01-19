@@ -60,3 +60,39 @@ resource "google_storage_bucket_iam_member" "bucket_access" {
     google_storage_bucket.buckets,
   ]
 }
+
+#########################################################################
+# IAM permissions for CI/CD (Cloud Build)
+#########################################################################
+
+# Grant Cloud Build service account access to GitHub token secret
+resource "google_secret_manager_secret_iam_member" "github_token" {
+  count = local.enable_cicd_trigger && local.github_token_secret != null ? 1 : 0
+
+  project   = local.project.project_id
+  secret_id = local.github_token_secret
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+
+  depends_on = [
+    data.google_secret_manager_secret.github_token,
+  ]
+}
+
+# Grant Cloud Build service account permission to deploy to Cloud Run
+resource "google_project_iam_member" "cloudbuild_run_developer" {
+  count = local.enable_cicd_trigger ? 1 : 0
+
+  project = local.project.project_id
+  role    = "roles/run.developer"
+  member  = "serviceAccount:${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+}
+
+# Grant Cloud Build service account permission to act as Cloud Run service account
+resource "google_service_account_iam_member" "cloudbuild_sa_user" {
+  count = local.enable_cicd_trigger ? 1 : 0
+
+  service_account_id = "projects/${local.project.project_id}/serviceAccounts/${local.cloudrun_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+}
