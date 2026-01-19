@@ -45,6 +45,24 @@ locals {
     "clouderrorreporting.googleapis.com",
     "cloudtasks.googleapis.com",
     "cloudscheduler.googleapis.com",
+    # Developer & Coding Services
+    "containeranalysis.googleapis.com",
+    "binaryauthorization.googleapis.com",
+    "cloudkms.googleapis.com",
+    "pubsub.googleapis.com",
+    "bigquery.googleapis.com",
+    "datastore.googleapis.com",
+    "redis.googleapis.com",
+    "memcache.googleapis.com",
+    "vpcaccess.googleapis.com",
+    "iap.googleapis.com",
+    "certificatemanager.googleapis.com",
+    "cloudprofiler.googleapis.com",
+    "clouddebugger.googleapis.com",
+    "apigateway.googleapis.com",
+    "eventarc.googleapis.com",
+    "workflows.googleapis.com",
+    "connectgateway.googleapis.com",
   ]
 
   quota_apis = var.enable_quota_overrides ? [
@@ -86,6 +104,125 @@ resource "google_service_usage_consumer_quota_override" "compute_quotas" {
   project        = google_project.project.project_id
   service        = "compute.googleapis.com"
   metric         = urlencode("compute.googleapis.com/${each.value.metric}")
+  limit          = "/%2Fproject%2F${google_project.project.project_id}"
+  override_value = tostring(each.value.limit)
+  force          = true
+
+  depends_on = [
+    google_project_service.enabled_services
+  ]
+}
+
+# Quota overrides for Cloud Run
+resource "google_service_usage_consumer_quota_override" "run_quotas" {
+  provider = google-beta
+  for_each = var.enable_quota_overrides ? var.run_quota_overrides : {}
+
+  project        = google_project.project.project_id
+  service        = "run.googleapis.com"
+  metric         = urlencode("run.googleapis.com/${each.value.metric}")
+  limit          = "/%2Fproject%2F${google_project.project.project_id}"
+  override_value = tostring(each.value.limit)
+  force          = true
+
+  depends_on = [
+    google_project_service.enabled_services
+  ]
+}
+
+# Quota overrides for Cloud SQL
+resource "google_service_usage_consumer_quota_override" "sql_quotas" {
+  provider = google-beta
+  for_each = var.enable_quota_overrides ? var.sql_quota_overrides : {}
+
+  project        = google_project.project.project_id
+  service        = "sqladmin.googleapis.com"
+  metric         = urlencode("sqladmin.googleapis.com/${each.value.metric}")
+  limit          = "/%2Fproject%2F${google_project.project.project_id}"
+  override_value = tostring(each.value.limit)
+  force          = true
+
+  depends_on = [
+    google_project_service.enabled_services
+  ]
+}
+
+# Quota overrides for Cloud Storage
+resource "google_service_usage_consumer_quota_override" "storage_quotas" {
+  provider = google-beta
+  for_each = var.enable_quota_overrides ? var.storage_quota_overrides : {}
+
+  project        = google_project.project.project_id
+  service        = "storage.googleapis.com"
+  metric         = urlencode("storage.googleapis.com/${each.value.metric}")
+  limit          = "/%2Fproject%2F${google_project.project.project_id}"
+  override_value = tostring(each.value.limit)
+  force          = true
+
+  depends_on = [
+    google_project_service.enabled_services
+  ]
+}
+
+# Quota overrides for Secret Manager
+resource "google_service_usage_consumer_quota_override" "secretmanager_quotas" {
+  provider = google-beta
+  for_each = var.enable_quota_overrides ? var.secretmanager_quota_overrides : {}
+
+  project        = google_project.project.project_id
+  service        = "secretmanager.googleapis.com"
+  metric         = urlencode("secretmanager.googleapis.com/${each.value.metric}")
+  limit          = "/%2Fproject%2F${google_project.project.project_id}"
+  override_value = tostring(each.value.limit)
+  force          = true
+
+  depends_on = [
+    google_project_service.enabled_services
+  ]
+}
+
+# Quota overrides for Cloud Build
+resource "google_service_usage_consumer_quota_override" "cloudbuild_quotas" {
+  provider = google-beta
+  for_each = var.enable_quota_overrides ? var.cloudbuild_quota_overrides : {}
+
+  project        = google_project.project.project_id
+  service        = "cloudbuild.googleapis.com"
+  metric         = urlencode("cloudbuild.googleapis.com/${each.value.metric}")
+  limit          = "/%2Fproject%2F${google_project.project.project_id}"
+  override_value = tostring(each.value.limit)
+  force          = true
+
+  depends_on = [
+    google_project_service.enabled_services
+  ]
+}
+
+# Quota overrides for Artifact Registry
+resource "google_service_usage_consumer_quota_override" "artifactregistry_quotas" {
+  provider = google-beta
+  for_each = var.enable_quota_overrides ? var.artifactregistry_quota_overrides : {}
+
+  project        = google_project.project.project_id
+  service        = "artifactregistry.googleapis.com"
+  metric         = urlencode("artifactregistry.googleapis.com/${each.value.metric}")
+  limit          = "/%2Fproject%2F${google_project.project.project_id}"
+  override_value = tostring(each.value.limit)
+  force          = true
+
+  depends_on = [
+    google_project_service.enabled_services
+  ]
+}
+
+# Quota overrides for Pub/Sub
+resource "google_service_usage_consumer_quota_override" "pubsub_quotas" {
+  provider = google-beta
+  for_each = var.enable_quota_overrides ? var.pubsub_quota_overrides : {}
+
+  project        = google_project.project.project_id
+  service        = "pubsub.googleapis.com"
+  metric         = urlencode("pubsub.googleapis.com/${each.value.metric}")
   limit          = "/%2Fproject%2F${google_project.project.project_id}"
   override_value = tostring(each.value.limit)
   force          = true
