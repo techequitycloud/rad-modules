@@ -227,6 +227,8 @@ steps:
 images:
   - '${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}'
   - '${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:latest'
+options:
+  logging: CLOUD_LOGGING_ONLY
 YAML
 
       # Build placeholder image with Cloud Build
@@ -235,6 +237,7 @@ YAML
         --region="${local.region}" \
         --config=cloudbuild-placeholder.yaml \
         --service-account="projects/${local.project.project_id}/serviceAccounts/${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com" \
+        --logging=CLOUD_LOGGING_ONLY \
         ${local.impersonation_service_account != "" ? "--impersonate-service-account=${local.impersonation_service_account}" : ""} \
         --timeout=10m \
         .
