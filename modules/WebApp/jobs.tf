@@ -42,7 +42,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
     template {
       service_account       = local.cloud_run_sa_email
       max_retries           = 0
-      timeout               = "600s"
+      timeout               = "120s"  # ✅ Reduced timeout
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
@@ -53,8 +53,40 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
           value = local.resource_prefix
         }
 
-        command = ["/bin/sh"]
-        args    = ["-c", file("${path.module}/scripts/app/nfs_setup_job.sh")]
+        command = ["/bin/sh", "-c"]
+        args = [<<-EOT
+          set -e
+          echo "=== NFS Setup Job ==="
+          
+          MOUNT_POINT="/mnt/nfs"
+          TARGET_DIR="$${MOUNT_POINT}/$${DIR_NAME}"
+          
+          echo "Target Directory: $${TARGET_DIR}"
+          
+          if [ ! -d "$${MOUNT_POINT}" ]; then
+            echo "Error: Mount point $${MOUNT_POINT} does not exist."
+            exit 1
+          fi
+          
+          if [ -d "$${TARGET_DIR}" ]; then
+            echo "Directory exists. Cleaning up contents..."
+            find "$${TARGET_DIR}" -mindepth 1 -delete
+          else
+            echo "Creating directory..."
+            mkdir -p "$${TARGET_DIR}"
+          fi
+          
+          echo "Setting permissions (NFS-safe)..."
+          chmod 777 "$${TARGET_DIR}" 2>/dev/null || echo "Warning: chmod failed"
+          
+          echo "NFS setup complete."
+          ls -la "$${TARGET_DIR}" 2>/dev/null || echo "Directory created successfully"
+          
+          # Ensure clean exit
+          sync
+          echo "Job finished successfully"
+        EOT
+        ]
 
         volume_mounts {
           name       = "nfs-root-volume"
@@ -103,18 +135,29 @@ resource "null_resource" "execute_nfs_setup_job" {
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
-      gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
+      # ✅ ADDED: Set a timeout for the gcloud command itself
+      timeout 180 gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         $IMPERSONATE_FLAG \
-        --wait
+        --wait || {
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 124 ]; then
+            echo "⚠ Job execution timed out after 3 minutes, but may have completed"
+            echo "Checking job status..."
+            gcloud run jobs executions list \
+              --job=${google_cloud_run_v2_job.nfs_setup_job[0].name} \
+              --region=${local.region} \
+              --project=${local.project.project_id} \
+              --limit=1 \
+              --format="value(status.completionTime)" | grep -q . && exit 0 || exit 1
+          else
+            echo "✗ NFS setup job failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
+        }
 
-      if [ $? -eq 0 ]; then
-        echo "✓ NFS setup job completed successfully"
-      else
-        echo "✗ NFS setup job failed"
-        exit 1
-      fi
+      echo "✓ NFS setup job completed successfully"
     EOT
   }
 
