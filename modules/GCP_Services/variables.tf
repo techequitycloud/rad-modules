@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=0 }}"
   type        = string
-  default     = "This module configures foundational Google Cloud serverless platform services for modern application development (vibe coding), including Cloud Run, Cloud Build, Artifact Registry, Cloud SQL, Redis, Cloud Storage, and VPC networking. It prepares your project with the necessary infrastructure for deploying containerized applications and serverless workloads."
+  default     = "This module configures foundational Google Cloud infrastructure services for modern application development (vibe coding), including VPC networking, Cloud SQL databases, Redis cache, and IAM service accounts. It prepares your project with the necessary infrastructure for deploying containerized applications and serverless workloads via Cloud Run and Cloud Build."
 }
 
 variable "module_dependency" {
@@ -31,7 +31,7 @@ variable "module_dependency" {
 variable "module_services" {
   description = "Specify the module services. {{UIMeta group=0 order=2 }}"
   type        = list(string)
-  default     = ["Cloud Run", "Cloud Build", "Artifact Registry", "Cloud SQL", "Redis Cache", "Cloud Storage", "VPC Networking", "Cloud IAM"]
+  default     = ["VPC Networking", "Cloud SQL", "Redis Cache", "Cloud IAM", "NFS Storage"]
 }
 
 variable "credit_cost" {
@@ -159,32 +159,8 @@ variable "create_redis" {
   default     = false
 }
 
-variable "create_artifact_registry" {
-  description = "Select to create Artifact Registry repository for Docker images. {{UIMeta group=2 order=3 }}"
-  type        = bool
-  default     = true
-}
-
-variable "create_storage_bucket" {
-  description = "Select to create Cloud Storage bucket for application file storage. {{UIMeta group=2 order=4 }}"
-  type        = bool
-  default     = true
-}
-
-variable "create_vpc_connector" {
-  description = "Select to create VPC Access Connector for Cloud Run and Cloud Functions to access VPC resources. {{UIMeta group=2 order=5 }}"
-  type        = bool
-  default     = false
-}
-
-variable "create_pubsub_topic" {
-  description = "Select to create Pub/Sub topic for event-driven messaging. {{UIMeta group=2 order=6 }}"
-  type        = bool
-  default     = false
-}
-
 variable "create_network_filesystem" {
-  description = "Select to create NFS server using Compute Engine instances for shared file storage. {{UIMeta group=2 order=7 }}"
+  description = "Select to create NFS server using Compute Engine instances for shared file storage. {{UIMeta group=2 order=3 }}"
   type        = bool
   default     = false
 }
@@ -224,28 +200,6 @@ variable "redis_memory_size_gb" {
     condition     = var.redis_memory_size_gb >= 1 && var.redis_memory_size_gb <= 300
     error_message = "Redis memory size must be between 1 and 300 GB."
   }
-}
-
-################################################################################
-# GROUP 5: Storage Configuration (User-accessible)
-################################################################################
-
-variable "storage_bucket_location" {
-  description = "Location for the Cloud Storage bucket. Use region name for regional bucket or multi-region like 'US' or 'EU'. {{UIMeta group=5 order=0 }}"
-  type        = string
-  default     = ""
-}
-
-variable "storage_bucket_storage_class" {
-  description = "Storage class for the bucket. STANDARD for frequently accessed data, NEARLINE for monthly access, COLDLINE for quarterly access, ARCHIVE for yearly access. {{UIMeta group=5 order=1 options=STANDARD,NEARLINE,COLDLINE,ARCHIVE }}"
-  type        = string
-  default     = "STANDARD"
-}
-
-variable "storage_bucket_versioning" {
-  description = "Enable object versioning for the bucket. {{UIMeta group=5 order=2 }}"
-  type        = bool
-  default     = false
 }
 
 ################################################################################
@@ -290,75 +244,6 @@ variable "redis_connect_mode" {
   description = "Network connection mode for Redis. {{UIMeta group=0 order=51 options=DIRECT_PEERING,PRIVATE_SERVICE_ACCESS }}"
   type        = string
   default     = "DIRECT_PEERING"
-}
-
-################################################################################
-# GROUP 0: Advanced Configuration (Admin-only) - Artifact Registry
-################################################################################
-
-variable "artifact_registry_format" {
-  description = "Format of the Artifact Registry repository. {{UIMeta group=0 order=60 options=DOCKER,NPM,PYTHON,APT,YUM,MAVEN }}"
-  type        = string
-  default     = "DOCKER"
-}
-
-variable "artifact_registry_mode" {
-  description = "Mode of the Artifact Registry repository. {{UIMeta group=0 order=61 options=STANDARD_REPOSITORY,VIRTUAL_REPOSITORY,REMOTE_REPOSITORY }}"
-  type        = string
-  default     = "STANDARD_REPOSITORY"
-}
-
-################################################################################
-# GROUP 0: Advanced Configuration (Admin-only) - VPC Connector
-################################################################################
-
-variable "vpc_connector_machine_type" {
-  description = "Machine type for VPC Access Connector. {{UIMeta group=0 order=70 options=e2-micro,e2-standard-4,f1-micro }}"
-  type        = string
-  default     = "e2-micro"
-}
-
-variable "vpc_connector_min_instances" {
-  description = "Minimum number of VPC connector instances. {{UIMeta group=0 order=71 }}"
-  type        = number
-  default     = 2
-
-  validation {
-    condition     = var.vpc_connector_min_instances >= 2 && var.vpc_connector_min_instances <= 10
-    error_message = "Minimum instances must be between 2 and 10."
-  }
-}
-
-variable "vpc_connector_max_instances" {
-  description = "Maximum number of VPC connector instances. {{UIMeta group=0 order=72 }}"
-  type        = number
-  default     = 3
-
-  validation {
-    condition     = var.vpc_connector_max_instances >= 2 && var.vpc_connector_max_instances <= 10
-    error_message = "Maximum instances must be between 2 and 10."
-  }
-}
-
-variable "vpc_connector_ip_cidr_range" {
-  description = "CIDR range for VPC Access Connector. Must be /28 and not overlap with existing subnets. {{UIMeta group=0 order=73 }}"
-  type        = string
-  default     = "10.8.0.0/28"
-
-  validation {
-    condition     = can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}/28$", var.vpc_connector_ip_cidr_range))
-    error_message = "VPC Connector CIDR must be a valid /28 range (e.g., 10.8.0.0/28)."
-  }
-}
-
-################################################################################
-# GROUP 0: Advanced Configuration (Admin-only) - Pub/Sub
-################################################################################
-
-variable "pubsub_message_retention_duration" {
-  description = "How long to retain unacknowledged messages. {{UIMeta group=0 order=80 }}"
-  type        = string
-  default     = "604800s"  # 7 days
 }
 
 ################################################################################

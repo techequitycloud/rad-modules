@@ -58,7 +58,6 @@ locals {
     "containersecurity.googleapis.com",
     "cloudscheduler.googleapis.com",
     "redis.googleapis.com",
-    "vpcaccess.googleapis.com",
     "firestore.googleapis.com",
    ]
 
