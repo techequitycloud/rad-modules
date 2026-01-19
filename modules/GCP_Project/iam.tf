@@ -14,20 +14,47 @@
 
 locals {
   devops_roles = [
-    "roles/compute.admin",
+    # Core AI/ML Roles
+    "roles/aiplatform.user",
+    "roles/aiplatform.admin",
+    "roles/ml.developer",
+    "roles/cloudvision.user",
+    "roles/language.user",
+
+    # Development & Deployment Roles
     "roles/run.admin",
-    "roles/cloudsql.admin",
-    "roles/storage.admin",
-    "roles/secretmanager.admin",
-    "roles/iam.serviceAccountUser",
-    "roles/artifactregistry.admin",
+    "roles/run.developer",
+    "roles/cloudfunctions.admin",
+    "roles/cloudfunctions.developer",
     "roles/cloudbuild.builds.editor",
+    "roles/artifactregistry.admin",
+    "roles/secretmanager.admin",
+    "roles/secretmanager.secretAccessor",
     "roles/cloudscheduler.admin",
+    "roles/clouddeploy.admin",
+
+    # Database & Storage Roles
+    "roles/datastore.user",
+    "roles/storage.admin",
+    "roles/storage.objectAdmin",
+    "roles/cloudsql.admin",
+
+    # Infrastructure & Monitoring Roles
+    "roles/compute.admin",
     "roles/logging.admin",
+    "roles/monitoring.viewer",
+    "roles/monitoring.editor",
     "roles/monitoring.admin",
     "roles/serviceusage.serviceUsageAdmin",
-    "roles/clouddeploy.admin",
+
+    # Essential Project-Level Roles
     "roles/viewer",
+    "roles/iam.serviceAccountUser",
+    "roles/serviceusage.serviceUsageConsumer",
+
+    # Security & IAM Roles
+    "roles/iam.securityAdmin",
+    "roles/iap.httpsResourceAccessor",
   ]
 
   # Flatten user and role combinations
@@ -50,6 +77,15 @@ resource "google_project_iam_member" "devops_permissions" {
   project = google_project.project.project_id
   role    = each.value.role
   member  = "user:${each.value.user}"
+}
+
+# Grant DevOps roles to rad-agent service account (module deployer)
+resource "google_project_iam_member" "rad_agent_permissions" {
+  for_each = toset(local.devops_roles)
+
+  project = google_project.project.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.rad_agent.email}"
 }
 
 # Grant rad-module-creator permission to impersonate rad-agent
