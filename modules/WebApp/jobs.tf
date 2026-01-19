@@ -141,7 +141,6 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
       max_retries           = each.value.max_retries
       timeout               = "${each.value.timeout_seconds}s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
-      task_count            = each.value.task_count
 
       containers {
         # Use specified image or default to main container image

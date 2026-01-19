@@ -158,40 +158,6 @@ variable "service_labels" {
   default     = {}
 }
 
-variable "enable_custom_domain" {
-  description = "Enable custom domain mapping (advanced). {{UIMeta group=0 order=122 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "custom_domain" {
-  description = "Custom domain for the application (requires enable_custom_domain=true). {{UIMeta group=0 order=123 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "enable_cdn" {
-  description = "Enable Cloud CDN (requires load balancer, advanced). {{UIMeta group=0 order=124 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "enable_iap" {
-  description = "Enable Identity-Aware Proxy (advanced). {{UIMeta group=0 order=125 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "iap_config" {
-  description = "IAP configuration (requires enable_iap=true, advanced). {{UIMeta group=0 order=126 updatesafe }}"
-  type = object({
-    oauth2_client_id     = optional(string)
-    oauth2_client_secret = optional(string)
-    allowed_emails       = optional(list(string), [])
-    allowed_domains      = optional(list(string), [])
-  })
-  default = null
-}
 
 # ===========================
 # GROUP 1: External Project Configuration
@@ -384,7 +350,7 @@ variable "cicd_trigger_config" {
 variable "database_type" {
   description = "Database type: MYSQL, POSTGRES, SQLSERVER (or specific versions like MYSQL_8_0, POSTGRES_15). {{UIMeta group=5 order=500 updatesafe }}"
   type        = string
-  default     = "MYSQL"
+  default     = "POSTGRES"
 
   validation {
     condition     = contains(["MYSQL", "POSTGRES", "POSTGRESQL", "SQLSERVER", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE"], var.database_type)
