@@ -12,6 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+locals {
+  # Service account name (without @domain)
+  cloudrun_sa = "my-cloudrun-sa"
+  cloudbuild_sa = "my-cloudbuild-sa"
+  
+  # Full email addresses
+  cloud_run_sa_email = "${local.cloudrun_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+  cloudbuild_sa_email = "${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+}
+
 #########################################################################
 # IAM permissions for Secret Manager
 #########################################################################
