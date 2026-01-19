@@ -183,14 +183,9 @@ variable "enable_iap" {
 }
 
 variable "iap_config" {
-  description = "IAP configuration (requires enable_iap=true, advanced). {{UIMeta group=0 order=126 updatesafe }}"
-  type = object({
-    oauth2_client_id     = string
-    oauth2_client_secret = string
-    allowed_emails       = optional(list(string), [])
-    allowed_domains      = optional(list(string), [])
-  })
-  default = ""
+  description = "IAP configuration (requires enable_iap=true, advanced). Structure: { oauth2_client_id, oauth2_client_secret, allowed_emails, allowed_domains }. {{UIMeta group=0 order=126 updatesafe }}"
+  type        = any
+  default     = null
 }
 
 # ===========================
