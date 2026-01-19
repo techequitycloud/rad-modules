@@ -67,7 +67,7 @@ variable "deployment_id" {
 variable "resource_creator_identity" {
   description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=108 updatesafe }}"
   type        = string
-  default     = null
+  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "resource_labels" {
@@ -79,7 +79,7 @@ variable "resource_labels" {
 variable "deployment_regions" {
   description = "List of regions for multi-region deployment (advanced users only). {{UIMeta group=0 order=110 updatesafe }}"
   type        = list(string)
-  default     = []
+  default     = ["us-central1"]
 }
 
 variable "configure_environment" {
@@ -185,8 +185,8 @@ variable "enable_iap" {
 variable "iap_config" {
   description = "IAP configuration (requires enable_iap=true, advanced). {{UIMeta group=0 order=126 updatesafe }}"
   type = object({
-    oauth2_client_id     = string
-    oauth2_client_secret = string
+    oauth2_client_id     = optional(string)
+    oauth2_client_secret = optional(string)
     allowed_emails       = optional(list(string), [])
     allowed_domains      = optional(list(string), [])
   })
