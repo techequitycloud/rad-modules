@@ -57,7 +57,7 @@ default = true
 }
 
 variable "deployment_id" {
-  description = "Unique ID suffix for resources.  Leave blank to generate random ID."
+  description = "Unique ID suffix for resources.  Leave blank to generate random ID. {{UIMeta group=0 order=107 }}"
   type        = string
   default     = null
 }
@@ -132,7 +132,7 @@ variable "application_version" {
 # GROUP 7: Tenant
 
 variable "tenant_deployment_id" {
-  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=2 order=701 updatesafe}}"
+  description = "Specify a client or application deployment id. This uniquely identifies the client or application deployment. {{UIMeta group=2 order=201 updatesafe}}"
   type        = string
 }
 
