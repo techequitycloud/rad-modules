@@ -17,7 +17,17 @@
 #########################################################################
 
 #########################################################################
-# Common Configuration
+# GROUP 1: Deployment
+#########################################################################
+
+variable "agent_service_account" {
+  description = "Service account email for Cloud Run services. If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=1 order=200 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+#########################################################################
+# GROUP 2: Application Project
 #########################################################################
 
 # ===========================
@@ -56,16 +66,14 @@ variable "deployment_region" {
 variable "network_name" {
   description = "Name of the existing VPC network. {{UIMeta group=0 order=101 updatesafe }}"
   type        = string
+  default     = "vpc-network"
 }
 
 variable "resource_creator_identity" {
   description = "Identity of the resource creator (user or service account). {{UIMeta group=0 order=102 updatesafe }}"
   type        = string
+  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
-
-#########################################################################
-# Storage Configuration
-#########################################################################
 
 variable "storage_location" {
   description = "Location for the shared GCS bucket (US, EU, ASIA, or specific region). {{UIMeta group=0 order=200 updatesafe }}"
@@ -85,9 +93,19 @@ variable "enable_storage_versioning" {
   default     = true
 }
 
-#########################################################################
+variable "application_database_name" {
+  description = "Database name for N8N. {{UIMeta group=0 order=503 updatesafe }}"
+  type        = string
+  default     = "n8n"
+}
+
+variable "application_database_user" {
+  description = "Database username for N8N. {{UIMeta group=0 order=504 updatesafe }}"
+  type        = string
+  default     = "n8n"
+}
+
 # Qdrant Configuration
-#########################################################################
 
 variable "qdrant_version" {
   description = "Qdrant Docker image version. {{UIMeta group=0 order=300 updatesafe }}"
@@ -113,9 +131,7 @@ variable "qdrant_ingress" {
   default     = "internal"
 }
 
-#########################################################################
 # Ollama Configuration
-#########################################################################
 
 variable "ollama_version" {
   description = "Ollama Docker image version. {{UIMeta group=0 order=400 updatesafe }}"
@@ -141,9 +157,7 @@ variable "ollama_ingress" {
   default     = "internal"
 }
 
-#########################################################################
 # N8N Configuration
-#########################################################################
 
 variable "n8n_version" {
   description = "N8N Docker image version. {{UIMeta group=0 order=500 updatesafe }}"
@@ -199,9 +213,7 @@ variable "additional_n8n_env_vars" {
   default     = {}
 }
 
-#########################################################################
 # Monitoring Configuration
-#########################################################################
 
 variable "configure_monitoring" {
   description = "Enable monitoring and uptime checks for all services. {{UIMeta group=0 order=600 updatesafe }}"
