@@ -145,7 +145,7 @@ resource "null_resource" "execute_nfs_setup_job" {
       fi
 
       echo "Waiting for IAM permissions to propagate..."
-      sleep 15
+      sleep 60
 
       # Set a timeout for the gcloud command itself
       timeout 180 gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
