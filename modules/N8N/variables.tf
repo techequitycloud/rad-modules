@@ -17,7 +17,6 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys n8n on Google Cloud Run, providing a workflow automation tool with a PostgreSQL database."
 }
 
 variable "module_dependency" {
@@ -98,25 +97,21 @@ variable "network_name" {
 variable "application_name" {
   description = "Specify application name. The application name is used to identify configured resources alongside other attributes that ensures uniqueness. {{UIMeta group=0 order=501}}"
   type        = string
-  default     = "n8n"
 }
 
 variable "application_database_user" {
   description = "Specify application database user name. {{UIMeta group=0 order=502}}"
   type        = string
-  default     = "n8n"
 }
 
 variable "application_database_name" {
   description = "Specify application database name. {{UIMeta group=0 order=503 }}"
   type        = string
-  default     = "n8n"
 }
 
 variable "application_version" {
   description = "Enter application version (image tag). {{UIMeta group=0 order=504}}"
   type        = string
-  default     = "latest"
 }
 
 # GROUP 4: Tenant
