@@ -3,12 +3,18 @@
 
 locals {
   gitlab_module = {
+    app_name        = "gitlab"
     description     = "GitLab DevOps Platform - Complete DevOps platform"
     container_image = "gitlab/gitlab-ce:16.8.0-ce.0"
+    image_source    = "prebuilt"
     container_port  = 80
     database_type   = "POSTGRES_15"
+    db_name         = "gitlab_db"
+    db_user         = "gitlab_user"
+
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/var/run/postgresql"
+
     gcs_volumes = [
       {
         bucket     = "$${tenant_id}-gitlab-data"
@@ -32,6 +38,25 @@ locals {
     }
     enable_postgres_extensions = true
     postgres_extensions         = ["pg_trgm", "btree_gist"]
+
+    startup_probe = {
+      enabled               = true
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 300
+      timeout_seconds       = 60
+      period_seconds        = 60
+      failure_threshold     = 5
+    }
+    liveness_probe = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/users/sign_in"
+      initial_delay_seconds = 300
+      timeout_seconds       = 10
+      period_seconds        = 60
+      failure_threshold     = 3
+    }
   }
 }
 

@@ -108,15 +108,23 @@ locals {
   #########################################################################
 
   # Container configuration
-  module_container_image = local.using_module && local.selected_module != null ? local.selected_module.container_image : null
-  module_container_port  = local.using_module && local.selected_module != null ? local.selected_module.container_port : null
+  module_container_image        = local.using_module && local.selected_module != null ? local.selected_module.container_image : null
+  module_container_port         = local.using_module && local.selected_module != null ? local.selected_module.container_port : null
+  module_container_image_source = local.using_module && local.selected_module != null ? lookup(local.selected_module, "image_source", null) : null
+  module_application_name       = local.using_module && local.selected_module != null ? lookup(local.selected_module, "app_name", null) : null
 
   # Database configuration
-  module_database_type = local.using_module && local.selected_module != null ? local.selected_module.database_type : null
+  module_database_type             = local.using_module && local.selected_module != null ? local.selected_module.database_type : null
+  module_application_database_name = local.using_module && local.selected_module != null ? lookup(local.selected_module, "db_name", null) : null
+  module_application_database_user = local.using_module && local.selected_module != null ? lookup(local.selected_module, "db_user", null) : null
 
   # Cloud SQL volume configuration
   module_enable_cloudsql_volume     = local.using_module && local.selected_module != null ? local.selected_module.enable_cloudsql_volume : null
   module_cloudsql_volume_mount_path = local.using_module && local.selected_module != null ? local.selected_module.cloudsql_volume_mount_path : null
+
+  # NFS configuration
+  module_nfs_enabled    = local.using_module && local.selected_module != null ? lookup(local.selected_module, "nfs_enabled", null) : null
+  module_nfs_mount_path = local.using_module && local.selected_module != null ? lookup(local.selected_module, "nfs_mount_path", null) : null
 
   # GCS volumes configuration
   module_gcs_volumes_raw = local.using_module && local.selected_module != null ? local.selected_module.gcs_volumes : []
@@ -124,9 +132,12 @@ locals {
   # Process GCS volumes - replace placeholders
   module_gcs_volumes = [
     for vol in local.module_gcs_volumes_raw : {
-      bucket     = replace(replace(vol.bucket, "$${tenant_id}", var.tenant_deployment_id), "$${deployment_id}", var.deployment_id != null ? var.deployment_id : "default")
-      mount_path = vol.mount_path
-      read_only  = vol.read_only
+      name          = lookup(vol, "name", "gcs-volume-${index(local.module_gcs_volumes_raw, vol)}")
+      bucket        = replace(replace(vol.bucket, "$${tenant_id}", var.tenant_deployment_id), "$${deployment_id}", var.deployment_id != null ? var.deployment_id : "default")
+      bucket_name   = lookup(vol, "bucket_name", null) # Support explicit bucket name if provided
+      mount_path    = vol.mount_path
+      read_only     = vol.read_only
+      mount_options = lookup(vol, "mount_options", ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"])
     }
   ]
 
@@ -134,6 +145,10 @@ locals {
   module_container_resources = local.using_module && local.selected_module != null ? local.selected_module.container_resources : null
   module_min_instance_count  = local.using_module && local.selected_module != null ? local.selected_module.min_instance_count : null
   module_max_instance_count  = local.using_module && local.selected_module != null ? local.selected_module.max_instance_count : null
+
+  # Probes
+  module_startup_probe_config = local.using_module && local.selected_module != null ? lookup(local.selected_module, "startup_probe", null) : null
+  module_health_check_config  = local.using_module && local.selected_module != null ? lookup(local.selected_module, "liveness_probe", null) : null
 
   # Environment variables from preset
   module_environment_variables = local.using_module && local.selected_module != null ? local.selected_module.environment_variables : {}
@@ -152,27 +167,67 @@ locals {
   #########################################################################
 
   # Container configuration
-  final_container_image = var.container_image != "" && var.container_image != null ? var.container_image : coalesce(local.module_container_image, "")
-  final_container_port  = var.container_port != 8080 ? var.container_port : coalesce(local.module_container_port, 8080)
+  final_container_image         = var.container_image != "" && var.container_image != null ? var.container_image : coalesce(local.module_container_image, "")
+  final_container_port          = var.container_port != null ? var.container_port : coalesce(local.module_container_port, 8080)
+  final_container_image_source  = var.container_image_source != null ? var.container_image_source : coalesce(local.module_container_image_source, "prebuilt")
+  final_application_name        = var.application_name != null ? var.application_name : coalesce(local.module_application_name, "webapp")
 
   # Database configuration
-  final_database_type = var.database_type != "POSTGRES" ? var.database_type : coalesce(local.module_database_type, "POSTGRES")
+  final_database_type             = var.database_type != null ? var.database_type : coalesce(local.module_database_type, "POSTGRES")
+  final_application_database_name = var.application_database_name != null ? var.application_database_name : coalesce(local.module_application_database_name, "webapp_db")
+  final_application_database_user = var.application_database_user != null ? var.application_database_user : coalesce(local.module_application_database_user, "webapp_user")
 
   # Cloud SQL volume
-  final_enable_cloudsql_volume     = var.enable_cloudsql_volume != false ? var.enable_cloudsql_volume : coalesce(local.module_enable_cloudsql_volume, false)
-  final_cloudsql_volume_mount_path = var.cloudsql_volume_mount_path != "/cloudsql" ? var.cloudsql_volume_mount_path : coalesce(local.module_cloudsql_volume_mount_path, "/cloudsql")
+  final_enable_cloudsql_volume     = var.enable_cloudsql_volume != null ? var.enable_cloudsql_volume : coalesce(local.module_enable_cloudsql_volume, false)
+  final_cloudsql_volume_mount_path = var.cloudsql_volume_mount_path != null ? var.cloudsql_volume_mount_path : coalesce(local.module_cloudsql_volume_mount_path, "/cloudsql")
+
+  # NFS configuration
+  final_nfs_enabled    = var.nfs_enabled != null ? var.nfs_enabled : coalesce(local.module_nfs_enabled, false)
+  final_nfs_mount_path = var.nfs_mount_path != null ? var.nfs_mount_path : coalesce(local.module_nfs_mount_path, "/mnt")
 
   # GCS volumes - use preset if manual is empty
-  final_gcs_volumes = length(var.gcs_volumes) > 0 ? var.gcs_volumes : local.module_gcs_volumes
+  final_gcs_volumes_raw = length(var.gcs_volumes) > 0 ? var.gcs_volumes : local.module_gcs_volumes
 
-  # Resource limits - use preset if manual is default
+  # Normalize GCS volumes structure for main.tf to use
+  final_gcs_volumes = [
+    for vol in local.final_gcs_volumes_raw : {
+      name          = lookup(vol, "name", "gcs-vol-${index(local.final_gcs_volumes_raw, vol)}")
+      bucket_name   = lookup(vol, "bucket_name", lookup(vol, "bucket", null)) # Handle both keys
+      mount_path    = vol.mount_path
+      readonly      = lookup(vol, "read_only", lookup(vol, "readonly", false))
+      mount_options = lookup(vol, "mount_options", ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"])
+    }
+  ]
+
+  # Resource limits - use preset if manual is default or null
   final_container_resources = (
-    var.container_resources.cpu_limit != "1000m" || var.container_resources.memory_limit != "512Mi"
+    var.container_resources != null && (try(var.container_resources.cpu_limit, "") != "" || try(var.container_resources.memory_limit, "") != "")
     ? var.container_resources
-    : coalesce(local.module_container_resources, var.container_resources)
+    : coalesce(local.module_container_resources, { cpu_limit = "1000m", memory_limit = "512Mi" })
   )
-  final_min_instance_count = var.min_instance_count != 0 ? var.min_instance_count : coalesce(local.module_min_instance_count, 0)
-  final_max_instance_count = var.max_instance_count != 3 ? var.max_instance_count : coalesce(local.module_max_instance_count, 3)
+  final_min_instance_count = var.min_instance_count != null ? var.min_instance_count : coalesce(local.module_min_instance_count, 0)
+  final_max_instance_count = var.max_instance_count != null ? var.max_instance_count : coalesce(local.module_max_instance_count, 3)
+
+  # Probes
+  final_startup_probe_config = var.startup_probe_config != null ? var.startup_probe_config : (local.module_startup_probe_config != null ? local.module_startup_probe_config : {
+    enabled               = true
+    type                  = "TCP"
+    path                  = "/"
+    initial_delay_seconds = 0
+    timeout_seconds       = 240
+    period_seconds        = 240
+    failure_threshold     = 1
+  })
+
+  final_health_check_config = var.health_check_config != null ? var.health_check_config : (local.module_health_check_config != null ? local.module_health_check_config : {
+    enabled               = false
+    type                  = "HTTP"
+    path                  = "/"
+    initial_delay_seconds = 0
+    timeout_seconds       = 1
+    period_seconds        = 10
+    failure_threshold     = 3
+  })
 
   # Environment variables - merge preset and manual (manual takes precedence)
   final_environment_variables = merge(
