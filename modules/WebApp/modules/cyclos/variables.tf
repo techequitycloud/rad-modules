@@ -4,13 +4,13 @@
 locals {
   cyclos_module = {
     app_name        = "cyclos"
-    description     = "Cyclos Banking System - Online banking for financial institutions"
+    description     = "This module deploys the Cyclos Banking System (CBS) on Google Cloud Run. This provides a serverless environment for the banking application, which means you don't have to manage servers."
     container_image = "cyclos/cyclos:4.16.15"
     image_source    = "prebuilt"
     container_port  = 8080
     database_type   = "POSTGRES_15"
-    db_name         = "cyclos_db"
-    db_user         = "cyclos_user"
+    db_name         = "cyclos"
+    db_user         = "cyclos"
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/var/run/postgresql"
     gcs_volumes = [{
