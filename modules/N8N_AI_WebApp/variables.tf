@@ -47,49 +47,49 @@ variable "tenant_deployment_id" {
 variable "deployment_region" {
   description = "GCP region for Cloud Run deployments. {{UIMeta group=0 order=202 updatesafe }}"
   type        = string
-  default     = "us-central1"
+  default     = null
 }
 
 variable "network_name" {
   description = "Name of the existing VPC network. {{UIMeta group=0 order=301 updatesafe }}"
   type        = string
-  default     = "vpc-network"
+  default     = null
 }
 
 variable "resource_creator_identity" {
   description = "Identity of the resource creator (user or service account). {{UIMeta group=0 order=102 updatesafe }}"
   type        = string
-  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+  default     = null
 }
 
 variable "storage_location" {
   description = "Location for the shared GCS bucket (US, EU, ASIA, or specific region). {{UIMeta group=0 order=500 updatesafe }}"
   type        = string
-  default     = "US"
+  default     = null
 }
 
 variable "force_destroy_storage" {
   description = "Allow deletion of non-empty storage bucket. {{UIMeta group=0 order=501 updatesafe }}"
   type        = bool
-  default     = false
+  default     = null
 }
 
 variable "enable_storage_versioning" {
   description = "Enable versioning on the shared storage bucket. {{UIMeta group=0 order=502 updatesafe }}"
   type        = bool
-  default     = true
+  default     = null
 }
 
 variable "application_database_name" {
   description = "Database name for N8N. {{UIMeta group=0 order=503 updatesafe }}"
   type        = string
-  default     = "n8n"
+  default     = null
 }
 
 variable "application_database_user" {
   description = "Database username for N8N. {{UIMeta group=0 order=504 updatesafe }}"
   type        = string
-  default     = "n8n"
+  default     = null
 }
 
 # Qdrant Configuration
@@ -97,25 +97,25 @@ variable "application_database_user" {
 variable "qdrant_version" {
   description = "Qdrant Docker image version. {{UIMeta group=0 order=600 updatesafe }}"
   type        = string
-  default     = "latest"
+  default     = null
 }
 
 variable "qdrant_cpu" {
   description = "CPU limit for Qdrant container (e.g., '1', '2', '4'). {{UIMeta group=0 order=601 updatesafe }}"
   type        = string
-  default     = "1"
+  default     = null
 }
 
 variable "qdrant_memory" {
   description = "Memory limit for Qdrant container (e.g., '512Mi', '1Gi', '2Gi'). {{UIMeta group=0 order=602 updatesafe }}"
   type        = string
-  default     = "2Gi"
+  default     = null
 }
 
 variable "qdrant_ingress" {
   description = "Ingress settings for Qdrant service (all, internal, internal-and-cloud-load-balancing). {{UIMeta group=0 order=603 updatesafe }}"
   type        = string
-  default     = "internal"
+  default     = null
 }
 
 # Ollama Configuration
@@ -123,25 +123,25 @@ variable "qdrant_ingress" {
 variable "ollama_version" {
   description = "Ollama Docker image version. {{UIMeta group=0 order=610 updatesafe }}"
   type        = string
-  default     = "latest"
+  default     = null
 }
 
 variable "ollama_cpu" {
   description = "CPU limit for Ollama container (e.g., '2', '4', '8'). {{UIMeta group=0 order=611 updatesafe }}"
   type        = string
-  default     = "2"
+  default     = null
 }
 
 variable "ollama_memory" {
   description = "Memory limit for Ollama container (e.g., '2Gi', '4Gi', '8Gi'). {{UIMeta group=0 order=612 updatesafe }}"
   type        = string
-  default     = "4Gi"
+  default     = null
 }
 
 variable "ollama_ingress" {
   description = "Ingress settings for Ollama service (all, internal, internal-and-cloud-load-balancing). {{UIMeta group=0 order=613 updatesafe }}"
   type        = string
-  default     = "internal"
+  default     = null
 }
 
 # N8N Configuration
@@ -149,43 +149,43 @@ variable "ollama_ingress" {
 variable "n8n_version" {
   description = "N8N Docker image version. {{UIMeta group=0 order=620 updatesafe }}"
   type        = string
-  default     = "latest"
+  default     = null
 }
 
 variable "n8n_cpu" {
   description = "CPU limit for N8N container (e.g., '1', '2', '4'). {{UIMeta group=0 order=621 updatesafe }}"
   type        = string
-  default     = "2"
+  default     = null
 }
 
 variable "n8n_memory" {
   description = "Memory limit for N8N container (e.g., '2Gi', '4Gi', '8Gi'). {{UIMeta group=0 order=622 updatesafe }}"
   type        = string
-  default     = "4Gi"
+  default     = null
 }
 
 variable "n8n_min_instances" {
   description = "Minimum number of N8N instances. {{UIMeta group=0 order=623 updatesafe }}"
   type        = number
-  default     = 1
+  default     = null
 }
 
 variable "n8n_max_instances" {
   description = "Maximum number of N8N instances. {{UIMeta group=0 order=624 updatesafe }}"
   type        = number
-  default     = 10
+  default     = null
 }
 
 variable "timezone" {
   description = "Timezone for N8N workflows. {{UIMeta group=0 order=630 updatesafe }}"
   type        = string
-  default     = "America/New_York"
+  default     = null
 }
 
 variable "additional_n8n_env_vars" {
   description = "Additional environment variables for N8N. {{UIMeta group=0 order=631 updatesafe }}"
   type        = map(string)
-  default     = {}
+  default     = null
 }
 
 # Monitoring Configuration
@@ -193,5 +193,5 @@ variable "additional_n8n_env_vars" {
 variable "configure_monitoring" {
   description = "Enable monitoring and uptime checks for all services. {{UIMeta group=0 order=805 updatesafe }}"
   type        = bool
-  default     = true
+  default     = null
 }

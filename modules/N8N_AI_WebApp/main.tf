@@ -19,15 +19,46 @@
 # This module deploys the N8N AI Stack (N8N + Qdrant + Ollama) using
 # the WebApp module three times, wiring them together as a cohesive stack.
 
+module "n8n_ai_config" {
+  source = "../WebApp/modules/N8N_AI_WebApp"
+}
+
 locals {
+  # Resolve defaults
+  final_agent_service_account     = var.agent_service_account != null ? var.agent_service_account : module.n8n_ai_config.defaults.agent_service_account
+  final_deployment_region         = var.deployment_region != null ? var.deployment_region : module.n8n_ai_config.defaults.deployment_region
+  final_network_name              = var.network_name != null ? var.network_name : module.n8n_ai_config.defaults.network_name
+  final_resource_creator_identity = var.resource_creator_identity != null ? var.resource_creator_identity : module.n8n_ai_config.defaults.resource_creator_identity
+  final_storage_location          = var.storage_location != null ? var.storage_location : module.n8n_ai_config.defaults.storage_location
+  final_force_destroy_storage     = var.force_destroy_storage != null ? var.force_destroy_storage : module.n8n_ai_config.defaults.force_destroy_storage
+  final_enable_storage_versioning = var.enable_storage_versioning != null ? var.enable_storage_versioning : module.n8n_ai_config.defaults.enable_storage_versioning
+  final_application_database_name = var.application_database_name != null ? var.application_database_name : module.n8n_ai_config.defaults.application_database_name
+  final_application_database_user = var.application_database_user != null ? var.application_database_user : module.n8n_ai_config.defaults.application_database_user
+  final_qdrant_version            = var.qdrant_version != null ? var.qdrant_version : module.n8n_ai_config.defaults.qdrant_version
+  final_qdrant_cpu                = var.qdrant_cpu != null ? var.qdrant_cpu : module.n8n_ai_config.defaults.qdrant_cpu
+  final_qdrant_memory             = var.qdrant_memory != null ? var.qdrant_memory : module.n8n_ai_config.defaults.qdrant_memory
+  final_qdrant_ingress            = var.qdrant_ingress != null ? var.qdrant_ingress : module.n8n_ai_config.defaults.qdrant_ingress
+  final_ollama_version            = var.ollama_version != null ? var.ollama_version : module.n8n_ai_config.defaults.ollama_version
+  final_ollama_cpu                = var.ollama_cpu != null ? var.ollama_cpu : module.n8n_ai_config.defaults.ollama_cpu
+  final_ollama_memory             = var.ollama_memory != null ? var.ollama_memory : module.n8n_ai_config.defaults.ollama_memory
+  final_ollama_ingress            = var.ollama_ingress != null ? var.ollama_ingress : module.n8n_ai_config.defaults.ollama_ingress
+  final_n8n_version               = var.n8n_version != null ? var.n8n_version : module.n8n_ai_config.defaults.n8n_version
+  final_n8n_cpu                   = var.n8n_cpu != null ? var.n8n_cpu : module.n8n_ai_config.defaults.n8n_cpu
+  final_n8n_memory                = var.n8n_memory != null ? var.n8n_memory : module.n8n_ai_config.defaults.n8n_memory
+  final_n8n_min_instances         = var.n8n_min_instances != null ? var.n8n_min_instances : module.n8n_ai_config.defaults.n8n_min_instances
+  final_n8n_max_instances         = var.n8n_max_instances != null ? var.n8n_max_instances : module.n8n_ai_config.defaults.n8n_max_instances
+  final_timezone                  = var.timezone != null ? var.timezone : module.n8n_ai_config.defaults.timezone
+  final_additional_n8n_env_vars   = var.additional_n8n_env_vars != null ? var.additional_n8n_env_vars : module.n8n_ai_config.defaults.additional_n8n_env_vars
+  final_configure_monitoring      = var.configure_monitoring != null ? var.configure_monitoring : module.n8n_ai_config.defaults.configure_monitoring
+
   # Common configuration shared across all services
   common_config = {
     existing_project_id  = var.existing_project_id
     tenant_deployment_id = var.tenant_deployment_id
-    deployment_region    = var.deployment_region
-    network_name         = var.network_name
-    agent_service_account = var.agent_service_account
-    resource_creator_identity = var.resource_creator_identity
+    deployment_region    = local.final_deployment_region
+    network_name         = local.final_network_name
+    agent_service_account = local.final_agent_service_account
+    resource_creator_identity = local.final_resource_creator_identity
   }
 
   # Shared storage bucket name
@@ -41,13 +72,13 @@ locals {
 resource "google_storage_bucket" "shared_data" {
   name          = local.shared_bucket_name
   project       = var.existing_project_id
-  location      = var.storage_location
-  force_destroy = var.force_destroy_storage
+  location      = local.final_storage_location
+  force_destroy = local.final_force_destroy_storage
 
   uniform_bucket_level_access = true
 
   versioning {
-    enabled = var.enable_storage_versioning
+    enabled = local.final_enable_storage_versioning
   }
 }
 
@@ -73,13 +104,13 @@ module "qdrant" {
 
   # Container configuration
   container_image_source = "prebuilt"
-  container_image        = "qdrant/qdrant:${var.qdrant_version}"
+  container_image        = "qdrant/qdrant:${local.final_qdrant_version}"
   container_port         = 6333
 
   # Resources
   container_resources = {
-    cpu_limit    = var.qdrant_cpu
-    memory_limit = var.qdrant_memory
+    cpu_limit    = local.final_qdrant_cpu
+    memory_limit = local.final_qdrant_memory
   }
 
   min_instance_count = 1
@@ -126,12 +157,12 @@ module "qdrant" {
   }
 
   # Internal access only
-  ingress_settings = var.qdrant_ingress
+  ingress_settings = local.final_qdrant_ingress
 
   # Monitoring
-  configure_monitoring = var.configure_monitoring
+  configure_monitoring = local.final_configure_monitoring
   uptime_check_config = {
-    enabled = var.configure_monitoring
+    enabled = local.final_configure_monitoring
     path    = "/readyz"
   }
 
@@ -162,13 +193,13 @@ module "ollama" {
 
   # Container configuration
   container_image_source = "prebuilt"
-  container_image        = "ollama/ollama:${var.ollama_version}"
+  container_image        = "ollama/ollama:${local.final_ollama_version}"
   container_port         = 11434
 
   # Resources - Ollama needs more resources for LLM inference
   container_resources = {
-    cpu_limit    = var.ollama_cpu
-    memory_limit = var.ollama_memory
+    cpu_limit    = local.final_ollama_cpu
+    memory_limit = local.final_ollama_memory
   }
 
   min_instance_count = 1
@@ -215,12 +246,12 @@ module "ollama" {
   }
 
   # Internal access only
-  ingress_settings = var.ollama_ingress
+  ingress_settings = local.final_ollama_ingress
 
   # Monitoring
-  configure_monitoring = var.configure_monitoring
+  configure_monitoring = local.final_configure_monitoring
   uptime_check_config = {
-    enabled = var.configure_monitoring
+    enabled = local.final_configure_monitoring
     path    = "/"
   }
 
@@ -246,22 +277,22 @@ module "n8n" {
 
   # Service-specific configuration
   application_name = "n8n"
-  application_database_name = var.application_database_name
-  application_database_user = var.application_database_user
+  application_database_name = local.final_application_database_name
+  application_database_user = local.final_application_database_user
 
   # Container configuration
   container_image_source = "prebuilt"
-  container_image        = "n8nio/n8n:${var.n8n_version}"
+  container_image        = "n8nio/n8n:${local.final_n8n_version}"
   container_port         = 5678
 
   # Resources
   container_resources = {
-    cpu_limit    = var.n8n_cpu
-    memory_limit = var.n8n_memory
+    cpu_limit    = local.final_n8n_cpu
+    memory_limit = local.final_n8n_memory
   }
 
-  min_instance_count = var.n8n_min_instances
-  max_instance_count = var.n8n_max_instances
+  min_instance_count = local.final_n8n_min_instances
+  max_instance_count = local.final_n8n_max_instances
 
   # Database configuration - N8N needs a database
   database_type = "POSTGRES_15"
@@ -278,7 +309,7 @@ module "n8n" {
       N8N_PROTOCOL              = "https"
       N8N_DIAGNOSTICS_ENABLED   = "true"
       N8N_METRICS               = "true"
-      GENERIC_TIMEZONE          = var.timezone
+      GENERIC_TIMEZONE          = local.final_timezone
 
       # Database configuration (using Unix socket)
       DB_TYPE                   = "postgresdb"
@@ -289,7 +320,7 @@ module "n8n" {
       QDRANT_URL                = module.qdrant.service_url
       OLLAMA_URL                = module.ollama.service_url
     },
-    var.additional_n8n_env_vars
+    local.final_additional_n8n_env_vars
   )
 
   # Health checks
@@ -317,9 +348,9 @@ module "n8n" {
   ingress_settings = "all"
 
   # Monitoring
-  configure_monitoring = var.configure_monitoring
+  configure_monitoring = local.final_configure_monitoring
   uptime_check_config = {
-    enabled = var.configure_monitoring
+    enabled = local.final_configure_monitoring
     path    = "/healthz"
   }
 
