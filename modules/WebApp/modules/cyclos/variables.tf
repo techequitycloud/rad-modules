@@ -4,7 +4,8 @@
 locals {
   cyclos_module = {
     app_name        = "cyclos"
-    description     = "Cyclos Banking System - Online banking for financial institutions"
+    application_version = "4.16.15"
+    description     = "This module deploys the Cyclos Banking System (CBS) on Google Cloud Run. This provides a serverless environment for the banking application, which means you don't have to manage servers."
     container_image = "cyclos/cyclos:4.16.15"
     image_source    = "prebuilt"
     container_port  = 8080

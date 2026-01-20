@@ -17,7 +17,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys the Cyclos Banking System (CBS) on Google Cloud Run. This provides a serverless environment for the banking application, which means you don't have to manage servers."
+  default     = null
 }
 
 variable "module_dependency" {
@@ -100,25 +100,25 @@ variable "network_name" {
 variable "application_name" {
   description = "Specify application name. The application name is used to identify configured resources alongside other attributes that ensures uniqueness. {{UIMeta group=0 order=501 updatesafe}}"
   type        = string
-  default     = "cyclos"
+  default     = null
 }
 
 variable "application_database_user" {
   description = "Specify application database user name. The actual database user name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=502 updatesafe}}"
   type        = string
-  default     = "cyclos"
+  default     = null
 }
 
 variable "application_database_name" {
   description = "Specify application database name. The actual database name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=503 updatesafe }}"
   type        = string
-  default     = "cyclos"
+  default     = null
 }
 
 variable "application_version" {
   description = "Enter application version. Container images are tagged with this version number. {{UIMeta group=0 order=504 updatesafe}}"
   type        = string
-  default     = "4.16.15"
+  default     = null
 }
 
 # GROUP 7: Tenant
