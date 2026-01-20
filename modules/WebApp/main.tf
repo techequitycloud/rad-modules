@@ -152,6 +152,7 @@ locals {
   # CI/CD Configuration
   enable_cicd_trigger = var.enable_cicd_trigger && var.github_repository_url != null
   github_repo_url     = var.github_repository_url
+  github_token_secret = var.github_token_secret_name
 
   # Parse GitHub repository URL to extract owner and name
   github_repo_parts = local.github_repo_url != null ? split("/", trimprefix(trimprefix(local.github_repo_url, "https://github.com/"), "http://github.com/")) : []

@@ -315,11 +315,10 @@ variable "github_repository_url" {
   default     = null
 }
 
-variable "github_token" {
-  description = "GitHub personal access token for Cloud Build to access your repository. Required when enable_cicd_trigger is true. Pass via variable, never hardcode. {{UIMeta group=4 order=406 updatesafe sensitive }}"
+variable "github_token_secret_name" {
+  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. {{UIMeta group=4 order=406 updatesafe }}"
   type        = string
-  default     = null
-  sensitive   = true
+  default     = "github-token"
 }
 
 variable "github_app_installation_id" {

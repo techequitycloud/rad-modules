@@ -18,7 +18,7 @@
 
 # Wait for IAM permissions to propagate before creating Cloud Build v2 connection
 resource "time_sleep" "wait_for_iam" {
-  count = local.enable_cicd_trigger && var.github_token != null ? 1 : 0
+  count = local.enable_cicd_trigger && local.github_token_secret != null ? 1 : 0
 
   create_duration = "30s"
 
@@ -39,9 +39,9 @@ resource "google_cloudbuildv2_connection" "github_connection" {
     app_installation_id = var.github_app_installation_id
 
     dynamic "authorizer_credential" {
-      for_each = var.github_token != null ? [1] : []
+      for_each = local.github_token_secret != null ? [1] : []
       content {
-        oauth_token_secret_version = google_secret_manager_secret_version.github_token[0].id
+        oauth_token_secret_version = "projects/${local.project.project_id}/secrets/${local.github_token_secret}/versions/latest"
       }
     }
   }
