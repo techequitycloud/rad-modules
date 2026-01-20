@@ -74,14 +74,14 @@ locals {
   container_image_source = var.container_image_source
 
   # Container image logic:
-  # 1. If custom build with CI/CD enabled: use pipeline-built image from Artifact Registry
-  # 2. If custom build without CI/CD: use one-time built image
-  # 3. If prebuilt selected: use provided container_image URL
+  # 1. If custom build without CI/CD: use one-time built image from Artifact Registry
+  # 2. If prebuilt image selected: use provided container_image URL
+  # 3. If CI/CD enabled: use hello world placeholder initially (CI/CD will deploy actual app on first push)
   # 4. Default: use hello world placeholder
   container_image = (
-    local.container_image_source == "custom" && (var.container_build_config.enabled || local.enable_cicd_trigger) ?
+    local.container_image_source == "custom" && var.container_build_config.enabled && !local.enable_cicd_trigger ?
     "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}" :
-    var.container_image != null ? var.container_image :
+    var.container_image != null && var.container_image != "" ? var.container_image :
     "gcr.io/cloudrun/hello" # Default hello world image
   )
 
@@ -151,13 +151,18 @@ locals {
 
   # CI/CD Configuration
   enable_cicd_trigger = var.enable_cicd_trigger && var.github_repository_url != null
-  github_repo_url     = var.github_repository_url
   github_token_secret = var.github_token_secret_name
 
   # Parse GitHub repository URL to extract owner and name
-  github_repo_parts = local.github_repo_url != null ? split("/", trimprefix(trimprefix(local.github_repo_url, "https://github.com/"), "http://github.com/")) : []
+  # Normalizes input formats: https://github.com/owner/repo.git, https://github.com/owner/repo, owner/repo
+  _github_repo_clean = var.github_repository_url != null ? trimsuffix(trimprefix(trimprefix(var.github_repository_url, "https://github.com/"), "http://github.com/"), ".git") : ""
+
+  github_repo_parts = split("/", local._github_repo_clean)
   github_repo_owner = length(local.github_repo_parts) >= 2 ? local.github_repo_parts[0] : null
   github_repo_name  = length(local.github_repo_parts) >= 2 ? local.github_repo_parts[1] : null
+
+  # Normalized GitHub repository URL required for Cloud Build v2
+  github_repo_url = local.github_repo_owner != null && local.github_repo_name != null ? "https://github.com/${local.github_repo_owner}/${local.github_repo_name}.git" : null
 
   # CI/CD trigger configuration (tenant-first for easier identification)
   cicd_trigger_name = var.cicd_trigger_config.trigger_name != null ? var.cicd_trigger_config.trigger_name : "${local.tenant_id}-${local.deployment_id}-${local.application_name}-trigger"
