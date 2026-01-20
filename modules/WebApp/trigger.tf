@@ -36,7 +36,7 @@ resource "google_cloudbuildv2_connection" "github_connection" {
   name     = "${local.tenant_id}-${local.deployment_id}-${local.application_name}-github-conn"
 
   github_config {
-    app_installation_id = null # Will use GitHub App installation
+    app_installation_id = var.github_app_installation_id
 
     dynamic "authorizer_credential" {
       for_each = local.github_token_secret != null ? [1] : []
@@ -175,77 +175,7 @@ resource "google_cloudbuild_trigger" "cicd_trigger" {
 # Initial Placeholder Image Build
 #########################################################################
 
-# Create a placeholder Dockerfile for initial deployment
-resource "local_file" "placeholder_dockerfile" {
-  count = local.enable_cicd_trigger && local.container_image_source == "custom" ? 1 : 0
-
-  filename = "${path.module}/scripts/app/Dockerfile.placeholder"
-  content  = <<-EOF
-    # Placeholder container for initial deployment
-    # This will be replaced by your application container from GitHub
-    FROM nginx:alpine
-
-    # Add a simple health check page
-    RUN echo '<!DOCTYPE html><html><head><title>Application Starting</title></head><body><h1>Application Deployment In Progress</h1><p>Your application is being deployed. The CI/CD pipeline will build and deploy your actual application container.</p></body></html>' > /usr/share/nginx/html/index.html
-
-    # Health check
-    HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-      CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
-
-    EXPOSE 80
-
-    CMD ["nginx", "-g", "daemon off;"]
-  EOF
-}
-
-# Build and push placeholder image
-resource "null_resource" "build_placeholder_image" {
-  count = local.enable_cicd_trigger && local.container_image_source == "custom" ? 1 : 0
-
-  triggers = {
-    dockerfile_hash = local_file.placeholder_dockerfile[0].content
-    repository_id   = data.google_artifact_registry_repository.application_image[0].repository_id
-  }
-
-  provisioner "local-exec" {
-    working_dir = "${path.module}/scripts/app"
-    command     = <<-EOT
-      # Create a cloudbuild.yaml for the placeholder image
-      cat > cloudbuild-placeholder.yaml <<'YAML'
-steps:
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '-t'
-      - '${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}'
-      - '-t'
-      - '${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:latest'
-      - '-f'
-      - 'Dockerfile.placeholder'
-      - '.'
-images:
-  - '${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}'
-  - '${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:latest'
-YAML
-
-      # Build placeholder image with Cloud Build
-      gcloud builds submit \
-        --project="${local.project.project_id}" \
-        --region="${local.region}" \
-        --config=cloudbuild-placeholder.yaml \
-        --service-account="projects/${local.project.project_id}/serviceAccounts/${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com" \
-        ${local.impersonation_service_account != "" ? "--impersonate-service-account=${local.impersonation_service_account}" : ""} \
-        --timeout=10m \
-        .
-
-      # Clean up temporary file
-      rm -f cloudbuild-placeholder.yaml
-    EOT
-  }
-
-  depends_on = [
-    local_file.placeholder_dockerfile,
-    google_artifact_registry_repository.application_image,
-    data.google_artifact_registry_repository.application_image
-  ]
-}
+# Note: When CI/CD is enabled, the initial Cloud Run service uses the
+# default "gcr.io/cloudrun/hello" image as a placeholder. The first push
+# to the configured GitHub branch will trigger the CI/CD pipeline to build
+# and deploy the actual application container image.

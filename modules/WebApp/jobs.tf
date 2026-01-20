@@ -45,7 +45,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
     template {
       service_account       = local.cloud_run_sa_email
       max_retries           = 0
-      timeout               = "120s"
+      timeout               = "360s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
@@ -68,17 +68,17 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
           echo "=== NFS Setup Job ==="
           echo "Tenant/Deployment: $${DIR_NAME}"
           echo "NFS Path: $${NFS_BASE_PATH}"
-          
+
           MOUNT_POINT="/mnt/nfs"
           TARGET_DIR="$${MOUNT_POINT}/$${DIR_NAME}"
           
           echo "Target Directory: $${TARGET_DIR}"
-          
+
           if [ ! -d "$${MOUNT_POINT}" ]; then
             echo "Error: Mount point $${MOUNT_POINT} does not exist."
             exit 1
           fi
-          
+
           # Create subdirectories for this deployment
           echo "Creating deployment-specific subdirectories..."
           if [ ! -d "$${TARGET_DIR}" ]; then
@@ -93,7 +93,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
           
           echo "NFS setup complete for deployment: $${DIR_NAME}"
           ls -la "$${TARGET_DIR}" 2>/dev/null || echo "Directory created successfully"
-          
+
           # Ensure clean exit
           sync
           echo "Job finished successfully"
@@ -159,7 +159,7 @@ resource "null_resource" "execute_nfs_setup_job" {
         --wait || {
           EXIT_CODE=$?
           if [ $EXIT_CODE -eq 124 ]; then
-            echo "⚠ Job execution timed out after 3 minutes, but may have completed"
+            echo "⚠ Job execution timed out after 6 minutes, but may have completed"
             echo "Checking job status..."
             gcloud run jobs executions list \
               --job=${google_cloud_run_v2_job.nfs_setup_job[0].name} \
@@ -266,7 +266,7 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
         }
       }
 
-      # NFS volume (if enabled) - ✅ UPDATED: Use deployment-specific path
+      # NFS volume (if enabled) - ✅ FIXED: Use deployment-specific path for initialization jobs
       dynamic "volumes" {
         for_each = each.value.mount_nfs && local.nfs_enabled && local.nfs_server_exists ? [1] : []
         content {

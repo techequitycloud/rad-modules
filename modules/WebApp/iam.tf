@@ -75,7 +75,7 @@ resource "google_secret_manager_secret_iam_member" "github_token" {
   member    = "serviceAccount:${local.cloud_build_sa_email}"
 
   depends_on = [
-    data.google_secret_manager_secret.github_token,
+    data.google_secret_manager_secret.github_token
   ]
 }
 
@@ -90,7 +90,7 @@ resource "google_secret_manager_secret_iam_member" "github_token_default_sa" {
   member    = "serviceAccount:service-${local.project.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
 
   depends_on = [
-    data.google_secret_manager_secret.github_token,
+    data.google_secret_manager_secret.github_token
   ]
 }
 
