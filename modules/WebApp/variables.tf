@@ -516,6 +516,18 @@ variable "custom_volumes" {
   default = []
 }
 
+variable "enable_cloudsql_volume" {
+  description = "Enable Cloud SQL instance volume for Unix socket connections. When enabled, the Cloud SQL instance will be mounted as a volume, allowing connections via Unix socket instead of TCP/IP. {{UIMeta group=7 order=705 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "cloudsql_volume_mount_path" {
+  description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=7 order=706 updatesafe }}"
+  type        = string
+  default     = "/cloudsql"
+}
+
 # ===========================
 # GROUP 8: Environment Variables
 # ===========================
@@ -636,6 +648,150 @@ variable "initialization_jobs" {
     script_path       = optional(string, null)
   }))
   default = []
+}
+
+# ===========================
+# GROUP 13: Database Extensions & Backup Configuration
+# ===========================
+
+variable "enable_postgres_extensions" {
+  description = "Enable automatic installation of PostgreSQL extensions. Only applicable when using PostgreSQL databases. {{UIMeta group=13 order=1300 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "postgres_extensions" {
+  description = "List of PostgreSQL extensions to install (e.g., ['postgis', 'uuid-ossp', 'pg_trgm']). Common extensions: postgis, cube, earthdistance, unaccent, pg_stat_statements, uuid-ossp, pg_trgm. {{UIMeta group=13 order=1301 updatesafe }}"
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for ext in var.postgres_extensions : can(regex("^[a-z_][a-z0-9_-]*$", ext))])
+    error_message = "Extension names must start with a letter or underscore and contain only lowercase letters, numbers, underscores, and hyphens."
+  }
+}
+
+# Unified Backup Import Configuration (Recommended)
+variable "enable_backup_import" {
+  description = "Enable automatic import of database backup during deployment. Use backup_source to specify Google Drive or Google Cloud Storage. {{UIMeta group=13 order=1302 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "backup_source" {
+  description = "Backup source: 'gdrive' (Google Drive) or 'gcs' (Google Cloud Storage). GCS is recommended for production due to better security and performance. {{UIMeta group=13 order=1303 updatesafe }}"
+  type        = string
+  default     = "gcs"
+
+  validation {
+    condition     = contains(["gdrive", "gcs"], var.backup_source)
+    error_message = "Backup source must be 'gdrive' or 'gcs'."
+  }
+}
+
+variable "backup_uri" {
+  description = "Backup URI. For GCS: full URI like 'gs://bucket/path/backup.sql'. For Google Drive: file ID from URL 'https://drive.google.com/file/d/FILE_ID/view'. {{UIMeta group=13 order=1304 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
+variable "backup_format" {
+  description = "Backup file format. For GCS: 'sql', 'tar', 'gz', 'tgz', 'tar.gz', 'zip'. For Google Drive: 'sql', 'tar', 'zip'. {{UIMeta group=13 order=1305 updatesafe }}"
+  type        = string
+  default     = "sql"
+
+  validation {
+    condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.backup_format)
+    error_message = "Backup format must be 'sql', 'tar', 'gz', 'tgz', 'tar.gz', or 'zip'."
+  }
+}
+
+# Legacy Variables (Deprecated - Use unified variables above)
+variable "enable_gdrive_backup_import" {
+  description = "DEPRECATED: Use enable_backup_import with backup_source='gdrive' instead. Enable automatic import of database backup from Google Drive. {{UIMeta group=13 order=1320 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "gdrive_backup_file_id" {
+  description = "DEPRECATED: Use backup_uri instead. Google Drive file ID of the backup to import. {{UIMeta group=13 order=1321 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
+variable "gdrive_backup_format" {
+  description = "DEPRECATED: Use backup_format instead. Backup file format for Google Drive. {{UIMeta group=13 order=1322 updatesafe }}"
+  type        = string
+  default     = "sql"
+
+  validation {
+    condition     = contains(["sql", "tar", "zip"], var.gdrive_backup_format)
+    error_message = "Backup format must be 'sql', 'tar', or 'zip'."
+  }
+}
+
+variable "enable_gcs_backup_import" {
+  description = "DEPRECATED: Use enable_backup_import with backup_source='gcs' instead. Enable automatic import of database backup from Google Cloud Storage. {{UIMeta group=13 order=1323 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "gcs_backup_uri" {
+  description = "DEPRECATED: Use backup_uri instead. Google Cloud Storage URI of the backup to import. {{UIMeta group=13 order=1324 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
+variable "gcs_backup_format" {
+  description = "DEPRECATED: Use backup_format instead. Backup file format for GCS import. {{UIMeta group=13 order=1325 updatesafe }}"
+  type        = string
+  default     = "sql"
+
+  validation {
+    condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.gcs_backup_format)
+    error_message = "Backup format must be 'sql', 'tar', 'gz', 'tgz', 'tar.gz', or 'zip'."
+  }
+}
+
+variable "enable_mysql_plugins" {
+  description = "Enable automatic installation of MySQL plugins and components. Only applicable when using MySQL databases. {{UIMeta group=13 order=1308 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "mysql_plugins" {
+  description = "List of MySQL plugins to install (e.g., ['audit_log', 'validate_password']). Common plugins: validate_password, audit_log, clone, group_replication, authentication_ldap_simple. {{UIMeta group=13 order=1309 updatesafe }}"
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for plugin in var.mysql_plugins : can(regex("^[a-z_][a-z0-9_]*$", plugin))])
+    error_message = "Plugin names must start with a letter or underscore and contain only lowercase letters, numbers, and underscores."
+  }
+}
+
+variable "enable_custom_sql_scripts" {
+  description = "Enable execution of custom SQL scripts from GCS during initialization. Useful for seeding data, creating additional schemas, or running custom DDL. {{UIMeta group=13 order=1310 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "custom_sql_scripts_bucket" {
+  description = "GCS bucket name containing custom SQL scripts (without gs:// prefix, e.g., 'my-bucket'). Only used when enable_custom_sql_scripts is true. {{UIMeta group=13 order=1311 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
+variable "custom_sql_scripts_path" {
+  description = "Path prefix in GCS bucket for SQL scripts (e.g., 'scripts/init/'). Scripts will be executed in alphabetical order. Name scripts with numeric prefixes for ordering (e.g., 001_schema.sql, 002_data.sql). {{UIMeta group=13 order=1312 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
+variable "custom_sql_scripts_use_root" {
+  description = "Execute custom SQL scripts as database root user instead of application user. Enable this for scripts that require elevated privileges (e.g., creating users, installing extensions). {{UIMeta group=13 order=1313 updatesafe }}"
+  type        = bool
+  default     = false
 }
 
 # ===========================

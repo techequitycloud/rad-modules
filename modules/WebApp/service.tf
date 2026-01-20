@@ -224,6 +224,15 @@ resource "google_cloud_run_v2_service" "app_service" {
           mount_path = volume_mounts.value.mount_path
         }
       }
+
+      # Cloud SQL instance volume mount (for Unix socket connections)
+      dynamic "volume_mounts" {
+        for_each = var.enable_cloudsql_volume && local.sql_server_exists ? [1] : []
+        content {
+          name       = "cloudsql"
+          mount_path = var.cloudsql_volume_mount_path
+        }
+      }
     }
 
     # NFS volume definition
@@ -247,6 +256,17 @@ resource "google_cloud_run_v2_service" "app_service" {
           bucket        = volumes.value.bucket_name
           read_only     = volumes.value.readonly
           mount_options = volumes.value.mount_options
+        }
+      }
+    }
+
+    # Cloud SQL instance volume (for Unix socket connections)
+    dynamic "volumes" {
+      for_each = var.enable_cloudsql_volume && local.sql_server_exists ? [1] : []
+      content {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = ["${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"]
         }
       }
     }
