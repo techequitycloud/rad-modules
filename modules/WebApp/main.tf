@@ -34,134 +34,14 @@ resource "random_id" "wrapper_deployment" {
 # Local variables for consistent naming and configuration
 locals {
   # ===========================
-  # 1. Preset Definitions
+  # 1. Configuration from Modules (Replacing Legacy Presets)
   # ===========================
-  presets = {
-    custom = {}
 
-    cyclos = {
-      app_name       = "cyclos"
-      db_name        = "cyclos_db"
-      db_user        = "cyclos_user"
-      db_type        = "POSTGRES"
-      image_source   = "custom"
-      port           = 8080
-      resources      = { cpu_limit = "2000m", memory_limit = "4Gi" }
-      min_instances  = 1
-      max_instances  = 1
-      startup_probe  = { enabled = true, type = "TCP", path = "/", initial_delay_seconds = 60, timeout_seconds = 30, period_seconds = 60, failure_threshold = 3 }
-      liveness_probe = { enabled = true, type = "HTTP", path = "/api", initial_delay_seconds = 60, timeout_seconds = 5, period_seconds = 60, failure_threshold = 3 }
-    }
-
-    django = {
-      app_name       = "django"
-      db_name        = "django_db"
-      db_user        = "django_user"
-      db_type        = "POSTGRES"
-      image_source   = "custom"
-      cloudsql_vol   = true
-      cloudsql_path  = "/cloudsql"
-    }
-
-    moodle = {
-      app_name       = "moodle"
-      db_name        = "moodle_db"
-      db_user        = "moodle_user"
-      db_type        = "POSTGRES"
-      image_source   = "custom"
-      resources      = { cpu_limit = "1000m", memory_limit = "2Gi" }
-      nfs_enabled    = true
-      nfs_path       = "/mnt"
-      cloudsql_vol   = true
-      startup_probe  = { enabled = true, type = "TCP", path = "/", initial_delay_seconds = 120, timeout_seconds = 60, period_seconds = 120, failure_threshold = 1 }
-      liveness_probe = { enabled = true, type = "HTTP", path = "/", initial_delay_seconds = 120, timeout_seconds = 5, period_seconds = 120, failure_threshold = 3 }
-    }
-
-    n8n = {
-      app_name       = "n8n"
-      db_name        = "n8n_db"
-      db_user        = "n8n_user"
-      db_type        = "POSTGRES"
-      image_source   = "prebuilt"
-      image          = "n8nio/n8n:latest"
-      resources      = { cpu_limit = "1000m", memory_limit = "2Gi" }
-      min_instances  = 1
-      max_instances  = 1
-      cloudsql_vol   = true
-      cloudsql_path  = "/cloudsql"
-      startup_probe  = { enabled = true, type = "HTTP", path = "/", initial_delay_seconds = 10, timeout_seconds = 3, period_seconds = 10, failure_threshold = 3 }
-      liveness_probe = { enabled = true, type = "HTTP", path = "/", initial_delay_seconds = 30, timeout_seconds = 5, period_seconds = 30, failure_threshold = 3 }
-    }
-
-    odoo = {
-      app_name       = "odoo"
-      db_name        = "odoo_db"
-      db_user        = "odoo_user"
-      db_type        = "POSTGRES"
-      image_source   = "custom"
-      resources      = { cpu_limit = "1000m", memory_limit = "2Gi" }
-      min_instances  = 1
-      max_instances  = 1
-      nfs_enabled    = true
-      nfs_path       = "/mnt"
-      cloudsql_vol   = true
-      gcs_volumes    = [
-        {
-          name          = "data"
-          bucket_name   = null
-          mount_path    = "/extra-addons"
-          readonly      = false
-          mount_options = ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"]
-        }
-      ]
-      startup_probe  = { enabled = true, type = "TCP", path = "/", initial_delay_seconds = 180, timeout_seconds = 60, period_seconds = 120, failure_threshold = 3 }
-      liveness_probe = { enabled = true, type = "HTTP", path = "/web/health", initial_delay_seconds = 120, timeout_seconds = 60, period_seconds = 120, failure_threshold = 3 }
-    }
-
-    openemr = {
-      app_name       = "openemr"
-      db_name        = "openemr_db"
-      db_user        = "openemr_user"
-      db_type        = "MYSQL_8_0"
-      image_source   = "prebuilt"
-      image          = "openemr/openemr:7.0.3"
-      resources      = { cpu_limit = "2000m", memory_limit = "4Gi" }
-      min_instances  = 1
-      max_instances  = 1
-      nfs_enabled    = true
-      nfs_path       = "/var/www/localhost/htdocs/openemr/sites"
-      cloudsql_vol   = true
-      startup_probe  = { enabled = true, type = "TCP", path = "/", initial_delay_seconds = 240, timeout_seconds = 60, period_seconds = 240, failure_threshold = 5 }
-      liveness_probe = { enabled = true, type = "HTTP", path = "/interface/login/login.php", initial_delay_seconds = 300, timeout_seconds = 60, period_seconds = 60, failure_threshold = 3 }
-    }
-
-    wordpress = {
-      app_name       = "wordpress"
-      db_name        = "wordpress_db"
-      db_user        = "wordpress_user"
-      db_type        = "MYSQL_8_0"
-      image_source   = "custom"
-      resources      = { cpu_limit = "1000m", memory_limit = "2Gi" }
-      cloudsql_vol   = true
-      gcs_volumes    = [
-        {
-          name          = "gcs-data-volume"
-          bucket_name   = null
-          mount_path    = "/var/www/html/wp-content"
-          readonly      = false
-          mount_options = ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"]
-        }
-      ]
-      startup_probe  = { enabled = true, type = "TCP", path = "/", initial_delay_seconds = 240, timeout_seconds = 60, period_seconds = 240, failure_threshold = 1 }
-      liveness_probe = { enabled = true, type = "HTTP", path = "/wp-admin/install.php", initial_delay_seconds = 300, timeout_seconds = 60, period_seconds = 60, failure_threshold = 3 }
-    }
-  }
-
-  preset = local.presets[var.deploy_app_preset]
-
-  # ===========================
-  # 2. Coalesced Configuration
-  # ===========================
+  # Legacy support: map var.deploy_app_preset to var.application_module if the latter is not set
+  # This ensures backward compatibility while we migrate fully to application_module
+  effective_app_module = var.application_module != null ? var.application_module : (
+    var.deploy_app_preset != "custom" ? var.deploy_app_preset : null
+  )
 
   # Project information
   project = {
@@ -185,14 +65,14 @@ locals {
   regions = length(var.deployment_regions) > 0 ? var.deployment_regions : [local.region]
 
   # Application configuration
-  application_name         = coalesce(var.application_name, lookup(local.preset, "app_name", null), "webapp")
+  application_name         = coalesce(var.application_name, local.effective_app_module, "webapp")
   application_display_name = var.application_display_name != null ? var.application_display_name : local.application_name
   application_version      = var.application_version
 
   # Database configuration
-  database_type             = upper(coalesce(var.database_type, lookup(local.preset, "db_type", null), "POSTGRES"))
-  application_database_name = coalesce(var.application_database_name, lookup(local.preset, "db_name", null), "webapp_db")
-  application_database_user = coalesce(var.application_database_user, lookup(local.preset, "db_user", null), "webapp_user")
+  database_type             = upper(local.final_database_type)
+  application_database_name = coalesce(var.application_database_name, local.effective_app_module != null ? "${local.effective_app_module}_db" : "webapp_db")
+  application_database_user = coalesce(var.application_database_user, local.effective_app_module != null ? "${local.effective_app_module}_user" : "webapp_user")
 
   database_name_full     = "${local.application_database_name}_${local.tenant_id}_${local.random_id}"
   database_user_full     = "${local.application_database_user}_${local.tenant_id}_${local.random_id}"
@@ -220,7 +100,7 @@ locals {
   service_name = local.resource_prefix
 
   # Container Config
-  container_image_source = coalesce(var.container_image_source, lookup(local.preset, "image_source", null), "prebuilt")
+  container_image_source = local.final_container_image_source
 
   # Default Container Build Config
   container_build_config = var.container_build_config != null ? var.container_build_config : {
@@ -243,46 +123,30 @@ locals {
   container_image = (
     local.container_image_source == "custom" && local.container_build_config.enabled && !local.enable_cicd_trigger ?
     "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}" :
-    var.container_image != null ? var.container_image : lookup(local.preset, "image", "gcr.io/cloudrun/hello")
+    local.final_container_image != "" ? local.final_container_image : "gcr.io/cloudrun/hello"
   )
 
-  container_port         = coalesce(var.container_port, lookup(local.preset, "port", null), 8080)
-  container_resources    = coalesce(var.container_resources, lookup(local.preset, "resources", null), {
-    cpu_limit    = "1000m"
-    memory_limit = "512Mi"
-  })
+  container_port         = local.final_container_port
+  container_resources    = local.final_container_resources
 
   # Scaling
-  min_instance_count = coalesce(var.min_instance_count, lookup(local.preset, "min_instances", null), 0)
-  max_instance_count = coalesce(var.max_instance_count, lookup(local.preset, "max_instances", null), 3)
+  min_instance_count = local.final_min_instance_count
+  max_instance_count = local.final_max_instance_count
 
   # Probes
-  startup_probe_config = coalesce(var.startup_probe_config, lookup(local.preset, "startup_probe", null), {
-    enabled               = true
-    type                  = "TCP"
-    path                  = "/"
-    initial_delay_seconds = 0
-    timeout_seconds       = 240
-    period_seconds        = 240
-    failure_threshold     = 1
-  })
-
-  health_check_config = coalesce(var.health_check_config, lookup(local.preset, "liveness_probe", null), {
-    enabled               = false
-    type                  = "HTTP"
-    path                  = "/"
-  })
+  startup_probe_config = local.final_startup_probe
+  health_check_config  = local.final_health_check
 
   # Storage & Network
-  nfs_enabled                = coalesce(var.nfs_enabled, lookup(local.preset, "nfs_enabled", null), true)
-  nfs_mount_path             = coalesce(var.nfs_mount_path, lookup(local.preset, "nfs_path", null), "/mnt")
+  nfs_enabled                = local.final_nfs_enabled
+  nfs_mount_path             = local.final_nfs_mount_path
   nfs_volume_name            = "nfs-data-volume"
   nfs_share_path             = "/share/${local.resource_prefix}"
 
-  enable_cloudsql_volume     = coalesce(var.enable_cloudsql_volume, lookup(local.preset, "cloudsql_vol", null), false)
-  cloudsql_volume_mount_path = coalesce(var.cloudsql_volume_mount_path, lookup(local.preset, "cloudsql_path", null), "/cloudsql")
+  enable_cloudsql_volume     = local.final_enable_cloudsql_volume
+  cloudsql_volume_mount_path = local.final_cloudsql_volume_mount_path
 
-  create_cloud_storage       = var.deploy_app_preset == "n8n" ? false : var.create_cloud_storage # N8N handles own storage
+  create_cloud_storage       = local.effective_app_module == "n8n" ? false : var.create_cloud_storage # N8N handles own storage
 
   # Storage buckets
   storage_buckets = local.create_cloud_storage ? {
@@ -300,19 +164,19 @@ locals {
 
   # GCS volumes
   gcs_volumes = {
-    for idx, vol in (length(var.gcs_volumes) > 0 ? var.gcs_volumes : lookup(local.preset, "gcs_volumes", [])) :
-    vol.name => {
-      name          = vol.name
-      bucket_name   = vol.bucket_name != null ? vol.bucket_name : try(local.storage_buckets[vol.name].name, null)
+    for idx, vol in local.final_gcs_volumes :
+    vol.bucket => {
+      name          = vol.bucket # Using bucket name as volume name for simplicity in mapping
+      bucket_name   = vol.bucket != null ? vol.bucket : try(local.storage_buckets[vol.bucket].name, null)
       mount_path    = vol.mount_path
-      readonly      = vol.readonly
-      mount_options = vol.mount_options
+      readonly      = vol.read_only
+      mount_options = ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"]
     }
   }
 
   # Dynamic Environment Variables for Presets
   preset_env_vars = merge(
-    var.deploy_app_preset == "n8n" ? {
+    local.effective_app_module == "n8n" ? {
       N8N_PORT                 = "5678"
       N8N_PROTOCOL             = "https"
       N8N_DIAGNOSTICS_ENABLED  = "true"
@@ -326,13 +190,13 @@ locals {
       N8N_S3_BUCKET_NAME           = try(google_storage_bucket.n8n_storage[0].name, "")
       N8N_S3_REGION                = var.deployment_region
     } : {},
-    var.deploy_app_preset == "wordpress" ? {
+    local.effective_app_module == "wordpress" ? {
       WORDPRESS_DB_NAME = local.database_name_full
       WORDPRESS_DB_USER = local.database_user_full
       WORDPRESS_DB_HOST = local.db_internal_ip
       WORDPRESS_DEBUG   = "false"
     } : {},
-    var.deploy_app_preset == "openemr" ? {
+    local.effective_app_module == "openemr" ? {
       MYSQL_DATABASE = local.database_name_full
       MYSQL_USER     = local.database_user_full
       MYSQL_HOST     = local.db_internal_ip
@@ -345,8 +209,8 @@ locals {
 
   # Environment variables (combined static and secret-based)
   static_env_vars = merge(
-    var.environment_variables, # User input
-    local.preset_env_vars,     # Preset overrides
+    local.final_environment_variables, # Merged user input and module presets
+    local.preset_env_vars,     # Specific preset overrides
     {
       APP_NAME    = local.application_name
       APP_VERSION = local.application_version
@@ -357,12 +221,12 @@ locals {
   )
 
   preset_secret_env_vars = merge(
-    var.deploy_app_preset == "n8n" ? {
+    local.effective_app_module == "n8n" ? {
       N8N_S3_ACCESS_KEY      = try(google_secret_manager_secret.storage_access_key[0].secret_id, "")
       N8N_S3_ACCESS_SECRET   = try(google_secret_manager_secret.storage_secret_key[0].secret_id, "")
       N8N_ENCRYPTION_KEY     = try(google_secret_manager_secret.encryption_key[0].secret_id, "")
     } : {},
-    var.deploy_app_preset == "openemr" ? {
+    local.effective_app_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
     } : {}
   )
@@ -376,7 +240,7 @@ locals {
 
   # Service accounts
   # Inject N8N SA if active
-  cloudrun_sa_input = var.deploy_app_preset == "n8n" ? google_service_account.n8n_sa[0].email : var.cloudrun_service_account
+  cloudrun_sa_input = local.effective_app_module == "n8n" ? google_service_account.n8n_sa[0].email : var.cloudrun_service_account
   cloudrun_service_account   = local.cloudrun_sa_input != null && local.cloudrun_sa_input != "" ? local.cloudrun_sa_input : "cloudrun-sa"
 
   cloudbuild_service_account = var.cloudbuild_service_account != null && var.cloudbuild_service_account != "" ? var.cloudbuild_service_account : "cloudbuild-sa"
@@ -472,14 +336,14 @@ locals {
 # N8N SPECIFIC RESOURCES
 # ==============================================================================
 resource "google_service_account" "n8n_sa" {
-  count        = var.deploy_app_preset == "n8n" ? 1 : 0
+  count        = local.effective_app_module == "n8n" ? 1 : 0
   account_id   = "${local.wrapper_prefix}-sa"
   display_name = "N8N Service Account"
   project      = var.existing_project_id
 }
 
 resource "google_storage_bucket" "n8n_storage" {
-  count         = var.deploy_app_preset == "n8n" ? 1 : 0
+  count         = local.effective_app_module == "n8n" ? 1 : 0
   name          = "${local.wrapper_prefix}-storage"
   location      = var.deployment_region
   force_destroy = true
@@ -488,20 +352,20 @@ resource "google_storage_bucket" "n8n_storage" {
 }
 
 resource "google_storage_bucket_iam_member" "storage_admin" {
-  count  = var.deploy_app_preset == "n8n" ? 1 : 0
+  count  = local.effective_app_module == "n8n" ? 1 : 0
   bucket = google_storage_bucket.n8n_storage[0].name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.n8n_sa[0].email}"
 }
 
 resource "google_storage_hmac_key" "n8n_key" {
-  count                 = var.deploy_app_preset == "n8n" ? 1 : 0
+  count                 = local.effective_app_module == "n8n" ? 1 : 0
   service_account_email = google_service_account.n8n_sa[0].email
   project               = var.existing_project_id
 }
 
 resource "google_secret_manager_secret" "storage_access_key" {
-  count     = var.deploy_app_preset == "n8n" ? 1 : 0
+  count     = local.effective_app_module == "n8n" ? 1 : 0
   secret_id = "${local.wrapper_prefix}-access-key"
   replication {
     auto {}
@@ -510,13 +374,13 @@ resource "google_secret_manager_secret" "storage_access_key" {
 }
 
 resource "google_secret_manager_secret_version" "storage_access_key" {
-  count       = var.deploy_app_preset == "n8n" ? 1 : 0
+  count       = local.effective_app_module == "n8n" ? 1 : 0
   secret      = google_secret_manager_secret.storage_access_key[0].id
   secret_data = google_storage_hmac_key.n8n_key[0].access_id
 }
 
 resource "google_secret_manager_secret" "storage_secret_key" {
-  count     = var.deploy_app_preset == "n8n" ? 1 : 0
+  count     = local.effective_app_module == "n8n" ? 1 : 0
   secret_id = "${local.wrapper_prefix}-secret-key"
   replication {
     auto {}
@@ -525,19 +389,19 @@ resource "google_secret_manager_secret" "storage_secret_key" {
 }
 
 resource "google_secret_manager_secret_version" "storage_secret_key" {
-  count       = var.deploy_app_preset == "n8n" ? 1 : 0
+  count       = local.effective_app_module == "n8n" ? 1 : 0
   secret      = google_secret_manager_secret.storage_secret_key[0].id
   secret_data = google_storage_hmac_key.n8n_key[0].secret
 }
 
 resource "random_password" "encryption_key" {
-  count   = var.deploy_app_preset == "n8n" ? 1 : 0
+  count   = local.effective_app_module == "n8n" ? 1 : 0
   length  = 32
   special = true
 }
 
 resource "google_secret_manager_secret" "encryption_key" {
-  count     = var.deploy_app_preset == "n8n" ? 1 : 0
+  count     = local.effective_app_module == "n8n" ? 1 : 0
   secret_id = "${local.wrapper_prefix}-encryption-key"
   replication {
     auto {}
@@ -546,14 +410,14 @@ resource "google_secret_manager_secret" "encryption_key" {
 }
 
 resource "google_secret_manager_secret_version" "encryption_key" {
-  count       = var.deploy_app_preset == "n8n" ? 1 : 0
+  count       = local.effective_app_module == "n8n" ? 1 : 0
   secret      = google_secret_manager_secret.encryption_key[0].id
   secret_data = random_password.encryption_key[0].result
 }
 
 # Django Post-Deployment Update (CSRF Origin)
 resource "null_resource" "update_csrf_origin" {
-  count = var.deploy_app_preset == "django" ? 1 : 0
+  count = local.effective_app_module == "django" ? 1 : 0
 
   triggers = {
     service_id = local.service_name

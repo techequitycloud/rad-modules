@@ -4,6 +4,7 @@
 locals {
   django_module = {
     description     = "Django Web Application - High-level Python web framework"
+    image_source    = "custom"
     container_image = "python:3.11-slim"
     container_port  = 8000
     database_type   = "POSTGRES_15"

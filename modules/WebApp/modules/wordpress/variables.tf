@@ -8,6 +8,7 @@
 locals {
   wordpress_module = {
     description     = "WordPress CMS - Popular content management system for websites and blogs"
+    image_source    = "custom"
     container_image = "wordpress:6.8.1-apache"
     container_port  = 80
     database_type   = "MYSQL_8_0"
@@ -41,6 +42,25 @@ locals {
     # MySQL plugins
     enable_mysql_plugins = false
     mysql_plugins        = []
+
+    startup_probe = {
+      enabled               = true
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 240
+      timeout_seconds       = 60
+      period_seconds        = 240
+      failure_threshold     = 1
+    }
+    liveness_probe = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/wp-admin/install.php"
+      initial_delay_seconds = 300
+      timeout_seconds       = 60
+      period_seconds        = 60
+      failure_threshold     = 3
+    }
   }
 }
 

@@ -4,6 +4,7 @@
 locals {
   cyclos_module = {
     description     = "Cyclos Banking System - Online banking for financial institutions"
+    image_source    = "custom"
     container_image = "cyclos/cyclos:4.16.15"
     container_port  = 8080
     database_type   = "POSTGRES_15"
@@ -19,7 +20,7 @@ locals {
       memory_limit = "4Gi"
     }
     min_instance_count = 1
-    max_instance_count = 10
+    max_instance_count = 1
     environment_variables = {
       DB_HOST     = "/var/run/postgresql"
       DB_PORT     = "5432"
@@ -27,6 +28,25 @@ locals {
     }
     enable_postgres_extensions = true
     postgres_extensions         = ["pg_trgm", "uuid-ossp"]
+
+    startup_probe = {
+      enabled               = true
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 60
+      timeout_seconds       = 30
+      period_seconds        = 60
+      failure_threshold     = 3
+    }
+    liveness_probe = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/api"
+      initial_delay_seconds = 60
+      timeout_seconds       = 5
+      period_seconds        = 60
+      failure_threshold     = 3
+    }
   }
 }
 

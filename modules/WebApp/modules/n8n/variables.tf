@@ -4,6 +4,7 @@
 locals {
   n8n_module = {
     description     = "n8n Workflow Automation - Workflow automation platform"
+    image_source    = "prebuilt"
     container_image = "n8nio/n8n:latest"
     container_port  = 5678
     database_type   = "POSTGRES_15"
@@ -19,7 +20,7 @@ locals {
       memory_limit = "4Gi"
     }
     min_instance_count = 1
-    max_instance_count = 10
+    max_instance_count = 1
     environment_variables = {
       DB_TYPE                          = "postgresdb"
       DB_POSTGRESDB_PORT               = "5432"
@@ -31,6 +32,25 @@ locals {
     }
     enable_postgres_extensions = false
     postgres_extensions         = []
+
+    startup_probe = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/"
+      initial_delay_seconds = 10
+      timeout_seconds       = 3
+      period_seconds        = 10
+      failure_threshold     = 3
+    }
+    liveness_probe = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/"
+      initial_delay_seconds = 30
+      timeout_seconds       = 5
+      period_seconds        = 30
+      failure_threshold     = 3
+    }
   }
 }
 

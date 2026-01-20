@@ -108,6 +108,7 @@ locals {
   #########################################################################
 
   # Container configuration
+  module_image_source    = local.using_module && local.selected_module != null ? lookup(local.selected_module, "image_source", null) : null
   module_container_image = local.using_module && local.selected_module != null ? local.selected_module.container_image : null
   module_container_port  = local.using_module && local.selected_module != null ? local.selected_module.container_port : null
 
@@ -146,12 +147,21 @@ locals {
   module_enable_mysql_plugins = local.using_module && local.selected_module != null ? lookup(local.selected_module, "enable_mysql_plugins", null) : null
   module_mysql_plugins        = local.using_module && local.selected_module != null ? lookup(local.selected_module, "mysql_plugins", []) : []
 
+  # Probes
+  module_startup_probe  = local.using_module && local.selected_module != null ? lookup(local.selected_module, "startup_probe", null) : null
+  module_liveness_probe = local.using_module && local.selected_module != null ? lookup(local.selected_module, "liveness_probe", null) : null
+
+  # NFS
+  module_nfs_enabled    = local.using_module && local.selected_module != null ? lookup(local.selected_module, "nfs_enabled", null) : null
+  module_nfs_mount_path = local.using_module && local.selected_module != null ? lookup(local.selected_module, "nfs_mount_path", null) : null
+
   #########################################################################
   # Final Values - Preset values with manual override capability
   # Manual configuration always takes precedence over preset values
   #########################################################################
 
   # Container configuration
+  final_container_image_source = var.container_image_source != null ? var.container_image_source : coalesce(local.module_image_source, "prebuilt")
   final_container_image = var.container_image != "" && var.container_image != null ? var.container_image : coalesce(local.module_container_image, "")
   final_container_port  = var.container_port != 8080 ? var.container_port : coalesce(local.module_container_port, 8080)
 
@@ -187,4 +197,39 @@ locals {
   # MySQL plugins
   final_enable_mysql_plugins = var.enable_mysql_plugins != false ? var.enable_mysql_plugins : coalesce(local.module_enable_mysql_plugins, false)
   final_mysql_plugins        = length(var.mysql_plugins) > 0 ? var.mysql_plugins : local.module_mysql_plugins
+
+  # Probes
+  # Use manual config if enabled is explicitly set (default is null for probes)
+  # Otherwise fallback to module config, then default defaults
+  final_startup_probe = (
+    var.startup_probe_config != null
+    ? var.startup_probe_config
+    : local.module_startup_probe != null ? local.module_startup_probe : {
+      enabled               = true
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 0
+      timeout_seconds       = 240
+      period_seconds        = 240
+      failure_threshold     = 1
+    }
+  )
+
+  final_health_check = (
+    var.health_check_config != null
+    ? var.health_check_config
+    : local.module_liveness_probe != null ? local.module_liveness_probe : {
+      enabled               = false
+      type                  = "HTTP"
+      path                  = "/"
+      initial_delay_seconds = 0
+      timeout_seconds       = 1
+      period_seconds        = 10
+      failure_threshold     = 3
+    }
+  )
+
+  # NFS
+  final_nfs_enabled    = var.nfs_enabled != null ? var.nfs_enabled : coalesce(local.module_nfs_enabled, false)
+  final_nfs_mount_path = var.nfs_mount_path != null ? var.nfs_mount_path : coalesce(local.module_nfs_mount_path, "/mnt")
 }
