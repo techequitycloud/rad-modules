@@ -316,19 +316,25 @@ variable "github_repository_url" {
 }
 
 variable "github_token_secret_name" {
-  description = "Name of the secret in Secret Manager containing the GitHub personal access token. This token is used by Cloud Build to access your private repository. Leave blank if repository is public. {{UIMeta group=4 order=406 updatesafe }}"
+  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. To generate: https://github.com/settings/tokens -> Generate new token (classic). Scopes: repo, admin:repo_hook, workflow, read:org. {{UIMeta group=4 order=406 updatesafe }}"
   type        = string
   default     = "github-token"
 }
 
+variable "github_app_installation_id" {
+  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. To find ID: https://github.com/settings/installations -> Configure. ID is at the end of the URL. {{UIMeta group=4 order=407 updatesafe }}"
+  type        = string
+  default     = null
+}
+
 variable "enable_cicd_trigger" {
-  description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=4 order=407 updatesafe }}"
+  description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=4 order=408 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "cicd_trigger_config" {
-  description = "Cloud Build trigger configuration for automated CI/CD pipeline. Configure branch patterns, included/ignored files, and build settings. {{UIMeta group=4 order=408 updatesafe }}"
+  description = "Cloud Build trigger configuration for automated CI/CD pipeline. Configure branch patterns, included/ignored files, and build settings. {{UIMeta group=4 order=409 updatesafe }}"
   type = object({
     branch_pattern     = optional(string, "^main$")
     included_files     = optional(list(string), [])
@@ -534,6 +540,7 @@ variable "health_check_config" {
   description = "Liveness probe configuration. Checks if the application is running and restarts if unhealthy. {{UIMeta group=9 order=900 updatesafe }}"
   type = object({
     enabled               = bool
+    type                  = optional(string, "HTTP")
     path                  = optional(string, "/")
     initial_delay_seconds = optional(number, 0)
     timeout_seconds       = optional(number, 1)
@@ -541,7 +548,8 @@ variable "health_check_config" {
     failure_threshold     = optional(number, 3)
   })
   default = {
-    enabled = true
+    enabled = false
+    type    = "HTTP"
     path    = "/"
   }
 }
@@ -550,6 +558,7 @@ variable "startup_probe_config" {
   description = "Startup probe configuration. Checks if the application has started successfully before accepting traffic. {{UIMeta group=9 order=901 updatesafe }}"
   type = object({
     enabled               = bool
+    type                  = optional(string, "TCP")
     path                  = optional(string, "/")
     initial_delay_seconds = optional(number, 0)
     timeout_seconds       = optional(number, 240)
@@ -558,6 +567,7 @@ variable "startup_probe_config" {
   })
   default = {
     enabled = true
+    type    = "TCP"
     path    = "/"
   }
 }
