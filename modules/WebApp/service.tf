@@ -47,7 +47,7 @@ resource "null_resource" "cicd_image_dependency" {
   }
 
   depends_on = [
-    null_resource.build_placeholder_image
+    time_sleep.wait_for_image_propagation
   ]
 }
 
@@ -203,15 +203,13 @@ resource "google_cloud_run_v2_service" "app_service" {
     }
 
     # NFS volume definition
-    # Note: We mount the NFS root path (/share), not the subdirectory
-    # The subdirectory is created by the NFS setup job and accessed via mount_path
     dynamic "volumes" {
       for_each = local.nfs_enabled && local.nfs_server_exists ? [1] : []
       content {
         name = local.nfs_volume_name
         nfs {
           server = local.nfs_internal_ip
-          path   = local.nfs_root_path
+          path   = local.nfs_share_path
         }
       }
     }

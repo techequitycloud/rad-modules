@@ -56,7 +56,7 @@ resource "google_cloudbuildv2_connection" "github_connection" {
 resource "time_sleep" "wait_for_github_connection" {
   count = local.enable_cicd_trigger ? 1 : 0
 
-  create_duration = "60s"
+  create_duration = "300s"
 
   depends_on = [
     google_cloudbuildv2_connection.github_connection
@@ -171,6 +171,17 @@ resource "google_cloudbuild_trigger" "cicd_trigger" {
   ]
 }
 
+# Wait for image to propagate in Artifact Registry
+resource "time_sleep" "wait_for_image_propagation" {
+  count = local.enable_cicd_trigger && local.container_image_source == "custom" ? 1 : 0
+
+  create_duration = "30s"
+
+  depends_on = [
+    null_resource.build_placeholder_image
+  ]
+}
+
 #########################################################################
 # Initial Placeholder Image Build
 #########################################################################
@@ -226,7 +237,13 @@ steps:
 images:
   - '${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}'
   - '${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:latest'
+options:
+  logging: CLOUD_LOGGING_ONLY
 YAML
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+      fi
 
       # Build placeholder image with Cloud Build
       gcloud builds submit \
@@ -234,7 +251,8 @@ YAML
         --region="${local.region}" \
         --config=cloudbuild-placeholder.yaml \
         --service-account="projects/${local.project.project_id}/serviceAccounts/${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com" \
-        ${local.impersonation_service_account != "" ? "--impersonate-service-account=${local.impersonation_service_account}" : ""} \
+        --logging=CLOUD_LOGGING_ONLY \
+        $IMPERSONATE_FLAG \
         --timeout=10m \
         .
 
