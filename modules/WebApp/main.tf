@@ -74,14 +74,14 @@ locals {
   container_image_source = var.container_image_source
 
   # Container image logic:
-  # 1. If custom build with CI/CD enabled: use pipeline-built image from Artifact Registry
-  # 2. If custom build without CI/CD: use one-time built image
-  # 3. If prebuilt selected: use provided container_image URL
+  # 1. If custom build without CI/CD: use one-time built image from Artifact Registry
+  # 2. If prebuilt image selected: use provided container_image URL
+  # 3. If CI/CD enabled: use hello world placeholder initially (CI/CD will deploy actual app on first push)
   # 4. Default: use hello world placeholder
   container_image = (
-    local.container_image_source == "custom" && (var.container_build_config.enabled || local.enable_cicd_trigger) ?
+    local.container_image_source == "custom" && var.container_build_config.enabled && !local.enable_cicd_trigger ?
     "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}" :
-    var.container_image != null ? var.container_image :
+    var.container_image != null && var.container_image != "" ? var.container_image :
     "gcr.io/cloudrun/hello" # Default hello world image
   )
 
