@@ -19,7 +19,7 @@
 locals {
   # Build a map of jobs by name for easy lookup
   jobs_map = {
-    for job in var.initialization_jobs :
+    for job in local.initialization_jobs :
     job.name => job
   }
 
@@ -35,26 +35,26 @@ locals {
   # ============================================================================
 
   # Determine if backup import is enabled (unified or legacy)
-  backup_import_enabled = var.enable_backup_import || var.enable_gdrive_backup_import || var.enable_gcs_backup_import
+  backup_import_enabled = local.enable_backup_import || local.enable_gdrive_backup_import || local.enable_gcs_backup_import
 
   # Determine backup source (unified takes precedence)
-  backup_source = var.enable_backup_import ? var.backup_source : (
-    var.enable_gdrive_backup_import ? "gdrive" : (
-      var.enable_gcs_backup_import ? "gcs" : "gcs"
+  backup_source = local.enable_backup_import ? local.backup_source : (
+    local.enable_gdrive_backup_import ? "gdrive" : (
+      local.enable_gcs_backup_import ? "gcs" : "gcs"
     )
   )
 
   # Determine backup URI/ID (unified takes precedence)
-  backup_uri = var.enable_backup_import && var.backup_uri != "" ? var.backup_uri : (
-    var.enable_gdrive_backup_import && var.gdrive_backup_file_id != "" ? var.gdrive_backup_file_id : (
-      var.enable_gcs_backup_import && var.gcs_backup_uri != "" ? var.gcs_backup_uri : ""
+  backup_uri = local.enable_backup_import && local.backup_uri != "" ? local.backup_uri : (
+    local.enable_gdrive_backup_import && local.gdrive_backup_file_id != "" ? local.gdrive_backup_file_id : (
+      local.enable_gcs_backup_import && local.gcs_backup_uri != "" ? local.gcs_backup_uri : ""
     )
   )
 
   # Determine backup format (unified takes precedence)
-  backup_format = var.enable_backup_import && var.backup_format != "" ? var.backup_format : (
-    var.enable_gdrive_backup_import ? var.gdrive_backup_format : (
-      var.enable_gcs_backup_import ? var.gcs_backup_format : "sql"
+  backup_format = local.enable_backup_import && local.backup_format != "" ? local.backup_format : (
+    local.enable_gdrive_backup_import ? local.gdrive_backup_format : (
+      local.enable_gcs_backup_import ? local.gcs_backup_format : "sql"
     )
   )
 
@@ -402,7 +402,7 @@ resource "null_resource" "execute_initialization_jobs" {
 # ============================================================================
 
 resource "google_cloud_run_v2_job" "postgres_extensions_job" {
-  count               = var.enable_postgres_extensions && local.sql_server_exists && local.database_client_type == "POSTGRES" && length(var.postgres_extensions) > 0 ? 1 : 0
+  count               = local.enable_postgres_extensions && local.sql_server_exists && local.database_client_type == "POSTGRES" && length(local.postgres_extensions) > 0 ? 1 : 0
   project             = local.project.project_id
   name                = "${local.resource_prefix}-postgres-ext"
   location            = local.region
@@ -420,7 +420,7 @@ resource "google_cloud_run_v2_job" "postgres_extensions_job" {
 
         env {
           name  = "POSTGRES_EXTENSIONS"
-          value = join(",", var.postgres_extensions)
+          value = join(",", local.postgres_extensions)
         }
 
         env {
@@ -480,10 +480,10 @@ resource "google_cloud_run_v2_job" "postgres_extensions_job" {
 }
 
 resource "null_resource" "execute_postgres_extensions_job" {
-  count = var.enable_postgres_extensions && local.sql_server_exists && local.database_client_type == "POSTGRES" && length(var.postgres_extensions) > 0 ? 1 : 0
+  count = local.enable_postgres_extensions && local.sql_server_exists && local.database_client_type == "POSTGRES" && length(local.postgres_extensions) > 0 ? 1 : 0
 
   triggers = {
-    extensions_list = join(",", var.postgres_extensions)
+    extensions_list = join(",", local.postgres_extensions)
     job_name        = google_cloud_run_v2_job.postgres_extensions_job[0].name
   }
 
@@ -491,7 +491,7 @@ resource "null_resource" "execute_postgres_extensions_job" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<EOT
       echo "Executing PostgreSQL extensions installation job for deployment: ${local.resource_prefix}"
-      echo "Extensions: ${join(",", var.postgres_extensions)}"
+      echo "Extensions: ${join(",", local.postgres_extensions)}"
 
       IMPERSONATE_FLAG=""
       if [ -n "${local.impersonation_service_account}" ]; then
@@ -845,7 +845,7 @@ resource "null_resource" "execute_gcs_backup_job" {
 # ============================================================================
 
 resource "google_cloud_run_v2_job" "mysql_plugins_job" {
-  count               = var.enable_mysql_plugins && local.sql_server_exists && local.database_client_type == "MYSQL" && length(var.mysql_plugins) > 0 ? 1 : 0
+  count               = local.enable_mysql_plugins && local.sql_server_exists && local.database_client_type == "MYSQL" && length(local.mysql_plugins) > 0 ? 1 : 0
   project             = local.project.project_id
   name                = "${local.resource_prefix}-mysql-plugins"
   location            = local.region
@@ -863,7 +863,7 @@ resource "google_cloud_run_v2_job" "mysql_plugins_job" {
 
         env {
           name  = "MYSQL_PLUGINS"
-          value = join(",", var.mysql_plugins)
+          value = join(",", local.mysql_plugins)
         }
 
         env {
@@ -923,10 +923,10 @@ resource "google_cloud_run_v2_job" "mysql_plugins_job" {
 }
 
 resource "null_resource" "execute_mysql_plugins_job" {
-  count = var.enable_mysql_plugins && local.sql_server_exists && local.database_client_type == "MYSQL" && length(var.mysql_plugins) > 0 ? 1 : 0
+  count = local.enable_mysql_plugins && local.sql_server_exists && local.database_client_type == "MYSQL" && length(local.mysql_plugins) > 0 ? 1 : 0
 
   triggers = {
-    plugins_list = join(",", var.mysql_plugins)
+    plugins_list = join(",", local.mysql_plugins)
     job_name     = google_cloud_run_v2_job.mysql_plugins_job[0].name
   }
 
@@ -934,7 +934,7 @@ resource "null_resource" "execute_mysql_plugins_job" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<EOT
       echo "Executing MySQL plugins installation job for deployment: ${local.resource_prefix}"
-      echo "Plugins: ${join(",", var.mysql_plugins)}"
+      echo "Plugins: ${join(",", local.mysql_plugins)}"
 
       IMPERSONATE_FLAG=""
       if [ -n "${local.impersonation_service_account}" ]; then
@@ -974,7 +974,7 @@ resource "null_resource" "execute_mysql_plugins_job" {
 # ============================================================================
 
 resource "google_cloud_run_v2_job" "custom_sql_scripts_job" {
-  count               = var.enable_custom_sql_scripts && local.sql_server_exists && var.custom_sql_scripts_bucket != "" ? 1 : 0
+  count               = local.enable_custom_sql_scripts && local.sql_server_exists && local.custom_sql_scripts_bucket != "" ? 1 : 0
   project             = local.project.project_id
   name                = "${local.resource_prefix}-custom-sql"
   location            = local.region
@@ -992,12 +992,12 @@ resource "google_cloud_run_v2_job" "custom_sql_scripts_job" {
 
         env {
           name  = "SQL_SCRIPTS_BUCKET"
-          value = var.custom_sql_scripts_bucket
+          value = local.custom_sql_scripts_bucket
         }
 
         env {
           name  = "SQL_SCRIPTS_PATH"
-          value = var.custom_sql_scripts_path
+          value = local.custom_sql_scripts_path
         }
 
         env {
@@ -1052,7 +1052,7 @@ resource "google_cloud_run_v2_job" "custom_sql_scripts_job" {
 
         env {
           name  = "USE_ROOT"
-          value = var.custom_sql_scripts_use_root ? "true" : "false"
+          value = local.custom_sql_scripts_use_root ? "true" : "false"
         }
 
         command = ["/bin/bash"]
@@ -1086,12 +1086,12 @@ resource "google_cloud_run_v2_job" "custom_sql_scripts_job" {
 }
 
 resource "null_resource" "execute_custom_sql_scripts_job" {
-  count = var.enable_custom_sql_scripts && local.sql_server_exists && var.custom_sql_scripts_bucket != "" ? 1 : 0
+  count = local.enable_custom_sql_scripts && local.sql_server_exists && local.custom_sql_scripts_bucket != "" ? 1 : 0
 
   triggers = {
-    scripts_bucket = var.custom_sql_scripts_bucket
-    scripts_path   = var.custom_sql_scripts_path
-    use_root       = tostring(var.custom_sql_scripts_use_root)
+    scripts_bucket = local.custom_sql_scripts_bucket
+    scripts_path   = local.custom_sql_scripts_path
+    use_root       = tostring(local.custom_sql_scripts_use_root)
     job_name       = google_cloud_run_v2_job.custom_sql_scripts_job[0].name
   }
 
@@ -1099,9 +1099,9 @@ resource "null_resource" "execute_custom_sql_scripts_job" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<EOT
       echo "Executing custom SQL scripts job for deployment: ${local.resource_prefix}"
-      echo "Bucket: ${var.custom_sql_scripts_bucket}"
-      echo "Path: ${var.custom_sql_scripts_path}"
-      echo "Use Root: ${var.custom_sql_scripts_use_root}"
+      echo "Bucket: ${local.custom_sql_scripts_bucket}"
+      echo "Path: ${local.custom_sql_scripts_path}"
+      echo "Use Root: ${local.custom_sql_scripts_use_root}"
 
       IMPERSONATE_FLAG=""
       if [ -n "${local.impersonation_service_account}" ]; then

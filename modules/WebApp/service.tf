@@ -18,7 +18,7 @@
 #########################################################################
 
 resource "null_resource" "image_build_gate" {
-  count = var.configure_environment ? 1 : 0
+  count = local.configure_environment ? 1 : 0
 
   # This resource doesn't execute anything, it just serves as a dependency gate
   triggers = {
@@ -42,7 +42,7 @@ resource "null_resource" "image_build_gate" {
 # When CI/CD is enabled, we use the default hello world image initially
 # The CI/CD pipeline will deploy the actual application image on first push
 resource "null_resource" "cicd_image_dependency" {
-  count = var.configure_environment && local.enable_cicd_trigger && local.container_image_source == "custom" ? 1 : 0
+  count = local.configure_environment && local.enable_cicd_trigger && local.container_image_source == "custom" ? 1 : 0
 
   triggers = {
     trigger_ready = timestamp()
@@ -55,7 +55,7 @@ resource "null_resource" "cicd_image_dependency" {
 
 # Conditional dependency on custom build
 resource "null_resource" "custom_build_dependency" {
-  count = var.configure_environment && local.enable_custom_build && !local.enable_cicd_trigger ? 1 : 0
+  count = local.configure_environment && local.enable_custom_build && !local.enable_cicd_trigger ? 1 : 0
 
   triggers = {
     build_complete = timestamp()
@@ -71,27 +71,27 @@ resource "null_resource" "custom_build_dependency" {
 #########################################################################
 
 resource "google_cloud_run_v2_service" "app_service" {
-  count = var.configure_environment ? 1 : 0
+  count = local.configure_environment ? 1 : 0
 
   project             = local.project.project_id
   name                = local.service_name
   location            = local.region
   deletion_protection = false
-  description         = var.application_description
+  description         = local.application_description
   ingress             = upper("INGRESS_TRAFFIC_${replace(upper(local.ingress_settings), "-", "_")}")
 
   # Annotations
-  annotations = var.service_annotations
+  annotations = local.service_annotations
 
   template {
     service_account       = local.cloud_run_sa_email
     session_affinity      = true
-    execution_environment = upper("EXECUTION_ENVIRONMENT_${upper(var.execution_environment)}")
-    timeout               = "${var.timeout_seconds}s"
+    execution_environment = upper("EXECUTION_ENVIRONMENT_${upper(local.execution_environment)}")
+    timeout               = "${local.timeout_seconds}s"
 
     labels = merge(
       local.common_labels,
-      var.service_labels,
+      local.service_labels,
       {
         app = local.application_name
       }
@@ -99,8 +99,8 @@ resource "google_cloud_run_v2_service" "app_service" {
 
     # Scaling configuration
     scaling {
-      min_instance_count = var.min_instance_count
-      max_instance_count = var.max_instance_count
+      min_instance_count = local.min_instance_count
+      max_instance_count = local.max_instance_count
     }
 
     # Container configuration
@@ -109,46 +109,46 @@ resource "google_cloud_run_v2_service" "app_service" {
 
       # Port configuration
       ports {
-        name           = var.container_protocol
-        container_port = var.container_port
+        name           = local.container_protocol
+        container_port = local.container_port
       }
 
       # Resource limits
       resources {
         startup_cpu_boost = true
-        cpu_idle          = var.min_instance_count == 0
+        cpu_idle          = local.min_instance_count == 0
         limits = {
-          cpu    = var.container_resources.cpu_limit
-          memory = var.container_resources.memory_limit
+          cpu    = local.container_resources.cpu_limit
+          memory = local.container_resources.memory_limit
         }
         # Optional: requests
         # requests = {
-        #   cpu    = var.container_resources.cpu_request
-        #   memory = var.container_resources.mem_request
+        #   cpu    = local.container_resources.cpu_request
+        #   memory = local.container_resources.mem_request
         # }
       }
 
       # Startup probe
       dynamic "startup_probe" {
-        for_each = var.startup_probe_config.enabled ? [1] : []
+        for_each = local.startup_probe_config.enabled ? [1] : []
         content {
-          initial_delay_seconds = var.startup_probe_config.initial_delay_seconds
-          timeout_seconds       = var.startup_probe_config.timeout_seconds
-          period_seconds        = var.startup_probe_config.period_seconds
-          failure_threshold     = var.startup_probe_config.failure_threshold
+          initial_delay_seconds = local.startup_probe_config.initial_delay_seconds
+          timeout_seconds       = local.startup_probe_config.timeout_seconds
+          period_seconds        = local.startup_probe_config.period_seconds
+          failure_threshold     = local.startup_probe_config.failure_threshold
 
           dynamic "http_get" {
-            for_each = upper(var.startup_probe_config.type) == "HTTP" ? [1] : []
+            for_each = upper(local.startup_probe_config.type) == "HTTP" ? [1] : []
             content {
-              path = var.startup_probe_config.path
-              port = var.container_port
+              path = local.startup_probe_config.path
+              port = local.container_port
             }
           }
 
           dynamic "tcp_socket" {
-            for_each = upper(var.startup_probe_config.type) == "TCP" ? [1] : []
+            for_each = upper(local.startup_probe_config.type) == "TCP" ? [1] : []
             content {
-              port = var.container_port
+              port = local.container_port
             }
           }
         }
@@ -156,25 +156,25 @@ resource "google_cloud_run_v2_service" "app_service" {
 
       # Liveness probe
       dynamic "liveness_probe" {
-        for_each = var.health_check_config.enabled ? [1] : []
+        for_each = local.health_check_config.enabled ? [1] : []
         content {
-          initial_delay_seconds = var.health_check_config.initial_delay_seconds
-          timeout_seconds       = var.health_check_config.timeout_seconds
-          period_seconds        = var.health_check_config.period_seconds
-          failure_threshold     = var.health_check_config.failure_threshold
+          initial_delay_seconds = local.health_check_config.initial_delay_seconds
+          timeout_seconds       = local.health_check_config.timeout_seconds
+          period_seconds        = local.health_check_config.period_seconds
+          failure_threshold     = local.health_check_config.failure_threshold
 
           dynamic "http_get" {
-            for_each = upper(var.health_check_config.type) == "HTTP" ? [1] : []
+            for_each = upper(local.health_check_config.type) == "HTTP" ? [1] : []
             content {
-              path = var.health_check_config.path
-              port = var.container_port
+              path = local.health_check_config.path
+              port = local.container_port
             }
           }
 
           dynamic "tcp_socket" {
-            for_each = upper(var.health_check_config.type) == "TCP" ? [1] : []
+            for_each = upper(local.health_check_config.type) == "TCP" ? [1] : []
             content {
-              port = var.container_port
+              port = local.container_port
             }
           }
         }
@@ -227,10 +227,10 @@ resource "google_cloud_run_v2_service" "app_service" {
 
       # Cloud SQL instance volume mount (for Unix socket connections)
       dynamic "volume_mounts" {
-        for_each = var.enable_cloudsql_volume && local.sql_server_exists ? [1] : []
+        for_each = local.enable_cloudsql_volume && local.sql_server_exists ? [1] : []
         content {
           name       = "cloudsql"
-          mount_path = var.cloudsql_volume_mount_path
+          mount_path = local.cloudsql_volume_mount_path
         }
       }
     }
@@ -262,7 +262,7 @@ resource "google_cloud_run_v2_service" "app_service" {
 
     # Cloud SQL instance volume (for Unix socket connections)
     dynamic "volumes" {
-      for_each = var.enable_cloudsql_volume && local.sql_server_exists ? [1] : []
+      for_each = local.enable_cloudsql_volume && local.sql_server_exists ? [1] : []
       content {
         name = "cloudsql"
         cloud_sql_instance {
@@ -308,7 +308,7 @@ resource "google_cloud_run_v2_service" "app_service" {
 #########################################################################
 
 resource "google_cloud_run_service_iam_binding" "app" {
-  count = var.configure_environment ? 1 : 0
+  count = local.configure_environment ? 1 : 0
 
   project  = local.project.project_id
   location = local.region
