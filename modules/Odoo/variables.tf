@@ -108,19 +108,16 @@ variable "create_cloud_storage" {
 variable "application_name" {
   description = "Specify application name. The application name is used to identify configured resources alongside other attributes that ensures uniqueness. {{UIMeta group=0 order=501}}"
   type        = string
-  default     = "odoo"
 }
 
 variable "application_database_user" {
   description = "Specify application database user name. The actual database user name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=502}}"
   type        = string
-  default     = "odoo"
 }
 
 variable "application_database_name" {
   description = "Specify application database name. The actual database name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=503 }}"
   type        = string
-  default     = "odoo"
 }
 
 variable "application_version" {

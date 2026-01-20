@@ -11,3 +11,8 @@ network_name = "vpc-network"
 
 # environments
 configure_environment = true
+
+# Application
+application_name = "odoo"
+application_database_name = "odoo"
+application_database_user = "odoo"
