@@ -37,7 +37,7 @@ locals {
 resource "google_cloud_run_v2_job" "nfs_setup_job" {
   count               = local.nfs_enabled && local.nfs_server_exists ? 1 : 0
   project             = local.project.project_id
-  name                = "nfs-setup-${local.resource_prefix}"
+  name                = "${local.resource_prefix}-nfs-setup"
   location            = local.region
   deletion_protection = false
 
