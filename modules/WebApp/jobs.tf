@@ -70,7 +70,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
           echo "NFS Path: $${NFS_BASE_PATH}"
           
           MOUNT_POINT="/mnt/nfs"
-          TARGET_DIR="$${MOUNT_POINT}"
+          TARGET_DIR="$${MOUNT_POINT}/$${DIR_NAME}"
           
           echo "Target Directory: $${TARGET_DIR}"
           
@@ -81,9 +81,15 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
           
           # Create subdirectories for this deployment
           echo "Creating deployment-specific subdirectories..."
+          if [ ! -d "$${TARGET_DIR}" ]; then
+             echo "Creating directory $${TARGET_DIR}..."
+             mkdir -p "$${TARGET_DIR}"
+          else
+             echo "Directory $${TARGET_DIR} already exists."
+          fi
           
           echo "Setting permissions (NFS-safe)..."
-          chmod 777 "$${TARGET_DIR}" 2>/dev/null || echo "Warning: chmod on root failed"
+          chmod 777 "$${TARGET_DIR}" 2>/dev/null || echo "Warning: chmod failed"
           
           echo "NFS setup complete for deployment: $${DIR_NAME}"
           ls -la "$${TARGET_DIR}" 2>/dev/null || echo "Directory created successfully"
@@ -104,8 +110,8 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
         name = "nfs-deployment-volume"
         nfs {
           server = local.nfs_internal_ip
-          # ✅ CHANGED: Mount unique path per deployment
-          path   = local.nfs_unique_path
+          # ✅ CHANGED: Mount root path and create subdirectory
+          path   = "/share"
         }
       }
 
