@@ -11,11 +11,13 @@ locals {
     cloudsql_volume_mount_path = "/var/run/postgresql"
     gcs_volumes = [
       {
+        name       = "data"
         bucket     = "$${tenant_id}-nextcloud-data"
         mount_path = "/var/www/html/data"
         read_only  = false
       },
       {
+        name       = "config"
         bucket     = "$${tenant_id}-nextcloud-config"
         mount_path = "/var/www/html/config"
         read_only  = false
@@ -32,6 +34,26 @@ locals {
     }
     enable_postgres_extensions = false
     postgres_extensions         = []
+
+    # Health Checks
+    startup_probe = {
+      enabled               = true
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 60
+      timeout_seconds       = 240
+      period_seconds        = 240
+      failure_threshold     = 1
+    }
+    liveness_probe = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/"
+      initial_delay_seconds = 300
+      timeout_seconds       = 5
+      period_seconds        = 60
+      failure_threshold     = 3
+    }
   }
 }
 

@@ -8,6 +8,7 @@
 locals {
   odoo_module = {
     description     = "Odoo ERP System - CRM, e-commerce, billing, accounting, manufacturing, warehouse, project management"
+    image_source    = "custom"
     container_image = "odoo:18.0"
     container_port  = 8069
     database_type   = "POSTGRES_15"
@@ -18,9 +19,11 @@ locals {
 
     # Storage volumes
     gcs_volumes = [{
-      bucket     = "$${tenant_id}-odoo-filestore"
-      mount_path = "/var/lib/odoo/filestore"
-      read_only  = false
+      name          = "data"
+      bucket        = "$${tenant_id}-odoo-filestore"
+      mount_path    = "/extra-addons"
+      read_only     = false
+      mount_options = ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"]
     }]
 
     # Resource limits
@@ -40,6 +43,32 @@ locals {
     # PostgreSQL extensions
     enable_postgres_extensions = false
     postgres_extensions         = []
+
+    # NFS Configuration
+    nfs_config = {
+      enabled    = true
+      mount_path = "/mnt"
+    }
+
+    # Health Checks
+    startup_probe = {
+      enabled               = true
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 180
+      timeout_seconds       = 60
+      period_seconds        = 120
+      failure_threshold     = 3
+    }
+    liveness_probe = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/web/health"
+      initial_delay_seconds = 120
+      timeout_seconds       = 60
+      period_seconds        = 120
+      failure_threshold     = 3
+    }
   }
 }
 

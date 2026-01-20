@@ -108,6 +108,7 @@ locals {
   #########################################################################
 
   # Container configuration
+  module_container_image_source = local.using_module && local.selected_module != null ? lookup(local.selected_module, "image_source", "prebuilt") : null
   module_container_image = local.using_module && local.selected_module != null ? local.selected_module.container_image : null
   module_container_port  = local.using_module && local.selected_module != null ? local.selected_module.container_port : null
 
@@ -124,9 +125,11 @@ locals {
   # Process GCS volumes - replace placeholders
   module_gcs_volumes = [
     for vol in local.module_gcs_volumes_raw : {
-      bucket     = replace(replace(vol.bucket, "$${tenant_id}", var.tenant_deployment_id), "$${deployment_id}", var.deployment_id != null ? var.deployment_id : "default")
-      mount_path = vol.mount_path
-      read_only  = vol.read_only
+      name          = lookup(vol, "name", "gcs-volume-${index(local.module_gcs_volumes_raw, vol)}")
+      bucket_name   = replace(replace(vol.bucket, "$${tenant_id}", var.tenant_deployment_id), "$${deployment_id}", var.deployment_id != null ? var.deployment_id : "default")
+      mount_path    = vol.mount_path
+      readonly      = vol.read_only
+      mount_options = lookup(vol, "mount_options", [])
     }
   ]
 
@@ -146,12 +149,27 @@ locals {
   module_enable_mysql_plugins = local.using_module && local.selected_module != null ? lookup(local.selected_module, "enable_mysql_plugins", null) : null
   module_mysql_plugins        = local.using_module && local.selected_module != null ? lookup(local.selected_module, "mysql_plugins", []) : []
 
+  # NFS Configuration
+  module_nfs_config = local.using_module && local.selected_module != null ? lookup(local.selected_module, "nfs_config", null) : null
+
+  # Health Checks
+  module_startup_probe  = local.using_module && local.selected_module != null ? lookup(local.selected_module, "startup_probe", null) : null
+  module_liveness_probe = local.using_module && local.selected_module != null ? lookup(local.selected_module, "liveness_probe", null) : null
+
   #########################################################################
   # Final Values - Preset values with manual override capability
   # Manual configuration always takes precedence over preset values
   #########################################################################
 
+  # Application name
+  final_application_name = var.application_name != null ? var.application_name : (local.using_module ? var.application_module : "webapp")
+
+  # Database Name and User (use preset-specific defaults if not provided)
+  final_database_name = var.application_database_name != null ? var.application_database_name : "${local.final_application_name}_db"
+  final_database_user = var.application_database_user != null ? var.application_database_user : "${local.final_application_name}_user"
+
   # Container configuration
+  final_container_image_source = var.container_image_source != null ? var.container_image_source : coalesce(local.module_container_image_source, "prebuilt")
   final_container_image = var.container_image != "" && var.container_image != null ? var.container_image : coalesce(local.module_container_image, "")
   final_container_port  = var.container_port != 8080 ? var.container_port : coalesce(local.module_container_port, 8080)
 
@@ -159,7 +177,7 @@ locals {
   final_database_type = var.database_type != "POSTGRES" ? var.database_type : coalesce(local.module_database_type, "POSTGRES")
 
   # Cloud SQL volume
-  final_enable_cloudsql_volume     = var.enable_cloudsql_volume != false ? var.enable_cloudsql_volume : coalesce(local.module_enable_cloudsql_volume, false)
+  final_enable_cloudsql_volume     = var.enable_cloudsql_volume != null ? var.enable_cloudsql_volume : coalesce(local.module_enable_cloudsql_volume, false)
   final_cloudsql_volume_mount_path = var.cloudsql_volume_mount_path != "/cloudsql" ? var.cloudsql_volume_mount_path : coalesce(local.module_cloudsql_volume_mount_path, "/cloudsql")
 
   # GCS volumes - use preset if manual is empty
@@ -187,4 +205,33 @@ locals {
   # MySQL plugins
   final_enable_mysql_plugins = var.enable_mysql_plugins != false ? var.enable_mysql_plugins : coalesce(local.module_enable_mysql_plugins, false)
   final_mysql_plugins        = length(var.mysql_plugins) > 0 ? var.mysql_plugins : local.module_mysql_plugins
+
+  # NFS Configuration
+  final_nfs_enabled    = var.nfs_enabled != null ? var.nfs_enabled : (local.module_nfs_config != null ? local.module_nfs_config.enabled : false)
+  final_nfs_mount_path = var.nfs_mount_path != null ? var.nfs_mount_path : (local.module_nfs_config != null ? local.module_nfs_config.mount_path : "/mnt")
+
+  # Health Checks
+  final_startup_probe_config = (
+    var.startup_probe_config != null ? var.startup_probe_config :
+    local.module_startup_probe != null ? local.module_startup_probe :
+    {
+      enabled               = true
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 0
+      timeout_seconds       = 240
+      period_seconds        = 240
+      failure_threshold     = 1
+    }
+  )
+
+  final_health_check_config = (
+    var.health_check_config != null ? var.health_check_config :
+    local.module_liveness_probe != null ? local.module_liveness_probe :
+    {
+      enabled               = false
+      type                  = "HTTP"
+      path                  = "/"
+    }
+  )
 }

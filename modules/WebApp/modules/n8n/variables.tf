@@ -4,12 +4,14 @@
 locals {
   n8n_module = {
     description     = "n8n Workflow Automation - Workflow automation platform"
+    image_source    = "prebuilt"
     container_image = "n8nio/n8n:latest"
     container_port  = 5678
     database_type   = "POSTGRES_15"
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
     gcs_volumes = [{
+      name       = "data"
       bucket     = "$${tenant_id}-n8n-data"
       mount_path = "/home/node/.n8n"
       read_only  = false
@@ -31,6 +33,26 @@ locals {
     }
     enable_postgres_extensions = false
     postgres_extensions         = []
+
+    # Health Checks
+    startup_probe = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/"
+      initial_delay_seconds = 10
+      timeout_seconds       = 3
+      period_seconds        = 10
+      failure_threshold     = 3
+    }
+    liveness_probe = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/"
+      initial_delay_seconds = 30
+      timeout_seconds       = 5
+      period_seconds        = 30
+      failure_threshold     = 3
+    }
   }
 }
 

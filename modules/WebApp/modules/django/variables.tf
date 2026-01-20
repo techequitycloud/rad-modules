@@ -4,6 +4,7 @@
 locals {
   django_module = {
     description     = "Django Web Application - High-level Python web framework"
+    image_source    = "custom"
     container_image = "python:3.11-slim"
     container_port  = 8000
     database_type   = "POSTGRES_15"
@@ -11,11 +12,13 @@ locals {
     cloudsql_volume_mount_path = "/cloudsql"
     gcs_volumes = [
       {
+        name       = "static"
         bucket     = "$${tenant_id}-django-static"
         mount_path = "/app/static"
         read_only  = false
       },
       {
+        name       = "media"
         bucket     = "$${tenant_id}-django-media"
         mount_path = "/app/media"
         read_only  = false
@@ -38,6 +41,26 @@ locals {
     }
     enable_postgres_extensions = true
     postgres_extensions         = ["pg_trgm", "unaccent", "hstore", "citext"]
+
+    # Health Checks
+    startup_probe = {
+      enabled               = true
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 0
+      timeout_seconds       = 240
+      period_seconds        = 240
+      failure_threshold     = 1
+    }
+    liveness_probe = {
+      enabled               = false
+      type                  = "HTTP"
+      path                  = "/"
+      initial_delay_seconds = 0
+      timeout_seconds       = 1
+      period_seconds        = 10
+      failure_threshold     = 3
+    }
   }
 }
 
