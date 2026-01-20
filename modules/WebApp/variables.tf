@@ -694,6 +694,70 @@ variable "gdrive_backup_format" {
   }
 }
 
+variable "enable_gcs_backup_import" {
+  description = "Enable automatic import of database backup from Google Cloud Storage. When enabled, downloads and imports a backup file during deployment. More secure and performant than Google Drive import. {{UIMeta group=13 order=1305 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "gcs_backup_uri" {
+  description = "Google Cloud Storage URI of the backup to import (e.g., 'gs://my-bucket/backups/database.sql'). Only used when enable_gcs_backup_import is true. {{UIMeta group=13 order=1306 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
+variable "gcs_backup_format" {
+  description = "Backup file format for GCS import: 'sql' (SQL dump), 'tar' (tarball), 'gz' (gzip), 'tgz' (tar.gz), or 'zip' (compressed archive). {{UIMeta group=13 order=1307 updatesafe }}"
+  type        = string
+  default     = "sql"
+
+  validation {
+    condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.gcs_backup_format)
+    error_message = "Backup format must be 'sql', 'tar', 'gz', 'tgz', 'tar.gz', or 'zip'."
+  }
+}
+
+variable "enable_mysql_plugins" {
+  description = "Enable automatic installation of MySQL plugins and components. Only applicable when using MySQL databases. {{UIMeta group=13 order=1308 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "mysql_plugins" {
+  description = "List of MySQL plugins to install (e.g., ['audit_log', 'validate_password']). Common plugins: validate_password, audit_log, clone, group_replication, authentication_ldap_simple. {{UIMeta group=13 order=1309 updatesafe }}"
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for plugin in var.mysql_plugins : can(regex("^[a-z_][a-z0-9_]*$", plugin))])
+    error_message = "Plugin names must start with a letter or underscore and contain only lowercase letters, numbers, and underscores."
+  }
+}
+
+variable "enable_custom_sql_scripts" {
+  description = "Enable execution of custom SQL scripts from GCS during initialization. Useful for seeding data, creating additional schemas, or running custom DDL. {{UIMeta group=13 order=1310 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "custom_sql_scripts_bucket" {
+  description = "GCS bucket name containing custom SQL scripts (without gs:// prefix, e.g., 'my-bucket'). Only used when enable_custom_sql_scripts is true. {{UIMeta group=13 order=1311 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
+variable "custom_sql_scripts_path" {
+  description = "Path prefix in GCS bucket for SQL scripts (e.g., 'scripts/init/'). Scripts will be executed in alphabetical order. Name scripts with numeric prefixes for ordering (e.g., 001_schema.sql, 002_data.sql). {{UIMeta group=13 order=1312 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
+variable "custom_sql_scripts_use_root" {
+  description = "Execute custom SQL scripts as database root user instead of application user. Enable this for scripts that require elevated privileges (e.g., creating users, installing extensions). {{UIMeta group=13 order=1313 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
 # ===========================
 # GROUP 12: Network & Security Configuration
 # ===========================
