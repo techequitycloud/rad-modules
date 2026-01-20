@@ -34,18 +34,14 @@ data "external" "check_service_accounts" {
     }
 
     # Check service accounts used in Cloud Run deployment
-    PROJECT_SA_EXISTS=$(check_sa "project-sa")
     CLOUD_BUILD_SA_EXISTS=$(check_sa "${local.cloudbuild_sa}")
     CLOUD_RUN_SA_EXISTS=$(check_sa "${local.cloudrun_sa}")
-    CLOUD_SQL_SA_EXISTS=$(check_sa "${local.cloudsql_sa}")
 
     # Output JSON
     cat <<EOF
 {
-  "project_sa_exists": "$PROJECT_SA_EXISTS",
   "cloud_build_sa_exists": "$CLOUD_BUILD_SA_EXISTS",
-  "cloud_run_sa_exists": "$CLOUD_RUN_SA_EXISTS",
-  "cloud_sql_sa_exists": "$CLOUD_SQL_SA_EXISTS"
+  "cloud_run_sa_exists": "$CLOUD_RUN_SA_EXISTS"
 }
 EOF
   EOT
@@ -58,20 +54,14 @@ EOF
 
 locals {
   # Parse the results from external data source
-  project_sa_exists     = data.external.check_service_accounts.result["project_sa_exists"] == "true"
   cloud_build_sa_exists = data.external.check_service_accounts.result["cloud_build_sa_exists"] == "true"
   cloud_run_sa_exists   = data.external.check_service_accounts.result["cloud_run_sa_exists"] == "true"
-  cloud_sql_sa_exists   = data.external.check_service_accounts.result["cloud_sql_sa_exists"] == "true"
 
   # Service account email references (existing or newly created)
-  project_sa_email     = "project-sa@${local.project.project_id}.iam.gserviceaccount.com"
   cloud_build_sa_email = "${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
   cloud_run_sa_email   = "${local.cloudrun_sa}@${local.project.project_id}.iam.gserviceaccount.com"
-  cloud_sql_sa_email   = "${local.cloudsql_sa}@${local.project.project_id}.iam.gserviceaccount.com"
 
   # Service account resource IDs (required for IAM bindings)
-  project_sa_id     = "projects/${local.project.project_id}/serviceAccounts/${local.project_sa_email}"
   cloud_build_sa_id = "projects/${local.project.project_id}/serviceAccounts/${local.cloud_build_sa_email}"
   cloud_run_sa_id   = "projects/${local.project.project_id}/serviceAccounts/${local.cloud_run_sa_email}"
-  cloud_sql_sa_id   = "projects/${local.project.project_id}/serviceAccounts/${local.cloud_sql_sa_email}"
 }

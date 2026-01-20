@@ -20,7 +20,7 @@
 resource "google_storage_bucket" "buckets" {
   for_each = local.storage_buckets
 
-  name          = "${local.project.project_id}-${each.value.name}"
+  name          = each.value.name
   location      = each.value.location
   project       = local.project.project_id
   storage_class = each.value.storage_class

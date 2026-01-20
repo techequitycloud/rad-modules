@@ -85,11 +85,6 @@ output "cloudbuild_service_account" {
   description = "The email of the Cloud Build service account."
 }
 
-output "project_service_account" {
-  value       = local.project_sa_email
-  description = "The email of the project service account."
-}
-
 #########################################################################
 # Network Outputs
 #########################################################################

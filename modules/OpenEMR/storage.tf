@@ -15,9 +15,9 @@
 # Local variables for bucket existence
 locals { 
   # Bucket names
-  backup_bucket_name = "${local.project.project_id}-${var.application_name}${var.tenant_deployment_id}${local.random_id}-backups"
-  data_bucket_name = "${local.project.project_id}-${var.application_name}${var.tenant_deployment_id}${local.random_id}-data"
-  restore_bucket_name = "${local.project.project_id}-${var.application_name}${var.tenant_deployment_id}${local.random_id}-restore"
+  backup_bucket_name = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-backups"
+  data_bucket_name = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-data"
+  restore_bucket_name = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-restore"
 }
 
 # Create buckets only if they don't exist and creation is requested
