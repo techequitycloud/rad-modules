@@ -47,7 +47,7 @@ resource "null_resource" "cicd_image_dependency" {
   }
 
   depends_on = [
-    null_resource.build_placeholder_image
+    time_sleep.wait_for_image_propagation
   ]
 }
 
