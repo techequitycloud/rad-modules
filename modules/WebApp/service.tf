@@ -136,9 +136,20 @@ resource "google_cloud_run_v2_service" "app_service" {
           timeout_seconds       = var.startup_probe_config.timeout_seconds
           period_seconds        = var.startup_probe_config.period_seconds
           failure_threshold     = var.startup_probe_config.failure_threshold
-          http_get {
-            path = var.startup_probe_config.path
-            port = var.container_port
+
+          dynamic "http_get" {
+            for_each = upper(var.startup_probe_config.type) == "HTTP" ? [1] : []
+            content {
+              path = var.startup_probe_config.path
+              port = var.container_port
+            }
+          }
+
+          dynamic "tcp_socket" {
+            for_each = upper(var.startup_probe_config.type) == "TCP" ? [1] : []
+            content {
+              port = var.container_port
+            }
           }
         }
       }
@@ -151,9 +162,20 @@ resource "google_cloud_run_v2_service" "app_service" {
           timeout_seconds       = var.health_check_config.timeout_seconds
           period_seconds        = var.health_check_config.period_seconds
           failure_threshold     = var.health_check_config.failure_threshold
-          http_get {
-            path = var.health_check_config.path
-            port = var.container_port
+
+          dynamic "http_get" {
+            for_each = upper(var.health_check_config.type) == "HTTP" ? [1] : []
+            content {
+              path = var.health_check_config.path
+              port = var.container_port
+            }
+          }
+
+          dynamic "tcp_socket" {
+            for_each = upper(var.health_check_config.type) == "TCP" ? [1] : []
+            content {
+              port = var.container_port
+            }
           }
         }
       }

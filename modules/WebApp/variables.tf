@@ -540,6 +540,7 @@ variable "health_check_config" {
   description = "Liveness probe configuration. Checks if the application is running and restarts if unhealthy. {{UIMeta group=9 order=900 updatesafe }}"
   type = object({
     enabled               = bool
+    type                  = optional(string, "HTTP")
     path                  = optional(string, "/")
     initial_delay_seconds = optional(number, 0)
     timeout_seconds       = optional(number, 1)
@@ -548,6 +549,7 @@ variable "health_check_config" {
   })
   default = {
     enabled = true
+    type    = "HTTP"
     path    = "/"
   }
 }
@@ -556,6 +558,7 @@ variable "startup_probe_config" {
   description = "Startup probe configuration. Checks if the application has started successfully before accepting traffic. {{UIMeta group=9 order=901 updatesafe }}"
   type = object({
     enabled               = bool
+    type                  = optional(string, "TCP")
     path                  = optional(string, "/")
     initial_delay_seconds = optional(number, 0)
     timeout_seconds       = optional(number, 240)
@@ -564,6 +567,7 @@ variable "startup_probe_config" {
   })
   default = {
     enabled = true
+    type    = "TCP"
     path    = "/"
   }
 }
