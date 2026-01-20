@@ -151,7 +151,7 @@ locals {
 
   # CI/CD Configuration
   enable_cicd_trigger = var.enable_cicd_trigger && var.github_repository_url != null
-  github_token_secret = var.github_token_secret_name
+  github_token_secret = "${var.github_token_secret_name}-${local.tenant_id}"
 
   # Parse GitHub repository URL to extract owner and name
   # Normalizes input formats: https://github.com/owner/repo.git, https://github.com/owner/repo, owner/repo
