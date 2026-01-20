@@ -441,10 +441,10 @@ variable "timeout_seconds" {
 variable "min_instance_count" {
   description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=6 order=603 updatesafe }}"
   type        = number
-  default     = 0
+  default     = null
 
   validation {
-    condition     = var.min_instance_count >= 0 && var.min_instance_count <= 1000
+    condition     = var.min_instance_count == null || (coalesce(var.min_instance_count, 0) >= 0 && coalesce(var.min_instance_count, 0) <= 1000)
     error_message = "Minimum instance count must be between 0 and 1000."
   }
 }
@@ -452,10 +452,10 @@ variable "min_instance_count" {
 variable "max_instance_count" {
   description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=6 order=604 updatesafe }}"
   type        = number
-  default     = 3
+  default     = null
 
   validation {
-    condition     = var.max_instance_count >= 1 && var.max_instance_count <= 1000
+    condition     = var.max_instance_count == null || (coalesce(var.max_instance_count, 1) >= 1 && coalesce(var.max_instance_count, 1) <= 1000)
     error_message = "Maximum instance count must be between 1 and 1000."
   }
 }

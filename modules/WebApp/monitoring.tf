@@ -17,13 +17,13 @@
 #########################################################################
 
 resource "google_monitoring_notification_channel" "email" {
-  count = local.configure_monitoring && length(var.trusted_users) > 0 ? length(var.trusted_users) : 0
+  count = local.configure_monitoring && length(local.trusted_users) > 0 ? length(local.trusted_users) : 0
 
   project      = local.project.project_id
   display_name = "${local.service_name}-notification-${count.index}"
   type         = "email"
   labels = {
-    email_address = var.trusted_users[count.index]
+    email_address = local.trusted_users[count.index]
   }
   force_delete = true
 }
@@ -34,7 +34,7 @@ resource "google_monitoring_notification_channel" "email" {
 
 # CPU utilization alert
 resource "google_monitoring_alert_policy" "cpu_alert" {
-  count = local.configure_monitoring && length(var.trusted_users) > 0 ? 1 : 0
+  count = local.configure_monitoring && length(local.trusted_users) > 0 ? 1 : 0
 
   project      = local.project.project_id
   display_name = "${local.service_name}-cpu-utilization-alert"
@@ -80,7 +80,7 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
 
 # Memory utilization alert
 resource "google_monitoring_alert_policy" "memory_alert" {
-  count = local.configure_monitoring && length(var.trusted_users) > 0 ? 1 : 0
+  count = local.configure_monitoring && length(local.trusted_users) > 0 ? 1 : 0
 
   project      = local.project.project_id
   display_name = "${local.service_name}-memory-utilization-alert"
@@ -126,7 +126,7 @@ resource "google_monitoring_alert_policy" "memory_alert" {
 
 # Custom alert policies from user configuration
 resource "google_monitoring_alert_policy" "custom_alerts" {
-  for_each = local.configure_monitoring ? { for idx, policy in var.alert_policies : policy.name => policy } : {}
+  for_each = local.configure_monitoring ? { for idx, policy in local.alert_policies : policy.name => policy } : {}
 
   project      = local.project.project_id
   display_name = "${local.service_name}-${each.value.name}"
@@ -149,7 +149,7 @@ resource "google_monitoring_alert_policy" "custom_alerts" {
     }
   }
 
-  notification_channels = length(var.trusted_users) > 0 ? google_monitoring_notification_channel.email[*].name : []
+  notification_channels = length(local.trusted_users) > 0 ? google_monitoring_notification_channel.email[*].name : []
 
   user_labels = local.common_labels
 }
@@ -159,7 +159,7 @@ resource "google_monitoring_alert_policy" "custom_alerts" {
 #########################################################################
 
 resource "google_monitoring_service" "cloud_run" {
-  count = local.configure_monitoring && var.configure_environment ? length(local.regions) : 0
+  count = local.configure_monitoring && local.configure_environment ? length(local.regions) : 0
 
   service_id   = "${local.service_name}-monitoring-${local.regions[count.index]}"
   display_name = "${local.service_name}-monitoring"
@@ -191,7 +191,7 @@ resource "google_monitoring_service" "cloud_run" {
 
 # Latency SLO
 resource "google_monitoring_slo" "latency_slo" {
-  count = local.configure_monitoring && var.configure_environment ? length(local.regions) : 0
+  count = local.configure_monitoring && local.configure_environment ? length(local.regions) : 0
 
   service      = google_monitoring_service.cloud_run[count.index].service_id
   slo_id       = "${local.service_name}-latency-slo"
@@ -218,7 +218,7 @@ resource "google_monitoring_slo" "latency_slo" {
 
 # Availability SLO
 resource "google_monitoring_slo" "availability_slo" {
-  count = local.configure_monitoring && var.configure_environment ? length(local.regions) : 0
+  count = local.configure_monitoring && local.configure_environment ? length(local.regions) : 0
 
   service      = google_monitoring_service.cloud_run[count.index].service_id
   slo_id       = "${local.service_name}-availability-slo"
@@ -245,15 +245,15 @@ resource "google_monitoring_slo" "availability_slo" {
 #########################################################################
 
 resource "google_monitoring_uptime_check_config" "https" {
-  count = local.uptime_check_enabled && var.configure_environment ? length(local.regions) : 0
+  count = local.uptime_check_enabled && local.configure_environment ? length(local.regions) : 0
 
   project      = local.project.project_id
   display_name = "${local.service_name}-uptime-check"
-  timeout      = var.uptime_check_config.timeout
-  period       = var.uptime_check_config.check_interval
+  timeout      = local.uptime_check_config.timeout
+  period       = local.uptime_check_config.check_interval
 
   http_check {
-    path         = var.uptime_check_config.path
+    path         = local.uptime_check_config.path
     port         = "443"
     use_ssl      = true
     validate_ssl = false
@@ -276,7 +276,7 @@ resource "google_monitoring_uptime_check_config" "https" {
 
 # Wait for service to be ready before creating uptime checks
 resource "time_sleep" "app_service" {
-  count = var.configure_environment ? 1 : 0
+  count = local.configure_environment ? 1 : 0
 
   create_duration = "60s"
 

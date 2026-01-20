@@ -50,7 +50,7 @@ resource "google_secret_manager_secret_iam_member" "additional_secrets" {
 
 # Grant Cloud Run service account access to storage buckets
 resource "google_storage_bucket_iam_member" "bucket_access" {
-  for_each = var.create_cloud_storage ? local.storage_buckets : {}
+  for_each = local.create_cloud_storage ? local.storage_buckets : {}
 
   bucket = google_storage_bucket.buckets[each.key].name
   role   = "roles/storage.objectAdmin"
