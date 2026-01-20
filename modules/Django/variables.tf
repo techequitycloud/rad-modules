@@ -98,19 +98,19 @@ variable "network_name" {
 variable "application_name" {
   description = "Specify application name. The application name is used to identify configured resources alongside other attributes that ensures uniqueness. {{UIMeta group=0 order=501}}"
   type        = string
-  default     = "django"
+  default     = null
 }
 
 variable "application_database_user" {
   description = "Specify application database user name. {{UIMeta group=0 order=502}}"
   type        = string
-  default     = "django"
+  default     = null
 }
 
 variable "application_database_name" {
   description = "Specify application database name. {{UIMeta group=0 order=503 }}"
   type        = string
-  default     = "django"
+  default     = null
 }
 
 variable "application_version" {
@@ -144,13 +144,13 @@ variable "db_tier" {
 variable "django_superuser_email" {
   description = "Email for the Django superuser. {{UIMeta group=0 order=802 }}"
   type        = string
-  default     = "admin@example.com"
+  default     = null
 }
 
 variable "django_superuser_username" {
   description = "Username for the Django superuser. {{UIMeta group=0 order=803 }}"
   type        = string
-  default     = "admin"
+  default     = null
 }
 
 # GROUP 8: Tenant
