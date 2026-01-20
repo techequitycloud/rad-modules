@@ -111,12 +111,6 @@ variable "create_cloud_storage" {
   default     = true
 }
 
-variable "configure_monitoring" {
-  description = "Set to true to configure monitoring, uptime checks, and alerting. {{UIMeta group=0 order=113 updatesafe }}"
-  type        = bool
-  default     = true
-}
-
 variable "network_name" {
   description = "Name of the VPC network. {{UIMeta group=0 order=114 updatesafe }}"
   type        = string
@@ -174,7 +168,6 @@ variable "service_labels" {
   type        = map(string)
   default     = {}
 }
-
 
 # ===========================
 # GROUP 1: External Project Configuration
@@ -408,12 +401,6 @@ variable "database_password_length" {
   }
 }
 
-variable "database_flags" {
-  description = "Additional database flags as key-value pairs (e.g., {max_connections='100'}). {{UIMeta group=0 order=502 updatesafe }}"
-  type        = map(string)
-  default     = {}
-}
-
 # ===========================
 # GROUP 6: Resources & Scaling Configuration
 # ===========================
@@ -427,17 +414,6 @@ variable "container_resources" {
     mem_request  = optional(string, null)
   })
   default = null
-}
-
-variable "container_concurrency" {
-  description = "Maximum concurrent requests per container (0-1000). Set to 0 for unlimited. {{UIMeta group=0 order=601 updatesafe }}"
-  type        = number
-  default     = 80
-
-  validation {
-    condition     = var.container_concurrency >= 0 && var.container_concurrency <= 1000
-    error_message = "Container concurrency must be between 0 and 1000."
-  }
 }
 
 variable "timeout_seconds" {
@@ -470,17 +446,6 @@ variable "max_instance_count" {
   validation {
     condition     = var.max_instance_count == null || (coalesce(var.max_instance_count, 1) >= 1 && coalesce(var.max_instance_count, 1) <= 1000)
     error_message = "Maximum instance count must be between 1 and 1000."
-  }
-}
-
-variable "max_instance_request_concurrency" {
-  description = "Maximum concurrent requests per instance (1-1000). {{UIMeta group=0 order=605 updatesafe }}"
-  type        = number
-  default     = 80
-
-  validation {
-    condition     = var.max_instance_request_concurrency >= 1 && var.max_instance_request_concurrency <= 1000
-    error_message = "Max instance request concurrency must be between 1 and 1000."
   }
 }
 
@@ -531,17 +496,6 @@ variable "gcs_volumes" {
       "stat-cache-ttl=60s",
       "type-cache-ttl=60s"
     ])
-  }))
-  default = []
-}
-
-variable "custom_volumes" {
-  description = "Additional custom volume mounts (advanced). {{UIMeta group=0 order=704 updatesafe }}"
-  type = list(object({
-    name       = string
-    mount_path = string
-    secret     = optional(string, null)
-    config_map = optional(string, null)
   }))
   default = []
 }
