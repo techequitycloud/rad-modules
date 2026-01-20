@@ -33,9 +33,8 @@ resource "random_id" "wrapper_deployment" {
 
 # Local variables for consistent naming and configuration
 locals {
-
   # ===========================
-  # 1. Coalesced Configuration
+  # 2. Coalesced Configuration
   # ===========================
 
   # Project information
@@ -60,14 +59,14 @@ locals {
   regions = length(var.deployment_regions) > 0 ? var.deployment_regions : [local.region]
 
   # Application configuration
-  application_name         = local.final_application_name
+  application_name         = coalesce(var.application_name, local.using_module && local.selected_module != null ? lookup(local.selected_module, "app_name", local.effective_preset) : "webapp")
   application_display_name = var.application_display_name != null ? var.application_display_name : local.application_name
   application_version      = var.application_version
 
   # Database configuration
   database_type             = upper(local.final_database_type)
-  application_database_name = local.final_application_database_name
-  application_database_user = local.final_application_database_user
+  application_database_name = coalesce(var.application_database_name, local.using_module && local.selected_module != null ? lookup(local.selected_module, "db_name", "webapp_db") : "webapp_db")
+  application_database_user = coalesce(var.application_database_user, local.using_module && local.selected_module != null ? lookup(local.selected_module, "db_user", "webapp_user") : "webapp_user")
 
   database_name_full     = "${local.application_database_name}_${local.tenant_id}_${local.random_id}"
   database_user_full     = "${local.application_database_user}_${local.tenant_id}_${local.random_id}"
@@ -95,7 +94,7 @@ locals {
   service_name = local.resource_prefix
 
   # Container Config
-  container_image_source = local.final_container_image_source
+  container_image_source = coalesce(var.container_image_source, local.using_module && local.selected_module != null ? lookup(local.selected_module, "image_source", "prebuilt") : "prebuilt")
 
   # Default Container Build Config
   container_build_config = var.container_build_config != null ? var.container_build_config : {
@@ -118,7 +117,7 @@ locals {
   container_image = (
     local.container_image_source == "custom" && local.container_build_config.enabled && !local.enable_cicd_trigger ?
     "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}" :
-    local.final_container_image != "" ? local.final_container_image : "gcr.io/cloudrun/hello"
+    local.final_container_image
   )
 
   container_port         = local.final_container_port
@@ -141,7 +140,7 @@ locals {
   enable_cloudsql_volume     = local.final_enable_cloudsql_volume
   cloudsql_volume_mount_path = local.final_cloudsql_volume_mount_path
 
-  create_cloud_storage       = var.application_module == "n8n" ? false : var.create_cloud_storage # N8N handles own storage
+  create_cloud_storage       = local.effective_preset == "n8n" ? false : var.create_cloud_storage # N8N handles own storage
 
   # Storage buckets
   storage_buckets = local.create_cloud_storage ? {
@@ -158,8 +157,12 @@ locals {
   } : {}
 
   # GCS volumes
+  # The list of volumes is now normalized in modules.tf as `local.final_gcs_volumes` (list of objects)
+  # We convert it to a map for the resource if needed, but here it's likely used as a list elsewhere.
+  # However, main.tf legacy code mapped it to a map `name => vol`.
+  # If we need it as a map:
   gcs_volumes = {
-    for idx, vol in local.final_gcs_volumes :
+    for vol in local.final_gcs_volumes :
     vol.name => {
       name          = vol.name
       bucket_name   = vol.bucket_name != null ? vol.bucket_name : try(local.storage_buckets[vol.name].name, null)
@@ -169,9 +172,9 @@ locals {
     }
   }
 
-  # Dynamic Environment Variables for Modules (these depend on resources generated in this main.tf)
+  # Dynamic Environment Variables for Presets
   preset_env_vars = merge(
-    var.application_module == "n8n" ? {
+    local.effective_preset == "n8n" ? {
       N8N_PORT                 = "5678"
       N8N_PROTOCOL             = "https"
       N8N_DIAGNOSTICS_ENABLED  = "true"
@@ -185,13 +188,13 @@ locals {
       N8N_S3_BUCKET_NAME           = try(google_storage_bucket.n8n_storage[0].name, "")
       N8N_S3_REGION                = var.deployment_region
     } : {},
-    var.application_module == "wordpress" ? {
+    local.effective_preset == "wordpress" ? {
       WORDPRESS_DB_NAME = local.database_name_full
       WORDPRESS_DB_USER = local.database_user_full
       WORDPRESS_DB_HOST = local.db_internal_ip
       WORDPRESS_DEBUG   = "false"
     } : {},
-    var.application_module == "openemr" ? {
+    local.effective_preset == "openemr" ? {
       MYSQL_DATABASE = local.database_name_full
       MYSQL_USER     = local.database_user_full
       MYSQL_HOST     = local.db_internal_ip
@@ -204,8 +207,8 @@ locals {
 
   # Environment variables (combined static and secret-based)
   static_env_vars = merge(
-    local.final_environment_variables, # User input and Module static vars
-    local.preset_env_vars,             # Dynamic module vars
+    local.final_environment_variables, # Combined manual + preset (manual wins)
+    local.preset_env_vars,             # Hardcoded preset logic (N8N/WP specific)
     {
       APP_NAME    = local.application_name
       APP_VERSION = local.application_version
@@ -216,12 +219,12 @@ locals {
   )
 
   preset_secret_env_vars = merge(
-    var.application_module == "n8n" ? {
+    local.effective_preset == "n8n" ? {
       N8N_S3_ACCESS_KEY      = try(google_secret_manager_secret.storage_access_key[0].secret_id, "")
       N8N_S3_ACCESS_SECRET   = try(google_secret_manager_secret.storage_secret_key[0].secret_id, "")
       N8N_ENCRYPTION_KEY     = try(google_secret_manager_secret.encryption_key[0].secret_id, "")
     } : {},
-    var.application_module == "openemr" ? {
+    local.effective_preset == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
     } : {}
   )
@@ -235,7 +238,7 @@ locals {
 
   # Service accounts
   # Inject N8N SA if active
-  cloudrun_sa_input = var.application_module == "n8n" ? google_service_account.n8n_sa[0].email : var.cloudrun_service_account
+  cloudrun_sa_input = local.effective_preset == "n8n" ? google_service_account.n8n_sa[0].email : var.cloudrun_service_account
   cloudrun_service_account   = local.cloudrun_sa_input != null && local.cloudrun_sa_input != "" ? local.cloudrun_sa_input : "cloudrun-sa"
 
   cloudbuild_service_account = var.cloudbuild_service_account != null && var.cloudbuild_service_account != "" ? var.cloudbuild_service_account : "cloudbuild-sa"
@@ -250,7 +253,7 @@ locals {
   timeout_seconds            = var.timeout_seconds
   service_annotations        = var.service_annotations
   trusted_users              = var.trusted_users
-  initialization_jobs        = var.initialization_jobs
+  initialization_jobs        = local.final_initialization_jobs
 
   cicd_trigger_config        = var.cicd_trigger_config
 
@@ -331,14 +334,14 @@ locals {
 # N8N SPECIFIC RESOURCES
 # ==============================================================================
 resource "google_service_account" "n8n_sa" {
-  count        = var.application_module == "n8n" ? 1 : 0
+  count        = local.effective_preset == "n8n" ? 1 : 0
   account_id   = "${local.wrapper_prefix}-sa"
   display_name = "N8N Service Account"
   project      = var.existing_project_id
 }
 
 resource "google_storage_bucket" "n8n_storage" {
-  count         = var.application_module == "n8n" ? 1 : 0
+  count         = local.effective_preset == "n8n" ? 1 : 0
   name          = "${local.wrapper_prefix}-storage"
   location      = var.deployment_region
   force_destroy = true
@@ -347,20 +350,20 @@ resource "google_storage_bucket" "n8n_storage" {
 }
 
 resource "google_storage_bucket_iam_member" "storage_admin" {
-  count  = var.application_module == "n8n" ? 1 : 0
+  count  = local.effective_preset == "n8n" ? 1 : 0
   bucket = google_storage_bucket.n8n_storage[0].name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.n8n_sa[0].email}"
 }
 
 resource "google_storage_hmac_key" "n8n_key" {
-  count                 = var.application_module == "n8n" ? 1 : 0
+  count                 = local.effective_preset == "n8n" ? 1 : 0
   service_account_email = google_service_account.n8n_sa[0].email
   project               = var.existing_project_id
 }
 
 resource "google_secret_manager_secret" "storage_access_key" {
-  count     = var.application_module == "n8n" ? 1 : 0
+  count     = local.effective_preset == "n8n" ? 1 : 0
   secret_id = "${local.wrapper_prefix}-access-key"
   replication {
     auto {}
@@ -369,13 +372,13 @@ resource "google_secret_manager_secret" "storage_access_key" {
 }
 
 resource "google_secret_manager_secret_version" "storage_access_key" {
-  count       = var.application_module == "n8n" ? 1 : 0
+  count       = local.effective_preset == "n8n" ? 1 : 0
   secret      = google_secret_manager_secret.storage_access_key[0].id
   secret_data = google_storage_hmac_key.n8n_key[0].access_id
 }
 
 resource "google_secret_manager_secret" "storage_secret_key" {
-  count     = var.application_module == "n8n" ? 1 : 0
+  count     = local.effective_preset == "n8n" ? 1 : 0
   secret_id = "${local.wrapper_prefix}-secret-key"
   replication {
     auto {}
@@ -384,19 +387,19 @@ resource "google_secret_manager_secret" "storage_secret_key" {
 }
 
 resource "google_secret_manager_secret_version" "storage_secret_key" {
-  count       = var.application_module == "n8n" ? 1 : 0
+  count       = local.effective_preset == "n8n" ? 1 : 0
   secret      = google_secret_manager_secret.storage_secret_key[0].id
   secret_data = google_storage_hmac_key.n8n_key[0].secret
 }
 
 resource "random_password" "encryption_key" {
-  count   = var.application_module == "n8n" ? 1 : 0
+  count   = local.effective_preset == "n8n" ? 1 : 0
   length  = 32
   special = true
 }
 
 resource "google_secret_manager_secret" "encryption_key" {
-  count     = var.application_module == "n8n" ? 1 : 0
+  count     = local.effective_preset == "n8n" ? 1 : 0
   secret_id = "${local.wrapper_prefix}-encryption-key"
   replication {
     auto {}
@@ -405,14 +408,14 @@ resource "google_secret_manager_secret" "encryption_key" {
 }
 
 resource "google_secret_manager_secret_version" "encryption_key" {
-  count       = var.application_module == "n8n" ? 1 : 0
+  count       = local.effective_preset == "n8n" ? 1 : 0
   secret      = google_secret_manager_secret.encryption_key[0].id
   secret_data = random_password.encryption_key[0].result
 }
 
 # Django Post-Deployment Update (CSRF Origin)
 resource "null_resource" "update_csrf_origin" {
-  count = var.application_module == "django" ? 1 : 0
+  count = local.effective_preset == "django" ? 1 : 0
 
   triggers = {
     service_id = local.service_name
