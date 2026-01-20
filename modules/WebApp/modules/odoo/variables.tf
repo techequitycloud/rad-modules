@@ -13,8 +13,8 @@ locals {
     image_source    = "prebuilt"
     container_port  = 8069
     database_type   = "POSTGRES_15"
-    db_name         = "odoo_db"
-    db_user         = "odoo_user"
+    db_name         = "odoo"
+    db_user         = "odoo"
 
     # Performance optimization
     enable_cloudsql_volume     = true
