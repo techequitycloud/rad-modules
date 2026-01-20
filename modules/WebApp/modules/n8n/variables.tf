@@ -6,6 +6,7 @@ locals {
     app_name        = "n8n"
     description     = "n8n Workflow Automation - Workflow automation platform"
     container_image = "n8nio/n8n:latest"
+    application_version = "latest"
     image_source    = "prebuilt"
     container_port  = 5678
     database_type   = "POSTGRES_15"
