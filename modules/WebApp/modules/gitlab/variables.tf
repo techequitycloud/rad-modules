@@ -2,7 +2,7 @@
 # Licensed under the Apache License, Version 2.0
 
 locals {
-  gitlab_preset = {
+  gitlab_module = {
     description     = "GitLab DevOps Platform - Complete DevOps platform"
     container_image = "gitlab/gitlab-ce:16.8.0-ce.0"
     container_port  = 80
@@ -35,7 +35,7 @@ locals {
   }
 }
 
-output "gitlab_preset" {
-  description = "gitlab application preset configuration"
-  value       = local.gitlab_preset
+output "gitlab_module" {
+  description = "gitlab application module configuration"
+  value       = local.gitlab_module
 }

@@ -2,7 +2,7 @@
 # Licensed under the Apache License, Version 2.0
 
 locals {
-  moodle_preset = {
+  moodle_module = {
     description     = "Moodle LMS - Online learning and course management platform"
     container_image = "moodle:4.3-apache"
     container_port  = 80
@@ -29,7 +29,7 @@ locals {
   }
 }
 
-output "moodle_preset" {
-  description = "moodle application preset configuration"
-  value       = local.moodle_preset
+output "moodle_module" {
+  description = "moodle application module configuration"
+  value       = local.moodle_module
 }

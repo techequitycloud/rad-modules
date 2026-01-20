@@ -2,7 +2,7 @@
 # Licensed under the Apache License, Version 2.0
 
 locals {
-  django_preset = {
+  django_module = {
     description     = "Django Web Application - High-level Python web framework"
     container_image = "python:3.11-slim"
     container_port  = 8000
@@ -41,7 +41,7 @@ locals {
   }
 }
 
-output "django_preset" {
-  description = "django application preset configuration"
-  value       = local.django_preset
+output "django_module" {
+  description = "django application module configuration"
+  value       = local.django_module
 }

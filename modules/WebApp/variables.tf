@@ -220,16 +220,16 @@ variable "deployment_region" {
 # GROUP 3: Application Configuration
 # ===========================
 
-variable "application_preset" {
-  description = "Select a pre-configured application preset (odoo, wordpress, moodle, cyclos, django, openemr, n8n, nextcloud, gitlab) for automatic configuration. Leave empty or null for manual configuration. When using a preset, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any preset value by explicitly setting the corresponding variable. {{UIMeta group=3 order=299 updatesafe }}"
+variable "application_module" {
+  description = "Select a pre-configured application module (odoo, wordpress, moodle, cyclos, django, openemr, n8n, nextcloud, gitlab) for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=3 order=299 updatesafe }}"
   type        = string
   default     = null
 
   validation {
-    condition = var.application_preset == null || var.application_preset == "" || contains([
+    condition = var.application_module == null || var.application_module == "" || contains([
       "odoo", "wordpress", "moodle", "cyclos", "django", "openemr", "n8n", "nextcloud", "gitlab"
-    ], var.application_preset)
-    error_message = "Application preset must be one of: odoo, wordpress, moodle, cyclos, django, openemr, n8n, nextcloud, gitlab, or leave empty for manual configuration."
+    ], var.application_module)
+    error_message = "Application module must be one of: odoo, wordpress, moodle, cyclos, django, openemr, n8n, nextcloud, gitlab, or leave empty for manual configuration."
   }
 }
 
@@ -300,7 +300,7 @@ variable "container_image_source" {
 }
 
 variable "container_image" {
-  description = "Pre-built container image (e.g., 'nginx:latest', 'gcr.io/project/app:v1'). Required when container_image_source='prebuilt' unless using an application_preset. {{UIMeta group=4 order=401 updatesafe }}"
+  description = "Pre-built container image (e.g., 'nginx:latest', 'gcr.io/project/app:v1'). Required when container_image_source='prebuilt' unless using an application_module. {{UIMeta group=4 order=401 updatesafe }}"
   type        = string
   default     = ""
 }

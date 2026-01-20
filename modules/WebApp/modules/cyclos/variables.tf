@@ -2,7 +2,7 @@
 # Licensed under the Apache License, Version 2.0
 
 locals {
-  cyclos_preset = {
+  cyclos_module = {
     description     = "Cyclos Banking System - Online banking for financial institutions"
     container_image = "cyclos/cyclos:4.16.15"
     container_port  = 8080
@@ -30,7 +30,7 @@ locals {
   }
 }
 
-output "cyclos_preset" {
-  description = "cyclos application preset configuration"
-  value       = local.cyclos_preset
+output "cyclos_module" {
+  description = "cyclos application module configuration"
+  value       = local.cyclos_module
 }

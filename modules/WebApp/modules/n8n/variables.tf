@@ -2,7 +2,7 @@
 # Licensed under the Apache License, Version 2.0
 
 locals {
-  n8n_preset = {
+  n8n_module = {
     description     = "n8n Workflow Automation - Workflow automation platform"
     container_image = "n8nio/n8n:latest"
     container_port  = 5678
@@ -34,7 +34,7 @@ locals {
   }
 }
 
-output "n8n_preset" {
-  description = "n8n application preset configuration"
-  value       = local.n8n_preset
+output "n8n_module" {
+  description = "n8n application module configuration"
+  value       = local.n8n_module
 }

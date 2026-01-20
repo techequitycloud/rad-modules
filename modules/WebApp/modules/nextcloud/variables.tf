@@ -2,7 +2,7 @@
 # Licensed under the Apache License, Version 2.0
 
 locals {
-  nextcloud_preset = {
+  nextcloud_module = {
     description     = "Nextcloud File Sync and Share - Self-hosted collaboration platform"
     container_image = "nextcloud:28-apache"
     container_port  = 80
@@ -35,7 +35,7 @@ locals {
   }
 }
 
-output "nextcloud_preset" {
-  description = "nextcloud application preset configuration"
-  value       = local.nextcloud_preset
+output "nextcloud_module" {
+  description = "nextcloud application module configuration"
+  value       = local.nextcloud_module
 }

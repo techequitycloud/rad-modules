@@ -1,0 +1,190 @@
+# Copyright 2024 (c) Tech Equity Ltd
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#########################################################################
+# Application Modules - Main Configuration
+#
+# This file loads individual module configurations from the modules/
+# directory and provides the selection logic for using presets.
+#
+# Directory Structure:
+#   modules/
+#   ├── odoo/variables.tf
+#   ├── wordpress/variables.tf
+#   ├── moodle/variables.tf
+#   └── ... (one directory per application)
+#
+# Each module defines its own configuration in isolation, making it
+# easy to maintain, update, and add new modules without affecting
+# existing ones.
+#########################################################################
+
+#########################################################################
+# Load Individual Preset Configurations
+#########################################################################
+
+# Each module is defined in its own directory under modules/
+# This provides clean separation and makes it easy to maintain
+module "odoo_module" {
+  source = "./modules/odoo"
+}
+
+module "wordpress_module" {
+  source = "./modules/wordpress"
+}
+
+module "moodle_module" {
+  source = "./modules/moodle"
+}
+
+module "cyclos_module" {
+  source = "./modules/cyclos"
+}
+
+module "django_module" {
+  source = "./modules/django"
+}
+
+module "openemr_module" {
+  source = "./modules/openemr"
+}
+
+module "n8n_module" {
+  source = "./modules/n8n"
+}
+
+module "nextcloud_module" {
+  source = "./modules/nextcloud"
+}
+
+module "gitlab_module" {
+  source = "./modules/gitlab"
+}
+
+#########################################################################
+# Application Modules Map
+#########################################################################
+
+locals {
+  # Aggregate all modules into a single map for easy lookup
+  application_modules = {
+    odoo      = module.odoo_module.odoo_module
+    wordpress = module.wordpress_module.wordpress_module
+    moodle    = module.moodle_module.moodle_module
+    cyclos    = module.cyclos_module.cyclos_module
+    django    = module.django_module.django_module
+    openemr   = module.openemr_module.openemr_module
+    n8n       = module.n8n_module.n8n_module
+    nextcloud = module.nextcloud_module.nextcloud_module
+    gitlab    = module.gitlab_module.gitlab_module
+  }
+
+  #########################################################################
+  # Preset Selection Logic
+  #########################################################################
+
+  # Determine if using a preset
+  using_module = var.application_module != null && var.application_module != ""
+
+  # Get selected preset configuration
+  selected_module = local.using_module ? lookup(local.application_modules, var.application_module, null) : null
+
+  # Validation: Ensure preset exists if specified
+  module_exists = !local.using_module || local.selected_module != null
+
+  #########################################################################
+  # Smart Defaults - Extract preset values with fallback to null
+  #########################################################################
+
+  # Container configuration
+  module_container_image = local.using_module && local.selected_module != null ? local.selected_module.container_image : null
+  module_container_port  = local.using_module && local.selected_module != null ? local.selected_module.container_port : null
+
+  # Database configuration
+  module_database_type = local.using_module && local.selected_module != null ? local.selected_module.database_type : null
+
+  # Cloud SQL volume configuration
+  module_enable_cloudsql_volume     = local.using_module && local.selected_module != null ? local.selected_module.enable_cloudsql_volume : null
+  module_cloudsql_volume_mount_path = local.using_module && local.selected_module != null ? local.selected_module.cloudsql_volume_mount_path : null
+
+  # GCS volumes configuration
+  module_gcs_volumes_raw = local.using_module && local.selected_module != null ? local.selected_module.gcs_volumes : []
+
+  # Process GCS volumes - replace placeholders
+  module_gcs_volumes = [
+    for vol in local.module_gcs_volumes_raw : {
+      bucket     = replace(replace(vol.bucket, "$${tenant_id}", var.tenant_deployment_id), "$${deployment_id}", var.deployment_id != null ? var.deployment_id : "default")
+      mount_path = vol.mount_path
+      read_only  = vol.read_only
+    }
+  ]
+
+  # Resource limits
+  module_container_resources = local.using_module && local.selected_module != null ? local.selected_module.container_resources : null
+  module_min_instance_count  = local.using_module && local.selected_module != null ? local.selected_module.min_instance_count : null
+  module_max_instance_count  = local.using_module && local.selected_module != null ? local.selected_module.max_instance_count : null
+
+  # Environment variables from preset
+  module_environment_variables = local.using_module && local.selected_module != null ? local.selected_module.environment_variables : {}
+
+  # PostgreSQL extensions
+  module_enable_postgres_extensions = local.using_module && local.selected_module != null ? lookup(local.selected_module, "enable_postgres_extensions", null) : null
+  module_postgres_extensions        = local.using_module && local.selected_module != null ? lookup(local.selected_module, "postgres_extensions", []) : []
+
+  # MySQL plugins
+  module_enable_mysql_plugins = local.using_module && local.selected_module != null ? lookup(local.selected_module, "enable_mysql_plugins", null) : null
+  module_mysql_plugins        = local.using_module && local.selected_module != null ? lookup(local.selected_module, "mysql_plugins", []) : []
+
+  #########################################################################
+  # Final Values - Preset values with manual override capability
+  # Manual configuration always takes precedence over preset values
+  #########################################################################
+
+  # Container configuration
+  final_container_image = var.container_image != "" && var.container_image != null ? var.container_image : coalesce(local.module_container_image, "")
+  final_container_port  = var.container_port != 8080 ? var.container_port : coalesce(local.module_container_port, 8080)
+
+  # Database configuration
+  final_database_type = var.database_type != "POSTGRES" ? var.database_type : coalesce(local.module_database_type, "POSTGRES")
+
+  # Cloud SQL volume
+  final_enable_cloudsql_volume     = var.enable_cloudsql_volume != false ? var.enable_cloudsql_volume : coalesce(local.module_enable_cloudsql_volume, false)
+  final_cloudsql_volume_mount_path = var.cloudsql_volume_mount_path != "/cloudsql" ? var.cloudsql_volume_mount_path : coalesce(local.module_cloudsql_volume_mount_path, "/cloudsql")
+
+  # GCS volumes - use preset if manual is empty
+  final_gcs_volumes = length(var.gcs_volumes) > 0 ? var.gcs_volumes : local.module_gcs_volumes
+
+  # Resource limits - use preset if manual is default
+  final_container_resources = (
+    var.container_resources.cpu_limit != "1000m" || var.container_resources.memory_limit != "512Mi"
+    ? var.container_resources
+    : coalesce(local.module_container_resources, var.container_resources)
+  )
+  final_min_instance_count = var.min_instance_count != 0 ? var.min_instance_count : coalesce(local.module_min_instance_count, 0)
+  final_max_instance_count = var.max_instance_count != 3 ? var.max_instance_count : coalesce(local.module_max_instance_count, 3)
+
+  # Environment variables - merge preset and manual (manual takes precedence)
+  final_environment_variables = merge(
+    local.module_environment_variables,
+    var.environment_variables
+  )
+
+  # PostgreSQL extensions
+  final_enable_postgres_extensions = var.enable_postgres_extensions != false ? var.enable_postgres_extensions : coalesce(local.module_enable_postgres_extensions, false)
+  final_postgres_extensions        = length(var.postgres_extensions) > 0 ? var.postgres_extensions : local.module_postgres_extensions
+
+  # MySQL plugins
+  final_enable_mysql_plugins = var.enable_mysql_plugins != false ? var.enable_mysql_plugins : coalesce(local.module_enable_mysql_plugins, false)
+  final_mysql_plugins        = length(var.mysql_plugins) > 0 ? var.mysql_plugins : local.module_mysql_plugins
+}

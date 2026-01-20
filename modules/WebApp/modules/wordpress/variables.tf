@@ -6,7 +6,7 @@
 #########################################################################
 
 locals {
-  wordpress_preset = {
+  wordpress_module = {
     description     = "WordPress CMS - Popular content management system for websites and blogs"
     container_image = "wordpress:6.8.1-apache"
     container_port  = 80
@@ -44,7 +44,7 @@ locals {
   }
 }
 
-output "wordpress_preset" {
-  description = "wordpress application preset configuration"
-  value       = local.wordpress_preset
+output "wordpress_module" {
+  description = "wordpress application module configuration"
+  value       = local.wordpress_module
 }

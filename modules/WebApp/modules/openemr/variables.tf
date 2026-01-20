@@ -2,7 +2,7 @@
 # Licensed under the Apache License, Version 2.0
 
 locals {
-  openemr_preset = {
+  openemr_module = {
     description     = "OpenEMR - Electronic health records and medical practice management"
     container_image = "openemr/openemr:7.0.2"
     container_port  = 80
@@ -28,7 +28,7 @@ locals {
   }
 }
 
-output "openemr_preset" {
-  description = "openemr application preset configuration"
-  value       = local.openemr_preset
+output "openemr_module" {
+  description = "openemr application module configuration"
+  value       = local.openemr_module
 }

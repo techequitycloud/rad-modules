@@ -1,22 +1,22 @@
-# WebApp Application Presets
+# WebApp Application Modules
 
 ## Overview
 
-The WebApp module now supports **Application Presets** - pre-configured profiles for popular applications that eliminate the need for manual configuration of container images, ports, database types, resource limits, and environment variables.
+The WebApp module now supports **Application Modules** - pre-configured profiles for popular applications that eliminate the need for manual configuration of container images, ports, database types, resource limits, and environment variables.
 
-Simply select a preset like `application_preset = "odoo"` and the module automatically configures everything needed to deploy that application.
+Simply select a module like `application_module = "odoo"` and the module automatically configures everything needed to deploy that application.
 
 ## Benefits
 
 ✅ **Zero Configuration** - Deploy applications without knowing Docker images, ports, or environment variables
-✅ **Best Practices** - Presets include optimized settings (Cloud SQL Unix sockets, proper resource limits)
+✅ **Best Practices** - Modules include optimized settings (Cloud SQL Unix sockets, proper resource limits)
 ✅ **Consistency** - Same configuration for the same application across all environments
-✅ **Override Capability** - Can still override any preset value when needed
-✅ **Easy Maintenance** - Preset definitions maintained centrally, updates benefit all deployments
+✅ **Override Capability** - Can still override any module value when needed
+✅ **Easy Maintenance** - Module definitions maintained centrally, updates benefit all deployments
 
-## Available Presets
+## Available Modules
 
-| Preset | Application | Database | Default Resources |
+| Module | Application | Database | Default Resources |
 |--------|-------------|----------|-------------------|
 | `odoo` | Odoo ERP 18.0 | PostgreSQL 15 | 2 CPU, 4Gi RAM |
 | `wordpress` | WordPress 6.8.1 | MySQL 8.0 | 1 CPU, 2Gi RAM |
@@ -46,8 +46,8 @@ module "odoo" {
   # Application configuration
   application_name = "odoo"
 
-  # Just select the preset!
-  application_preset = "odoo"
+  # Just select the module!
+  application_module = "odoo"
 
   # That's it! Everything else is configured automatically:
   # - container_image: odoo:18.0
@@ -63,7 +63,7 @@ module "odoo" {
 
 ### With Manual Overrides
 
-Use a preset but customize specific values:
+Use a module but customize specific values:
 
 ```hcl
 module "wordpress" {
@@ -75,8 +75,8 @@ module "wordpress" {
 
   application_name = "wordpress"
 
-  # Use WordPress preset
-  application_preset = "wordpress"
+  # Use WordPress module
+  application_module = "wordpress"
 
   # Override specific values
   container_image = "wordpress:6.7.0-apache"  # Use older version
@@ -86,7 +86,7 @@ module "wordpress" {
   }
   max_instance_count = 50  # Scale higher than default
 
-  # Add custom environment variables (merged with preset)
+  # Add custom environment variables (merged with module)
   environment_variables = {
     WP_DEBUG = "true"
     WP_CACHE = "true"
@@ -94,14 +94,14 @@ module "wordpress" {
 }
 ```
 
-## Preset Details
+## Module Details
 
 ### Odoo ERP
 
 **Use Case**: Enterprise Resource Planning - CRM, e-commerce, accounting, manufacturing
 
 ```hcl
-application_preset = "odoo"
+application_module = "odoo"
 ```
 
 **What's Configured**:
@@ -121,7 +121,7 @@ application_preset = "odoo"
 **Use Case**: Content management, blogs, marketing websites
 
 ```hcl
-application_preset = "wordpress"
+application_module = "wordpress"
 ```
 
 **What's Configured**:
@@ -141,7 +141,7 @@ application_preset = "wordpress"
 **Use Case**: Online learning, course management, education platforms
 
 ```hcl
-application_preset = "moodle"
+application_module = "moodle"
 ```
 
 **What's Configured**:
@@ -161,7 +161,7 @@ application_preset = "moodle"
 **Use Case**: Online banking, community currencies, financial systems
 
 ```hcl
-application_preset = "cyclos"
+application_module = "cyclos"
 ```
 
 **What's Configured**:
@@ -181,7 +181,7 @@ application_preset = "cyclos"
 **Use Case**: Python web applications with custom logic
 
 ```hcl
-application_preset = "django"
+application_module = "django"
 ```
 
 **What's Configured**:
@@ -203,7 +203,7 @@ application_preset = "django"
 **Use Case**: Healthcare, medical practice management, patient records
 
 ```hcl
-application_preset = "openemr"
+application_module = "openemr"
 ```
 
 **What's Configured**:
@@ -223,7 +223,7 @@ application_preset = "openemr"
 **Use Case**: Workflow automation, integration, no-code/low-code automations
 
 ```hcl
-application_preset = "n8n"
+application_module = "n8n"
 ```
 
 **What's Configured**:
@@ -245,7 +245,7 @@ application_preset = "n8n"
 **Use Case**: Self-hosted file storage, collaboration, document management
 
 ```hcl
-application_preset = "nextcloud"
+application_module = "nextcloud"
 ```
 
 **What's Configured**:
@@ -265,7 +265,7 @@ application_preset = "nextcloud"
 **Use Case**: Git repository management, CI/CD, DevOps workflows
 
 ```hcl
-application_preset = "gitlab"
+application_module = "gitlab"
 ```
 
 **What's Configured**:
@@ -280,43 +280,43 @@ application_preset = "gitlab"
 
 **Note**: GitLab requires significantly more resources than other applications.
 
-## How Presets Work
+## How Modules Work
 
 ### Architecture
 
 ```
 User Configuration
        ↓
-application_preset = "odoo"
+application_module = "odoo"
        ↓
-presets.tf (Preset Definitions)
+modules.tf (Module Definitions)
        ↓
 Local Variables (final_*)
        ↓
 Module Resources
 ```
 
-### Preset Selection Logic
+### Module Selection Logic
 
-1. **Preset Defined**: User sets `application_preset = "odoo"`
-2. **Lookup**: Module looks up "odoo" in preset definitions
-3. **Smart Defaults**: Module applies preset values where manual values aren't provided
+1. **Module Defined**: User sets `application_module = "odoo"`
+2. **Lookup**: Module looks up "odoo" in module definitions
+3. **Smart Defaults**: Module applies module values where manual values aren't provided
 4. **Manual Override**: Any manually specified value takes precedence
-5. **Merge**: Environment variables from preset and manual are merged
+5. **Merge**: Environment variables from module and manual are merged
 
 ### Override Priority
 
 ```
 Manual Configuration (highest priority)
          ↓
-Preset Configuration
+Module Configuration
          ↓
 Module Defaults (lowest priority)
 ```
 
 **Example**:
 ```hcl
-application_preset = "wordpress"      # Preset: MySQL 8.0
+application_module = "wordpress"      # Module: MySQL 8.0
 database_type = "MYSQL_5_7"          # Manual: Overrides to MySQL 5.7
 
 # Result: MySQL 5.7 is used (manual override wins)
@@ -326,13 +326,13 @@ database_type = "MYSQL_5_7"          # Manual: Overrides to MySQL 5.7
 
 ### Multi-Environment Deployment
 
-Deploy the same application with different presets per environment:
+Deploy the same application with different modules per environment:
 
 ```hcl
 locals {
   environment_configs = {
     dev = {
-      preset = "wordpress"
+      module = "wordpress"
       resources = {
         cpu_limit    = "500m"
         memory_limit = "1Gi"
@@ -340,7 +340,7 @@ locals {
       max_instances = 3
     }
     prod = {
-      preset = "wordpress"
+      module = "wordpress"
       resources = {
         cpu_limit    = "2000m"
         memory_limit = "4Gi"
@@ -357,17 +357,17 @@ module "wordpress" {
   tenant_deployment_id = var.environment
   application_name     = "wordpress"
 
-  # Use preset with environment-specific overrides
-  application_preset = local.environment_configs[var.environment].preset
+  # Use module with environment-specific overrides
+  application_module = local.environment_configs[var.environment].module
 
   container_resources = local.environment_configs[var.environment].resources
   max_instance_count  = local.environment_configs[var.environment].max_instances
 }
 ```
 
-### Custom Image with Preset Configuration
+### Custom Image with Module Configuration
 
-Use preset for configuration but provide custom image:
+Use module for configuration but provide custom image:
 
 ```hcl
 module "custom_odoo" {
@@ -377,13 +377,13 @@ module "custom_odoo" {
   tenant_deployment_id = "prod"
   application_name     = "odoo"
 
-  # Use Odoo preset for all configuration
-  application_preset = "odoo"
+  # Use Odoo module for all configuration
+  application_module = "odoo"
 
   # But use custom-built image
   container_image = "gcr.io/my-project/custom-odoo:v2.0"
 
-  # Preset still configures:
+  # Module still configures:
   # - Port 8069
   # - PostgreSQL 15
   # - Cloud SQL Unix socket
@@ -393,9 +393,9 @@ module "custom_odoo" {
 }
 ```
 
-### Mixing Presets with Advanced Features
+### Mixing Modules with Advanced Features
 
-Combine presets with backup import, custom SQL scripts, etc.:
+Combine modules with backup import, custom SQL scripts, etc.:
 
 ```hcl
 module "wordpress_with_backup" {
@@ -405,71 +405,71 @@ module "wordpress_with_backup" {
   tenant_deployment_id = "prod"
   application_name     = "wordpress"
 
-  # Use WordPress preset
-  application_preset = "wordpress"
+  # Use WordPress module
+  application_module = "wordpress"
 
-  # Add backup import (not in preset)
+  # Add backup import (not in module)
   enable_backup_import = true
   backup_source        = "gcs"
   backup_uri           = "gs://my-backups/wordpress-prod.sql.gz"
   backup_format        = "sql"
 
-  # Add custom SQL scripts (not in preset)
+  # Add custom SQL scripts (not in module)
   enable_custom_sql_scripts   = true
   custom_sql_scripts_bucket   = "my-init-scripts"
   custom_sql_scripts_path     = "wordpress/"
 
-  # Preset still handles container image, port, database type, etc.
+  # Module still handles container image, port, database type, etc.
 }
 ```
 
 ## Troubleshooting
 
-### Preset Not Found
+### Module Not Found
 
-**Error**: `Application preset must be one of: odoo, wordpress, ...`
+**Error**: `Application module must be one of: odoo, wordpress, ...`
 
-**Solution**: Check spelling of preset name. Valid values are: `odoo`, `wordpress`, `moodle`, `cyclos`, `django`, `openemr`, `n8n`, `nextcloud`, `gitlab`.
+**Solution**: Check spelling of module name. Valid values are: `odoo`, `wordpress`, `moodle`, `cyclos`, `django`, `openemr`, `n8n`, `nextcloud`, `gitlab`.
 
 ### Container Image Not Working
 
-**Problem**: Application doesn't start with preset container image
+**Problem**: Application doesn't start with module container image
 
 **Solutions**:
 1. **Override Image**: Use a specific version
    ```hcl
-   application_preset = "wordpress"
+   application_module = "wordpress"
    container_image    = "wordpress:6.7.0-apache"  # Specific version
    ```
 
 2. **Custom Image**: Provide your own image
    ```hcl
-   application_preset = "odoo"
+   application_module = "odoo"
    container_image    = "gcr.io/my-project/odoo:custom"
    ```
 
 ### Need Different Database Version
 
-**Problem**: Preset uses PostgreSQL 15 but need PostgreSQL 14
+**Problem**: Module uses PostgreSQL 15 but need PostgreSQL 14
 
 **Solution**: Override the database_type:
 ```hcl
-application_preset = "odoo"
-database_type      = "POSTGRES_14"  # Override preset
+application_module = "odoo"
+database_type      = "POSTGRES_14"  # Override module
 ```
 
 ### Need More/Less Resources
 
-**Problem**: Preset resource limits too high/low
+**Problem**: Module resource limits too high/low
 
 **Solution**: Override resource configuration:
 ```hcl
-application_preset = "wordpress"
+application_module = "wordpress"
 
 # Override resources
 container_resources = {
-  cpu_limit    = "500m"   # Less than preset
-  memory_limit = "1Gi"    # Less than preset
+  cpu_limit    = "500m"   # Less than module
+  memory_limit = "1Gi"    # Less than module
 }
 ```
 
@@ -477,11 +477,11 @@ container_resources = {
 
 **Problem**: Need additional environment variables
 
-**Solution**: Add them - they merge with preset variables:
+**Solution**: Add them - they merge with module variables:
 ```hcl
-application_preset = "wordpress"
+application_module = "wordpress"
 
-# These merge with preset environment variables
+# These merge with module environment variables
 environment_variables = {
   WP_DEBUG        = "true"
   WP_CACHE        = "true"
@@ -489,7 +489,7 @@ environment_variables = {
 }
 ```
 
-## Comparison: Manual vs Preset
+## Comparison: Manual vs Module
 
 ### Manual Configuration (Old Way)
 
@@ -534,7 +534,7 @@ module "wordpress" {
 # Total: ~35 lines of configuration
 ```
 
-### Preset Configuration (New Way)
+### Module Configuration (New Way)
 
 ```hcl
 module "wordpress" {
@@ -545,8 +545,8 @@ module "wordpress" {
   network_name         = "my-vpc"
   application_name     = "wordpress"
 
-  # Just select the preset!
-  application_preset = "wordpress"
+  # Just select the module!
+  application_module = "wordpress"
 }
 
 # Total: ~10 lines of configuration
@@ -555,60 +555,60 @@ module "wordpress" {
 
 ## Best Practices
 
-### 1. Use Presets for Standard Deployments
+### 1. Use Modules for Standard Deployments
 
-✅ **Do**: Use presets for standard application deployments
+✅ **Do**: Use modules for standard application deployments
 ```hcl
-application_preset = "odoo"
+application_module = "odoo"
 ```
 
-❌ **Don't**: Manually configure everything when a preset exists
+❌ **Don't**: Manually configure everything when a module exists
 ```hcl
-container_image = "odoo:18.0"  # Preset already does this
-container_port  = 8069         # Preset already does this
+container_image = "odoo:18.0"  # Module already does this
+container_port  = 8069         # Module already does this
 # ... etc
 ```
 
 ### 2. Override Only When Needed
 
-✅ **Do**: Override specific values that differ from preset
+✅ **Do**: Override specific values that differ from module
 ```hcl
-application_preset = "wordpress"
+application_module = "wordpress"
 container_image    = "wordpress:6.7.0"  # Need older version
 ```
 
-❌ **Don't**: Override values that match the preset
+❌ **Don't**: Override values that match the module
 ```hcl
-application_preset = "wordpress"
-container_port     = 80  # Unnecessary - preset already uses 80
+application_module = "wordpress"
+container_port     = 80  # Unnecessary - module already uses 80
 ```
 
 ### 3. Document Custom Configurations
 
-✅ **Do**: Add comments explaining why you override preset values
+✅ **Do**: Add comments explaining why you override module values
 ```hcl
-application_preset = "odoo"
+application_module = "odoo"
 # Using Odoo 17 for compatibility with legacy integrations
 container_image = "odoo:17.0"
 ```
 
-### 4. Start with Presets, Customize Later
+### 4. Start with Modules, Customize Later
 
-✅ **Do**: Deploy with preset first, then customize based on actual needs
+✅ **Do**: Deploy with module first, then customize based on actual needs
 ```hcl
-# Day 1: Use preset
-application_preset = "wordpress"
+# Day 1: Use module
+application_module = "wordpress"
 
 # Day 30: Add customizations based on usage
 container_resources = { cpu_limit = "2000m", memory_limit = "4Gi" }
 max_instance_count  = 50
 ```
 
-### 5. Use Presets for Multiple Environments
+### 5. Use Modules for Multiple Environments
 
-✅ **Do**: Use same preset across dev/staging/prod with environment-specific overrides
+✅ **Do**: Use same module across dev/staging/prod with environment-specific overrides
 ```hcl
-application_preset = "moodle"  # Same in all environments
+application_module = "moodle"  # Same in all environments
 
 # Environment-specific scaling
 max_instance_count = var.environment == "prod" ? 20 : 5
@@ -616,28 +616,28 @@ max_instance_count = var.environment == "prod" ? 20 : 5
 
 ## Limitations
 
-1. **Fixed Configurations**: Presets use specific container images and versions
+1. **Fixed Configurations**: Modules use specific container images and versions
    - **Workaround**: Override `container_image` to use different versions
 
-2. **Standard Topologies**: Presets assume single-service deployments
+2. **Standard Topologies**: Modules assume single-service deployments
    - **Workaround**: For multi-service (e.g., N8N + Qdrant + Ollama), use wrapper modules like `N8N_AI_WebApp`
 
-3. **Generic Environment Variables**: Preset environment variables are generic
+3. **Generic Environment Variables**: Module environment variables are generic
    - **Workaround**: Add application-specific variables using `environment_variables`
 
-4. **Limited Applications**: Only 9 presets currently available
-   - **Workaround**: Use manual configuration for applications without presets
+4. **Limited Applications**: Only 9 modules currently available
+   - **Workaround**: Use manual configuration for applications without modules
 
-## Adding New Presets
+## Adding New Modules
 
-Module maintainers can add new presets by editing `modules/WebApp/presets.tf`:
+Module maintainers can add new modules by editing `modules/WebApp/modules.tf`:
 
 ```hcl
 locals {
-  application_presets = {
-    # ... existing presets ...
+  application_modules = {
+    # ... existing modules ...
 
-    # New preset
+    # New module
     myapp = {
       description     = "My Application Description"
       container_image = "myapp:latest"
@@ -673,26 +673,26 @@ locals {
 
 Don't forget to update the validation in `variables.tf`:
 ```hcl
-variable "application_preset" {
+variable "application_module" {
   # ...
   validation {
-    condition = var.application_preset == null || contains([
+    condition = var.application_module == null || contains([
       "odoo", "wordpress", "moodle", "cyclos", "django",
-      "openemr", "n8n", "nextcloud", "gitlab", "myapp"  # Add new preset
-    ], var.application_preset)
-    error_message = "Application preset must be one of: ..."
+      "openemr", "n8n", "nextcloud", "gitlab", "myapp"  # Add new module
+    ], var.application_module)
+    error_message = "Application module must be one of: ..."
   }
 }
 ```
 
 ## Summary
 
-Application Presets make deploying popular applications with WebApp dramatically simpler:
+Application Modules make deploying popular applications with WebApp dramatically simpler:
 
 - **70% less configuration** for standard deployments
 - **Best practice settings** included by default
 - **Full override capability** when customization needed
 - **Consistent deployments** across environments
-- **Easy maintenance** - preset updates benefit all users
+- **Easy maintenance** - module updates benefit all users
 
-For applications without presets, the existing manual configuration approach still works perfectly - presets are completely optional and backward compatible.
+For applications without modules, the existing manual configuration approach still works perfectly - modules are completely optional and backward compatible.

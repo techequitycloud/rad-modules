@@ -6,7 +6,7 @@
 #########################################################################
 
 locals {
-  odoo_preset = {
+  odoo_module = {
     description     = "Odoo ERP System - CRM, e-commerce, billing, accounting, manufacturing, warehouse, project management"
     container_image = "odoo:18.0"
     container_port  = 8069
@@ -43,7 +43,7 @@ locals {
   }
 }
 
-output "odoo_preset" {
-  description = "odoo application preset configuration"
-  value       = local.odoo_preset
+output "odoo_module" {
+  description = "odoo application module configuration"
+  value       = local.odoo_module
 }
