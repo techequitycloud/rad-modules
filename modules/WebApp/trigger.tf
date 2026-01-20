@@ -56,7 +56,7 @@ resource "google_cloudbuildv2_connection" "github_connection" {
 resource "time_sleep" "wait_for_github_connection" {
   count = local.enable_cicd_trigger ? 1 : 0
 
-  create_duration = "60s"
+  create_duration = "180s"
 
   depends_on = [
     google_cloudbuildv2_connection.github_connection
