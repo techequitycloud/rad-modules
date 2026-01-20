@@ -155,21 +155,50 @@ resource "null_resource" "execute_nfs_setup_job" {
         --wait || {
           EXIT_CODE=$?
           if [ $EXIT_CODE -eq 124 ]; then
-            echo "⚠ Job execution timed out after 3 minutes, but may have completed"
-            echo "Checking job status..."
-            gcloud run jobs executions list \
-              --job=${google_cloud_run_v2_job.nfs_setup_job[0].name} \
-              --region=${local.region} \
-              --project=${local.project.project_id} \
-              --limit=1 \
-              --format="value(status.completionTime)" | grep -q . && exit 0 || exit 1
+            echo "⚠ Job execution timed out after 5 minutes on attempt $ATTEMPT"
           else
-            echo "✗ NFS setup job failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
+            echo "⚠ Job execution failed with exit code $EXIT_CODE on attempt $ATTEMPT"
           fi
-        }
 
-      echo "✓ NFS setup job completed successfully for ${local.resource_prefix}"
+          # Show last execution status
+          echo "Checking last execution status..."
+          gcloud run jobs executions list \
+            --job=${google_cloud_run_v2_job.nfs_setup_job[0].name} \
+            --region=${local.region} \
+            --project=${local.project.project_id} \
+            $IMPERSONATE_FLAG \
+            --limit=1 \
+            --format="table(name,status.completionTime,status.succeededCount,status.failedCount)" || true
+
+          if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+            echo "Retrying in 10 seconds..."
+            sleep 10
+          fi
+
+          ATTEMPT=$((ATTEMPT + 1))
+        fi
+      done
+
+      if [ "$SUCCESS" = "false" ]; then
+        echo "❌ NFS setup job failed after $MAX_ATTEMPTS attempts"
+        echo "   The NFS subdirectory was not created successfully"
+        echo "   Job name: ${google_cloud_run_v2_job.nfs_setup_job[0].name}"
+        echo ""
+        echo "Possible causes:"
+        echo "  - NFS server is not accessible from Cloud Run"
+        echo "  - Network connectivity issues"
+        echo "  - Permission issues on NFS export"
+        echo "  - NFS export path /share does not exist or is not exported"
+        echo ""
+        echo "To fix:"
+        echo "  1. Verify NFS server is running and accessible"
+        echo "  2. Check VPC/firewall rules allow Cloud Run to access NFS"
+        echo "  3. Verify NFS exports configuration"
+        echo "  4. Check Cloud Run job logs for details"
+        exit 1
+      fi
+
+      echo "✓ NFS setup completed successfully for ${local.resource_prefix}"
     EOT
   }
 
