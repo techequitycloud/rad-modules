@@ -1,62 +1,74 @@
-# Copyright 2024 Tech Equity Ltd
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright 2024 (c) Tech Equity Ltd
+# Licensed under the Apache License, Version 2.0
 
 locals {
-  random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
+  django_module = {
+    app_name        = "django"
+    description     = "Django Web Application - High-level Python web framework"
+    container_image = "python:3.11-slim"
+    app_version     = "latest"
+    image_source    = "custom"
+    container_port  = 8000
+    database_type   = "POSTGRES_15"
+    db_name         = "django"
+    db_user         = "django"
+    db_tier         = "db-f1-micro"
+    django_superuser_email    = "admin@example.com"
+    django_superuser_username = "admin"
+    enable_cloudsql_volume     = true
+    cloudsql_volume_mount_path = "/cloudsql"
+    gcs_volumes = [
+      {
+        bucket     = "$${tenant_id}-django-static"
+        mount_path = "/app/static"
+        read_only  = false
+      },
+      {
+        bucket     = "$${tenant_id}-django-media"
+        mount_path = "/app/media"
+        read_only  = false
+      }
+    ]
+    container_resources = {
+      cpu_limit    = "2000m"
+      memory_limit = "2Gi"
+    }
+    min_instance_count = 1
+    max_instance_count = 10
+    environment_variables = {
+      DJANGO_SETTINGS_MODULE = "myproject.settings.production"
+      DEBUG                  = "False"
+      ALLOWED_HOSTS          = "*.run.app"
+      DB_ENGINE              = "django.db.backends.postgresql"
+      DB_PORT                = "5432"
+      STATIC_ROOT            = "/app/static"
+      MEDIA_ROOT             = "/app/media"
+    }
+    enable_postgres_extensions = true
+    postgres_extensions         = ["pg_trgm", "unaccent", "hstore", "citext"]
 
-  project = ((length(data.google_project.existing_project) > 0 
-        ? data.google_project.existing_project  
-        : null) 
-  ) 
-
-  # Set impersonation service account based on agent service account availability
-  # Falls back to resource_creator_identity if agent_service_account is not set
-  impersonation_service_account = var.agent_service_account != null && var.agent_service_account != "" ? var.agent_service_account : var.resource_creator_identity
-
-  # Determine if we should use impersonation
-  use_impersonation = local.impersonation_service_account != null && local.impersonation_service_account != ""
-
-  region  = tolist(local.regions_list)[0]
-  regions = tolist(local.regions_list)
-  project_number = try(data.google_project.existing_project.number, "")
+    startup_probe = {
+      enabled               = true
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 30
+      timeout_seconds       = 5
+      period_seconds        = 10
+      failure_threshold     = 3
+    }
+    liveness_probe = {
+      enabled               = true
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 60
+      timeout_seconds       = 5
+      period_seconds        = 30
+      failure_threshold     = 3
+    }
+  }
 }
 
-data "google_compute_zones" "available_zones" {
-  project = local.project.project_id
-  region  = local.region
-  status  = "UP"
-}
-
-resource "random_id" "default" {
-  count       = var.deployment_id == null ? 1 : 0 
-  byte_length = 2 
-}
-
-data "google_project" "existing_project" {
-  project_id = trimspace(var.existing_project_id)
-}
-
-module "django_preset" {
-  source = "../WebApp/modules/django"
-}
-
-locals {
-  application_name          = coalesce(var.application_name, module.django_preset.django_module.app_name)
-  application_version       = coalesce(var.application_version, lookup(module.django_preset.django_module, "app_version", "latest"))
-  application_database_name = coalesce(var.application_database_name, module.django_preset.django_module.db_name)
-  application_database_user = coalesce(var.application_database_user, module.django_preset.django_module.db_user)
-  db_tier                   = coalesce(var.db_tier, lookup(module.django_preset.django_module, "db_tier", "db-f1-micro"))
-  django_superuser_email    = coalesce(var.django_superuser_email, lookup(module.django_preset.django_module, "django_superuser_email", "admin@example.com"))
-  django_superuser_username = coalesce(var.django_superuser_username, lookup(module.django_preset.django_module, "django_superuser_username", "admin"))
+output "django_module" {
+  description = "django application module configuration"
+  value       = local.django_module
 }
