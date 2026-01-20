@@ -5,12 +5,12 @@ locals {
   moodle_module = {
     app_name        = "moodle"
     description     = "Moodle LMS - Online learning and course management platform"
-    container_image = "moodle:4.3-apache"
+    container_image = "moodle:5.0.0"
     image_source    = "prebuilt"
     container_port  = 80
     database_type   = "MYSQL_8_0"
-    db_name         = "moodle_db"
-    db_user         = "moodle_user"
+    db_name         = "moodle"
+    db_user         = "moodle"
 
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/var/run/mysqld"

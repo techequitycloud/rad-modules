@@ -15,7 +15,7 @@
 # Local variables for bucket existence
 locals {
   # Bucket names
-  data_bucket_name = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-data"
+  data_bucket_name = "${local.application_name}${var.tenant_deployment_id}${local.random_id}-data"
 }
 
 resource "google_storage_bucket" "gcs_private_data_bucket" {

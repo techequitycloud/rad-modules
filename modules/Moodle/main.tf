@@ -13,6 +13,11 @@
 # limitations under the License.
 
 locals {
+  application_name          = var.application_name != null ? var.application_name : "moodle"
+  application_database_name = var.application_database_name != null ? var.application_database_name : "moodle"
+  application_database_user = var.application_database_user != null ? var.application_database_user : "moodle"
+  application_version       = var.application_version != null ? var.application_version : "5.0.0"
+
   random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
 
   project = ((length(data.google_project.existing_project) > 0 

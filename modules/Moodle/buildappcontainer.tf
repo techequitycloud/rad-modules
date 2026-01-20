@@ -21,7 +21,7 @@ resource "local_file" "app_dockerfile" {
   count          = var.configure_environment ? 1 : 0
   filename       = "${path.module}/scripts/app/dockerfile"
   content        = templatefile("${path.module}/scripts/app/dockerfile.tpl", {
-    APP_VERSION  = "${var.application_version}"
+    APP_VERSION  = "${local.application_version}"
   })
 }
 
@@ -31,11 +31,11 @@ resource "local_file" "app_cloudbuild" {
   filename = "${path.module}/scripts/app/cloudbuild.yaml"
   content  = templatefile("${path.module}/scripts/app/cloudbuild.yaml.tpl", {
     PROJECT_ID    = local.project.project_id
-    APP_NAME      = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+    APP_NAME      = "app${local.application_name}${var.tenant_deployment_id}${local.random_id}"
     IMAGE_REGION  = local.region
-    IMAGE_NAME    = var.application_name
-    IMAGE_VERSION = "${var.application_version}"
-    REPO_NAME     = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"
+    IMAGE_NAME    = local.application_name
+    IMAGE_VERSION = "${local.application_version}"
+    REPO_NAME     = "${local.application_name}-${var.tenant_deployment_id}-${local.random_id}"
   })
 }
 

@@ -30,7 +30,7 @@ resource "random_password" "additional_user_password" {
 # Resource for creating a secret in Google Secret Manager to store the database password
 resource "google_secret_manager_secret" "db_password" {
   project    = local.project.project_id  
-  secret_id  = "${local.db_instance_name}-${var.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
+  secret_id  = "${local.db_instance_name}-${local.application_database_name}-password-${var.tenant_deployment_id}-${local.random_id}"
 
   replication {
     auto {}  

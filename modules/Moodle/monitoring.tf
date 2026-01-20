@@ -16,7 +16,7 @@
 resource "google_monitoring_alert_policy" "alert_policy" {
   count   = var.configure_monitoring ? 1 : 0  # Updated count condition
   project = local.project.project_id
-  display_name = "app${var.application_name}-cpu-utilization-alert-policy-${var.tenant_deployment_id}-${local.random_id}"
+  display_name = "app${local.application_name}-cpu-utilization-alert-policy-${var.tenant_deployment_id}-${local.random_id}"
   documentation {
     content = "The $${metric.display_name} of the $${resource.type} $${resource.label.instance_id} in $${resource.project} has exceeded 90% for over 1 minute."
   }
@@ -54,7 +54,7 @@ resource "google_monitoring_notification_channel" "email" {
   # Specifies the project in which the notification channel is created.
   project = local.project.project_id
   # Human-readable name for the notification channel.
-  display_name = "app${var.application_name}-notification-channel-${var.tenant_deployment_id}-${local.random_id}"
+  display_name = "app${local.application_name}-notification-channel-${var.tenant_deployment_id}-${local.random_id}"
   # Type of the notification channel (email in this case).
   type         = "email"
   labels = {
@@ -71,19 +71,19 @@ resource "google_monitoring_notification_channel" "email" {
 # Define a service for Cloud Run to be monitored.
 resource "google_monitoring_service" "cloud_run" {
   count =  (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
-  service_id   = "app${var.application_name}-monitoring-service-${var.tenant_deployment_id}-${local.random_id}-${local.regions[count.index]}"
-  display_name = "app${var.application_name}-monitoring-service-${var.tenant_deployment_id}-${local.random_id}"
+  service_id   = "app${local.application_name}-monitoring-service-${var.tenant_deployment_id}-${local.random_id}-${local.regions[count.index]}"
+  display_name = "app${local.application_name}-monitoring-service-${var.tenant_deployment_id}-${local.random_id}"
   project      = local.project.project_id
 
   user_labels = {
-    app = "app${var.application_name}${var.tenant_deployment_id}"
+    app = "app${local.application_name}${var.tenant_deployment_id}"
   }
 
   basic_service {
     service_type  = "CLOUD_RUN"
     service_labels = {
       location = local.regions[count.index]
-      service_name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+      service_name = "app${local.application_name}${var.tenant_deployment_id}${local.random_id}"
     }
   }
 
@@ -96,8 +96,8 @@ resource "google_monitoring_service" "cloud_run" {
 resource "google_monitoring_slo" "latency_slo" {
   count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
   service      = google_monitoring_service.cloud_run[count.index].service_id
-  slo_id       = "app${var.application_name}-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
-  display_name = "app${var.application_name}-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
+  slo_id       = "app${local.application_name}-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
+  display_name = "app${local.application_name}-latency-slo-${var.tenant_deployment_id}-${local.random_id}"
   goal         = 0.95
   project      = local.project.project_id
   calendar_period = "DAY"
@@ -122,8 +122,8 @@ resource "google_monitoring_slo" "latency_slo" {
 resource "google_monitoring_slo" "availability_slo" {
   count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
   service      = google_monitoring_service.cloud_run[count.index].service_id
-  slo_id       = "app${var.application_name}-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
-  display_name = "app${var.application_name}-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
+  slo_id       = "app${local.application_name}-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
+  display_name = "app${local.application_name}-availability-slo-${var.tenant_deployment_id}-${local.random_id}"
   goal         = 0.95
   project      = local.project.project_id
   calendar_period = "DAY"
@@ -145,7 +145,7 @@ resource "google_monitoring_slo" "availability_slo" {
 resource "google_monitoring_uptime_check_config" "https" {
   count = (var.configure_monitoring && var.configure_environment) ? length(local.regions) : 0
   project = local.project.project_id
-  display_name = "app${var.application_name}-uptime-check-config-${var.tenant_deployment_id}-${local.random_id}"
+  display_name = "app${local.application_name}-uptime-check-config-${var.tenant_deployment_id}-${local.random_id}"
   timeout = "60s"
   period = "900s"
 
@@ -159,7 +159,7 @@ resource "google_monitoring_uptime_check_config" "https" {
     type = "cloud_run_revision"
     labels = {
       project_id = local.project.project_id
-      service_name = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+      service_name = "app${local.application_name}${var.tenant_deployment_id}${local.random_id}"
       location = local.regions[count.index]
     }
   }

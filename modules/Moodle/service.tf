@@ -16,7 +16,7 @@ resource "google_cloud_run_v2_service" "app_service" {
   for_each            = var.configure_environment ? (length(local.regions) >= 2 ? toset(local.regions) : toset([local.regions[0]])) : toset([])
 
   project             = local.project.project_id
-  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+  name                = "app${local.application_name}${var.tenant_deployment_id}${local.random_id}"
   location            = each.key
   deletion_protection = false
   ingress             = "INGRESS_TRAFFIC_ALL"
@@ -28,11 +28,11 @@ resource "google_cloud_run_v2_service" "app_service" {
     timeout = "300s"
 
     labels = {
-      app = var.application_name
+      app = local.application_name
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.application_name}-${var.tenant_deployment_id}-${local.random_id}/${local.application_name}:${local.application_version}"
       ports {
         container_port = 80
       }
@@ -69,12 +69,12 @@ resource "google_cloud_run_v2_service" "app_service" {
 
       env {
         name  = "DB_NAME"
-        value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+        value = "app${local.application_database_name}${var.tenant_deployment_id}${local.random_id}"
       }
 
       env {
         name  = "DB_USER"
-        value = "app${var.application_database_user}${var.tenant_deployment_id}${local.random_id}"
+        value = "app${local.application_database_user}${var.tenant_deployment_id}${local.random_id}"
       }
 
       env {
@@ -94,7 +94,7 @@ resource "google_cloud_run_v2_service" "app_service" {
 
       env {
         name  = "APP_URL"
-        value = "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}-${local.project_number}.${local.region}.run.app"
+        value = "https://app${local.application_name}${var.tenant_deployment_id}${local.random_id}-${local.project_number}.${local.region}.run.app"
       }
 
       volume_mounts {
@@ -127,7 +127,7 @@ resource "google_cloud_run_v2_service" "app_service" {
       name = "nfs-data-volume"
       nfs {
         server = "${local.nfs_internal_ip}"
-        path   = "/share/app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+        path   = "/share/app${local.application_database_name}${var.tenant_deployment_id}${local.random_id}"
       }
     }
   }

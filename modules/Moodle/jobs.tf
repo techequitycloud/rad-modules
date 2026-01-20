@@ -19,7 +19,7 @@
 resource "google_cloud_run_v2_job" "import_db_job" {
   count      = local.sql_server_exists ? 1 : 0
   project    = local.project.project_id
-  name       = "import-db-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+  name       = "import-db-${local.application_name}${var.tenant_deployment_id}${local.random_id}"
   location   = local.region
   deletion_protection = false
 
@@ -39,11 +39,11 @@ resource "google_cloud_run_v2_job" "import_db_job" {
         }
         env {
           name  = "DB_NAME"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+          value = "app${local.application_database_name}${var.tenant_deployment_id}${local.random_id}"
         }
         env {
           name  = "DB_USER"
-          value = "app${var.application_database_user}${var.tenant_deployment_id}${local.random_id}"
+          value = "app${local.application_database_user}${var.tenant_deployment_id}${local.random_id}"
         }
 
         # Passing root password as value since we don't have a guaranteed secret for it
@@ -206,7 +206,7 @@ resource "null_resource" "execute_import_db_job" {
 resource "google_cloud_run_v2_job" "nfs_setup_job" {
   count      = local.nfs_server_exists ? 1 : 0
   project    = local.project.project_id
-  name       = "nfs-setup-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+  name       = "nfs-setup-${local.application_name}${var.tenant_deployment_id}${local.random_id}"
   location   = local.region
   deletion_protection = false
 
@@ -222,7 +222,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
 
         env {
           name  = "DB_USER"
-          value = "app${var.application_database_user}${var.tenant_deployment_id}${local.random_id}"
+          value = "app${local.application_database_user}${var.tenant_deployment_id}${local.random_id}"
         }
 
         command = ["/bin/sh", "-c"]

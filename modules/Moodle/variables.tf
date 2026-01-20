@@ -108,25 +108,25 @@ variable "create_cloud_storage" {
 variable "application_name" {
   description = "Specify application name. The application name is used to identify configured resources alongside other attributes that ensures uniqueness. {{UIMeta group=0 order=501}}"
   type        = string
-  default     = "moodle"
+  default     = null
 }
 
 variable "application_database_user" {
   description = "Specify application database user name. The actual database user name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=502}}"
   type        = string
-  default     = "moodle"
+  default     = null
 }
 
 variable "application_database_name" {
   description = "Specify application database name. The actual database name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=503 }}"
   type        = string
-  default     = "moodle"
+  default     = null
 }
 
 variable "application_version" {
   description = "Enter application version. Container images are tagged with this version number. {{UIMeta group=0 order=504}}"
   type        = string
-  default     = "5.0.0"
+  default     = null
 }
 
 # GROUP 7: Tenant
