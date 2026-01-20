@@ -34,18 +34,14 @@ data "external" "check_service_accounts" {
     }
     
     # Check only service accounts used in Cloud Run deployment
-    PROJECT_SA_EXISTS=$(check_sa "${local.project.project_id}")
     CLOUD_BUILD_SA_EXISTS=$(check_sa "cloudbuild-sa")
     CLOUD_RUN_SA_EXISTS=$(check_sa "cloudrun-sa")
-    CLOUD_SQL_SA_EXISTS=$(check_sa "cloudsql-sa")
 
     # Output JSON
     cat <<EOF
 {
-  "project_sa_exists": "$PROJECT_SA_EXISTS",
   "cloud_build_sa_exists": "$CLOUD_BUILD_SA_EXISTS",
-  "cloud_run_sa_exists": "$CLOUD_RUN_SA_EXISTS",
-  "cloud_sql_sa_exists": "$CLOUD_SQL_SA_EXISTS"
+  "cloud_run_sa_exists": "$CLOUD_RUN_SA_EXISTS"
 }
 EOF
   EOT
@@ -59,18 +55,12 @@ EOF
 locals {
 
   # Parse the results from external data source (only Cloud Run deployment SAs)
-  project_sa_exists      = data.external.check_service_accounts.result["project_sa_exists"] == "true"
   cloud_build_sa_exists  = data.external.check_service_accounts.result["cloud_build_sa_exists"] == "true"
   cloud_run_sa_exists    = data.external.check_service_accounts.result["cloud_run_sa_exists"] == "true"
-  cloud_sql_sa_exists    = data.external.check_service_accounts.result["cloud_sql_sa_exists"] == "true"
 
   # Service account references (existing or newly created)
-  project_sa_email      = "project-sa@${local.project.project_id}.iam.gserviceaccount.com"
   cloud_build_sa_email  = "cloudbuild-sa@${local.project.project_id}.iam.gserviceaccount.com"
   cloud_run_sa_email    = "cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
-  cloud_sql_sa_email    = "cloudsql-sa@${local.project.project_id}.iam.gserviceaccount.com"
-
-  project_sa_id           = "projects/${local.project.project_id}/serviceAccounts/project-sa@${local.project.project_id}.iam.gserviceaccount.com"
 }
 
 ########################################################################################

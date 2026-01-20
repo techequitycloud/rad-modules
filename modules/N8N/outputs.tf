@@ -35,10 +35,8 @@ output "existing_service_accounts" {
   description = "List of existing service accounts"
   value = [
     for sa_name, exists in {
-      "project-sa"      = local.project_sa_exists
       "cloudbuild-sa"   = local.cloud_build_sa_exists
       "cloudrun-sa"     = local.cloud_run_sa_exists
-      "cloudsql-sa"     = local.cloud_sql_sa_exists
     } : sa_name if exists
   ]
 }
