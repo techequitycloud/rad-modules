@@ -28,6 +28,39 @@ locals {
 
   # ✅ NEW: Unique NFS path scoped to tenant and deployment
   nfs_unique_path = "/share/${local.resource_prefix}"
+
+  # ============================================================================
+  # Backup Import Configuration
+  # Supports both unified and legacy variables with automatic fallback
+  # ============================================================================
+
+  # Determine if backup import is enabled (unified or legacy)
+  backup_import_enabled = var.enable_backup_import || var.enable_gdrive_backup_import || var.enable_gcs_backup_import
+
+  # Determine backup source (unified takes precedence)
+  backup_source = var.enable_backup_import ? var.backup_source : (
+    var.enable_gdrive_backup_import ? "gdrive" : (
+      var.enable_gcs_backup_import ? "gcs" : "gcs"
+    )
+  )
+
+  # Determine backup URI/ID (unified takes precedence)
+  backup_uri = var.enable_backup_import && var.backup_uri != "" ? var.backup_uri : (
+    var.enable_gdrive_backup_import && var.gdrive_backup_file_id != "" ? var.gdrive_backup_file_id : (
+      var.enable_gcs_backup_import && var.gcs_backup_uri != "" ? var.gcs_backup_uri : ""
+    )
+  )
+
+  # Determine backup format (unified takes precedence)
+  backup_format = var.enable_backup_import && var.backup_format != "" ? var.backup_format : (
+    var.enable_gdrive_backup_import ? var.gdrive_backup_format : (
+      var.enable_gcs_backup_import ? var.gcs_backup_format : "sql"
+    )
+  )
+
+  # Determine which specific backup jobs to run
+  enable_gdrive_backup_job = local.backup_import_enabled && local.backup_source == "gdrive" && local.backup_uri != ""
+  enable_gcs_backup_job    = local.backup_import_enabled && local.backup_source == "gcs" && local.backup_uri != ""
 }
 
 # ============================================================================
@@ -498,9 +531,9 @@ resource "null_resource" "execute_postgres_extensions_job" {
 # ============================================================================
 
 resource "google_cloud_run_v2_job" "gdrive_backup_job" {
-  count               = var.enable_gdrive_backup_import && local.sql_server_exists && var.gdrive_backup_file_id != "" ? 1 : 0
+  count               = local.enable_gdrive_backup_job && local.sql_server_exists ? 1 : 0
   project             = local.project.project_id
-  name                = "${local.resource_prefix}-gdrive-backup"
+  name                = "${local.resource_prefix}-backup-import"
   location            = local.region
   deletion_protection = false
 
@@ -516,12 +549,12 @@ resource "google_cloud_run_v2_job" "gdrive_backup_job" {
 
         env {
           name  = "GDRIVE_FILE_ID"
-          value = var.gdrive_backup_file_id
+          value = local.backup_uri
         }
 
         env {
           name  = "BACKUP_FORMAT"
-          value = var.gdrive_backup_format
+          value = local.backup_format
         }
 
         env {
@@ -597,20 +630,22 @@ resource "google_cloud_run_v2_job" "gdrive_backup_job" {
 }
 
 resource "null_resource" "execute_gdrive_backup_job" {
-  count = var.enable_gdrive_backup_import && local.sql_server_exists && var.gdrive_backup_file_id != "" ? 1 : 0
+  count = local.enable_gdrive_backup_job && local.sql_server_exists ? 1 : 0
 
   triggers = {
-    file_id        = var.gdrive_backup_file_id
-    backup_format  = var.gdrive_backup_format
+    backup_uri     = local.backup_uri
+    backup_format  = local.backup_format
+    backup_source  = local.backup_source
     job_name       = google_cloud_run_v2_job.gdrive_backup_job[0].name
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<EOT
-      echo "Executing Google Drive backup import job for deployment: ${local.resource_prefix}"
-      echo "File ID: ${var.gdrive_backup_file_id}"
-      echo "Format: ${var.gdrive_backup_format}"
+      echo "Executing backup import job for deployment: ${local.resource_prefix}"
+      echo "Source: Google Drive"
+      echo "File ID: ${local.backup_uri}"
+      echo "Format: ${local.backup_format}"
 
       IMPERSONATE_FLAG=""
       if [ -n "${local.impersonation_service_account}" ]; then
@@ -632,12 +667,12 @@ resource "null_resource" "execute_gdrive_backup_job" {
             echo "The backup import may still be running. Check Cloud Run jobs in the console."
             exit 1
           else
-            echo "✗ Google Drive backup import job failed with exit code $EXIT_CODE"
+            echo "✗ Backup import job failed with exit code $EXIT_CODE"
             exit $EXIT_CODE
           fi
         }
 
-      echo "✓ Backup imported successfully from Google Drive"
+      echo "✓ Backup imported successfully from ${local.backup_source == "gdrive" ? "Google Drive" : "Google Cloud Storage"}"
     EOT
   }
 
@@ -652,9 +687,9 @@ resource "null_resource" "execute_gdrive_backup_job" {
 # ============================================================================
 
 resource "google_cloud_run_v2_job" "gcs_backup_job" {
-  count               = var.enable_gcs_backup_import && local.sql_server_exists && var.gcs_backup_uri != "" ? 1 : 0
+  count               = local.enable_gcs_backup_job && local.sql_server_exists ? 1 : 0
   project             = local.project.project_id
-  name                = "${local.resource_prefix}-gcs-backup"
+  name                = "${local.resource_prefix}-backup-import"
   location            = local.region
   deletion_protection = false
 
@@ -670,12 +705,12 @@ resource "google_cloud_run_v2_job" "gcs_backup_job" {
 
         env {
           name  = "GCS_BACKUP_URI"
-          value = var.gcs_backup_uri
+          value = local.backup_uri
         }
 
         env {
           name  = "BACKUP_FORMAT"
-          value = var.gcs_backup_format
+          value = local.backup_format
         }
 
         env {
@@ -752,20 +787,22 @@ resource "google_cloud_run_v2_job" "gcs_backup_job" {
 }
 
 resource "null_resource" "execute_gcs_backup_job" {
-  count = var.enable_gcs_backup_import && local.sql_server_exists && var.gcs_backup_uri != "" ? 1 : 0
+  count = local.enable_gcs_backup_job && local.sql_server_exists ? 1 : 0
 
   triggers = {
-    gcs_uri       = var.gcs_backup_uri
-    backup_format = var.gcs_backup_format
+    backup_uri    = local.backup_uri
+    backup_format = local.backup_format
+    backup_source = local.backup_source
     job_name      = google_cloud_run_v2_job.gcs_backup_job[0].name
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<EOT
-      echo "Executing GCS backup import job for deployment: ${local.resource_prefix}"
-      echo "GCS URI: ${var.gcs_backup_uri}"
-      echo "Format: ${var.gcs_backup_format}"
+      echo "Executing backup import job for deployment: ${local.resource_prefix}"
+      echo "Source: Google Cloud Storage"
+      echo "GCS URI: ${local.backup_uri}"
+      echo "Format: ${local.backup_format}"
 
       IMPERSONATE_FLAG=""
       if [ -n "${local.impersonation_service_account}" ]; then
@@ -787,12 +824,12 @@ resource "null_resource" "execute_gcs_backup_job" {
             echo "The backup import may still be running. Check Cloud Run jobs in the console."
             exit 1
           else
-            echo "✗ GCS backup import job failed with exit code $EXIT_CODE"
+            echo "✗ Backup import job failed with exit code $EXIT_CODE"
             exit $EXIT_CODE
           fi
         }
 
-      echo "✓ Backup imported successfully from GCS"
+      echo "✓ Backup imported successfully from ${local.backup_source == "gdrive" ? "Google Drive" : "Google Cloud Storage"}"
     EOT
   }
 

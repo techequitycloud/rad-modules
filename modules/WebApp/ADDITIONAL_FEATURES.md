@@ -2,6 +2,21 @@
 
 This document describes three additional enhancement features added to the WebApp module to further improve compatibility, security, and flexibility.
 
+> **📢 NEW: Unified Backup Import Interface**
+>
+> The backup import features (Google Drive and GCS) now have a unified, easier-to-use interface!
+> See **[UNIFIED_BACKUP_IMPORT.md](./UNIFIED_BACKUP_IMPORT.md)** for the recommended approach.
+>
+> **Quick Start with Unified Interface:**
+> ```hcl
+> enable_backup_import = true
+> backup_source        = "gcs"  # or "gdrive"
+> backup_uri           = "gs://my-bucket/backup.sql"
+> backup_format        = "sql"
+> ```
+>
+> Legacy variables documented below are still supported but deprecated.
+
 ## Overview
 
 Three additional enhancement features have been implemented:
@@ -9,6 +24,8 @@ Three additional enhancement features have been implemented:
 1. **Cloud Storage Backup Import** - Import backups from GCS (more secure than Google Drive)
 2. **MySQL Plugins Installation** - Automated installation of MySQL plugins and components
 3. **Custom SQL Scripts Execution** - Run user-provided SQL scripts for custom initialization
+
+**Plus:** Unified backup import interface for easier configuration!
 
 ---
 

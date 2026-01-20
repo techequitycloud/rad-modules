@@ -671,20 +671,56 @@ variable "postgres_extensions" {
   }
 }
 
+# Unified Backup Import Configuration (Recommended)
+variable "enable_backup_import" {
+  description = "Enable automatic import of database backup during deployment. Use backup_source to specify Google Drive or Google Cloud Storage. {{UIMeta group=13 order=1302 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "backup_source" {
+  description = "Backup source: 'gdrive' (Google Drive) or 'gcs' (Google Cloud Storage). GCS is recommended for production due to better security and performance. {{UIMeta group=13 order=1303 updatesafe }}"
+  type        = string
+  default     = "gcs"
+
+  validation {
+    condition     = contains(["gdrive", "gcs"], var.backup_source)
+    error_message = "Backup source must be 'gdrive' or 'gcs'."
+  }
+}
+
+variable "backup_uri" {
+  description = "Backup URI. For GCS: full URI like 'gs://bucket/path/backup.sql'. For Google Drive: file ID from URL 'https://drive.google.com/file/d/FILE_ID/view'. {{UIMeta group=13 order=1304 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
+variable "backup_format" {
+  description = "Backup file format. For GCS: 'sql', 'tar', 'gz', 'tgz', 'tar.gz', 'zip'. For Google Drive: 'sql', 'tar', 'zip'. {{UIMeta group=13 order=1305 updatesafe }}"
+  type        = string
+  default     = "sql"
+
+  validation {
+    condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.backup_format)
+    error_message = "Backup format must be 'sql', 'tar', 'gz', 'tgz', 'tar.gz', or 'zip'."
+  }
+}
+
+# Legacy Variables (Deprecated - Use unified variables above)
 variable "enable_gdrive_backup_import" {
-  description = "Enable automatic import of database backup from Google Drive. When enabled, downloads and imports a backup file during deployment. {{UIMeta group=13 order=1302 updatesafe }}"
+  description = "DEPRECATED: Use enable_backup_import with backup_source='gdrive' instead. Enable automatic import of database backup from Google Drive. {{UIMeta group=13 order=1320 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "gdrive_backup_file_id" {
-  description = "Google Drive file ID of the backup to import. You can find this in the Google Drive file URL: https://drive.google.com/file/d/FILE_ID/view. Only used when enable_gdrive_backup_import is true. {{UIMeta group=13 order=1303 updatesafe }}"
+  description = "DEPRECATED: Use backup_uri instead. Google Drive file ID of the backup to import. {{UIMeta group=13 order=1321 updatesafe }}"
   type        = string
   default     = ""
 }
 
 variable "gdrive_backup_format" {
-  description = "Backup file format: 'sql' (SQL dump), 'tar' (tarball), or 'zip' (compressed archive). {{UIMeta group=13 order=1304 updatesafe }}"
+  description = "DEPRECATED: Use backup_format instead. Backup file format for Google Drive. {{UIMeta group=13 order=1322 updatesafe }}"
   type        = string
   default     = "sql"
 
@@ -695,19 +731,19 @@ variable "gdrive_backup_format" {
 }
 
 variable "enable_gcs_backup_import" {
-  description = "Enable automatic import of database backup from Google Cloud Storage. When enabled, downloads and imports a backup file during deployment. More secure and performant than Google Drive import. {{UIMeta group=13 order=1305 updatesafe }}"
+  description = "DEPRECATED: Use enable_backup_import with backup_source='gcs' instead. Enable automatic import of database backup from Google Cloud Storage. {{UIMeta group=13 order=1323 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "gcs_backup_uri" {
-  description = "Google Cloud Storage URI of the backup to import (e.g., 'gs://my-bucket/backups/database.sql'). Only used when enable_gcs_backup_import is true. {{UIMeta group=13 order=1306 updatesafe }}"
+  description = "DEPRECATED: Use backup_uri instead. Google Cloud Storage URI of the backup to import. {{UIMeta group=13 order=1324 updatesafe }}"
   type        = string
   default     = ""
 }
 
 variable "gcs_backup_format" {
-  description = "Backup file format for GCS import: 'sql' (SQL dump), 'tar' (tarball), 'gz' (gzip), 'tgz' (tar.gz), or 'zip' (compressed archive). {{UIMeta group=13 order=1307 updatesafe }}"
+  description = "DEPRECATED: Use backup_format instead. Backup file format for GCS import. {{UIMeta group=13 order=1325 updatesafe }}"
   type        = string
   default     = "sql"
 
