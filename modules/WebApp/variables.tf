@@ -516,6 +516,18 @@ variable "custom_volumes" {
   default = []
 }
 
+variable "enable_cloudsql_volume" {
+  description = "Enable Cloud SQL instance volume for Unix socket connections. When enabled, the Cloud SQL instance will be mounted as a volume, allowing connections via Unix socket instead of TCP/IP. {{UIMeta group=7 order=705 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "cloudsql_volume_mount_path" {
+  description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=7 order=706 updatesafe }}"
+  type        = string
+  default     = "/cloudsql"
+}
+
 # ===========================
 # GROUP 8: Environment Variables
 # ===========================
@@ -636,6 +648,50 @@ variable "initialization_jobs" {
     script_path       = optional(string, null)
   }))
   default = []
+}
+
+# ===========================
+# GROUP 13: Database Extensions & Backup Configuration
+# ===========================
+
+variable "enable_postgres_extensions" {
+  description = "Enable automatic installation of PostgreSQL extensions. Only applicable when using PostgreSQL databases. {{UIMeta group=13 order=1300 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "postgres_extensions" {
+  description = "List of PostgreSQL extensions to install (e.g., ['postgis', 'uuid-ossp', 'pg_trgm']). Common extensions: postgis, cube, earthdistance, unaccent, pg_stat_statements, uuid-ossp, pg_trgm. {{UIMeta group=13 order=1301 updatesafe }}"
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for ext in var.postgres_extensions : can(regex("^[a-z_][a-z0-9_-]*$", ext))])
+    error_message = "Extension names must start with a letter or underscore and contain only lowercase letters, numbers, underscores, and hyphens."
+  }
+}
+
+variable "enable_gdrive_backup_import" {
+  description = "Enable automatic import of database backup from Google Drive. When enabled, downloads and imports a backup file during deployment. {{UIMeta group=13 order=1302 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "gdrive_backup_file_id" {
+  description = "Google Drive file ID of the backup to import. You can find this in the Google Drive file URL: https://drive.google.com/file/d/FILE_ID/view. Only used when enable_gdrive_backup_import is true. {{UIMeta group=13 order=1303 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
+variable "gdrive_backup_format" {
+  description = "Backup file format: 'sql' (SQL dump), 'tar' (tarball), or 'zip' (compressed archive). {{UIMeta group=13 order=1304 updatesafe }}"
+  type        = string
+  default     = "sql"
+
+  validation {
+    condition     = contains(["sql", "tar", "zip"], var.gdrive_backup_format)
+    error_message = "Backup format must be 'sql', 'tar', or 'zip'."
+  }
 }
 
 # ===========================

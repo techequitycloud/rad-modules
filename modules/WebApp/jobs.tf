@@ -355,6 +355,291 @@ resource "null_resource" "execute_initialization_jobs" {
 
   depends_on = [
     google_cloud_run_v2_job.initialization_jobs,
-    null_resource.execute_nfs_setup_job
+    null_resource.execute_nfs_setup_job,
+    null_resource.execute_postgres_extensions_job,
+    null_resource.execute_gdrive_backup_job
+  ]
+}
+
+# ============================================================================
+# PostgreSQL Extensions Installation Job
+# ============================================================================
+
+resource "google_cloud_run_v2_job" "postgres_extensions_job" {
+  count               = var.enable_postgres_extensions && local.sql_server_exists && local.database_client_type == "POSTGRES" && length(var.postgres_extensions) > 0 ? 1 : 0
+  project             = local.project.project_id
+  name                = "${local.resource_prefix}-postgres-ext"
+  location            = local.region
+  deletion_protection = false
+
+  template {
+    template {
+      service_account       = local.cloud_run_sa_email
+      max_retries           = 1
+      timeout               = "300s"
+      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
+
+      containers {
+        image = "debian:12-slim"
+
+        env {
+          name  = "POSTGRES_EXTENSIONS"
+          value = join(",", var.postgres_extensions)
+        }
+
+        env {
+          name  = "DB_HOST"
+          value = local.db_internal_ip
+        }
+
+        env {
+          name  = "DB_PORT"
+          value = tostring(local.database_port)
+        }
+
+        env {
+          name  = "DB_NAME"
+          value = local.database_name_full
+        }
+
+        env {
+          name  = "ROOT_USER"
+          value = "postgres"
+        }
+
+        env {
+          name = "ROOT_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret  = "${local.db_instance_name}-root-password"
+              version = "latest"
+            }
+          }
+        }
+
+        command = ["/bin/bash"]
+        args    = ["-c", file("${path.module}/scripts/app/install-postgres-extensions.sh")]
+
+        resources {
+          limits = {
+            cpu    = "1000m"
+            memory = "512Mi"
+          }
+        }
+      }
+
+      vpc_access {
+        network_interfaces {
+          network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+        }
+        egress = local.vpc_egress_setting
+      }
+    }
+  }
+
+  depends_on = [
+    data.google_secret_manager_secret_version.db_password
+  ]
+}
+
+resource "null_resource" "execute_postgres_extensions_job" {
+  count = var.enable_postgres_extensions && local.sql_server_exists && local.database_client_type == "POSTGRES" && length(var.postgres_extensions) > 0 ? 1 : 0
+
+  triggers = {
+    extensions_list = join(",", var.postgres_extensions)
+    job_name        = google_cloud_run_v2_job.postgres_extensions_job[0].name
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<EOT
+      echo "Executing PostgreSQL extensions installation job for deployment: ${local.resource_prefix}"
+      echo "Extensions: ${join(",", var.postgres_extensions)}"
+
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+        echo "Using impersonation: ${local.impersonation_service_account}"
+      fi
+
+      echo "Waiting for IAM permissions to propagate..."
+      sleep 15
+
+      timeout 240 gcloud run jobs execute ${google_cloud_run_v2_job.postgres_extensions_job[0].name} \
+        --region ${local.region} \
+        --project ${local.project.project_id} \
+        $IMPERSONATE_FLAG \
+        --wait || {
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 124 ]; then
+            echo "⚠ Job execution timed out after 4 minutes"
+            exit 1
+          else
+            echo "✗ PostgreSQL extensions installation job failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
+        }
+
+      echo "✓ PostgreSQL extensions installed successfully"
+    EOT
+  }
+
+  depends_on = [
+    google_cloud_run_v2_job.postgres_extensions_job
+  ]
+}
+
+# ============================================================================
+# Google Drive Backup Import Job
+# ============================================================================
+
+resource "google_cloud_run_v2_job" "gdrive_backup_job" {
+  count               = var.enable_gdrive_backup_import && local.sql_server_exists && var.gdrive_backup_file_id != "" ? 1 : 0
+  project             = local.project.project_id
+  name                = "${local.resource_prefix}-gdrive-backup"
+  location            = local.region
+  deletion_protection = false
+
+  template {
+    template {
+      service_account       = local.cloud_run_sa_email
+      max_retries           = 1
+      timeout               = "1800s"  # 30 minutes for large backups
+      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
+
+      containers {
+        image = "debian:12-slim"
+
+        env {
+          name  = "GDRIVE_FILE_ID"
+          value = var.gdrive_backup_file_id
+        }
+
+        env {
+          name  = "BACKUP_FORMAT"
+          value = var.gdrive_backup_format
+        }
+
+        env {
+          name  = "DB_TYPE"
+          value = local.database_client_type
+        }
+
+        env {
+          name  = "DB_HOST"
+          value = local.db_internal_ip
+        }
+
+        env {
+          name  = "DB_PORT"
+          value = tostring(local.database_port)
+        }
+
+        env {
+          name  = "DB_NAME"
+          value = local.database_name_full
+        }
+
+        env {
+          name  = "DB_USER"
+          value = local.database_user_full
+        }
+
+        env {
+          name = "DB_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret  = local.db_password_secret_name
+              version = "latest"
+            }
+          }
+        }
+
+        env {
+          name = "ROOT_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret  = "${local.db_instance_name}-root-password"
+              version = "latest"
+            }
+          }
+        }
+
+        command = ["/bin/bash"]
+        args    = ["-c", file("${path.module}/scripts/app/import-gdrive-backup.sh")]
+
+        resources {
+          limits = {
+            cpu    = "2000m"
+            memory = "2Gi"
+          }
+        }
+      }
+
+      vpc_access {
+        network_interfaces {
+          network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+        }
+        egress = local.vpc_egress_setting
+      }
+    }
+  }
+
+  depends_on = [
+    data.google_secret_manager_secret_version.db_password,
+    null_resource.execute_postgres_extensions_job
+  ]
+}
+
+resource "null_resource" "execute_gdrive_backup_job" {
+  count = var.enable_gdrive_backup_import && local.sql_server_exists && var.gdrive_backup_file_id != "" ? 1 : 0
+
+  triggers = {
+    file_id        = var.gdrive_backup_file_id
+    backup_format  = var.gdrive_backup_format
+    job_name       = google_cloud_run_v2_job.gdrive_backup_job[0].name
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<EOT
+      echo "Executing Google Drive backup import job for deployment: ${local.resource_prefix}"
+      echo "File ID: ${var.gdrive_backup_file_id}"
+      echo "Format: ${var.gdrive_backup_format}"
+
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+        echo "Using impersonation: ${local.impersonation_service_account}"
+      fi
+
+      echo "Waiting for IAM permissions to propagate..."
+      sleep 15
+
+      timeout 1920 gcloud run jobs execute ${google_cloud_run_v2_job.gdrive_backup_job[0].name} \
+        --region ${local.region} \
+        --project ${local.project.project_id} \
+        $IMPERSONATE_FLAG \
+        --wait || {
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 124 ]; then
+            echo "⚠ Job execution timed out after 32 minutes"
+            echo "The backup import may still be running. Check Cloud Run jobs in the console."
+            exit 1
+          else
+            echo "✗ Google Drive backup import job failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
+        }
+
+      echo "✓ Backup imported successfully from Google Drive"
+    EOT
+  }
+
+  depends_on = [
+    google_cloud_run_v2_job.gdrive_backup_job,
+    null_resource.execute_postgres_extensions_job
   ]
 }
