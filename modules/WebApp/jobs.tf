@@ -159,7 +159,7 @@ resource "null_resource" "execute_nfs_setup_job" {
         --wait || {
           EXIT_CODE=$?
           if [ $EXIT_CODE -eq 124 ]; then
-            echo "⚠ Job execution timed out after 3 minutes, but may have completed"
+            echo "⚠ Job execution timed out after 6 minutes, but may have completed"
             echo "Checking job status..."
             gcloud run jobs executions list \
               --job=${google_cloud_run_v2_job.nfs_setup_job[0].name} \
