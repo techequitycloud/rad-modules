@@ -38,16 +38,18 @@ resource "null_resource" "image_build_gate" {
   }
 }
 
-# Conditional dependency on CI/CD placeholder build
+# Conditional dependency on CI/CD trigger setup
+# When CI/CD is enabled, we use the default hello world image initially
+# The CI/CD pipeline will deploy the actual application image on first push
 resource "null_resource" "cicd_image_dependency" {
   count = var.configure_environment && local.enable_cicd_trigger && local.container_image_source == "custom" ? 1 : 0
 
   triggers = {
-    build_complete = timestamp()
+    trigger_ready = timestamp()
   }
 
   depends_on = [
-    null_resource.build_placeholder_image
+    google_cloudbuild_trigger.cicd_trigger
   ]
 }
 
@@ -134,9 +136,20 @@ resource "google_cloud_run_v2_service" "app_service" {
           timeout_seconds       = var.startup_probe_config.timeout_seconds
           period_seconds        = var.startup_probe_config.period_seconds
           failure_threshold     = var.startup_probe_config.failure_threshold
-          http_get {
-            path = var.startup_probe_config.path
-            port = var.container_port
+
+          dynamic "http_get" {
+            for_each = upper(var.startup_probe_config.type) == "HTTP" ? [1] : []
+            content {
+              path = var.startup_probe_config.path
+              port = var.container_port
+            }
+          }
+
+          dynamic "tcp_socket" {
+            for_each = upper(var.startup_probe_config.type) == "TCP" ? [1] : []
+            content {
+              port = var.container_port
+            }
           }
         }
       }
@@ -149,9 +162,20 @@ resource "google_cloud_run_v2_service" "app_service" {
           timeout_seconds       = var.health_check_config.timeout_seconds
           period_seconds        = var.health_check_config.period_seconds
           failure_threshold     = var.health_check_config.failure_threshold
-          http_get {
-            path = var.health_check_config.path
-            port = var.container_port
+
+          dynamic "http_get" {
+            for_each = upper(var.health_check_config.type) == "HTTP" ? [1] : []
+            content {
+              path = var.health_check_config.path
+              port = var.container_port
+            }
+          }
+
+          dynamic "tcp_socket" {
+            for_each = upper(var.health_check_config.type) == "TCP" ? [1] : []
+            content {
+              port = var.container_port
+            }
           }
         }
       }
