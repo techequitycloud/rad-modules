@@ -547,7 +547,7 @@ variable "health_check_config" {
     failure_threshold     = optional(number, 3)
   })
   default = {
-    enabled = true
+    enabled = false
     path    = "/"
   }
 }
@@ -563,7 +563,7 @@ variable "startup_probe_config" {
     failure_threshold     = optional(number, 1)
   })
   default = {
-    enabled = true
+    enabled = false
     path    = "/"
   }
 }
