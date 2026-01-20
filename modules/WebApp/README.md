@@ -299,9 +299,10 @@ module "webapp" {
   container_port = 3000
 
   # GitHub Integration for CI/CD
-  enable_cicd_trigger      = true
-  github_repository_url    = "https://github.com/myorg/nodejs-app"
-  github_token_secret_name = "github-token"  # Secret must exist in Secret Manager
+  enable_cicd_trigger        = true
+  github_repository_url      = "https://github.com/myorg/nodejs-app"
+  github_token_secret_name   = "github-token"  # Must exist in Secret Manager
+  github_app_installation_id = "12345678"      # Your GitHub App installation ID
 
   cicd_trigger_config = {
     branch_pattern = "^main$"  # Trigger on pushes to main branch
@@ -341,7 +342,12 @@ module "webapp" {
 
 To enable CI/CD with GitHub integration:
 
-1. **Create GitHub Personal Access Token**:
+1. **Install GitHub App**:
+   - Go to your GitHub repository settings
+   - Install the Google Cloud Build GitHub App
+   - Note the installation ID from the URL (e.g., `https://github.com/settings/installations/{installation_id}`)
+
+2. **Create GitHub Personal Access Token**:
    - Go to GitHub Settings > Developer Settings > Personal Access Tokens
    - Create a token with `repo` and `read:packages` scopes
    - Store the token in Secret Manager:
@@ -351,18 +357,19 @@ To enable CI/CD with GitHub integration:
        --data-file=-
      ```
 
-2. **Configure the Module** with CI/CD variables:
+3. **Configure the Module** with CI/CD variables:
    - `enable_cicd_trigger = true`
    - `github_repository_url` - Your repository URL
-   - `github_token_secret_name` - Name of secret in Secret Manager
+   - `github_token_secret_name` - Name of secret in Secret Manager (default: "github-token")
+   - `github_app_installation_id` - GitHub App installation ID from step 1
 
-3. **Deploy the Infrastructure**:
+4. **Deploy the Infrastructure**:
    ```bash
    terraform init
    terraform apply
    ```
 
-4. **Push to GitHub**: The CI/CD pipeline will automatically:
+5. **Push to GitHub**: The CI/CD pipeline will automatically:
    - Build your Docker container from the repository
    - Push the image to Artifact Registry
    - Deploy the new version to Cloud Run
@@ -437,7 +444,8 @@ After deployment, outputs include:
 |------|------|---------|-------------|
 | `enable_cicd_trigger` | bool | false | Enable automated Cloud Build trigger for CI/CD |
 | `github_repository_url` | string | null | GitHub repository URL (e.g., "https://github.com/owner/repo") |
-| `github_token_secret_name` | string | null | Name of secret in Secret Manager containing GitHub token |
+| `github_token_secret_name` | string | "github-token" | Name of secret in Secret Manager containing GitHub token |
+| `github_app_installation_id` | string | null | GitHub App installation ID from Cloud Build GitHub App |
 | `cicd_trigger_config` | object | See below | Cloud Build trigger configuration |
 
 #### CI/CD Trigger Config Object

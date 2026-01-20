@@ -36,7 +36,7 @@ resource "google_cloudbuildv2_connection" "github_connection" {
   name     = "${local.tenant_id}-${local.deployment_id}-${local.application_name}-github-conn"
 
   github_config {
-    app_installation_id = null # Will use GitHub App installation
+    app_installation_id = var.github_app_installation_id
 
     dynamic "authorizer_credential" {
       for_each = local.github_token_secret != null ? [1] : []
