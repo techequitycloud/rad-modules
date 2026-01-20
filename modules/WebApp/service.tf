@@ -183,9 +183,9 @@ resource "google_cloud_run_v2_service" "app_service" {
       # Static environment variables
       dynamic "env" {
         for_each = merge(
-          local.static_env_vars,
-          # Add database host if SQL server exists
-          local.sql_server_exists ? { DB_HOST = local.db_internal_ip } : {}
+          # Default database host (can be overridden by static_env_vars)
+          local.sql_server_exists ? { DB_HOST = local.db_internal_ip } : {},
+          local.static_env_vars
         )
         content {
           name  = env.key

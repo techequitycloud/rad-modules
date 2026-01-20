@@ -94,11 +94,14 @@ locals {
   # Preset Selection Logic
   #########################################################################
 
-  # Determine if using a preset
-  using_module = var.application_module != null && var.application_module != ""
+  # Determine effective preset (prefer application_module, fallback to deploy_app_preset)
+  effective_preset = coalesce(var.application_module, var.deploy_app_preset, "custom")
+
+  # Determine if using a preset (anything other than custom)
+  using_module = local.effective_preset != "custom"
 
   # Get selected preset configuration
-  selected_module = local.using_module ? lookup(local.application_modules, var.application_module, null) : null
+  selected_module = local.using_module ? lookup(local.application_modules, local.effective_preset, null) : null
 
   # Validation: Ensure preset exists if specified
   module_exists = !local.using_module || local.selected_module != null
@@ -121,22 +124,35 @@ locals {
   # GCS volumes configuration
   module_gcs_volumes_raw = local.using_module && local.selected_module != null ? local.selected_module.gcs_volumes : []
 
-  # Process GCS volumes - replace placeholders
+  # Process GCS volumes - replace placeholders and normalize schema
   module_gcs_volumes = [
-    for vol in local.module_gcs_volumes_raw : {
-      bucket     = replace(replace(vol.bucket, "$${tenant_id}", var.tenant_deployment_id), "$${deployment_id}", var.deployment_id != null ? var.deployment_id : "default")
-      mount_path = vol.mount_path
-      read_only  = vol.read_only
+    for idx, vol in local.module_gcs_volumes_raw : {
+      name          = lookup(vol, "name", "volume-${idx}")
+      bucket_name   = replace(replace(lookup(vol, "bucket_name", lookup(vol, "bucket", "")), "$${tenant_id}", var.tenant_deployment_id), "$${deployment_id}", var.deployment_id != null ? var.deployment_id : "default")
+      mount_path    = vol.mount_path
+      readonly      = lookup(vol, "readonly", lookup(vol, "read_only", false))
+      mount_options = lookup(vol, "mount_options", ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"])
     }
   ]
+
+  # NFS configuration
+  module_nfs_enabled    = local.using_module && local.selected_module != null ? lookup(local.selected_module, "nfs_enabled", null) : null
+  module_nfs_mount_path = local.using_module && local.selected_module != null ? lookup(local.selected_module, "nfs_mount_path", null) : null
 
   # Resource limits
   module_container_resources = local.using_module && local.selected_module != null ? local.selected_module.container_resources : null
   module_min_instance_count  = local.using_module && local.selected_module != null ? local.selected_module.min_instance_count : null
   module_max_instance_count  = local.using_module && local.selected_module != null ? local.selected_module.max_instance_count : null
 
+  # Probes
+  module_startup_probe_config = local.using_module && local.selected_module != null ? lookup(local.selected_module, "startup_probe_config", null) : null
+  module_health_check_config  = local.using_module && local.selected_module != null ? lookup(local.selected_module, "health_check_config", null) : null
+
   # Environment variables from preset
   module_environment_variables = local.using_module && local.selected_module != null ? local.selected_module.environment_variables : {}
+
+  # Initialization jobs from preset
+  module_initialization_jobs = local.using_module && local.selected_module != null ? lookup(local.selected_module, "initialization_jobs", []) : []
 
   # PostgreSQL extensions
   module_enable_postgres_extensions = local.using_module && local.selected_module != null ? lookup(local.selected_module, "enable_postgres_extensions", null) : null
@@ -165,6 +181,10 @@ locals {
   # GCS volumes - use preset if manual is empty
   final_gcs_volumes = length(var.gcs_volumes) > 0 ? var.gcs_volumes : local.module_gcs_volumes
 
+  # NFS configuration - default to true if using module and not specified (matches legacy behavior), or false if explicitly set to false in module
+  final_nfs_enabled    = var.nfs_enabled != null ? var.nfs_enabled : coalesce(local.module_nfs_enabled, true)
+  final_nfs_mount_path = var.nfs_mount_path != null ? var.nfs_mount_path : coalesce(local.module_nfs_mount_path, "/mnt")
+
   # Resource limits - use preset if manual is default
   final_container_resources = (
     var.container_resources.cpu_limit != "1000m" || var.container_resources.memory_limit != "512Mi"
@@ -174,10 +194,33 @@ locals {
   final_min_instance_count = var.min_instance_count != 0 ? var.min_instance_count : coalesce(local.module_min_instance_count, 0)
   final_max_instance_count = var.max_instance_count != 3 ? var.max_instance_count : coalesce(local.module_max_instance_count, 3)
 
+  # Probes
+  final_startup_probe_config = var.startup_probe_config != null ? var.startup_probe_config : coalesce(local.module_startup_probe_config, {
+    enabled               = true
+    type                  = "TCP"
+    path                  = "/"
+    initial_delay_seconds = 0
+    timeout_seconds       = 240
+    period_seconds        = 240
+    failure_threshold     = 1
+  })
+
+  final_health_check_config = var.health_check_config != null ? var.health_check_config : coalesce(local.module_health_check_config, {
+    enabled               = false
+    type                  = "HTTP"
+    path                  = "/"
+  })
+
   # Environment variables - merge preset and manual (manual takes precedence)
   final_environment_variables = merge(
     local.module_environment_variables,
     var.environment_variables
+  )
+
+  # Initialization jobs - concat preset and manual
+  final_initialization_jobs = concat(
+    local.module_initialization_jobs,
+    var.initialization_jobs
   )
 
   # PostgreSQL extensions
