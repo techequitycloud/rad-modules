@@ -45,7 +45,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
     template {
       service_account       = local.cloud_run_sa_email
       max_retries           = 0
-      timeout               = "120s"
+      timeout               = "360s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
