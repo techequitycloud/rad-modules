@@ -5,7 +5,7 @@ locals {
   moodle_module = {
     app_name        = "moodle"
     description     = "Moodle LMS - Online learning and course management platform"
-    container_image = "moodle:4.3-apache"
+    container_image = "moodle:5.0.0"
     image_source    = "prebuilt"
     container_port  = 80
     database_type   = "MYSQL_8_0"
