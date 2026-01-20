@@ -7,10 +7,14 @@
 
 locals {
   wordpress_module = {
+    app_name        = "wordpress"
     description     = "WordPress CMS - Popular content management system for websites and blogs"
     container_image = "wordpress:6.8.1-apache"
+    image_source    = "prebuilt"
     container_port  = 80
     database_type   = "MYSQL_8_0"
+    db_name         = "wordpress_db"
+    db_user         = "wordpress_user"
 
     # Performance optimization
     enable_cloudsql_volume     = true
@@ -19,8 +23,9 @@ locals {
     # Storage volumes
     gcs_volumes = [{
       bucket     = "$${tenant_id}-wp-uploads"
-      mount_path = "/var/www/html/wp-content/uploads"
+      mount_path = "/var/www/html/wp-content" # Note: Changed from wp-content/uploads to wp-content to match preset
       read_only  = false
+      mount_options = ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"]
     }]
 
     # Resource limits
@@ -41,6 +46,25 @@ locals {
     # MySQL plugins
     enable_mysql_plugins = false
     mysql_plugins        = []
+
+    startup_probe = {
+      enabled               = true
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 240
+      timeout_seconds       = 60
+      period_seconds        = 240
+      failure_threshold     = 1
+    }
+    liveness_probe = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/wp-admin/install.php"
+      initial_delay_seconds = 300
+      timeout_seconds       = 60
+      period_seconds        = 60
+      failure_threshold     = 3
+    }
   }
 }
 

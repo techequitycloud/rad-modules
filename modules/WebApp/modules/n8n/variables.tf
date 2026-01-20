@@ -3,10 +3,14 @@
 
 locals {
   n8n_module = {
+    app_name        = "n8n"
     description     = "n8n Workflow Automation - Workflow automation platform"
     container_image = "n8nio/n8n:latest"
+    image_source    = "prebuilt"
     container_port  = 5678
     database_type   = "POSTGRES_15"
+    db_name         = "n8n_db"
+    db_user         = "n8n_user"
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
     gcs_volumes = [{
@@ -15,11 +19,11 @@ locals {
       read_only  = false
     }]
     container_resources = {
-      cpu_limit    = "2000m"
-      memory_limit = "4Gi"
+      cpu_limit    = "1000m"
+      memory_limit = "2Gi"
     }
     min_instance_count = 1
-    max_instance_count = 10
+    max_instance_count = 1
     environment_variables = {
       DB_TYPE                          = "postgresdb"
       DB_POSTGRESDB_PORT               = "5432"
@@ -31,6 +35,25 @@ locals {
     }
     enable_postgres_extensions = false
     postgres_extensions         = []
+
+    startup_probe = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/"
+      initial_delay_seconds = 10
+      timeout_seconds       = 3
+      period_seconds        = 10
+      failure_threshold     = 3
+    }
+    liveness_probe = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/"
+      initial_delay_seconds = 30
+      timeout_seconds       = 5
+      period_seconds        = 30
+      failure_threshold     = 3
+    }
   }
 }
 

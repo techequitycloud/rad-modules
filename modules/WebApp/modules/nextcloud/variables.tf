@@ -3,12 +3,18 @@
 
 locals {
   nextcloud_module = {
+    app_name        = "nextcloud"
     description     = "Nextcloud File Sync and Share - Self-hosted collaboration platform"
     container_image = "nextcloud:28-apache"
+    image_source    = "prebuilt"
     container_port  = 80
     database_type   = "POSTGRES_15"
+    db_name         = "nextcloud_db"
+    db_user         = "nextcloud_user"
+
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/var/run/postgresql"
+
     gcs_volumes = [
       {
         bucket     = "$${tenant_id}-nextcloud-data"
@@ -32,6 +38,25 @@ locals {
     }
     enable_postgres_extensions = false
     postgres_extensions         = []
+
+    startup_probe = {
+      enabled               = true
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 60
+      timeout_seconds       = 30
+      period_seconds        = 60
+      failure_threshold     = 3
+    }
+    liveness_probe = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/status.php"
+      initial_delay_seconds = 60
+      timeout_seconds       = 5
+      period_seconds        = 60
+      failure_threshold     = 3
+    }
   }
 }
 
