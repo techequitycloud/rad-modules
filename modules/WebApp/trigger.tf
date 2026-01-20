@@ -36,7 +36,7 @@ resource "google_cloudbuildv2_connection" "github_connection" {
   name     = "${local.tenant_id}-${local.deployment_id}-${local.application_name}-github-conn"
 
   github_config {
-    app_installation_id = null # Will use GitHub App installation
+    app_installation_id = var.github_app_installation_id != null ? tonumber(var.github_app_installation_id) : null
 
     dynamic "authorizer_credential" {
       for_each = local.github_token_secret != null ? [1] : []
@@ -56,7 +56,7 @@ resource "google_cloudbuildv2_connection" "github_connection" {
 resource "time_sleep" "wait_for_github_connection" {
   count = local.enable_cicd_trigger ? 1 : 0
 
-  create_duration = "300s"
+  create_duration = var.github_app_installation_id != null ? "10s" : "300s"
 
   depends_on = [
     google_cloudbuildv2_connection.github_connection
