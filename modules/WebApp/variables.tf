@@ -211,7 +211,7 @@ variable "tenant_deployment_id" {
 }
 
 variable "deployment_region" {
-  description = "Primary deployment region for your application (e.g., us-central1, europe-west1). {{UIMeta group=2 order=202 updatesafe }}"
+  description = "Primary deployment region for your application (e.g., us-central1, europe-west1). {{UIMeta group=0 order=202 updatesafe }}"
   type        = string
   default     = "us-central1"
 }
@@ -234,7 +234,7 @@ variable "application_module" {
 }
 
 variable "application_name" {
-  description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=3 order=300 updatesafe }}"
+  description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=0 order=300 updatesafe }}"
   type        = string
   default     = null
 
@@ -245,25 +245,25 @@ variable "application_name" {
 }
 
 variable "application_display_name" {
-  description = "Human-readable application name for display purposes. {{UIMeta group=3 order=301 updatesafe }}"
+  description = "Human-readable application name for display purposes. {{UIMeta group=0 order=301 updatesafe }}"
   type        = string
   default     = null
 }
 
 variable "application_version" {
-  description = "Application version tag (e.g., 1.0.0, latest). {{UIMeta group=3 order=302 updatesafe }}"
+  description = "Application version tag (e.g., 1.0.0, latest). {{UIMeta group=0 order=302 updatesafe }}"
   type        = string
   default     = "latest"
 }
 
 variable "application_description" {
-  description = "Brief description of your application. {{UIMeta group=3 order=303 updatesafe }}"
+  description = "Brief description of your application. {{UIMeta group=0 order=303 updatesafe }}"
   type        = string
   default     = ""
 }
 
 variable "application_database_name" {
-  description = "Application database name. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-63 characters). The actual database name includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=3 order=304 updatesafe }}"
+  description = "Application database name. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-63 characters). The actual database name includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=304 updatesafe }}"
   type        = string
   default     = null
 
@@ -274,7 +274,7 @@ variable "application_database_name" {
 }
 
 variable "application_database_user" {
-  description = "Application database user. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-32 characters). The actual database user includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=3 order=305 updatesafe }}"
+  description = "Application database user. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-32 characters). The actual database user includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=305 updatesafe }}"
   type        = string
   default     = null
 
@@ -289,7 +289,7 @@ variable "application_database_user" {
 # ===========================
 
 variable "container_image_source" {
-  description = "Container image source: 'prebuilt' (use existing image from registry) or 'custom' (build from Dockerfile). {{UIMeta group=4 order=400 updatesafe }}"
+  description = "Container image source: 'prebuilt' (use existing image from registry) or 'custom' (build from Dockerfile). {{UIMeta group=0 order=400 updatesafe }}"
   type        = string
   default     = null
 
@@ -300,13 +300,13 @@ variable "container_image_source" {
 }
 
 variable "container_image" {
-  description = "Pre-built container image (e.g., 'nginx:latest', 'gcr.io/project/app:v1'). Required when container_image_source='prebuilt' unless using an application_module. {{UIMeta group=4 order=401 updatesafe }}"
+  description = "Pre-built container image (e.g., 'nginx:latest', 'gcr.io/project/app:v1'). Required when container_image_source='prebuilt' unless using an application_module. {{UIMeta group=0 order=401 updatesafe }}"
   type        = string
   default     = ""
 }
 
 variable "container_port" {
-  description = "Container port to expose (1-65535). {{UIMeta group=4 order=402 updatesafe }}"
+  description = "Container port to expose (1-65535). {{UIMeta group=0 order=402 updatesafe }}"
   type        = number
   default     = null
 
@@ -317,7 +317,7 @@ variable "container_port" {
 }
 
 variable "container_protocol" {
-  description = "Container protocol: 'http1' or 'h2c' (HTTP/2 Cleartext). {{UIMeta group=4 order=403 updatesafe }}"
+  description = "Container protocol: 'http1' or 'h2c' (HTTP/2 Cleartext). {{UIMeta group=0 order=403 updatesafe }}"
   type        = string
   default     = "http1"
 
@@ -328,7 +328,7 @@ variable "container_protocol" {
 }
 
 variable "container_build_config" {
-  description = "Custom container build configuration. Required when container_image_source='custom'. Provide Dockerfile path or content, build context, and optional build arguments. {{UIMeta group=4 order=404 updatesafe }}"
+  description = "Custom container build configuration. Required when container_image_source='custom'. Provide Dockerfile path or content, build context, and optional build arguments. {{UIMeta group=0 order=404 updatesafe }}"
   type = object({
     enabled            = bool
     dockerfile_path    = optional(string, "Dockerfile")
@@ -343,31 +343,31 @@ variable "container_build_config" {
 }
 
 variable "github_repository_url" {
-  description = "GitHub repository URL for automated CI/CD (e.g., 'https://github.com/username/repo'). Required when using Cloud Build triggers for automated deployments. {{UIMeta group=4 order=405 updatesafe }}"
+  description = "GitHub repository URL for automated CI/CD (e.g., 'https://github.com/username/repo'). Required when using Cloud Build triggers for automated deployments. {{UIMeta group=0 order=405 updatesafe }}"
   type        = string
   default     = null
 }
 
 variable "github_token_secret_name" {
-  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. To generate: https://github.com/settings/tokens -> Generate new token (classic). Scopes: repo, admin:repo_hook, workflow, read:org. {{UIMeta group=4 order=406 updatesafe }}"
+  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. To generate: https://github.com/settings/tokens -> Generate new token (classic). Scopes: repo, admin:repo_hook, workflow, read:org. {{UIMeta group=0 order=406 updatesafe }}"
   type        = string
   default     = "github-token"
 }
 
 variable "github_app_installation_id" {
-  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. To find ID: https://github.com/settings/installations -> Configure. ID is at the end of the URL. {{UIMeta group=4 order=407 updatesafe }}"
+  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. To find ID: https://github.com/settings/installations -> Configure. ID is at the end of the URL. {{UIMeta group=0 order=407 updatesafe }}"
   type        = string
   default     = null
 }
 
 variable "enable_cicd_trigger" {
-  description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=4 order=408 updatesafe }}"
+  description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=0 order=408 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "cicd_trigger_config" {
-  description = "Cloud Build trigger configuration for automated CI/CD pipeline. Configure branch patterns, included/ignored files, and build settings. {{UIMeta group=4 order=409 updatesafe }}"
+  description = "Cloud Build trigger configuration for automated CI/CD pipeline. Configure branch patterns, included/ignored files, and build settings. {{UIMeta group=0 order=409 updatesafe }}"
   type = object({
     branch_pattern     = optional(string, "^main$")
     included_files     = optional(list(string), [])
@@ -387,7 +387,7 @@ variable "cicd_trigger_config" {
 # ===========================
 
 variable "database_type" {
-  description = "Database type: MYSQL, POSTGRES, SQLSERVER (or specific versions like MYSQL_8_0, POSTGRES_15). {{UIMeta group=5 order=500 updatesafe }}"
+  description = "Database type: MYSQL, POSTGRES, SQLSERVER (or specific versions like MYSQL_8_0, POSTGRES_15). {{UIMeta group=0 order=500 updatesafe }}"
   type        = string
   default     = null
 
@@ -398,7 +398,7 @@ variable "database_type" {
 }
 
 variable "database_password_length" {
-  description = "Length of auto-generated database password (8-64 characters). {{UIMeta group=5 order=501 updatesafe }}"
+  description = "Length of auto-generated database password (8-64 characters). {{UIMeta group=0 order=501 updatesafe }}"
   type        = number
   default     = 16
 
@@ -409,7 +409,7 @@ variable "database_password_length" {
 }
 
 variable "database_flags" {
-  description = "Additional database flags as key-value pairs (e.g., {max_connections='100'}). {{UIMeta group=5 order=502 updatesafe }}"
+  description = "Additional database flags as key-value pairs (e.g., {max_connections='100'}). {{UIMeta group=0 order=502 updatesafe }}"
   type        = map(string)
   default     = {}
 }
@@ -419,7 +419,7 @@ variable "database_flags" {
 # ===========================
 
 variable "container_resources" {
-  description = "Container resource limits. Specify CPU (e.g., '1000m' for 1 CPU) and memory (e.g., '512Mi', '2Gi'). {{UIMeta group=6 order=600 updatesafe }}"
+  description = "Container resource limits. Specify CPU (e.g., '1000m' for 1 CPU) and memory (e.g., '512Mi', '2Gi'). {{UIMeta group=0 order=600 updatesafe }}"
   type = object({
     cpu_limit    = string
     memory_limit = string
@@ -430,7 +430,7 @@ variable "container_resources" {
 }
 
 variable "container_concurrency" {
-  description = "Maximum concurrent requests per container (0-1000). Set to 0 for unlimited. {{UIMeta group=6 order=601 updatesafe }}"
+  description = "Maximum concurrent requests per container (0-1000). Set to 0 for unlimited. {{UIMeta group=0 order=601 updatesafe }}"
   type        = number
   default     = 80
 
@@ -441,7 +441,7 @@ variable "container_concurrency" {
 }
 
 variable "timeout_seconds" {
-  description = "Request timeout in seconds (0-3600). Maximum time a request can take. {{UIMeta group=6 order=602 updatesafe }}"
+  description = "Request timeout in seconds (0-3600). Maximum time a request can take. {{UIMeta group=0 order=602 updatesafe }}"
   type        = number
   default     = 300
 
@@ -452,7 +452,7 @@ variable "timeout_seconds" {
 }
 
 variable "min_instance_count" {
-  description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=6 order=603 updatesafe }}"
+  description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=0 order=603 updatesafe }}"
   type        = number
   default     = null
 
@@ -463,7 +463,7 @@ variable "min_instance_count" {
 }
 
 variable "max_instance_count" {
-  description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=6 order=604 updatesafe }}"
+  description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=0 order=604 updatesafe }}"
   type        = number
   default     = null
 
@@ -474,7 +474,7 @@ variable "max_instance_count" {
 }
 
 variable "max_instance_request_concurrency" {
-  description = "Maximum concurrent requests per instance (1-1000). {{UIMeta group=6 order=605 updatesafe }}"
+  description = "Maximum concurrent requests per instance (1-1000). {{UIMeta group=0 order=605 updatesafe }}"
   type        = number
   default     = 80
 
@@ -489,7 +489,7 @@ variable "max_instance_request_concurrency" {
 # ===========================
 
 variable "storage_buckets" {
-  description = "Cloud Storage buckets to create. Specify name suffix, location (e.g., 'US', 'EU'), storage class, versioning, and lifecycle rules. {{UIMeta group=7 order=700 updatesafe }}"
+  description = "Cloud Storage buckets to create. Specify name suffix, location (e.g., 'US', 'EU'), storage class, versioning, and lifecycle rules. {{UIMeta group=0 order=700 updatesafe }}"
   type = list(object({
     name_suffix              = string
     location                 = optional(string, "EU")
@@ -508,19 +508,19 @@ variable "storage_buckets" {
 }
 
 variable "nfs_enabled" {
-  description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=7 order=701 updatesafe }}"
+  description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=0 order=701 updatesafe }}"
   type        = bool
   default     = null
 }
 
 variable "nfs_mount_path" {
-  description = "NFS mount path in container (e.g., '/mnt', '/data'). {{UIMeta group=7 order=702 updatesafe }}"
+  description = "NFS mount path in container (e.g., '/mnt', '/data'). {{UIMeta group=0 order=702 updatesafe }}"
   type        = string
   default     = null
 }
 
 variable "gcs_volumes" {
-  description = "GCS FUSE volume mounts. Specify volume name, bucket name (null for auto-created), mount path, readonly mode, and mount options. {{UIMeta group=7 order=703 updatesafe }}"
+  description = "GCS FUSE volume mounts. Specify volume name, bucket name (null for auto-created), mount path, readonly mode, and mount options. {{UIMeta group=0 order=703 updatesafe }}"
   type = list(object({
     name        = string
     bucket_name = optional(string, null)
@@ -536,7 +536,7 @@ variable "gcs_volumes" {
 }
 
 variable "custom_volumes" {
-  description = "Additional custom volume mounts (advanced). {{UIMeta group=7 order=704 updatesafe }}"
+  description = "Additional custom volume mounts (advanced). {{UIMeta group=0 order=704 updatesafe }}"
   type = list(object({
     name       = string
     mount_path = string
@@ -547,13 +547,13 @@ variable "custom_volumes" {
 }
 
 variable "enable_cloudsql_volume" {
-  description = "Enable Cloud SQL instance volume for Unix socket connections. When enabled, the Cloud SQL instance will be mounted as a volume, allowing connections via Unix socket instead of TCP/IP. {{UIMeta group=7 order=705 updatesafe }}"
+  description = "Enable Cloud SQL instance volume for Unix socket connections. When enabled, the Cloud SQL instance will be mounted as a volume, allowing connections via Unix socket instead of TCP/IP. {{UIMeta group=0 order=705 updatesafe }}"
   type        = bool
   default     = null
 }
 
 variable "cloudsql_volume_mount_path" {
-  description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=7 order=706 updatesafe }}"
+  description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=0 order=706 updatesafe }}"
   type        = string
   default     = null
 }
@@ -563,13 +563,13 @@ variable "cloudsql_volume_mount_path" {
 # ===========================
 
 variable "environment_variables" {
-  description = "Static environment variables for the application as key-value pairs (e.g., {APP_ENV='production', LOG_LEVEL='info'}). {{UIMeta group=8 order=800 updatesafe }}"
+  description = "Static environment variables for the application as key-value pairs (e.g., {APP_ENV='production', LOG_LEVEL='info'}). {{UIMeta group=0 order=800 updatesafe }}"
   type        = map(string)
   default     = {}
 }
 
 variable "secret_environment_variables" {
-  description = "Environment variables from Secret Manager. Map environment variable name to Secret Manager secret name (e.g., {API_KEY='my-api-key-secret'}). {{UIMeta group=8 order=801 updatesafe }}"
+  description = "Environment variables from Secret Manager. Map environment variable name to Secret Manager secret name (e.g., {API_KEY='my-api-key-secret'}). {{UIMeta group=0 order=801 updatesafe }}"
   type        = map(string)
   default     = {}
 }
@@ -579,7 +579,7 @@ variable "secret_environment_variables" {
 # ===========================
 
 variable "health_check_config" {
-  description = "Liveness probe configuration. Checks if the application is running and restarts if unhealthy. {{UIMeta group=9 order=900 updatesafe }}"
+  description = "Liveness probe configuration. Checks if the application is running and restarts if unhealthy. {{UIMeta group=0 order=900 updatesafe }}"
   type = object({
     enabled               = bool
     type                  = optional(string, "HTTP")
@@ -593,7 +593,7 @@ variable "health_check_config" {
 }
 
 variable "startup_probe_config" {
-  description = "Startup probe configuration. Checks if the application has started successfully before accepting traffic. {{UIMeta group=9 order=901 updatesafe }}"
+  description = "Startup probe configuration. Checks if the application has started successfully before accepting traffic. {{UIMeta group=0 order=901 updatesafe }}"
   type = object({
     enabled               = bool
     type                  = optional(string, "TCP")
@@ -611,13 +611,13 @@ variable "startup_probe_config" {
 # ===========================
 
 variable "trusted_users" {
-  description = "Email addresses for monitoring alerts and notifications (e.g., ['admin@example.com', 'ops@example.com']). {{UIMeta group=10 order=1000 updatesafe }}"
+  description = "Email addresses for monitoring alerts and notifications (e.g., ['admin@example.com', 'ops@example.com']). {{UIMeta group=0 order=1000 updatesafe }}"
   type        = list(string)
   default     = []
 }
 
 variable "uptime_check_config" {
-  description = "Uptime check configuration. Monitors service availability and sends alerts on failures. {{UIMeta group=10 order=1001 updatesafe }}"
+  description = "Uptime check configuration. Monitors service availability and sends alerts on failures. {{UIMeta group=0 order=1001 updatesafe }}"
   type = object({
     enabled        = bool
     path           = optional(string, "/")
@@ -631,7 +631,7 @@ variable "uptime_check_config" {
 }
 
 variable "alert_policies" {
-  description = "Custom alert policies. Define metric-based alerts for your application (e.g., error rates, latency). {{UIMeta group=10 order=1002 updatesafe }}"
+  description = "Custom alert policies. Define metric-based alerts for your application (e.g., error rates, latency). {{UIMeta group=0 order=1002 updatesafe }}"
   type = list(object({
     name               = string
     metric_type        = string
@@ -648,7 +648,7 @@ variable "alert_policies" {
 # ===========================
 
 variable "initialization_jobs" {
-  description = "Cloud Run jobs for initialization tasks (e.g., database migrations, data seeding). Jobs can mount NFS/GCS volumes and access secrets. {{UIMeta group=11 order=1100 updatesafe }}"
+  description = "Cloud Run jobs for initialization tasks (e.g., database migrations, data seeding). Jobs can mount NFS/GCS volumes and access secrets. {{UIMeta group=0 order=1100 updatesafe }}"
   type = list(object({
     name              = string
     description       = optional(string, "")
@@ -677,13 +677,13 @@ variable "initialization_jobs" {
 # ===========================
 
 variable "enable_postgres_extensions" {
-  description = "Enable automatic installation of PostgreSQL extensions. Only applicable when using PostgreSQL databases. {{UIMeta group=13 order=1300 updatesafe }}"
+  description = "Enable automatic installation of PostgreSQL extensions. Only applicable when using PostgreSQL databases. {{UIMeta group=0 order=1300 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "postgres_extensions" {
-  description = "List of PostgreSQL extensions to install (e.g., ['postgis', 'uuid-ossp', 'pg_trgm']). Common extensions: postgis, cube, earthdistance, unaccent, pg_stat_statements, uuid-ossp, pg_trgm. {{UIMeta group=13 order=1301 updatesafe }}"
+  description = "List of PostgreSQL extensions to install (e.g., ['postgis', 'uuid-ossp', 'pg_trgm']). Common extensions: postgis, cube, earthdistance, unaccent, pg_stat_statements, uuid-ossp, pg_trgm. {{UIMeta group=0 order=1301 updatesafe }}"
   type        = list(string)
   default     = []
 
@@ -695,13 +695,13 @@ variable "postgres_extensions" {
 
 # Unified Backup Import Configuration (Recommended)
 variable "enable_backup_import" {
-  description = "Enable automatic import of database backup during deployment. Use backup_source to specify Google Drive or Google Cloud Storage. {{UIMeta group=13 order=1302 updatesafe }}"
+  description = "Enable automatic import of database backup during deployment. Use backup_source to specify Google Drive or Google Cloud Storage. {{UIMeta group=0 order=1302 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "backup_source" {
-  description = "Backup source: 'gdrive' (Google Drive) or 'gcs' (Google Cloud Storage). GCS is recommended for production due to better security and performance. {{UIMeta group=13 order=1303 updatesafe }}"
+  description = "Backup source: 'gdrive' (Google Drive) or 'gcs' (Google Cloud Storage). GCS is recommended for production due to better security and performance. {{UIMeta group=0 order=1303 updatesafe }}"
   type        = string
   default     = "gcs"
 
@@ -712,13 +712,13 @@ variable "backup_source" {
 }
 
 variable "backup_uri" {
-  description = "Backup URI. For GCS: full URI like 'gs://bucket/path/backup.sql'. For Google Drive: file ID from URL 'https://drive.google.com/file/d/FILE_ID/view'. {{UIMeta group=13 order=1304 updatesafe }}"
+  description = "Backup URI. For GCS: full URI like 'gs://bucket/path/backup.sql'. For Google Drive: file ID from URL 'https://drive.google.com/file/d/FILE_ID/view'. {{UIMeta group=0 order=1304 updatesafe }}"
   type        = string
   default     = ""
 }
 
 variable "backup_format" {
-  description = "Backup file format. For GCS: 'sql', 'tar', 'gz', 'tgz', 'tar.gz', 'zip'. For Google Drive: 'sql', 'tar', 'zip'. {{UIMeta group=13 order=1305 updatesafe }}"
+  description = "Backup file format. For GCS: 'sql', 'tar', 'gz', 'tgz', 'tar.gz', 'zip'. For Google Drive: 'sql', 'tar', 'zip'. {{UIMeta group=0 order=1305 updatesafe }}"
   type        = string
   default     = "sql"
 
@@ -730,19 +730,19 @@ variable "backup_format" {
 
 # Legacy Variables (Deprecated - Use unified variables above)
 variable "enable_gdrive_backup_import" {
-  description = "DEPRECATED: Use enable_backup_import with backup_source='gdrive' instead. Enable automatic import of database backup from Google Drive. {{UIMeta group=13 order=1320 updatesafe }}"
+  description = "DEPRECATED: Use enable_backup_import with backup_source='gdrive' instead. Enable automatic import of database backup from Google Drive. {{UIMeta group=0 order=1320 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "gdrive_backup_file_id" {
-  description = "DEPRECATED: Use backup_uri instead. Google Drive file ID of the backup to import. {{UIMeta group=13 order=1321 updatesafe }}"
+  description = "DEPRECATED: Use backup_uri instead. Google Drive file ID of the backup to import. {{UIMeta group=0 order=1321 updatesafe }}"
   type        = string
   default     = ""
 }
 
 variable "gdrive_backup_format" {
-  description = "DEPRECATED: Use backup_format instead. Backup file format for Google Drive. {{UIMeta group=13 order=1322 updatesafe }}"
+  description = "DEPRECATED: Use backup_format instead. Backup file format for Google Drive. {{UIMeta group=0 order=1322 updatesafe }}"
   type        = string
   default     = "sql"
 
@@ -753,19 +753,19 @@ variable "gdrive_backup_format" {
 }
 
 variable "enable_gcs_backup_import" {
-  description = "DEPRECATED: Use enable_backup_import with backup_source='gcs' instead. Enable automatic import of database backup from Google Cloud Storage. {{UIMeta group=13 order=1323 updatesafe }}"
+  description = "DEPRECATED: Use enable_backup_import with backup_source='gcs' instead. Enable automatic import of database backup from Google Cloud Storage. {{UIMeta group=0 order=1323 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "gcs_backup_uri" {
-  description = "DEPRECATED: Use backup_uri instead. Google Cloud Storage URI of the backup to import. {{UIMeta group=13 order=1324 updatesafe }}"
+  description = "DEPRECATED: Use backup_uri instead. Google Cloud Storage URI of the backup to import. {{UIMeta group=0 order=1324 updatesafe }}"
   type        = string
   default     = ""
 }
 
 variable "gcs_backup_format" {
-  description = "DEPRECATED: Use backup_format instead. Backup file format for GCS import. {{UIMeta group=13 order=1325 updatesafe }}"
+  description = "DEPRECATED: Use backup_format instead. Backup file format for GCS import. {{UIMeta group=0 order=1325 updatesafe }}"
   type        = string
   default     = "sql"
 
@@ -776,13 +776,13 @@ variable "gcs_backup_format" {
 }
 
 variable "enable_mysql_plugins" {
-  description = "Enable automatic installation of MySQL plugins and components. Only applicable when using MySQL databases. {{UIMeta group=13 order=1308 updatesafe }}"
+  description = "Enable automatic installation of MySQL plugins and components. Only applicable when using MySQL databases. {{UIMeta group=0 order=1308 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "mysql_plugins" {
-  description = "List of MySQL plugins to install (e.g., ['audit_log', 'validate_password']). Common plugins: validate_password, audit_log, clone, group_replication, authentication_ldap_simple. {{UIMeta group=13 order=1309 updatesafe }}"
+  description = "List of MySQL plugins to install (e.g., ['audit_log', 'validate_password']). Common plugins: validate_password, audit_log, clone, group_replication, authentication_ldap_simple. {{UIMeta group=0 order=1309 updatesafe }}"
   type        = list(string)
   default     = []
 
@@ -793,25 +793,25 @@ variable "mysql_plugins" {
 }
 
 variable "enable_custom_sql_scripts" {
-  description = "Enable execution of custom SQL scripts from GCS during initialization. Useful for seeding data, creating additional schemas, or running custom DDL. {{UIMeta group=13 order=1310 updatesafe }}"
+  description = "Enable execution of custom SQL scripts from GCS during initialization. Useful for seeding data, creating additional schemas, or running custom DDL. {{UIMeta group=0 order=1310 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "custom_sql_scripts_bucket" {
-  description = "GCS bucket name containing custom SQL scripts (without gs:// prefix, e.g., 'my-bucket'). Only used when enable_custom_sql_scripts is true. {{UIMeta group=13 order=1311 updatesafe }}"
+  description = "GCS bucket name containing custom SQL scripts (without gs:// prefix, e.g., 'my-bucket'). Only used when enable_custom_sql_scripts is true. {{UIMeta group=0 order=1311 updatesafe }}"
   type        = string
   default     = ""
 }
 
 variable "custom_sql_scripts_path" {
-  description = "Path prefix in GCS bucket for SQL scripts (e.g., 'scripts/init/'). Scripts will be executed in alphabetical order. Name scripts with numeric prefixes for ordering (e.g., 001_schema.sql, 002_data.sql). {{UIMeta group=13 order=1312 updatesafe }}"
+  description = "Path prefix in GCS bucket for SQL scripts (e.g., 'scripts/init/'). Scripts will be executed in alphabetical order. Name scripts with numeric prefixes for ordering (e.g., 001_schema.sql, 002_data.sql). {{UIMeta group=0 order=1312 updatesafe }}"
   type        = string
   default     = ""
 }
 
 variable "custom_sql_scripts_use_root" {
-  description = "Execute custom SQL scripts as database root user instead of application user. Enable this for scripts that require elevated privileges (e.g., creating users, installing extensions). {{UIMeta group=13 order=1313 updatesafe }}"
+  description = "Execute custom SQL scripts as database root user instead of application user. Enable this for scripts that require elevated privileges (e.g., creating users, installing extensions). {{UIMeta group=0 order=1313 updatesafe }}"
   type        = bool
   default     = false
 }
@@ -821,7 +821,7 @@ variable "custom_sql_scripts_use_root" {
 # ===========================
 
 variable "vpc_egress_setting" {
-  description = "VPC egress setting: 'ALL_TRAFFIC' (route all through VPC) or 'PRIVATE_RANGES_ONLY' (only private IPs through VPC, public direct). {{UIMeta group=12 order=1200 updatesafe }}"
+  description = "VPC egress setting: 'ALL_TRAFFIC' (route all through VPC) or 'PRIVATE_RANGES_ONLY' (only private IPs through VPC, public direct). {{UIMeta group=0 order=1200 updatesafe }}"
   type        = string
   default     = "PRIVATE_RANGES_ONLY"
 
@@ -832,13 +832,13 @@ variable "vpc_egress_setting" {
 }
 
 variable "network_tags" {
-  description = "Network tags for Cloud Run service (e.g., ['nfsserver', 'web']). {{UIMeta group=12 order=1201 updatesafe }}"
+  description = "Network tags for Cloud Run service (e.g., ['nfsserver', 'web']). {{UIMeta group=0 order=1201 updatesafe }}"
   type        = list(string)
   default     = ["nfsserver"]
 }
 
 variable "ingress_settings" {
-  description = "Ingress settings: 'all' (public internet), 'internal' (VPC only), or 'internal-and-cloud-load-balancing'. {{UIMeta group=12 order=1202 updatesafe }}"
+  description = "Ingress settings: 'all' (public internet), 'internal' (VPC only), or 'internal-and-cloud-load-balancing'. {{UIMeta group=0 order=1202 updatesafe }}"
   type        = string
   default     = "all"
 
