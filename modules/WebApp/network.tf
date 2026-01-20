@@ -19,7 +19,7 @@
 data "external" "check_network" {
   program = ["bash", "-c", <<-EOT
     set -e
-    PROJECT_ID="${var.existing_project_id}"
+    PROJECT_ID="${local.existing_project_id}"
     NETWORK_NAME="${local.network_name}"
 
     # Use the pre-determined impersonation service account

@@ -18,17 +18,17 @@
 
 output "service_name" {
   description = "Name of the Cloud Run service"
-  value       = var.configure_environment ? google_cloud_run_v2_service.app_service[0].name : null
+  value       = local.configure_environment ? google_cloud_run_v2_service.app_service[0].name : null
 }
 
 output "service_url" {
   description = "URL of the Cloud Run service"
-  value       = var.configure_environment ? google_cloud_run_v2_service.app_service[0].uri : null
+  value       = local.configure_environment ? google_cloud_run_v2_service.app_service[0].uri : null
 }
 
 output "service_location" {
   description = "Location of the Cloud Run service"
-  value       = var.configure_environment ? google_cloud_run_v2_service.app_service[0].location : null
+  value       = local.configure_environment ? google_cloud_run_v2_service.app_service[0].location : null
 }
 
 #########################################################################
@@ -72,7 +72,7 @@ output "database_port" {
 
 output "storage_buckets" {
   description = "Created storage buckets"
-  value = var.create_cloud_storage ? {
+  value = local.create_cloud_storage ? {
     for key, bucket in google_storage_bucket.buckets :
     key => {
       name     = bucket.name
@@ -146,12 +146,12 @@ output "monitoring_enabled" {
 
 output "monitoring_notification_channels" {
   description = "Monitoring notification channel names"
-  value       = local.configure_monitoring && length(var.trusted_users) > 0 ? google_monitoring_notification_channel.email[*].name : []
+  value       = local.configure_monitoring && length(local.trusted_users) > 0 ? google_monitoring_notification_channel.email[*].name : []
 }
 
 output "uptime_check_names" {
   description = "Uptime check configuration names"
-  value       = local.uptime_check_enabled && var.configure_environment ? google_monitoring_uptime_check_config.https[*].name : []
+  value       = local.uptime_check_enabled && local.configure_environment ? google_monitoring_uptime_check_config.https[*].name : []
 }
 
 #########################################################################
@@ -205,10 +205,10 @@ output "deployment_summary" {
   description = "Summary of the deployment"
   value = {
     application_name    = local.application_display_name
-    service_url         = var.configure_environment ? google_cloud_run_v2_service.app_service[0].uri : null
+    service_url         = local.configure_environment ? google_cloud_run_v2_service.app_service[0].uri : null
     database_type       = local.database_type
     database_name       = local.sql_server_exists ? local.database_name_full : null
-    storage_buckets     = var.create_cloud_storage ? keys(local.storage_buckets) : []
+    storage_buckets     = local.create_cloud_storage ? keys(local.storage_buckets) : []
     nfs_enabled         = local.nfs_enabled
     monitoring_enabled  = local.configure_monitoring
     deployment_region   = local.region
@@ -267,7 +267,7 @@ output "cicd_configuration" {
     github_repo_url     = local.github_repo_url
     github_repo_owner   = local.github_repo_owner
     github_repo_name    = local.github_repo_name
-    branch_pattern      = var.cicd_trigger_config.branch_pattern
+    branch_pattern      = local.cicd_trigger_config.branch_pattern
     artifact_registry   = "${data.google_artifact_registry_repository.application_image[0].location}-docker.pkg.dev/${local.project.project_id}/${data.google_artifact_registry_repository.application_image[0].repository_id}"
     container_image_url = local.container_image
     cloudbuild_sa       = "${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"

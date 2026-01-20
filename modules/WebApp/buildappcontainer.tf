@@ -17,10 +17,10 @@
 #########################################################################
 
 resource "local_file" "app_dockerfile" {
-  count = local.enable_custom_build && var.container_build_config.dockerfile_content != null ? 1 : 0
+  count = local.enable_custom_build && local.container_build_config.dockerfile_content != null ? 1 : 0
 
-  filename = "${path.module}/scripts/${var.container_build_config.dockerfile_path}"
-  content  = var.container_build_config.dockerfile_content
+  filename = "${path.module}/scripts/app/${local.container_build_config.dockerfile_path}"
+  content  = local.container_build_config.dockerfile_content
 }
 
 #########################################################################
@@ -38,9 +38,9 @@ resource "local_file" "app_cloudbuild" {
     IMAGE_NAME    = local.application_name
     IMAGE_VERSION = local.application_version
     REPO_NAME     = local.artifact_repo_id
-    DOCKERFILE    = var.container_build_config.dockerfile_path
-    CONTEXT_PATH  = var.container_build_config.context_path
-    BUILD_ARGS    = var.container_build_config.build_args
+    DOCKERFILE    = local.container_build_config.dockerfile_path
+    CONTEXT_PATH  = local.container_build_config.context_path
+    BUILD_ARGS    = local.container_build_config.build_args
   })
 }
 
@@ -53,11 +53,11 @@ resource "null_resource" "build_and_push_application_image" {
 
   # Trigger rebuild on changes
   triggers = {
-    script_hash     = fileexists("${path.module}/scripts/build-container.sh") ? filesha256("${path.module}/scripts/build-container.sh") : timestamp()
-    dockerfile_hash = var.container_build_config.dockerfile_content != null ? sha256(var.container_build_config.dockerfile_content) : timestamp()
+    script_hash     = fileexists("${path.module}/scripts/app/build-container.sh") ? filesha256("${path.module}/scripts/app/build-container.sh") : timestamp()
+    dockerfile_hash = local.container_build_config.dockerfile_content != null ? sha256(local.container_build_config.dockerfile_content) : timestamp()
     repository_id   = data.google_artifact_registry_repository.application_image[0].repository_id
     image_tag       = local.application_version
-    build_args      = sha256(jsonencode(var.container_build_config.build_args))
+    build_args      = sha256(jsonencode(local.container_build_config.build_args))
   }
 
   provisioner "local-exec" {

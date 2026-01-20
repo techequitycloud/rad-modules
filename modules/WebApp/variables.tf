@@ -16,6 +16,23 @@
 # GROUP 0: Module Metadata & Admin Configuration
 # ===========================
 
+variable "deploy_app_preset" {
+  description = "The application preset to deploy: custom, cyclos, django, moodle, n8n, odoo, openemr, wordpress. {{UIMeta group=0 order=99 }}"
+  type        = string
+  default     = "custom"
+
+  validation {
+    condition     = contains(["custom", "cyclos", "django", "moodle", "n8n", "odoo", "openemr", "wordpress"], var.deploy_app_preset)
+    error_message = "Preset must be one of: custom, cyclos, django, moodle, n8n, odoo, openemr, wordpress."
+  }
+}
+
+variable "impersonation_service_account" {
+  description = "Service account to impersonate for gcloud commands (used by Django preset). {{UIMeta group=0 order=99 }}"
+  type        = string
+  default     = null
+}
+
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
@@ -206,9 +223,10 @@ variable "deployment_region" {
 variable "application_name" {
   description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=3 order=300 updatesafe }}"
   type        = string
+  default     = null
 
   validation {
-    condition     = can(regex("^[a-z][a-z0-9-]{0,19}$", var.application_name))
+    condition     = var.application_name == null || can(regex("^[a-z][a-z0-9-]{0,19}$", var.application_name))
     error_message = "Application name must start with a letter, be 1-20 characters, and contain only lowercase letters, numbers, and hyphens."
   }
 }
@@ -234,9 +252,10 @@ variable "application_description" {
 variable "application_database_name" {
   description = "Application database name. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-63 characters). The actual database name includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=3 order=304 updatesafe }}"
   type        = string
+  default     = null
 
   validation {
-    condition     = can(regex("^[a-z][a-z0-9_]{0,62}$", var.application_database_name))
+    condition     = var.application_database_name == null || can(regex("^[a-z][a-z0-9_]{0,62}$", var.application_database_name))
     error_message = "Database name must start with a letter, be 1-63 characters, and contain only lowercase letters, numbers, and underscores."
   }
 }
@@ -244,9 +263,10 @@ variable "application_database_name" {
 variable "application_database_user" {
   description = "Application database user. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-32 characters). The actual database user includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=3 order=305 updatesafe }}"
   type        = string
+  default     = null
 
   validation {
-    condition     = can(regex("^[a-z][a-z0-9_]{0,31}$", var.application_database_user))
+    condition     = var.application_database_user == null || can(regex("^[a-z][a-z0-9_]{0,31}$", var.application_database_user))
     error_message = "Database user must start with a letter, be 1-32 characters, and contain only lowercase letters, numbers, and underscores."
   }
 }
@@ -258,10 +278,10 @@ variable "application_database_user" {
 variable "container_image_source" {
   description = "Container image source: 'prebuilt' (use existing image from registry) or 'custom' (build from Dockerfile). {{UIMeta group=4 order=400 updatesafe }}"
   type        = string
-  default     = "prebuilt"
+  default     = null
 
   validation {
-    condition     = contains(["prebuilt", "custom"], var.container_image_source)
+    condition     = var.container_image_source == null || contains(["prebuilt", "custom"], coalesce(var.container_image_source, "prebuilt"))
     error_message = "Container image source must be 'prebuilt' or 'custom'."
   }
 }
@@ -275,10 +295,10 @@ variable "container_image" {
 variable "container_port" {
   description = "Container port to expose (1-65535). {{UIMeta group=4 order=402 updatesafe }}"
   type        = number
-  default     = 8080
+  default     = null
 
   validation {
-    condition     = var.container_port > 0 && var.container_port <= 65535
+    condition     = var.container_port == null || (coalesce(var.container_port, 8080) > 0 && coalesce(var.container_port, 8080) <= 65535)
     error_message = "Container port must be between 1 and 65535."
   }
 }
@@ -356,10 +376,10 @@ variable "cicd_trigger_config" {
 variable "database_type" {
   description = "Database type: MYSQL, POSTGRES, SQLSERVER (or specific versions like MYSQL_8_0, POSTGRES_15). {{UIMeta group=5 order=500 updatesafe }}"
   type        = string
-  default     = "POSTGRES"
+  default     = null
 
   validation {
-    condition     = contains(["MYSQL", "POSTGRES", "POSTGRESQL", "SQLSERVER", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE"], var.database_type)
+    condition     = var.database_type == null || contains(["MYSQL", "POSTGRES", "POSTGRESQL", "SQLSERVER", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE"], coalesce(var.database_type, "POSTGRES"))
     error_message = "Database type must be a valid Cloud SQL database version."
   }
 }
@@ -393,10 +413,7 @@ variable "container_resources" {
     cpu_request  = optional(string, null)
     mem_request  = optional(string, null)
   })
-  default = {
-    cpu_limit    = "1000m"
-    memory_limit = "512Mi"
-  }
+  default = null
 }
 
 variable "container_concurrency" {
@@ -424,10 +441,10 @@ variable "timeout_seconds" {
 variable "min_instance_count" {
   description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=6 order=603 updatesafe }}"
   type        = number
-  default     = 0
+  default     = null
 
   validation {
-    condition     = var.min_instance_count >= 0 && var.min_instance_count <= 1000
+    condition     = var.min_instance_count == null || (coalesce(var.min_instance_count, 0) >= 0 && coalesce(var.min_instance_count, 0) <= 1000)
     error_message = "Minimum instance count must be between 0 and 1000."
   }
 }
@@ -435,10 +452,10 @@ variable "min_instance_count" {
 variable "max_instance_count" {
   description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=6 order=604 updatesafe }}"
   type        = number
-  default     = 3
+  default     = null
 
   validation {
-    condition     = var.max_instance_count >= 1 && var.max_instance_count <= 1000
+    condition     = var.max_instance_count == null || (coalesce(var.max_instance_count, 1) >= 1 && coalesce(var.max_instance_count, 1) <= 1000)
     error_message = "Maximum instance count must be between 1 and 1000."
   }
 }
@@ -480,13 +497,13 @@ variable "storage_buckets" {
 variable "nfs_enabled" {
   description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=7 order=701 updatesafe }}"
   type        = bool
-  default     = true
+  default     = null
 }
 
 variable "nfs_mount_path" {
   description = "NFS mount path in container (e.g., '/mnt', '/data'). {{UIMeta group=7 order=702 updatesafe }}"
   type        = string
-  default     = "/mnt"
+  default     = null
 }
 
 variable "gcs_volumes" {
@@ -519,13 +536,13 @@ variable "custom_volumes" {
 variable "enable_cloudsql_volume" {
   description = "Enable Cloud SQL instance volume for Unix socket connections. When enabled, the Cloud SQL instance will be mounted as a volume, allowing connections via Unix socket instead of TCP/IP. {{UIMeta group=7 order=705 updatesafe }}"
   type        = bool
-  default     = false
+  default     = null
 }
 
 variable "cloudsql_volume_mount_path" {
   description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=7 order=706 updatesafe }}"
   type        = string
-  default     = "/cloudsql"
+  default     = null
 }
 
 # ===========================
@@ -559,11 +576,7 @@ variable "health_check_config" {
     period_seconds        = optional(number, 10)
     failure_threshold     = optional(number, 3)
   })
-  default = {
-    enabled = false
-    type    = "HTTP"
-    path    = "/"
-  }
+  default = null
 }
 
 variable "startup_probe_config" {
@@ -577,11 +590,7 @@ variable "startup_probe_config" {
     period_seconds        = optional(number, 240)
     failure_threshold     = optional(number, 1)
   })
-  default = {
-    enabled = true
-    type    = "TCP"
-    path    = "/"
-  }
+  default = null
 }
 
 # ===========================

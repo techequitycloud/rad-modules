@@ -18,7 +18,7 @@
 
 # Resource for creating a random password for database user
 resource "random_password" "database_password" {
-  length           = var.database_password_length
+  length           = local.database_password_length
   special          = true
   override_special = "_%@"
 }
@@ -60,7 +60,7 @@ resource "time_sleep" "db_password" {
     google_secret_manager_secret_version.db_password
   ]
 
-  create_duration = "${var.secret_propagation_delay}s"
+  create_duration = "${local.secret_propagation_delay}s"
 }
 
 # Data source for accessing the latest version of the secret when it's ready
@@ -84,7 +84,7 @@ data "google_secret_manager_secret_version" "db_password" {
 
 # Create additional secrets specified in secret_environment_variables
 resource "google_secret_manager_secret" "additional_secrets" {
-  for_each = var.secret_environment_variables
+  for_each = local.secret_environment_variables
 
   project   = local.project.project_id
   secret_id = "${local.resource_prefix}-${each.key}"
@@ -125,6 +125,6 @@ locals {
       DB_PASSWORD = local.db_password_secret_name
     } : {},
     # User-defined secret environment variables
-    var.secret_environment_variables
+    local.secret_environment_variables
   )
 }

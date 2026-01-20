@@ -36,7 +36,7 @@ resource "google_cloudbuildv2_connection" "github_connection" {
   name     = "${local.tenant_id}-${local.deployment_id}-${local.application_name}-github-conn"
 
   github_config {
-    app_installation_id = var.github_app_installation_id != null ? tonumber(var.github_app_installation_id) : null
+    app_installation_id = local.github_app_installation_id != null ? tonumber(local.github_app_installation_id) : null
 
     dynamic "authorizer_credential" {
       for_each = local.github_token_secret != null ? [1] : []
@@ -56,7 +56,7 @@ resource "google_cloudbuildv2_connection" "github_connection" {
 resource "time_sleep" "wait_for_github_connection" {
   count = local.enable_cicd_trigger ? 1 : 0
 
-  create_duration = var.github_app_installation_id != null ? "10s" : "300s"
+  create_duration = local.github_app_installation_id != null ? "10s" : "300s"
 
   depends_on = [
     google_cloudbuildv2_connection.github_connection
@@ -87,14 +87,14 @@ resource "google_cloudbuild_trigger" "cicd_trigger" {
   project     = local.project.project_id
   location    = local.region
   name        = local.cicd_trigger_name
-  description = var.cicd_trigger_config.description
+  description = local.cicd_trigger_config.description
 
   # GitHub trigger configuration
   repository_event_config {
     repository = google_cloudbuildv2_repository.github_repository[0].id
 
     push {
-      branch = var.cicd_trigger_config.branch_pattern
+      branch = local.cicd_trigger_config.branch_pattern
     }
   }
 
@@ -113,7 +113,7 @@ resource "google_cloudbuild_trigger" "cicd_trigger" {
           "--cache=true",
           "--cache-ttl=24h"
         ],
-        [for k, v in var.container_build_config.build_args : "--build-arg=${k}=${v}"]
+        [for k, v in local.container_build_config.build_args : "--build-arg=${k}=${v}"]
       )
       timeout = "1800s"
     }
@@ -147,12 +147,12 @@ resource "google_cloudbuild_trigger" "cicd_trigger" {
         _IMAGE_NAME        = local.application_name
         _IMAGE_VERSION     = local.application_version
         _REPO_NAME         = local.artifact_repo_id
-        _DOCKERFILE        = var.container_build_config.dockerfile_path
-        _CONTEXT_PATH      = var.container_build_config.context_path
+        _DOCKERFILE        = local.container_build_config.dockerfile_path
+        _CONTEXT_PATH      = local.container_build_config.context_path
         _CLOUD_RUN_SERVICE = local.service_name
         _CLOUD_RUN_REGION  = local.region
       },
-      var.cicd_trigger_config.substitutions
+      local.cicd_trigger_config.substitutions
     )
 
     options {
