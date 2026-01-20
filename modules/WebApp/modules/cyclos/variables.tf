@@ -29,7 +29,7 @@ locals {
       DB_PORT     = "5432"
       CYCLOS_HOME = "/usr/local/cyclos"
     }
-    enable_postgres_extensions = true
+    enable_postgres_extensions = truehttps://github.com/techequitycloud/rad-modules/blob/main/modules/WebApp/modules/cyclos/variables.tf
     postgres_extensions         = ["pg_trgm", "uuid-ossp"]
 
     startup_probe = {
