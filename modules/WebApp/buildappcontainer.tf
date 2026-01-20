@@ -30,8 +30,8 @@ resource "local_file" "app_dockerfile" {
 resource "local_file" "app_cloudbuild" {
   count = local.enable_custom_build ? 1 : 0
 
-  filename = "${path.module}/scripts/app/cloudbuild.yaml"
-  content = templatefile("${path.module}/scripts/app/cloudbuild.yaml.tpl", {
+  filename = "${path.module}/scripts/cloudbuild.yaml"
+  content = templatefile("${path.module}/scripts/cloudbuild.yaml.tpl", {
     PROJECT_ID    = local.project.project_id
     APP_NAME      = local.service_name
     IMAGE_REGION  = local.region

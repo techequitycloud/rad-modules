@@ -70,7 +70,7 @@ Imports database backups from Google Cloud Storage instead of Google Drive. This
 ### Implementation Details
 
 **Files Created:**
-- `modules/WebApp/scripts/app/import-gcs-backup.sh` - GCS backup import script
+- `modules/WebApp/scripts/import-gcs-backup.sh` - GCS backup import script
 
 **Script Features:**
 - Uses `gsutil` (pre-installed in Cloud Run) for downloads
@@ -211,7 +211,7 @@ Automatically installs MySQL plugins and components during deployment. Similar t
 ### Implementation Details
 
 **Files Created:**
-- `modules/WebApp/scripts/app/install-mysql-plugins.sh` - Plugin installation script
+- `modules/WebApp/scripts/install-mysql-plugins.sh` - Plugin installation script
 
 **Script Features:**
 - Installs MySQL client automatically
@@ -392,7 +392,7 @@ Executes user-provided SQL scripts from Google Cloud Storage during database ini
 ### Implementation Details
 
 **Files Created:**
-- `modules/WebApp/scripts/app/run-custom-sql-scripts.sh` - SQL script executor
+- `modules/WebApp/scripts/run-custom-sql-scripts.sh` - SQL script executor
 
 **Script Features:**
 - Downloads all `.sql` files from specified GCS path

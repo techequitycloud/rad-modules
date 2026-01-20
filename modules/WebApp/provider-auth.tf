@@ -27,5 +27,5 @@ provider "google-beta" {
 # Get impersonation token if service account is specified
 data "external" "impersonation_token" {
   count   = local.impersonation_enabled ? 1 : 0
-  program = ["bash", "${path.module}/scripts/app/get-impersonation-token.sh", local.impersonation_service_account]
+  program = ["bash", "${path.module}/scripts/get-impersonation-token.sh", local.impersonation_service_account]
 }
