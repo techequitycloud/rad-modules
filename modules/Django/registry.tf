@@ -20,7 +20,7 @@
 resource "google_artifact_registry_repository" "application_image" {
   project       = local.project.project_id  # The project ID where the repository will be created
   location      = local.region                # The location for the repository
-  repository_id = "${var.application_name}-${var.tenant_deployment_id}-${local.random_id}"              # The ID for the repository, using the application name
-  description   = "${var.application_name} artifact registry repository"  # Description of the repository
+  repository_id = "${local.application_name}-${var.tenant_deployment_id}-${local.random_id}"              # The ID for the repository, using the application name
+  description   = "${local.application_name} artifact registry repository"  # Description of the repository
   format        = "DOCKER"                 # The format of the repository, in this case Docker
 }

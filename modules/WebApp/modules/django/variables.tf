@@ -6,11 +6,15 @@ locals {
     app_name        = "django"
     description     = "Django Web Application - High-level Python web framework"
     container_image = "python:3.11-slim"
+    app_version     = "latest"
     image_source    = "custom"
     container_port  = 8000
     database_type   = "POSTGRES_15"
-    db_name         = "django_db"
-    db_user         = "django_user"
+    db_name         = "django"
+    db_user         = "django"
+    db_tier         = "db-f1-micro"
+    django_superuser_email    = "admin@example.com"
+    django_superuser_username = "admin"
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
     gcs_volumes = [

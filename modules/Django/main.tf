@@ -46,3 +46,17 @@ resource "random_id" "default" {
 data "google_project" "existing_project" {
   project_id = trimspace(var.existing_project_id)
 }
+
+module "django_preset" {
+  source = "../WebApp/modules/django"
+}
+
+locals {
+  application_name          = coalesce(var.application_name, module.django_preset.django_module.app_name)
+  application_version       = coalesce(var.application_version, lookup(module.django_preset.django_module, "app_version", "latest"))
+  application_database_name = coalesce(var.application_database_name, module.django_preset.django_module.db_name)
+  application_database_user = coalesce(var.application_database_user, module.django_preset.django_module.db_user)
+  db_tier                   = coalesce(var.db_tier, lookup(module.django_preset.django_module, "db_tier", "db-f1-micro"))
+  django_superuser_email    = coalesce(var.django_superuser_email, lookup(module.django_preset.django_module, "django_superuser_email", "admin@example.com"))
+  django_superuser_username = coalesce(var.django_superuser_username, lookup(module.django_preset.django_module, "django_superuser_username", "admin"))
+}
