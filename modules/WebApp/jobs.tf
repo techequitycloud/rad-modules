@@ -68,26 +68,32 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
           echo "=== NFS Setup Job ==="
           echo "Tenant/Deployment: $${DIR_NAME}"
           echo "NFS Path: $${NFS_BASE_PATH}"
-          
+
           MOUNT_POINT="/mnt/nfs"
-          TARGET_DIR="$${MOUNT_POINT}"
-          
+          TARGET_DIR="$${MOUNT_POINT}/$${DIR_NAME}"
+
           echo "Target Directory: $${TARGET_DIR}"
-          
+
           if [ ! -d "$${MOUNT_POINT}" ]; then
             echo "Error: Mount point $${MOUNT_POINT} does not exist."
             exit 1
           fi
-          
+
           # Create subdirectories for this deployment
           echo "Creating deployment-specific subdirectories..."
-          
+          mkdir -p "$${TARGET_DIR}"
+
+          if [ ! -d "$${TARGET_DIR}" ]; then
+            echo "Error: Failed to create directory $${TARGET_DIR}"
+            exit 1
+          fi
+
           echo "Setting permissions (NFS-safe)..."
-          chmod 777 "$${TARGET_DIR}" 2>/dev/null || echo "Warning: chmod on root failed"
-          
+          chmod 777 "$${TARGET_DIR}" 2>/dev/null || echo "Warning: chmod failed, continuing anyway"
+
           echo "NFS setup complete for deployment: $${DIR_NAME}"
           ls -la "$${TARGET_DIR}" 2>/dev/null || echo "Directory created successfully"
-          
+
           # Ensure clean exit
           sync
           echo "Job finished successfully"
@@ -104,8 +110,8 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
         name = "nfs-deployment-volume"
         nfs {
           server = local.nfs_internal_ip
-          # ✅ CHANGED: Mount unique path per deployment
-          path   = local.nfs_unique_path
+          # ✅ FIXED: Mount base /share path, create deployment subdirectory inside
+          path   = "/share"
         }
       }
 
@@ -260,7 +266,7 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
         }
       }
 
-      # NFS volume (if enabled) - ✅ UPDATED: Use deployment-specific path
+      # NFS volume (if enabled) - ✅ FIXED: Use deployment-specific path for initialization jobs
       dynamic "volumes" {
         for_each = each.value.mount_nfs && local.nfs_enabled && local.nfs_server_exists ? [1] : []
         content {
