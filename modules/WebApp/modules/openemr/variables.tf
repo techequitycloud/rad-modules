@@ -9,8 +9,13 @@ locals {
     image_source    = "prebuilt"
     container_port  = 80
     database_type   = "MYSQL_8_0"
-    db_name         = "openemr_db"
-    db_user         = "openemr_user"
+    db_name         = "openemr"
+    db_user         = "openemr"
+    
+    # Backup Configuration
+    enable_backup_import = true
+    backup_source        = "gdrive"
+    backup_uri           = "1nitol1S9hdcjf7PpHvsRl3ZDwhKYlzF2"
 
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/var/run/mysqld"
