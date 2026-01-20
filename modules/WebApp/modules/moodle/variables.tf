@@ -9,8 +9,8 @@ locals {
     image_source    = "prebuilt"
     container_port  = 80
     database_type   = "MYSQL_8_0"
-    db_name         = "moodle_db"
-    db_user         = "moodle_user"
+    db_name         = "moodle"
+    db_user         = "moodle"
 
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/var/run/mysqld"
