@@ -315,20 +315,27 @@ variable "github_repository_url" {
   default     = null
 }
 
-variable "github_token_secret_name" {
-  description = "Name of the secret in Secret Manager containing the GitHub personal access token. This token is used by Cloud Build to access your private repository. Leave blank if repository is public. {{UIMeta group=4 order=406 updatesafe }}"
+variable "github_token" {
+  description = "GitHub personal access token for Cloud Build to access your repository. Required when enable_cicd_trigger is true. Pass via variable, never hardcode. {{UIMeta group=4 order=406 updatesafe sensitive }}"
   type        = string
-  default     = "github-token"
+  default     = null
+  sensitive   = true
+}
+
+variable "github_app_installation_id" {
+  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. {{UIMeta group=4 order=407 updatesafe }}"
+  type        = string
+  default     = null
 }
 
 variable "enable_cicd_trigger" {
-  description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=4 order=407 updatesafe }}"
+  description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=4 order=408 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "cicd_trigger_config" {
-  description = "Cloud Build trigger configuration for automated CI/CD pipeline. Configure branch patterns, included/ignored files, and build settings. {{UIMeta group=4 order=408 updatesafe }}"
+  description = "Cloud Build trigger configuration for automated CI/CD pipeline. Configure branch patterns, included/ignored files, and build settings. {{UIMeta group=4 order=409 updatesafe }}"
   type = object({
     branch_pattern     = optional(string, "^main$")
     included_files     = optional(list(string), [])

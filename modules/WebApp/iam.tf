@@ -67,30 +67,30 @@ resource "google_storage_bucket_iam_member" "bucket_access" {
 
 # Grant Cloud Build service account access to GitHub token secret
 resource "google_secret_manager_secret_iam_member" "github_token" {
-  count = local.enable_cicd_trigger && local.github_token_secret != null ? 1 : 0
+  count = local.enable_cicd_trigger && var.github_token != null ? 1 : 0
 
   project   = local.project.project_id
-  secret_id = local.github_token_secret
+  secret_id = google_secret_manager_secret.github_token[0].secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${local.cloud_build_sa_email}"
 
   depends_on = [
-    data.google_secret_manager_secret.github_token,
+    google_secret_manager_secret.github_token
   ]
 }
 
 # Grant default Cloud Build service account access to GitHub token secret
 # (Cloud Build v2 connections use the default service account)
 resource "google_secret_manager_secret_iam_member" "github_token_default_sa" {
-  count = local.enable_cicd_trigger && local.github_token_secret != null ? 1 : 0
+  count = local.enable_cicd_trigger && var.github_token != null ? 1 : 0
 
   project   = local.project.project_id
-  secret_id = local.github_token_secret
+  secret_id = google_secret_manager_secret.github_token[0].secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:service-${local.project.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
 
   depends_on = [
-    data.google_secret_manager_secret.github_token,
+    google_secret_manager_secret.github_token
   ]
 }
 
