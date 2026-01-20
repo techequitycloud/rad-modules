@@ -179,7 +179,7 @@ resource "google_cloudbuild_trigger" "cicd_trigger" {
 resource "local_file" "placeholder_dockerfile" {
   count = local.enable_cicd_trigger && local.container_image_source == "custom" ? 1 : 0
 
-  filename = "${path.module}/scripts/app/Dockerfile.placeholder"
+  filename = "${path.module}/scripts/Dockerfile.placeholder"
   content  = <<-EOF
     # Placeholder container for initial deployment
     # This will be replaced by your application container from GitHub

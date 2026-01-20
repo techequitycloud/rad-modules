@@ -19,7 +19,7 @@
 resource "local_file" "app_dockerfile" {
   count = local.enable_custom_build && var.container_build_config.dockerfile_content != null ? 1 : 0
 
-  filename = "${path.module}/scripts/app/${var.container_build_config.dockerfile_path}"
+  filename = "${path.module}/scripts/${var.container_build_config.dockerfile_path}"
   content  = var.container_build_config.dockerfile_content
 }
 
@@ -30,8 +30,8 @@ resource "local_file" "app_dockerfile" {
 resource "local_file" "app_cloudbuild" {
   count = local.enable_custom_build ? 1 : 0
 
-  filename = "${path.module}/scripts/app/cloudbuild.yaml"
-  content = templatefile("${path.module}/scripts/app/cloudbuild.yaml.tpl", {
+  filename = "${path.module}/scripts/cloudbuild.yaml"
+  content = templatefile("${path.module}/scripts/cloudbuild.yaml.tpl", {
     PROJECT_ID    = local.project.project_id
     APP_NAME      = local.service_name
     IMAGE_REGION  = local.region
@@ -53,7 +53,7 @@ resource "null_resource" "build_and_push_application_image" {
 
   # Trigger rebuild on changes
   triggers = {
-    script_hash     = fileexists("${path.module}/scripts/app/build-container.sh") ? filesha256("${path.module}/scripts/app/build-container.sh") : timestamp()
+    script_hash     = fileexists("${path.module}/scripts/build-container.sh") ? filesha256("${path.module}/scripts/build-container.sh") : timestamp()
     dockerfile_hash = var.container_build_config.dockerfile_content != null ? sha256(var.container_build_config.dockerfile_content) : timestamp()
     repository_id   = data.google_artifact_registry_repository.application_image[0].repository_id
     image_tag       = local.application_version
