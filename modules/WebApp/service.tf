@@ -107,6 +107,10 @@ resource "google_cloud_run_v2_service" "app_service" {
     containers {
       image = local.container_image
 
+      # ✅ Custom command and args for Odoo (with explicit db_port)
+      command = try(local.final_container_command, null)
+      args    = try(local.final_container_args, null)
+
       # Port configuration
       ports {
         name           = local.container_protocol
