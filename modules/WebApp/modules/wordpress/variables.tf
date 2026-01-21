@@ -49,59 +49,76 @@ locals {
     enable_mysql_plugins = false
     mysql_plugins        = []
 
-    # Initialization jobs
+    # Initialization Jobs
     initialization_jobs = [
       {
-        name             = "db-init"
-        description      = "Initialize WordPress database and user"
-        image            = "alpine:3.19"
-        execute_on_apply = true
-        command          = ["/bin/sh", "-c"]
-        args = [<<-EOT
-          set -e
-          echo "Starting DB Import/Init Job"
+        name            = "db-init"
+        description     = "Create WordPress Database and User"
+        image           = "alpine:3.19"
+        command         = ["/bin/sh", "-c"]
+        args            = [
+          <<-EOT
+            set -e
+            echo "Installing dependencies..."
+            apk update && apk add --no-cache mysql-client netcat-openbsd
 
-          # Use WORDPRESS_DB_HOST as DB_HOST if DB_HOST is not set (Cloud SQL IP)
-          DB_HOST=$${DB_HOST:-$WORDPRESS_DB_HOST}
+            # Use WORDPRESS_DB_HOST which is available in static envs (mapped to internal IP)
+            DB_HOST_VAL=$WORDPRESS_DB_HOST
+            echo "Using DB Host: $DB_HOST_VAL"
 
-          echo "DB_HOST: $DB_HOST"
+            # Check if DB_HOST_VAL is set
+            if [ -z "$DB_HOST_VAL" ]; then
+              echo "Error: WORDPRESS_DB_HOST is not set."
+              exit 1
+            fi
 
-          # Install required packages
-          apk add --no-cache mysql-client netcat-openbsd
+            # DB_PASSWORD and ROOT_PASSWORD are automatically injected by WebApp/jobs.tf
+            if [ -z "$DB_PASSWORD" ]; then
+              echo "Error: DB_PASSWORD is not set. It should be injected by WebApp/jobs.tf."
+              exit 1
+            fi
 
-          # Create MySQL configuration file
-          echo "[client]" > ~/.my.cnf
-          echo "user=root" >> ~/.my.cnf
-          echo "password=$ROOT_PASSWORD" >> ~/.my.cnf
-          echo "host=$DB_HOST" >> ~/.my.cnf
-          chmod 600 ~/.my.cnf
+            if [ -z "$ROOT_PASSWORD" ]; then
+              echo "Error: ROOT_PASSWORD is not set. It should be injected by WebApp/jobs.tf."
+              exit 1
+            fi
 
-          # Verify connection
-          echo "Verifying MySQL connection..."
-          mysql --defaults-file=~/.my.cnf -e "SELECT VERSION();"
+            echo "Waiting for database..."
+            until nc -z $DB_HOST_VAL 3306; do
+              echo "Waiting for MySQL port 3306..."
+              sleep 2
+            done
 
-          # Create User
-          echo "Creating User $DB_USER..."
-          mysql --defaults-file=~/.my.cnf <<EOF
+            cat > ~/.my.cnf << EOF
+[client]
+user=root
+password=$ROOT_PASSWORD
+host=$DB_HOST_VAL
+EOF
+            chmod 600 ~/.my.cnf
+
+            echo "Creating User $DB_USER if not exists..."
+            mysql --defaults-file=~/.my.cnf <<EOF
 CREATE USER IF NOT EXISTS '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
 ALTER USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
 FLUSH PRIVILEGES;
 EOF
 
-          # Create Database
-          echo "Creating Database $DB_NAME..."
-          mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+            echo "Creating Database $DB_NAME if not exists..."
+            mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;"
 
-          # Grant Privileges
-          echo "Granting Privileges..."
-          mysql --defaults-file=~/.my.cnf <<EOF
+            echo "Granting privileges..."
+            mysql --defaults-file=~/.my.cnf <<EOF
 GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
-GRANT GRANT OPTION ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
 FLUSH PRIVILEGES;
 EOF
-          echo "DB Init Job Completed Successfully"
-        EOT
+
+            rm -f ~/.my.cnf
+            echo "DB Init complete."
+          EOT
         ]
+        mount_nfs         = false
+        mount_gcs_volumes = []
       }
     ]
 
