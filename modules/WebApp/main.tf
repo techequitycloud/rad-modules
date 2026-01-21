@@ -265,6 +265,9 @@ locals {
     var.application_module == "odoo" ? {
       DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
+    var.application_module == "wordpress" ? {
+      WORDPRESS_DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
+    } : {},
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
     } : {}

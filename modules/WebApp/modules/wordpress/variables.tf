@@ -45,6 +45,44 @@ locals {
       WORDPRESS_DEBUG        = "false"
     }
 
+    # Initialization Jobs
+    initialization_jobs = [
+      {
+        name             = "db-init"
+        description      = "Create WordPress Database and User"
+        image            = "alpine:3.19"
+        execute_on_apply = true
+        command          = ["/bin/sh", "-c"]
+        args             = [
+          <<-EOT
+            set -e
+            echo "Installing dependencies..."
+            apk update && apk add --no-cache mysql-client
+
+            echo "Waiting for database at $WORDPRESS_DB_HOST..."
+            # Wait for MySQL to be ready
+            until mysql -h "$WORDPRESS_DB_HOST" -u root -p"$ROOT_PASSWORD" -e "SELECT 1"; do
+              echo "Waiting for database connection..."
+              sleep 2
+            done
+
+            echo "Creating Database $WORDPRESS_DB_NAME if not exists..."
+            mysql -h "$WORDPRESS_DB_HOST" -u root -p"$ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$WORDPRESS_DB_NAME\`;"
+
+            echo "Creating User $WORDPRESS_DB_USER if not exists..."
+            mysql -h "$WORDPRESS_DB_HOST" -u root -p"$ROOT_PASSWORD" -e "CREATE USER IF NOT EXISTS '$WORDPRESS_DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';"
+
+            echo "Granting privileges..."
+            mysql -h "$WORDPRESS_DB_HOST" -u root -p"$ROOT_PASSWORD" -e "GRANT ALL PRIVILEGES ON \`$WORDPRESS_DB_NAME\`.* TO '$WORDPRESS_DB_USER'@'%'; FLUSH PRIVILEGES;"
+
+            echo "DB Init complete."
+          EOT
+        ]
+        mount_nfs         = false
+        mount_gcs_volumes = []
+      }
+    ]
+
     # MySQL plugins
     enable_mysql_plugins = false
     mysql_plugins        = []
