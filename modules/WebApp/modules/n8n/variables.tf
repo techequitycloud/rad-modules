@@ -10,8 +10,8 @@ locals {
     image_source    = "prebuilt"
     container_port  = 5678
     database_type   = "POSTGRES_15"
-    db_name         = "n8n_db"
-    db_user         = "n8n_user"
+    db_name         = "n8n"
+    db_user         = "n8n"
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
     gcs_volumes = [{
