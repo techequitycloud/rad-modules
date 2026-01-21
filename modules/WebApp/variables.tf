@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys any web application on Google Cloud Run, providing a flexible, serverless platform with configurable database (MySQL/PostgreSQL/SQL Server), storage, networking, and monitoring. Unlike application-specific modules, WebApp allows you to deploy any containerized application with full infrastructure customization."
+  default     = "This module can be used to deploy Cyclos, Django, Moodle, N8N, Odoo, OpenEMR or Wordpress"
 }
 
 variable "module_dependency" {
