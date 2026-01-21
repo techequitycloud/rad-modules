@@ -201,6 +201,10 @@ locals {
       N8N_S3_BUCKET_NAME           = try(google_storage_bucket.n8n_storage[0].name, "")
       N8N_S3_REGION                = var.deployment_region
     } : {},
+    var.application_module == "odoo" ? {
+      HOST = "/var/run/postgresql"
+      USER = local.database_user_full
+    } : {},
     var.application_module == "wordpress" ? {
       WORDPRESS_DB_NAME = local.database_name_full
       WORDPRESS_DB_USER = local.database_user_full
@@ -237,6 +241,9 @@ locals {
       N8N_S3_ACCESS_KEY      = try(google_secret_manager_secret.storage_access_key[0].secret_id, "")
       N8N_S3_ACCESS_SECRET   = try(google_secret_manager_secret.storage_secret_key[0].secret_id, "")
       N8N_ENCRYPTION_KEY     = try(google_secret_manager_secret.encryption_key[0].secret_id, "")
+    } : {},
+    var.application_module == "odoo" ? {
+      PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
