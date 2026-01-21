@@ -13,8 +13,6 @@ locals {
     db_name         = "django"
     db_user         = "django"
     db_tier         = "db-f1-micro"
-    django_superuser_email    = "admin@example.com"
-    django_superuser_username = "admin"
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
     gcs_volumes = [
@@ -36,13 +34,15 @@ locals {
     min_instance_count = 1
     max_instance_count = 10
     environment_variables = {
-      DJANGO_SETTINGS_MODULE = "myproject.settings.production"
-      DEBUG                  = "False"
-      ALLOWED_HOSTS          = "*.run.app"
-      DB_ENGINE              = "django.db.backends.postgresql"
-      DB_PORT                = "5432"
-      STATIC_ROOT            = "/app/static"
-      MEDIA_ROOT             = "/app/media"
+      DJANGO_SETTINGS_MODULE    = "myproject.settings.production"
+      DEBUG                     = "False"
+      ALLOWED_HOSTS             = "*.run.app"
+      DB_ENGINE                 = "django.db.backends.postgresql"
+      DB_PORT                   = "5432"
+      STATIC_ROOT               = "/app/static"
+      MEDIA_ROOT                = "/app/media"
+      DJANGO_SUPERUSER_EMAIL    = "admin@example.com"
+      DJANGO_SUPERUSER_USERNAME = "admin"
     }
     enable_postgres_extensions = true
     postgres_extensions         = ["pg_trgm", "unaccent", "hstore", "citext"]
