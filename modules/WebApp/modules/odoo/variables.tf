@@ -27,7 +27,7 @@ locals {
     # Storage volumes (Addons)
     gcs_volumes = [{
       name       = "odoo-addons-volume"
-      mount_path = "/mnt/extra-addons"
+      mount_path = "/extra-addons"
       read_only  = false
       mount_options = [
         "implicit-dirs",
@@ -50,7 +50,7 @@ locals {
     # ✅ PRODUCTION-READY: Direct command-line arguments (no file I/O)
     container_command = ["/bin/bash", "-c"]
     container_args = [
-      "echo 'Starting Odoo with DB: $DB_HOST' && exec odoo --db_host=\"$DB_HOST\" --db_port=5432 --db_user=\"$DB_USER\" --db_password=\"$DB_PASSWORD\" --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons --http-port=8069 --logfile=False --log-level=info"
+      "echo 'Starting Odoo with DB: $DB_HOST' && exec odoo --db_host=\"$DB_HOST\" --db_port=5432 --db_user=\"$DB_USER\" --db_password=\"$DB_PASSWORD\" --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/extra-addons --http-port=8069 --logfile=False --log-level=info"
     ]
 
     # Environment variables (DB credentials will be injected)
@@ -126,7 +126,7 @@ locals {
         image           = null # Uses default container image (odoo)
         command         = ["/bin/bash", "-c"]
         args            = [
-          "odoo -d $DB_NAME --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons -i base --stop-after-init --log-level=info"
+          "odoo -d $DB_NAME --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/extra-addons -i base --stop-after-init --log-level=info"
         ]
         mount_nfs         = true
         mount_gcs_volumes = ["odoo-addons-volume"]
