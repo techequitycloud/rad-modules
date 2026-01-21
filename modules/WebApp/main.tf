@@ -250,7 +250,7 @@ locals {
       N8N_ENCRYPTION_KEY     = try(google_secret_manager_secret.encryption_key[0].secret_id, "")
     } : {},
     var.application_module == "odoo" ? {
-      PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"

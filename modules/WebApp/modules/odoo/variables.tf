@@ -31,8 +31,11 @@ locals {
       read_only  = false
       mount_options = [
         "implicit-dirs",
-        "stat-cache-ttl=60s",
-        "type-cache-ttl=60s"
+        "uid=101",
+        "gid=101",
+        "file-mode=644",
+        "dir-mode=755",
+        "metadata-cache-ttl-secs=60"
       ]
     }]
 
@@ -44,18 +47,30 @@ locals {
     min_instance_count = 1
     max_instance_count = 1
 
-    # ✅ Container startup command with explicit db_port
-    container_command = ["odoo"]
+    # ✅ Use wrapper script to generate odoo.conf and start Odoo
+    container_command = ["/bin/bash", "-c"]
     container_args = [
-      "--db_host=$(DB_HOST)",
-      "--db_port=5432",
-      "--db_user=$(DB_USER)",
-      "--db_password=$(DB_PASSWORD)",
-      "--data-dir=/mnt/filestore",
-      "--addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons"
+      <<-EOT
+        set -e
+        echo "Generating Odoo configuration..."
+        cat > /etc/odoo/odoo.conf <<EOF
+        [options]
+        addons_path = /usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons
+        data_dir = /mnt/filestore
+        db_host = $DB_HOST
+        db_port = 5432
+        db_user = $DB_USER
+        db_password = $DB_PASSWORD
+        http_port = 8069
+        logfile = False
+        log_level = info
+        EOF
+        echo "Starting Odoo..."
+        exec odoo -c /etc/odoo/odoo.conf
+      EOT
     ]
 
-    # Environment variables
+    # Environment variables (DB credentials will be injected)
     environment_variables = {}
 
     # Initialization Jobs
