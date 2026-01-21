@@ -24,10 +24,11 @@ locals {
     nfs_enabled    = true
     nfs_mount_path = "/mnt"
 
-    # Storage volumes
+    # Storage volumes (Addons)
     gcs_volumes = [{
-      bucket     = "$${tenant_id}-odoo-filestore"
-      mount_path = "/var/lib/odoo/filestore"
+      name       = "odoo-addons-volume"
+      bucket     = "$${tenant_id}-odoo-addons"
+      mount_path = "/extra-addons"
       read_only  = false
     }]
 
@@ -44,6 +45,31 @@ locals {
       DB_HOST = "/var/run/postgresql"
       DB_PORT = "5432"
     }
+
+    # Initialization Jobs
+    initialization_jobs = [
+      {
+        name            = "nfs-init"
+        description     = "Initialize NFS directories for Odoo"
+        image           = "alpine:3.19"
+        command         = ["/bin/sh", "-c"]
+        args            = [
+          "mkdir -p /mnt/filestore /mnt/sessions /mnt/addons /mnt/backups && chmod 777 /mnt/filestore /mnt/sessions /mnt/addons /mnt/backups"
+        ]
+        mount_nfs       = true
+      },
+      {
+        name            = "odoo-init"
+        description     = "Initialize Odoo database"
+        image           = null # Uses default container image (odoo)
+        command         = ["/bin/bash", "-c"]
+        args            = [
+          "odoo -d $DB_NAME --db_host=$DB_HOST --db_port=$DB_PORT --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/extra-addons -i base --stop-after-init --log-level=info"
+        ]
+        mount_nfs         = true
+        mount_gcs_volumes = ["odoo-addons-volume"]
+      }
+    ]
 
     # PostgreSQL extensions
     enable_postgres_extensions = false
