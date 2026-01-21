@@ -27,7 +27,6 @@ locals {
     # Storage volumes (Addons)
     gcs_volumes = [{
       name       = "odoo-addons-volume"
-      bucket     = "$${tenant_id}-odoo-addons"
       mount_path = "/extra-addons"
       read_only  = false
       mount_options = [
