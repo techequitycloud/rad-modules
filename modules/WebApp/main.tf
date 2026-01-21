@@ -123,7 +123,6 @@ locals {
 
   container_port         = local.final_container_port
   container_resources    = local.final_container_resources
-  container_args         = local.preset_container_args
 
   # Scaling
   min_instance_count = local.final_min_instance_count
