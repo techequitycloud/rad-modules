@@ -14,76 +14,37 @@
 
 output "deployment_info" {
   value = {
-    deployment_id  = var.deployment_id
-    region         = local.region
-    project_id = local.project.project_id
+    deployment_id = module.webapp.deployment_id
+    tenant_id     = module.webapp.tenant_id
+    project_id    = module.webapp.project_id
+    region        = var.deployment_region
   }
 }
 
 output "cloud_sql_info" {
   value = {
-    cloudsql_instance_ip = local.sql_server_exists ? local.db_internal_ip : "" 
-    cloud_sql_studio = length(local.db_instance_name) > 0 ? "https://console.cloud.google.com/sql/instances/${local.db_instance_name}/studio?project=${local.project.project_id}&supportedpurview=project,organizationId,folder" : ""
-    database_name =  var.configure_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}" : ""
-    database_user = var.configure_environment ? "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}" : ""
+    cloudsql_instance_ip = module.webapp.database_host
+    database_name        = module.webapp.database_name
+    database_user        = module.webapp.database_user
+    database_port        = module.webapp.database_port
   }
 }
 
 output "application_info" {
   value = {
-    application_url  = var.configure_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}-${local.project_number}.${local.region}.run.app" : ""
-    cloud_secret_manager = var.configure_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    application_url = module.webapp.service_url
+    service_name    = module.webapp.service_name
   }
 }
 
 output "service_info" {
   value = {
-    service_url  = var.configure_environment ? "https://console.cloud.google.com/run/detail/${local.region}/app${var.application_name}${var.tenant_deployment_id}${local.random_id}/metrics?orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-    cloud_secret_manager = var.configure_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    service_url      = module.webapp.service_url
+    service_location = module.webapp.service_location
   }
 }
 
-########################################################################################
-# Local variables output
-########################################################################################
-
-output "sql_instance_info" {
-  value = {
-    instance_exists  = local.sql_server_exists
-    database_version = local.database_version
-    instance_name    = local.db_instance_name
-    instance_region  = local.db_instance_region
-    instance_ip      = local.db_internal_ip
-    # root_password    = local.db_root_password
-  }
-}
-
-########################################################################################
-# Local variables output
-########################################################################################
-
-output "existing_service_accounts" {
-  description = "List of existing service accounts"
-  value = [
-    for sa_name, exists in {
-      "cloudbuild-sa"   = local.cloud_build_sa_exists
-      "cloudrun-sa"     = local.cloud_run_sa_exists
-    } : sa_name if exists
-  ]
-}
-
-########################################################################################
-# Network information output
-########################################################################################
-
-output "network_info" {
-  description = "Information about the existing VPC network"
-  value = {
-    network_exists  = local.network_exists
-    regions         = local.regions_list
-    subnet_names    = local.subnet_names
-    subnet_cidrs    = local.subnet_cidrs
-    subnet_details  = local.subnet_details
-    subnet_count    = length(local.subnet_names)
-  }
+output "deployment_summary" {
+  description = "Summary of the deployment"
+  value       = module.webapp.deployment_summary
 }

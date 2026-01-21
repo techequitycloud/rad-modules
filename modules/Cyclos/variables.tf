@@ -62,6 +62,12 @@ variable "deployment_id" {
   default     = null
 }
 
+variable "deployment_region" {
+  description = "Region to deploy resources. {{UIMeta group=1 order=201 updatesafe }}"
+  type        = string
+  default     = "us-central1"
+}
+
 variable "agent_service_account" {
   description = "If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account, e.g. rad-agent@gcp-project.sr65.iam.gserviceaccount.com, and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=1 order=200 updatesafe }}"
   type        = string
@@ -100,25 +106,25 @@ variable "network_name" {
 variable "application_name" {
   description = "Specify application name. The application name is used to identify configured resources alongside other attributes that ensures uniqueness. {{UIMeta group=0 order=501 updatesafe}}"
   type        = string
-  default     = "cyclos"
+  default     = null
 }
 
 variable "application_database_user" {
   description = "Specify application database user name. The actual database user name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=502 updatesafe}}"
   type        = string
-  default     = "cyclos"
+  default     = null
 }
 
 variable "application_database_name" {
   description = "Specify application database name. The actual database name includes the customer identifier, environment and deployment id to ensure uniqueness. {{UIMeta group=0 order=503 updatesafe }}"
   type        = string
-  default     = "cyclos"
+  default     = null
 }
 
 variable "application_version" {
   description = "Enter application version. Container images are tagged with this version number. {{UIMeta group=0 order=504 updatesafe}}"
   type        = string
-  default     = "4.16.15"
+  default     = null
 }
 
 # GROUP 7: Tenant
@@ -147,4 +153,3 @@ variable "application_backup_fileid" {
   type        = string
   default     = ""
 }
-
