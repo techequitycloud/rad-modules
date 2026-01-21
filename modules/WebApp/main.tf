@@ -204,6 +204,7 @@ locals {
     var.application_module == "odoo" ? {
       HOST = "/var/run/postgresql"
       USER = local.database_user_full
+      PORT = "5432"
     } : {},
     var.application_module == "wordpress" ? {
       WORDPRESS_DB_NAME = local.database_name_full
