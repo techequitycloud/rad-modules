@@ -124,6 +124,23 @@ locals {
   container_port         = local.final_container_port
   container_resources    = local.final_container_resources
 
+  # ✅ Container command and args (for Odoo and other apps that need custom startup)
+  final_container_command = try(
+    var.application_module == "odoo" ? local.odoo_module.container_command : null,
+    var.application_module == "n8n" ? null : null,
+    var.application_module == "wordpress" ? null : null,
+    var.application_module == "openemr" ? null : null,
+    null
+  )
+
+  final_container_args = try(
+    var.application_module == "odoo" ? local.odoo_module.container_args : null,
+    var.application_module == "n8n" ? null : null,
+    var.application_module == "wordpress" ? null : null,
+    var.application_module == "openemr" ? null : null,
+    null
+  )
+
   # Scaling
   min_instance_count = local.final_min_instance_count
   max_instance_count = local.final_max_instance_count
