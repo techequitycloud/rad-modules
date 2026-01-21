@@ -17,7 +17,7 @@
 resource "google_cloud_run_v2_job" "import_db_job" {
   count      = local.sql_server_exists ? 1 : 0
   project    = local.project.project_id
-  name       = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-import-db"
+  name       = "${local.application_name}${var.tenant_deployment_id}${local.random_id}-import-db"
   location   = local.region
   deletion_protection = false
 
@@ -37,11 +37,11 @@ resource "google_cloud_run_v2_job" "import_db_job" {
         }
         env {
           name  = "DB_NAME"
-          value = "${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}"
+          value = "${local.application_database_name}-${var.tenant_deployment_id}-${local.random_id}"
         }
         env {
           name  = "DB_USER"
-          value = "${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}"
+          value = "${local.application_database_user}-${var.tenant_deployment_id}-${local.random_id}"
         }
 
         env {
@@ -199,7 +199,7 @@ resource "null_resource" "execute_import_db_job" {
 
 resource "google_cloud_run_v2_job" "migrate" {
   count    = var.configure_environment && local.sql_server_exists ? 1 : 0
-  name     = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-migrate"
+  name     = "${local.application_name}${var.tenant_deployment_id}${local.random_id}-migrate"
   location = local.region
   project  = local.project.project_id
   deletion_protection = false
@@ -208,7 +208,7 @@ resource "google_cloud_run_v2_job" "migrate" {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.application_name}-${var.tenant_deployment_id}-${local.random_id}/${local.application_name}:${local.application_version}"
         command = ["/bin/bash", "-c", "python manage.py migrate && python manage.py collectstatic --noinput --clear"]
 
         env {
@@ -250,7 +250,7 @@ resource "google_cloud_run_v2_job" "migrate" {
 
 resource "google_cloud_run_v2_job" "createuser" {
   count    = var.configure_environment && local.sql_server_exists ? 1 : 0
-  name     = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-createuser"
+  name     = "${local.application_name}${var.tenant_deployment_id}${local.random_id}-createuser"
   location = local.region
   project  = local.project.project_id
   deletion_protection = false
@@ -259,7 +259,7 @@ resource "google_cloud_run_v2_job" "createuser" {
     template {
       service_account = local.cloud_run_sa_email
       containers {
-        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+        image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.application_name}-${var.tenant_deployment_id}-${local.random_id}/${local.application_name}:${local.application_version}"
 
         env {
             name = "DJANGO_SUPERUSER_PASSWORD"
@@ -281,11 +281,11 @@ resource "google_cloud_run_v2_job" "createuser" {
         }
         env {
             name = "DJANGO_SUPERUSER_USERNAME"
-            value = var.django_superuser_username
+            value = local.django_superuser_username
         }
         env {
             name = "DJANGO_SUPERUSER_EMAIL"
-            value = var.django_superuser_email
+            value = local.django_superuser_email
         }
         env {
           name = "GS_BUCKET_NAME"

@@ -19,7 +19,7 @@
 # Cleanup storage bucket contents
 resource "null_resource" "cleanup_storage" {
   triggers = {
-    bucket_name = "${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+    bucket_name = "${local.application_name}${var.tenant_deployment_id}${local.random_id}"
   }
 
   provisioner "local-exec" {
@@ -41,7 +41,7 @@ resource "null_resource" "cleanup_storage" {
 #########################################################################
 
 resource "google_storage_bucket" "storage" {
-  name                        = "${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+  name                        = "${local.application_name}${var.tenant_deployment_id}${local.random_id}"
   location                    = local.region
   force_destroy               = true
   uniform_bucket_level_access = false

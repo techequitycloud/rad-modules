@@ -14,7 +14,7 @@
 
 resource "google_cloud_run_v2_service" "app_service" {
   count               = var.configure_environment && local.sql_server_exists ? 1 : 0
-  name                = "app${var.application_name}${var.tenant_deployment_id}${local.random_id}"
+  name                = "app${local.application_name}${var.tenant_deployment_id}${local.random_id}"
   location            = local.region
   project             = local.project.project_id
   deletion_protection = false
@@ -25,11 +25,11 @@ resource "google_cloud_run_v2_service" "app_service" {
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
     labels = {
-      app = var.application_name,
+      app = local.application_name,
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.application_name}-${var.tenant_deployment_id}-${local.random_id}/${local.application_name}:${local.application_version}"
 
       env {
         name = "GS_BUCKET_NAME"

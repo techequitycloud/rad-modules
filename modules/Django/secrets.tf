@@ -41,7 +41,7 @@ resource "random_password" "db_password" {
 #########################################################################
 
 resource "google_secret_manager_secret" "application_settings" {
-  secret_id = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-application-settings"
+  secret_id = "${local.application_name}${var.tenant_deployment_id}${local.random_id}-application-settings"
   replication {
     user_managed {
       replicas {
@@ -58,7 +58,7 @@ resource "google_secret_manager_secret_version" "application_settings" {
 DEBUG=True
 SECRET_KEY="${random_password.django_secret_key.result}"
 GS_BUCKET_NAME="${google_storage_bucket.storage.name}"
-DATABASE_URL="postgres://${var.application_database_user}-${var.tenant_deployment_id}-${local.random_id}:${random_password.db_password.result}@/${var.application_database_name}-${var.tenant_deployment_id}-${local.random_id}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
+DATABASE_URL="postgres://${local.application_database_user}-${var.tenant_deployment_id}-${local.random_id}:${random_password.db_password.result}@/${local.application_database_name}-${var.tenant_deployment_id}-${local.random_id}?host=/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
 EOT
 
   depends_on = [
@@ -69,7 +69,7 @@ EOT
 }
 
 resource "google_secret_manager_secret" "superuser_password" {
-  secret_id = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-superuser-password"
+  secret_id = "${local.application_name}${var.tenant_deployment_id}${local.random_id}-superuser-password"
   replication {
     user_managed {
       replicas {
@@ -95,7 +95,7 @@ resource "google_secret_manager_secret_version" "superuser_password" {
 #########################################################################
 
 resource "google_secret_manager_secret" "db_password" {
-  secret_id = "${var.application_name}${var.tenant_deployment_id}${local.random_id}-db-password"
+  secret_id = "${local.application_name}${var.tenant_deployment_id}${local.random_id}-db-password"
   replication {
     user_managed {
       replicas {

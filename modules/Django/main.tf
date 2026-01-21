@@ -30,6 +30,23 @@ locals {
   region  = tolist(local.regions_list)[0]
   regions = tolist(local.regions_list)
   project_number = try(data.google_project.existing_project.number, "")
+
+  # Load preset configuration
+  preset = module.django_preset.django_module
+
+  # Coalesce variables with preset defaults
+  application_name          = coalesce(var.application_name, local.preset.app_name)
+  application_database_user = coalesce(var.application_database_user, local.preset.db_user)
+  application_database_name = coalesce(var.application_database_name, local.preset.db_name)
+  application_version       = coalesce(var.application_version, local.preset.app_version)
+  db_tier                   = coalesce(var.db_tier, local.preset.db_tier)
+
+  django_superuser_email    = coalesce(var.django_superuser_email, local.preset.environment_variables.DJANGO_SUPERUSER_EMAIL)
+  django_superuser_username = coalesce(var.django_superuser_username, local.preset.environment_variables.DJANGO_SUPERUSER_USERNAME)
+}
+
+module "django_preset" {
+  source = "../WebApp/modules/django"
 }
 
 data "google_compute_zones" "available_zones" {
