@@ -95,6 +95,16 @@ resource "google_cloud_run_v2_service" "app_service" {
         value = "${local.db_internal_ip}"
       }
 
+      env {
+        name  = "DB_PORT"
+        value = "5432"
+      }
+
+      env {
+        name  = "PGPORT"
+        value = "5432"
+      }
+
       volume_mounts {
         name      = "nfs-data-volume"
         mount_path = "/mnt"
