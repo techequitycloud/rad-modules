@@ -17,7 +17,7 @@
 # ===========================
 
 variable "deploy_app_preset" {
-  description = "The application preset to deploy: custom, cyclos, django, moodle, n8n, odoo, openemr, wordpress. {{UIMeta group=0 order=99 }}"
+  description = "The application preset to deploy. {{UIMeta group=0 order=99 options=cyclos,django,moodle,N8n,odoo,openemr,wordpress }}"
   type        = string
   default     = "custom"
 
