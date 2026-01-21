@@ -29,8 +29,8 @@ locals {
       DB_PORT     = "5432"
       CYCLOS_HOME = "/usr/local/cyclos"
     }
-    enable_postgres_extensions = true
-    postgres_extensions         = ["cube", "earthdistance", "postgis", "unaccent"]
+    enable_postgres_extensions = false
+    postgres_extensions         = []
 
     startup_probe = {
       enabled               = true
