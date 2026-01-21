@@ -202,9 +202,8 @@ locals {
       N8N_S3_REGION                = var.deployment_region
     } : {},
     var.application_module == "odoo" ? {
-      HOST = "/var/run/postgresql"
+      HOST = local.db_internal_ip 
       USER = local.database_user_full
-      PGPORT = "5432"
     } : {},
     var.application_module == "wordpress" ? {
       WORDPRESS_DB_NAME = local.database_name_full
