@@ -16,23 +16,6 @@
 # GROUP 0: Module Metadata & Admin Configuration
 # ===========================
 
-variable "deploy_app_preset" {
-  description = "The application preset to deploy. {{UIMeta group=3 order=99 options=cyclos,django,moodle,N8n,odoo,openemr,wordpress }}"
-  type        = string
-  default     = "custom"
-
-  validation {
-    condition     = contains(["custom", "cyclos", "django", "moodle", "n8n", "odoo", "openemr", "wordpress"], var.deploy_app_preset)
-    error_message = "Preset must be one of: custom, cyclos, django, moodle, n8n, odoo, openemr, wordpress."
-  }
-}
-
-variable "impersonation_service_account" {
-  description = "Service account to impersonate for gcloud commands (used by Django preset). {{UIMeta group=0 order=99 }}"
-  type        = string
-  default     = null
-}
-
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string

@@ -421,8 +421,8 @@ resource "null_resource" "update_csrf_origin" {
   provisioner "local-exec" {
     command = <<CMD
       IMPERSONATE_FLAG=""
-      if [ -n "${var.impersonation_service_account}" ]; then
-        IMPERSONATE_FLAG="--impersonate-service-account=${var.impersonation_service_account}"
+      if [ -n "${var.agent_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${var.agent_service_account}"
       fi
 
       SERVICE_NAME="${local.service_name}"
