@@ -47,27 +47,10 @@ locals {
     min_instance_count = 1
     max_instance_count = 1
 
-    # ✅ Use wrapper script to generate odoo.conf and start Odoo
+    # ✅ PRODUCTION-READY: Direct command-line arguments (no file I/O)
     container_command = ["/bin/bash", "-c"]
     container_args = [
-      <<-EOT
-        set -e
-        echo "Generating Odoo configuration..."
-        cat > /etc/odoo/odoo.conf <<EOF
-        [options]
-        addons_path = /usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons
-        data_dir = /mnt/filestore
-        db_host = $DB_HOST
-        db_port = 5432
-        db_user = $DB_USER
-        db_password = $DB_PASSWORD
-        http_port = 8069
-        logfile = False
-        log_level = info
-        EOF
-        echo "Starting Odoo..."
-        exec odoo -c /etc/odoo/odoo.conf
-      EOT
+      "echo 'Starting Odoo with DB: $DB_HOST' && exec odoo --db_host=\"$DB_HOST\" --db_port=5432 --db_user=\"$DB_USER\" --db_password=\"$DB_PASSWORD\" --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons --http-port=8069 --logfile=False --log-level=info"
     ]
 
     # Environment variables (DB credentials will be injected)
