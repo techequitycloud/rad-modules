@@ -106,7 +106,6 @@ resource "google_cloud_run_v2_service" "app_service" {
     # Container configuration
     containers {
       image = local.container_image
-      args  = length(local.container_args) > 0 ? local.container_args : null
 
       # Port configuration
       ports {
