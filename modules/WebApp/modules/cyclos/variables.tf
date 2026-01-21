@@ -14,7 +14,7 @@ locals {
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/var/run/postgresql"
     gcs_volumes = [{
-      bucket     = "${tenant_id}-cyclos-data"
+      bucket     = "$${tenant_id}-cyclos-data"
       mount_path = "/usr/local/cyclos/data"
       read_only  = false
     }]
