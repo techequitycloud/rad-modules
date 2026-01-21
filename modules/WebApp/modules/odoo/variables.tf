@@ -18,7 +18,7 @@ locals {
 
     # Performance optimization
     enable_cloudsql_volume     = false
-    cloudsql_volume_mount_path = "/var/run/postgresql"
+    cloudsql_volume_mount_path = ""
 
     # NFS Configuration
     nfs_enabled    = true
@@ -48,6 +48,17 @@ locals {
     min_instance_count = 1
     max_instance_count = 1
 
+    # ✅ Container startup command with explicit db_port
+    container_command = ["odoo"]
+    container_args = [
+      "--db_host=$(DB_HOST)",
+      "--db_port=5432",
+      "--db_user=$(DB_USER)",
+      "--db_password=$(DB_PASSWORD)",
+      "--data-dir=/mnt/filestore",
+      "--addons-path=/usr/lib/python3/dist-packages/odoo/addons,/extra-addons"
+    ]
+
     # Environment variables
     environment_variables = {}
 
@@ -76,13 +87,13 @@ locals {
 
             echo "Waiting for database..."
             export PGPASSWORD=$ROOT_PASSWORD
-            until psql -h $DB_HOST -U postgres -d postgres -c '\l' > /dev/null 2>&1; do
+            until psql -h $DB_HOST -p 5432 -U postgres -d postgres -c '\l' > /dev/null 2>&1; do
               echo "Waiting for database connection..."
               sleep 2
             done
 
             echo "Creating Role $DB_USER if not exists..."
-            psql -h $DB_HOST -U postgres -d postgres <<EOF
+            psql -h $DB_HOST -p 5432 -U postgres -d postgres <<EOF
             DO \$\$
             BEGIN
               IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER') THEN
@@ -97,17 +108,17 @@ locals {
             EOF
 
             echo "Creating Database $DB_NAME if not exists..."
-            if ! psql -h $DB_HOST -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
+            if ! psql -h $DB_HOST -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
               echo "Database does not exist. Creating as $DB_USER..."
               export PGPASSWORD=$DB_PASSWORD
-              psql -h $DB_HOST -U $DB_USER -d postgres -c "CREATE DATABASE \"$DB_NAME\";"
+              psql -h $DB_HOST -p 5432 -U $DB_USER -d postgres -c "CREATE DATABASE \"$DB_NAME\";"
             else
               echo "Database $DB_NAME already exists."
             fi
 
             echo "Granting privileges..."
             export PGPASSWORD=$ROOT_PASSWORD
-            psql -h $DB_HOST -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
+            psql -h $DB_HOST -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
 
             echo "DB Init complete."
           EOT
@@ -121,7 +132,7 @@ locals {
         image           = null # Uses default container image (odoo)
         command         = ["/bin/bash", "-c"]
         args            = [
-          "odoo -d $DB_NAME --db_host=$DB_HOST --db_port=$DB_PORT --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/extra-addons -i base --stop-after-init --log-level=info"
+          "odoo -d $DB_NAME --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/extra-addons -i base --stop-after-init --log-level=info"
         ]
         mount_nfs         = true
         mount_gcs_volumes = ["odoo-addons-volume"]
