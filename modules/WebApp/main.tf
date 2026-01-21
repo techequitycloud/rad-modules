@@ -148,17 +148,30 @@ locals {
   create_cloud_storage       = var.application_module == "n8n" ? false : var.create_cloud_storage # N8N handles own storage
 
   # Preset Storage Buckets
-  preset_storage_buckets = var.application_module == "odoo" ? [
-    {
-      name_suffix              = "odoo-addons-volume"
-      location                 = var.deployment_region
-      storage_class            = "STANDARD"
-      force_destroy            = true
-      versioning_enabled       = false
-      lifecycle_rules          = []
-      public_access_prevention = "inherited"
-    }
-  ] : []
+  preset_storage_buckets = concat(
+    var.application_module == "odoo" ? [
+      {
+        name_suffix              = "odoo-addons-volume"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : [],
+    var.application_module == "wordpress" ? [
+      {
+        name_suffix              = "wp-uploads"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : []
+  )
 
   # Combined Storage Buckets
   all_storage_buckets = concat(var.storage_buckets, local.preset_storage_buckets)
