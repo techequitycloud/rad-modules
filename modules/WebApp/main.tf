@@ -228,11 +228,6 @@ locals {
 
   secret_environment_variables = merge(var.secret_environment_variables, local.preset_secret_env_vars)
 
-  # Secret environment variables (process secret names to find versions)
-  secret_env_var_map = {
-    for k, v in local.secret_environment_variables : k => v
-  }
-
   # Service accounts
   # Inject N8N SA if active
   cloudrun_sa_input = var.application_module == "n8n" ? google_service_account.n8n_sa[0].email : var.cloudrun_service_account
@@ -255,9 +250,6 @@ locals {
   cicd_trigger_config        = var.cicd_trigger_config
 
   enable_backup_import       = var.enable_backup_import
-  backup_source              = var.backup_source
-  backup_uri                 = var.backup_uri
-  backup_format              = var.backup_format
 
   enable_gdrive_backup_import = var.enable_gdrive_backup_import
   gdrive_backup_file_id       = var.gdrive_backup_file_id

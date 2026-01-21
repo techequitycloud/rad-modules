@@ -38,21 +38,21 @@ locals {
   backup_import_enabled = local.enable_backup_import || local.enable_gdrive_backup_import || local.enable_gcs_backup_import
 
   # Determine backup source (unified takes precedence)
-  backup_source = local.enable_backup_import ? local.backup_source : (
+  backup_source = local.enable_backup_import ? var.backup_source : (
     local.enable_gdrive_backup_import ? "gdrive" : (
       local.enable_gcs_backup_import ? "gcs" : "gcs"
     )
   )
 
   # Determine backup URI/ID (unified takes precedence)
-  backup_uri = local.enable_backup_import && local.backup_uri != "" ? local.backup_uri : (
+  backup_uri = local.enable_backup_import && var.backup_uri != "" ? var.backup_uri : (
     local.enable_gdrive_backup_import && local.gdrive_backup_file_id != "" ? local.gdrive_backup_file_id : (
       local.enable_gcs_backup_import && local.gcs_backup_uri != "" ? local.gcs_backup_uri : ""
     )
   )
 
   # Determine backup format (unified takes precedence)
-  backup_format = local.enable_backup_import && local.backup_format != "" ? local.backup_format : (
+  backup_format = local.enable_backup_import && var.backup_format != "" ? var.backup_format : (
     local.enable_gdrive_backup_import ? local.gdrive_backup_format : (
       local.enable_gcs_backup_import ? local.gcs_backup_format : "sql"
     )
