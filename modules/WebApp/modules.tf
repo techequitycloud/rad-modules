@@ -169,6 +169,9 @@ locals {
   module_enable_mysql_plugins = local.using_module && local.selected_module != null ? lookup(local.selected_module, "enable_mysql_plugins", null) : null
   module_mysql_plugins        = local.using_module && local.selected_module != null ? lookup(local.selected_module, "mysql_plugins", []) : []
 
+  # Initialization jobs
+  module_initialization_jobs = local.using_module && local.selected_module != null ? lookup(local.selected_module, "initialization_jobs", []) : []
+
   #########################################################################
   # Final Values - Preset values with manual override capability
   # Manual configuration always takes precedence over preset values
@@ -258,4 +261,10 @@ locals {
   # MySQL plugins
   final_enable_mysql_plugins = var.enable_mysql_plugins != false ? var.enable_mysql_plugins : coalesce(local.module_enable_mysql_plugins, false)
   final_mysql_plugins        = length(var.mysql_plugins) > 0 ? var.mysql_plugins : local.module_mysql_plugins
+
+  # Initialization jobs - merge preset and manual
+  final_initialization_jobs = concat(
+    local.module_initialization_jobs,
+    var.initialization_jobs
+  )
 }

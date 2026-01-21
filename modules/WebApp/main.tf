@@ -199,6 +199,7 @@ locals {
       OE_USER        = "admin"
       OE_PASS        = "admin"
       MANUAL_SETUP   = "no"
+      BACKUP_FILEID  = coalesce(local.final_backup_uri, "")
     } : {}
   )
 
@@ -245,7 +246,7 @@ locals {
   timeout_seconds            = var.timeout_seconds
   service_annotations        = var.service_annotations
   trusted_users              = var.trusted_users
-  initialization_jobs        = var.initialization_jobs
+  initialization_jobs        = local.final_initialization_jobs
 
   cicd_trigger_config        = var.cicd_trigger_config
 
