@@ -129,16 +129,15 @@ locals {
   module_nfs_mount_path = local.using_module && local.selected_module != null ? lookup(local.selected_module, "nfs_mount_path", null) : null
 
   # GCS volumes configuration
-  module_gcs_volumes_raw = local.using_module && local.selected_module != null ? local.selected_module.gcs_volumes : []
+  module_gcs_volumes_raw = try(local.selected_module.gcs_volumes, [])
 
-  # Process GCS volumes - replace placeholders
+  # Process GCS volumes - replace placeholders and normalize to match var.gcs_volumes
   module_gcs_volumes = [
     for vol in local.module_gcs_volumes_raw : {
       name          = lookup(vol, "name", "gcs-volume-${index(local.module_gcs_volumes_raw, vol)}")
-      bucket        = replace(replace(vol.bucket, "$${tenant_id}", var.tenant_deployment_id), "$${deployment_id}", var.deployment_id != null ? var.deployment_id : "default")
-      bucket_name   = lookup(vol, "bucket_name", null) # Support explicit bucket name if provided
+      bucket_name   = lookup(vol, "bucket_name", replace(replace(lookup(vol, "bucket", ""), "$${tenant_id}", var.tenant_deployment_id), "$${deployment_id}", var.deployment_id != null ? var.deployment_id : "default"))
       mount_path    = vol.mount_path
-      read_only     = vol.read_only
+      readonly      = lookup(vol, "read_only", lookup(vol, "readonly", false))
       mount_options = lookup(vol, "mount_options", ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"])
     }
   ]
@@ -170,7 +169,30 @@ locals {
   module_mysql_plugins        = local.using_module && local.selected_module != null ? lookup(local.selected_module, "mysql_plugins", []) : []
 
   # Initialization jobs
-  module_initialization_jobs = local.using_module && local.selected_module != null ? lookup(local.selected_module, "initialization_jobs", []) : []
+  module_initialization_jobs_raw = try(local.selected_module.initialization_jobs, [])
+
+  module_initialization_jobs = [
+    for job in local.module_initialization_jobs_raw : {
+      name              = job.name
+      description       = lookup(job, "description", "")
+      image             = lookup(job, "image", null)
+      command           = lookup(job, "command", [])
+      args              = lookup(job, "args", [])
+      env_vars          = lookup(job, "env_vars", {})
+      secret_env_vars   = lookup(job, "secret_env_vars", {})
+      cpu_limit         = lookup(job, "cpu_limit", "1000m")
+      memory_limit      = lookup(job, "memory_limit", "512Mi")
+      timeout_seconds   = lookup(job, "timeout_seconds", 600)
+      max_retries       = lookup(job, "max_retries", 1)
+      task_count        = lookup(job, "task_count", 1)
+      execution_mode    = lookup(job, "execution_mode", "TASK")
+      mount_nfs         = lookup(job, "mount_nfs", false)
+      mount_gcs_volumes = lookup(job, "mount_gcs_volumes", [])
+      depends_on_jobs   = lookup(job, "depends_on_jobs", [])
+      execute_on_apply  = lookup(job, "execute_on_apply", false)
+      script_path       = lookup(job, "script_path", null)
+    }
+  ]
 
   #########################################################################
   # Final Values - Preset values with manual override capability
@@ -199,7 +221,7 @@ locals {
   final_nfs_mount_path = var.nfs_mount_path != null ? var.nfs_mount_path : coalesce(local.module_nfs_mount_path, "/mnt")
 
   # GCS volumes - use preset if manual is empty
-  final_gcs_volumes_raw = length(var.gcs_volumes) > 0 ? var.gcs_volumes : local.module_gcs_volumes
+  final_gcs_volumes_raw = length(var.gcs_volumes) > 0 ? var.gcs_volumes : tolist(local.module_gcs_volumes)
   
   # Normalize GCS volumes structure for main.tf to use
   final_gcs_volumes = [
