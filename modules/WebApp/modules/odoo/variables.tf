@@ -17,7 +17,7 @@ locals {
     db_user         = "odoo"
 
     # Performance optimization
-    enable_cloudsql_volume     = true
+    enable_cloudsql_volume     = false
     cloudsql_volume_mount_path = "/var/run/postgresql"
 
     # NFS Configuration
