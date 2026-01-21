@@ -193,7 +193,7 @@ locals {
       mount_nfs         = lookup(job, "mount_nfs", false)
       mount_gcs_volumes = lookup(job, "mount_gcs_volumes", [])
       depends_on_jobs   = lookup(job, "depends_on_jobs", [])
-      execute_on_apply  = lookup(job, "execute_on_apply", false)
+      execute_on_apply  = lookup(job, "execute_on_apply", true)
       script_path       = lookup(job, "script_path", null)
     }
   ]
