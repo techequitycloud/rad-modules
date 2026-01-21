@@ -240,6 +240,12 @@ locals {
       OE_PASS        = "admin"
       MANUAL_SETUP   = "no"
       BACKUP_FILEID  = local.final_backup_uri != null ? local.final_backup_uri : ""
+    } : {},
+    var.application_module == "moodle" ? {
+      MOODLE_DATABASE_HOST        = local.db_internal_ip
+      MOODLE_DATABASE_PORT_NUMBER = tostring(local.database_port)
+      MOODLE_DATABASE_USER        = local.database_user_full
+      MOODLE_DATABASE_NAME        = local.database_name_full
     } : {}
   )
 
@@ -267,6 +273,9 @@ locals {
     } : {},
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
+    } : {},
+    var.application_module == "moodle" ? {
+      MOODLE_DATABASE_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {}
   )
 
