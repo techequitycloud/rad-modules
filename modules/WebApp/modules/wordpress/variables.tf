@@ -49,6 +49,79 @@ locals {
     enable_mysql_plugins = false
     mysql_plugins        = []
 
+    # Initialization Jobs
+    initialization_jobs = [
+      {
+        name            = "db-init"
+        description     = "Create WordPress Database and User"
+        image           = "alpine:3.19"
+        command         = ["/bin/sh", "-c"]
+        args            = [
+          <<-EOT
+            set -e
+            echo "Installing dependencies..."
+            apk update && apk add --no-cache mysql-client netcat-openbsd
+
+            # Use WORDPRESS_DB_HOST which is available in static envs (mapped to internal IP)
+            DB_HOST_VAL=$WORDPRESS_DB_HOST
+            echo "Using DB Host: $DB_HOST_VAL"
+
+            # Check if DB_HOST_VAL is set
+            if [ -z "$DB_HOST_VAL" ]; then
+              echo "Error: WORDPRESS_DB_HOST is not set."
+              exit 1
+            fi
+
+            # DB_PASSWORD and ROOT_PASSWORD are automatically injected by WebApp/jobs.tf
+            if [ -z "$DB_PASSWORD" ]; then
+              echo "Error: DB_PASSWORD is not set. It should be injected by WebApp/jobs.tf."
+              exit 1
+            fi
+
+            if [ -z "$ROOT_PASSWORD" ]; then
+              echo "Error: ROOT_PASSWORD is not set. It should be injected by WebApp/jobs.tf."
+              exit 1
+            fi
+
+            echo "Waiting for database..."
+            until nc -z $DB_HOST_VAL 3306; do
+              echo "Waiting for MySQL port 3306..."
+              sleep 2
+            done
+
+            cat > ~/.my.cnf << EOF
+[client]
+user=root
+password=$ROOT_PASSWORD
+host=$DB_HOST_VAL
+EOF
+            chmod 600 ~/.my.cnf
+
+            echo "Creating User $DB_USER if not exists..."
+            mysql --defaults-file=~/.my.cnf <<EOF
+CREATE USER IF NOT EXISTS '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
+ALTER USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
+FLUSH PRIVILEGES;
+EOF
+
+            echo "Creating Database $DB_NAME if not exists..."
+            mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;"
+
+            echo "Granting privileges..."
+            mysql --defaults-file=~/.my.cnf <<EOF
+GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
+FLUSH PRIVILEGES;
+EOF
+
+            rm -f ~/.my.cnf
+            echo "DB Init complete."
+          EOT
+        ]
+        mount_nfs         = false
+        mount_gcs_volumes = []
+      }
+    ]
+
     startup_probe = {
       enabled               = true
       type                  = "TCP"
