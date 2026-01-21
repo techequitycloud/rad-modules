@@ -47,11 +47,10 @@ locals {
     container_command = null
 
     # Pass arguments to the entrypoint
+    # We remove explicit db args because they use variable substitution $(VAR) which Cloud Run does not support in args.
+    # Instead, we rely on the Odoo image's ability to read HOST, USER, PASSWORD from environment variables
+    # which are injected by the WebApp module.
     container_args = [
-      "--db_host=$(DB_HOST)",
-      "--db_port=5432",
-      "--db_user=$(DB_USER)",
-      "--db_password=$(DB_PASSWORD)",
       "--data-dir=/mnt/filestore",
       "--addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons"
     ]
