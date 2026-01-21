@@ -49,10 +49,7 @@ locals {
     max_instance_count = 1
 
     # Environment variables
-    environment_variables = {
-      DB_HOST = "/var/run/postgresql"
-      DB_PORT = "5432"
-    }
+    environment_variables = {}
 
     # Initialization Jobs
     initialization_jobs = [
