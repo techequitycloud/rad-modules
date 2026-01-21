@@ -123,6 +123,7 @@ locals {
 
   container_port         = local.final_container_port
   container_resources    = local.final_container_resources
+  container_args         = local.preset_container_args
 
   # Scaling
   min_instance_count = local.final_min_instance_count
@@ -184,9 +185,6 @@ locals {
       mount_options = vol.mount_options
     }
   }
-
-  # Dynamic Container Arguments
-  preset_container_args = var.application_module == "odoo" ? ["odoo", "--db_port=5432"] : []
 
   # Dynamic Environment Variables for Modules (these depend on resources generated in this main.tf)
   preset_env_vars = merge(
