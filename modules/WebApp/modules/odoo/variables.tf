@@ -31,8 +31,9 @@ locals {
       read_only  = false
       mount_options = [
         "implicit-dirs",
-        "stat-cache-ttl=60s",
-        "type-cache-ttl=60s"
+        "uid=101",
+        "gid=101",
+        "metadata-cache-ttl-secs=60"
       ]
     }]
 
@@ -44,15 +45,10 @@ locals {
     min_instance_count = 1
     max_instance_count = 1
 
-    # ✅ Container startup command with explicit db_port
-    container_command = ["odoo"]
+    # ✅ Container startup command with explicit db_port and shell expansion
+    container_command = ["/bin/bash", "-c"]
     container_args = [
-      "--db_host=$(DB_HOST)",
-      "--db_port=5432",
-      "--db_user=$(DB_USER)",
-      "--db_password=$(DB_PASSWORD)",
-      "--data-dir=/mnt/filestore",
-      "--addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons"
+      "odoo --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons"
     ]
 
     # Environment variables
