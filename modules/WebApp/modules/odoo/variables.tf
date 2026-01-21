@@ -27,13 +27,9 @@ locals {
     # Storage volumes (Addons)
     gcs_volumes = [{
       name       = "odoo-addons-volume"
-      mount_path = "/extra-addons"
+      mount_path = "/mnt/extra-addons"
       read_only  = false
       mount_options = [
-        "uid=103",
-        "gid=101",
-        "file-mode=644",
-        "dir-mode=755",
         "implicit-dirs",
         "stat-cache-ttl=60s",
         "type-cache-ttl=60s"
@@ -56,7 +52,7 @@ locals {
       "--db_user=$(DB_USER)",
       "--db_password=$(DB_PASSWORD)",
       "--data-dir=/mnt/filestore",
-      "--addons-path=/usr/lib/python3/dist-packages/odoo/addons,/extra-addons"
+      "--addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons"
     ]
 
     # Environment variables
@@ -132,7 +128,7 @@ locals {
         image           = null # Uses default container image (odoo)
         command         = ["/bin/bash", "-c"]
         args            = [
-          "odoo -d $DB_NAME --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/extra-addons -i base --stop-after-init --log-level=info"
+          "odoo -d $DB_NAME --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons -i base --stop-after-init --log-level=info"
         ]
         mount_nfs         = true
         mount_gcs_volumes = ["odoo-addons-volume"]
