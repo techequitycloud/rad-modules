@@ -15,6 +15,8 @@ locals {
     database_type   = "MYSQL_8_0"
     db_name         = "wordpress_db"
     db_user         = "wordpress_user"
+    application_version = "6.8.1"
+    application_sha     = "52d5f05c96a9155f78ed84700264307e5dea14b4"
 
     # Performance optimization
     enable_cloudsql_volume     = true
