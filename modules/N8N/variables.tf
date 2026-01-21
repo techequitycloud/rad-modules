@@ -87,6 +87,12 @@ variable "existing_project_id" {
   type        = string
 }
 
+variable "deployment_region" {
+  description = "Primary deployment region for your application (e.g., us-central1, europe-west1). {{UIMeta group=2 order=201 updatesafe }}"
+  type        = string
+  default     = "us-central1"
+}
+
 variable "network_name" {
   description = "The name of the VPC network. {{UIMeta group=0 order=201 }}"
   type        = string

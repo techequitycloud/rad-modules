@@ -1,4 +1,4 @@
-# Copyright 2024 Tech Equity Ltd
+# Copyright 2024 (c) Tech Equity Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,46 +13,37 @@
 # limitations under the License.
 
 output "app_service_url" {
-  value = length(google_cloud_run_v2_service.app_service) > 0 ? google_cloud_run_v2_service.app_service[0].uri : null
+  description = "The URL of the deployed application"
+  value       = module.webapp.service_url
 }
 
+output "service_name" {
+  description = "The name of the Cloud Run service"
+  value       = module.webapp.service_name
+}
 
-output "sql_instance_info" {
+output "deployment_info" {
+  description = "Deployment information including IDs and names"
+  value       = module.webapp.deployment_info
+}
+
+output "database_info" {
+  description = "Database connection information"
   value = {
-    instance_exists  = local.sql_server_exists
-    database_version = local.database_version
-    instance_name    = local.db_instance_name
-    instance_region  = local.db_instance_region
-    instance_ip      = local.db_internal_ip
+    instance_name = module.webapp.database_instance_name
+    database_name = module.webapp.database_name
+    database_user = module.webapp.database_user
+    host          = module.webapp.database_host
+    port          = module.webapp.database_port
   }
 }
 
-########################################################################################
-# Local variables output
-########################################################################################
-
-output "existing_service_accounts" {
-  description = "List of existing service accounts"
-  value = [
-    for sa_name, exists in {
-      "cloudbuild-sa"   = local.cloud_build_sa_exists
-      "cloudrun-sa"     = local.cloud_run_sa_exists
-    } : sa_name if exists
-  ]
+output "storage_buckets" {
+  description = "Created storage buckets"
+  value       = module.webapp.storage_buckets
 }
 
-########################################################################################
-# Network information output
-########################################################################################
-
-output "network_info" {
-  description = "Information about the existing VPC network"
-  value = {
-    network_exists  = local.network_exists
-    regions         = local.regions_list
-    subnet_names    = local.subnet_names
-    subnet_cidrs    = local.subnet_cidrs
-    subnet_details  = local.subnet_details
-    subnet_count    = length(local.subnet_names)
-  }
+output "n8n_module" {
+  description = "N8N module configuration used"
+  value       = "n8n"
 }
