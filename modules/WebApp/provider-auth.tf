@@ -1,6 +1,6 @@
 locals {
   # Service account impersonation configuration
-  impersonation_service_account = local.agent_service_account != null ? local.agent_service_account : local.resource_creator_identity
+  impersonation_service_account = local.agent_service_account != null ? local.agent_service_account : (local.resource_creator_identity != null ? local.resource_creator_identity : "")
   impersonation_enabled         = local.impersonation_service_account != null && local.impersonation_service_account != ""
 }
 

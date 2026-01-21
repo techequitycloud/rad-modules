@@ -324,7 +324,6 @@ locals {
   # ===========================
 
   # Aliases for backward compatibility and missing references
-  impersonation_service_account = local.agent_service_account != null ? local.agent_service_account : ""
   cloudbuild_sa                 = local.cloudbuild_service_account
   cloudrun_sa                   = local.cloudrun_service_account
 
