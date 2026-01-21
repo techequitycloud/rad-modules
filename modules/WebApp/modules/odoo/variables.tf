@@ -46,9 +46,10 @@ locals {
     max_instance_count = 1
 
     # ✅ Container startup command with explicit db_port and shell expansion
+    # Uses bash to expand env vars, but calls /entrypoint.sh to ensure image initialization runs
     container_command = ["/bin/bash", "-c"]
     container_args = [
-      "odoo --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons"
+      "/entrypoint.sh odoo --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons"
     ]
 
     # Environment variables
