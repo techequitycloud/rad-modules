@@ -97,6 +97,9 @@ locals {
   # Container Config
   container_image_source = local.final_container_image_source
 
+  # Preset Container Arguments
+  preset_container_args = var.application_module == "odoo" ? ["odoo", "--db_port=5432"] : []
+
   # Default Container Build Config
   container_build_config = var.container_build_config != null ? var.container_build_config : {
     enabled            = false
@@ -202,7 +205,7 @@ locals {
       N8N_S3_REGION                = var.deployment_region
     } : {},
     var.application_module == "odoo" ? {
-      HOST = "/var/run/postgresql"
+      HOST = local.db_internal_ip
       USER = local.database_user_full
       PGPORT = "5432"
     } : {},
