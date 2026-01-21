@@ -25,7 +25,7 @@ locals {
     # Storage volumes
     gcs_volumes = [{
       bucket     = "$${tenant_id}-wp-uploads"
-      mount_path = "/var/www/html/wp-content" # Note: Changed from wp-content/uploads to wp-content to match preset
+      mount_path = "/var/www/html/wp-content"
       read_only  = false
       mount_options = ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"]
     }]
@@ -36,7 +36,7 @@ locals {
       memory_limit = "2Gi"
     }
     min_instance_count = 1
-    max_instance_count = 20
+    max_instance_count = 3 
 
     # Environment variables
     environment_variables = {
