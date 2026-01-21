@@ -62,7 +62,7 @@ locals {
   # Application configuration
   application_name         = local.final_application_name
   application_display_name = var.application_display_name != null ? var.application_display_name : local.application_name
-  application_version      = var.application_version
+  application_version      = local.final_application_version
 
   # Database configuration
   database_type             = upper(local.final_database_type)
@@ -281,7 +281,7 @@ locals {
   alert_policies              = var.alert_policies
   uptime_check_config         = var.uptime_check_config
   configure_environment       = var.configure_environment
-  application_description     = var.application_description
+  application_description     = local.final_application_description
   execution_environment       = var.execution_environment
   service_labels              = var.service_labels
   container_protocol          = var.container_protocol
