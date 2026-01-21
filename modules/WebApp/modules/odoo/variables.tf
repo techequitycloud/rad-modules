@@ -30,13 +30,12 @@ locals {
       mount_path = "/extra-addons"
       read_only  = false
       mount_options = [
-        "uid=103",
+        "uid=101",
         "gid=101",
         "file-mode=644",
         "dir-mode=755",
         "implicit-dirs",
-        "stat-cache-ttl=60s",
-        "type-cache-ttl=60s"
+        "metadata-cache-ttl-secs=60"
       ]
     }]
 
