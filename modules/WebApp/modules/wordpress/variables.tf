@@ -49,6 +49,62 @@ locals {
     enable_mysql_plugins = false
     mysql_plugins        = []
 
+    # Initialization jobs
+    initialization_jobs = [
+      {
+        name             = "db-init"
+        description      = "Initialize WordPress database and user"
+        image            = "alpine:3.19"
+        execute_on_apply = true
+        command          = ["/bin/sh", "-c"]
+        args = [<<-EOT
+          set -e
+          echo "Starting DB Import/Init Job"
+
+          # Use WORDPRESS_DB_HOST as DB_HOST if DB_HOST is not set (Cloud SQL IP)
+          DB_HOST=$${DB_HOST:-$WORDPRESS_DB_HOST}
+
+          echo "DB_HOST: $DB_HOST"
+
+          # Install required packages
+          apk add --no-cache mysql-client netcat-openbsd
+
+          # Create MySQL configuration file
+          echo "[client]" > ~/.my.cnf
+          echo "user=root" >> ~/.my.cnf
+          echo "password=$ROOT_PASSWORD" >> ~/.my.cnf
+          echo "host=$DB_HOST" >> ~/.my.cnf
+          chmod 600 ~/.my.cnf
+
+          # Verify connection
+          echo "Verifying MySQL connection..."
+          mysql --defaults-file=~/.my.cnf -e "SELECT VERSION();"
+
+          # Create User
+          echo "Creating User $DB_USER..."
+          mysql --defaults-file=~/.my.cnf <<EOF
+CREATE USER IF NOT EXISTS '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
+ALTER USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
+FLUSH PRIVILEGES;
+EOF
+
+          # Create Database
+          echo "Creating Database $DB_NAME..."
+          mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+          # Grant Privileges
+          echo "Granting Privileges..."
+          mysql --defaults-file=~/.my.cnf <<EOF
+GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
+GRANT GRANT OPTION ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
+FLUSH PRIVILEGES;
+EOF
+          echo "DB Init Job Completed Successfully"
+        EOT
+        ]
+      }
+    ]
+
     startup_probe = {
       enabled               = true
       type                  = "TCP"
