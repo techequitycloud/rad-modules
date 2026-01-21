@@ -119,6 +119,7 @@ EOF
         ]
         mount_nfs         = false
         mount_gcs_volumes = []
+        execute_on_apply  = true
       }
     ]
 
