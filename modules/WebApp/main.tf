@@ -143,9 +143,25 @@ locals {
 
   create_cloud_storage       = var.application_module == "n8n" ? false : var.create_cloud_storage # N8N handles own storage
 
+  # Preset Storage Buckets
+  preset_storage_buckets = var.application_module == "odoo" ? [
+    {
+      name_suffix              = "odoo-addons-volume"
+      location                 = var.deployment_region
+      storage_class            = "STANDARD"
+      force_destroy            = true
+      versioning_enabled       = false
+      lifecycle_rules          = []
+      public_access_prevention = "inherited"
+    }
+  ] : []
+
+  # Combined Storage Buckets
+  all_storage_buckets = concat(var.storage_buckets, local.preset_storage_buckets)
+
   # Storage buckets
   storage_buckets = local.create_cloud_storage ? {
-    for bucket in var.storage_buckets :
+    for bucket in local.all_storage_buckets :
     bucket.name_suffix => {
       name                     = "${local.resource_prefix}-${bucket.name_suffix}"
       location                 = bucket.location
@@ -162,7 +178,7 @@ locals {
     for idx, vol in local.final_gcs_volumes :
     vol.name => {
       name          = vol.name
-      bucket_name   = vol.bucket_name != null ? vol.bucket_name : try(local.storage_buckets[vol.name].name, null)
+      bucket_name   = (vol.bucket_name != null && vol.bucket_name != "") ? vol.bucket_name : try(local.storage_buckets[vol.name].name, null)
       mount_path    = vol.mount_path
       readonly      = vol.readonly
       mount_options = vol.mount_options
