@@ -1,80 +1,61 @@
 # Copyright 2024 (c) Tech Equity Ltd
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed under the Apache License, Version 2.0
 
 output "deployment_info" {
+  description = "Deployment information"
   value = {
-    deployment_id  = var.deployment_id
-    region         = local.region
-    project_id = local.project.project_id
+    deployment_id = module.wordpress_app.deployment_id
+    region        = module.wordpress_app.deployment_summary.deployment_region
+    project_id    = module.wordpress_app.project_id
   }
 }
 
 output "cloud_sql_info" {
+  description = "Cloud SQL information"
   value = {
-    cloudsql_instance_ip = local.sql_server_exists ? local.db_internal_ip : "" 
-    cloud_sql_studio = length(local.db_instance_name) > 0 ? "https://console.cloud.google.com/sql/instances/${local.db_instance_name}/studio?project=${local.project.project_id}&supportedpurview=project,organizationId,folder" : ""
-    database_name =  "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
-    database_user = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    cloudsql_instance_ip = module.wordpress_app.database_host
+    cloud_sql_studio     = module.wordpress_app.database_instance_name != null ? "https://console.cloud.google.com/sql/instances/${module.wordpress_app.database_instance_name}/studio?project=${module.wordpress_app.project_id}&supportedpurview=project,organizationId,folder" : ""
+    database_name        = module.wordpress_app.database_name
+    database_user        = module.wordpress_app.database_user
   }
 }
 
 output "private_storage_info" {
+  description = "Private storage information"
   value = {
-    gcs_private_data_bucket = var.create_cloud_storage ? local.data_bucket_name : "" 
+    # Assuming the first bucket is the data bucket if any exist
+    gcs_private_data_bucket = length(keys(module.wordpress_app.storage_buckets)) > 0 ? values(module.wordpress_app.storage_buckets)[0].name : ""
   }
 }
 
 output "application_info" {
+  description = "Application information"
   value = {
-    application_url  = var.configure_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}-${local.project_number}.${local.region}.run.app" : ""
-    cloud_secret_manager = var.configure_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    application_url      = module.wordpress_app.service_url
+    cloud_secret_manager = "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${module.wordpress_app.project_id}&supportedpurview=organizationId"
   }
 }
 
 output "service_info" {
+  description = "Service information"
   value = {
-    service_url  = var.configure_environment ? "https://console.cloud.google.com/run/detail/${local.region}/app${var.application_name}${var.tenant_deployment_id}${local.random_id}/metrics?orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-    cloud_secret_manager = var.configure_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    # Constructing console URL similar to original
+    service_url          = module.wordpress_app.service_name != null ? "https://console.cloud.google.com/run/detail/${module.wordpress_app.service_location}/${module.wordpress_app.service_name}/metrics?orgonly=true&project=${module.wordpress_app.project_id}&supportedpurview=organizationId" : ""
+    cloud_secret_manager = "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${module.wordpress_app.project_id}&supportedpurview=organizationId"
   }
 }
-
-########################################################################################
-# Local variables output
-########################################################################################
-
-output "existing_service_accounts" {
-  description = "List of existing service accounts"
-  value = [
-    for sa_name, exists in {
-      "cloudbuild-sa"   = local.cloud_build_sa_exists
-      "cloudrun-sa"     = local.cloud_run_sa_exists
-    } : sa_name if exists
-  ]
-}
-
-########################################################################################
-# Network information output
-########################################################################################
 
 output "network_info" {
-  description = "Information about the existing VPC network"
+  description = "Network information"
   value = {
-    network_exists  = local.network_exists
-    regions         = local.regions_list
-    subnet_names    = local.subnet_names
-    subnet_cidrs    = local.subnet_cidrs
-    subnet_details  = local.subnet_details
-    subnet_count    = length(local.subnet_names)
+    network_exists = module.wordpress_app.network_exists
+    network_name   = module.wordpress_app.network_name
+    regions        = module.wordpress_app.regions
   }
+}
+
+# Forwarding new useful outputs from WebApp
+output "deployment_summary" {
+  description = "Summary of the deployment"
+  value       = module.wordpress_app.deployment_summary
 }

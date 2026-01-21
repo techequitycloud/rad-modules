@@ -1,16 +1,5 @@
 # Copyright 2024 (c) Tech Equity Ltd
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed under the Apache License, Version 2.0
 
 # GROUP 1: Deployment 
 
@@ -21,7 +10,7 @@ variable "module_description" {
 }
 
 variable "module_dependency" {
-  description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=102 }}"
+  description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=101 }}"
   type        = list(string)
   default     = ["GCP_Services"]
 }
@@ -100,7 +89,7 @@ variable "network_name" {
 variable "create_cloud_storage" {
   description = "Select to enable access to Cloud Storage. {{UIMeta group=0 order=501 }}"
   type        = bool
-  default     = true  # Change to true to create the resource
+  default     = true
 }
 
 # GROUP 5: Deploy
@@ -130,7 +119,7 @@ variable "application_version" {
 }
 
 variable "application_sha" {
-  description = "Enter application SHA. This value can be updated from the docker files at https://hub.docker.com/_/odoo {{UIMeta group=0 order=506}}"
+  description = "Enter application SHA. This value can be updated from the docker files at https://hub.docker.com/_/wordpress {{UIMeta group=0 order=506}}"
   type        = string
   default     = "52d5f05c96a9155f78ed84700264307e5dea14b4"
 }
@@ -155,4 +144,11 @@ variable "configure_monitoring" {
   description = "Select this option to configure monitoring. Configures uptime checks, SLOs and SLIs for application. {{UIMeta group=0 order=805}}"
   type        = bool
   default     = true
+}
+
+# Additional variables supported by WebApp that might be useful to expose or default
+variable "deployment_region" {
+  description = "Primary deployment region for your application. {{UIMeta group=0 order=202 updatesafe }}"
+  type        = string
+  default     = "us-central1"
 }
