@@ -31,8 +31,7 @@ locals {
       read_only  = false
       mount_options = [
         "implicit-dirs",
-        "stat-cache-ttl=60s",
-        "type-cache-ttl=60s"
+        "metadata-cache-ttl-secs=60"
       ]
     }]
 
@@ -44,8 +43,10 @@ locals {
     min_instance_count = 1
     max_instance_count = 1
 
-    # ✅ Container startup command with explicit db_port
-    container_command = ["odoo"]
+    # Use default container entrypoint (likely /entrypoint.sh) to ensure proper setup
+    container_command = null
+
+    # Pass arguments to the entrypoint
     container_args = [
       "--db_host=$(DB_HOST)",
       "--db_port=5432",

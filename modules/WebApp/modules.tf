@@ -142,7 +142,7 @@ locals {
       bucket_name   = lookup(vol, "bucket_name", replace(replace(lookup(vol, "bucket", ""), "$${tenant_id}", var.tenant_deployment_id), "$${deployment_id}", var.deployment_id != null ? var.deployment_id : "default"))
       mount_path    = vol.mount_path
       readonly      = lookup(vol, "read_only", lookup(vol, "readonly", false))
-      mount_options = lookup(vol, "mount_options", ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"])
+      mount_options = lookup(vol, "mount_options", ["implicit-dirs", "metadata-cache-ttl-secs=60"])
     }
   ]
 
@@ -234,7 +234,7 @@ locals {
       bucket_name   = lookup(vol, "bucket_name", lookup(vol, "bucket", null)) # Handle both keys
       mount_path    = vol.mount_path
       readonly      = lookup(vol, "read_only", lookup(vol, "readonly", false))
-      mount_options = lookup(vol, "mount_options", ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"])
+      mount_options = lookup(vol, "mount_options", ["implicit-dirs", "metadata-cache-ttl-secs=60"])
     }
   ]
 
