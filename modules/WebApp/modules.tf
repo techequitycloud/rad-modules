@@ -115,6 +115,10 @@ locals {
   module_application_version    = local.using_module && local.selected_module != null ? lookup(local.selected_module, "application_version", lookup(local.selected_module, "app_version", null)) : null
   module_application_description = local.using_module && local.selected_module != null ? lookup(local.selected_module, "description", lookup(local.selected_module, "application_description", null)) : null
 
+  # Container command and args
+  module_container_command = local.using_module && local.selected_module != null ? lookup(local.selected_module, "container_command", null) : null
+  module_container_args    = local.using_module && local.selected_module != null ? lookup(local.selected_module, "container_args", null) : null
+
   # Database configuration
   module_database_type             = local.using_module && local.selected_module != null ? local.selected_module.database_type : null
   module_application_database_name = local.using_module && local.selected_module != null ? lookup(local.selected_module, "db_name", null) : null
