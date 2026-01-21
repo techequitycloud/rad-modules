@@ -502,14 +502,14 @@ resource "null_resource" "execute_postgres_extensions_job" {
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
-      timeout 240 gcloud run jobs execute ${google_cloud_run_v2_job.postgres_extensions_job[0].name} \
+      timeout 360 gcloud run jobs execute ${google_cloud_run_v2_job.postgres_extensions_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         $IMPERSONATE_FLAG \
         --wait || {
           EXIT_CODE=$?
           if [ $EXIT_CODE -eq 124 ]; then
-            echo "⚠ Job execution timed out after 4 minutes"
+            echo "⚠ Job execution timed out after 6 minutes"
             exit 1
           else
             echo "✗ PostgreSQL extensions installation job failed with exit code $EXIT_CODE"
@@ -945,14 +945,14 @@ resource "null_resource" "execute_mysql_plugins_job" {
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
-      timeout 240 gcloud run jobs execute ${google_cloud_run_v2_job.mysql_plugins_job[0].name} \
+      timeout 360 gcloud run jobs execute ${google_cloud_run_v2_job.mysql_plugins_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         $IMPERSONATE_FLAG \
         --wait || {
           EXIT_CODE=$?
           if [ $EXIT_CODE -eq 124 ]; then
-            echo "⚠ Job execution timed out after 4 minutes"
+            echo "⚠ Job execution timed out after 6 minutes"
             exit 1
           else
             echo "✗ MySQL plugins installation job failed with exit code $EXIT_CODE"
