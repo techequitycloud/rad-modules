@@ -50,6 +50,18 @@ variable "enable_purge" {
   default     = true
 }
 
+variable "deployment_region" {
+  description = "Primary deployment region for your application (e.g., us-central1, europe-west1). {{UIMeta group=0 order=202 updatesafe }}"
+  type        = string
+  default     = "us-central1"
+}
+
+variable "deployment_regions" {
+  description = "List of regions for multi-region deployment (advanced users only). {{UIMeta group=0 order=110 updatesafe }}"
+  type        = list(string)
+  default     = []
+}
+
 variable "public_access" {
   description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
   type = bool

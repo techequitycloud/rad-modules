@@ -12,45 +12,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-locals {
-  random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
+module "webapp" {
+  source = "../WebApp"
 
-  project = ((length(data.google_project.existing_project) > 0 
-        ? data.google_project.existing_project  
-        : null) 
-  ) 
+  application_module = "moodle"
 
-  region  = tolist(local.regions_list)[0]
-  regions = tolist(local.regions_list)
-  project_number = try(data.google_project.existing_project.number, "")
+  # Module Metadata & Admin
+  module_description       = var.module_description
+  module_dependency        = var.module_dependency
+  module_services          = var.module_services
+  credit_cost              = var.credit_cost
+  require_credit_purchases = var.require_credit_purchases
+  enable_purge             = var.enable_purge
+  public_access            = var.public_access
+  deployment_id            = var.deployment_id
+  resource_creator_identity = var.resource_creator_identity
+  trusted_users            = var.trusted_users
 
-  # Set impersonation service account based on agent service account availability
-  # Falls back to resource_creator_identity if agent_service_account is not set
-  impersonation_service_account = var.agent_service_account != null && var.agent_service_account != "" ? var.agent_service_account : var.resource_creator_identity
+  # Deployment Configuration
+  existing_project_id      = var.existing_project_id
+  agent_service_account    = var.agent_service_account
+  tenant_deployment_id     = var.tenant_deployment_id
+  deployment_region        = var.deployment_region
+  deployment_regions       = var.deployment_regions
+  configure_environment    = var.configure_environment
 
-  # Determine if we should use impersonation
-  use_impersonation = local.impersonation_service_account != null && local.impersonation_service_account != ""
+  # Network
+  network_name             = var.network_name
 
-  # Subnet lookup map: region -> subnet_name
-  subnet_name_lookup = {
-    for s in local.subnet_details : s.region => s.name
+  # Storage
+  create_cloud_storage     = var.create_cloud_storage
+
+  # Application Configuration
+  application_name          = var.application_name
+  application_database_user = var.application_database_user
+  application_database_name = var.application_database_name
+  application_version       = var.application_version
+
+  # Monitoring
+  uptime_check_config = {
+    enabled = var.configure_monitoring
+    path    = "/"
   }
-
-  # Subnet for the primary region
-  subnet_name = lookup(local.subnet_name_lookup, local.region, "gce-vpc-subnet-${local.region}")
-}
-
-data "google_compute_zones" "available_zones" {
-  project = local.project.project_id
-  region  = local.region
-  status  = "UP"
-}
-
-resource "random_id" "default" {
-  count       = var.deployment_id == null ? 1 : 0 
-  byte_length = 2 
-}
-
-data "google_project" "existing_project" {
-  project_id = trimspace(var.existing_project_id)
 }

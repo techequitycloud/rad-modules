@@ -13,74 +13,55 @@
 # limitations under the License.
 
 output "deployment_info" {
-  value = {
-    deployment_id  = var.deployment_id
-    region         = local.region
-    project_id = local.project.project_id
-  }
+  description = "Deployment information"
+  value       = module.webapp.deployment_info
 }
 
 output "cloud_sql_info" {
+  description = "Cloud SQL instance information"
   value = {
-    cloudsql_instance_ip = local.sql_server_exists ? local.db_internal_ip : "" 
-    cloud_sql_studio = length(local.db_instance_name) > 0 ? "https://console.cloud.google.com/sql/instances/${local.db_instance_name}/studio?project=${local.project.project_id}&supportedpurview=project,organizationId,folder" : ""
-    database_name = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
-    database_user = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    cloudsql_instance_ip = module.webapp.database_host
+    cloud_sql_studio     = module.webapp.database_instance_name != null ? "https://console.cloud.google.com/sql/instances/${module.webapp.database_instance_name}/studio?project=${module.webapp.project_id}&supportedpurview=project,organizationId,folder" : ""
+    database_name        = module.webapp.database_name
+    database_user        = module.webapp.database_user
   }
 }
 
 output "private_storage_info" {
+  description = "Private storage bucket information"
   value = {
-    gcs_private_data_bucket = var.create_cloud_storage ? local.data_bucket_name : "" 
+    gcs_private_data_bucket = try(module.webapp.storage_buckets["data"].name, length(keys(module.webapp.storage_buckets)) > 0 ? values(module.webapp.storage_buckets)[0].name : "")
   }
 }
 
 output "nfs_server_info" {
+  description = "NFS server information"
   value = {
-    nfs_server_ip = local.nfs_server_exists ? local.nfs_internal_ip : "" 
+    nfs_server_ip = module.webapp.nfs_server_ip
   }
 }
 
 output "application_info" {
+  description = "Application URL and related links"
   value = {
-    application_url  = var.configure_environment ? "https://app${var.application_name}${var.tenant_deployment_id}${local.random_id}-${local.project_number}.${local.region}.run.app" : ""
-    cloud_secret_manager = var.configure_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    application_url      = module.webapp.service_url
+    cloud_secret_manager = "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${module.webapp.project_id}&supportedpurview=organizationId"
   }
 }
 
 output "service_info" {
+  description = "Service URL and metrics links"
   value = {
-    service_url  = var.configure_environment ? "https://console.cloud.google.com/run/detail/${local.region}/app${var.application_name}${var.tenant_deployment_id}${local.random_id}/metrics?orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
-    cloud_secret_manager = var.configure_environment ? "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${local.project.project_id}&supportedpurview=organizationId" : ""
+    service_url          = module.webapp.service_url != null ? "https://console.cloud.google.com/run/detail/${module.webapp.service_location}/${module.webapp.service_name}/metrics?orgonly=true&project=${module.webapp.project_id}&supportedpurview=organizationId" : ""
+    cloud_secret_manager = "https://console.cloud.google.com/security/secret-manager?inv=1&invt=AbioWw&orgonly=true&project=${module.webapp.project_id}&supportedpurview=organizationId"
   }
 }
 
-########################################################################################
-# Local variables output
-########################################################################################
-
-output "existing_service_accounts" {
-  description = "List of existing service accounts"
-  value = [
-    for sa_name, exists in {
-      "cloudbuild-sa"   = local.cloud_build_sa_exists
-      "cloudrun-sa"     = local.cloud_run_sa_exists
-    } : sa_name if exists
-  ]
-}
-
-########################################################################################
-# Network information output
-########################################################################################
-
 output "network_info" {
-  description = "Information about the existing VPC network"
+  description = "Information about the VPC network"
   value = {
-    network_exists  = local.network_exists
-    regions         = local.regions_list
-    subnet_names    = local.subnet_names
-    subnet_cidrs    = local.subnet_cidrs
-    subnet_details  = local.subnet_details
-    subnet_count    = length(local.subnet_names)
+    network_exists  = module.webapp.network_exists
+    regions         = module.webapp.regions
+    network_name    = module.webapp.network_name
   }
 }
