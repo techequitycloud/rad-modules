@@ -12,37 +12,47 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-locals {
-  random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
+module "webapp" {
+  source = "../WebApp"
 
-  project = ((length(data.google_project.existing_project) > 0 
-        ? data.google_project.existing_project  
-        : null) 
-  ) 
+  application_module = "odoo"
 
-  region  = tolist(local.regions_list)[0]
-  regions = tolist(local.regions_list)
-  project_number = try(data.google_project.existing_project.number, "")
+  # Group 1: Deployment
+  # module_description, module_dependency, module_services, credit_cost, require_credit_purchases, enable_purge, public_access are UI meta vars, usually not passed to module logic unless WebApp supports them (it supports some like public_access via ingress settings?)
+  # WebApp has public_access var.
+  public_access             = var.public_access
+  deployment_id             = var.deployment_id
+  agent_service_account     = var.agent_service_account
+  resource_creator_identity = var.resource_creator_identity
+  trusted_users             = var.trusted_users
 
-  # Set impersonation service account based on agent service account availability
-  # Falls back to resource_creator_identity if agent_service_account is not set
-  impersonation_service_account = var.agent_service_account != null && var.agent_service_account != "" ? var.agent_service_account : var.resource_creator_identity
+  # Group 2: Application Project
+  existing_project_id       = var.existing_project_id
 
-  # Determine if we should use impersonation
-  use_impersonation = local.impersonation_service_account != null && local.impersonation_service_account != ""
-}
+  # Group 3: Network
+  network_name              = var.network_name
 
-data "google_compute_zones" "available_zones" {
-  project = local.project.project_id
-  region  = local.region
-  status  = "UP"
-}
+  # Group 5: Storage
+  create_cloud_storage      = var.create_cloud_storage
 
-resource "random_id" "default" {
-  count       = var.deployment_id == null ? 1 : 0 
-  byte_length = 2 
-}
+  # Group 5: Deploy (Application)
+  application_name          = var.application_name
+  application_database_user = var.application_database_user
+  application_database_name = var.application_database_name
+  application_version       = var.application_version
 
-data "google_project" "existing_project" {
-  project_id = trimspace(var.existing_project_id)
+  # Group 7: Tenant
+  tenant_deployment_id      = var.tenant_deployment_id
+  configure_environment     = var.configure_environment
+
+  # Group 8: Monitoring & Backups
+  # Configure uptime check based on configure_monitoring
+  uptime_check_config = var.configure_monitoring ? { enabled = true, path = "/" } : { enabled = false }
+
+  # Backup Import (Legacy to Unified mapping)
+  enable_backup_import = var.application_backup_fileid != ""
+  backup_source        = "gdrive"
+  backup_uri           = var.application_backup_fileid
+
+  # Note: application_backup_schedule (Cloud Scheduler) is not yet supported by WebApp
 }
