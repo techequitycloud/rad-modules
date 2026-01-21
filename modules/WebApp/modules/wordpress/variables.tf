@@ -24,10 +24,10 @@ locals {
 
     # Storage volumes
     gcs_volumes = [{
-      bucket     = "$${tenant_id}-wp-uploads"
+      name       = "wp-uploads"
       mount_path = "/var/www/html/wp-content"
       read_only  = false
-      mount_options = ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"]
+      mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
     }]
 
     # Resource limits
