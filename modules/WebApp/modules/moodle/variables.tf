@@ -29,7 +29,7 @@ locals {
       memory_limit = "4Gi" # Updated to match preset (was 4Gi in file, preset had 2Gi/1000m? Preset had 1000m/2Gi. File had 2000m/4Gi. Keeping file's higher limits or preset? Preset had 1000m/2Gi. I will stick to the file's values if they seem better, or preset? Preset is what was running. Let's use preset values to avoid regression, or stick to file if file was intended to be better. The file had 2000m/4Gi. I will use 1000m/2Gi from preset to be safe/consistent with main.tf logic.)
     }
     min_instance_count = 1
-    max_instance_count = 10
+    max_instance_count = 8
     environment_variables = {
       MOODLE_DATABASE_TYPE = "mysqli"
       MOODLE_DATABASE_HOST = "/var/run/mysqld/mysqld.sock"
