@@ -178,12 +178,12 @@ locals {
   #########################################################################
 
   # Container configuration
-  final_container_image         = var.container_image != "" && var.container_image != null ? var.container_image : coalesce(local.module_container_image, "")
+  final_container_image         = var.container_image != "" && var.container_image != null ? var.container_image : (local.module_container_image != null ? local.module_container_image : "")
   final_container_port          = var.container_port != null ? var.container_port : coalesce(local.module_container_port, 8080)
   final_container_image_source  = var.container_image_source != null ? var.container_image_source : coalesce(local.module_container_image_source, "prebuilt")
   final_application_name        = var.application_name != null ? var.application_name : coalesce(local.module_application_name, "webapp")
   final_application_version     = var.application_version != "latest" ? var.application_version : coalesce(local.module_application_version, "latest")
-  final_application_description = var.application_description != "" ? var.application_description : coalesce(local.module_application_description, "")
+  final_application_description = var.application_description != "" ? var.application_description : (local.module_application_description != null ? local.module_application_description : "")
 
   # Database configuration
   final_database_type             = var.database_type != null ? var.database_type : coalesce(local.module_database_type, "POSTGRES")

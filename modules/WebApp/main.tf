@@ -199,7 +199,7 @@ locals {
       OE_USER        = "admin"
       OE_PASS        = "admin"
       MANUAL_SETUP   = "no"
-      BACKUP_FILEID  = coalesce(local.final_backup_uri, "")
+      BACKUP_FILEID  = local.final_backup_uri != null ? local.final_backup_uri : ""
     } : {}
   )
 
