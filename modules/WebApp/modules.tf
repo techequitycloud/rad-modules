@@ -153,6 +153,12 @@ locals {
   # Environment variables from preset
   module_environment_variables = local.using_module && local.selected_module != null ? local.selected_module.environment_variables : {}
 
+  # Backup configuration
+  module_enable_backup_import = local.using_module && local.selected_module != null ? lookup(local.selected_module, "enable_backup_import", null) : null
+  module_backup_source        = local.using_module && local.selected_module != null ? lookup(local.selected_module, "backup_source", null) : null
+  module_backup_uri           = local.using_module && local.selected_module != null ? lookup(local.selected_module, "backup_uri", null) : null
+  module_backup_format        = local.using_module && local.selected_module != null ? lookup(local.selected_module, "backup_format", null) : null
+
   # PostgreSQL extensions
   module_enable_postgres_extensions = local.using_module && local.selected_module != null ? lookup(local.selected_module, "enable_postgres_extensions", null) : null
   module_postgres_extensions        = local.using_module && local.selected_module != null ? lookup(local.selected_module, "postgres_extensions", []) : []
@@ -234,6 +240,12 @@ locals {
     local.module_environment_variables,
     var.environment_variables
   )
+
+  # Backup configuration
+  final_enable_backup_import = var.enable_backup_import != null ? var.enable_backup_import : coalesce(local.module_enable_backup_import, false)
+  final_backup_source        = var.backup_source != null ? var.backup_source : coalesce(local.module_backup_source, "gcs")
+  final_backup_uri           = var.backup_uri != null ? var.backup_uri : local.module_backup_uri
+  final_backup_format        = var.backup_format != null ? var.backup_format : coalesce(local.module_backup_format, "sql")
 
   # PostgreSQL extensions
   final_enable_postgres_extensions = var.enable_postgres_extensions != false ? var.enable_postgres_extensions : coalesce(local.module_enable_postgres_extensions, false)
