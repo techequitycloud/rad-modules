@@ -185,6 +185,9 @@ locals {
     }
   }
 
+  # Dynamic Container Arguments
+  preset_container_args = var.application_module == "odoo" ? ["odoo", "--db_port=5432"] : []
+
   # Dynamic Environment Variables for Modules (these depend on resources generated in this main.tf)
   preset_env_vars = merge(
     var.application_module == "n8n" ? {
