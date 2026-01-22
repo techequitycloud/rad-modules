@@ -2,30 +2,39 @@
 # Licensed under the Apache License, Version 2.0
 #
 # Updated: January 2025
-# Reason: Bitnami Moodle deprecated on August 28, 2025
-# Alternative: Using lthub/moodle (7M+ pulls, actively maintained)
-# Database: MySQL (lthub/moodle requires MySQL/MariaDB)
+# Reason: Implementing custom image build with PostgreSQL support and Wkhtmltopdf
+# Reference: Based on lessons from modules/Moodle and Odoo build process
 
 locals {
   moodle_module = {
     app_name        = "moodle"
     description     = "Moodle LMS - Online learning and course management platform"
     
-    # ✅ Updated to use working alternative (lthub/moodle)
-    container_image = "lthub/moodle:latest"
-    image_source    = "prebuilt"
+    # ✅ Updated to use custom image build
+    container_image = "" # Will be populated by the build process
+    image_source    = "custom"
     
-    # ✅ Updated port - lthub/moodle uses standard HTTP port 80
+    # ✅ Custom build configuration
+    container_build_config = {
+      enabled            = true
+      dockerfile_path    = "moodle/Dockerfile"
+      context_path       = "moodle"
+      dockerfile_content = null
+      build_args         = {}
+      artifact_repo_name = "webapp-repo"
+    }
+
+    # ✅ Updated port - Standard HTTP port 80 (Apache in custom image)
     container_port  = 80
     
-    # ✅ Reverted to MYSQL_8_0 as lthub/moodle lacks Postgres extension
-    database_type   = "MYSQL_8_0"
+    # ✅ Switched to POSTGRES_15 as per requirement
+    database_type   = "POSTGRES_15"
     db_name         = "moodle"
     db_user         = "moodle"
 
     # Cloud SQL configuration
     enable_cloudsql_volume     = true
-    cloudsql_volume_mount_path = "/var/run/mysqld"
+    cloudsql_volume_mount_path = "/var/run/postgresql" # Postgres socket path
 
     # NFS Configuration
     nfs_enabled    = true
@@ -54,9 +63,7 @@ locals {
 
     # ✅ Environment variables - URL will be added dynamically in main.tf
     environment_variables = {
-      # Database configuration (MySQL)
-      MOODLE_DB_TYPE = "mysqli"
-      MOODLE_DB_PORT = "3306"
+      # Database configuration (Postgres) handled by main.tf (MOODLE_DB_TYPE=pgsql)
       
       # Reverse Proxy Support (CRITICAL for Cloud Run)
       ENABLE_REVERSE_PROXY = "TRUE"
@@ -87,57 +94,56 @@ locals {
     enable_mysql_plugins = false
     mysql_plugins        = []
 
-    # ✅ Disabled Postgres extensions
+    # ✅ Postgres extensions (if needed, but standard Moodle usually fine)
     enable_postgres_extensions = false
     postgres_extensions        = []
 
     initialization_jobs = [
       {
         name            = "db-init"
-        description     = "Create Moodle Database and User in MySQL"
+        description     = "Create Moodle Database and User in PostgreSQL"
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
         args            = [
           <<-EOT
             set -e
             echo "Installing dependencies..."
-            apk update && apk add --no-cache mysql-client netcat-openbsd
+            apk update && apk add --no-cache postgresql-client
 
             TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
             echo "Using DB Host: $TARGET_DB_HOST"
 
-            echo "Waiting for MySQL database..."
-            until nc -z $TARGET_DB_HOST 3306; do
-              echo "Waiting for MySQL port 3306..."
+            # Wait for PostgreSQL
+            until pg_isready -h "$TARGET_DB_HOST" -p 5432; do
+              echo "Waiting for PostgreSQL..."
               sleep 2
             done
 
-            cat > ~/.my.cnf << EOF
-[client]
-user=root
-password=$ROOT_PASSWORD
-host=$TARGET_DB_HOST
-EOF
-            chmod 600 ~/.my.cnf
+            export PGPASSWORD=$ROOT_PASSWORD
 
             echo "Creating User $DB_USER if not exists..."
-            mysql --defaults-file=~/.my.cnf <<EOF
-CREATE USER IF NOT EXISTS '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
-ALTER USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
-FLUSH PRIVILEGES;
-EOF
+            # Check if user exists
+            if ! psql -h "$TARGET_DB_HOST" -U postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+                psql -h "$TARGET_DB_HOST" -U postgres -c "CREATE USER \"$DB_USER\" WITH PASSWORD '$DB_PASSWORD';"
+            else
+                psql -h "$TARGET_DB_HOST" -U postgres -c "ALTER USER \"$DB_USER\" WITH PASSWORD '$DB_PASSWORD';"
+            fi
 
             echo "Creating Database $DB_NAME if not exists..."
-            mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;"
+            # Check if database exists
+            if ! psql -h "$TARGET_DB_HOST" -U postgres -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+                psql -h "$TARGET_DB_HOST" -U postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
+            else
+                psql -h "$TARGET_DB_HOST" -U postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
+            fi
 
             echo "Granting privileges..."
-            mysql --defaults-file=~/.my.cnf <<EOF
-GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
-FLUSH PRIVILEGES;
-EOF
+            psql -h "$TARGET_DB_HOST" -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
             
-            rm -f ~/.my.cnf
-            echo "MySQL DB Init complete."
+            # Allow user to create schema in public
+            psql -h "$TARGET_DB_HOST" -U postgres -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO \"$DB_USER\";"
+
+            echo "PostgreSQL DB Init complete."
           EOT
         ]
         mount_nfs         = false
@@ -146,7 +152,7 @@ EOF
       }
     ]
 
-    # ✅ Updated startup probe (TCP for robustness)
+    # ✅ Startup probe
     startup_probe = {
       enabled               = true
       type                  = "TCP"
