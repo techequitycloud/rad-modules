@@ -515,7 +515,10 @@ locals {
     } : {}
   )
 
-  secret_environment_variables = merge(var.secret_environment_variables, local.preset_secret_env_vars)
+  secret_environment_variables = merge(
+    { for k, v in var.secret_environment_variables : k => v if v != "" },
+    local.preset_secret_env_vars
+  )
 
   # Service accounts
   # Inject N8N SA if active
