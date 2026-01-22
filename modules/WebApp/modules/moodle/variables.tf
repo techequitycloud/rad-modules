@@ -47,7 +47,7 @@ locals {
       read_only  = false
       mount_options = [
         "implicit-dirs", 
-        "metadata-cache-ttl-secs=60"
+        "metadata-cache-ttl-secs=60", 
         "uid=33", # www-data user
         "gid=33"  # www-data group
       ]
