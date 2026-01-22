@@ -87,6 +87,9 @@ module "medusa_module" {
 module "invoiceninja_module" {
   source = "./modules/invoiceninja"
 }
+module "strapi_module" {
+  source = "./modules/strapi"
+}
 
 #########################################################################
 # Application Modules Map
@@ -108,6 +111,7 @@ locals {
     wikijs       = module.wikijs_module.wikijs_module
     medusa       = module.medusa_module.medusa_module
     invoiceninja = module.invoiceninja_module.invoiceninja_module
+    strapi    = module.strapi_module.strapi_module
   }
 
   #########################################################################
