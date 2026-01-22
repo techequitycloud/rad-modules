@@ -145,30 +145,30 @@ locals {
   # Container configuration
   module_container_image        = local.using_module && local.selected_module != null ? local.selected_module.container_image : null
   module_container_port         = local.using_module && local.selected_module != null ? local.selected_module.container_port : null
-  module_container_image_source = local.using_module && local.selected_module != null ? lookup(local.selected_module, "image_source", null) : null
-  module_application_name       = local.using_module && local.selected_module != null ? lookup(local.selected_module, "app_name", null) : null
-  module_application_version    = local.using_module && local.selected_module != null ? lookup(local.selected_module, "application_version", lookup(local.selected_module, "app_version", null)) : null
-  module_application_description = local.using_module && local.selected_module != null ? lookup(local.selected_module, "description", lookup(local.selected_module, "application_description", null)) : null
+  module_container_image_source = local.using_module && local.selected_module != null ? try(local.selected_module.image_source, null) : null
+  module_application_name       = local.using_module && local.selected_module != null ? try(local.selected_module.app_name, null) : null
+  module_application_version    = local.using_module && local.selected_module != null ? try(local.selected_module.application_version, try(local.selected_module.app_version, null)) : null
+  module_application_description = local.using_module && local.selected_module != null ? try(local.selected_module.description, try(local.selected_module.application_description, null)) : null
 
   # Container command and args
-  module_container_command = local.using_module && local.selected_module != null ? lookup(local.selected_module, "container_command", null) : null
-  module_container_args    = local.using_module && local.selected_module != null ? lookup(local.selected_module, "container_args", null) : null
+  module_container_command = local.using_module && local.selected_module != null ? try(local.selected_module.container_command, null) : null
+  module_container_args    = local.using_module && local.selected_module != null ? try(local.selected_module.container_args, null) : null
 
   # Container build configuration
-  module_container_build_config = local.using_module && local.selected_module != null ? lookup(local.selected_module, "container_build_config", null) : null
+  module_container_build_config = local.using_module && local.selected_module != null ? try(local.selected_module.container_build_config, null) : null
 
   # Database configuration
   module_database_type             = local.using_module && local.selected_module != null ? local.selected_module.database_type : null
-  module_application_database_name = local.using_module && local.selected_module != null ? lookup(local.selected_module, "db_name", null) : null
-  module_application_database_user = local.using_module && local.selected_module != null ? lookup(local.selected_module, "db_user", null) : null
+  module_application_database_name = local.using_module && local.selected_module != null ? try(local.selected_module.db_name, null) : null
+  module_application_database_user = local.using_module && local.selected_module != null ? try(local.selected_module.db_user, null) : null
 
   # Cloud SQL volume configuration
   module_enable_cloudsql_volume     = local.using_module && local.selected_module != null ? local.selected_module.enable_cloudsql_volume : null
   module_cloudsql_volume_mount_path = local.using_module && local.selected_module != null ? local.selected_module.cloudsql_volume_mount_path : null
 
   # NFS configuration
-  module_nfs_enabled    = local.using_module && local.selected_module != null ? lookup(local.selected_module, "nfs_enabled", null) : null
-  module_nfs_mount_path = local.using_module && local.selected_module != null ? lookup(local.selected_module, "nfs_mount_path", null) : null
+  module_nfs_enabled    = local.using_module && local.selected_module != null ? try(local.selected_module.nfs_enabled, null) : null
+  module_nfs_mount_path = local.using_module && local.selected_module != null ? try(local.selected_module.nfs_mount_path, null) : null
 
   # GCS volumes configuration
   module_gcs_volumes_raw = try(local.selected_module.gcs_volumes, [])
@@ -176,11 +176,11 @@ locals {
   # Process GCS volumes - replace placeholders and normalize to match var.gcs_volumes
   module_gcs_volumes = [
     for vol in local.module_gcs_volumes_raw : {
-      name          = lookup(vol, "name", "gcs-volume-${index(local.module_gcs_volumes_raw, vol)}")
-      bucket_name   = lookup(vol, "bucket_name", replace(replace(lookup(vol, "bucket", ""), "$${tenant_id}", var.tenant_deployment_id), "$${deployment_id}", var.deployment_id != null ? var.deployment_id : "default"))
+      name          = try(vol.name, "gcs-volume-${index(local.module_gcs_volumes_raw, vol)}")
+      bucket_name   = try(vol.bucket_name, replace(replace(try(vol.bucket, ""), "$${tenant_id}", var.tenant_deployment_id), "$${deployment_id}", var.deployment_id != null ? var.deployment_id : "default"))
       mount_path    = vol.mount_path
-      readonly      = lookup(vol, "read_only", lookup(vol, "readonly", false))
-      mount_options = lookup(vol, "mount_options", ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"])
+      readonly      = try(vol.read_only, try(vol.readonly, false))
+      mount_options = try(vol.mount_options, ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"])
     }
   ]
 
@@ -190,25 +190,25 @@ locals {
   module_max_instance_count  = local.using_module && local.selected_module != null ? local.selected_module.max_instance_count : null
 
   # Probes
-  module_startup_probe_config = local.using_module && local.selected_module != null ? lookup(local.selected_module, "startup_probe", null) : null
-  module_health_check_config  = local.using_module && local.selected_module != null ? lookup(local.selected_module, "liveness_probe", null) : null
+  module_startup_probe_config = local.using_module && local.selected_module != null ? try(local.selected_module.startup_probe, null) : null
+  module_health_check_config  = local.using_module && local.selected_module != null ? try(local.selected_module.liveness_probe, null) : null
 
   # Environment variables from preset
   module_environment_variables = local.using_module && local.selected_module != null ? local.selected_module.environment_variables : {}
 
   # Backup configuration
-  module_enable_backup_import = local.using_module && local.selected_module != null ? lookup(local.selected_module, "enable_backup_import", null) : null
-  module_backup_source        = local.using_module && local.selected_module != null ? lookup(local.selected_module, "backup_source", null) : null
-  module_backup_uri           = local.using_module && local.selected_module != null ? lookup(local.selected_module, "backup_uri", null) : null
-  module_backup_format        = local.using_module && local.selected_module != null ? lookup(local.selected_module, "backup_format", null) : null
+  module_enable_backup_import = local.using_module && local.selected_module != null ? try(local.selected_module.enable_backup_import, null) : null
+  module_backup_source        = local.using_module && local.selected_module != null ? try(local.selected_module.backup_source, null) : null
+  module_backup_uri           = local.using_module && local.selected_module != null ? try(local.selected_module.backup_uri, null) : null
+  module_backup_format        = local.using_module && local.selected_module != null ? try(local.selected_module.backup_format, null) : null
 
   # PostgreSQL extensions
-  module_enable_postgres_extensions = local.using_module && local.selected_module != null ? lookup(local.selected_module, "enable_postgres_extensions", null) : null
-  module_postgres_extensions        = local.using_module && local.selected_module != null ? lookup(local.selected_module, "postgres_extensions", []) : []
+  module_enable_postgres_extensions = local.using_module && local.selected_module != null ? try(local.selected_module.enable_postgres_extensions, null) : null
+  module_postgres_extensions        = local.using_module && local.selected_module != null ? try(local.selected_module.postgres_extensions, []) : []
 
   # MySQL plugins
-  module_enable_mysql_plugins = local.using_module && local.selected_module != null ? lookup(local.selected_module, "enable_mysql_plugins", null) : null
-  module_mysql_plugins        = local.using_module && local.selected_module != null ? lookup(local.selected_module, "mysql_plugins", []) : []
+  module_enable_mysql_plugins = local.using_module && local.selected_module != null ? try(local.selected_module.enable_mysql_plugins, null) : null
+  module_mysql_plugins        = local.using_module && local.selected_module != null ? try(local.selected_module.mysql_plugins, []) : []
 
   # Initialization jobs
   module_initialization_jobs_raw = try(local.selected_module.initialization_jobs, [])
@@ -216,23 +216,23 @@ locals {
   module_initialization_jobs = [
     for job in local.module_initialization_jobs_raw : {
       name              = job.name
-      description       = lookup(job, "description", "")
-      image             = lookup(job, "image", null)
-      command           = lookup(job, "command", [])
-      args              = lookup(job, "args", [])
-      env_vars          = lookup(job, "env_vars", {})
-      secret_env_vars   = lookup(job, "secret_env_vars", {})
-      cpu_limit         = lookup(job, "cpu_limit", "1000m")
-      memory_limit      = lookup(job, "memory_limit", "512Mi")
-      timeout_seconds   = lookup(job, "timeout_seconds", 600)
-      max_retries       = lookup(job, "max_retries", 1)
-      task_count        = lookup(job, "task_count", 1)
-      execution_mode    = lookup(job, "execution_mode", "TASK")
-      mount_nfs         = lookup(job, "mount_nfs", false)
-      mount_gcs_volumes = lookup(job, "mount_gcs_volumes", [])
-      depends_on_jobs   = lookup(job, "depends_on_jobs", [])
-      execute_on_apply  = lookup(job, "execute_on_apply", true)
-      script_path       = lookup(job, "script_path", null)
+      description       = try(job.description, "")
+      image             = try(job.image, null)
+      command           = try(job.command, [])
+      args              = try(job.args, [])
+      env_vars          = try(job.env_vars, {})
+      secret_env_vars   = try(job.secret_env_vars, {})
+      cpu_limit         = try(job.cpu_limit, "1000m")
+      memory_limit      = try(job.memory_limit, "512Mi")
+      timeout_seconds   = try(job.timeout_seconds, 600)
+      max_retries       = try(job.max_retries, 1)
+      task_count        = try(job.task_count, 1)
+      execution_mode    = try(job.execution_mode, "TASK")
+      mount_nfs         = try(job.mount_nfs, false)
+      mount_gcs_volumes = try(job.mount_gcs_volumes, [])
+      depends_on_jobs   = try(job.depends_on_jobs, [])
+      execute_on_apply  = try(job.execute_on_apply, true)
+      script_path       = try(job.script_path, null)
     }
   ]
 
@@ -268,11 +268,11 @@ locals {
   # Normalize GCS volumes structure for main.tf to use
   final_gcs_volumes = [
     for vol in local.final_gcs_volumes_raw : {
-      name          = lookup(vol, "name", "gcs-vol-${index(local.final_gcs_volumes_raw, vol)}")
-      bucket_name   = lookup(vol, "bucket_name", lookup(vol, "bucket", null)) # Handle both keys
+      name          = try(vol.name, "gcs-vol-${index(local.final_gcs_volumes_raw, vol)}")
+      bucket_name   = try(vol.bucket_name, try(vol.bucket, null)) # Handle both keys
       mount_path    = vol.mount_path
-      readonly      = lookup(vol, "read_only", lookup(vol, "readonly", false))
-      mount_options = lookup(vol, "mount_options", ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"])
+      readonly      = try(vol.read_only, try(vol.readonly, false))
+      mount_options = try(vol.mount_options, ["implicit-dirs", "stat-cache-ttl=60s", "type-cache-ttl=60s"])
     }
   ]
 
