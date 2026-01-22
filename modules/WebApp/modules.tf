@@ -154,6 +154,9 @@ locals {
   module_container_command = local.using_module && local.selected_module != null ? lookup(local.selected_module, "container_command", null) : null
   module_container_args    = local.using_module && local.selected_module != null ? lookup(local.selected_module, "container_args", null) : null
 
+  # Container build configuration
+  module_container_build_config = local.using_module && local.selected_module != null ? lookup(local.selected_module, "container_build_config", null) : null
+
   # Database configuration
   module_database_type             = local.using_module && local.selected_module != null ? local.selected_module.database_type : null
   module_application_database_name = local.using_module && local.selected_module != null ? lookup(local.selected_module, "db_name", null) : null
