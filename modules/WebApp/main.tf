@@ -305,6 +305,10 @@ locals {
       DB_PORT     = "5432"
       DB_NAME     = local.database_name_full
       DB_USER     = local.database_user_full
+    } : {},
+    var.application_module == "budibase" ? {
+      COUCHDB_USER        = "admin"
+      BB_ADMIN_USER_EMAIL = "admin@example.com"
     } : {}
   )
 
@@ -354,6 +358,16 @@ locals {
       DB_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
       JWT_SECRET    = try(google_secret_manager_secret.medusa_jwt_secret[0].secret_id, "")
       COOKIE_SECRET = try(google_secret_manager_secret.medusa_cookie_secret[0].secret_id, "")
+    } : {},
+    var.application_module == "budibase" ? {
+      JWT_SECRET             = try(google_secret_manager_secret.budibase_jwt_secret[0].secret_id, "")
+      MINIO_ACCESS_KEY       = try(google_secret_manager_secret.budibase_minio_access_key[0].secret_id, "")
+      MINIO_SECRET_KEY       = try(google_secret_manager_secret.budibase_minio_secret_key[0].secret_id, "")
+      REDIS_PASSWORD         = try(google_secret_manager_secret.budibase_redis_password[0].secret_id, "")
+      COUCHDB_PASSWORD       = try(google_secret_manager_secret.budibase_couchdb_password[0].secret_id, "")
+      INTERNAL_API_KEY       = try(google_secret_manager_secret.budibase_internal_api_key[0].secret_id, "")
+      API_ENCRYPTION_KEY     = try(google_secret_manager_secret.budibase_api_encryption_key[0].secret_id, "")
+      BB_ADMIN_USER_PASSWORD = try(google_secret_manager_secret.budibase_admin_password[0].secret_id, "")
     } : {}
   )
 
@@ -647,6 +661,177 @@ resource "google_secret_manager_secret_version" "medusa_cookie_secret" {
   count       = var.application_module == "medusa" ? 1 : 0
   secret      = google_secret_manager_secret.medusa_cookie_secret[0].id
   secret_data = random_password.medusa_cookie_secret[0].result
+}
+
+# ==============================================================================
+# BUDIBASE SPECIFIC RESOURCES
+# ==============================================================================
+resource "random_password" "budibase_jwt_secret" {
+  count   = var.application_module == "budibase" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "budibase_jwt_secret" {
+  count     = var.application_module == "budibase" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-jwt-secret"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "budibase_jwt_secret" {
+  count       = var.application_module == "budibase" ? 1 : 0
+  secret      = google_secret_manager_secret.budibase_jwt_secret[0].id
+  secret_data = random_password.budibase_jwt_secret[0].result
+}
+
+resource "random_password" "budibase_minio_access_key" {
+  count   = var.application_module == "budibase" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "budibase_minio_access_key" {
+  count     = var.application_module == "budibase" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-minio-access-key"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "budibase_minio_access_key" {
+  count       = var.application_module == "budibase" ? 1 : 0
+  secret      = google_secret_manager_secret.budibase_minio_access_key[0].id
+  secret_data = random_password.budibase_minio_access_key[0].result
+}
+
+resource "random_password" "budibase_minio_secret_key" {
+  count   = var.application_module == "budibase" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "budibase_minio_secret_key" {
+  count     = var.application_module == "budibase" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-minio-secret-key"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "budibase_minio_secret_key" {
+  count       = var.application_module == "budibase" ? 1 : 0
+  secret      = google_secret_manager_secret.budibase_minio_secret_key[0].id
+  secret_data = random_password.budibase_minio_secret_key[0].result
+}
+
+resource "random_password" "budibase_redis_password" {
+  count   = var.application_module == "budibase" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "budibase_redis_password" {
+  count     = var.application_module == "budibase" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-redis-password"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "budibase_redis_password" {
+  count       = var.application_module == "budibase" ? 1 : 0
+  secret      = google_secret_manager_secret.budibase_redis_password[0].id
+  secret_data = random_password.budibase_redis_password[0].result
+}
+
+resource "random_password" "budibase_couchdb_password" {
+  count   = var.application_module == "budibase" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "budibase_couchdb_password" {
+  count     = var.application_module == "budibase" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-couchdb-password"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "budibase_couchdb_password" {
+  count       = var.application_module == "budibase" ? 1 : 0
+  secret      = google_secret_manager_secret.budibase_couchdb_password[0].id
+  secret_data = random_password.budibase_couchdb_password[0].result
+}
+
+resource "random_password" "budibase_internal_api_key" {
+  count   = var.application_module == "budibase" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "budibase_internal_api_key" {
+  count     = var.application_module == "budibase" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-internal-api-key"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "budibase_internal_api_key" {
+  count       = var.application_module == "budibase" ? 1 : 0
+  secret      = google_secret_manager_secret.budibase_internal_api_key[0].id
+  secret_data = random_password.budibase_internal_api_key[0].result
+}
+
+resource "random_password" "budibase_api_encryption_key" {
+  count   = var.application_module == "budibase" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "budibase_api_encryption_key" {
+  count     = var.application_module == "budibase" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-api-encryption-key"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "budibase_api_encryption_key" {
+  count       = var.application_module == "budibase" ? 1 : 0
+  secret      = google_secret_manager_secret.budibase_api_encryption_key[0].id
+  secret_data = random_password.budibase_api_encryption_key[0].result
+}
+
+resource "random_password" "budibase_admin_password" {
+  count   = var.application_module == "budibase" ? 1 : 0
+  length  = 16
+  special = false
+}
+
+resource "google_secret_manager_secret" "budibase_admin_password" {
+  count     = var.application_module == "budibase" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-admin-password"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "budibase_admin_password" {
+  count       = var.application_module == "budibase" ? 1 : 0
+  secret      = google_secret_manager_secret.budibase_admin_password[0].id
+  secret_data = random_password.budibase_admin_password[0].result
 }
 
 # Output deployment information for debugging

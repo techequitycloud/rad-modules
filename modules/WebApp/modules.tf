@@ -84,6 +84,10 @@ module "medusa_module" {
   source = "./modules/medusa"
 }
 
+module "budibase_module" {
+  source = "./modules/budibase"
+}
+
 #########################################################################
 # Application Modules Map
 #########################################################################
@@ -103,6 +107,7 @@ locals {
     ghost     = module.ghost_module.ghost_module
     wikijs    = module.wikijs_module.wikijs_module
     medusa    = module.medusa_module.medusa_module
+    budibase  = module.budibase_module.budibase_module
   }
 
   #########################################################################
