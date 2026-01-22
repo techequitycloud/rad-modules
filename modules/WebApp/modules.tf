@@ -84,6 +84,10 @@ module "medusa_module" {
   source = "./modules/medusa"
 }
 
+module "strapi_module" {
+  source = "./modules/strapi"
+}
+
 #########################################################################
 # Application Modules Map
 #########################################################################
@@ -103,6 +107,7 @@ locals {
     ghost     = module.ghost_module.ghost_module
     wikijs    = module.wikijs_module.wikijs_module
     medusa    = module.medusa_module.medusa_module
+    strapi    = module.strapi_module.strapi_module
   }
 
   #########################################################################
