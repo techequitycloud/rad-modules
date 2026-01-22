@@ -350,7 +350,8 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
   # Dependencies on secrets
   depends_on = [
     data.google_secret_manager_secret_version.db_password,
-    google_secret_manager_secret.additional_secrets
+    google_secret_manager_secret.additional_secrets,
+    null_resource.mirror_image
   ]
 }
 
