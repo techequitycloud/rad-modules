@@ -110,6 +110,9 @@ COPY moodle-config.php /var/www/html/config.php
 COPY foreground.sh /etc/apache2/foreground.sh
 RUN chmod +x /etc/apache2/foreground.sh
 
+# Ensure Apache runtime directory exists
+RUN mkdir -p /var/run/apache2 && chown -R www-data:www-data /var/run/apache2
+
 COPY moodlecron /etc/cron.d/moodlecron
 RUN chmod 0644 /etc/cron.d/moodlecron
 RUN crontab /etc/cron.d/moodlecron
