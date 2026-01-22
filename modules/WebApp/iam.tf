@@ -32,7 +32,7 @@ resource "google_secret_manager_secret_iam_member" "db_password" {
 
 # Grant Cloud Run service account access to secret environment variables
 resource "google_secret_manager_secret_iam_member" "secret_env_vars" {
-  for_each = { for k, v in local.secret_environment_variables : k => v if v != "" }
+  for_each = local.secret_environment_variables
 
   project   = local.project.project_id
   secret_id = each.value
