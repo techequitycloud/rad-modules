@@ -8,27 +8,43 @@ ARG APP_VERSION=4.4.1
 
 EXPOSE 80 443
 ENV DEBIAN_FRONTEND noninteractive
-RUN apt-get update -y
 
-# Install wkhtmltopdf (Reference from Odoo) and other base dependencies
+# 1. Install base dependencies and enable universe repository
+# We explicitly enable universe to ensure packages like xfonts-75dpi (needed for wkhtmltopdf) are available
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
         dirmngr \
-        fonts-noto-cjk \
         gnupg \
+        gnupg2 \
+        wget \
+        software-properties-common \
+        xz-utils \
+        unzip \
+        git \
+        locales \
+        supervisor \
+        cron \
+        gosu \
+        pwgen \
+        libcurl4 \
         libssl-dev \
+        net-tools \
+        procps \
+        tini \
+        nfs-common \
+        netbase \
+        fonts-noto-cjk \
         node-less \
         npm \
-        xz-utils \
-        software-properties-common \
-        wget \
-        gnupg2 \
-        gosu pwgen libcurl4 libcurl3-dev unzip cron \
-        supervisor locales apache2 libapache2-mod-php && \
-    if [ -z "$TARGETARCH" ]; then \
+        libcurl3-dev && \
+    add-apt-repository universe && \
+    apt-get update
+
+# 2. Install wkhtmltopdf
+# We install fonts and dependencies implicitly via apt-get install ./deb
+RUN if [ -z "$TARGETARCH" ]; then \
         TARGETARCH="$(dpkg --print-architecture)"; \
     fi; \
     WKHTMLTOPDF_ARCH=$TARGETARCH && \
@@ -40,52 +56,52 @@ RUN apt-get update && \
     && curl -o wkhtmltox.deb -sSL https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.jammy_$WKHTMLTOPDF_ARCH.deb \
     && echo $WKHTMLTOPDF_SHA wkhtmltox.deb | sha1sum -c - \
     && apt-get install -y --no-install-recommends ./wkhtmltox.deb \
-    && rm -rf /var/lib/apt/lists/* wkhtmltox.deb
+    && rm -rf wkhtmltox.deb
 
-# Add PHP PPA
-RUN add-apt-repository ppa:ondrej/php \
-    && apt-get update
-
-# Install Helper Utilities and Tools 
-# Removed nfs-kernel-server as it is not needed for client-side mounting
-RUN apt-get update -y && apt-get install -y tini \
-    nfs-common \
-    netbase \
-    procps \
-    net-tools
-
-# install latest postgresql-client (Reference from Odoo)
+# 3. Install postgresql-client with retry for GPG key
+# Keyservers can be flaky, so we try multiple and retry
 RUN echo 'deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main' > /etc/apt/sources.list.d/pgdg.list \
     && GNUPGHOME="$(mktemp -d)" \
     && export GNUPGHOME \
     && repokey='B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8' \
-    && gpg --batch --keyserver keyserver.ubuntu.com --recv-keys "$repokey" \
+    && echo "Fetching GPG key..." \
+    && (gpg --batch --keyserver keyserver.ubuntu.com --recv-keys "$repokey" || \
+        gpg --batch --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys "$repokey" || \
+        gpg --batch --keyserver pgp.mit.edu --recv-keys "$repokey" || \
+        (sleep 5 && gpg --batch --keyserver keyserver.ubuntu.com --recv-keys "$repokey")) \
     && gpg --batch --armor --export "$repokey" > /etc/apt/trusted.gpg.d/pgdg.gpg.asc \
     && gpgconf --kill all \
     && rm -rf "$GNUPGHOME" \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean \
-    && (apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=120 --allow-releaseinfo-change || \
-        (sleep 5 && apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=120 --allow-releaseinfo-change) || \
-        (sleep 10 && apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=120 --allow-releaseinfo-change)) \
-    && apt-get install --no-install-recommends -y -o Acquire::Retries=3 postgresql-client-16 \
-    && rm -f /etc/apt/sources.list.d/pgdg.list \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get update \
+    && apt-get install --no-install-recommends -y postgresql-client-16
 
-# Install Moodle PHP dependencies (PostgreSQL support only)
-RUN apt-get -y install php8.3 php8.3-gd php8.3-pgsql php8.3-curl php8.3-xmlrpc php8.3-intl \
-    php8.3-xml php8.3-mbstring php8.3-zip php8.3-soap php8.3-ldap php8.3-redis \
-    && apt-get -y install software-properties-common \
-    && chown -R www-data:www-data /var/www/html && apt-get clean
+# 4. Install PHP and Apache
+RUN add-apt-repository ppa:ondrej/php \
+    && apt-get update \
+    && apt-get -y install --no-install-recommends \
+        apache2 \
+        libapache2-mod-php \
+        php8.3 \
+        php8.3-gd \
+        php8.3-pgsql \
+        php8.3-curl \
+        php8.3-xmlrpc \
+        php8.3-intl \
+        php8.3-xml \
+        php8.3-mbstring \
+        php8.3-zip \
+        php8.3-soap \
+        php8.3-ldap \
+        php8.3-redis \
+    && chown -R www-data:www-data /var/www/html
 
-# Download and install Moodle
-# Using a fixed version or passed build arg
+# 5. Download and install Moodle
 ADD https://github.com/moodle/moodle/archive/refs/tags/v${APP_VERSION}.tar.gz /tmp/
 RUN tar -xzvf /tmp/v${APP_VERSION}.tar.gz -C /var/www/html/ --strip-components=1 \
-    && rm /tmp/v${APP_VERSION}.tar.gz
-RUN rm /var/www/html/index.html
+    && rm /tmp/v${APP_VERSION}.tar.gz \
+    && rm -f /var/www/html/index.html
 
-# Copy scripts and config
+# 6. Copy scripts and config
 COPY cloudrun-entrypoint.sh /
 RUN chmod +x /cloudrun-entrypoint.sh
 
@@ -98,7 +114,7 @@ COPY moodlecron /etc/cron.d/moodlecron
 RUN chmod 0644 /etc/cron.d/moodlecron
 RUN crontab /etc/cron.d/moodlecron
 
-# Clean up
+# 7. Clean up
 RUN apt-get clean autoclean && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/lib/dpkg/* /var/lib/cache/* /var/lib/log/*
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/cloudrun-entrypoint.sh", "/etc/apache2/foreground.sh"]
