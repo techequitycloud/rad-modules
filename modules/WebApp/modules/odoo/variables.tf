@@ -67,6 +67,7 @@ locals {
           "mkdir -p /mnt/filestore /mnt/sessions /mnt/addons /mnt/backups && chmod 777 /mnt/filestore /mnt/sessions /mnt/addons /mnt/backups"
         ]
         mount_nfs       = true
+        execute_on_apply = true
       },
       {
         name            = "db-init"
@@ -131,6 +132,7 @@ locals {
         ]
         mount_nfs         = true
         mount_gcs_volumes = ["odoo-addons-volume"]
+        execute_on_apply  = true
       }
     ]
 

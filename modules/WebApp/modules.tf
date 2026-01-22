@@ -72,6 +72,34 @@ module "gitlab_module" {
   source = "./modules/gitlab"
 }
 
+module "ghost_module" {
+  source = "./modules/ghost"
+}
+
+module "wikijs_module" {
+  source = "./modules/wikijs"
+}
+
+module "plane_module" {
+  source = "./modules/plane"
+}
+
+module "medusa_module" {
+  source = "./modules/medusa"
+}
+
+module "payload_module" {
+  source = "./modules/payload"
+}
+
+module "invoiceninja_module" {
+  source = "./modules/invoiceninja"
+}
+  
+module "strapi_module" {
+  source = "./modules/strapi"
+}
+
 #########################################################################
 # Application Modules Map
 #########################################################################
@@ -88,6 +116,13 @@ locals {
     n8n       = module.n8n_module.n8n_module
     nextcloud = module.nextcloud_module.nextcloud_module
     gitlab    = module.gitlab_module.gitlab_module
+    ghost     = module.ghost_module.ghost_module
+    wikijs    = module.wikijs_module.wikijs_module
+    plane     = module.plane_module.plane_module
+    medusa    = module.medusa_module.medusa_module
+    payload   = module.payload_module.payload_module
+    invoiceninja = module.invoiceninja_module.invoiceninja_module
+    strapi    = module.strapi_module.strapi_module
   }
 
   #########################################################################

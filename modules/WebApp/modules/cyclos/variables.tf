@@ -44,19 +44,19 @@ locals {
             echo "Installing dependencies..."
             apk update && apk add --no-cache postgresql-client
 
-            # Use DB_IP if set, otherwise DB_HOST
-            TARGET_DB_HOST=$${DB_IP:-$DB_HOST}
+            # Use DB_IP if available (injected by WebApp), else DB_HOST
+            TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
             echo "Using DB Host: $TARGET_DB_HOST"
 
             echo "Waiting for database..."
             export PGPASSWORD=$ROOT_PASSWORD
-            until psql -h $TARGET_DB_HOST -p 5432 -U postgres -d postgres -c '\l' > /dev/null 2>&1; do
+            until psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c '\l' > /dev/null 2>&1; do
               echo "Waiting for database connection..."
               sleep 2
             done
 
             echo "Creating Role $DB_USER if not exists..."
-            psql -h $TARGET_DB_HOST -p 5432 -U postgres -d postgres <<EOF
+            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres <<EOF
             DO \$\$
             BEGIN
               IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER') THEN
@@ -71,17 +71,17 @@ locals {
             EOF
 
             echo "Creating Database $DB_NAME if not exists..."
-            if ! psql -h $TARGET_DB_HOST -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
+            if ! psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
               echo "Database does not exist. Creating as $DB_USER..."
               export PGPASSWORD=$DB_PASSWORD
-              psql -h $TARGET_DB_HOST -p 5432 -U $DB_USER -d postgres -c "CREATE DATABASE \"$DB_NAME\";"
+              psql -h "$TARGET_DB_HOST" -p 5432 -U $DB_USER -d postgres -c "CREATE DATABASE \"$DB_NAME\";"
             else
               echo "Database $DB_NAME already exists."
             fi
 
             echo "Granting privileges..."
             export PGPASSWORD=$ROOT_PASSWORD
-            psql -h $TARGET_DB_HOST -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
+            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
 
             echo "DB Init complete."
           EOT

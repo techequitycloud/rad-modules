@@ -1,46 +1,64 @@
 # Copyright 2024 (c) Tech Equity Ltd
 # Licensed under the Apache License, Version 2.0
 
-locals {
-  moodle_module = {
-    app_name        = "moodle"
-    description     = "Moodle LMS - Online learning and course management platform"
-    container_image = "moodle:5.0.0"
-    image_source    = "prebuilt"
-    container_port  = 80
-    database_type   = "MYSQL_8_0"
-    db_name         = "moodle"
-    db_user         = "moodle"
+#########################################################################
+# Ghost Preset Configuration
+#########################################################################
 
+locals {
+  ghost_module = {
+    app_name        = "ghost"
+    description     = "Ghost - Professional publishing platform"
+    container_image = "ghost:5"
+    image_source    = "prebuilt"
+    container_port  = 2368
+    database_type   = "MYSQL_8_0"
+    db_name         = "ghost"
+    db_user         = "ghost"
+
+    # Performance optimization
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/var/run/mysqld"
 
-    # NFS Configuration
-    nfs_enabled    = true
-    nfs_mount_path = "/mnt"
-
+    # Storage volumes
     gcs_volumes = [{
-      bucket     = "$${tenant_id}-moodle-data"
-      mount_path = "/var/moodledata"
+      name       = "ghost-content"
+      mount_path = "/var/lib/ghost/content"
       read_only  = false
+      mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
     }]
+
+    # Resource limits
     container_resources = {
-      cpu_limit    = "2000m"
-      memory_limit = "4Gi" # Updated to match preset (was 4Gi in file, preset had 2Gi/1000m? Preset had 1000m/2Gi. File had 2000m/4Gi. Keeping file's higher limits or preset? Preset had 1000m/2Gi. I will stick to the file's values if they seem better, or preset? Preset is what was running. Let's use preset values to avoid regression, or stick to file if file was intended to be better. The file had 2000m/4Gi. I will use 1000m/2Gi from preset to be safe/consistent with main.tf logic.)
+      cpu_limit    = "1000m"
+      memory_limit = "1Gi"
     }
-    min_instance_count = 0
+    min_instance_count = 1
     max_instance_count = 3
+
+    # Environment variables
     environment_variables = {
-      MOODLE_DATABASE_TYPE = "mysqli"
-      MOODLE_DATABASE_HOST = "/var/run/mysqld/mysqld.sock"
+      # Ghost Configuration
+      url = "http://localhost:2368" # Should be overridden by user with actual domain
+
+      # Database Connection
+      database__client = "mysql"
+      database__connection__host = "localhost"
+      database__connection__socketPath = "/var/run/mysqld/mysqld.sock"
+      database__connection__user = "ghost"
+      database__connection__database = "ghost"
+      # Password injected via secrets in main.tf
     }
+
+    # MySQL plugins
     enable_mysql_plugins = false
     mysql_plugins        = []
 
+    # Initialization Jobs
     initialization_jobs = [
       {
         name            = "db-init"
-        description     = "Create Moodle Database and User"
+        description     = "Create Ghost Database and User"
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
         args            = [
@@ -49,9 +67,18 @@ locals {
             echo "Installing dependencies..."
             apk update && apk add --no-cache mysql-client netcat-openbsd
 
-            # Use DB_IP if available, else DB_HOST.
             TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
             echo "Using DB Host: $TARGET_DB_HOST"
+
+            if [ -z "$DB_PASSWORD" ]; then
+              echo "Error: DB_PASSWORD is not set."
+              exit 1
+            fi
+
+            if [ -z "$ROOT_PASSWORD" ]; then
+              echo "Error: ROOT_PASSWORD is not set."
+              exit 1
+            fi
 
             echo "Waiting for database..."
             until nc -z $TARGET_DB_HOST 3306; do
@@ -97,24 +124,24 @@ EOF
       enabled               = true
       type                  = "TCP"
       path                  = "/"
-      initial_delay_seconds = 120
-      timeout_seconds       = 60
-      period_seconds        = 120
-      failure_threshold     = 1
+      initial_delay_seconds = 60
+      timeout_seconds       = 10
+      period_seconds        = 30
+      failure_threshold     = 3
     }
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
-      path                  = "/"
-      initial_delay_seconds = 120
-      timeout_seconds       = 5
-      period_seconds        = 120
+      path                  = "/ghost/"
+      initial_delay_seconds = 60
+      timeout_seconds       = 10
+      period_seconds        = 30
       failure_threshold     = 3
     }
   }
 }
 
-output "moodle_module" {
-  description = "moodle application module configuration"
-  value       = local.moodle_module
+output "ghost_module" {
+  description = "ghost application module configuration"
+  value       = local.ghost_module
 }

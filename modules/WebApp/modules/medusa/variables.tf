@@ -1,56 +1,59 @@
 # Copyright 2024 (c) Tech Equity Ltd
 # Licensed under the Apache License, Version 2.0
 
+#########################################################################
+# Medusa Ecommerce Preset Configuration
+#########################################################################
+
 locals {
-  django_module = {
-    app_name        = "django"
-    description     = "Django Web Application - High-level Python web framework"
-    container_image = "python:3.11-slim"
-    app_version     = "latest"
+  medusa_module = {
+    app_name        = "medusa"
+    description     = "Medusa - Building blocks for digital commerce"
+    # Medusa requires a custom built image with the storefront/backend code.
+    # We provide a placeholder, but users should override this.
+    container_image = "medusajs/medusa"
     image_source    = "custom"
-    container_port  = 8000
+    container_port  = 9000
     database_type   = "POSTGRES_15"
-    db_name         = "django"
-    db_user         = "django"
-    db_tier         = "db-f1-micro"
+    db_name         = "medusa_db"
+    db_user         = "medusa_user"
+
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
+
+    # Storage volumes
+    # Medusa supports S3/GCS plugins for file storage.
+    # We provision a bucket which can be used by the plugin.
+    # We also provide a local volume if needed, though ephemeral in Cloud Run without GCS Fuse.
     gcs_volumes = [
       {
-        bucket     = "$${tenant_id}-django-static"
-        mount_path = "/app/static"
-        read_only  = false
-      },
-      {
-        bucket     = "$${tenant_id}-django-media"
-        mount_path = "/app/media"
-        read_only  = false
+        name          = "medusa-uploads"
+        bucket_name   = null # Auto-generated based on suffix
+        mount_path    = "/uploads"
+        read_only     = false
+        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
       }
     ]
+
+    # Resource limits
     container_resources = {
-      cpu_limit    = "2000m"
-      memory_limit = "2Gi"
+      cpu_limit    = "1000m"
+      memory_limit = "1Gi"
     }
     min_instance_count = 1
-    max_instance_count = 10
-    environment_variables = {
-      DJANGO_SETTINGS_MODULE    = "myproject.settings.production"
-      DEBUG                     = "False"
-      ALLOWED_HOSTS             = "*.run.app"
-      DB_ENGINE                 = "django.db.backends.postgresql"
-      DB_PORT                   = "5432"
-      STATIC_ROOT               = "/app/static"
-      MEDIA_ROOT                = "/app/media"
-      DJANGO_SUPERUSER_EMAIL    = "admin@example.com"
-      DJANGO_SUPERUSER_USERNAME = "admin"
-    }
-    enable_postgres_extensions = true
-    postgres_extensions         = ["pg_trgm", "unaccent", "hstore", "citext"]
+    max_instance_count = 3
 
+    # Environment variables
+    environment_variables = {
+      NODE_ENV = "production"
+      # DB connection details will be injected by main.tf
+    }
+
+    # Initialization Jobs
     initialization_jobs = [
       {
         name            = "db-init"
-        description     = "Create Django Database and User"
+        description     = "Create Medusa Database and User"
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
         args            = [
@@ -59,14 +62,14 @@ locals {
             echo "Installing dependencies..."
             apk update && apk add --no-cache postgresql-client
 
-            # Use DB_IP if available (injected by WebApp), else DB_HOST
+            # Use DB_IP if available, else DB_HOST
             TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
             echo "Using DB Host: $TARGET_DB_HOST"
 
             echo "Waiting for database..."
             export PGPASSWORD=$ROOT_PASSWORD
             until psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c '\l' > /dev/null 2>&1; do
-              echo "Waiting for database connection..."
+              echo "Waiting for database connection at $TARGET_DB_HOST..."
               sleep 2
             done
 
@@ -109,8 +112,8 @@ locals {
 
     startup_probe = {
       enabled               = true
-      type                  = "TCP"
-      path                  = "/"
+      type                  = "HTTP"
+      path                  = "/health"
       initial_delay_seconds = 30
       timeout_seconds       = 5
       period_seconds        = 10
@@ -118,8 +121,8 @@ locals {
     }
     liveness_probe = {
       enabled               = true
-      type                  = "TCP"
-      path                  = "/"
+      type                  = "HTTP"
+      path                  = "/health"
       initial_delay_seconds = 60
       timeout_seconds       = 5
       period_seconds        = 30
@@ -128,7 +131,7 @@ locals {
   }
 }
 
-output "django_module" {
-  description = "django application module configuration"
-  value       = local.django_module
+output "medusa_module" {
+  description = "medusa application module configuration"
+  value       = local.medusa_module
 }

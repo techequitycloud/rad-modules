@@ -1,56 +1,57 @@
 # Copyright 2024 (c) Tech Equity Ltd
 # Licensed under the Apache License, Version 2.0
 
+#########################################################################
+# Wiki.js Preset Configuration
+#########################################################################
+
 locals {
-  django_module = {
-    app_name        = "django"
-    description     = "Django Web Application - High-level Python web framework"
-    container_image = "python:3.11-slim"
-    app_version     = "latest"
-    image_source    = "custom"
-    container_port  = 8000
+  wikijs_module = {
+    app_name        = "wikijs"
+    description     = "Wiki.js - The most powerful and extensible open source Wiki software"
+    container_image = "requarks/wiki:2"
+    image_source    = "prebuilt"
+    container_port  = 3000
     database_type   = "POSTGRES_15"
-    db_name         = "django"
-    db_user         = "django"
-    db_tier         = "db-f1-micro"
+    db_name         = "wikijs"
+    db_user         = "wikijs"
+
+    # Performance optimization
     enable_cloudsql_volume     = true
-    cloudsql_volume_mount_path = "/cloudsql"
-    gcs_volumes = [
-      {
-        bucket     = "$${tenant_id}-django-static"
-        mount_path = "/app/static"
-        read_only  = false
-      },
-      {
-        bucket     = "$${tenant_id}-django-media"
-        mount_path = "/app/media"
-        read_only  = false
-      }
-    ]
+    cloudsql_volume_mount_path = "/var/run/postgresql"
+
+    # Storage volumes - Optional for Local Storage module
+    gcs_volumes = [{
+      name       = "wikijs-storage"
+      mount_path = "/wiki-storage"
+      read_only  = false
+      mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
+    }]
+
+    # Resource limits
     container_resources = {
-      cpu_limit    = "2000m"
-      memory_limit = "2Gi"
+      cpu_limit    = "1000m"
+      memory_limit = "1Gi"
     }
     min_instance_count = 1
-    max_instance_count = 10
-    environment_variables = {
-      DJANGO_SETTINGS_MODULE    = "myproject.settings.production"
-      DEBUG                     = "False"
-      ALLOWED_HOSTS             = "*.run.app"
-      DB_ENGINE                 = "django.db.backends.postgresql"
-      DB_PORT                   = "5432"
-      STATIC_ROOT               = "/app/static"
-      MEDIA_ROOT                = "/app/media"
-      DJANGO_SUPERUSER_EMAIL    = "admin@example.com"
-      DJANGO_SUPERUSER_USERNAME = "admin"
-    }
-    enable_postgres_extensions = true
-    postgres_extensions         = ["pg_trgm", "unaccent", "hstore", "citext"]
+    max_instance_count = 3
 
+    # Environment variables
+    environment_variables = {
+      DB_TYPE = "postgres"
+      DB_HOST = "/var/run/postgresql" # Socket
+      DB_PORT = "5432"
+      DB_USER = "wikijs"
+      DB_NAME = "wikijs"
+      DB_SSL  = "false"
+      # DB_PASS injected via secrets in main.tf
+    }
+
+    # Initialization Jobs
     initialization_jobs = [
       {
         name            = "db-init"
-        description     = "Create Django Database and User"
+        description     = "Create Wiki.js Database and User"
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
         args            = [
@@ -59,14 +60,24 @@ locals {
             echo "Installing dependencies..."
             apk update && apk add --no-cache postgresql-client
 
-            # Use DB_IP if available (injected by WebApp), else DB_HOST
+            # Use DB_IP if available (TCP), else fallback to DB_HOST
             TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
             echo "Using DB Host: $TARGET_DB_HOST"
 
+            if [ -z "$ROOT_PASSWORD" ]; then
+              echo "Error: ROOT_PASSWORD is not set."
+              exit 1
+            fi
+            if [ -z "$DB_PASSWORD" ]; then
+              echo "Error: DB_PASSWORD is not set."
+              exit 1
+            fi
+
             echo "Waiting for database..."
             export PGPASSWORD=$ROOT_PASSWORD
+            # Initialize connection check
             until psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c '\l' > /dev/null 2>&1; do
-              echo "Waiting for database connection..."
+              echo "Waiting for database connection at $TARGET_DB_HOST..."
               sleep 2
             done
 
@@ -118,7 +129,7 @@ locals {
     }
     liveness_probe = {
       enabled               = true
-      type                  = "TCP"
+      type                  = "HTTP"
       path                  = "/"
       initial_delay_seconds = 60
       timeout_seconds       = 5
@@ -128,7 +139,7 @@ locals {
   }
 }
 
-output "django_module" {
-  description = "django application module configuration"
-  value       = local.django_module
+output "wikijs_module" {
+  description = "wikijs application module configuration"
+  value       = local.wikijs_module
 }

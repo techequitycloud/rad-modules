@@ -170,6 +170,97 @@ locals {
         lifecycle_rules          = []
         public_access_prevention = "inherited"
       }
+    ] : [],
+    var.application_module == "gitlab" ? [
+      {
+        name_suffix              = "gitlab-data"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      },
+      {
+        name_suffix              = "gitlab-config"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : [],
+    var.application_module == "ghost" ? [
+      {
+        name_suffix              = "ghost-content"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : [],
+    var.application_module == "wikijs" ? [
+      {
+        name_suffix              = "wikijs-storage"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : [],
+    var.application_module == "plane" ? [
+      {
+        name_suffix              = "plane-uploads"
+        }
+    ] : [],
+  var.application_module == "medusa" ? [
+      {
+        name_suffix              = "medusa-uploads"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : [],
+    var.application_module == "payload" ? [
+      {
+        name_suffix              = "payload-media"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : [],
+    var.application_module == "invoiceninja" ? [
+      {
+        name_suffix              = "invoiceninja-storage"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : [],
+    var.application_module == "strapi" ? [
+      {
+        name_suffix              = "strapi-uploads"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
     ] : []
   )
 
@@ -240,6 +331,49 @@ locals {
       OE_PASS        = "admin"
       MANUAL_SETUP   = "no"
       BACKUP_FILEID  = local.final_backup_uri != null ? local.final_backup_uri : ""
+    } : {},
+    var.application_module == "nextcloud" ? {
+      DB_HOST              = local.db_internal_ip
+      POSTGRES_DB          = local.database_name_full
+      POSTGRES_USER        = local.database_user_full
+      NEXTCLOUD_ADMIN_USER = "admin"
+    } : {},
+    var.application_module == "plane" ? {
+      PGHOST                  = local.db_internal_ip
+      PGDATABASE              = local.database_name_full
+      POSTGRES_USER           = local.database_user_full
+      POSTGRES_PORT           = "5432"
+      AWS_REGION              = var.deployment_region
+      AWS_S3_ENDPOINT         = "https://storage.googleapis.com"
+      AWS_S3_BUCKET_NAME      = try(local.storage_buckets["plane-uploads"].name, "")
+      AWS_S3_FORCE_PATH_STYLE = "false"
+    } : {},
+    var.application_module == "medusa" ? {
+      DB_HOST     = local.db_internal_ip
+      DB_PORT     = "5432"
+      DB_NAME     = local.database_name_full
+      DB_USER     = local.database_user_full
+    } : {},
+    var.application_module == "payload" ? {
+      DB_HOST     = local.db_internal_ip
+      DB_PORT     = "5432"
+      DB_NAME     = local.database_name_full
+      DB_USER     = local.database_user_full
+      PGHOST      = local.db_internal_ip
+      PGPORT      = "5432"
+      PGDATABASE  = local.database_name_full
+      PGUSER      = local.database_user_full
+    } : {},
+    var.application_module == "invoiceninja" ? {
+      DB_HOST     = local.db_internal_ip
+      DB_DATABASE = local.database_name_full
+      DB_USERNAME = local.database_user_full
+    } : {},
+    var.application_module == "strapi" ? {
+      DATABASE_HOST     = local.db_internal_ip
+      DATABASE_PORT     = "5432"
+      DATABASE_NAME     = local.database_name_full
+      DATABASE_USERNAME = local.database_user_full
     } : {}
   )
 
@@ -253,6 +387,7 @@ locals {
       DB_NAME     = local.database_name_full
       DB_USER     = local.database_user_full
       DB_PORT     = tostring(local.database_port)
+      DB_HOST     = local.db_internal_ip
       DB_IP       = local.db_internal_ip
     }
   )
@@ -273,6 +408,45 @@ locals {
     } : {},
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
+    } : {},
+    var.application_module == "nextcloud" ? {
+      POSTGRES_PASSWORD        = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      NEXTCLOUD_ADMIN_PASSWORD = try(google_secret_manager_secret.nextcloud_admin_password[0].secret_id, "")
+    } : {},
+    var.application_module == "ghost" ? {
+      database__connection__password = try(google_secret_manager_secret.db_password[0].secret_id, "")
+    } : {},
+    var.application_module == "wikijs" ? {
+      DB_PASS = try(google_secret_manager_secret.db_password[0].secret_id, "")
+    } : {},
+    var.application_module == "plane" ? {
+      POSTGRES_PASSWORD     = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      AWS_ACCESS_KEY_ID     = try(google_secret_manager_secret.plane_storage_access_key[0].secret_id, "")
+      AWS_SECRET_ACCESS_KEY = try(google_secret_manager_secret.plane_storage_secret_key[0].secret_id, "")
+    } : {},
+    var.application_module == "medusa" ? {
+      DB_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      JWT_SECRET    = try(google_secret_manager_secret.medusa_jwt_secret[0].secret_id, "")
+      COOKIE_SECRET = try(google_secret_manager_secret.medusa_cookie_secret[0].secret_id, "")
+    } : {},
+    var.application_module == "payload" ? {
+      DB_PASSWORD    = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      PAYLOAD_SECRET = try(google_secret_manager_secret.payload_secret[0].secret_id, "")
+      PGPASSWORD     = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      PAYLOAD_SECRET = try(google_secret_manager_secret.payload_secret[0].secret_id, "")
+    } : {},
+    var.application_module == "invoiceninja" ? {
+      DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      APP_KEY     = try(google_secret_manager_secret.invoiceninja_app_key[0].secret_id, "")
+      IN_PASSWORD = try(google_secret_manager_secret.invoiceninja_admin_password[0].secret_id, "")
+    } : {},
+    var.application_module == "strapi" ? {
+      DATABASE_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      JWT_SECRET          = try(google_secret_manager_secret.strapi_jwt_secret[0].secret_id, "")
+      ADMIN_JWT_SECRET    = try(google_secret_manager_secret.strapi_admin_jwt_secret[0].secret_id, "")
+      API_TOKEN_SALT      = try(google_secret_manager_secret.strapi_api_token_salt[0].secret_id, "")
+      TRANSFER_TOKEN_SALT = try(google_secret_manager_secret.strapi_transfer_token_salt[0].secret_id, "")
+      APP_KEYS            = try(google_secret_manager_secret.strapi_app_keys[0].secret_id, "")
     } : {}
   )
 
@@ -468,6 +642,83 @@ resource "google_secret_manager_secret_version" "encryption_key" {
   secret_data = random_password.encryption_key[0].result
 }
 
+# ==============================================================================
+# PLANE SPECIFIC RESOURCES
+# ==============================================================================
+resource "google_service_account" "plane_sa" {
+  count        = var.application_module == "plane" ? 1 : 0
+  account_id   = "${local.wrapper_prefix}-sa"
+  display_name = "Plane Service Account"
+  project      = var.existing_project_id
+}
+
+resource "google_storage_bucket_iam_member" "plane_storage_admin" {
+  count  = var.application_module == "plane" ? 1 : 0
+  bucket = local.storage_buckets["plane-uploads"].name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.plane_sa[0].email}"
+}
+
+resource "google_storage_hmac_key" "plane_key" {
+  count                 = var.application_module == "plane" ? 1 : 0
+  service_account_email = google_service_account.plane_sa[0].email
+  project               = var.existing_project_id
+}
+
+resource "google_secret_manager_secret" "plane_storage_access_key" {
+  count     = var.application_module == "plane" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-access-key"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "plane_storage_access_key" {
+  count       = var.application_module == "plane" ? 1 : 0
+  secret      = google_secret_manager_secret.plane_storage_access_key[0].id
+  secret_data = google_storage_hmac_key.plane_key[0].access_id
+}
+
+resource "google_secret_manager_secret" "plane_storage_secret_key" {
+  count     = var.application_module == "plane" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-secret-key"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "plane_storage_secret_key" {
+  count       = var.application_module == "plane" ? 1 : 0
+  secret      = google_secret_manager_secret.plane_storage_secret_key[0].id
+  secret_data = google_storage_hmac_key.plane_key[0].secret
+}
+
+# ==============================================================================
+# NEXTCLOUD SPECIFIC RESOURCES
+# ==============================================================================
+resource "random_password" "nextcloud_admin_password" {
+  count   = var.application_module == "nextcloud" ? 1 : 0
+  length  = 16
+  special = false
+}
+
+resource "google_secret_manager_secret" "nextcloud_admin_password" {
+  count     = var.application_module == "nextcloud" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-admin-password"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "nextcloud_admin_password" {
+  count       = var.application_module == "nextcloud" ? 1 : 0
+  secret      = google_secret_manager_secret.nextcloud_admin_password[0].id
+  secret_data = random_password.nextcloud_admin_password[0].result
+}
+
 # Django Post-Deployment Update (CSRF Origin)
 resource "null_resource" "update_csrf_origin" {
   count = var.application_module == "django" ? 1 : 0
@@ -499,6 +750,223 @@ resource "null_resource" "update_csrf_origin" {
   }
 }
 
+# ==============================================================================
+# MEDUSA SPECIFIC RESOURCES
+# ==============================================================================
+resource "random_password" "medusa_jwt_secret" {
+  count   = var.application_module == "medusa" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "medusa_jwt_secret" {
+  count     = var.application_module == "medusa" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-jwt-secret"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "medusa_jwt_secret" {
+  count       = var.application_module == "medusa" ? 1 : 0
+  secret      = google_secret_manager_secret.medusa_jwt_secret[0].id
+  secret_data = random_password.medusa_jwt_secret[0].result
+}
+
+resource "random_password" "medusa_cookie_secret" {
+  count   = var.application_module == "medusa" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "medusa_cookie_secret" {
+  count     = var.application_module == "medusa" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-cookie-secret"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "medusa_cookie_secret" {
+  count       = var.application_module == "medusa" ? 1 : 0
+  secret      = google_secret_manager_secret.medusa_cookie_secret[0].id
+  secret_data = random_password.medusa_cookie_secret[0].result
+}
+
+# ==============================================================================
+# PAYLOAD CMS SPECIFIC RESOURCES
+# ==============================================================================
+resource "random_password" "payload_secret" {
+  count   = var.application_module == "payload" ? 1 : 0
+  byte_length = 32
+}
+
+resource "google_secret_manager_secret" "invoiceninja_app_key" {
+  count     = var.application_module == "invoiceninja" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-app-key"
+}
+        
+# STRAPI SPECIFIC RESOURCES
+# ==============================================================================
+resource "random_password" "strapi_jwt_secret" {
+  count   = var.application_module == "strapi" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "strapi_jwt_secret" {
+  count     = var.application_module == "strapi" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-jwt-secret"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "strapi_jwt_secret" {
+  count       = var.application_module == "strapi" ? 1 : 0
+  secret      = google_secret_manager_secret.strapi_jwt_secret[0].id
+  secret_data = random_password.strapi_jwt_secret[0].result
+}
+
+resource "random_password" "strapi_admin_jwt_secret" {
+  count   = var.application_module == "strapi" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "payload_secret" {
+  count     = var.application_module == "payload" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-payload-secret"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+        
+resource "google_secret_manager_secret" "strapi_admin_jwt_secret" {
+  count     = var.application_module == "strapi" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-admin-jwt-secret"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "payload_secret" {
+  count       = var.application_module == "payload" ? 1 : 0
+  secret      = google_secret_manager_secret.payload_secret[0].id
+  secret_data = random_password.payload_secret[0].result
+}
+
+resource "google_secret_manager_secret_version" "strapi_admin_jwt_secret" {
+  count       = var.application_module == "strapi" ? 1 : 0
+  secret      = google_secret_manager_secret.strapi_admin_jwt_secret[0].id
+  secret_data = random_password.strapi_admin_jwt_secret[0].result
+}
+
+resource "random_password" "strapi_api_token_salt" {
+  count   = var.application_module == "strapi" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "strapi_api_token_salt" {
+  count     = var.application_module == "strapi" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-api-token-salt"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "strapi_api_token_salt" {
+  count       = var.application_module == "strapi" ? 1 : 0
+  secret      = google_secret_manager_secret.strapi_api_token_salt[0].id
+  secret_data = random_password.strapi_api_token_salt[0].result
+}
+
+resource "random_password" "strapi_transfer_token_salt" {
+  count   = var.application_module == "strapi" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "strapi_transfer_token_salt" {
+  count     = var.application_module == "strapi" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-transfer-token-salt"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "invoiceninja_app_key" {
+  count       = var.application_module == "invoiceninja" ? 1 : 0
+  secret      = google_secret_manager_secret.invoiceninja_app_key[0].id
+  secret_data = "base64:${random_id.invoiceninja_app_key[0].b64_std}"
+}
+
+resource "random_password" "invoiceninja_admin_password" {
+  count   = var.application_module == "invoiceninja" ? 1 : 0
+  length  = 20
+  special = false
+}
+
+resource "google_secret_manager_secret" "invoiceninja_admin_password" {
+  count     = var.application_module == "invoiceninja" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-admin-password"
+}
+
+resource "google_secret_manager_secret_version" "strapi_transfer_token_salt" {
+  count       = var.application_module == "strapi" ? 1 : 0
+  secret      = google_secret_manager_secret.strapi_transfer_token_salt[0].id
+  secret_data = random_password.strapi_transfer_token_salt[0].result
+}
+
+resource "random_password" "strapi_app_key_1" {
+  count   = var.application_module == "strapi" ? 1 : 0
+  length  = 32
+  special = false
+}
+resource "random_password" "strapi_app_key_2" {
+  count   = var.application_module == "strapi" ? 1 : 0
+  length  = 32
+  special = false
+}
+resource "random_password" "strapi_app_key_3" {
+  count   = var.application_module == "strapi" ? 1 : 0
+  length  = 32
+  special = false
+}
+resource "random_password" "strapi_app_key_4" {
+  count   = var.application_module == "strapi" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "strapi_app_keys" {
+  count     = var.application_module == "strapi" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-app-keys"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "invoiceninja_admin_password" {
+  count       = var.application_module == "invoiceninja" ? 1 : 0
+  secret      = google_secret_manager_secret.invoiceninja_admin_password[0].id
+  secret_data = random_password.invoiceninja_admin_password[0].result
+}
+resource "google_secret_manager_secret_version" "strapi_app_keys" {
+  count       = var.application_module == "strapi" ? 1 : 0
+  secret      = google_secret_manager_secret.strapi_app_keys[0].id
+  secret_data = "${random_password.strapi_app_key_1[0].result},${random_password.strapi_app_key_2[0].result},${random_password.strapi_app_key_3[0].result},${random_password.strapi_app_key_4[0].result}"
+}
+
 # Output deployment information for debugging
 output "deployment_info" {
   description = "Deployment information"
@@ -512,4 +980,28 @@ output "deployment_info" {
     container_image  = local.container_image
     regions          = local.regions
   }
+}
+
+# ==============================================================================
+# PAYLOAD SPECIFIC RESOURCES
+# ==============================================================================
+resource "random_password" "payload_secret" {
+  count   = var.application_module == "payload" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "payload_secret" {
+  count     = var.application_module == "payload" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-secret"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "payload_secret" {
+  count       = var.application_module == "payload" ? 1 : 0
+  secret      = google_secret_manager_secret.payload_secret[0].id
+  secret_data = random_password.payload_secret[0].result
 }

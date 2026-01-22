@@ -296,6 +296,10 @@ resource "google_cloud_run_v2_service" "app_service" {
     percent = 100
   }
 
+  lifecycle {
+    create_before_destroy = false
+  }
+
   depends_on = [
     data.google_secret_manager_secret_version.db_password,
     google_secret_manager_secret_iam_member.db_password,
