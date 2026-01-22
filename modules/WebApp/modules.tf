@@ -80,6 +80,10 @@ module "wikijs_module" {
   source = "./modules/wikijs"
 }
 
+module "plane_module" {
+  source = "./modules/plane"
+}
+
 #########################################################################
 # Application Modules Map
 #########################################################################
@@ -98,6 +102,7 @@ locals {
     gitlab    = module.gitlab_module.gitlab_module
     ghost     = module.ghost_module.ghost_module
     wikijs    = module.wikijs_module.wikijs_module
+    plane     = module.plane_module.plane_module
   }
 
   #########################################################################
