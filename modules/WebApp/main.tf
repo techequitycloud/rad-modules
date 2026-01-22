@@ -72,20 +72,27 @@ locals {
   database_name_full     = "${local.application_database_name}_${local.tenant_id}_${local.random_id}"
   database_user_full     = "${local.application_database_user}_${local.tenant_id}_${local.random_id}"
 
-  # Determine database port based on type
+  # ✅ UPDATED: Determine database port based on type (added POSTGRES_16)
   database_port = (
     contains(["MYSQL", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0"], local.database_type) ? 3306 :
-    contains(["POSTGRES", "POSTGRESQL", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15"], local.database_type) ? 5432 :
+    contains(["POSTGRES", "POSTGRESQL", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "POSTGRES_16"], local.database_type) ? 5432 :
     contains(["SQLSERVER", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE"], local.database_type) ? 1433 :
     3306 # Default to MySQL port
   )
 
-  # Determine database client type for scripts
+  # ✅ UPDATED: Determine database client type for scripts (added POSTGRES_16)
   database_client_type = (
     contains(["MYSQL", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0"], local.database_type) ? "MYSQL" :
-    contains(["POSTGRES", "POSTGRESQL", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15"], local.database_type) ? "POSTGRES" :
+    contains(["POSTGRES", "POSTGRESQL", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "POSTGRES_16"], local.database_type) ? "POSTGRES" :
     contains(["SQLSERVER", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE"], local.database_type) ? "SQLSERVER" :
     "MYSQL" # Default
+  )
+
+  # ✅ NEW: PostgreSQL vs MySQL socket paths
+  cloudsql_socket_path = (
+    contains(["POSTGRES", "POSTGRESQL", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "POSTGRES_16"], local.database_type) ? 
+    "/var/run/postgresql" : 
+    "/var/run/mysqld"
   )
 
   # Resource naming
@@ -114,8 +121,9 @@ locals {
   enable_cicd_trigger = var.enable_cicd_trigger && var.github_repository_url != null
   github_token_secret = "${var.github_token_secret_name}-${local.tenant_id}"
 
-  # Image Mirroring Configuration (for Docker Hub images that fail due to mirror.gcr.io)
-  enable_image_mirroring = var.application_module == "moodle"
+  # ✅ UPDATED: Image Mirroring Configuration (disabled for Moodle - Bitnami deprecated Aug 28, 2025)
+  # Using lthub/moodle:latest which works directly from Docker Hub
+  enable_image_mirroring = false  # Previously: var.application_module == "moodle"
   mirror_source_image    = local.final_container_image
 
   # Extract tag from source image (e.g., "4" from "bitnami/moodle:4"), default to "latest"
@@ -239,9 +247,15 @@ locals {
     var.application_module == "plane" ? [
       {
         name_suffix              = "plane-uploads"
-        }
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
     ] : [],
-  var.application_module == "medusa" ? [
+    var.application_module == "medusa" ? [
       {
         name_suffix              = "medusa-uploads"
         location                 = var.deployment_region
@@ -345,12 +359,26 @@ locals {
       WORDPRESS_DB_HOST = local.db_internal_ip
       WORDPRESS_DEBUG   = "false"
     } : {},
+    # ✅ UPDATED: Dynamic Moodle environment variables (PostgreSQL compatible)
     var.application_module == "moodle" ? {
-      MOODLE_DATABASE_HOST        = local.db_internal_ip
-      MOODLE_DATABASE_PORT_NUMBER = "3306"
-      MOODLE_DATABASE_USER        = local.database_user_full
-      MOODLE_DATABASE_NAME        = local.database_name_full
-      MOODLE_DATABASE_TYPE        = "mariadb"
+      # Database connection (supports both MySQL and PostgreSQL)
+      MOODLE_DB_HOST = local.db_internal_ip
+      MOODLE_DB_PORT = tostring(local.database_port)
+      MOODLE_DB_USER = local.database_user_full
+      MOODLE_DB_NAME = local.database_name_full
+      
+      # Database type: "pgsql" for PostgreSQL, "mysqli" for MySQL
+      MOODLE_DB_TYPE = local.database_client_type == "POSTGRES" ? "pgsql" : "mysqli"
+      
+      # Site configuration
+      MOODLE_SITE_NAME     = "Moodle LMS"
+      MOODLE_SITE_FULLNAME = "Moodle Learning Management System"
+      MOODLE_ADMIN_USER    = "admin"
+      MOODLE_ADMIN_EMAIL   = "admin@example.com"
+      
+      # Installation settings
+      MOODLE_SKIP_INSTALL = "no"
+      MOODLE_UPDATE       = "yes"
     } : {},
     var.application_module == "openemr" ? {
       MYSQL_DATABASE = local.database_name_full
@@ -436,8 +464,9 @@ locals {
     var.application_module == "wordpress" ? {
       WORDPRESS_DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
+    # ✅ UPDATED: Moodle secret environment variables
     var.application_module == "moodle" ? {
-      MOODLE_DATABASE_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      MOODLE_DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
@@ -575,7 +604,7 @@ locals {
   )
 
   # ===========================
-  # Compatibilty & Helper Locals
+  # Compatibility & Helper Locals
   # ===========================
 
   # Aliases for backward compatibility and missing references
