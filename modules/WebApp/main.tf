@@ -213,7 +213,12 @@ locals {
         public_access_prevention = "inherited"
       }
     ] : [],
-    var.application_module == "medusa" ? [
+    var.application_module == "plane" ? [
+      {
+        name_suffix              = "plane-uploads"
+        }
+    ] : [],
+  var.application_module == "medusa" ? [
       {
         name_suffix              = "medusa-uploads"
         location                 = var.deployment_region
@@ -333,6 +338,16 @@ locals {
       POSTGRES_USER        = local.database_user_full
       NEXTCLOUD_ADMIN_USER = "admin"
     } : {},
+    var.application_module == "plane" ? {
+      PGHOST                  = local.db_internal_ip
+      PGDATABASE              = local.database_name_full
+      POSTGRES_USER           = local.database_user_full
+      POSTGRES_PORT           = "5432"
+      AWS_REGION              = var.deployment_region
+      AWS_S3_ENDPOINT         = "https://storage.googleapis.com"
+      AWS_S3_BUCKET_NAME      = try(local.storage_buckets["plane-uploads"].name, "")
+      AWS_S3_FORCE_PATH_STYLE = "false"
+    } : {},
     var.application_module == "medusa" ? {
       DB_HOST     = local.db_internal_ip
       DB_PORT     = "5432"
@@ -403,6 +418,11 @@ locals {
     } : {},
     var.application_module == "wikijs" ? {
       DB_PASS = try(google_secret_manager_secret.db_password[0].secret_id, "")
+    } : {},
+    var.application_module == "plane" ? {
+      POSTGRES_PASSWORD     = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      AWS_ACCESS_KEY_ID     = try(google_secret_manager_secret.plane_storage_access_key[0].secret_id, "")
+      AWS_SECRET_ACCESS_KEY = try(google_secret_manager_secret.plane_storage_secret_key[0].secret_id, "")
     } : {},
     var.application_module == "medusa" ? {
       DB_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
@@ -620,6 +640,59 @@ resource "google_secret_manager_secret_version" "encryption_key" {
   count       = var.application_module == "n8n" ? 1 : 0
   secret      = google_secret_manager_secret.encryption_key[0].id
   secret_data = random_password.encryption_key[0].result
+}
+
+# ==============================================================================
+# PLANE SPECIFIC RESOURCES
+# ==============================================================================
+resource "google_service_account" "plane_sa" {
+  count        = var.application_module == "plane" ? 1 : 0
+  account_id   = "${local.wrapper_prefix}-sa"
+  display_name = "Plane Service Account"
+  project      = var.existing_project_id
+}
+
+resource "google_storage_bucket_iam_member" "plane_storage_admin" {
+  count  = var.application_module == "plane" ? 1 : 0
+  bucket = local.storage_buckets["plane-uploads"].name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.plane_sa[0].email}"
+}
+
+resource "google_storage_hmac_key" "plane_key" {
+  count                 = var.application_module == "plane" ? 1 : 0
+  service_account_email = google_service_account.plane_sa[0].email
+  project               = var.existing_project_id
+}
+
+resource "google_secret_manager_secret" "plane_storage_access_key" {
+  count     = var.application_module == "plane" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-access-key"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "plane_storage_access_key" {
+  count       = var.application_module == "plane" ? 1 : 0
+  secret      = google_secret_manager_secret.plane_storage_access_key[0].id
+  secret_data = google_storage_hmac_key.plane_key[0].access_id
+}
+
+resource "google_secret_manager_secret" "plane_storage_secret_key" {
+  count     = var.application_module == "plane" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-secret-key"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "plane_storage_secret_key" {
+  count       = var.application_module == "plane" ? 1 : 0
+  secret      = google_secret_manager_secret.plane_storage_secret_key[0].id
+  secret_data = google_storage_hmac_key.plane_key[0].secret
 }
 
 # ==============================================================================
