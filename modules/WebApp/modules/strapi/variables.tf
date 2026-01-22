@@ -2,54 +2,56 @@
 # Licensed under the Apache License, Version 2.0
 
 #########################################################################
-# Payload CMS Preset Configuration
+# Strapi CMS Preset Configuration
 #########################################################################
 
 locals {
-  payload_module = {
-    app_name        = "payload"
-    description     = "Payload CMS - The best way to build a modern backend + admin UI"
-    # Payload requires a custom built image or a project setup.
-    # We provide a placeholder, but users should typically use 'custom' image source.
-    container_image = "payloadcms/payload"
+  strapi_module = {
+    app_name        = "strapi"
+    description     = "Strapi - Open source Node.js Headless CMS"
+    # Strapi requires a custom built image.
+    container_image = "strapi/strapi"
     image_source    = "custom"
-    container_port  = 3000
+    container_port  = 1337
     database_type   = "POSTGRES_15"
-    db_name         = "payload"
-    db_user         = "payload"
-    db_tier         = "db-f1-micro"
+    db_name         = "strapi"
+    db_user         = "strapi"
+
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
 
+    # Storage volumes
     gcs_volumes = [
       {
-        bucket     = "$${tenant_id}-payload-media"
-        mount_path = "/app/media"
-        read_only  = false
+        name          = "strapi-uploads"
+        bucket_name   = null # Auto-generated based on suffix
+        mount_path    = "/opt/app/public/uploads"
+        read_only     = false
+        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
       }
     ]
 
+    # Resource limits
     container_resources = {
       cpu_limit    = "1000m"
-      memory_limit = "512Mi"
+      memory_limit = "1Gi"
     }
-
-    min_instance_count = 0
+    min_instance_count = 1
     max_instance_count = 3
 
+    # Environment variables
     environment_variables = {
-      NODE_ENV = "production"
-      # DB connection will be handled via preset_env_vars in main.tf
-      # utilizing standard PG* variables which node-postgres/Payload supports
+      NODE_ENV        = "production"
+      DATABASE_CLIENT = "postgres"
+      DATABASE_SSL    = "false"
+      # DB connection details will be injected by main.tf
     }
 
-    enable_postgres_extensions = true
-    postgres_extensions        = ["pg_trgm", "unaccent", "uuid-ossp"]
-
+    # Initialization Jobs
     initialization_jobs = [
       {
         name            = "db-init"
-        description     = "Create Database and User"
+        description     = "Create Strapi Database and User"
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
         args            = [
@@ -58,7 +60,7 @@ locals {
             echo "Installing dependencies..."
             apk update && apk add --no-cache postgresql-client
 
-            # Use DB_IP if available (injected by WebApp), else DB_HOST
+            # Use DB_IP if available, else DB_HOST
             TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
             echo "Using DB Host: $TARGET_DB_HOST"
 
@@ -110,17 +112,16 @@ locals {
       enabled               = true
       type                  = "TCP"
       path                  = "/"
-      initial_delay_seconds = 10
+      initial_delay_seconds = 30
       timeout_seconds       = 5
       period_seconds        = 10
       failure_threshold     = 3
     }
-
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
-      path                  = "/admin" # Payload admin path
-      initial_delay_seconds = 30
+      path                  = "/_health"
+      initial_delay_seconds = 60
       timeout_seconds       = 5
       period_seconds        = 30
       failure_threshold     = 3
@@ -128,7 +129,7 @@ locals {
   }
 }
 
-output "payload_module" {
-  description = "payload application module configuration"
-  value       = local.payload_module
+output "strapi_module" {
+  description = "strapi application module configuration"
+  value       = local.strapi_module
 }
