@@ -24,4 +24,6 @@ sed -i "s/.*max_input_vars.*/max_input_vars = 5000/" /etc/php/8.3/apache2/php.in
 source /etc/apache2/envvars
 tail -F /var/log/apache2/* 2>/dev/null &
 echo "Starting Apache Web Server..."
+mkdir -p /var/run/apache2
+chown -R www-data:www-data /var/run/apache2
 exec apache2 -D FOREGROUND
