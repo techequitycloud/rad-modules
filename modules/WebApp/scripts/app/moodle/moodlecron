@@ -1,0 +1,1 @@
+0 * * * * root . /root/env.sh; /usr/bin/php /var/www/html/admin/cli/cron.php  2>/dev/null
