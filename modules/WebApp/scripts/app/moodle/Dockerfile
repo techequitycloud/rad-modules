@@ -46,7 +46,7 @@ RUN apt-get update && \
 RUN add-apt-repository ppa:ondrej/php \
     && apt-get update
 
-# Install Helper Utilities and Tools
+# Install Helper Utilities and Tools 
 # Removed nfs-kernel-server as it is not needed for client-side mounting
 RUN apt-get update -y && apt-get install -y tini \
     nfs-common \
