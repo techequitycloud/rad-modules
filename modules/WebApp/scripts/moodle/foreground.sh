@@ -23,4 +23,5 @@ sed -i "s/.*max_input_vars.*/max_input_vars = 5000/" /etc/php/8.3/apache2/php.in
 /usr/sbin/cron
 source /etc/apache2/envvars
 tail -F /var/log/apache2/* 2>/dev/null &
+echo "Starting Apache Web Server..."
 exec apache2 -D FOREGROUND
