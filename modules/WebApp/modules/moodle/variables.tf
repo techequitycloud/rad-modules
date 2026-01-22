@@ -40,7 +40,7 @@ locals {
     initialization_jobs = [
       {
         name            = "db-init"
-        description     = "Create Database and User"
+        description     = "Create Moodle Database and User"
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
         args            = [
