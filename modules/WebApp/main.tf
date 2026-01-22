@@ -379,7 +379,6 @@ locals {
       MOODLE_WWWROOT  = local.predicted_service_url
       MOODLE_SITE_URL = local.predicted_service_url
       MOODLE_URL      = local.predicted_service_url
-      APP_URL         = local.predicted_service_url
       
       # ✅ Reverse Proxy Support (CRITICAL for Cloud Run)
       ENABLE_REVERSE_PROXY = "TRUE"
