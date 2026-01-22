@@ -142,6 +142,13 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $DB_USER;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO $DB_USER;
 EOF
 
+            # ✅ Install PostgreSQL extensions for Moodle
+            echo "Installing PostgreSQL extensions..."
+            psql -v ON_ERROR_STOP=1 <<EOF
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+EOF
+
             echo "PostgreSQL DB Init complete."
           EOT
         ]
