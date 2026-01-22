@@ -125,6 +125,9 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
           # Ensure clean exit
           sync
           echo "Job finished successfully"
+          echo "Exiting with success status"
+          sleep 1
+          exit 0
         EOT
         ]
 
@@ -147,6 +150,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          tags       = local.network_tags
         }
         egress = local.vpc_egress_setting
       }
@@ -337,6 +341,7 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          tags       = local.network_tags
         }
         egress = local.vpc_egress_setting
       }
@@ -477,6 +482,7 @@ resource "google_cloud_run_v2_job" "postgres_extensions_job" {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          tags       = local.network_tags
         }
         egress = local.vpc_egress_setting
       }
@@ -626,6 +632,7 @@ resource "google_cloud_run_v2_job" "gdrive_backup_job" {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          tags       = local.network_tags
         }
         egress = local.vpc_egress_setting
       }
@@ -782,7 +789,8 @@ resource "google_cloud_run_v2_job" "gcs_backup_job" {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
-        }
+          tags       = local.network_tags
+       }
         egress = local.vpc_egress_setting
       }
     }
@@ -920,6 +928,7 @@ resource "google_cloud_run_v2_job" "mysql_plugins_job" {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          tags       = local.network_tags
         }
         egress = local.vpc_egress_setting
       }
@@ -1079,6 +1088,7 @@ resource "google_cloud_run_v2_job" "custom_sql_scripts_job" {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          tags       = local.network_tags
         }
         egress = local.vpc_egress_setting
       }
