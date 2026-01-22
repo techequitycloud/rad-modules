@@ -122,7 +122,7 @@ locals {
   )
 
   # Scoped resource names for multi-tenancy
-  artifact_repo_id = "${local.tenant_id}-${local.deployment_id}-${local.container_build_config.artifact_repo_name}"
+  artifact_repo_id = "${local.application_name}${local.tenant_id}${local.deployment_id}-repo"
 
   # CI/CD Configuration
   enable_cicd_trigger = var.enable_cicd_trigger && var.github_repository_url != null
