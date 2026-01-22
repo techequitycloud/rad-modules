@@ -54,7 +54,11 @@ resource "null_resource" "build_and_push_application_image" {
   # Trigger rebuild on changes
   triggers = {
     script_hash     = fileexists("${path.module}/scripts/build-container.sh") ? filesha256("${path.module}/scripts/build-container.sh") : timestamp()
-    dockerfile_hash = local.container_build_config.dockerfile_content != null ? sha256(local.container_build_config.dockerfile_content) : timestamp()
+    dockerfile_hash = local.container_build_config.dockerfile_content != null ? sha256(local.container_build_config.dockerfile_content) : (
+      fileexists("${path.module}/scripts/${local.container_build_config.context_path}/${local.container_build_config.dockerfile_path}") ?
+      filesha256("${path.module}/scripts/${local.container_build_config.context_path}/${local.container_build_config.dockerfile_path}") :
+      timestamp()
+    )
     repository_id   = data.google_artifact_registry_repository.application_image[0].repository_id
     image_tag       = local.application_version
     build_args      = sha256(jsonencode(local.container_build_config.build_args))
