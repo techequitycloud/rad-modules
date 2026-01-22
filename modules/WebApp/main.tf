@@ -190,6 +190,28 @@ locals {
         lifecycle_rules          = []
         public_access_prevention = "inherited"
       }
+    ] : [],
+    var.application_module == "ghost" ? [
+      {
+        name_suffix              = "ghost-content"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : [],
+    var.application_module == "wikijs" ? [
+      {
+        name_suffix              = "wikijs-storage"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
     ] : []
   )
 
@@ -304,6 +326,12 @@ locals {
     var.application_module == "nextcloud" ? {
       POSTGRES_PASSWORD        = try(google_secret_manager_secret.db_password[0].secret_id, "")
       NEXTCLOUD_ADMIN_PASSWORD = try(google_secret_manager_secret.nextcloud_admin_password[0].secret_id, "")
+    } : {},
+    var.application_module == "ghost" ? {
+      database__connection__password = try(google_secret_manager_secret.db_password[0].secret_id, "")
+    } : {},
+    var.application_module == "wikijs" ? {
+      DB_PASS = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {}
   )
 
