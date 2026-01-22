@@ -166,7 +166,6 @@ application_module = "cyclos"
 **What's Configured**:
 - Container: `cyclos/cyclos:4.16.15` on port 8080
 - Database: PostgreSQL 15 with Unix socket + extensions (pg_trgm, uuid-ossp)
-- Storage: GCS volume at `/usr/local/cyclos/data`
 - Resources: 2 CPU, 4Gi RAM
 - Scaling: 1-10 instances
 - Environment: `DB_HOST=/var/run/postgresql`, `CYCLOS_HOME=/usr/local/cyclos`
