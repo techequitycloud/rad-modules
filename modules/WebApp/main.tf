@@ -261,11 +261,14 @@ locals {
     local.sql_server_exists ? {
       DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
-
+    
     var.application_module == "n8n" ? {
       N8N_S3_ACCESS_KEY      = try(google_secret_manager_secret.storage_access_key[0].secret_id, "")
       N8N_S3_ACCESS_SECRET   = try(google_secret_manager_secret.storage_secret_key[0].secret_id, "")
       N8N_ENCRYPTION_KEY     = try(google_secret_manager_secret.encryption_key[0].secret_id, "")
+    } : {},
+    var.application_module == "wordpress" ? {
+      WORDPRESS_DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
