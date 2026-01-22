@@ -4,7 +4,7 @@
 # Updated: January 2025
 # Reason: Bitnami Moodle deprecated on August 28, 2025
 # Alternative: Using lthub/moodle (7M+ pulls, actively maintained)
-# Database: PostgreSQL (instead of MySQL)
+# Database: MySQL (lthub/moodle requires MySQL/MariaDB)
 
 locals {
   moodle_module = {
@@ -18,14 +18,14 @@ locals {
     # ✅ Updated port - lthub/moodle uses standard HTTP port 80
     container_port  = 80
     
-    # ✅ Changed from MYSQL_8_0 to POSTGRES_15
-    database_type   = "POSTGRES_15"
+    # ✅ Reverted to MYSQL_8_0 as lthub/moodle lacks Postgres extension
+    database_type   = "MYSQL_8_0"
     db_name         = "moodle"
     db_user         = "moodle"
 
     # Cloud SQL configuration
     enable_cloudsql_volume     = true
-    cloudsql_volume_mount_path = "/var/run/postgresql"
+    cloudsql_volume_mount_path = "/var/run/mysqld"
 
     # NFS Configuration
     nfs_enabled    = true
@@ -36,6 +36,13 @@ locals {
       name       = "moodle-data"
       mount_path = "/var/moodledata"
       read_only  = false
+      mount_options = [
+        "implicit-dirs",
+        "stat-cache-ttl=60s",
+        "type-cache-ttl=60s",
+        "uid=33", # www-data user
+        "gid=33"  # www-data group
+      ]
     }]
 
     container_resources = {
@@ -47,9 +54,9 @@ locals {
 
     # ✅ Environment variables - URL will be added dynamically in main.tf
     environment_variables = {
-      # Database configuration (PostgreSQL)
-      MOODLE_DB_TYPE = "pgsql"
-      MOODLE_DB_PORT = "5432"
+      # Database configuration (MySQL)
+      MOODLE_DB_TYPE = "mysqli"
+      MOODLE_DB_PORT = "3306"
       
       # Reverse Proxy Support (CRITICAL for Cloud Run)
       ENABLE_REVERSE_PROXY = "TRUE"
@@ -76,81 +83,61 @@ locals {
       DATA_PATH       = "/var/moodledata"
     }
 
-    # ✅ PostgreSQL extensions
-    enable_postgres_extensions = true
-    postgres_extensions        = [
-      "pg_stat_statements",
-      "pg_trgm"
-    ]
-
+    # ✅ MySQL Plugins
     enable_mysql_plugins = false
     mysql_plugins        = []
+
+    # ✅ Disabled Postgres extensions
+    enable_postgres_extensions = false
+    postgres_extensions        = []
 
     initialization_jobs = [
       {
         name            = "db-init"
-        description     = "Create Moodle Database and User in PostgreSQL"
-        image           = "postgres:15-alpine"
+        description     = "Create Moodle Database and User in MySQL"
+        image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
         args            = [
           <<-EOT
             set -e
             echo "Installing dependencies..."
-            apk update && apk add --no-cache netcat-openbsd
+            apk update && apk add --no-cache mysql-client netcat-openbsd
 
             TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
             echo "Using DB Host: $TARGET_DB_HOST"
 
-            echo "Waiting for PostgreSQL database..."
-            until nc -z $TARGET_DB_HOST 5432; do
-              echo "Waiting for PostgreSQL port 5432..."
+            echo "Waiting for MySQL database..."
+            until nc -z $TARGET_DB_HOST 3306; do
+              echo "Waiting for MySQL port 3306..."
               sleep 2
             done
 
-            export PGHOST="$TARGET_DB_HOST"
-            export PGPORT="5432"
-            export PGUSER="postgres"
-            export PGPASSWORD="$ROOT_PASSWORD"
+            cat > ~/.my.cnf << EOF
+[client]
+user=root
+password=$ROOT_PASSWORD
+host=$TARGET_DB_HOST
+EOF
+            chmod 600 ~/.my.cnf
 
             echo "Creating User $DB_USER if not exists..."
-            psql -v ON_ERROR_STOP=1 <<EOF
-DO \$\$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = '$DB_USER') THEN
-    CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
-  ELSE
-    ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
-  END IF;
-END
-\$\$;
+            mysql --defaults-file=~/.my.cnf <<EOF
+CREATE USER IF NOT EXISTS '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
+ALTER USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
+FLUSH PRIVILEGES;
 EOF
 
             echo "Creating Database $DB_NAME if not exists..."
-            psql -v ON_ERROR_STOP=1 <<EOF
-SELECT 'CREATE DATABASE $DB_NAME OWNER $DB_USER ENCODING ''UTF8'' LC_COLLATE ''en_US.UTF-8'' LC_CTYPE ''en_US.UTF-8'' TEMPLATE template0'
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
-EOF
+            mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;"
 
             echo "Granting privileges..."
-            psql -v ON_ERROR_STOP=1 <<EOF
-GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
+            mysql --defaults-file=~/.my.cnf <<EOF
+GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
+FLUSH PRIVILEGES;
 EOF
 
-            export PGDATABASE="$DB_NAME"
-            psql -v ON_ERROR_STOP=1 <<EOF
-GRANT ALL ON SCHEMA public TO $DB_USER;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $DB_USER;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $DB_USER;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO $DB_USER;
-EOF
-
-            echo "Installing PostgreSQL extensions..."
-            psql -v ON_ERROR_STOP=1 <<EOF
-CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-EOF
-
-            echo "PostgreSQL DB Init complete."
+            rm -f ~/.my.cnf
+            echo "MySQL DB Init complete."
           EOT
         ]
         mount_nfs         = false
@@ -159,23 +146,23 @@ EOF
       }
     ]
 
-    # ✅ Updated startup probe for lthub/moodle
+    # ✅ Updated startup probe (TCP for robustness)
     startup_probe = {
       enabled               = true
-      type                  = "HTTP"
+      type                  = "TCP"
       path                  = "/"
       initial_delay_seconds = 180
-      timeout_seconds       = 10
-      period_seconds        = 30
-      failure_threshold     = 10
+      timeout_seconds       = 60
+      period_seconds        = 120
+      failure_threshold     = 3
     }
     
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
       path                  = "/"
-      initial_delay_seconds = 120
-      timeout_seconds       = 5
+      initial_delay_seconds = 180
+      timeout_seconds       = 10
       period_seconds        = 60
       failure_threshold     = 3
     }
