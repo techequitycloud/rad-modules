@@ -57,6 +57,11 @@ resource "google_storage_bucket" "buckets" {
       }
     }
   }
+
+  # ✅ Add lifecycle to prevent hanging on destroy
+  lifecycle {
+    prevent_destroy = false
+  }
 }
 
 #########################################################################
