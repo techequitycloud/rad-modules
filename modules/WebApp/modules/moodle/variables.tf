@@ -129,6 +129,10 @@ locals {
                 psql -h "$TARGET_DB_HOST" -U postgres -c "ALTER USER \"$DB_USER\" WITH PASSWORD '$DB_PASSWORD';"
             fi
 
+            # Grant user role to postgres to allow setting owner
+            echo "Granting role $DB_USER to postgres..."
+            psql -h "$TARGET_DB_HOST" -U postgres -c "GRANT \"$DB_USER\" TO postgres;"
+
             echo "Creating Database $DB_NAME if not exists..."
             # Check if database exists
             if ! psql -h "$TARGET_DB_HOST" -U postgres -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
