@@ -19,7 +19,7 @@
 resource "local_file" "app_dockerfile" {
   count = local.enable_custom_build && local.container_build_config.dockerfile_content != null ? 1 : 0
 
-  filename = "${path.module}/scripts/app/${local.container_build_config.dockerfile_path}"
+  filename = "${path.module}/scripts/${local.container_build_config.context_path}/${local.container_build_config.dockerfile_path}"
   content  = local.container_build_config.dockerfile_content
 }
 
@@ -53,7 +53,7 @@ resource "null_resource" "build_and_push_application_image" {
 
   # Trigger rebuild on changes
   triggers = {
-    script_hash     = fileexists("${path.module}/scripts/app/build-container.sh") ? filesha256("${path.module}/scripts/app/build-container.sh") : timestamp()
+    script_hash     = fileexists("${path.module}/scripts/build-container.sh") ? filesha256("${path.module}/scripts/build-container.sh") : timestamp()
     dockerfile_hash = local.container_build_config.dockerfile_content != null ? sha256(local.container_build_config.dockerfile_content) : timestamp()
     repository_id   = data.google_artifact_registry_repository.application_image[0].repository_id
     image_tag       = local.application_version
@@ -61,7 +61,7 @@ resource "null_resource" "build_and_push_application_image" {
   }
 
   provisioner "local-exec" {
-    working_dir = "${path.module}/scripts/app"
+    working_dir = "${path.module}/scripts"
     command     = "bash build-container.sh \"${local.project.project_id}\" \"${local.impersonation_service_account}\""
   }
 
