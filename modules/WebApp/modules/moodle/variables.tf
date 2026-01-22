@@ -99,6 +99,17 @@ locals {
 
     initialization_jobs = [
       {
+        name            = "nfs-init"
+        description     = "Initialize NFS permissions for Moodle"
+        image           = "alpine:3.19"
+        command         = ["/bin/sh", "-c"]
+        args            = [
+          "chown -R 33:33 /mnt && chmod -R 777 /mnt && echo 'NFS permissions initialized'"
+        ]
+        mount_nfs        = true
+        execute_on_apply = true
+      },
+      {
         name            = "db-init"
         description     = "Create Moodle Database and User in PostgreSQL"
         image           = "alpine:3.19"
