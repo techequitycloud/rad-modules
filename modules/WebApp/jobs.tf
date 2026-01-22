@@ -158,7 +158,6 @@ resource "null_resource" "execute_nfs_setup_job" {
   count = local.nfs_enabled && local.nfs_server_exists ? 1 : 0
 
   triggers = {
-    # Hash the inline script content instead of external file
     script_hash = sha256(google_cloud_run_v2_job.nfs_setup_job[0].template[0].template[0].containers[0].args[0])
     dir_name    = local.resource_prefix
     nfs_path    = local.nfs_unique_path
@@ -177,24 +176,34 @@ resource "null_resource" "execute_nfs_setup_job" {
       fi
 
       echo "Waiting for IAM permissions to propagate..."
-      sleep 15
+      sleep 10
 
-      # Set a timeout for the gcloud command itself
-      timeout 180 gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
+      # Execute with 60s timeout (job completes in <1s)
+      timeout 60 gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         $IMPERSONATE_FLAG \
         --wait || {
           EXIT_CODE=$?
           if [ $EXIT_CODE -eq 124 ]; then
-            echo "⚠ Job execution timed out after 3 minutes, but may have completed"
-            echo "Checking job status..."
-            gcloud run jobs executions list \
-              --job=${google_cloud_run_v2_job.nfs_setup_job[0].name} \
-              --region=${local.region} \
+            echo "⚠ Job execution timed out after 60 seconds"
+            echo "Job likely completed but container didn't exit. Checking logs..."
+            sleep 5
+            
+            # ✅ Use logs instead of executions.list (avoids permission error)
+            gcloud logging read \
+              "resource.type=cloud_run_job AND resource.labels.job_name=${google_cloud_run_v2_job.nfs_setup_job[0].name} AND textPayload=~'NFS setup complete'" \
               --project=${local.project.project_id} \
               --limit=1 \
-              --format="value(status.completionTime)" | grep -q . && exit 0 || exit 1
+              --freshness=2m \
+              --format="value(textPayload)" \
+              $IMPERSONATE_FLAG | grep -q "NFS setup complete" && {
+                echo "✓ Job completed successfully (verified via logs)"
+                exit 0
+              } || {
+                echo "✗ Could not verify job completion from logs"
+                exit 1
+              }
           else
             echo "✗ NFS setup job failed with exit code $EXIT_CODE"
             exit $EXIT_CODE
