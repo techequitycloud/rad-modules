@@ -170,6 +170,26 @@ locals {
         lifecycle_rules          = []
         public_access_prevention = "inherited"
       }
+    ] : [],
+    var.application_module == "gitlab" ? [
+      {
+        name_suffix              = "gitlab-data"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      },
+      {
+        name_suffix              = "gitlab-config"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
     ] : []
   )
 
