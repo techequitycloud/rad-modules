@@ -114,10 +114,22 @@ locals {
   enable_cicd_trigger = var.enable_cicd_trigger && var.github_repository_url != null
   github_token_secret = "${var.github_token_secret_name}-${local.tenant_id}"
 
+  # Image Mirroring Configuration (for Docker Hub images that fail due to mirror.gcr.io)
+  enable_image_mirroring = var.application_module == "moodle"
+  mirror_source_image    = local.final_container_image
+
+  # Extract tag from source image (e.g., "4" from "bitnami/moodle:4"), default to "latest"
+  _mirror_image_parts    = split(":", local.mirror_source_image)
+  mirror_image_tag       = length(local._mirror_image_parts) > 1 ? local._mirror_image_parts[length(local._mirror_image_parts) - 1] : "latest"
+
+  # Construct target image URL in Artifact Registry
+  mirror_target_image    = "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.mirror_image_tag}"
+
   # Container image logic:
   container_image = (
     local.container_image_source == "custom" && local.container_build_config.enabled && !local.enable_cicd_trigger ?
     "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}" :
+    local.enable_image_mirroring ? local.mirror_target_image :
     local.final_container_image != "" ? local.final_container_image : "gcr.io/cloudrun/hello"
   )
 
@@ -980,6 +992,27 @@ resource "google_secret_manager_secret_version" "strapi_app_keys" {
   count       = var.application_module == "strapi" ? 1 : 0
   secret      = google_secret_manager_secret.strapi_app_keys[0].id
   secret_data = "${random_password.strapi_app_key_1[0].result},${random_password.strapi_app_key_2[0].result},${random_password.strapi_app_key_3[0].result},${random_password.strapi_app_key_4[0].result}"
+}
+
+# ==============================================================================
+# IMAGE MIRRORING RESOURCES
+# ==============================================================================
+resource "null_resource" "mirror_image" {
+  count = local.enable_image_mirroring ? 1 : 0
+
+  triggers = {
+    source_image = local.mirror_source_image
+    target_image = local.mirror_target_image
+  }
+
+  provisioner "local-exec" {
+    command = "bash ${path.module}/scripts/mirror-image.sh ${local.project.project_id} ${local.region} ${local.artifact_repo_id} ${local.mirror_source_image} ${local.application_name} ${local.mirror_image_tag}"
+  }
+
+  depends_on = [
+    # Artifact registry must exist
+    google_artifact_registry_repository.application_image
+  ]
 }
 
 # Output deployment information for debugging

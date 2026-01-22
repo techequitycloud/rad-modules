@@ -308,6 +308,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     null_resource.execute_initialization_jobs,
     null_resource.cicd_image_dependency,
     null_resource.custom_build_dependency,
+    null_resource.mirror_image,
   ]
 }
 
