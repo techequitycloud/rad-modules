@@ -224,6 +224,17 @@ locals {
         public_access_prevention = "inherited"
       }
     ] : [],
+    var.application_module == "invoiceninja" ? [
+      {
+        name_suffix              = "invoiceninja-storage"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : [],
     var.application_module == "strapi" ? [
       {
         name_suffix              = "strapi-uploads"
@@ -317,6 +328,11 @@ locals {
       DB_NAME     = local.database_name_full
       DB_USER     = local.database_user_full
     } : {},
+    var.application_module == "invoiceninja" ? {
+      DB_HOST     = local.db_internal_ip
+      DB_DATABASE = local.database_name_full
+      DB_USERNAME = local.database_user_full
+    } : {},
     var.application_module == "strapi" ? {
       DATABASE_HOST     = local.db_internal_ip
       DATABASE_PORT     = "5432"
@@ -371,6 +387,11 @@ locals {
       DB_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
       JWT_SECRET    = try(google_secret_manager_secret.medusa_jwt_secret[0].secret_id, "")
       COOKIE_SECRET = try(google_secret_manager_secret.medusa_cookie_secret[0].secret_id, "")
+    } : {},
+    var.application_module == "invoiceninja" ? {
+      DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      APP_KEY     = try(google_secret_manager_secret.invoiceninja_app_key[0].secret_id, "")
+      IN_PASSWORD = try(google_secret_manager_secret.invoiceninja_admin_password[0].secret_id, "")
     } : {},
     var.application_module == "strapi" ? {
       DATABASE_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
@@ -675,6 +696,18 @@ resource "google_secret_manager_secret_version" "medusa_cookie_secret" {
 }
 
 # ==============================================================================
+# INVOICE NINJA SPECIFIC RESOURCES
+# ==============================================================================
+resource "random_id" "invoiceninja_app_key" {
+  count       = var.application_module == "invoiceninja" ? 1 : 0
+  byte_length = 32
+}
+
+resource "google_secret_manager_secret" "invoiceninja_app_key" {
+  count     = var.application_module == "invoiceninja" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-app-key"
+}
+        
 # STRAPI SPECIFIC RESOURCES
 # ==============================================================================
 resource "random_password" "strapi_jwt_secret" {
@@ -755,6 +788,23 @@ resource "google_secret_manager_secret" "strapi_transfer_token_salt" {
   project = var.existing_project_id
 }
 
+resource "google_secret_manager_secret_version" "invoiceninja_app_key" {
+  count       = var.application_module == "invoiceninja" ? 1 : 0
+  secret      = google_secret_manager_secret.invoiceninja_app_key[0].id
+  secret_data = "base64:${random_id.invoiceninja_app_key[0].b64_std}"
+}
+
+resource "random_password" "invoiceninja_admin_password" {
+  count   = var.application_module == "invoiceninja" ? 1 : 0
+  length  = 20
+  special = false
+}
+
+resource "google_secret_manager_secret" "invoiceninja_admin_password" {
+  count     = var.application_module == "invoiceninja" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-admin-password"
+}
+
 resource "google_secret_manager_secret_version" "strapi_transfer_token_salt" {
   count       = var.application_module == "strapi" ? 1 : 0
   secret      = google_secret_manager_secret.strapi_transfer_token_salt[0].id
@@ -791,6 +841,11 @@ resource "google_secret_manager_secret" "strapi_app_keys" {
   project = var.existing_project_id
 }
 
+resource "google_secret_manager_secret_version" "invoiceninja_admin_password" {
+  count       = var.application_module == "invoiceninja" ? 1 : 0
+  secret      = google_secret_manager_secret.invoiceninja_admin_password[0].id
+  secret_data = random_password.invoiceninja_admin_password[0].result
+}
 resource "google_secret_manager_secret_version" "strapi_app_keys" {
   count       = var.application_module == "strapi" ? 1 : 0
   secret      = google_secret_manager_secret.strapi_app_keys[0].id
