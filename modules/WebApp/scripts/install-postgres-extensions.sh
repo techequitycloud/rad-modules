@@ -35,6 +35,16 @@ echo "Database: ${DB_NAME}"
 echo "Installing PostgreSQL client..."
 apt-get update -qq && apt-get install -y -qq postgresql-client
 
+# Ensure database exists before installing extensions
+echo "Checking if database ${DB_NAME} exists..."
+if ! PGPASSWORD="${ROOT_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${ROOT_USER}" -d "postgres" -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1; then
+  echo "Database ${DB_NAME} does not exist. Creating it..."
+  PGPASSWORD="${ROOT_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${ROOT_USER}" -d "postgres" -c "CREATE DATABASE \"${DB_NAME}\";"
+  echo "✓ Database ${DB_NAME} created successfully"
+else
+  echo "Database ${DB_NAME} already exists."
+fi
+
 # Parse comma-separated extensions list
 IFS=',' read -ra EXTENSIONS <<< "$POSTGRES_EXTENSIONS"
 

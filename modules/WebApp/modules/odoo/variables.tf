@@ -119,6 +119,7 @@ locals {
         ]
         mount_nfs         = false
         mount_gcs_volumes = []
+        execute_on_apply  = true
       },
       {
         name            = "odoo-init"

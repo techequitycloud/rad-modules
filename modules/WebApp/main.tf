@@ -253,6 +253,7 @@ locals {
       DB_NAME     = local.database_name_full
       DB_USER     = local.database_user_full
       DB_PORT     = tostring(local.database_port)
+      DB_IP       = local.db_internal_ip
     }
   )
 
