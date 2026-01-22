@@ -33,8 +33,8 @@ locals {
         "implicit-dirs",
         "uid=101",
         "gid=101",
-        "file-mode=644",
-        "dir-mode=755",
+        "file-mode=777",
+        "dir-mode=777",
         "metadata-cache-ttl-secs=60"
       ]
     }]
