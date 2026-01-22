@@ -313,9 +313,7 @@ variable "container_build_config" {
     build_args         = optional(map(string), {})
     artifact_repo_name = optional(string, "webapp-repo")
   })
-  default = {
-    enabled = false
-  }
+  default = null
 }
 
 variable "github_repository_url" {
