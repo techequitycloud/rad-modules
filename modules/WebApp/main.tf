@@ -95,6 +95,11 @@ locals {
     "/var/run/mysqld"
   )
 
+  # ✅ Calculate predictable Cloud Run URL for Moodle
+  # Format: https://<SERVICE_NAME>-<PROJECT_NUMBER>.<REGION>.run.app
+  # This is deterministic and can be calculated before deployment
+  predicted_service_url = "https://${local.service_name}-${local.project.project_number}.${local.region}.run.app"
+
   # Resource naming
   resource_prefix = "app${local.application_name}${local.tenant_id}${local.random_id}"
 
@@ -359,8 +364,8 @@ locals {
       WORDPRESS_DB_HOST = local.db_internal_ip
       WORDPRESS_DEBUG   = "false"
     } : {},
-    # ✅ UPDATED: Dynamic Moodle environment variables (PostgreSQL compatible)
-    var.application_module == "moodle" ? {
+    # ✅ UPDATED: Dynamic Moodle environment variables (PostgreSQL compatible with pre-calculated URL)
+    var.application_module == "moodle" ? merge({
       # Database connection (supports both MySQL and PostgreSQL)
       MOODLE_DB_HOST = local.db_internal_ip
       MOODLE_DB_PORT = tostring(local.database_port)
@@ -370,16 +375,44 @@ locals {
       # Database type: "pgsql" for PostgreSQL, "mysqli" for MySQL
       MOODLE_DB_TYPE = local.database_client_type == "POSTGRES" ? "pgsql" : "mysqli"
       
+      # ✅ Pre-calculated Cloud Run URL (deterministic format)
+      MOODLE_WWWROOT  = local.predicted_service_url
+      MOODLE_SITE_URL = local.predicted_service_url
+      
+      # ✅ Reverse Proxy Support (CRITICAL for Cloud Run)
+      ENABLE_REVERSE_PROXY = "TRUE"
+      MOODLE_REVERSE_PROXY = "true"
+      
+      # ✅ Cron Configuration
+      CRON_INTERVAL = "1"
+      
       # Site configuration
       MOODLE_SITE_NAME     = "Moodle LMS"
       MOODLE_SITE_FULLNAME = "Moodle Learning Management System"
+      LANGUAGE             = "en"
       MOODLE_ADMIN_USER    = "admin"
       MOODLE_ADMIN_EMAIL   = "admin@example.com"
       
       # Installation settings
       MOODLE_SKIP_INSTALL = "no"
       MOODLE_UPDATE       = "yes"
+      
+      # Data directory
+      MOODLE_DATA_DIR = "/var/moodledata"
+      DATA_PATH       = "/var/moodledata"
+    },
+    # ✅ Optional Redis Session Storage
+    var.moodle_enable_redis_session && var.moodle_redis_host != "" ? {
+      MOODLE_SESSION_HANDLER      = "redis"
+      MOODLE_SESSION_REDIS_HOST   = var.moodle_redis_host
+      MOODLE_SESSION_REDIS_PORT   = tostring(var.moodle_redis_port)
     } : {},
+    # ✅ Optional Redis Application Cache
+    var.moodle_enable_redis_cache && var.moodle_redis_host != "" ? {
+      MOODLE_CACHE_STORE       = "redis"
+      MOODLE_CACHE_REDIS_HOST  = var.moodle_redis_host
+      MOODLE_CACHE_REDIS_PORT  = tostring(var.moodle_redis_port)
+    ) : {},
     var.application_module == "openemr" ? {
       MYSQL_DATABASE = local.database_name_full
       MYSQL_USER     = local.database_user_full
