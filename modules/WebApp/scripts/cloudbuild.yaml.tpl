@@ -16,8 +16,8 @@ steps:
 # Build with Kaniko (more reliable than Docker in Cloud Build)
 - name: 'gcr.io/kaniko-project/executor:latest'
   args:
-    - '--dockerfile=dockerfile'
-    - '--context=dir://.'
+    - '--dockerfile=${DOCKERFILE}'
+    - '--context=dir://${CONTEXT_PATH}'
     - '--destination=${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}'
     - '--destination=${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:latest'
     - '--cache=true'

@@ -17,7 +17,7 @@ locals {
     # ✅ Custom build configuration
     container_build_config = {
       enabled            = true
-      dockerfile_path    = "moodle/Dockerfile"
+      dockerfile_path    = "Dockerfile"
       context_path       = "moodle"
       dockerfile_content = null
       build_args         = {}

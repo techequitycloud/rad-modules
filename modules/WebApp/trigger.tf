@@ -208,7 +208,7 @@ resource "null_resource" "build_placeholder_image" {
   }
 
   provisioner "local-exec" {
-    working_dir = "${path.module}/scripts/app"
+    working_dir = "${path.module}/scripts"
     command     = <<-EOT
       # Create a cloudbuild.yaml for the placeholder image
       cat > cloudbuild-placeholder.yaml <<'YAML'
