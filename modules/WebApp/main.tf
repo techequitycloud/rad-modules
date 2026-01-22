@@ -376,6 +376,10 @@ locals {
       MOODLE_ADMIN_USER    = "admin"
       MOODLE_ADMIN_EMAIL   = "admin@example.com"
       
+      # URL configuration (default to localhost for initial install, updated post-deployment)
+      MOODLE_URL     = "http://localhost"
+      MOODLE_WWWROOT = "http://localhost"
+
       # Installation settings
       MOODLE_SKIP_INSTALL = "no"
       MOODLE_UPDATE       = "yes"
@@ -1081,4 +1085,48 @@ resource "google_secret_manager_secret_version" "payload_secret" {
   count       = var.application_module == "payload" ? 1 : 0
   secret      = google_secret_manager_secret.payload_secret[0].id
   secret_data = random_password.payload_secret[0].result
+}
+
+# Moodle Post-Deployment Update (Set correct URL)
+resource "null_resource" "update_moodle_url" {
+  count = var.application_module == "moodle" ? 1 : 0
+
+  triggers = {
+    service_id = local.service_name
+  }
+
+  provisioner "local-exec" {
+    command = <<CMD
+      IMPERSONATE_FLAG=""
+      if [ -n "${local.impersonation_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+      fi
+
+      SERVICE_NAME="${local.service_name}"
+      REGION="${local.region}"
+      PROJECT="${local.project.project_id}"
+
+      if [ -n "$SERVICE_NAME" ]; then
+        # Wait for service to be ready
+        sleep 10
+
+        URL=$(gcloud run services describe $SERVICE_NAME --region $REGION --project $PROJECT --format 'value(uri)' $IMPERSONATE_FLAG)
+
+        if [ -n "$URL" ]; then
+          echo "Updating Moodle URL to: $URL"
+          gcloud run services update $SERVICE_NAME \
+            --region $REGION \
+            --project $PROJECT \
+            --update-env-vars MOODLE_URL=$URL,MOODLE_WWWROOT=$URL \
+            $IMPERSONATE_FLAG
+        else
+          echo "Could not retrieve service URL"
+        fi
+      fi
+    CMD
+  }
+
+  depends_on = [
+    google_cloud_run_v2_service.app_service
+  ]
 }
