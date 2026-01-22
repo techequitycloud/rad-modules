@@ -411,6 +411,7 @@ locals {
     } : {},
     var.application_module == "payload" ? {
       DB_PASSWORD    = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      PAYLOAD_SECRET = try(google_secret_manager_secret.payload_secret[0].secret_id, "")
       PGPASSWORD     = try(google_secret_manager_secret.db_password[0].secret_id, "")
       PAYLOAD_SECRET = try(google_secret_manager_secret.payload_secret[0].secret_id, "")
     } : {},
@@ -906,4 +907,28 @@ output "deployment_info" {
     container_image  = local.container_image
     regions          = local.regions
   }
+}
+
+# ==============================================================================
+# PAYLOAD SPECIFIC RESOURCES
+# ==============================================================================
+resource "random_password" "payload_secret" {
+  count   = var.application_module == "payload" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "payload_secret" {
+  count     = var.application_module == "payload" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-secret"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "payload_secret" {
+  count       = var.application_module == "payload" ? 1 : 0
+  secret      = google_secret_manager_secret.payload_secret[0].id
+  secret_data = random_password.payload_secret[0].result
 }

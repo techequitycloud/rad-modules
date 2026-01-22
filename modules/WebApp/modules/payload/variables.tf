@@ -1,12 +1,17 @@
 # Copyright 2024 (c) Tech Equity Ltd
 # Licensed under the Apache License, Version 2.0
 
+#########################################################################
+# Payload CMS Preset Configuration
+#########################################################################
+
 locals {
   payload_module = {
     app_name        = "payload"
     description     = "Payload CMS - The best way to build a modern backend + admin UI"
-    container_image = "node:18-alpine"
-    app_version     = "latest"
+    # Payload requires a custom built image or a project setup.
+    # We provide a placeholder, but users should typically use 'custom' image source.
+    container_image = "payloadcms/payload"
     image_source    = "custom"
     container_port  = 3000
     database_type   = "POSTGRES_15"
@@ -60,7 +65,7 @@ locals {
             echo "Waiting for database..."
             export PGPASSWORD=$ROOT_PASSWORD
             until psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c '\l' > /dev/null 2>&1; do
-              echo "Waiting for database connection..."
+              echo "Waiting for database connection at $TARGET_DB_HOST..."
               sleep 2
             done
 
