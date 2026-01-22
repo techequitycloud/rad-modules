@@ -68,10 +68,6 @@ module "nextcloud_module" {
   source = "./modules/nextcloud"
 }
 
-module "gitlab_module" {
-  source = "./modules/gitlab"
-}
-
 module "ghost_module" {
   source = "./modules/ghost"
 }
@@ -115,7 +111,6 @@ locals {
     openemr   = module.openemr_module.openemr_module
     n8n       = module.n8n_module.n8n_module
     nextcloud = module.nextcloud_module.nextcloud_module
-    gitlab    = module.gitlab_module.gitlab_module
     ghost     = module.ghost_module.ghost_module
     wikijs    = module.wikijs_module.wikijs_module
     plane     = module.plane_module.plane_module

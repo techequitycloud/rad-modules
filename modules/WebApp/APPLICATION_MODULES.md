@@ -26,7 +26,6 @@ Simply select a module like `application_module = "odoo"` and the module automat
 | `openemr` | OpenEMR 7.0.2 EHR | MySQL 8.0 | 2 CPU, 4Gi RAM |
 | `n8n` | n8n Workflow Automation | PostgreSQL 15 | 2 CPU, 4Gi RAM |
 | `nextcloud` | Nextcloud 28 File Sync | PostgreSQL 15 | 2 CPU, 4Gi RAM |
-| `gitlab` | GitLab CE 16.8 DevOps | PostgreSQL 15 | 4 CPU, 8Gi RAM |
 
 ## Quick Start
 
@@ -258,28 +257,6 @@ application_module = "nextcloud"
 
 **Best For**: Team collaboration, file sharing, document management
 
----
-
-### GitLab - DevOps Platform
-
-**Use Case**: Git repository management, CI/CD, DevOps workflows
-
-```hcl
-application_module = "gitlab"
-```
-
-**What's Configured**:
-- Container: `gitlab/gitlab-ce:16.8.0-ce.0` on port 80
-- Database: PostgreSQL 15 with Unix socket + extensions (pg_trgm, btree_gist)
-- Storage: Two GCS volumes - `/var/opt/gitlab` and `/etc/gitlab`
-- Resources: 4 CPU, 8Gi RAM (GitLab needs more resources)
-- Scaling: 1-5 instances
-- Environment: `GITLAB_OMNIBUS_CONFIG`
-
-**Best For**: Development teams, source code management, CI/CD pipelines
-
-**Note**: GitLab requires significantly more resources than other applications.
-
 ## How Modules Work
 
 ### Architecture
@@ -429,7 +406,7 @@ module "wordpress_with_backup" {
 
 **Error**: `Application module must be one of: odoo, wordpress, ...`
 
-**Solution**: Check spelling of module name. Valid values are: `odoo`, `wordpress`, `moodle`, `cyclos`, `django`, `openemr`, `n8n`, `nextcloud`, `gitlab`.
+**Solution**: Check spelling of module name. Valid values are: `odoo`, `wordpress`, `moodle`, `cyclos`, `django`, `openemr`, `n8n`, `nextcloud`.
 
 ### Container Image Not Working
 
@@ -678,7 +655,7 @@ variable "application_module" {
   validation {
     condition = var.application_module == null || contains([
       "odoo", "wordpress", "moodle", "cyclos", "django",
-      "openemr", "n8n", "nextcloud", "gitlab", "myapp"  # Add new module
+      "openemr", "n8n", "nextcloud", "myapp"  # Add new module
     ], var.application_module)
     error_message = "Application module must be one of: ..."
   }
