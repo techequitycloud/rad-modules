@@ -84,6 +84,10 @@ module "medusa_module" {
   source = "./modules/medusa"
 }
 
+module "invoiceninja_module" {
+  source = "./modules/invoiceninja"
+}
+
 #########################################################################
 # Application Modules Map
 #########################################################################
@@ -91,18 +95,19 @@ module "medusa_module" {
 locals {
   # Aggregate all modules into a single map for easy lookup
   application_modules = {
-    odoo      = module.odoo_module.odoo_module
-    wordpress = module.wordpress_module.wordpress_module
-    moodle    = module.moodle_module.moodle_module
-    cyclos    = module.cyclos_module.cyclos_module
-    django    = module.django_module.django_module
-    openemr   = module.openemr_module.openemr_module
-    n8n       = module.n8n_module.n8n_module
-    nextcloud = module.nextcloud_module.nextcloud_module
-    gitlab    = module.gitlab_module.gitlab_module
-    ghost     = module.ghost_module.ghost_module
-    wikijs    = module.wikijs_module.wikijs_module
-    medusa    = module.medusa_module.medusa_module
+    odoo         = module.odoo_module.odoo_module
+    wordpress    = module.wordpress_module.wordpress_module
+    moodle       = module.moodle_module.moodle_module
+    cyclos       = module.cyclos_module.cyclos_module
+    django       = module.django_module.django_module
+    openemr      = module.openemr_module.openemr_module
+    n8n          = module.n8n_module.n8n_module
+    nextcloud    = module.nextcloud_module.nextcloud_module
+    gitlab       = module.gitlab_module.gitlab_module
+    ghost        = module.ghost_module.ghost_module
+    wikijs       = module.wikijs_module.wikijs_module
+    medusa       = module.medusa_module.medusa_module
+    invoiceninja = module.invoiceninja_module.invoiceninja_module
   }
 
   #########################################################################

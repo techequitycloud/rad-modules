@@ -223,6 +223,17 @@ locals {
         lifecycle_rules          = []
         public_access_prevention = "inherited"
       }
+    ] : [],
+    var.application_module == "invoiceninja" ? [
+      {
+        name_suffix              = "invoiceninja-storage"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
     ] : []
   )
 
@@ -305,6 +316,11 @@ locals {
       DB_PORT     = "5432"
       DB_NAME     = local.database_name_full
       DB_USER     = local.database_user_full
+    } : {},
+    var.application_module == "invoiceninja" ? {
+      DB_HOST     = local.db_internal_ip
+      DB_DATABASE = local.database_name_full
+      DB_USERNAME = local.database_user_full
     } : {}
   )
 
@@ -354,6 +370,11 @@ locals {
       DB_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
       JWT_SECRET    = try(google_secret_manager_secret.medusa_jwt_secret[0].secret_id, "")
       COOKIE_SECRET = try(google_secret_manager_secret.medusa_cookie_secret[0].secret_id, "")
+    } : {},
+    var.application_module == "invoiceninja" ? {
+      DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      APP_KEY     = try(google_secret_manager_secret.invoiceninja_app_key[0].secret_id, "")
+      IN_PASSWORD = try(google_secret_manager_secret.invoiceninja_admin_password[0].secret_id, "")
     } : {}
   )
 
@@ -647,6 +668,50 @@ resource "google_secret_manager_secret_version" "medusa_cookie_secret" {
   count       = var.application_module == "medusa" ? 1 : 0
   secret      = google_secret_manager_secret.medusa_cookie_secret[0].id
   secret_data = random_password.medusa_cookie_secret[0].result
+}
+
+# ==============================================================================
+# INVOICE NINJA SPECIFIC RESOURCES
+# ==============================================================================
+resource "random_id" "invoiceninja_app_key" {
+  count       = var.application_module == "invoiceninja" ? 1 : 0
+  byte_length = 32
+}
+
+resource "google_secret_manager_secret" "invoiceninja_app_key" {
+  count     = var.application_module == "invoiceninja" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-app-key"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "invoiceninja_app_key" {
+  count       = var.application_module == "invoiceninja" ? 1 : 0
+  secret      = google_secret_manager_secret.invoiceninja_app_key[0].id
+  secret_data = "base64:${random_id.invoiceninja_app_key[0].b64_std}"
+}
+
+resource "random_password" "invoiceninja_admin_password" {
+  count   = var.application_module == "invoiceninja" ? 1 : 0
+  length  = 20
+  special = false
+}
+
+resource "google_secret_manager_secret" "invoiceninja_admin_password" {
+  count     = var.application_module == "invoiceninja" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-admin-password"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "invoiceninja_admin_password" {
+  count       = var.application_module == "invoiceninja" ? 1 : 0
+  secret      = google_secret_manager_secret.invoiceninja_admin_password[0].id
+  secret_data = random_password.invoiceninja_admin_password[0].result
 }
 
 # Output deployment information for debugging
