@@ -110,14 +110,16 @@ locals {
   container_image_source = local.final_container_image_source
 
   # Default Container Build Config
-  container_build_config = var.container_build_config != null ? var.container_build_config : {
-    enabled            = false
-    dockerfile_path    = "Dockerfile"
-    dockerfile_content = null
-    context_path       = "."
-    build_args         = {}
-    artifact_repo_name = "webapp-repo"
-  }
+  container_build_config = var.container_build_config != null ? var.container_build_config : (
+    local.module_container_build_config != null ? local.module_container_build_config : {
+      enabled            = false
+      dockerfile_path    = "Dockerfile"
+      dockerfile_content = null
+      context_path       = "."
+      build_args         = {}
+      artifact_repo_name = "webapp-repo"
+    }
+  )
 
   # Scoped resource names for multi-tenancy
   artifact_repo_id = "${local.tenant_id}-${local.deployment_id}-${local.container_build_config.artifact_repo_name}"
