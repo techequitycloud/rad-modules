@@ -365,7 +365,7 @@ locals {
       WORDPRESS_DEBUG   = "false"
     } : {},
     # ✅ UPDATED: Dynamic Moodle environment variables (PostgreSQL compatible with pre-calculated URL)
-    var.application_module == "moodle" ? merge({
+    var.application_module == "moodle" ? {
       # Database connection (supports both MySQL and PostgreSQL)
       MOODLE_DB_HOST = local.db_internal_ip
       MOODLE_DB_PORT = tostring(local.database_port)
@@ -400,19 +400,7 @@ locals {
       # Data directory
       MOODLE_DATA_DIR = "/var/moodledata"
       DATA_PATH       = "/var/moodledata"
-    },
-    # ✅ Optional Redis Session Storage
-    var.moodle_enable_redis_session && var.moodle_redis_host != "" ? {
-      MOODLE_SESSION_HANDLER      = "redis"
-      MOODLE_SESSION_REDIS_HOST   = var.moodle_redis_host
-      MOODLE_SESSION_REDIS_PORT   = tostring(var.moodle_redis_port)
     } : {},
-    # ✅ Optional Redis Application Cache
-    var.moodle_enable_redis_cache && var.moodle_redis_host != "" ? {
-      MOODLE_CACHE_STORE       = "redis"
-      MOODLE_CACHE_REDIS_HOST  = var.moodle_redis_host
-      MOODLE_CACHE_REDIS_PORT  = tostring(var.moodle_redis_port)
-    ) : {},
     var.application_module == "openemr" ? {
       MYSQL_DATABASE = local.database_name_full
       MYSQL_USER     = local.database_user_full
