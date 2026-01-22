@@ -230,7 +230,7 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
   for_each = local.jobs_map
 
   project             = local.project.project_id
-  name                = "${each.key}-${local.resource_prefix}"
+  name                = "${local.resource_prefix}-${each.key}"
   location            = local.region
   deletion_protection = false
 
