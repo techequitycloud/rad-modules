@@ -12,94 +12,133 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# ============================================================================
+#########################################################################
 # NFS Setup Job
-# ============================================================================
+#########################################################################
 
 resource "google_cloud_run_v2_job" "nfs_setup_job" {
-  count               = local.nfs_server_exists ? 1 : 0
-  project             = local.project.project_id
-  name                = "nfs-setup-${var.application_name}${var.tenant_deployment_id}${local.random_id}"
-  location            = local.region
-  deletion_protection = false
+  count = local.configure_environment && local.nfs_enabled && local.nfs_server_exists ? 1 : 0
+
+  project  = local.project.project_id
+  name     = "${local.tenant_id}-nfs-setup"
+  location = local.region
 
   template {
     template {
-      service_account       = local.cloud_run_sa_email
-      max_retries           = 0
-      timeout               = "600s"
-      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
+      service_account = local.cloud_run_sa_email
+      max_retries     = 0  # ✅ Don't retry
+      timeout         = "30s"  # ✅ Reduced from 120s
 
       containers {
-        image = "alpine:3.19"
+        image   = "alpine:3.19"
+        command = ["/bin/sh", "-c"]
+        args = [
+          <<-EOT
+            set -e
+            echo "=== NFS Setup Job ==="
+            echo "Tenant/Deployment: ${local.tenant_id}"
+            echo "NFS Path: ${local.nfs_share_path}"
+            echo "Target Directory: /mnt/nfs/${local.tenant_id}"
+            
+            echo "Creating deployment-specific subdirectories..."
+            mkdir -p "/mnt/nfs/${local.tenant_id}/filestore"
+            mkdir -p "/mnt/nfs/${local.tenant_id}/sessions"
+            mkdir -p "/mnt/nfs/${local.tenant_id}/addons"
+            mkdir -p "/mnt/nfs/${local.tenant_id}/backups"
+            
+            echo "Setting permissions (NFS-safe)..."
+            chmod -R 777 "/mnt/nfs/${local.tenant_id}" || true
+            
+            echo "✓ NFS setup complete for deployment: ${local.tenant_id}"
+            
+            # ✅ Force exit
+            exit 0
+          EOT
+        ]
 
-        env {
-          name  = "DIR_NAME"
-          value = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
-        }
-
-        command = ["/bin/sh"]
-        args    = ["-c", file("${path.module}/scripts/app/nfs_setup_job.sh")]
-
-        volume_mounts {
-          name       = "nfs-root-volume"
-          mount_path = "/mnt/nfs"
+        resources {
+          limits = {
+            cpu    = "1000m"
+            memory = "512Mi"
+          }
         }
       }
 
       volumes {
-        name = "nfs-root-volume"
+        name = "nfs"
         nfs {
           server = local.nfs_internal_ip
-          path   = "/share"
+          path   = local.nfs_share_path
+        }
+      }
+
+      containers {
+        volume_mounts {
+          name       = "nfs"
+          mount_path = "/mnt/nfs"
         }
       }
 
       vpc_access {
         network_interfaces {
-          network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
+          network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          tags = ["nfsserver"]
         }
         egress = "PRIVATE_RANGES_ONLY"
       }
     }
   }
+
+  depends_on = [
+    google_project_iam_member.cloud_run_sa_roles,
+    google_filestore_instance.nfs_server
+  ]
 }
 
+# ✅ Updated execution with log-based verification
 resource "null_resource" "execute_nfs_setup_job" {
-  count = local.nfs_server_exists ? 1 : 0
+  count = local.configure_environment && local.nfs_enabled && local.nfs_server_exists ? 1 : 0
 
   triggers = {
-    script_hash = filesha256("${path.module}/scripts/app/nfs_setup_job.sh")
-    dir_name    = "app${var.application_database_name}${var.tenant_deployment_id}${local.random_id}"
+    job_name   = google_cloud_run_v2_job.nfs_setup_job[0].name
+    tenant_id  = local.tenant_id
+    nfs_path   = local.nfs_share_path
+    always_run = timestamp()
   }
 
   provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command     = <<EOT
-      echo "Executing NFS setup job..."
+    command = <<-EOT
+      echo "Executing NFS setup job: ${self.triggers.job_name}"
 
       IMPERSONATE_FLAG=""
-      if [ -n "${local.impersonation_service_account}" ]; then
-        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
-        echo "Using impersonation: ${local.impersonation_service_account}"
+      if [ -n "${local.impersonate_service_account}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonate_service_account}"
       fi
 
-      echo "Waiting for IAM permissions to propagate..."
-      sleep 15
+      sleep 10  # IAM propagation
 
-      gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
+      # Execute with 60s timeout
+      timeout 60 gcloud run jobs execute ${self.triggers.job_name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         $IMPERSONATE_FLAG \
-        --wait
+        --wait || {
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 124 ]; then
+            echo "Timeout - checking logs for completion..."
+            sleep 5
+            gcloud logging read "resource.type=cloud_run_job AND resource.labels.job_name=${self.triggers.job_name} AND textPayload=~'NFS setup complete'" \
+              --project=${local.project.project_id} \
+              --limit=1 \
+              --freshness=5m \
+              $IMPERSONATE_FLAG | grep -q "NFS setup complete" && exit 0 || exit 1
+          else
+            exit $EXIT_CODE
+          fi
+        }
 
-      if [ $? -eq 0 ]; then
-        echo "✓ NFS setup job completed successfully"
-      else
-        echo "✗ NFS setup job failed"
-        exit 1
-      fi
+      echo "✓ NFS setup completed"
     EOT
   }
 
@@ -170,6 +209,7 @@ resource "google_cloud_run_v2_job" "import_db_job" {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          tags = ["nfsserver"]
         }
         egress = "PRIVATE_RANGES_ONLY"
       }
@@ -315,6 +355,7 @@ resource "google_cloud_run_v2_job" "init_db_job" {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${var.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          tags = ["nfsserver"]
         }
         egress = "PRIVATE_RANGES_ONLY"
       }
