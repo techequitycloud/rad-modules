@@ -77,7 +77,7 @@ locals {
               echo "Error: DB_PASSWORD is not set. It should be injected by WebApp/jobs.tf."
               exit 1
             fi
-
+            
             if [ -z "$ROOT_PASSWORD" ]; then
               echo "Error: ROOT_PASSWORD is not set. It should be injected by WebApp/jobs.tf."
               exit 1
@@ -112,13 +112,14 @@ EOF
 GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
 FLUSH PRIVILEGES;
 EOF
-
+            
             rm -f ~/.my.cnf
             echo "DB Init complete."
           EOT
         ]
         mount_nfs         = false
         mount_gcs_volumes = []
+        execute_on_apply  = true
       }
     ]
 
