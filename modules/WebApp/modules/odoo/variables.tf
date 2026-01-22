@@ -24,20 +24,8 @@ locals {
     nfs_enabled    = true
     nfs_mount_path = "/mnt"
 
-    # Storage volumes (Addons)
-    gcs_volumes = [{
-      name       = "odoo-addons-volume"
-      mount_path = "/extra-addons"
-      read_only  = false
-      mount_options = [
-        "implicit-dirs",
-        "uid=101",
-        "gid=101",
-        "file-mode=777",
-        "dir-mode=777",
-        "metadata-cache-ttl-secs=60"
-      ]
-    }]
+    # ✅ REMOVED: No GCS volumes for addons
+    gcs_volumes = []
 
     # Resource limits
     container_resources = {
@@ -47,44 +35,16 @@ locals {
     min_instance_count = 1
     max_instance_count = 1
 
-    # ✅ FIXED: Handle empty addons directory
+    # ✅ UPDATED: Container command without /extra-addons
     container_command = ["/bin/bash", "-c"]
     container_args = [
-      <<-EOT
-        echo 'Starting Odoo with DB: $DB_HOST'
-        echo 'Checking addons directory...'
-        ls -la /extra-addons 2>/dev/null || echo "GCS mount not ready"
-        
-        # Build addons path dynamically
-        ADDONS_PATH="/usr/lib/python3/dist-packages/odoo/addons"
-        if [ -d "/extra-addons" ] && [ -n "$(ls -A /extra-addons 2>/dev/null)" ]; then
-          echo "Custom addons found, adding to path"
-          ADDONS_PATH="$ADDONS_PATH,/extra-addons"
-        else
-          echo "No custom addons, using default path only"
-        fi
-        
-        echo "Final addons path: $ADDONS_PATH"
-        
-        exec odoo \
-          --database="$DB_NAME" \
-          --db_host="$DB_HOST" \
-          --db_port=5432 \
-          --db_user="$DB_USER" \
-          --db_password="$DB_PASSWORD" \
-          --data-dir=/mnt/filestore \
-          --addons-path="$ADDONS_PATH" \
-          --http-port=8069 \
-          --logfile=False \
-          --log-level=info \
-          --proxy-mode
-      EOT
+      "echo 'Starting Odoo with DB: $DB_HOST' && echo 'Data directory: /mnt/filestore' && ls -la /mnt/ && exec odoo --database=\"$DB_NAME\" --db_host=\"$DB_HOST\" --db_port=5432 --db_user=\"$DB_USER\" --db_password=\"$DB_PASSWORD\" --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons --http-port=8069 --logfile=False --log-level=info --proxy-mode"
     ]
 
     # Environment variables
     environment_variables = {}
 
-    # Initialization Jobs
+    # ✅ UPDATED: Initialization Jobs (removed gcs-addons-init)
     initialization_jobs = [
       {
         name            = "nfs-init"
@@ -92,9 +52,10 @@ locals {
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
         args            = [
-          "mkdir -p /mnt/filestore /mnt/sessions /mnt/addons /mnt/backups && chmod 777 /mnt/filestore /mnt/sessions /mnt/addons /mnt/backups && echo 'NFS directories initialized successfully'"
+          "mkdir -p /mnt/filestore /mnt/sessions /mnt/addons /mnt/backups && chmod 777 /mnt/filestore /mnt/sessions /mnt/addons /mnt/backups && echo 'NFS directories initialized successfully' && ls -la /mnt/"
         ]
-        mount_nfs       = true
+        mount_nfs        = true
+        execute_on_apply = true
       },
       {
         name            = "db-init"
@@ -147,25 +108,7 @@ locals {
         ]
         mount_nfs         = false
         mount_gcs_volumes = []
-      },
-      {
-        name            = "gcs-addons-init"
-        description     = "Initialize GCS addons directory"
-        image           = "alpine:3.19"
-        command         = ["/bin/sh", "-c"]
-        args            = [
-          <<-EOT
-            echo "Creating placeholder in GCS addons directory..."
-            mkdir -p /extra-addons/.placeholder
-            echo "# Odoo Custom Addons" > /extra-addons/README.md
-            echo "Place custom addons here" >> /extra-addons/README.md
-            chmod -R 777 /extra-addons
-            echo "GCS addons directory initialized"
-            ls -la /extra-addons
-          EOT
-        ]
-        mount_nfs         = false
-        mount_gcs_volumes = ["odoo-addons-volume"]
+        execute_on_apply  = true
       },
       {
         name            = "odoo-init"
@@ -173,37 +116,11 @@ locals {
         image           = null # Uses default container image (odoo)
         command         = ["/bin/bash", "-c"]
         args            = [
-          <<-EOT
-            echo 'Verifying mount points...'
-            echo 'NFS (/mnt):' && ls -la /mnt/
-            echo 'GCS (/extra-addons):' && ls -la /extra-addons
-            
-            # Build addons path dynamically
-            ADDONS_PATH="/usr/lib/python3/dist-packages/odoo/addons"
-            if [ -d "/extra-addons" ] && [ -n "$(ls -A /extra-addons 2>/dev/null)" ]; then
-              echo "Custom addons found"
-              ADDONS_PATH="$ADDONS_PATH,/extra-addons"
-            else
-              echo "No custom addons, using default only"
-            fi
-            
-            echo "Addons path: $ADDONS_PATH"
-            echo 'Starting Odoo initialization...'
-            
-            odoo -d $DB_NAME \
-              --db_host=$DB_HOST \
-              --db_port=5432 \
-              --db_user=$DB_USER \
-              --db_password=$DB_PASSWORD \
-              --data-dir=/mnt/filestore \
-              --addons-path="$ADDONS_PATH" \
-              -i base \
-              --stop-after-init \
-              --log-level=info
-          EOT
+          "echo 'Verifying mount points...' && echo 'NFS (/mnt):' && ls -la /mnt/ && echo 'Starting Odoo initialization...' && odoo -d $DB_NAME --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons -i base --stop-after-init --log-level=info"
         ]
         mount_nfs         = true
-        mount_gcs_volumes = ["odoo-addons-volume"]
+        mount_gcs_volumes = []
+        execute_on_apply  = true
       }
     ]
 
