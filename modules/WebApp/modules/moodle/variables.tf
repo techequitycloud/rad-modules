@@ -5,13 +5,14 @@ locals {
   moodle_module = {
     app_name        = "moodle"
     description     = "Moodle LMS - Online learning and course management platform"
-    container_image = "moodle:5.0.0"
+    container_image = "bitnami/moodle:4"
     image_source    = "prebuilt"
-    container_port  = 80
+    container_port  = 8080
     database_type   = "MYSQL_8_0"
     db_name         = "moodle"
     db_user         = "moodle"
 
+    # Cloud SQL configuration
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/var/run/mysqld"
 
@@ -19,21 +20,24 @@ locals {
     nfs_enabled    = true
     nfs_mount_path = "/mnt"
 
+    # GCS Volumes
+    # Note: The bucket name will be resolved by main.tf using the name "moodle-data"
     gcs_volumes = [{
-      bucket     = "$${tenant_id}-moodle-data"
-      mount_path = "/var/moodledata"
+      name       = "moodle-data"
+      mount_path = "/bitnami/moodledata"
       read_only  = false
     }]
+
     container_resources = {
-      cpu_limit    = "2000m"
-      memory_limit = "4Gi" # Updated to match preset (was 4Gi in file, preset had 2Gi/1000m? Preset had 1000m/2Gi. File had 2000m/4Gi. Keeping file's higher limits or preset? Preset had 1000m/2Gi. I will stick to the file's values if they seem better, or preset? Preset is what was running. Let's use preset values to avoid regression, or stick to file if file was intended to be better. The file had 2000m/4Gi. I will use 1000m/2Gi from preset to be safe/consistent with main.tf logic.)
+      cpu_limit    = "1000m"
+      memory_limit = "2Gi"
     }
     min_instance_count = 0
     max_instance_count = 3
-    environment_variables = {
-      MOODLE_DATABASE_TYPE = "mysqli"
-      MOODLE_DATABASE_HOST = "/var/run/mysqld/mysqld.sock"
-    }
+
+    # Environment variables will be injected by main.tf (Host, Port, User, Pass, etc.)
+    environment_variables = {}
+
     enable_mysql_plugins = false
     mysql_plugins        = []
 

@@ -171,6 +171,17 @@ locals {
         public_access_prevention = "inherited"
       }
     ] : [],
+    var.application_module == "moodle" ? [
+      {
+        name_suffix              = "moodle-data"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : [],
     var.application_module == "gitlab" ? [
       {
         name_suffix              = "gitlab-data"
@@ -322,6 +333,13 @@ locals {
       WORDPRESS_DB_HOST = local.db_internal_ip
       WORDPRESS_DEBUG   = "false"
     } : {},
+    var.application_module == "moodle" ? {
+      MOODLE_DATABASE_HOST        = local.db_internal_ip
+      MOODLE_DATABASE_PORT_NUMBER = "3306"
+      MOODLE_DATABASE_USER        = local.database_user_full
+      MOODLE_DATABASE_NAME        = local.database_name_full
+      MOODLE_DATABASE_TYPE        = "mariadb"
+    } : {},
     var.application_module == "openemr" ? {
       MYSQL_DATABASE = local.database_name_full
       MYSQL_USER     = local.database_user_full
@@ -405,6 +423,9 @@ locals {
     } : {},
     var.application_module == "wordpress" ? {
       WORDPRESS_DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
+    } : {},
+    var.application_module == "moodle" ? {
+      MOODLE_DATABASE_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
