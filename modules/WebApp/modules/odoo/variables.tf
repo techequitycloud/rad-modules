@@ -33,8 +33,8 @@ locals {
         "implicit-dirs",
         "uid=101",
         "gid=101",
-        "file-mode=644",
-        "dir-mode=755",
+        "file-mode=777",
+        "dir-mode=777",
         "metadata-cache-ttl-secs=60"
       ]
     }]
@@ -50,7 +50,7 @@ locals {
     # ✅ PRODUCTION-READY: Direct command-line arguments (no file I/O)
     container_command = ["/bin/bash", "-c"]
     container_args = [
-      "echo 'Starting Odoo with DB: $DB_HOST' && exec odoo --db_host=\"$DB_HOST\" --db_port=5432 --db_user=\"$DB_USER\" --db_password=\"$DB_PASSWORD\" --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/extra-addons --http-port=8069 --logfile=False --log-level=info"
+      "echo 'Starting Odoo with DB: $DB_HOST' && exec odoo --database=\"$DB_NAME\" --db_host=\"$DB_HOST\" --db_port=5432 --db_user=\"$DB_USER\" --db_password=\"$DB_PASSWORD\" --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/extra-addons --http-port=8069 --logfile=False --log-level=info --proxy-mode"
     ]
 
     # Environment variables (DB credentials will be injected)
