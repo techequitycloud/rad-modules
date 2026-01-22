@@ -1,13 +1,23 @@
 # Copyright 2024 (c) Tech Equity Ltd
 # Licensed under the Apache License, Version 2.0
+#
+# Updated: January 2025
+# Reason: Bitnami Moodle deprecated on August 28, 2025
+# Alternative: Using lthub/moodle (7M+ pulls, actively maintained)
 
 locals {
   moodle_module = {
     app_name        = "moodle"
     description     = "Moodle LMS - Online learning and course management platform"
-    container_image = "bitnami/moodle:4"
+    
+    # ✅ Updated to use working alternative (lthub/moodle)
+    # Bitnami Moodle was moved to bitnamilegacy with no future updates
+    container_image = "lthub/moodle:latest"
     image_source    = "prebuilt"
-    container_port  = 8080
+    
+    # ✅ Updated port - lthub/moodle uses standard HTTP port 80
+    container_port  = 80
+    
     database_type   = "MYSQL_8_0"
     db_name         = "moodle"
     db_user         = "moodle"
@@ -24,7 +34,8 @@ locals {
     # Note: The bucket name will be resolved by main.tf using the name "moodle-data"
     gcs_volumes = [{
       name       = "moodle-data"
-      mount_path = "/bitnami/moodledata"
+      # ✅ Updated mount path for lthub/moodle
+      mount_path = "/var/moodledata"
       read_only  = false
     }]
 
@@ -35,8 +46,23 @@ locals {
     min_instance_count = 0
     max_instance_count = 3
 
+    # ✅ Updated environment variables for lthub/moodle compatibility
     # Environment variables will be injected by main.tf (Host, Port, User, Pass, etc.)
-    environment_variables = {}
+    environment_variables = {
+      # Database configuration (compatible with lthub/moodle)
+      MOODLE_DB_TYPE = "mysqli"
+      MOODLE_DB_PORT = "3306"
+      
+      # Site configuration
+      MOODLE_SITE_NAME     = "Moodle LMS"
+      MOODLE_SITE_FULLNAME = "Moodle Learning Management System"
+      MOODLE_ADMIN_USER    = "admin"
+      MOODLE_ADMIN_EMAIL   = "admin@example.com"
+      
+      # Installation settings
+      MOODLE_SKIP_INSTALL = "no"
+      MOODLE_UPDATE       = "yes"
+    }
 
     enable_mysql_plugins = false
     mysql_plugins        = []
@@ -79,7 +105,7 @@ FLUSH PRIVILEGES;
 EOF
 
             echo "Creating Database $DB_NAME if not exists..."
-            mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;"
+            mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
             echo "Granting privileges..."
             mysql --defaults-file=~/.my.cnf <<EOF
@@ -97,22 +123,24 @@ EOF
       }
     ]
 
+    # ✅ Updated startup probe for lthub/moodle (needs more time to initialize)
     startup_probe = {
       enabled               = true
-      type                  = "TCP"
+      type                  = "HTTP"
       path                  = "/"
-      initial_delay_seconds = 120
-      timeout_seconds       = 60
-      period_seconds        = 120
-      failure_threshold     = 1
+      initial_delay_seconds = 180  # Increased for Moodle initialization
+      timeout_seconds       = 10
+      period_seconds        = 30
+      failure_threshold     = 10
     }
+    
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
       path                  = "/"
       initial_delay_seconds = 120
       timeout_seconds       = 5
-      period_seconds        = 120
+      period_seconds        = 60
       failure_threshold     = 3
     }
   }
