@@ -79,24 +79,6 @@ data "google_secret_manager_secret_version" "db_password" {
 }
 
 #########################################################################
-# Additional secrets from user configuration
-#########################################################################
-
-# Create additional secrets specified in secret_environment_variables
-resource "google_secret_manager_secret" "additional_secrets" {
-  for_each = local.secret_environment_variables
-
-  project   = local.project.project_id
-  secret_id = "${local.resource_prefix}-${each.key}"
-
-  replication {
-    auto {}
-  }
-
-  labels = local.common_labels
-}
-
-#########################################################################
 # GitHub Token Secret (for CI/CD)
 #########################################################################
 

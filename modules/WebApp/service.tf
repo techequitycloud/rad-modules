@@ -303,7 +303,7 @@ resource "google_cloud_run_v2_service" "app_service" {
   depends_on = [
     data.google_secret_manager_secret_version.db_password,
     google_secret_manager_secret_iam_member.db_password,
-    google_secret_manager_secret_iam_member.additional_secrets,
+    google_secret_manager_secret_iam_member.secret_env_vars,
     null_resource.execute_nfs_setup_job,
     null_resource.execute_initialization_jobs,
     null_resource.cicd_image_dependency,
