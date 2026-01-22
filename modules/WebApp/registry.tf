@@ -22,7 +22,7 @@
 # Note: If the repository already exists, Terraform will error. In that case, import it:
 #   terraform import 'google_artifact_registry_repository.application_image[0]' projects/{project}/locations/{location}/repositories/{repo_id}
 resource "google_artifact_registry_repository" "application_image" {
-  count = local.enable_custom_build || local.enable_cicd_trigger ? 1 : 0
+  count = local.enable_custom_build || local.enable_cicd_trigger || local.enable_image_mirroring ? 1 : 0
 
   project       = local.project.project_id
   location      = local.region
@@ -39,7 +39,7 @@ resource "google_artifact_registry_repository" "application_image" {
 
 # Data source to reference the repository (whether newly created or existing)
 data "google_artifact_registry_repository" "application_image" {
-  count = local.enable_custom_build || local.enable_cicd_trigger ? 1 : 0
+  count = local.enable_custom_build || local.enable_cicd_trigger || local.enable_image_mirroring ? 1 : 0
 
   project       = local.project.project_id
   location      = local.region
