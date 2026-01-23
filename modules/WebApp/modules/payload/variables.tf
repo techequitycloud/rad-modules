@@ -9,10 +9,20 @@ locals {
   payload_module = {
     app_name        = "payload"
     description     = "Payload CMS - The best way to build a modern backend + admin UI"
-    # Payload requires a custom built image or a project setup.
-    # We provide a placeholder, but users should typically use 'custom' image source.
-    container_image = "payloadcms/payload"
+    # Custom build with provided scaffold
+    container_image = ""
     image_source    = "custom"
+
+    # Custom build configuration
+    container_build_config = {
+      enabled            = true
+      dockerfile_path    = "Dockerfile"
+      context_path       = "payload"
+      dockerfile_content = null
+      build_args         = {}
+      artifact_repo_name = "webapp-repo"
+    }
+
     container_port  = 3000
     database_type   = "POSTGRES_15"
     db_name         = "payload"
@@ -23,24 +33,31 @@ locals {
 
     gcs_volumes = [
       {
-        bucket     = "$${tenant_id}-payload-media"
+        name       = "payload-media"
         mount_path = "/app/media"
         read_only  = false
+        mount_options = [
+          "implicit-dirs",
+          "metadata-cache-ttl-secs=60",
+          "uid=1000",
+          "gid=1000",
+          "dir-mode=777",
+          "file-mode=666"
+        ]
       }
     ]
 
     container_resources = {
       cpu_limit    = "1000m"
-      memory_limit = "512Mi"
+      memory_limit = "1Gi"
     }
 
-    min_instance_count = 0
+    min_instance_count = 1
     max_instance_count = 3
 
     environment_variables = {
       NODE_ENV = "production"
       # DB connection will be handled via preset_env_vars in main.tf
-      # utilizing standard PG* variables which node-postgres/Payload supports
     }
 
     enable_postgres_extensions = true
@@ -81,21 +98,26 @@ locals {
             END
             \$\$;
             ALTER ROLE "$DB_USER" CREATEDB;
+            GRANT "$DB_USER" TO postgres;
             GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
             EOF
 
             echo "Creating Database $DB_NAME if not exists..."
             if ! psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
               echo "Database does not exist. Creating as $DB_USER..."
-              export PGPASSWORD=$DB_PASSWORD
-              psql -h "$TARGET_DB_HOST" -p 5432 -U $DB_USER -d postgres -c "CREATE DATABASE \"$DB_NAME\";"
+              # Create database with owner set to DB_USER
+              psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
             else
               echo "Database $DB_NAME already exists."
+              psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
             fi
 
             echo "Granting privileges..."
             export PGPASSWORD=$ROOT_PASSWORD
             psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
+
+            echo "Granting schema permissions (PG15+)..."
+            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO \"$DB_USER\";"
 
             echo "DB Init complete."
           EOT
@@ -108,9 +130,9 @@ locals {
 
     startup_probe = {
       enabled               = true
-      type                  = "TCP"
-      path                  = "/"
-      initial_delay_seconds = 10
+      type                  = "HTTP"
+      path                  = "/admin"
+      initial_delay_seconds = 60
       timeout_seconds       = 5
       period_seconds        = 10
       failure_threshold     = 3
@@ -119,8 +141,8 @@ locals {
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
-      path                  = "/admin" # Payload admin path
-      initial_delay_seconds = 30
+      path                  = "/admin"
+      initial_delay_seconds = 60
       timeout_seconds       = 5
       period_seconds        = 30
       failure_threshold     = 3
