@@ -42,7 +42,6 @@ To deploy a supported application, set `deploy_app_preset` to the desired applic
 - `directus`
 - `django`
 - `ghost`
-- `invoiceninja`
 - `medusa`
 - `moodle`
 - `n8n`
