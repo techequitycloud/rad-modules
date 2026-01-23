@@ -29,14 +29,30 @@ locals {
 
     gcs_volumes = [
       {
-        bucket     = "$${tenant_id}-django-static"
+        name       = "django-static"
         mount_path = "/app/static"
         read_only  = false
+        mount_options = [
+          "implicit-dirs",
+          "metadata-cache-ttl-secs=60",
+          "uid=1000",
+          "gid=1000",
+          "dir-mode=777",
+          "file-mode=666"
+        ]
       },
       {
-        bucket     = "$${tenant_id}-django-media"
+        name       = "django-media"
         mount_path = "/app/media"
         read_only  = false
+        mount_options = [
+          "implicit-dirs",
+          "metadata-cache-ttl-secs=60",
+          "uid=1000",
+          "gid=1000",
+          "dir-mode=777",
+          "file-mode=666"
+        ]
       }
     ]
 
