@@ -10,7 +10,7 @@ touch /root/env.sh
 printenv | sed 's/^\(.*\)$/export \1/g' > /root/env.sh
 
 # Ensure APP_URL is correctly formatted and exported (overwrite if exists)
-export APP_URL=https://$(echo "$APP_URL" | tr " " "\n"  | sed 's/^"//; s/"$//; s~^https\?://~~; s/:[0-9]\+$//')
+export APP_URL=https://$(echo "$APP_URL" | tr " " "\n"  | sed 's/^"//; s/"$//; s~^https\?://~~; s/:[0-9]\+$//; s|/$||')
 if grep -q "^export APP_URL=" /root/env.sh >/dev/null 2>&1; then
     sed -i "s|^export APP_URL=.*|export APP_URL=$APP_URL|" /root/env.sh
 else
