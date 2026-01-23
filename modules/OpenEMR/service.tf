@@ -123,6 +123,11 @@ resource "google_cloud_run_v2_service" "app_service" {
         value = "no"
       }
 
+      env {
+        name  = "SWARM_MODE"
+        value = "yes"
+      }
+
       volume_mounts {
         name      = "nfs-data-volume"
         mount_path = "/var/www/localhost/htdocs/openemr/sites"
