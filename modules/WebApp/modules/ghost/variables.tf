@@ -59,6 +59,7 @@ locals {
     environment_variables = {
       # Ghost Configuration
       url = "http://localhost:2368" # Should be overridden by user with actual domain
+      mail__from = "noreply@localhost"
 
       # Database Connection
       database__client = "mysql"
@@ -149,7 +150,7 @@ EOF
     }
     liveness_probe = {
       enabled               = true
-      type                  = "HTTP"
+      type                  = "TCP"
       path                  = "/"
       initial_delay_seconds = 60
       timeout_seconds       = 10
