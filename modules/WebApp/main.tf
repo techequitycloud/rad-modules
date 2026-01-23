@@ -321,7 +321,10 @@ locals {
     for idx, vol in local.final_gcs_volumes :
     vol.name => {
       name          = vol.name
-      bucket_name   = (vol.bucket_name != null && vol.bucket_name != "") ? vol.bucket_name : try(local.storage_buckets[vol.name].name, null)
+      bucket_name   = (vol.bucket_name != null && vol.bucket_name != "") ? vol.bucket_name : (
+        var.application_module == "n8n" && vol.name == "n8n-data" ? try(google_storage_bucket.n8n_storage[0].name, null) :
+        try(local.storage_buckets[vol.name].name, null)
+      )
       mount_path    = vol.mount_path
       readonly      = vol.readonly
       mount_options = vol.mount_options

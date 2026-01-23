@@ -351,6 +351,7 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
   depends_on = [
     data.google_secret_manager_secret_version.db_password,
     google_secret_manager_secret_iam_member.secret_env_vars,
+    google_secret_manager_secret_iam_member.root_password,
     null_resource.mirror_image
   ]
 }
@@ -490,7 +491,8 @@ resource "google_cloud_run_v2_job" "postgres_extensions_job" {
   }
 
   depends_on = [
-    data.google_secret_manager_secret_version.db_password
+    data.google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret_iam_member.root_password
   ]
 }
 
@@ -641,6 +643,7 @@ resource "google_cloud_run_v2_job" "gdrive_backup_job" {
 
   depends_on = [
     data.google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret_iam_member.root_password,
     null_resource.execute_postgres_extensions_job
   ]
 }
@@ -798,6 +801,7 @@ resource "google_cloud_run_v2_job" "gcs_backup_job" {
 
   depends_on = [
     data.google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret_iam_member.root_password,
     null_resource.execute_postgres_extensions_job,
     null_resource.execute_mysql_plugins_job
   ]
@@ -936,7 +940,8 @@ resource "google_cloud_run_v2_job" "mysql_plugins_job" {
   }
 
   depends_on = [
-    data.google_secret_manager_secret_version.db_password
+    data.google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret_iam_member.root_password
   ]
 }
 
@@ -1097,6 +1102,7 @@ resource "google_cloud_run_v2_job" "custom_sql_scripts_job" {
 
   depends_on = [
     data.google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret_iam_member.root_password,
     null_resource.execute_postgres_extensions_job,
     null_resource.execute_mysql_plugins_job,
     null_resource.execute_gcs_backup_job,

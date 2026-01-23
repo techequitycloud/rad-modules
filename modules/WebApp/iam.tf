@@ -108,3 +108,13 @@ resource "google_service_account_iam_member" "cloudbuild_sa_user" {
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${local.cloud_build_sa_email}"
 }
+
+# Grant Cloud Run service account access to database root password secret (referenced in initialization jobs)
+resource "google_secret_manager_secret_iam_member" "root_password" {
+  count = local.sql_server_exists ? 1 : 0
+
+  project   = local.project.project_id
+  secret_id = "${local.db_instance_name}-root-password"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.cloud_run_sa_email}"
+}
