@@ -65,6 +65,7 @@ locals {
             ALTER ROLE "$DB_USER" CREATEDB;
             ALTER ROLE "$DB_USER" INHERIT;
             GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
+            GRANT "$DB_USER" TO postgres;
             EOF
 
             echo "Creating Database $DB_NAME if not exists..."
