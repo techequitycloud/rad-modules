@@ -399,7 +399,6 @@ locals {
       MYSQL_HOST     = local.db_internal_ip
       MYSQL_PORT     = "3306"
       OE_USER        = "admin"
-      OE_PASS        = "admin"
       MANUAL_SETUP   = "no"
       BACKUP_FILEID  = local.final_backup_uri != null ? local.final_backup_uri : ""
     } : {},
@@ -485,6 +484,7 @@ locals {
     } : {},
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
+      OE_PASS         = try(google_secret_manager_secret.openemr_admin_password[0].secret_id, "")
     } : {},
     var.application_module == "ghost" ? {
       database__connection__password = try(google_secret_manager_secret.db_password[0].secret_id, "")
@@ -1069,6 +1069,30 @@ output "deployment_info" {
     container_image  = local.container_image
     regions          = local.regions
   }
+}
+
+# ==============================================================================
+# OPENEMR SPECIFIC RESOURCES
+# ==============================================================================
+resource "random_password" "openemr_admin_password" {
+  count   = var.application_module == "openemr" ? 1 : 0
+  length  = 20
+  special = false
+}
+
+resource "google_secret_manager_secret" "openemr_admin_password" {
+  count     = var.application_module == "openemr" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-admin-password"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "openemr_admin_password" {
+  count       = var.application_module == "openemr" ? 1 : 0
+  secret      = google_secret_manager_secret.openemr_admin_password[0].id
+  secret_data = random_password.openemr_admin_password[0].result
 }
 
 # ==============================================================================
