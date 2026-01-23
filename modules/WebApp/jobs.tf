@@ -1103,6 +1103,220 @@ resource "google_cloud_run_v2_job" "custom_sql_scripts_job" {
   ]
 }
 
+# ============================================================================
+# Database Cleanup Job
+# ============================================================================
+
+resource "google_cloud_run_v2_job" "db_cleanup_job" {
+  count               = local.sql_server_exists && local.database_client_type != "NONE" ? 1 : 0
+  project             = local.project.project_id
+  name                = "${local.resource_prefix}-db-cleanup"
+  location            = local.region
+  deletion_protection = false
+
+  template {
+    template {
+      service_account       = local.cloud_run_sa_email
+      max_retries           = 0
+      timeout               = "300s"
+      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
+
+      containers {
+        image = "alpine:3.19"
+
+        env {
+          name  = "DB_TYPE"
+          value = local.database_client_type
+        }
+        env {
+          name  = "DB_HOST"
+          value = local.db_internal_ip
+        }
+        env {
+          name  = "DB_PORT"
+          value = tostring(local.database_port)
+        }
+        env {
+          name  = "DB_NAME"
+          value = local.database_name_full
+        }
+        env {
+          name  = "DB_USER"
+          value = local.database_user_full
+        }
+        env {
+          name = "ROOT_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret  = "${local.db_instance_name}-root-password"
+              version = "latest"
+            }
+          }
+        }
+
+        command = ["/bin/sh"]
+        args    = ["-c", file("${path.module}/scripts/db-cleanup.sh")]
+
+        resources {
+          limits = {
+            cpu    = "1000m"
+            memory = "512Mi"
+          }
+        }
+      }
+
+      vpc_access {
+        network_interfaces {
+          network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          tags       = local.network_tags
+        }
+        egress = local.vpc_egress_setting
+      }
+    }
+  }
+
+  depends_on = [
+    data.google_secret_manager_secret_version.db_password
+  ]
+}
+
+resource "null_resource" "execute_db_cleanup_job" {
+  count = local.sql_server_exists && local.database_client_type != "NONE" ? 1 : 0
+
+  triggers = {
+    job_name      = "${local.resource_prefix}-db-cleanup"
+    project_id    = local.project.project_id
+    region        = local.region
+    impersonation = local.impersonation_service_account
+  }
+
+  depends_on = [
+    google_cloud_run_v2_job.db_cleanup_job
+  ]
+
+  lifecycle {
+    ignore_changes = [triggers]
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<EOT
+      echo "Executing DB cleanup job: ${self.triggers.job_name}"
+
+      IMPERSONATE_FLAG=""
+      if [ -n "${self.triggers.impersonation}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${self.triggers.impersonation}"
+      fi
+
+      gcloud run jobs execute ${self.triggers.job_name} \
+        --region ${self.triggers.region} \
+        --project ${self.triggers.project_id} \
+        $IMPERSONATE_FLAG \
+        --wait
+    EOT
+  }
+}
+
+# ============================================================================
+# NFS Cleanup Job
+# ============================================================================
+
+resource "google_cloud_run_v2_job" "nfs_cleanup_job" {
+  count               = local.nfs_enabled && local.nfs_server_exists ? 1 : 0
+  project             = local.project.project_id
+  name                = "${local.resource_prefix}-nfs-cleanup"
+  location            = local.region
+  deletion_protection = false
+
+  template {
+    template {
+      service_account       = local.cloud_run_sa_email
+      max_retries           = 0
+      timeout               = "300s"
+      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
+
+      containers {
+        image = "alpine:3.19"
+
+        env {
+          name  = "NFS_BASE_PATH"
+          value = local.nfs_unique_path
+        }
+
+        command = ["/bin/sh"]
+        args    = ["-c", file("${path.module}/scripts/nfs-cleanup.sh")]
+
+        resources {
+          limits = {
+            cpu    = "500m"
+            memory = "256Mi"
+          }
+        }
+
+        volume_mounts {
+          name       = "nfs-deployment-volume"
+          mount_path = "/mnt/nfs"
+        }
+      }
+
+      volumes {
+        name = "nfs-deployment-volume"
+        nfs {
+          server = local.nfs_internal_ip
+          path   = "/share"
+        }
+      }
+
+      vpc_access {
+        network_interfaces {
+          network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          tags       = local.network_tags
+        }
+        egress = local.vpc_egress_setting
+      }
+    }
+  }
+}
+
+resource "null_resource" "execute_nfs_cleanup_job" {
+  count = local.nfs_enabled && local.nfs_server_exists ? 1 : 0
+
+  triggers = {
+    job_name      = "${local.resource_prefix}-nfs-cleanup"
+    project_id    = local.project.project_id
+    region        = local.region
+    impersonation = local.impersonation_service_account
+  }
+
+  depends_on = [
+    google_cloud_run_v2_job.nfs_cleanup_job
+  ]
+
+  lifecycle {
+    ignore_changes = [triggers]
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<EOT
+      echo "Executing NFS cleanup job: ${self.triggers.job_name}"
+
+      IMPERSONATE_FLAG=""
+      if [ -n "${self.triggers.impersonation}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${self.triggers.impersonation}"
+      fi
+
+      gcloud run jobs execute ${self.triggers.job_name} \
+        --region ${self.triggers.region} \
+        --project ${self.triggers.project_id} \
+        $IMPERSONATE_FLAG \
+        --wait
+    EOT
+  }
+}
+
 resource "null_resource" "execute_custom_sql_scripts_job" {
   count = local.enable_custom_sql_scripts && local.sql_server_exists && local.custom_sql_scripts_bucket != "" ? 1 : 0
 
