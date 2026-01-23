@@ -477,14 +477,6 @@ module "cyclos" {
   backup_uri           = "xyz789"
   backup_format        = "sql"
 
-  # Cyclos data directory
-  enable_gcs_volume = true
-  gcs_volumes = [{
-    bucket     = "${var.tenant_deployment_id}-cyclos-data"
-    mount_path = "/usr/local/cyclos/data"
-    read_only  = false
-  }]
-
   # Monitoring
   configure_monitoring = true
 

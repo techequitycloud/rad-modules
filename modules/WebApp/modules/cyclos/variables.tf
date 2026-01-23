@@ -13,11 +13,7 @@ locals {
     db_user         = "cyclos"
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/var/run/postgresql"
-    gcs_volumes = [{
-      bucket     = "$${tenant_id}-cyclos-data"
-      mount_path = "/usr/local/cyclos/data"
-      read_only  = false
-    }]
+    gcs_volumes = []
     container_resources = {
       cpu_limit    = "2000m"
       memory_limit = "4Gi"
@@ -29,8 +25,8 @@ locals {
       DB_PORT     = "5432"
       CYCLOS_HOME = "/usr/local/cyclos"
     }
-    enable_postgres_extensions = false
-    postgres_extensions         = []
+    enable_postgres_extensions = true
+    postgres_extensions         = ["pg_trgm", "uuid-ossp"]
 
     initialization_jobs = [
       {
@@ -67,7 +63,9 @@ locals {
             END
             \$\$;
             ALTER ROLE "$DB_USER" CREATEDB;
+            ALTER ROLE "$DB_USER" INHERIT;
             GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
+            GRANT "$DB_USER" TO postgres;
             EOF
 
             echo "Creating Database $DB_NAME if not exists..."
@@ -77,6 +75,9 @@ locals {
               psql -h "$TARGET_DB_HOST" -p 5432 -U $DB_USER -d postgres -c "CREATE DATABASE \"$DB_NAME\";"
             else
               echo "Database $DB_NAME already exists."
+              # Ensure ownership if created by another user (e.g. extension job)
+              export PGPASSWORD=$ROOT_PASSWORD
+              psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
             fi
 
             echo "Granting privileges..."

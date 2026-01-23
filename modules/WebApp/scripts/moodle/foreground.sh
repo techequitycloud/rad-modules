@@ -14,7 +14,7 @@ export APP_URL=https://$(echo "$APP_URL" | tr " " "\n"  | sed 's/^"//; s/"$//; s
 if grep -q "^export APP_URL=" /root/env.sh >/dev/null 2>&1; then
     sed -i "s|^export APP_URL=.*|export APP_URL=$APP_URL|" /root/env.sh
 else
-    echo "export APP_URL=$APP_URL" >> /root/env.sh
+    echo "export MOODLE_URL=$MOODLE_URL" >> /root/env.sh
 fi
 
 echo "Setting max_input_vars variable in /etc/php/8.3/apache2/php.ini to 5000"
