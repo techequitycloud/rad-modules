@@ -270,6 +270,7 @@ resource "google_service_networking_connection" "psconnect" {
   deletion_policy         = "ABANDON"
 
   depends_on = [
-    google_compute_global_address.psconnect_private_ip_alloc,  
+    google_compute_global_address.psconnect_private_ip_alloc,
+    time_sleep.wait_for_apis
   ]
 }
