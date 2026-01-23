@@ -70,7 +70,7 @@ EOF
 
 # Submit build
 echo "Submitting Cloud Build job..."
-gcloud builds submit --project="${PROJECT_ID}" --config=cloudbuild.yaml .
+gcloud builds submit --project="${PROJECT_ID}" --config=cloudbuild.yaml --no-source
 
 # Cleanup
 popd > /dev/null
