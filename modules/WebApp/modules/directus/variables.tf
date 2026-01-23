@@ -85,6 +85,7 @@ locals {
             END
             \$\$;
             ALTER ROLE "$DB_USER" CREATEDB;
+            GRANT "$DB_USER" TO postgres;
             GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
             EOF
 
