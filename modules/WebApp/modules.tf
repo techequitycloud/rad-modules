@@ -84,6 +84,10 @@ module "directus_module" {
   source = "./modules/directus"
 }
 
+module "sample_module" {
+  source = "./modules/sample"
+}
+
 #########################################################################
 # Application Modules Map
 #########################################################################
@@ -103,6 +107,7 @@ locals {
     medusa    = module.medusa_module.medusa_module
     strapi    = module.strapi_module.strapi_module
     directus  = module.directus_module.directus_module
+    sample    = module.sample_module.sample_module
   }
 
   #########################################################################
