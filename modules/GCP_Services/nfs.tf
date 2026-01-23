@@ -16,7 +16,7 @@
 # Local variables for NFS infrastructure existence checks
 #########################################################################
 
-# Random suffix for new NFS resources to avoid naming conflicts
+# Random suffix for new NFS/Redis resources to avoid naming conflicts
 resource "random_string" "nfs_suffix" {
   count   = var.create_network_filesystem ? 1 : 0  
   length  = 4
@@ -27,12 +27,12 @@ resource "random_string" "nfs_suffix" {
 #########################################################################
 # Reserve static IP
 #########################################################################
-# Allocate a static internal IP address for NFS server
+# Allocate a static internal IP address for NFS/Redis server
 resource "google_compute_address" "static_internal_ip" {
   count        = var.create_network_filesystem ? 1 : 0  
   project      = local.project.project_id                  
   region       = local.region                               
-  name         = "nfsserver-static-ip"                     
+  name         = "nfsredis-server-static-ip"                     
   subnetwork   = local.gce_subnet_id
   address_type = "INTERNAL"                              
   purpose      = "GCE_ENDPOINT"                            
@@ -46,15 +46,15 @@ resource "google_compute_address" "static_internal_ip" {
 # Creating GCE VMs in VPC
 #########################################################################
 
-# Define an instance template for NFS server VMs
+# Define an instance template for NFS/Redis server VMs
 resource "google_compute_instance_template" "nfs_server" {
   count                     = var.create_network_filesystem ? 1 : 0  
   project                   = local.project.project_id                  
   region                    = local.region                              
-  name                      = "nfsserver-tpl-${random_string.nfs_suffix[0].result}"                           
+  name                      = "nfsredis-server-tpl-${random_string.nfs_suffix[0].result}"                           
   machine_type              = var.network_filesystem_machine                           
-  metadata_startup_script   = file("${path.module}/scripts/create_nfs.sh") 
-  tags                      = ["nfsserver"]
+  metadata_startup_script   = file("${path.module}/scripts/create_nfs_redis.sh") 
+  tags                      = ["nfsserver", "redisserver"]
 
   metadata = {
     enable-oslogin = false
@@ -99,13 +99,13 @@ resource "google_compute_instance_template" "nfs_server" {
 # Managed Instance Group
 #########################################################################
 
-# Define a managed instance group for NFS servers
+# Define a managed instance group for NFS/Redis servers
 resource "google_compute_instance_group_manager" "nfs_server" {
   count               = var.create_network_filesystem ? 1 : 0  
   project             = local.project.project_id               
-  name                = "nfsserver-mig"                        
+  name                = "nfsredis-server-mig"                        
   zone                = data.google_compute_zones.available_zones.names[0] 
-  base_instance_name  = "nfsserver"                            
+  base_instance_name  = "nfsredis-server"                            
   target_size         = 1                                      
 
   version {
@@ -118,6 +118,7 @@ resource "google_compute_instance_group_manager" "nfs_server" {
     delete_rule   = "ON_PERMANENT_INSTANCE_DELETION"
   }
   
+  # NFS ports
   named_port {
     name = "nfs"      
     port = 2049      
@@ -126,6 +127,12 @@ resource "google_compute_instance_group_manager" "nfs_server" {
   named_port {
     name = "rpcbind"  
     port = 111        
+  }
+
+  # Redis port
+  named_port {
+    name = "redis"
+    port = 6379
   }
 
   auto_healing_policies {
@@ -148,12 +155,13 @@ resource "google_compute_instance_group_manager" "nfs_server" {
   depends_on = [
     google_service_networking_connection.psconnect,
     google_compute_health_check.nfs_server_health_check,
+    google_compute_health_check.redis_health_check,
     google_compute_instance_template.nfs_server,
   ]
 }
 
 #########################################################################
-# Health Check
+# Health Checks
 #########################################################################
 
 # Define a health check for NFS servers
@@ -169,6 +177,55 @@ resource "google_compute_health_check" "nfs_server_health_check" {
   tcp_health_check {
     port = 2049 
   }
+
+  depends_on = [
+    google_compute_instance_template.nfs_server,
+  ]
+}
+
+# Define a health check for Redis servers
+resource "google_compute_health_check" "redis_health_check" {
+  count               = var.create_network_filesystem ? 1 : 0  
+  project             = local.project.project_id          
+  name                = "redis-health-check"          
+  check_interval_sec  = 30                                
+  timeout_sec         = 10                                
+  healthy_threshold   = 2                                 
+  unhealthy_threshold = 3                                 
+
+  tcp_health_check {
+    port = 6379
+  }
+
+  depends_on = [
+    google_compute_instance_template.nfs_server,
+  ]
+}
+
+#########################################################################
+# Firewall Rules for Redis
+#########################################################################
+
+# Allow Redis traffic within the VPC
+resource "google_compute_firewall" "allow_redis" {
+  count         = var.create_network_filesystem ? 1 : 0
+  project       = local.project.project_id
+  name          = "allow-redis-internal"
+  network       = "https://www.googleapis.com/compute/v1/projects/${var.existing_project_id}/global/networks/gce-vpc"
+  description   = "Allow Redis traffic within VPC"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["6379"]
+  }
+
+  source_ranges = [
+    "10.0.0.0/8",     # Private IP ranges
+    "172.16.0.0/12",
+    "192.168.0.0/16"
+  ]
+
+  target_tags = ["redisserver"]
 
   depends_on = [
     google_compute_instance_template.nfs_server,
@@ -237,4 +294,26 @@ data "google_compute_instance_group" "nfs_server_group" {
   depends_on = [
     time_sleep.wait_30_seconds
   ]
+}
+
+#########################################################################
+# Outputs
+#########################################################################
+
+# Output the Redis server IP for applications to connect
+output "redis_server_ip" {
+  description = "Internal IP address of the Redis server"
+  value       = var.create_network_filesystem ? google_compute_address.static_internal_ip[0].address : null
+}
+
+# Output the NFS server IP (same as Redis since they're on the same VM)
+output "nfs_server_ip" {
+  description = "Internal IP address of the NFS server"
+  value       = var.create_network_filesystem ? google_compute_address.static_internal_ip[0].address : null
+}
+
+# Output Redis connection string
+output "redis_connection_string" {
+  description = "Redis connection string for applications"
+  value       = var.create_network_filesystem ? "redis://${google_compute_address.static_internal_ip[0].address}:6379" : null
 }
