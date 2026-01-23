@@ -412,6 +412,8 @@ locals {
       AWS_S3_ENDPOINT         = "https://storage.googleapis.com"
       AWS_S3_BUCKET_NAME      = try(local.storage_buckets["plane-uploads"].name, "")
       AWS_S3_FORCE_PATH_STYLE = "false"
+      WEB_URL                 = local.predicted_service_url
+      CORS_ALLOWED_ORIGINS    = local.predicted_service_url
     } : {},
     var.application_module == "medusa" ? {
       DB_HOST     = local.db_internal_ip
@@ -494,6 +496,7 @@ locals {
       POSTGRES_PASSWORD     = try(google_secret_manager_secret.db_password[0].secret_id, "")
       AWS_ACCESS_KEY_ID     = try(google_secret_manager_secret.plane_storage_access_key[0].secret_id, "")
       AWS_SECRET_ACCESS_KEY = try(google_secret_manager_secret.plane_storage_secret_key[0].secret_id, "")
+      SECRET_KEY            = try(google_secret_manager_secret.plane_secret_key[0].secret_id, "")
     } : {},
     var.application_module == "medusa" ? {
       DB_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
@@ -766,6 +769,27 @@ resource "google_secret_manager_secret_version" "plane_storage_secret_key" {
   count       = var.application_module == "plane" ? 1 : 0
   secret      = google_secret_manager_secret.plane_storage_secret_key[0].id
   secret_data = google_storage_hmac_key.plane_key[0].secret
+}
+
+resource "random_password" "plane_secret_key" {
+  count   = var.application_module == "plane" ? 1 : 0
+  length  = 64
+  special = false
+}
+
+resource "google_secret_manager_secret" "plane_secret_key" {
+  count     = var.application_module == "plane" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-secret-key-app"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "plane_secret_key" {
+  count       = var.application_module == "plane" ? 1 : 0
+  secret      = google_secret_manager_secret.plane_secret_key[0].id
+  secret_data = random_password.plane_secret_key[0].result
 }
 
 # Django Post-Deployment Update (CSRF Origin)
