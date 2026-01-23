@@ -11,7 +11,7 @@ interface SanityConfig {
 
 // Access the injected configuration from window
 // We cast window to any to avoid TypeScript errors about missing properties
-const config = (typeof window !== 'undefined' ? (window as any).SANITY_CONFIG : {}) as SanityConfig
+const config = ((typeof window !== 'undefined' ? (window as any).SANITY_CONFIG : null) || {}) as SanityConfig
 
 export default defineConfig({
   name: 'default',
