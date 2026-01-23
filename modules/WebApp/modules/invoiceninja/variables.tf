@@ -26,7 +26,15 @@ locals {
         name          = "invoiceninja-storage"
         mount_path    = "/var/www/app/storage"
         read_only     = false
-        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60", "file-mode=777", "dir-mode=777"]
+        # Updated mount options for better security and GCSFuse compatibility
+        mount_options = [
+          "implicit-dirs",
+          "metadata-cache-ttl-secs=60",
+          "uid=1000",
+          "gid=1000",
+          "file-mode=666",
+          "dir-mode=777"
+        ]
       }
     ]
 
@@ -44,6 +52,7 @@ locals {
       APP_DEBUG     = "false"
       DB_TYPE       = "mysql"
       IN_USER_EMAIL = "admin@example.com"
+      LOG_CHANNEL   = "stderr"
       # DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD will be injected by main.tf
       # APP_URL, TRUSTED_PROXIES will be injected by main.tf
       # APP_KEY will be injected by main.tf
@@ -126,16 +135,16 @@ EOF
 
     startup_probe = {
       enabled               = true
-      type                  = "TCP"
+      type                  = "HTTP"
       path                  = "/"
-      initial_delay_seconds = 30
+      initial_delay_seconds = 120
       timeout_seconds       = 5
       period_seconds        = 10
-      failure_threshold     = 3
+      failure_threshold     = 15
     }
     liveness_probe = {
       enabled               = true
-      type                  = "TCP"
+      type                  = "HTTP"
       path                  = "/"
       initial_delay_seconds = 60
       timeout_seconds       = 5
