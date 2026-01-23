@@ -307,6 +307,7 @@ locals {
         versioning_enabled       = false
         lifecycle_rules          = []
         public_access_prevention = "inherited"
+        uniform_bucket_level_access = true
       }
     ] : [],
     var.application_module == "strapi" ? [
@@ -347,6 +348,7 @@ locals {
       versioning_enabled       = bucket.versioning_enabled
       lifecycle_rules          = bucket.lifecycle_rules
       public_access_prevention = bucket.public_access_prevention
+      uniform_bucket_level_access = try(bucket.uniform_bucket_level_access, false)
     }
   } : {}
 

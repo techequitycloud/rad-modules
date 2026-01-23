@@ -444,6 +444,7 @@ variable "storage_buckets" {
     versioning_enabled       = optional(bool, false)
     lifecycle_rules          = optional(list(any), [])
     public_access_prevention = optional(string, "enforced")
+    uniform_bucket_level_access = optional(bool, false)
   }))
   default = [
     {
