@@ -32,8 +32,7 @@ locals {
       REDIS_HOST           = "localhost"
       REDIS_PORT           = "6379"
       # Plane specific
-      WEB_URL              = "http://localhost"
-      CORS_ALLOWED_ORIGINS = "http://localhost"
+      # WEB_URL and CORS_ALLOWED_ORIGINS are injected dynamically in main.tf
     }
 
     enable_postgres_extensions = true
@@ -48,7 +47,7 @@ locals {
         args            = [
           <<-EOT
             set -e
-            echo "Installing dependencies..."
+            echo "=== Plane Database Setup ==="
             apk update && apk add --no-cache postgresql-client
 
             # Use DB_IP if available, else DB_HOST
@@ -74,21 +73,24 @@ locals {
             END
             \$\$;
             ALTER ROLE "$DB_USER" CREATEDB;
+            ALTER ROLE "$DB_USER" INHERIT;
             GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
             EOF
 
             echo "Creating Database $DB_NAME if not exists..."
             if ! psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
-              echo "Database does not exist. Creating as $DB_USER..."
-              export PGPASSWORD=$DB_PASSWORD
-              psql -h "$TARGET_DB_HOST" -p 5432 -U $DB_USER -d postgres -c "CREATE DATABASE \"$DB_NAME\";"
+              echo "Database does not exist. Creating as postgres..."
+              psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "CREATE DATABASE \"$DB_NAME\";"
             else
               echo "Database $DB_NAME already exists."
             fi
 
-            echo "Granting privileges..."
-            export PGPASSWORD=$ROOT_PASSWORD
-            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
+            echo "Configuring ownership and permissions..."
+            # Ensure app user owns the database
+            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
+
+            # Grant schema permissions (crucial for PG15+ public schema)
+            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO \"$DB_USER\";"
 
             echo "DB Init complete."
           EOT
