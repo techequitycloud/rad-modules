@@ -39,7 +39,7 @@ locals {
       EXECUTIONS_DATA_SAVE_ON_SUCCESS  = "all"
       GENERIC_TIMEZONE                 = "America/New_York"
       TZ                               = "America/New_York"
-      N8N_DEFAULT_BINARY_DATA_MODE     = "s3"
+      N8N_DEFAULT_BINARY_DATA_MODE     = "filesystem"
     }
     enable_postgres_extensions = false
     postgres_extensions         = []
