@@ -335,7 +335,10 @@ locals {
     for idx, vol in local.final_gcs_volumes :
     vol.name => {
       name          = vol.name
-      bucket_name   = (vol.bucket_name != null && vol.bucket_name != "") ? vol.bucket_name : try(local.storage_buckets[vol.name].name, null)
+      bucket_name   = (vol.bucket_name != null && vol.bucket_name != "") ? vol.bucket_name : (
+        var.application_module == "n8n" && vol.name == "n8n-data" ? try(google_storage_bucket.n8n_storage[0].name, null) :
+        try(local.storage_buckets[vol.name].name, null)
+      )
       mount_path    = vol.mount_path
       readonly      = vol.readonly
       mount_options = vol.mount_options
@@ -576,7 +579,7 @@ locals {
 
   # Service accounts
   # Inject N8N SA if active
-  cloudrun_sa_input = var.application_module == "n8n" ? google_service_account.n8n_sa[0].email : var.cloudrun_service_account
+  cloudrun_sa_input = var.application_module == "n8n" && var.cloudrun_service_account == null ? google_service_account.n8n_sa[0].email : var.cloudrun_service_account
   cloudrun_service_account   = local.cloudrun_sa_input != null && local.cloudrun_sa_input != "" ? local.cloudrun_sa_input : "cloudrun-sa"
 
   cloudbuild_service_account = var.cloudbuild_service_account != null && var.cloudbuild_service_account != "" ? var.cloudbuild_service_account : "cloudbuild-sa"
@@ -705,6 +708,13 @@ resource "google_storage_bucket_iam_member" "storage_admin" {
   bucket = google_storage_bucket.n8n_storage[0].name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.n8n_sa[0].email}"
+}
+
+resource "google_storage_bucket_iam_member" "n8n_cloudrun_access" {
+  count  = var.application_module == "n8n" && local.cloud_run_sa_email != google_service_account.n8n_sa[0].email ? 1 : 0
+  bucket = google_storage_bucket.n8n_storage[0].name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${local.cloud_run_sa_email}"
 }
 
 resource "google_storage_hmac_key" "n8n_key" {
