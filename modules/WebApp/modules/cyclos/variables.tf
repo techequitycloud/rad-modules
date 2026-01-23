@@ -84,6 +84,9 @@ locals {
             export PGPASSWORD=$ROOT_PASSWORD
             psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
 
+            echo "Granting schema privileges..."
+            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO \"$DB_USER\";"
+
             echo "DB Init complete."
           EOT
         ]
