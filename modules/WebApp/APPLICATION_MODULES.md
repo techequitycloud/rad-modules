@@ -233,8 +233,6 @@ application_module = "n8n"
 
 **Best For**: Business process automation, API integrations, data workflows
 
-**Note**: For AI-powered n8n with Qdrant and Ollama, use the `N8N_AI_WebApp` wrapper module instead.
-
 ## How Modules Work
 
 ### Architecture
@@ -575,7 +573,6 @@ max_instance_count = var.environment == "prod" ? 20 : 5
    - **Workaround**: Override `container_image` to use different versions
 
 2. **Standard Topologies**: Modules assume single-service deployments
-   - **Workaround**: For multi-service (e.g., N8N + Qdrant + Ollama), use wrapper modules like `N8N_AI_WebApp`
 
 3. **Generic Environment Variables**: Module environment variables are generic
    - **Workaround**: Add application-specific variables using `environment_variables`

@@ -702,7 +702,7 @@ module "openemr" {
 
 ### N8N
 
-**N8N** is a workflow automation platform (use N8N_AI_WebApp for AI stack).
+**N8N** is a workflow automation platform.
 
 #### Original Module
 
@@ -790,30 +790,6 @@ module "n8n" {
   }
 }
 ```
-
-#### N8N with AI Stack (Recommended)
-
-For N8N with Qdrant and Ollama, use the **N8N_AI_WebApp** wrapper module:
-
-```hcl
-module "n8n_ai" {
-  source = "./modules/N8N_AI_WebApp"
-
-  existing_project_id       = "my-project"
-  tenant_deployment_id      = "prod"
-  deployment_region         = "us-central1"
-  network_name              = "vpc-network"
-  agent_service_account     = "cloudrun-sa@my-project.iam.gserviceaccount.com"
-  resource_creator_identity = "user:admin@example.com"
-
-  # This deploys N8N + Qdrant + Ollama automatically
-  n8n_version    = "latest"
-  qdrant_version = "v1.7.4"
-  ollama_version = "latest"
-}
-```
-
-See [N8N_AI_WebApp README](../N8N_AI_WebApp/README.md) for more details.
 
 ---
 
@@ -1103,10 +1079,9 @@ The WebApp module provides a unified, feature-rich alternative to application-sp
 | Cyclos | `cyclos/cyclos:4.16.15` | 8080 | PostgreSQL | Enable pg_trgm extension |
 | Django | Custom | 8000 | PostgreSQL | Multiple GCS volumes |
 | OpenEMR | `openemr/openemr:7.0.2` | 80 | MySQL | Use GCS for sites |
-| N8N | `n8nio/n8n:latest` | 5678 | PostgreSQL | Or use N8N_AI_WebApp |
+| N8N | `n8nio/n8n:latest` | 5678 | PostgreSQL | |
 
 For more details on specific features, see:
 - [COMPATIBILITY_ENHANCEMENTS.md](./COMPATIBILITY_ENHANCEMENTS.md) - Cloud SQL volumes, backup import, extensions
 - [ADDITIONAL_FEATURES.md](./ADDITIONAL_FEATURES.md) - Custom SQL scripts, plugins
 - [UNIFIED_BACKUP_IMPORT.md](./UNIFIED_BACKUP_IMPORT.md) - Backup import guide
-- [N8N_AI_WebApp/README.md](../N8N_AI_WebApp/README.md) - Multi-service N8N deployment
