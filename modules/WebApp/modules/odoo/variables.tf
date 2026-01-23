@@ -21,20 +21,14 @@ locals {
     cloudsql_volume_mount_path = ""
 
     # NFS Configuration
-    nfs_enabled    = false
-    nfs_mount_path = ""
+    nfs_enabled    = true
+    nfs_mount_path = "/mnt"
 
-    # ✅ UPDATED: GCS volumes for addons and filestore
+    # ✅ UPDATED: GCS volumes for addons only
     gcs_volumes = [
       {
         name       = "odoo-addons-volume"
         mount_path = "/mnt/extra-addons"
-        read_only  = false
-        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
-      },
-      {
-        name       = "odoo-filestore"
-        mount_path = "/mnt/filestore"
         read_only  = false
         mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
       }
@@ -57,8 +51,19 @@ locals {
     # Environment variables
     environment_variables = {}
 
-    # ✅ UPDATED: Initialization Jobs (removed nfs-init)
+    # ✅ UPDATED: Initialization Jobs (restored nfs-init, removed gcs checks for filestore)
     initialization_jobs = [
+      {
+        name            = "nfs-init"
+        description     = "Initialize NFS directories for Odoo"
+        image           = "alpine:3.19"
+        command         = ["/bin/sh", "-c"]
+        args            = [
+          "mkdir -p /mnt/filestore /mnt/sessions /mnt/backups && chmod 777 /mnt/filestore /mnt/sessions /mnt/backups && echo 'NFS directories initialized successfully' && ls -la /mnt/"
+        ]
+        mount_nfs        = true
+        execute_on_apply = true
+      },
       {
         name            = "db-init"
         description     = "Create Odoo Database and User"
@@ -118,10 +123,10 @@ locals {
         image           = null # Uses default container image (odoo)
         command         = ["/bin/bash", "-c"]
         args            = [
-          "echo 'Verifying GCS mounts...' && ls -la /mnt/ && echo 'Starting Odoo initialization...' && odoo -d $DB_NAME --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons -i base --stop-after-init --log-level=info"
+          "echo 'Verifying mount points...' && echo 'NFS (/mnt):' && ls -la /mnt/ && echo 'GCS Addons:' && ls -la /mnt/extra-addons && echo 'Starting Odoo initialization...' && odoo -d $DB_NAME --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons -i base --stop-after-init --log-level=info"
         ]
-        mount_nfs         = false
-        mount_gcs_volumes = ["odoo-filestore", "odoo-addons-volume"]
+        mount_nfs         = true
+        mount_gcs_volumes = ["odoo-addons-volume"]
         execute_on_apply  = true
       }
     ]
