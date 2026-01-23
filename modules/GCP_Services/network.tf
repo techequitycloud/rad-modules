@@ -34,7 +34,6 @@ resource "google_compute_network" "vpc_network" {
   depends_on   = [
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
-    google_service_account.cloud_deploy_sa_admin,
     google_service_account.nfs_server_sa_admin,
     google_service_account.cloud_sql_sa_admin,
   ]
