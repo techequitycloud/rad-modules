@@ -1072,7 +1072,7 @@ resource "null_resource" "mirror_image" {
   }
 
   provisioner "local-exec" {
-    command = "bash ${path.module}/scripts/mirror-image.sh ${local.project.project_id} ${local.region} ${local.artifact_repo_id} ${local.mirror_source_image} ${local.application_name} ${local.mirror_image_tag}"
+    command = "bash ${path.module}/scripts/mirror-image.sh ${local.project.project_id} ${local.region} ${local.artifact_repo_id} ${local.mirror_source_image} ${local.application_name} ${local.mirror_image_tag} \"${local.impersonation_service_account}\""
   }
 
   depends_on = [
