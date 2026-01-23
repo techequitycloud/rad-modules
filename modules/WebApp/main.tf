@@ -376,10 +376,7 @@ locals {
       DB_POSTGRESDB_DATABASE   = local.database_name_full
       DB_POSTGRESDB_USER       = local.database_user_full
       DB_POSTGRESDB_HOST       = local.db_internal_ip
-      N8N_DEFAULT_BINARY_DATA_MODE = "s3"
-      N8N_S3_ENDPOINT              = "https://storage.googleapis.com"
-      N8N_S3_BUCKET_NAME           = try(google_storage_bucket.n8n_storage[0].name, "")
-      N8N_S3_REGION                = var.deployment_region
+      N8N_DEFAULT_BINARY_DATA_MODE = "filesystem"
       WEBHOOK_URL                  = local.predicted_service_url
       N8N_EDITOR_BASE_URL          = local.predicted_service_url
     } : {},
@@ -537,8 +534,6 @@ locals {
     } : {},
     
     var.application_module == "n8n" ? {
-      N8N_S3_ACCESS_KEY      = try(google_secret_manager_secret.storage_access_key[0].secret_id, "")
-      N8N_S3_ACCESS_SECRET   = try(google_secret_manager_secret.storage_secret_key[0].secret_id, "")
       N8N_ENCRYPTION_KEY     = try(google_secret_manager_secret.encryption_key[0].secret_id, "")
       DB_POSTGRESDB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
@@ -744,42 +739,6 @@ resource "google_storage_bucket_iam_member" "n8n_cloudrun_access" {
   bucket = google_storage_bucket.n8n_storage[0].name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${local.cloud_run_sa_email}"
-}
-
-resource "google_storage_hmac_key" "n8n_key" {
-  count                 = var.application_module == "n8n" ? 1 : 0
-  service_account_email = google_service_account.n8n_sa[0].email
-  project               = var.existing_project_id
-}
-
-resource "google_secret_manager_secret" "storage_access_key" {
-  count     = var.application_module == "n8n" ? 1 : 0
-  secret_id = "${local.wrapper_prefix}-access-key"
-  replication {
-    auto {}
-  }
-  project = var.existing_project_id
-}
-
-resource "google_secret_manager_secret_version" "storage_access_key" {
-  count       = var.application_module == "n8n" ? 1 : 0
-  secret      = google_secret_manager_secret.storage_access_key[0].id
-  secret_data = google_storage_hmac_key.n8n_key[0].access_id
-}
-
-resource "google_secret_manager_secret" "storage_secret_key" {
-  count     = var.application_module == "n8n" ? 1 : 0
-  secret_id = "${local.wrapper_prefix}-secret-key"
-  replication {
-    auto {}
-  }
-  project = var.existing_project_id
-}
-
-resource "google_secret_manager_secret_version" "storage_secret_key" {
-  count       = var.application_module == "n8n" ? 1 : 0
-  secret      = google_secret_manager_secret.storage_secret_key[0].id
-  secret_data = google_storage_hmac_key.n8n_key[0].secret
 }
 
 resource "random_password" "encryption_key" {
