@@ -26,7 +26,7 @@ locals {
       CYCLOS_HOME = "/usr/local/cyclos"
     }
     enable_postgres_extensions = true
-    postgres_extensions         = ["pg_trgm", "uuid-ossp"]
+    postgres_extensions         = ["pg_trgm", "uuid-ossp", "cube", "earthdistance", "postgis", "unaccent"]
 
     initialization_jobs = [
       {
