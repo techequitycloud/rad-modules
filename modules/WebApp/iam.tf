@@ -30,6 +30,16 @@ resource "google_secret_manager_secret_iam_member" "db_password" {
   ]
 }
 
+# Grant Cloud Run service account access to database root password secret
+resource "google_secret_manager_secret_iam_member" "root_password" {
+  count = local.sql_server_exists ? 1 : 0
+
+  project   = local.project.project_id
+  secret_id = "${local.db_instance_name}-root-password"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.cloud_run_sa_email}"
+}
+
 # Grant Cloud Run service account access to secret environment variables
 resource "google_secret_manager_secret_iam_member" "secret_env_vars" {
   for_each = local.secret_environment_variables
