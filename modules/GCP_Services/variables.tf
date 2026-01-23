@@ -155,7 +155,7 @@ variable "postgres_database_availability_type" {
 }
 
 variable "create_mysql" {
-  description = "Select to create MySQL database instance. {{UIMeta group=3 order=1 }}"
+  description = "Select to create MySQL database instance. {{UIMeta group=3 order=2 }}"
   type        = bool
   default     = false
 }
