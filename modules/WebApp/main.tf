@@ -209,6 +209,17 @@ locals {
         public_access_prevention = "inherited"
       }
     ] : [],
+    var.application_module == "n8n" ? [
+      {
+        name_suffix              = "n8n-data"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : [],
     var.application_module == "ghost" ? [
       {
         name_suffix              = "ghost-content"
@@ -328,10 +339,12 @@ locals {
       DB_POSTGRESDB_DATABASE   = local.database_name_full
       DB_POSTGRESDB_USER       = local.database_user_full
       DB_POSTGRESDB_HOST       = local.db_internal_ip
-      N8N_DEFAULT_BINARY_DATA_MODE = "filesystem"
+      N8N_DEFAULT_BINARY_DATA_MODE = "s3"
       N8N_S3_ENDPOINT              = "https://storage.googleapis.com"
       N8N_S3_BUCKET_NAME           = try(google_storage_bucket.n8n_storage[0].name, "")
       N8N_S3_REGION                = var.deployment_region
+      WEBHOOK_URL                  = local.predicted_service_url
+      N8N_EDITOR_BASE_URL          = local.predicted_service_url
     } : {},
     var.application_module == "odoo" ? {
       HOST    = local.db_internal_ip
