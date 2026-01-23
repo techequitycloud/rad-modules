@@ -46,7 +46,9 @@ locals {
 
     # Environment variables
     environment_variables = {
-      NODE_ENV = "production"
+      NODE_ENV               = "production"
+      SANITY_STUDIO_PROJECT_ID = ""
+      SANITY_STUDIO_DATASET    = "production"
     }
 
     # Initialization Jobs
