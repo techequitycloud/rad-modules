@@ -60,6 +60,7 @@ locals {
       # Ghost Configuration
       url = "http://localhost:2368" # Should be overridden by user with actual domain
       mail__from = "noreply@localhost"
+      logging__transports = "[\"stdout\"]"
 
       # Database Connection
       database__client = "mysql"
