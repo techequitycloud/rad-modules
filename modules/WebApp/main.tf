@@ -74,6 +74,7 @@ locals {
 
   # ✅ UPDATED: Determine database port based on type (added POSTGRES_16)
   database_port = (
+    local.database_type == "NONE" ? 0 :
     contains(["MYSQL", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0"], local.database_type) ? 3306 :
     contains(["POSTGRES", "POSTGRESQL", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "POSTGRES_16"], local.database_type) ? 5432 :
     contains(["SQLSERVER", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE"], local.database_type) ? 1433 :
@@ -82,6 +83,7 @@ locals {
 
   # ✅ UPDATED: Determine database client type for scripts (added POSTGRES_16)
   database_client_type = (
+    local.database_type == "NONE" ? "NONE" :
     contains(["MYSQL", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0"], local.database_type) ? "MYSQL" :
     contains(["POSTGRES", "POSTGRESQL", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "POSTGRES_16"], local.database_type) ? "POSTGRES" :
     contains(["SQLSERVER", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE"], local.database_type) ? "SQLSERVER" :
@@ -90,6 +92,7 @@ locals {
 
   # ✅ NEW: PostgreSQL vs MySQL socket paths
   cloudsql_socket_path = (
+    local.database_type == "NONE" ? "" :
     contains(["POSTGRES", "POSTGRESQL", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "POSTGRES_16"], local.database_type) ? 
     "/var/run/postgresql" : 
     "/var/run/mysqld"

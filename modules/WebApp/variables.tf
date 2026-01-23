@@ -203,9 +203,9 @@ variable "application_module" {
 
   validation {
     condition = var.application_module == null || var.application_module == "" || contains([
-      "odoo", "wordpress", "moodle", "cyclos", "django", "openemr", "n8n", "ghost", "wikijs", "plane"
+      "odoo", "wordpress", "moodle", "cyclos", "django", "openemr", "n8n", "ghost", "wikijs", "plane", "sanity"
     ], var.application_module)
-    error_message = "Application module must be one of: odoo, wordpress, moodle, cyclos, django, openemr, n8n, ghost, wikijs, plane, or leave empty for manual configuration."
+    error_message = "Application module must be one of: odoo, wordpress, moodle, cyclos, django, openemr, n8n, ghost, wikijs, plane, sanity, or leave empty for manual configuration."
   }
 }
 
@@ -366,8 +366,8 @@ variable "database_type" {
   default     = null
 
   validation {
-    condition     = var.database_type == null || contains(["MYSQL", "POSTGRES", "POSTGRESQL", "SQLSERVER", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE"], coalesce(var.database_type, "POSTGRES"))
-    error_message = "Database type must be a valid Cloud SQL database version."
+    condition     = var.database_type == null || contains(["MYSQL", "POSTGRES", "POSTGRESQL", "SQLSERVER", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE", "NONE"], coalesce(var.database_type, "POSTGRES"))
+    error_message = "Database type must be a valid Cloud SQL database version or NONE."
   }
 }
 
