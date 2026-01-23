@@ -39,7 +39,7 @@ locals {
       cpu_limit    = "1000m"
       memory_limit = "1024Mi"
     }
-    min_instance_count = 1
+    min_instance_count = 0
     max_instance_count = 3
 
     # Container command and args
