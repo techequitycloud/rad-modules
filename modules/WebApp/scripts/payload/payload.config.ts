@@ -42,6 +42,8 @@ export default buildConfig({
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
   db: postgresAdapter({
+    // Enable schema push in production to ensure tables are created on startup
+    push: true,
     pool: {
       connectionString: process.env.DATABASE_URI || `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
     },
