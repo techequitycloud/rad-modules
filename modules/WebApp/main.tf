@@ -790,11 +790,15 @@ resource "google_secret_manager_secret_version" "nextcloud_admin_password" {
 
 # Django Post-Deployment Update (CSRF Origin)
 resource "null_resource" "update_csrf_origin" {
-  count = var.application_module == "django" ? 1 : 0
+  count = var.application_module == "django" && local.configure_environment ? 1 : 0
 
   triggers = {
     service_id = local.service_name
   }
+
+  depends_on = [
+    google_cloud_run_v2_service.app_service
+  ]
 
   provisioner "local-exec" {
     command = <<CMD
