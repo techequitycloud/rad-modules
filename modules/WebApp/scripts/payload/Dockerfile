@@ -20,6 +20,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build
 
+# Ensure public directory exists for the COPY command in runner stage
+RUN mkdir -p /app/public
+
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
@@ -30,6 +33,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Use 'node' user which is 1000:1000 by default in node images
 # ensuring compatibility with GCS volumes mounted with uid=1000
 
+# Copy public directory (now guaranteed to exist)
 COPY --from=builder /app/public ./public
 
 # Automatically leverage output traces to reduce image size
