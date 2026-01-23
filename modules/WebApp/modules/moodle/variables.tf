@@ -32,6 +32,9 @@ locals {
     db_name         = "moodle"
     db_user         = "moodle"
 
+    # Explicitly disable image mirroring (uses custom build or Docker Hub)
+    enable_image_mirroring = false
+
     # Cloud SQL configuration
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/var/run/postgresql" # Postgres socket path

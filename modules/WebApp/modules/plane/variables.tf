@@ -15,6 +15,9 @@ locals {
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
 
+    # Enable image mirroring because artifacts.plane.so is not supported by Cloud Run
+    enable_image_mirroring = true
+
     # Storage - Handled via S3 compatibility in main.tf (HMAC keys)
     # We do NOT mount GCS volumes as files here because we use S3 API.
     gcs_volumes = []
