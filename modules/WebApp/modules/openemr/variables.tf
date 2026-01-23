@@ -120,6 +120,7 @@ EOF
         name             = "openemr-nfs-setup"
         description      = "Setup OpenEMR NFS sites directory and config"
         image            = "alpine:3.19"
+        command          = ["/bin/sh"]
         script_path      = "${path.module}/../../scripts/openemr-nfs-setup.sh"
         execute_on_apply = true
         mount_nfs        = true
