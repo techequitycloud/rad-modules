@@ -27,7 +27,6 @@ export default buildConfig({
       slug: 'media',
       upload: {
         staticDir: '/app/media',
-        staticURL: '/media',
         disableLocalStorage: false,
       },
       fields: [
