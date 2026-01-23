@@ -395,12 +395,6 @@ locals {
       MANUAL_SETUP   = "no"
       BACKUP_FILEID  = local.final_backup_uri != null ? local.final_backup_uri : ""
     } : {},
-    var.application_module == "nextcloud" ? {
-      DB_HOST              = local.db_internal_ip
-      POSTGRES_DB          = local.database_name_full
-      POSTGRES_USER        = local.database_user_full
-      NEXTCLOUD_ADMIN_USER = "admin"
-    } : {},
     var.application_module == "plane" ? {
       PGHOST                  = local.db_internal_ip
       PGDATABASE              = local.database_name_full
@@ -475,10 +469,6 @@ locals {
     } : {},
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
-    } : {},
-    var.application_module == "nextcloud" ? {
-      POSTGRES_PASSWORD        = try(google_secret_manager_secret.db_password[0].secret_id, "")
-      NEXTCLOUD_ADMIN_PASSWORD = try(google_secret_manager_secret.nextcloud_admin_password[0].secret_id, "")
     } : {},
     var.application_module == "ghost" ? {
       database__connection__password = try(google_secret_manager_secret.db_password[0].secret_id, "")
@@ -762,30 +752,6 @@ resource "google_secret_manager_secret_version" "plane_storage_secret_key" {
   count       = var.application_module == "plane" ? 1 : 0
   secret      = google_secret_manager_secret.plane_storage_secret_key[0].id
   secret_data = google_storage_hmac_key.plane_key[0].secret
-}
-
-# ==============================================================================
-# NEXTCLOUD SPECIFIC RESOURCES
-# ==============================================================================
-resource "random_password" "nextcloud_admin_password" {
-  count   = var.application_module == "nextcloud" ? 1 : 0
-  length  = 16
-  special = false
-}
-
-resource "google_secret_manager_secret" "nextcloud_admin_password" {
-  count     = var.application_module == "nextcloud" ? 1 : 0
-  secret_id = "${local.wrapper_prefix}-admin-password"
-  replication {
-    auto {}
-  }
-  project = var.existing_project_id
-}
-
-resource "google_secret_manager_secret_version" "nextcloud_admin_password" {
-  count       = var.application_module == "nextcloud" ? 1 : 0
-  secret      = google_secret_manager_secret.nextcloud_admin_password[0].id
-  secret_data = random_password.nextcloud_admin_password[0].result
 }
 
 # Django Post-Deployment Update (CSRF Origin)
