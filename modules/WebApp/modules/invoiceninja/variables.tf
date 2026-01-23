@@ -10,8 +10,14 @@ locals {
     app_name        = "invoiceninja"
     description     = "Invoice Ninja - Invoicing & Payments"
     container_image = "invoiceninja/invoiceninja:5"
-    image_source    = "prebuilt"
+    image_source    = "custom"
     container_port  = 80
+
+    container_build_config = {
+      enabled            = true
+      context_path       = "invoiceninja"
+      dockerfile_path    = "Dockerfile"
+    }
     database_type   = "MYSQL_8_0"
     db_name         = "invoiceninja"
     db_user         = "invoiceninja"
