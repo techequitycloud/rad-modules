@@ -434,6 +434,7 @@ locals {
       OE_USER        = "admin"
       MANUAL_SETUP   = "no"
       BACKUP_FILEID  = local.final_backup_uri != null ? local.final_backup_uri : ""
+      SWARM_MODE     = "yes"
     } : {},
     var.application_module == "plane" ? {
       PGHOST                  = local.db_internal_ip
@@ -530,6 +531,7 @@ locals {
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
       OE_PASS         = try(google_secret_manager_secret.openemr_admin_password[0].secret_id, "")
+      MYSQL_PASS      = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
     var.application_module == "ghost" ? {
       database__connection__password = try(google_secret_manager_secret.db_password[0].secret_id, "")
