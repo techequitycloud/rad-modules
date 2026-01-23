@@ -143,25 +143,25 @@ variable "availability_regions" {
 ################################################################################
 
 variable "create_postgres" {
-  description = "Select to create PostgreSQL database instance. {{UIMeta group=3 order=0 }}"
+  description = "Select to create PostgreSQL database instance. {{UIMeta group=4 order=0 }}"
   type        = bool
   default     = true
 }
 
 variable "create_mysql" {
-  description = "Select to create MySQL database instance. {{UIMeta group=3 order=1 }}"
+  description = "Select to create MySQL database instance. {{UIMeta group=4 order=1 }}"
   type        = bool
   default     = false
 }
 
 variable "create_redis" {
-  description = "Select to create Redis cache instance for application caching and session storage. {{UIMeta group=3 order=2 }}"
+  description = "Select to create Redis cache instance for application caching and session storage. {{UIMeta group=4 order=2 }}"
   type        = bool
   default     = false
 }
 
 variable "create_network_filesystem" {
-  description = "Select to create NFS server using Compute Engine instances for shared file storage. {{UIMeta group=3 order=3 }}"
+  description = "Select to create NFS server using Compute Engine instances for shared file storage. {{UIMeta group=4 order=3 }}"
   type        = bool
   default     = false
 }
