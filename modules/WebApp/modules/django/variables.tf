@@ -113,6 +113,7 @@ locals {
             END
             \$\$;
             ALTER ROLE "$DB_USER" CREATEDB;
+            GRANT "$DB_USER" TO postgres;
             GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
             EOF
 
@@ -128,6 +129,15 @@ locals {
             echo "Granting privileges..."
             export PGPASSWORD=$ROOT_PASSWORD
             psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
+
+            echo "Granting schema privileges (PG15+)..."
+            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d "$DB_NAME" <<EOF
+            GRANT ALL ON SCHEMA public TO "$DB_USER";
+            GRANT ALL ON ALL TABLES IN SCHEMA public TO "$DB_USER";
+            GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "$DB_USER";
+            GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO "$DB_USER";
+            ALTER DATABASE "$DB_NAME" OWNER TO "$DB_USER";
+            EOF
 
             echo "DB Init complete."
           EOT
