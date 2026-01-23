@@ -109,12 +109,6 @@ output "redis_server_ip" {
   value       = var.create_network_filesystem ? google_compute_address.static_internal_ip[0].address : null
 }
 
-# Output the NFS server IP (same as Redis since they're on the same VM)
-output "nfs_server_ip" {
-  description = "Internal IP address of the NFS server"
-  value       = var.create_network_filesystem ? google_compute_address.static_internal_ip[0].address : null
-}
-
 # Output Redis connection string
 output "redis_connection_string" {
   description = "Redis connection string for applications"
