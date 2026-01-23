@@ -10,6 +10,7 @@ locals {
     app_name        = "ghost"
     description     = "Ghost - Professional publishing platform"
     container_image = "ghost:5"
+    application_version = "5"
     image_source    = "prebuilt"
     container_port  = 2368
     database_type   = "MYSQL_8_0"
@@ -25,7 +26,14 @@ locals {
       name       = "ghost-content"
       mount_path = "/var/lib/ghost/content"
       read_only  = false
-      mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
+      mount_options = [
+        "implicit-dirs",
+        "metadata-cache-ttl-secs=60",
+        "uid=1000",
+        "gid=1000",
+        "dir-mode=777",
+        "file-mode=666"
+      ]
     }]
 
     # Resource limits
@@ -123,7 +131,7 @@ EOF
       enabled               = true
       type                  = "TCP"
       path                  = "/"
-      initial_delay_seconds = 60
+      initial_delay_seconds = 90
       timeout_seconds       = 10
       period_seconds        = 30
       failure_threshold     = 3
