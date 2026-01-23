@@ -26,7 +26,14 @@ data "external" "check_service_accounts" {
     # Function to check if service account exists
     check_sa() {
       local sa_id="$1"
-      if gcloud iam service-accounts describe "$sa_id@$PROJECT_ID.iam.gserviceaccount.com" --project="$PROJECT_ID" $SA_ARG >/dev/null 2>&1; then
+      local sa_email=""
+      if [[ "$sa_id" == *"@"* ]]; then
+        sa_email="$sa_id"
+      else
+        sa_email="$sa_id@$PROJECT_ID.iam.gserviceaccount.com"
+      fi
+
+      if gcloud iam service-accounts describe "$sa_email" --project="$PROJECT_ID" $SA_ARG >/dev/null 2>&1; then
         echo "true"
       else
         echo "false"
@@ -58,8 +65,8 @@ locals {
   cloud_run_sa_exists   = data.external.check_service_accounts.result["cloud_run_sa_exists"] == "true"
 
   # Service account email references (existing or newly created)
-  cloud_build_sa_email = "${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
-  cloud_run_sa_email   = "${local.cloudrun_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+  cloud_build_sa_email = can(regex("@", local.cloudbuild_sa)) ? local.cloudbuild_sa : "${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+  cloud_run_sa_email   = can(regex("@", local.cloudrun_sa)) ? local.cloudrun_sa : "${local.cloudrun_sa}@${local.project.project_id}.iam.gserviceaccount.com"
 
   # Service account resource IDs (required for IAM bindings)
   cloud_build_sa_id = "projects/${local.project.project_id}/serviceAccounts/${local.cloud_build_sa_email}"
