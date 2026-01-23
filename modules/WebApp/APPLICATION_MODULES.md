@@ -25,7 +25,6 @@ Simply select a module like `application_module = "odoo"` and the module automat
 | `django` | Django (Python 3.11) | PostgreSQL 15 | 2 CPU, 2Gi RAM |
 | `openemr` | OpenEMR 7.0.2 EHR | MySQL 8.0 | 2 CPU, 4Gi RAM |
 | `n8n` | n8n Workflow Automation | PostgreSQL 15 | 2 CPU, 4Gi RAM |
-| `nextcloud` | Nextcloud 28 File Sync | PostgreSQL 15 | 2 CPU, 4Gi RAM |
 
 ## Quick Start
 
@@ -236,26 +235,6 @@ application_module = "n8n"
 
 **Note**: For AI-powered n8n with Qdrant and Ollama, use the `N8N_AI_WebApp` wrapper module instead.
 
----
-
-### Nextcloud - File Sync and Share
-
-**Use Case**: Self-hosted file storage, collaboration, document management
-
-```hcl
-application_module = "nextcloud"
-```
-
-**What's Configured**:
-- Container: `nextcloud:28-apache` on port 80
-- Database: PostgreSQL 15 with Unix socket
-- Storage: Two GCS volumes - `/var/www/html/data` and `/var/www/html/config`
-- Resources: 2 CPU, 4Gi RAM
-- Scaling: 1-10 instances
-- Environment: `POSTGRES_HOST=/var/run/postgresql`
-
-**Best For**: Team collaboration, file sharing, document management
-
 ## How Modules Work
 
 ### Architecture
@@ -405,7 +384,7 @@ module "wordpress_with_backup" {
 
 **Error**: `Application module must be one of: odoo, wordpress, ...`
 
-**Solution**: Check spelling of module name. Valid values are: `odoo`, `wordpress`, `moodle`, `cyclos`, `django`, `openemr`, `n8n`, `nextcloud`.
+**Solution**: Check spelling of module name. Valid values are: `odoo`, `wordpress`, `moodle`, `cyclos`, `django`, `openemr`, `n8n`.
 
 ### Container Image Not Working
 
@@ -654,7 +633,7 @@ variable "application_module" {
   validation {
     condition = var.application_module == null || contains([
       "odoo", "wordpress", "moodle", "cyclos", "django",
-      "openemr", "n8n", "nextcloud", "myapp"  # Add new module
+      "openemr", "n8n", "myapp"  # Add new module
     ], var.application_module)
     error_message = "Application module must be one of: ..."
   }

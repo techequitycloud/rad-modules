@@ -5,16 +5,28 @@ locals {
   django_module = {
     app_name        = "django"
     description     = "Django Web Application - High-level Python web framework"
-    container_image = "python:3.11-slim"
+    container_image = "python:3.11-slim" # Placeholder, image built via custom build
     app_version     = "latest"
     image_source    = "custom"
-    container_port  = 8000
+
+    # Custom build configuration
+    container_build_config = {
+      enabled            = true
+      dockerfile_path    = "Dockerfile"
+      context_path       = "django"
+      dockerfile_content = null
+      build_args         = {}
+      artifact_repo_name = "webapp-repo"
+    }
+
+    container_port  = 8080
     database_type   = "POSTGRES_15"
     db_name         = "django"
     db_user         = "django"
     db_tier         = "db-f1-micro"
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
+
     gcs_volumes = [
       {
         bucket     = "$${tenant_id}-django-static"
@@ -27,16 +39,18 @@ locals {
         read_only  = false
       }
     ]
+
     container_resources = {
       cpu_limit    = "2000m"
       memory_limit = "2Gi"
     }
     min_instance_count = 1
     max_instance_count = 10
+
     environment_variables = {
-      DJANGO_SETTINGS_MODULE    = "myproject.settings.production"
+      DJANGO_SETTINGS_MODULE    = "myproject.settings"
       DEBUG                     = "False"
-      ALLOWED_HOSTS             = "*.run.app"
+      ALLOWED_HOSTS             = "*"
       DB_ENGINE                 = "django.db.backends.postgresql"
       DB_PORT                   = "5432"
       STATIC_ROOT               = "/app/static"
@@ -44,6 +58,7 @@ locals {
       DJANGO_SUPERUSER_EMAIL    = "admin@example.com"
       DJANGO_SUPERUSER_USERNAME = "admin"
     }
+
     enable_postgres_extensions = true
     postgres_extensions         = ["pg_trgm", "unaccent", "hstore", "citext"]
 

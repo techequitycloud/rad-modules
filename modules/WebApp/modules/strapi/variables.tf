@@ -10,8 +10,19 @@ locals {
     app_name        = "strapi"
     description     = "Strapi - Open source Node.js Headless CMS"
     # Strapi requires a custom built image.
-    container_image = "strapi/strapi"
+    container_image = ""
     image_source    = "custom"
+
+    # Custom build configuration
+    container_build_config = {
+      enabled            = true
+      dockerfile_path    = "Dockerfile"
+      context_path       = "strapi"
+      dockerfile_content = null
+      build_args         = {}
+      artifact_repo_name = "webapp-repo"
+    }
+
     container_port  = 1337
     database_type   = "POSTGRES_15"
     db_name         = "strapi"
@@ -27,7 +38,7 @@ locals {
         bucket_name   = null # Auto-generated based on suffix
         mount_path    = "/opt/app/public/uploads"
         read_only     = false
-        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
+        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60", "uid=1000", "gid=1000"]
       }
     ]
 
@@ -82,22 +93,27 @@ locals {
               END IF;
             END
             \$\$;
+            GRANT "$DB_USER" TO postgres;
             ALTER ROLE "$DB_USER" CREATEDB;
             GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
             EOF
 
             echo "Creating Database $DB_NAME if not exists..."
             if ! psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
-              echo "Database does not exist. Creating as $DB_USER..."
-              export PGPASSWORD=$DB_PASSWORD
-              psql -h "$TARGET_DB_HOST" -p 5432 -U $DB_USER -d postgres -c "CREATE DATABASE \"$DB_NAME\";"
+              echo "Database does not exist. Creating..."
+              # Create database with owner set to DB_USER
+              psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
             else
-              echo "Database $DB_NAME already exists."
+              echo "Database $DB_NAME already exists. Updating owner..."
+              psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
             fi
 
             echo "Granting privileges..."
             export PGPASSWORD=$ROOT_PASSWORD
             psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
+
+            echo "Granting schema permissions..."
+            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO \"$DB_USER\";"
 
             echo "DB Init complete."
           EOT

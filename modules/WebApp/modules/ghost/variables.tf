@@ -17,7 +17,7 @@ locals {
     db_user         = "ghost"
 
     # Performance optimization
-    enable_cloudsql_volume     = true
+    enable_cloudsql_volume     = false
     cloudsql_volume_mount_path = "/var/run/mysqld"
 
     # Storage volumes
@@ -43,8 +43,7 @@ locals {
 
       # Database Connection
       database__client = "mysql"
-      database__connection__host = "localhost"
-      database__connection__socketPath = "/var/run/mysqld/mysqld.sock"
+      database__connection__host = "127.0.0.1"
       database__connection__user = "ghost"
       database__connection__database = "ghost"
       # Password injected via secrets in main.tf
@@ -132,7 +131,7 @@ EOF
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
-      path                  = "/ghost/"
+      path                  = "/"
       initial_delay_seconds = 60
       timeout_seconds       = 10
       period_seconds        = 30

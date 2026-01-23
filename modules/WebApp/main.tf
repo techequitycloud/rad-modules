@@ -209,6 +209,17 @@ locals {
         public_access_prevention = "inherited"
       }
     ] : [],
+    var.application_module == "n8n" ? [
+      {
+        name_suffix              = "n8n-data"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : [],
     var.application_module == "ghost" ? [
       {
         name_suffix              = "ghost-content"
@@ -328,10 +339,12 @@ locals {
       DB_POSTGRESDB_DATABASE   = local.database_name_full
       DB_POSTGRESDB_USER       = local.database_user_full
       DB_POSTGRESDB_HOST       = local.db_internal_ip
-      N8N_DEFAULT_BINARY_DATA_MODE = "filesystem"
+      N8N_DEFAULT_BINARY_DATA_MODE = "s3"
       N8N_S3_ENDPOINT              = "https://storage.googleapis.com"
       N8N_S3_BUCKET_NAME           = try(google_storage_bucket.n8n_storage[0].name, "")
       N8N_S3_REGION                = var.deployment_region
+      WEBHOOK_URL                  = local.predicted_service_url
+      N8N_EDITOR_BASE_URL          = local.predicted_service_url
     } : {},
     var.application_module == "odoo" ? {
       HOST    = local.db_internal_ip
@@ -385,21 +398,22 @@ locals {
       MOODLE_DATA_DIR = "/var/moodledata"
       DATA_PATH       = "/var/moodledata"
     } : {},
+    var.application_module == "ghost" ? {
+      url                            = local.predicted_service_url
+      database__connection__host     = local.db_internal_ip
+      database__connection__user     = local.database_user_full
+      database__connection__database = local.database_name_full
+      database__connection__port     = "3306"
+      database__connection__socketPath = ""
+    } : {},
     var.application_module == "openemr" ? {
       MYSQL_DATABASE = local.database_name_full
       MYSQL_USER     = local.database_user_full
       MYSQL_HOST     = local.db_internal_ip
       MYSQL_PORT     = "3306"
       OE_USER        = "admin"
-      OE_PASS        = "admin"
       MANUAL_SETUP   = "no"
       BACKUP_FILEID  = local.final_backup_uri != null ? local.final_backup_uri : ""
-    } : {},
-    var.application_module == "nextcloud" ? {
-      DB_HOST              = local.db_internal_ip
-      POSTGRES_DB          = local.database_name_full
-      POSTGRES_USER        = local.database_user_full
-      NEXTCLOUD_ADMIN_USER = "admin"
     } : {},
     var.application_module == "plane" ? {
       PGHOST                  = local.db_internal_ip
@@ -410,6 +424,8 @@ locals {
       AWS_S3_ENDPOINT         = "https://storage.googleapis.com"
       AWS_S3_BUCKET_NAME      = try(local.storage_buckets["plane-uploads"].name, "")
       AWS_S3_FORCE_PATH_STYLE = "false"
+      WEB_URL                 = local.predicted_service_url
+      CORS_ALLOWED_ORIGINS    = local.predicted_service_url
     } : {},
     var.application_module == "medusa" ? {
       DB_HOST     = local.db_internal_ip
@@ -426,11 +442,17 @@ locals {
       PGPORT      = "5432"
       PGDATABASE  = local.database_name_full
       PGUSER      = local.database_user_full
+
+      # ✅ Server URL (Critical for Next.js/Payload behind Cloud Run proxy)
+      PAYLOAD_PUBLIC_SERVER_URL = local.predicted_service_url
+      NEXT_PUBLIC_SERVER_URL    = local.predicted_service_url
     } : {},
     var.application_module == "invoiceninja" ? {
-      DB_HOST     = local.db_internal_ip
-      DB_DATABASE = local.database_name_full
-      DB_USERNAME = local.database_user_full
+      DB_HOST         = local.db_internal_ip
+      DB_DATABASE     = local.database_name_full
+      DB_USERNAME     = local.database_user_full
+      APP_URL         = local.predicted_service_url
+      TRUSTED_PROXIES = "*"
     } : {},
     var.application_module == "strapi" ? {
       DATABASE_HOST     = local.db_internal_ip
@@ -475,10 +497,7 @@ locals {
     } : {},
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
-    } : {},
-    var.application_module == "nextcloud" ? {
-      POSTGRES_PASSWORD        = try(google_secret_manager_secret.db_password[0].secret_id, "")
-      NEXTCLOUD_ADMIN_PASSWORD = try(google_secret_manager_secret.nextcloud_admin_password[0].secret_id, "")
+      OE_PASS         = try(google_secret_manager_secret.openemr_admin_password[0].secret_id, "")
     } : {},
     var.application_module == "ghost" ? {
       database__connection__password = try(google_secret_manager_secret.db_password[0].secret_id, "")
@@ -490,6 +509,7 @@ locals {
       POSTGRES_PASSWORD     = try(google_secret_manager_secret.db_password[0].secret_id, "")
       AWS_ACCESS_KEY_ID     = try(google_secret_manager_secret.plane_storage_access_key[0].secret_id, "")
       AWS_SECRET_ACCESS_KEY = try(google_secret_manager_secret.plane_storage_secret_key[0].secret_id, "")
+      SECRET_KEY            = try(google_secret_manager_secret.plane_secret_key[0].secret_id, "")
     } : {},
     var.application_module == "medusa" ? {
       DB_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
@@ -764,28 +784,25 @@ resource "google_secret_manager_secret_version" "plane_storage_secret_key" {
   secret_data = google_storage_hmac_key.plane_key[0].secret
 }
 
-# ==============================================================================
-# NEXTCLOUD SPECIFIC RESOURCES
-# ==============================================================================
-resource "random_password" "nextcloud_admin_password" {
-  count   = var.application_module == "nextcloud" ? 1 : 0
-  length  = 16
+resource "random_password" "plane_secret_key" {
+  count   = var.application_module == "plane" ? 1 : 0
+  length  = 64
   special = false
 }
 
-resource "google_secret_manager_secret" "nextcloud_admin_password" {
-  count     = var.application_module == "nextcloud" ? 1 : 0
-  secret_id = "${local.wrapper_prefix}-admin-password"
+resource "google_secret_manager_secret" "plane_secret_key" {
+  count     = var.application_module == "plane" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-secret-key-app"
   replication {
     auto {}
   }
   project = var.existing_project_id
 }
 
-resource "google_secret_manager_secret_version" "nextcloud_admin_password" {
-  count       = var.application_module == "nextcloud" ? 1 : 0
-  secret      = google_secret_manager_secret.nextcloud_admin_password[0].id
-  secret_data = random_password.nextcloud_admin_password[0].result
+resource "google_secret_manager_secret_version" "plane_secret_key" {
+  count       = var.application_module == "plane" ? 1 : 0
+  secret      = google_secret_manager_secret.plane_secret_key[0].id
+  secret_data = random_password.plane_secret_key[0].result
 }
 
 # Django Post-Deployment Update (CSRF Origin)
@@ -1069,6 +1086,30 @@ output "deployment_info" {
     container_image  = local.container_image
     regions          = local.regions
   }
+}
+
+# ==============================================================================
+# OPENEMR SPECIFIC RESOURCES
+# ==============================================================================
+resource "random_password" "openemr_admin_password" {
+  count   = var.application_module == "openemr" ? 1 : 0
+  length  = 20
+  special = false
+}
+
+resource "google_secret_manager_secret" "openemr_admin_password" {
+  count     = var.application_module == "openemr" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-admin-password"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "openemr_admin_password" {
+  count       = var.application_module == "openemr" ? 1 : 0
+  secret      = google_secret_manager_secret.openemr_admin_password[0].id
+  secret_data = random_password.openemr_admin_password[0].result
 }
 
 # ==============================================================================

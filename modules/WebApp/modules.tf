@@ -64,10 +64,6 @@ module "n8n_module" {
   source = "./modules/n8n"
 }
 
-module "nextcloud_module" {
-  source = "./modules/nextcloud"
-}
-
 module "ghost_module" {
   source = "./modules/ghost"
 }
@@ -110,7 +106,6 @@ locals {
     django    = module.django_module.django_module
     openemr   = module.openemr_module.openemr_module
     n8n       = module.n8n_module.n8n_module
-    nextcloud = module.nextcloud_module.nextcloud_module
     ghost     = module.ghost_module.ghost_module
     wikijs    = module.wikijs_module.wikijs_module
     plane     = module.plane_module.plane_module
