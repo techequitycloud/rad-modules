@@ -75,10 +75,6 @@ module "wikijs_module" {
 module "medusa_module" {
   source = "./modules/medusa"
 }
-
-module "invoiceninja_module" {
-  source = "./modules/invoiceninja"
-}
   
 module "strapi_module" {
   source = "./modules/strapi"
@@ -105,7 +101,6 @@ locals {
     ghost     = module.ghost_module.ghost_module
     wikijs    = module.wikijs_module.wikijs_module
     medusa    = module.medusa_module.medusa_module
-    invoiceninja = module.invoiceninja_module.invoiceninja_module
     strapi    = module.strapi_module.strapi_module
     directus  = module.directus_module.directus_module
   }
