@@ -11,7 +11,18 @@ locals {
     description     = "Ghost - Professional publishing platform"
     container_image = "ghost:5"
     application_version = "5"
-    image_source    = "prebuilt"
+    image_source    = "custom"
+
+    # Custom build configuration to handle dynamic URL detection
+    container_build_config = {
+      enabled            = true
+      dockerfile_path    = "Dockerfile"
+      context_path       = "ghost"
+      dockerfile_content = null
+      build_args         = {}
+      artifact_repo_name = "webapp-repo"
+    }
+
     container_port  = 2368
     database_type   = "MYSQL_8_0"
     db_name         = "ghost"
