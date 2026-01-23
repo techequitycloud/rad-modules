@@ -153,8 +153,8 @@ locals {
   module_application_database_user = local.using_module && local.selected_module != null ? try(local.selected_module.db_user, null) : null
 
   # Cloud SQL volume configuration
-  module_enable_cloudsql_volume     = local.using_module && local.selected_module != null ? local.selected_module.enable_cloudsql_volume : null
-  module_cloudsql_volume_mount_path = local.using_module && local.selected_module != null ? local.selected_module.cloudsql_volume_mount_path : null
+  module_enable_cloudsql_volume     = local.using_module && local.selected_module != null ? try(local.selected_module.enable_cloudsql_volume, null) : null
+  module_cloudsql_volume_mount_path = local.using_module && local.selected_module != null ? try(local.selected_module.cloudsql_volume_mount_path, null) : null
 
   # NFS configuration
   module_nfs_enabled    = local.using_module && local.selected_module != null ? try(local.selected_module.nfs_enabled, null) : null
