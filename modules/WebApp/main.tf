@@ -190,6 +190,26 @@ locals {
         public_access_prevention = "inherited"
       }
     ] : [],
+    var.application_module == "django" ? [
+      {
+        name_suffix              = "django-static"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      },
+      {
+        name_suffix              = "django-media"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
+      }
+    ] : [],
     var.application_module == "wordpress" ? [
       {
         name_suffix              = "wp-uploads"
@@ -522,6 +542,9 @@ locals {
     } : {},
     var.application_module == "wordpress" ? {
       WORDPRESS_DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
+    } : {},
+    var.application_module == "django" ? {
+      DJANGO_SUPERUSER_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
     # ✅ UPDATED: Moodle secret environment variables
     var.application_module == "moodle" ? {
