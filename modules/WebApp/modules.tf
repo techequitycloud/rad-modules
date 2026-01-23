@@ -76,10 +76,6 @@ module "medusa_module" {
   source = "./modules/medusa"
 }
 
-module "payload_module" {
-  source = "./modules/payload"
-}
-
 module "invoiceninja_module" {
   source = "./modules/invoiceninja"
 }
@@ -113,7 +109,6 @@ locals {
     ghost     = module.ghost_module.ghost_module
     wikijs    = module.wikijs_module.wikijs_module
     medusa    = module.medusa_module.medusa_module
-    payload   = module.payload_module.payload_module
     invoiceninja = module.invoiceninja_module.invoiceninja_module
     strapi    = module.strapi_module.strapi_module
     sanity    = module.sanity_module.sanity_module

@@ -48,7 +48,6 @@ To deploy a supported application, set `deploy_app_preset` to the desired applic
 - `n8n`
 - `odoo`
 - `openemr`
-- `payload`
 - `sanity`
 - `strapi`
 - `wikijs`
@@ -126,7 +125,6 @@ Each preset applies specific configurations. You can override any of these by pa
 | `n8n` | Postgres | 5678 | HTTP | Mounts `/cloudsql`. |
 | `odoo` | Postgres | 8069 | TCP / HTTP | Mounts NFS at `/mnt`. |
 | `openemr` | MySQL | 80 | TCP / HTTP | Mounts NFS at `/var/www/localhost/htdocs/openemr/sites`. |
-| `payload` | Postgres | 3000 | TCP / HTTP | Requires `PAYLOAD_SECRET` secret |
 | `sanity` | None | 8080 | TCP / HTTP | **Requires `SANITY_STUDIO_PROJECT_ID` env var** |
 | `strapi` | Postgres | 1337 | TCP / HTTP | Requires multiple JWT/API secrets |
 | `wikijs` | Postgres | 3000 | TCP / HTTP | |
