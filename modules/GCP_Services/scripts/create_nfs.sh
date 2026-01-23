@@ -55,14 +55,34 @@ if [[ ! $(grep -qs "$MNT_DIR " /proc/mounts) ]]; then
     sudo chmod a+w $MNT_DIR
 fi
 
-# Configure Redis to use LOCAL STORAGE (not NFS)
-echo "Configuring Redis for optimal performance on local storage..."
+# NFS Configuration (for shared storage)
+sudo sed -i 's/^STATDOPTS=.*/STATDOPTS="-p 2046"/' /etc/default/nfs-common
+sudo touch /etc/modprobe.d/lock.conf
+sudo grep -qxF "options lockd nlm_tcpport=4045" /etc/modprobe.d/lock.conf || echo "options lockd nlm_tcpport=4045" | sudo tee -a /etc/modprobe.d/lock.conf
+sudo grep -qxF "options lockd nlm_udpport=4045" /etc/modprobe.d/lock.conf || echo "options lockd nlm_udpport=4045" | sudo tee -a /etc/modprobe.d/lock.conf
 
-# Create Redis data directory on LOCAL filesystem (not NFS)
-REDIS_DATA_DIR="/var/lib/redis-local"
-sudo mkdir -p $REDIS_DATA_DIR
-sudo chown redis:redis $REDIS_DATA_DIR
-sudo chmod 755 $REDIS_DATA_DIR
+# Set permissions for NFS share, excluding 'redis' directory if it exists
+# This prevents overwriting Redis permissions on reboot
+sudo chown nobody:nogroup "$MNT_DIR"
+sudo chmod 775 "$MNT_DIR"
+# Apply recursively only to files/dirs that are NOT 'redis'
+sudo find "$MNT_DIR" -mindepth 1 -maxdepth 1 -not -name 'redis' -exec chown -R nobody:nogroup {} +
+sudo find "$MNT_DIR" -mindepth 1 -maxdepth 1 -not -name 'redis' -exec chmod -R 775 {} +
+
+sudo chmod 777 /etc/exports
+# sudo grep -qxF '/share *(rw,sync,all_squash,no_subtree_check)' /etc/exports || echo '/share *(rw,sync,all_squash,no_subtree_check)' | sudo tee -a /etc/exports > /dev/null # Use this option to disallow root priviledges 
+sudo grep -qxF '/share *(rw,sync,no_root_squash,no_subtree_check)' /etc/exports || echo '/share *(rw,sync,no_root_squash,no_subtree_check)' | sudo tee -a /etc/exports > /dev/null
+sudo systemctl restart nfs-kernel-server
+sudo exportfs
+
+# Configure Redis to use STATEFUL STORAGE (on NFS disk)
+echo "Configuring Redis for optimal performance on stateful storage..."
+
+# Create Redis data directory on STATEFUL filesystem (NFS disk)
+REDIS_DATA_DIR="$MNT_DIR/redis"
+sudo mkdir -p "$REDIS_DATA_DIR"
+sudo chown redis:redis "$REDIS_DATA_DIR"
+sudo chmod 755 "$REDIS_DATA_DIR"
 
 # Stop Redis before configuration changes
 sudo systemctl stop redis-server
@@ -72,14 +92,14 @@ sudo cp /etc/redis/redis.conf /etc/redis/redis.conf.backup
 
 # Configure Redis for optimal local storage performance
 sudo tee /etc/redis/redis.conf.local > /dev/null << 'EOF'
-# Redis configuration optimized for local storage
+# Redis configuration optimized for stateful storage
 bind 0.0.0.0
 port 6379
 timeout 0
 tcp-keepalive 300
 
-# Use local storage directory (NOT NFS)
-dir /var/lib/redis-local
+# Use stateful storage directory (on data disk)
+dir /share/redis
 
 # Persistence settings optimized for local disk
 save 900 1
@@ -123,7 +143,7 @@ sleep 3
 
 # Verify Redis is running and using correct directory
 if sudo systemctl is-active --quiet redis-server; then
-    echo "✅ Redis is running successfully on LOCAL storage"
+    echo "✅ Redis is running successfully on STATEFUL storage"
     echo "📁 Redis data directory: $REDIS_DATA_DIR"
     echo "📊 Redis info:"
     redis-cli info server | grep redis_version
@@ -136,25 +156,12 @@ else
     sudo journalctl -u redis-server --no-pager -n 10
 fi
 
-# NFS Configuration (for shared storage, not Redis)
-sudo sed -i 's/^STATDOPTS=.*/STATDOPTS="-p 2046"/' /etc/default/nfs-common
-sudo touch /etc/modprobe.d/lock.conf
-sudo grep -qxF "options lockd nlm_tcpport=4045" /etc/modprobe.d/lock.conf || echo "options lockd nlm_tcpport=4045" | sudo tee -a /etc/modprobe.d/lock.conf
-sudo grep -qxF "options lockd nlm_udpport=4045" /etc/modprobe.d/lock.conf || echo "options lockd nlm_udpport=4045" | sudo tee -a /etc/modprobe.d/lock.conf
-sudo chmod -R 775 $MNT_DIR
-sudo chown -R nobody:nogroup $MNT_DIR
-sudo chmod 777 /etc/exports
-# sudo grep -qxF '/share *(rw,sync,all_squash,no_subtree_check)' /etc/exports || echo '/share *(rw,sync,all_squash,no_subtree_check)' | sudo tee -a /etc/exports > /dev/null # Use this option to disallow root priviledges 
-sudo grep -qxF '/share *(rw,sync,no_root_squash,no_subtree_check)' /etc/exports || echo '/share *(rw,sync,no_root_squash,no_subtree_check)' | sudo tee -a /etc/exports > /dev/null
-sudo systemctl restart nfs-kernel-server
-sudo exportfs
-
 echo ""
 echo "🎉 Startup script completed successfully!"
 echo "📁 NFS share directory: $MNT_DIR (for shared files)"
-echo "🔴 Redis data directory: $REDIS_DATA_DIR (LOCAL storage for performance)"
+echo "🔴 Redis data directory: $REDIS_DATA_DIR (STATEFUL storage)"
 echo "🟢 Redis status: $(sudo systemctl is-active redis-server)"
 echo ""
-echo "⚠️  IMPORTANT: Redis is using LOCAL storage for optimal performance"
-echo "   - Redis data: $REDIS_DATA_DIR (local disk)"
+echo "⚠️  IMPORTANT: Redis is using STATEFUL storage"
+echo "   - Redis data: $REDIS_DATA_DIR (data disk)"
 echo "   - Shared files: $MNT_DIR (NFS for file sharing)"
