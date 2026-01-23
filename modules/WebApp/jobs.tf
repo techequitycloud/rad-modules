@@ -78,7 +78,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
     template {
       service_account       = local.cloud_run_sa_email
       max_retries           = 0
-      timeout               = "120s"
+      timeout               = "600s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
@@ -120,7 +120,6 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
           chmod 777 "$${TARGET_DIR}" 2>/dev/null || echo "Warning: chmod on target failed"
           
           echo "NFS setup complete for deployment: $${DIR_NAME}"
-          ls -la "$${TARGET_DIR}" 2>/dev/null || echo "Directory created successfully"
           
           # Ensure clean exit
           sync
@@ -179,8 +178,8 @@ resource "null_resource" "execute_nfs_setup_job" {
 
       sleep 10
 
-      # Execute with 90s timeout
-      timeout 90 gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
+      # Execute with 660s timeout
+      timeout 660 gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         $IMPERSONATE_FLAG \
