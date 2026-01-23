@@ -18,6 +18,59 @@ locals {
     # Enable image mirroring because artifacts.plane.so is not supported by Cloud Run
     enable_image_mirroring = true
 
+    # Use custom entrypoint to construct required environment variables
+    container_command = ["/bin/bash", "-c"]
+    container_args = [
+      <<-EOT
+        #!/bin/bash
+        set -e
+
+        echo "=== Plane AIO Commercial Startup Wrapper ==="
+
+        # Construct DOMAIN_NAME from WEB_URL
+        export DOMAIN_NAME=$(echo "$WEB_URL" | sed -e 's|^[^/]*//||' -e 's|/.*$||')
+
+        # Construct DATABASE_URL from PostgreSQL components
+        export DATABASE_URL="postgresql://$PGUSER:$PGPASSWORD@$PGHOST:$POSTGRES_PORT/$PGDATABASE"
+
+        # Construct REDIS_URL (using localhost - embedded in AIO)
+        export REDIS_URL="redis://$REDIS_HOST:$REDIS_PORT"
+
+        # Construct AMQP_URL (using localhost - embedded in AIO)
+        export AMQP_URL="amqp://$RABBITMQ_USER:$RABBITMQ_PASSWORD@$RABBITMQ_HOST:$RABBITMQ_PORT/$RABBITMQ_VHOST"
+
+        echo "✓ Environment variables configured:"
+        echo "  DOMAIN_NAME: $DOMAIN_NAME"
+        echo "  DATABASE_URL: postgresql://***:***@$PGHOST:$POSTGRES_PORT/$PGDATABASE"
+        echo "  REDIS_URL: $REDIS_URL"
+        echo "  AMQP_URL: amqp://***:***@$RABBITMQ_HOST:$RABBITMQ_PORT/"
+        echo "  AWS_S3_BUCKET: $AWS_S3_BUCKET_NAME"
+        echo "=========================================="
+
+        # Try to find and execute the original Plane entrypoint
+        if [ -f "/docker-entrypoint.sh" ]; then
+          echo "Using /docker-entrypoint.sh"
+          exec /docker-entrypoint.sh
+        elif [ -f "/bin/docker-entrypoint-api.sh" ]; then
+          echo "Using /bin/docker-entrypoint-api.sh"
+          exec /bin/docker-entrypoint-api.sh
+        elif [ -f "/usr/local/bin/docker-entrypoint.sh" ]; then
+          echo "Using /usr/local/bin/docker-entrypoint.sh"
+          exec /usr/local/bin/docker-entrypoint.sh
+        elif [ -f "/app/docker-entrypoint.sh" ]; then
+          echo "Using /app/docker-entrypoint.sh"
+          exec /app/docker-entrypoint.sh
+        else
+          echo "ERROR: Could not find Plane entrypoint script"
+          echo "Listing root directory:"
+          ls -la /
+          echo "Listing /bin directory:"
+          ls -la /bin/ | grep -i entry || echo "No entrypoint files found"
+          exit 1
+        fi
+      EOT
+    ]
+
     # Storage - Handled via S3 compatibility in main.tf (HMAC keys)
     # We do NOT mount GCS volumes as files here because we use S3 API.
     gcs_volumes = []
@@ -34,6 +87,11 @@ locals {
       # Redis and RabbitMQ are internal in AIO image
       REDIS_HOST           = "localhost"
       REDIS_PORT           = "6379"
+      RABBITMQ_HOST        = "localhost"
+      RABBITMQ_PORT        = "5672"
+      RABBITMQ_USER        = "guest"
+      RABBITMQ_PASSWORD    = "guest"
+      RABBITMQ_VHOST       = ""
       # Plane specific configuration
       ENABLE_SIGNUP        = "true"
       # WEB_URL and CORS_ALLOWED_ORIGINS are injected dynamically in main.tf
@@ -110,18 +168,18 @@ locals {
       enabled               = true
       type                  = "TCP"
       path                  = "/"
-      initial_delay_seconds = 60
-      timeout_seconds       = 5
-      period_seconds        = 10
-      failure_threshold     = 3
+      initial_delay_seconds = 120  # Increased from 60s - Plane needs time to start Redis, RabbitMQ, and run migrations
+      timeout_seconds       = 10   # Increased from 5s
+      period_seconds        = 15   # Increased from 10s
+      failure_threshold     = 10   # Increased from 3 - allows up to 150s of failed checks (total 270s window)
     }
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
       path                  = "/"
-      initial_delay_seconds = 90
-      timeout_seconds       = 5
-      period_seconds        = 30
+      initial_delay_seconds = 300  # Increased from 90s - wait until app is fully initialized
+      timeout_seconds       = 10   # Increased from 5s
+      period_seconds        = 60   # Increased from 30s
       failure_threshold     = 3
     }
   }
