@@ -205,7 +205,7 @@ variable "application_module" {
     condition = var.application_module == null || var.application_module == "" || contains([
       "odoo", "wordpress", "moodle", "cyclos", "django", "openemr", "n8n", "ghost", "wikijs", "plane", "sanity"
     ], var.application_module)
-    error_message = "Application module must be one of: odoo, wordpress, moodle, cyclos, django, openemr, n8n, ghost, wikijs, plane, sanity, or leave empty for manual configuration."
+    error_message = "Application module must be one of: odoo, wordpress, moodle, cyclos, django, openemr, n8n, ghost, wikijs, plane, directus, sanity, or leave empty for manual configuration."
   }
 }
 
