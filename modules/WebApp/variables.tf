@@ -203,9 +203,9 @@ variable "application_module" {
 
   validation {
     condition = var.application_module == null || var.application_module == "" || contains([
-      "odoo", "wordpress", "moodle", "cyclos", "django", "openemr", "n8n", "ghost", "wikijs", "plane"
+      "odoo", "wordpress", "moodle", "cyclos", "django", "openemr", "n8n", "ghost", "wikijs", "plane", "directus"
     ], var.application_module)
-    error_message = "Application module must be one of: odoo, wordpress, moodle, cyclos, django, openemr, n8n, ghost, wikijs, plane, or leave empty for manual configuration."
+    error_message = "Application module must be one of: odoo, wordpress, moodle, cyclos, django, openemr, n8n, ghost, wikijs, plane, directus, or leave empty for manual configuration."
   }
 }
 

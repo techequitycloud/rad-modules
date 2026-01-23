@@ -92,6 +92,10 @@ module "strapi_module" {
   source = "./modules/strapi"
 }
 
+module "directus_module" {
+  source = "./modules/directus"
+}
+
 #########################################################################
 # Application Modules Map
 #########################################################################
@@ -113,6 +117,7 @@ locals {
     payload   = module.payload_module.payload_module
     invoiceninja = module.invoiceninja_module.invoiceninja_module
     strapi    = module.strapi_module.strapi_module
+    directus  = module.directus_module.directus_module
   }
 
   #########################################################################
