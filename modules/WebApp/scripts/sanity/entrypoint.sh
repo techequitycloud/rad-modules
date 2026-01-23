@@ -1,7 +1,7 @@
 #!/bin/sh
 
 INDEX_FILE="/usr/share/nginx/html/index.html"
-STATIC_DIR="/usr/share/nginx/html/static"
+SEARCH_DIR="/usr/share/nginx/html"
 
 # 1. Handle index.html injection
 # Check if the placeholder exists in the file
@@ -20,12 +20,13 @@ else
 fi
 
 # 2. Fallback: Replace hardcoded placeholders in JS bundles
-# This handles cases where the application code uses the fallback value directly
-if [ -d "$STATIC_DIR" ]; then
-    echo "Scanning static files for hardcoded placeholders..."
-    find "$STATIC_DIR" -name "*.js" -type f -exec sed -i "s|placeholder-project-id|${SANITY_STUDIO_PROJECT_ID}|g" {} +
+# This handles cases where the application code uses the fallback value directly (e.g., if window.SANITY_CONFIG is missing)
+# We search recursively in the web root because Vite/Sanity output structure can vary (e.g. assets vs static)
+if [ -d "$SEARCH_DIR" ]; then
+    echo "Scanning all files in $SEARCH_DIR for hardcoded placeholders..."
+    find "$SEARCH_DIR" -type f -name "*.js" -exec sed -i "s|placeholder-project-id|${SANITY_STUDIO_PROJECT_ID}|g" {} +
 else
-    echo "Static directory not found at $STATIC_DIR. Skipping JS replacement."
+    echo "Directory $SEARCH_DIR not found. Skipping JS replacement."
 fi
 
 echo "Starting Sanity Studio..."
