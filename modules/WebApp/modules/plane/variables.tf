@@ -75,6 +75,7 @@ locals {
             \$\$;
             ALTER ROLE "$DB_USER" CREATEDB;
             ALTER ROLE "$DB_USER" INHERIT;
+            GRANT "$DB_USER" TO postgres;
             GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
             EOF
 
