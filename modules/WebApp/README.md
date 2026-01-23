@@ -48,7 +48,6 @@ To deploy a supported application, set `deploy_app_preset` to the desired applic
 - `n8n`
 - `odoo`
 - `openemr`
-- `sanity`
 - `strapi`
 - `wikijs`
 - `wordpress`
@@ -88,27 +87,6 @@ module "django" {
 }
 ```
 
-**Example: Deploying Sanity CMS**
-
-```hcl
-module "sanity" {
-  source = "./modules/WebApp"
-
-  deploy_app_preset = "sanity"
-
-  existing_project_id  = "my-project"
-  tenant_deployment_id = "prod"
-
-  # Required: Sanity project ID from sanity.io
-  environment_variables = {
-    SANITY_STUDIO_PROJECT_ID = "your-sanity-project-id"
-    SANITY_STUDIO_DATASET    = "production"  # Optional: defaults to "production"
-  }
-}
-```
-
-**Note:** For Sanity CMS, you must obtain a project ID from [sanity.io](https://www.sanity.io/) and pass it via `environment_variables`. Without a valid `SANITY_STUDIO_PROJECT_ID`, the Sanity Studio will fail to initialize.
-
 ## Presets Configuration
 
 Each preset applies specific configurations. You can override any of these by passing the corresponding variable explicitly.
@@ -125,7 +103,6 @@ Each preset applies specific configurations. You can override any of these by pa
 | `n8n` | Postgres | 5678 | HTTP | Mounts `/cloudsql`. |
 | `odoo` | Postgres | 8069 | TCP / HTTP | Mounts NFS at `/mnt`. |
 | `openemr` | MySQL | 80 | TCP / HTTP | Mounts NFS at `/var/www/localhost/htdocs/openemr/sites`. |
-| `sanity` | None | 8080 | TCP / HTTP | **Requires `SANITY_STUDIO_PROJECT_ID` env var** |
 | `strapi` | Postgres | 1337 | TCP / HTTP | Requires multiple JWT/API secrets |
 | `wikijs` | Postgres | 3000 | TCP / HTTP | |
 | `wordpress` | MySQL | 80 | TCP / HTTP | |

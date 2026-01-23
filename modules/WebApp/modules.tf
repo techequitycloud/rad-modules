@@ -83,10 +83,6 @@ module "invoiceninja_module" {
 module "strapi_module" {
   source = "./modules/strapi"
 }
-
-module "sanity_module" {
-  source = "./modules/sanity"
-}
   
 module "directus_module" {
   source = "./modules/directus"
@@ -111,7 +107,6 @@ locals {
     medusa    = module.medusa_module.medusa_module
     invoiceninja = module.invoiceninja_module.invoiceninja_module
     strapi    = module.strapi_module.strapi_module
-    sanity    = module.sanity_module.sanity_module
     directus  = module.directus_module.directus_module
   }
 
