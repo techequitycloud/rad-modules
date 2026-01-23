@@ -385,6 +385,14 @@ locals {
       MOODLE_DATA_DIR = "/var/moodledata"
       DATA_PATH       = "/var/moodledata"
     } : {},
+    var.application_module == "ghost" ? {
+      url                            = local.predicted_service_url
+      database__connection__host     = local.db_internal_ip
+      database__connection__user     = local.database_user_full
+      database__connection__database = local.database_name_full
+      database__connection__port     = "3306"
+      database__connection__socketPath = ""
+    } : {},
     var.application_module == "openemr" ? {
       MYSQL_DATABASE = local.database_name_full
       MYSQL_USER     = local.database_user_full
