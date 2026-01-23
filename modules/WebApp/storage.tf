@@ -38,6 +38,9 @@ resource "google_storage_bucket" "buckets" {
   # Public access prevention
   public_access_prevention = each.value.public_access_prevention
 
+  # Uniform bucket level access
+  uniform_bucket_level_access = each.value.uniform_bucket_level_access
+
   # Lifecycle rules
   dynamic "lifecycle_rule" {
     for_each = each.value.lifecycle_rules
