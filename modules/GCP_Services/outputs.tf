@@ -104,13 +104,13 @@ output "vpc_network_id" {
 #########################################################################
 
 # Output the Redis server IP for applications to connect
-output "redis_server_ip" {
+output "redis_on_nfs_server_ip" {
   description = "Internal IP address of the Redis server"
   value       = var.create_network_filesystem ? google_compute_address.static_internal_ip[0].address : null
 }
 
 # Output Redis connection string
-output "redis_connection_string" {
+output "redis_on_nfs_connection_string" {
   description = "Redis connection string for applications"
   value       = var.create_network_filesystem ? "redis://${google_compute_address.static_internal_ip[0].address}:6379" : null
 }
