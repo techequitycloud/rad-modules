@@ -492,10 +492,6 @@ locals {
       CORS_ENABLED           = "true"
       CORS_ORIGIN            = local.predicted_service_url
       ADMIN_EMAIL            = try(local.final_environment_variables["ADMIN_EMAIL"], "admin@example.com")
-    } : {},
-    var.application_module == "sanity" ? {
-      SANITY_STUDIO_PROJECT_ID = try(local.final_environment_variables["SANITY_STUDIO_PROJECT_ID"], "")
-      SANITY_STUDIO_DATASET    = try(local.final_environment_variables["SANITY_STUDIO_DATASET"], "production")
     } : {}
   )
 
