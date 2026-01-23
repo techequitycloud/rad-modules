@@ -188,6 +188,15 @@ locals {
         versioning_enabled       = false
         lifecycle_rules          = []
         public_access_prevention = "inherited"
+      },
+      {
+        name_suffix              = "odoo-filestore"
+        location                 = var.deployment_region
+        storage_class            = "STANDARD"
+        force_destroy            = true
+        versioning_enabled       = false
+        lifecycle_rules          = []
+        public_access_prevention = "inherited"
       }
     ] : [],
     var.application_module == "django" ? [
