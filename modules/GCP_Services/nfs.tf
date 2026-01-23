@@ -16,7 +16,7 @@
 # Local variables for NFS infrastructure existence checks
 #########################################################################
 
-# Random suffix for new NFS/Redis resources to avoid naming conflicts
+# Random suffix for new NFS resources to avoid naming conflicts
 resource "random_string" "nfs_suffix" {
   count   = var.create_network_filesystem ? 1 : 0  
   length  = 4
@@ -27,7 +27,7 @@ resource "random_string" "nfs_suffix" {
 #########################################################################
 # Reserve static IP
 #########################################################################
-# Allocate a static internal IP address for NFS/Redis server
+# Allocate a static internal IP address for NFS server
 resource "google_compute_address" "static_internal_ip" {
   count        = var.create_network_filesystem ? 1 : 0  
   project      = local.project.project_id                  
@@ -46,14 +46,14 @@ resource "google_compute_address" "static_internal_ip" {
 # Creating GCE VMs in VPC
 #########################################################################
 
-# Define an instance template for NFS/Redis server VMs
+# Define an instance template for NFS server VMs
 resource "google_compute_instance_template" "nfs_server" {
   count                     = var.create_network_filesystem ? 1 : 0  
   project                   = local.project.project_id                  
   region                    = local.region                              
   name                      = "nfsserver-tpl-${random_string.nfs_suffix[0].result}"                           
   machine_type              = var.network_filesystem_machine                           
-  metadata_startup_script   = file("${path.module}/scripts/create_nfs_redis.sh") 
+  metadata_startup_script   = file("${path.module}/scripts/create_nfs.sh") 
   tags                      = ["nfsserver", "redisserver"]
 
   metadata = {
@@ -99,7 +99,7 @@ resource "google_compute_instance_template" "nfs_server" {
 # Managed Instance Group
 #########################################################################
 
-# Define a managed instance group for NFS/Redis servers
+# Define a managed instance group for NFS servers
 resource "google_compute_instance_group_manager" "nfs_server" {
   count               = var.create_network_filesystem ? 1 : 0  
   project             = local.project.project_id               
@@ -294,26 +294,4 @@ data "google_compute_instance_group" "nfs_server_group" {
   depends_on = [
     time_sleep.wait_30_seconds
   ]
-}
-
-#########################################################################
-# Outputs
-#########################################################################
-
-# Output the Redis server IP for applications to connect
-output "redis_server_ip" {
-  description = "Internal IP address of the Redis server"
-  value       = var.create_network_filesystem ? google_compute_address.static_internal_ip[0].address : null
-}
-
-# Output the NFS server IP (same as Redis since they're on the same VM)
-output "nfs_server_ip" {
-  description = "Internal IP address of the NFS server"
-  value       = var.create_network_filesystem ? google_compute_address.static_internal_ip[0].address : null
-}
-
-# Output Redis connection string
-output "redis_connection_string" {
-  description = "Redis connection string for applications"
-  value       = var.create_network_filesystem ? "redis://${google_compute_address.static_internal_ip[0].address}:6379" : null
 }
