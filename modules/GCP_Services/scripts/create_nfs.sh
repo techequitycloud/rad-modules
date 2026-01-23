@@ -16,7 +16,7 @@
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 
-sudo apt-get update >/dev/null && sudo apt install -y -q nfs-kernel-server python3 python3-pip unzip wget curl postgresql-client-16 mysql-client zip >/dev/null
+sudo apt-get update >/dev/null && sudo apt install -y -q nfs-kernel-server python3 python3-pip unzip wget curl postgresql-client-16 mysql-client zip redis-server >/dev/null
 
 # Install gdown with proper error checking
 echo "Installing gdown..."
@@ -35,6 +35,7 @@ fi
 
 echo "Installation complete! gdown is ready to use."
 
+# Setup local disk for NFS share
 DISK_ID=/dev/sdb
 MNT_DIR=/share
 sudo mkdir -p $MNT_DIR
@@ -53,6 +54,89 @@ if [[ ! $(grep -qs "$MNT_DIR " /proc/mounts) ]]; then
     sudo mount $MNT_DIR
     sudo chmod a+w $MNT_DIR
 fi
+
+# Configure Redis to use LOCAL STORAGE (not NFS)
+echo "Configuring Redis for optimal performance on local storage..."
+
+# Create Redis data directory on LOCAL filesystem (not NFS)
+REDIS_DATA_DIR="/var/lib/redis-local"
+sudo mkdir -p $REDIS_DATA_DIR
+sudo chown redis:redis $REDIS_DATA_DIR
+sudo chmod 755 $REDIS_DATA_DIR
+
+# Stop Redis before configuration changes
+sudo systemctl stop redis-server
+
+# Backup original Redis configuration
+sudo cp /etc/redis/redis.conf /etc/redis/redis.conf.backup
+
+# Configure Redis for optimal local storage performance
+sudo tee /etc/redis/redis.conf.local > /dev/null << 'EOF'
+# Redis configuration optimized for local storage
+bind 127.0.0.1 ::1
+port 6379
+timeout 0
+tcp-keepalive 300
+
+# Use local storage directory (NOT NFS)
+dir /var/lib/redis-local
+
+# Persistence settings optimized for local disk
+save 900 1
+save 300 10  
+save 60 10000
+
+# AOF settings for better durability on local storage
+appendonly yes
+appendfilename "appendonly.aof"
+appendfsync everysec
+no-appendfsync-on-rewrite no
+auto-aof-rewrite-percentage 100
+auto-aof-rewrite-min-size 64mb
+
+# Memory and performance optimizations
+maxmemory-policy allkeys-lru
+tcp-backlog 511
+databases 16
+
+# Logging
+loglevel notice
+logfile /var/log/redis/redis-server.log
+
+# Security
+protected-mode yes
+EOF
+
+# Replace the Redis configuration
+sudo mv /etc/redis/redis.conf.local /etc/redis/redis.conf
+
+# Create log directory
+sudo mkdir -p /var/log/redis
+sudo chown redis:redis /var/log/redis
+
+# Enable and start Redis
+sudo systemctl enable redis-server
+sudo systemctl start redis-server
+
+# Wait for Redis to start
+sleep 3
+
+# Verify Redis is running and using correct directory
+if sudo systemctl is-active --quiet redis-server; then
+    echo "✅ Redis is running successfully on LOCAL storage"
+    echo "📁 Redis data directory: $REDIS_DATA_DIR"
+    echo "📊 Redis info:"
+    redis-cli info server | grep redis_version
+    redis-cli config get dir
+    echo "🔧 Redis memory usage:"
+    redis-cli info memory | grep used_memory_human
+else
+    echo "❌ Redis failed to start"
+    echo "📋 Redis logs:"
+    sudo journalctl -u redis-server --no-pager -n 10
+fi
+
+# NFS Configuration (for shared storage, not Redis)
 sudo sed -i 's/^STATDOPTS=.*/STATDOPTS="-p 2046"/' /etc/default/nfs-common
 sudo touch /etc/modprobe.d/lock.conf
 sudo grep -qxF "options lockd nlm_tcpport=4045" /etc/modprobe.d/lock.conf || echo "options lockd nlm_tcpport=4045" | sudo tee -a /etc/modprobe.d/lock.conf
@@ -64,3 +148,13 @@ sudo chmod 777 /etc/exports
 sudo grep -qxF '/share *(rw,sync,no_root_squash,no_subtree_check)' /etc/exports || echo '/share *(rw,sync,no_root_squash,no_subtree_check)' | sudo tee -a /etc/exports > /dev/null
 sudo systemctl restart nfs-kernel-server
 sudo exportfs
+
+echo ""
+echo "🎉 Startup script completed successfully!"
+echo "📁 NFS share directory: $MNT_DIR (for shared files)"
+echo "🔴 Redis data directory: $REDIS_DATA_DIR (LOCAL storage for performance)"
+echo "🟢 Redis status: $(sudo systemctl is-active redis-server)"
+echo ""
+echo "⚠️  IMPORTANT: Redis is using LOCAL storage for optimal performance"
+echo "   - Redis data: $REDIS_DATA_DIR (local disk)"
+echo "   - Shared files: $MNT_DIR (NFS for file sharing)"
