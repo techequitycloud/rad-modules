@@ -197,7 +197,7 @@ variable "deployment_region" {
 # ===========================
 
 variable "application_module" {
-  description = "Select a pre-configured application module for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=3 order=299 OPTIONS=odoo,wordpress,moodle,cyclos,django,openemr,n8n,payload updatesafe }}"
+  description = "Select a pre-configured application module for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=3 order=299 OPTIONS=odoo,wordpress,moodle,cyclos,django,openemr,n8n,payload,ghost,invoiceninja,plane,strapi,wikijs,directus,sanity updatesafe }}"
   type        = string
   default     = null
 
