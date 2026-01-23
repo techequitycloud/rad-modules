@@ -150,7 +150,7 @@ EOF
     }
     liveness_probe = {
       enabled               = true
-      type                  = "TCP"
+      type                  = "HTTP"
       path                  = "/"
       initial_delay_seconds = 60
       timeout_seconds       = 10
