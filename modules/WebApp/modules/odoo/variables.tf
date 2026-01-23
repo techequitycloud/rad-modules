@@ -24,8 +24,13 @@ locals {
     nfs_enabled    = true
     nfs_mount_path = "/mnt"
 
-    # ✅ REMOVED: No GCS volumes for addons
-    gcs_volumes = []
+    # Storage volumes
+    gcs_volumes = [{
+      name       = "odoo-addons-volume"
+      mount_path = "/mnt/addons"
+      read_only  = false
+      mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
+    }]
 
     # Resource limits
     container_resources = {
@@ -35,10 +40,10 @@ locals {
     min_instance_count = 1
     max_instance_count = 1
 
-    # ✅ UPDATED: Container command without /extra-addons
+    # ✅ UPDATED: Container command with GCS addons path
     container_command = ["/bin/bash", "-c"]
     container_args = [
-      "echo 'Starting Odoo with DB: $DB_HOST' && echo 'Data directory: /mnt/filestore' && ls -la /mnt/ && exec odoo --database=\"$DB_NAME\" --db_host=\"$DB_HOST\" --db_port=5432 --db_user=\"$DB_USER\" --db_password=\"$DB_PASSWORD\" --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons --http-port=8069 --logfile=False --log-level=info --proxy-mode"
+      "echo 'Starting Odoo with DB: $DB_HOST' && echo 'Data directory: /mnt/filestore' && ls -la /mnt/ && exec odoo --database=\"$DB_NAME\" --db_host=\"$DB_HOST\" --db_port=5432 --db_user=\"$DB_USER\" --db_password=\"$DB_PASSWORD\" --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/addons --http-port=8069 --logfile=False --log-level=info --proxy-mode"
     ]
 
     # Environment variables
@@ -52,7 +57,7 @@ locals {
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
         args            = [
-          "mkdir -p /mnt/filestore /mnt/sessions /mnt/addons /mnt/backups && chmod 777 /mnt/filestore /mnt/sessions /mnt/addons /mnt/backups && echo 'NFS directories initialized successfully' && ls -la /mnt/"
+          "mkdir -p /mnt/filestore /mnt/sessions /mnt/backups && chmod 777 /mnt/filestore /mnt/sessions /mnt/backups && echo 'NFS directories initialized successfully' && ls -la /mnt/"
         ]
         mount_nfs        = true
         execute_on_apply = true
@@ -116,10 +121,10 @@ locals {
         image           = null # Uses default container image (odoo)
         command         = ["/bin/bash", "-c"]
         args            = [
-          "echo 'Verifying mount points...' && echo 'NFS (/mnt):' && ls -la /mnt/ && echo 'Starting Odoo initialization...' && odoo -d $DB_NAME --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons -i base --stop-after-init --log-level=info"
+          "echo 'Verifying mount points...' && echo 'NFS (/mnt):' && ls -la /mnt/ && echo 'Starting Odoo initialization...' && odoo -d $DB_NAME --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/addons -i base --stop-after-init --log-level=info"
         ]
         mount_nfs         = true
-        mount_gcs_volumes = []
+        mount_gcs_volumes = ["odoo-addons-volume"]
         execute_on_apply  = true
       }
     ]
