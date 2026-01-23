@@ -74,12 +74,12 @@ locals {
   base_firewall_rules = [
     {
       name          = "${var.network_name}-fw-allow-lb-hc"
-      description   = "Allow load balancer healthcheck for HTTP and NFS traffic"
+      description   = "Allow load balancer healthcheck for HTTP, NFS and Redis traffic"
       direction     = "INGRESS"
       source_ranges = ["35.191.0.0/16", "130.211.0.0/22"]
       allow = [{
         protocol = "tcp"
-        ports    = ["80", "2049"]
+        ports    = ["80", "2049", "6379"]
       }]
       target_tags = [] 
     },

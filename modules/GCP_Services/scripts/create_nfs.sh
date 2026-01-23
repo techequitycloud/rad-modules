@@ -73,7 +73,7 @@ sudo cp /etc/redis/redis.conf /etc/redis/redis.conf.backup
 # Configure Redis for optimal local storage performance
 sudo tee /etc/redis/redis.conf.local > /dev/null << 'EOF'
 # Redis configuration optimized for local storage
-bind 127.0.0.1 ::1
+bind 0.0.0.0
 port 6379
 timeout 0
 tcp-keepalive 300
@@ -104,7 +104,7 @@ loglevel notice
 logfile /var/log/redis/redis-server.log
 
 # Security
-protected-mode yes
+protected-mode no
 EOF
 
 # Replace the Redis configuration
