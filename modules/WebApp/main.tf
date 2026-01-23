@@ -457,6 +457,7 @@ locals {
       PGHOST                  = local.db_internal_ip
       PGDATABASE              = local.database_name_full
       POSTGRES_USER           = local.database_user_full
+      PGUSER                  = local.database_user_full
       POSTGRES_PORT           = "5432"
       AWS_REGION              = var.deployment_region
       AWS_S3_ENDPOINT         = "https://storage.googleapis.com"
@@ -560,6 +561,7 @@ locals {
     } : {},
     var.application_module == "plane" ? {
       POSTGRES_PASSWORD     = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      PGPASSWORD            = try(google_secret_manager_secret.db_password[0].secret_id, "")
       AWS_ACCESS_KEY_ID     = try(google_secret_manager_secret.plane_storage_access_key[0].secret_id, "")
       AWS_SECRET_ACCESS_KEY = try(google_secret_manager_secret.plane_storage_secret_key[0].secret_id, "")
       SECRET_KEY            = try(google_secret_manager_secret.plane_secret_key[0].secret_id, "")

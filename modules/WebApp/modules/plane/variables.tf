@@ -31,7 +31,8 @@ locals {
       # Redis and RabbitMQ are internal in AIO image
       REDIS_HOST           = "localhost"
       REDIS_PORT           = "6379"
-      # Plane specific
+      # Plane specific configuration
+      ENABLE_SIGNUP        = "true"
       # WEB_URL and CORS_ALLOWED_ORIGINS are injected dynamically in main.tf
     }
 
@@ -105,7 +106,7 @@ locals {
       enabled               = true
       type                  = "TCP"
       path                  = "/"
-      initial_delay_seconds = 10
+      initial_delay_seconds = 60
       timeout_seconds       = 5
       period_seconds        = 10
       failure_threshold     = 3
@@ -114,7 +115,7 @@ locals {
       enabled               = true
       type                  = "HTTP"
       path                  = "/"
-      initial_delay_seconds = 60
+      initial_delay_seconds = 90
       timeout_seconds       = 5
       period_seconds        = 30
       failure_threshold     = 3
