@@ -41,8 +41,10 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
-# Copy database initialization script
+# Copy database initialization script and migrations
 COPY --from=builder --chown=node:node /app/init-db.mjs ./init-db.mjs
+COPY --from=builder --chown=node:node /app/payload.config.js ./payload.config.js
+COPY --from=builder --chown=node:node /app/src/migrations ./src/migrations
 
 # Copy and set up entrypoint script
 COPY --chown=node:node entrypoint.sh /app/entrypoint.sh

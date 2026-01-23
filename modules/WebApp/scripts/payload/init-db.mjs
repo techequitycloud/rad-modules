@@ -3,15 +3,13 @@
 /**
  * Database Initialization Script for Payload CMS
  *
- * This script initializes the Payload database schema before the main server starts.
- * It ensures all tables are created using Payload's push:true mechanism.
+ * This script initializes the Payload database before the main server starts.
+ * It runs migrations via prodMigrations configured in payload.config.ts.
+ * This follows the recommended approach from Payload CMS documentation.
  */
 
 import { getPayload } from 'payload'
-import { postgresAdapter } from '@payloadcms/db-postgres'
-import { lexicalEditor } from '@payloadcms/richtext-lexical'
-import { buildConfig } from 'payload'
-import { en } from 'payload/i18n/en'
+import config from './payload.config.js'
 
 const initDatabase = async () => {
   console.log('🚀 Initializing Payload CMS database...')
@@ -29,51 +27,11 @@ const initDatabase = async () => {
     console.log(`  Database: ${process.env.DB_NAME}`)
     console.log(`  Host: ${process.env.DB_HOST}:${process.env.DB_PORT}`)
     console.log(`  User: ${process.env.DB_USER}`)
+    console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`)
 
-    // Build Payload configuration inline
-    const config = buildConfig({
-      admin: {
-        user: 'users',
-      },
-      editor: lexicalEditor({}),
-      collections: [
-        {
-          slug: 'users',
-          auth: true,
-          access: {
-            delete: () => false,
-            update: () => false,
-          },
-          fields: [],
-        },
-        {
-          slug: 'media',
-          upload: {
-            staticDir: '/app/media',
-            disableLocalStorage: false,
-          },
-          fields: [
-            {
-              name: 'alt',
-              type: 'text',
-            },
-          ],
-        },
-      ],
-      secret: process.env.PAYLOAD_SECRET || 'YOUR_SECRET_HERE',
-      db: postgresAdapter({
-        push: true,
-        pool: {
-          connectionString: process.env.DATABASE_URI || `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
-        },
-      }),
-      i18n: {
-        supportedLanguages: { en },
-      },
-    })
-
-    // Initialize Payload - this will trigger the schema push
-    console.log('Connecting to Payload and pushing database schema...')
+    // Initialize Payload - this will run prodMigrations in production
+    console.log('')
+    console.log('Initializing Payload (migrations will run automatically)...')
     const payload = await getPayload({
       config,
     })
@@ -95,17 +53,21 @@ const initDatabase = async () => {
       console.log('⚠ Initial query failed (expected for new database):', queryError.message)
     }
 
+    console.log('')
     console.log('✅ Database initialization complete!')
     console.log('')
 
     process.exit(0)
   } catch (error) {
+    console.error('')
     console.error('❌ Database initialization failed:', error)
+    console.error('')
     console.error('Error details:', {
       message: error.message,
       code: error.code,
-      stack: error.stack
+      ...(error.stack && { stack: error.stack })
     })
+    console.error('')
     process.exit(1)
   }
 }
