@@ -276,17 +276,6 @@ locals {
         public_access_prevention = "inherited"
       }
     ] : [],
-    var.application_module == "payload" ? [
-      {
-        name_suffix              = "payload-media"
-        location                 = var.deployment_region
-        storage_class            = "STANDARD"
-        force_destroy            = true
-        versioning_enabled       = false
-        lifecycle_rules          = []
-        public_access_prevention = "inherited"
-      }
-    ] : [],
     var.application_module == "invoiceninja" ? [
       {
         name_suffix              = "invoiceninja-storage"
@@ -450,20 +439,6 @@ locals {
       DB_NAME     = local.database_name_full
       DB_USER     = local.database_user_full
     } : {},
-    var.application_module == "payload" ? {
-      DB_HOST     = local.db_internal_ip
-      DB_PORT     = "5432"
-      DB_NAME     = local.database_name_full
-      DB_USER     = local.database_user_full
-      PGHOST      = local.db_internal_ip
-      PGPORT      = "5432"
-      PGDATABASE  = local.database_name_full
-      PGUSER      = local.database_user_full
-
-      # ✅ Server URL (Critical for Next.js/Payload behind Cloud Run proxy)
-      PAYLOAD_PUBLIC_SERVER_URL = local.predicted_service_url
-      NEXT_PUBLIC_SERVER_URL    = local.predicted_service_url
-    } : {},
     var.application_module == "invoiceninja" ? {
       DB_HOST         = local.db_internal_ip
       DB_DATABASE     = local.database_name_full
@@ -545,11 +520,6 @@ locals {
       DB_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
       JWT_SECRET    = try(google_secret_manager_secret.medusa_jwt_secret[0].secret_id, "")
       COOKIE_SECRET = try(google_secret_manager_secret.medusa_cookie_secret[0].secret_id, "")
-    } : {},
-    var.application_module == "payload" ? {
-      DB_PASSWORD    = try(google_secret_manager_secret.db_password[0].secret_id, "")
-      PAYLOAD_SECRET = try(google_secret_manager_secret.payload_secret[0].secret_id, "")
-      PGPASSWORD     = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
     var.application_module == "invoiceninja" ? {
       DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
@@ -1008,30 +978,6 @@ resource "google_secret_manager_secret_version" "openemr_admin_password" {
   count       = var.application_module == "openemr" ? 1 : 0
   secret      = google_secret_manager_secret.openemr_admin_password[0].id
   secret_data = random_password.openemr_admin_password[0].result
-}
-
-# ==============================================================================
-# PAYLOAD SPECIFIC RESOURCES
-# ==============================================================================
-resource "random_password" "payload_secret" {
-  count   = var.application_module == "payload" ? 1 : 0
-  length  = 32
-  special = false
-}
-
-resource "google_secret_manager_secret" "payload_secret" {
-  count     = var.application_module == "payload" ? 1 : 0
-  secret_id = "${local.wrapper_prefix}-secret"
-  replication {
-    auto {}
-  }
-  project = var.existing_project_id
-}
-
-resource "google_secret_manager_secret_version" "payload_secret" {
-  count       = var.application_module == "payload" ? 1 : 0
-  secret      = google_secret_manager_secret.payload_secret[0].id
-  secret_data = random_password.payload_secret[0].result
 }
 
 # ==============================================================================

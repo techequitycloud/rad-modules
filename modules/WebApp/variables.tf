@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module can be used to deploy Cyclos, Django, Moodle, N8N, Odoo, OpenEMR, Wordpress, Payload, Ghost, Invoice Ninja, Strapi, Wikijs or Directus"
+  default     = "This module can be used to deploy Cyclos, Django, Moodle, N8N, Odoo, OpenEMR, Wordpress, Ghost, Invoice Ninja, Strapi, Wikijs or Directus"
 }
 
 variable "module_dependency" {
@@ -203,9 +203,9 @@ variable "application_module" {
 
   validation {
     condition = var.application_module == null || var.application_module == "" || contains([
-      "odoo", "wordpress", "moodle", "cyclos", "django", "openemr", "n8n", "ghost", "wikijs", "invoiceninja", "directus", "payload", "strapi", "medusa"
+      "odoo", "wordpress", "moodle", "cyclos", "django", "openemr", "n8n", "ghost", "wikijs", "invoiceninja", "directus", "strapi", "medusa"
     ], var.application_module)
-    error_message = "Application module must be one of: odoo, wordpress, moodle, cyclos, django, openemr, n8n, ghost, wikijs, invoiceninja, directus, payload, strapi, medusa, or leave empty for manual configuration."
+    error_message = "Application module must be one of: odoo, wordpress, moodle, cyclos, django, openemr, n8n, ghost, wikijs, invoiceninja, directus, strapi, medusa, or leave empty for manual configuration."
   }
 }
 
