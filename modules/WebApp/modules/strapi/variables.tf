@@ -38,7 +38,7 @@ locals {
         bucket_name   = null # Auto-generated based on suffix
         mount_path    = "/opt/app/public/uploads"
         read_only     = false
-        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60", "uid=1000", "gid=1000"]
+        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60", "uid=1000", "gid=1000", "dir-mode=777", "file-mode=666"]
       }
     ]
 
@@ -128,7 +128,7 @@ locals {
       enabled               = true
       type                  = "TCP"
       path                  = "/"
-      initial_delay_seconds = 30
+      initial_delay_seconds = 60
       timeout_seconds       = 5
       period_seconds        = 10
       failure_threshold     = 3
