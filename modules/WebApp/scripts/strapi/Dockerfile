@@ -5,10 +5,16 @@ RUN apk update && apk add --no-cache build-base gcc autoconf automake zlib-dev l
 
 WORKDIR /opt/app
 
-COPY package.json ./
+# Set ownership to node user
+RUN chown -R node:node /opt/app
+
+# Switch to node user
+USER node
+
+COPY --chown=node:node package.json ./
 RUN npm install
 
-COPY . .
+COPY --chown=node:node . .
 
 ENV NODE_ENV=production
 RUN npm run build
