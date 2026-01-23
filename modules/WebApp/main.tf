@@ -428,6 +428,10 @@ locals {
       PGPORT      = "5432"
       PGDATABASE  = local.database_name_full
       PGUSER      = local.database_user_full
+
+      # ✅ Server URL (Critical for Next.js/Payload behind Cloud Run proxy)
+      PAYLOAD_PUBLIC_SERVER_URL = local.predicted_service_url
+      NEXT_PUBLIC_SERVER_URL    = local.predicted_service_url
     } : {},
     var.application_module == "invoiceninja" ? {
       DB_HOST     = local.db_internal_ip
