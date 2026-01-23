@@ -157,6 +157,9 @@ locals {
   # Container build configuration
   module_container_build_config = local.using_module && local.selected_module != null ? try(local.selected_module.container_build_config, null) : null
 
+  # Image Mirroring configuration
+  module_enable_image_mirroring = local.using_module && local.selected_module != null ? try(local.selected_module.enable_image_mirroring, false) : false
+
   # Database configuration
   module_database_type             = local.using_module && local.selected_module != null ? local.selected_module.database_type : null
   module_application_database_name = local.using_module && local.selected_module != null ? try(local.selected_module.db_name, null) : null
@@ -331,4 +334,7 @@ locals {
     local.module_initialization_jobs,
     var.initialization_jobs
   )
+
+  # Final Image Mirroring - Use preset value (no input variable override currently supported)
+  final_enable_image_mirroring = local.module_enable_image_mirroring
 }
