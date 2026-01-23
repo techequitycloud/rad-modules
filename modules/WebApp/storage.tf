@@ -67,17 +67,3 @@ resource "google_storage_bucket" "buckets" {
     create_before_destroy = false
  }
 }
-
-#########################################################################
-# Data sources to get bucket information
-#########################################################################
-
-data "google_storage_bucket" "buckets" {
-  for_each = local.storage_buckets
-
-  name = google_storage_bucket.buckets[each.key].name
-
-  depends_on = [
-    google_storage_bucket.buckets
-  ]
-}
