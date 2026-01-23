@@ -25,7 +25,7 @@ locals {
       name       = "wikijs-storage"
       mount_path = "/wiki-storage"
       read_only  = false
-      mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
+      mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60", "file-mode=777", "dir-mode=777"]
     }]
 
     # Resource limits
@@ -39,7 +39,6 @@ locals {
     # Environment variables
     environment_variables = {
       DB_TYPE = "postgres"
-      DB_HOST = "/var/run/postgresql" # Socket
       DB_PORT = "5432"
       DB_USER = "wikijs"
       DB_NAME = "wikijs"
@@ -60,56 +59,44 @@ locals {
             echo "Installing dependencies..."
             apk update && apk add --no-cache postgresql-client
 
-            # Use DB_IP if available (TCP), else fallback to DB_HOST
             TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
             echo "Using DB Host: $TARGET_DB_HOST"
 
-            if [ -z "$ROOT_PASSWORD" ]; then
-              echo "Error: ROOT_PASSWORD is not set."
-              exit 1
-            fi
-            if [ -z "$DB_PASSWORD" ]; then
-              echo "Error: DB_PASSWORD is not set."
-              exit 1
-            fi
-
-            echo "Waiting for database..."
-            export PGPASSWORD=$ROOT_PASSWORD
-            # Initialize connection check
-            until psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c '\l' > /dev/null 2>&1; do
-              echo "Waiting for database connection at $TARGET_DB_HOST..."
+            # Wait for PostgreSQL
+            until pg_isready -h "$TARGET_DB_HOST" -p 5432; do
+              echo "Waiting for PostgreSQL..."
               sleep 2
             done
 
-            echo "Creating Role $DB_USER if not exists..."
-            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres <<EOF
-            DO \$\$
-            BEGIN
-              IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER') THEN
-                CREATE ROLE "$DB_USER" WITH LOGIN PASSWORD '$DB_PASSWORD';
-              ELSE
-                ALTER ROLE "$DB_USER" WITH PASSWORD '$DB_PASSWORD';
-              END IF;
-            END
-            \$\$;
-            ALTER ROLE "$DB_USER" CREATEDB;
-            GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
-            EOF
+            export PGPASSWORD=$ROOT_PASSWORD
+
+            echo "Creating User $DB_USER if not exists..."
+            # Check if user exists
+            if ! psql -h "$TARGET_DB_HOST" -U postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+                psql -h "$TARGET_DB_HOST" -U postgres -c "CREATE USER \"$DB_USER\" WITH PASSWORD '$DB_PASSWORD';"
+            else
+                psql -h "$TARGET_DB_HOST" -U postgres -c "ALTER USER \"$DB_USER\" WITH PASSWORD '$DB_PASSWORD';"
+            fi
+
+            # Grant user role to postgres to allow setting owner
+            echo "Granting role $DB_USER to postgres..."
+            psql -h "$TARGET_DB_HOST" -U postgres -c "GRANT \"$DB_USER\" TO postgres;"
 
             echo "Creating Database $DB_NAME if not exists..."
-            if ! psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
-              echo "Database does not exist. Creating as $DB_USER..."
-              export PGPASSWORD=$DB_PASSWORD
-              psql -h "$TARGET_DB_HOST" -p 5432 -U $DB_USER -d postgres -c "CREATE DATABASE \"$DB_NAME\";"
+            # Check if database exists
+            if ! psql -h "$TARGET_DB_HOST" -U postgres -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+                psql -h "$TARGET_DB_HOST" -U postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
             else
-              echo "Database $DB_NAME already exists."
+                psql -h "$TARGET_DB_HOST" -U postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
             fi
 
             echo "Granting privileges..."
-            export PGPASSWORD=$ROOT_PASSWORD
-            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
+            psql -h "$TARGET_DB_HOST" -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
 
-            echo "DB Init complete."
+            # Allow user to create schema in public
+            psql -h "$TARGET_DB_HOST" -U postgres -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO \"$DB_USER\";"
+
+            echo "PostgreSQL DB Init complete."
           EOT
         ]
         mount_nfs         = false
@@ -122,7 +109,7 @@ locals {
       enabled               = true
       type                  = "TCP"
       path                  = "/"
-      initial_delay_seconds = 30
+      initial_delay_seconds = 60
       timeout_seconds       = 5
       period_seconds        = 10
       failure_threshold     = 3
