@@ -45,7 +45,7 @@ locals {
       memory_limit = "2Gi"
     }
     min_instance_count = 1
-    max_instance_count = 10
+    max_instance_count = 3
 
     environment_variables = {
       DJANGO_SETTINGS_MODULE    = "myproject.settings"
