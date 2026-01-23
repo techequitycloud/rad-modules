@@ -714,7 +714,7 @@ resource "google_storage_bucket_iam_member" "storage_admin" {
 }
 
 resource "google_storage_bucket_iam_member" "n8n_cloudrun_access" {
-  count  = var.application_module == "n8n" && local.cloud_run_sa_email != google_service_account.n8n_sa[0].email ? 1 : 0
+  count  = var.application_module == "n8n" && var.cloudrun_service_account != null ? 1 : 0
   bucket = google_storage_bucket.n8n_storage[0].name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${local.cloud_run_sa_email}"
