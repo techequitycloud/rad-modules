@@ -133,7 +133,8 @@ locals {
 
   # ✅ UPDATED: Image Mirroring Configuration (disabled for Moodle - Bitnami deprecated Aug 28, 2025)
   # Using lthub/moodle:latest which works directly from Docker Hub
-  enable_image_mirroring = false  # Previously: var.application_module == "moodle"
+  # Enabled for Plane to support pulling from artifacts.plane.so (requires mirroring to Artifact Registry)
+  enable_image_mirroring = var.application_module == "plane"  # Previously: var.application_module == "moodle"
   mirror_source_image    = local.final_container_image
 
   # Extract tag from source image (e.g., "4" from "bitnami/moodle:4"), default to "latest"
