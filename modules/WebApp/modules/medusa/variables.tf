@@ -13,6 +13,17 @@ locals {
     # We provide a placeholder, but users should override this.
     container_image = "medusajs/medusa"
     image_source    = "custom"
+
+    # Enable custom build from scripts/medusa
+    container_build_config = {
+      enabled            = true
+      dockerfile_path    = "Dockerfile"
+      context_path       = "medusa"
+      dockerfile_content = null
+      build_args         = {}
+      artifact_repo_name = "webapp-repo"
+    }
+
     container_port  = 9000
     database_type   = "POSTGRES_15"
     db_name         = "medusa_db"
