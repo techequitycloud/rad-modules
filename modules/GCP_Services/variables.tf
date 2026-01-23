@@ -123,12 +123,12 @@ variable "agent_service_account" {
 }
 
 variable "existing_project_id" {
-  description = "Select an existing project on the RAD platform or enter the project ID of an external GCP project. You must grant Owner role to the RAD GCP Project agent service account when deploying into an external project. {{UIMeta group=1 order=1 }}"
+  description = "Select an existing project on the RAD platform or enter the project ID of an external GCP project. You must grant Owner role to the RAD GCP Project agent service account when deploying into an external project. {{UIMeta group=2 order=1 }}"
   type        = string
 }
 
 variable "availability_regions" {
-  description = "The one or two regions where resources should be configured. The deployment might fail if sufficient resources not available in chosen region. {{UIMeta group=1 order=2 }}"
+  description = "The one or two regions where resources should be configured. The deployment might fail if sufficient resources not available in chosen region. {{UIMeta group=2 order=2 }}"
   type        = list(string)
   default     = ["us-central1"]
 
@@ -143,25 +143,25 @@ variable "availability_regions" {
 ################################################################################
 
 variable "create_postgres" {
-  description = "Select to create PostgreSQL database instance. {{UIMeta group=2 order=0 }}"
+  description = "Select to create PostgreSQL database instance. {{UIMeta group=3 order=0 }}"
   type        = bool
   default     = true
 }
 
 variable "create_mysql" {
-  description = "Select to create MySQL database instance. {{UIMeta group=2 order=1 }}"
+  description = "Select to create MySQL database instance. {{UIMeta group=3 order=1 }}"
   type        = bool
   default     = false
 }
 
 variable "create_redis" {
-  description = "Select to create Redis cache instance for application caching and session storage. {{UIMeta group=2 order=2 }}"
+  description = "Select to create Redis cache instance for application caching and session storage. {{UIMeta group=3 order=2 }}"
   type        = bool
   default     = false
 }
 
 variable "create_network_filesystem" {
-  description = "Select to create NFS server using Compute Engine instances for shared file storage. {{UIMeta group=2 order=3 }}"
+  description = "Select to create NFS server using Compute Engine instances for shared file storage. {{UIMeta group=3 order=3 }}"
   type        = bool
   default     = false
 }
@@ -171,13 +171,13 @@ variable "create_network_filesystem" {
 ################################################################################
 
 variable "postgres_database_availability_type" {
-  description = "The availability type of the PostgreSQL instance. ZONAL is cost-effective for development; REGIONAL provides high availability for production. {{UIMeta group=3 order=0 options=ZONAL,REGIONAL }}"
+  description = "The availability type of the PostgreSQL instance. ZONAL is cost-effective for development; REGIONAL provides high availability for production. {{UIMeta group=4 order=0 options=ZONAL,REGIONAL }}"
   type        = string
   default     = "ZONAL"
 }
 
 variable "mysql_database_availability_type" {
-  description = "The availability type of the MySQL instance. ZONAL is cost-effective for development; REGIONAL provides high availability for production. {{UIMeta group=3 order=1 options=ZONAL,REGIONAL }}"
+  description = "The availability type of the MySQL instance. ZONAL is cost-effective for development; REGIONAL provides high availability for production. {{UIMeta group=4 order=1 options=ZONAL,REGIONAL }}"
   type        = string
   default     = "ZONAL"
 }
@@ -187,13 +187,13 @@ variable "mysql_database_availability_type" {
 ################################################################################
 
 variable "redis_tier" {
-  description = "The service tier of the Redis instance. BASIC provides a standalone instance; STANDARD_HA provides high availability. {{UIMeta group=4 order=0 options=BASIC,STANDARD_HA }}"
+  description = "The service tier of the Redis instance. BASIC provides a standalone instance; STANDARD_HA provides high availability. {{UIMeta group=5 order=0 options=BASIC,STANDARD_HA }}"
   type        = string
   default     = "BASIC"
 }
 
 variable "redis_memory_size_gb" {
-  description = "Memory size in GB for the Redis instance. {{UIMeta group=4 order=1 }}"
+  description = "Memory size in GB for the Redis instance. {{UIMeta group=5 order=1 }}"
   type        = number
   default     = 1
 
