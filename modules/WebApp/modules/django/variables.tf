@@ -126,7 +126,7 @@ locals {
       enabled               = true
       type                  = "HTTP"
       path                  = "/health/"
-      initial_delay_seconds = 30
+      initial_delay_seconds = 90
       timeout_seconds       = 5
       period_seconds        = 10
       failure_threshold     = 3

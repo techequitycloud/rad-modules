@@ -367,6 +367,9 @@ locals {
       DB_PORT = "5432"
       PGPORT  = "5432"
     } : {},
+    var.application_module == "django" ? {
+      CLOUDRUN_SERVICE_URLS = local.predicted_service_url
+    } : {},
     var.application_module == "wordpress" ? {
       WORDPRESS_DB_NAME = local.database_name_full
       WORDPRESS_DB_USER = local.database_user_full
@@ -836,37 +839,6 @@ resource "google_secret_manager_secret_version" "plane_secret_key" {
   count       = var.application_module == "plane" ? 1 : 0
   secret      = google_secret_manager_secret.plane_secret_key[0].id
   secret_data = random_password.plane_secret_key[0].result
-}
-
-# Django Post-Deployment Update (CSRF Origin)
-resource "null_resource" "update_csrf_origin" {
-  count = var.application_module == "django" ? 1 : 0
-
-  triggers = {
-    service_id = local.service_name
-  }
-
-  provisioner "local-exec" {
-    command = <<CMD
-      IMPERSONATE_FLAG=""
-      if [ -n "${local.impersonation_service_account}" ]; then
-        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
-      fi
-
-      SERVICE_NAME="${local.service_name}"
-      REGION="${local.region}"
-      PROJECT="${local.project.project_id}"
-
-      if [ -n "$SERVICE_NAME" ]; then
-        URL=$(gcloud run services describe $SERVICE_NAME --region $REGION --project $PROJECT --format 'value(uri)')
-        gcloud run services update $SERVICE_NAME \
-          --region $REGION \
-          --project $PROJECT \
-          --set-env-vars CLOUDRUN_SERVICE_URLS=$URL \
-          $IMPERSONATE_FLAG
-      fi
-    CMD
-  }
 }
 
 # ==============================================================================
