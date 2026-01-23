@@ -434,9 +434,11 @@ locals {
       NEXT_PUBLIC_SERVER_URL    = local.predicted_service_url
     } : {},
     var.application_module == "invoiceninja" ? {
-      DB_HOST     = local.db_internal_ip
-      DB_DATABASE = local.database_name_full
-      DB_USERNAME = local.database_user_full
+      DB_HOST         = local.db_internal_ip
+      DB_DATABASE     = local.database_name_full
+      DB_USERNAME     = local.database_user_full
+      APP_URL         = local.predicted_service_url
+      TRUSTED_PROXIES = "*"
     } : {},
     var.application_module == "strapi" ? {
       DATABASE_HOST     = local.db_internal_ip

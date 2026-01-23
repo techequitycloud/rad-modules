@@ -26,7 +26,7 @@ locals {
         name          = "invoiceninja-storage"
         mount_path    = "/var/www/app/storage"
         read_only     = false
-        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
+        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60", "file-mode=777", "dir-mode=777"]
       }
     ]
 
@@ -42,10 +42,10 @@ locals {
     environment_variables = {
       APP_ENV       = "production"
       APP_DEBUG     = "false"
-      APP_URL       = "http://localhost"
       DB_TYPE       = "mysql"
       IN_USER_EMAIL = "admin@example.com"
       # DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD will be injected by main.tf
+      # APP_URL, TRUSTED_PROXIES will be injected by main.tf
       # APP_KEY will be injected by main.tf
       # IN_PASSWORD will be injected by main.tf
     }
