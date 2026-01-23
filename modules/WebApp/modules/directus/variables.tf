@@ -9,7 +9,7 @@ locals {
   directus_module = {
     app_name        = "directus"
     description     = "Directus - Open Source Headless CMS and Backend-as-a-Service"
-    container_image = "directus/directus:10.10.4"
+    container_image = "directus/directus:11.1.0"
     image_source    = "prebuilt"
     container_port  = 8055
     database_type   = "POSTGRES_15"
@@ -37,7 +37,7 @@ locals {
     # Resource limits
     container_resources = {
       cpu_limit    = "1000m"
-      memory_limit = "512Mi"
+      memory_limit = "1024Mi"
     }
     min_instance_count = 1
     max_instance_count = 3
