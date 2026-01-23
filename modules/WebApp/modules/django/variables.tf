@@ -65,6 +65,7 @@ locals {
 
     environment_variables = {
       DJANGO_SETTINGS_MODULE    = "myproject.settings"
+      APPLICATION_SETTINGS      = ""
       DEBUG                     = "False"
       ALLOWED_HOSTS             = "*"
       DB_ENGINE                 = "django.db.backends.postgresql"
