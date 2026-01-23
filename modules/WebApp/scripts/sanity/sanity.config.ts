@@ -9,16 +9,24 @@ interface SanityConfig {
   dataset: string
 }
 
-// Access the injected configuration from window
-// We cast window to any to avoid TypeScript errors about missing properties
-const config = ((typeof window !== 'undefined' ? (window as any).SANITY_CONFIG : null) || {}) as SanityConfig
+// Hybrid configuration approach:
+// 1. Try runtime injection via window.SANITY_CONFIG (for Docker reusability)
+// 2. Fall back to Sanity's native env vars (statically replaced at build time)
+// 3. Final fallback to placeholder
+
+const runtimeConfig = ((typeof window !== 'undefined' ? (window as any).SANITY_CONFIG : null) || {}) as SanityConfig
+
+// Use runtime config if available, otherwise use Sanity's native env vars
+// Note: process.env.SANITY_STUDIO_PROJECT_ID is statically replaced during build
+const projectId = runtimeConfig.projectId || process.env.SANITY_STUDIO_PROJECT_ID || 'placeholder-project-id'
+const dataset = runtimeConfig.dataset || process.env.SANITY_STUDIO_DATASET || 'production'
 
 export default defineConfig({
   name: 'default',
   title: 'Sanity Studio',
 
-  projectId: config.projectId || 'placeholder-project-id',
-  dataset: config.dataset || 'production',
+  projectId: projectId,
+  dataset: dataset,
 
   plugins: [structureTool(), visionTool()],
 
