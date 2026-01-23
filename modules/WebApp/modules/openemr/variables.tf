@@ -15,10 +15,9 @@ locals {
     # Backup Configuration
     enable_backup_import = true
     backup_source        = "gdrive"
-    backup_uri           = "1nitol1S9hdcjf7PpHvsRl3ZDwhKYlzF2"
+    backup_uri           = null
 
-    enable_cloudsql_volume     = true
-    cloudsql_volume_mount_path = "/var/run/mysqld"
+    enable_cloudsql_volume     = false
 
     # NFS Configuration (Preferred for OpenEMR sites folder due to file locking)
     nfs_enabled    = true
@@ -33,13 +32,7 @@ locals {
     }
     min_instance_count = 1
     max_instance_count = 1
-    environment_variables = {
-      MYSQL_HOST = "localhost:/var/run/mysqld/mysqld.sock"
-      MYSQL_PORT = "3306"
-      OE_USER    = "admin"
-      OE_PASS    = "admin"
-      MANUAL_SETUP = "no"
-    }
+    environment_variables = {}
     enable_mysql_plugins = false
     mysql_plugins        = []
 
