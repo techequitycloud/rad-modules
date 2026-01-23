@@ -509,6 +509,9 @@ locals {
       STORAGE_UPLOADS_DRIVER = "local"
       STORAGE_UPLOADS_ROOT   = "/mnt/directus-uploads"
       WEBSOCKETS_ENABLED     = "true"
+      CORS_ENABLED           = "true"
+      CORS_ORIGIN            = local.predicted_service_url
+      ADMIN_EMAIL            = try(local.final_environment_variables["ADMIN_EMAIL"], "admin@example.com")
     } : {}
   )
 
@@ -590,7 +593,6 @@ locals {
     var.application_module == "directus" ? {
       KEY            = try(google_secret_manager_secret.directus_key[0].secret_id, "")
       SECRET         = try(google_secret_manager_secret.directus_secret[0].secret_id, "")
-      ADMIN_EMAIL    = "admin@example.com"
       ADMIN_PASSWORD = try(google_secret_manager_secret.directus_admin_password[0].secret_id, "")
       DB_PASSWORD    = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {}
