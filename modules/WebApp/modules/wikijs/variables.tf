@@ -25,7 +25,14 @@ locals {
       name       = "wikijs-storage"
       mount_path = "/wiki-storage"
       read_only  = false
-      mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60", "file-mode=777", "dir-mode=777"]
+      mount_options = [
+        "implicit-dirs",
+        "metadata-cache-ttl-secs=60",
+        "file-mode=777",
+        "dir-mode=777",
+        "uid=1000",
+        "gid=1000"
+      ]
     }]
 
     # Resource limits
@@ -45,6 +52,10 @@ locals {
       DB_SSL  = "false"
       # DB_PASS injected via secrets in main.tf
     }
+
+    # PostgreSQL extensions
+    enable_postgres_extensions = true
+    postgres_extensions        = ["pg_trgm"]
 
     # Initialization Jobs
     initialization_jobs = [
@@ -107,8 +118,8 @@ locals {
 
     startup_probe = {
       enabled               = true
-      type                  = "TCP"
-      path                  = "/"
+      type                  = "HTTP"
+      path                  = "/healthz"
       initial_delay_seconds = 60
       timeout_seconds       = 5
       period_seconds        = 10
@@ -117,7 +128,7 @@ locals {
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
-      path                  = "/"
+      path                  = "/healthz"
       initial_delay_seconds = 60
       timeout_seconds       = 5
       period_seconds        = 30
