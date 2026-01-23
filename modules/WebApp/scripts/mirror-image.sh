@@ -22,9 +22,10 @@ REPO_NAME="$3"
 SOURCE_IMAGE="$4"
 TARGET_IMAGE_NAME="$5"
 TAG="$6"
+IMPERSONATE_SA="$7"
 
 if [ -z "$PROJECT_ID" ] || [ -z "$REGION" ] || [ -z "$REPO_NAME" ] || [ -z "$SOURCE_IMAGE" ] || [ -z "$TARGET_IMAGE_NAME" ] || [ -z "$TAG" ]; then
-    echo "Usage: $0 PROJECT_ID REGION REPO_NAME SOURCE_IMAGE TARGET_IMAGE_NAME TAG"
+    echo "Usage: $0 PROJECT_ID REGION REPO_NAME SOURCE_IMAGE TARGET_IMAGE_NAME TAG [IMPERSONATE_SA]"
     exit 1
 fi
 
@@ -34,11 +35,20 @@ echo "----------------------------------------------------------------"
 echo "Image Mirroring Utility"
 echo "Source: ${SOURCE_IMAGE}"
 echo "Target: ${FULL_TARGET_IMAGE}"
+if [ -n "$IMPERSONATE_SA" ]; then
+    echo "Impersonating: ${IMPERSONATE_SA}"
+fi
 echo "----------------------------------------------------------------"
+
+# Prepare gcloud arguments
+gcloud_args=("--project=${PROJECT_ID}")
+if [ -n "$IMPERSONATE_SA" ]; then
+    gcloud_args+=("--impersonate-service-account=$IMPERSONATE_SA")
+fi
 
 # Check if image already exists
 echo "Checking if image exists in Artifact Registry..."
-if gcloud artifacts docker images describe "${FULL_TARGET_IMAGE}" --project="${PROJECT_ID}" > /dev/null 2>&1; then
+if gcloud artifacts docker images describe "${FULL_TARGET_IMAGE}" "${gcloud_args[@]}" > /dev/null 2>&1; then
   echo "✅ Image ${FULL_TARGET_IMAGE} already exists. Skipping mirror."
   exit 0
 fi
@@ -70,7 +80,7 @@ EOF
 
 # Submit build
 echo "Submitting Cloud Build job..."
-gcloud builds submit --project="${PROJECT_ID}" --config=cloudbuild.yaml --no-source
+gcloud builds submit "${gcloud_args[@]}" --config=cloudbuild.yaml --no-source
 
 # Cleanup
 popd > /dev/null
