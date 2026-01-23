@@ -146,10 +146,10 @@ EOF
       enabled               = true
       type                  = "HTTP"
       path                  = "/"
-      initial_delay_seconds = 120
-      timeout_seconds       = 5
+      initial_delay_seconds = 180
+      timeout_seconds       = 10
       period_seconds        = 10
-      failure_threshold     = 15
+      failure_threshold     = 30
     }
     liveness_probe = {
       enabled               = true
