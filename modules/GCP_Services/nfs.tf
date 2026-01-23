@@ -32,7 +32,7 @@ resource "google_compute_address" "static_internal_ip" {
   count        = var.create_network_filesystem ? 1 : 0  
   project      = local.project.project_id                  
   region       = local.region                               
-  name         = "nfsredis-server-static-ip"                     
+  name         = "nfsserver-static-ip"                     
   subnetwork   = local.gce_subnet_id
   address_type = "INTERNAL"                              
   purpose      = "GCE_ENDPOINT"                            
@@ -51,7 +51,7 @@ resource "google_compute_instance_template" "nfs_server" {
   count                     = var.create_network_filesystem ? 1 : 0  
   project                   = local.project.project_id                  
   region                    = local.region                              
-  name                      = "nfsredis-server-tpl-${random_string.nfs_suffix[0].result}"                           
+  name                      = "nfsserver-tpl-${random_string.nfs_suffix[0].result}"                           
   machine_type              = var.network_filesystem_machine                           
   metadata_startup_script   = file("${path.module}/scripts/create_nfs_redis.sh") 
   tags                      = ["nfsserver", "redisserver"]
@@ -103,9 +103,9 @@ resource "google_compute_instance_template" "nfs_server" {
 resource "google_compute_instance_group_manager" "nfs_server" {
   count               = var.create_network_filesystem ? 1 : 0  
   project             = local.project.project_id               
-  name                = "nfsredis-server-mig"                        
+  name                = "nfsserver-mig"                        
   zone                = data.google_compute_zones.available_zones.names[0] 
-  base_instance_name  = "nfsredis-server"                            
+  base_instance_name  = "nfsserver"                            
   target_size         = 1                                      
 
   version {
