@@ -17,6 +17,9 @@ locals {
       enabled            = true
       context_path       = "invoiceninja"
       dockerfile_path    = "Dockerfile"
+      dockerfile_content = null
+      build_args         = {}
+      artifact_repo_name = "webapp-repo"
     }
     database_type   = "MYSQL_8_0"
     db_name         = "invoiceninja"
