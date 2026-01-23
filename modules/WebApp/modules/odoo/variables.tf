@@ -32,8 +32,8 @@ locals {
       cpu_limit    = "2000m"
       memory_limit = "4Gi"
     }
-    min_instance_count = 1
-    max_instance_count = 1
+    min_instance_count = 0
+    max_instance_count = 3
 
     # ✅ UPDATED: Container command without /extra-addons
     container_command = ["/bin/bash", "-c"]
