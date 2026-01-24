@@ -433,6 +433,7 @@ locals {
       DATABASE_NAME     = local.database_name_full
       DATABASE_USERNAME = local.database_user_full
       STRAPI_URL        = local.predicted_service_url
+      GCS_BUCKET_NAME   = try(local.storage_buckets["strapi-uploads"].name, "")
     } : {},
     var.application_module == "directus" ? {
       DB_CLIENT              = "pg"

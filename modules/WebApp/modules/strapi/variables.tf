@@ -31,17 +31,6 @@ locals {
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
 
-    # Storage volumes
-    gcs_volumes = [
-      {
-        name          = "strapi-uploads"
-        bucket_name   = null # Auto-generated based on suffix
-        mount_path    = "/opt/app/public/uploads"
-        read_only     = false
-        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60", "uid=1000", "gid=1000", "dir-mode=777", "file-mode=666"]
-      }
-    ]
-
     # Resource limits
     container_resources = {
       cpu_limit    = "1000m"
@@ -56,6 +45,18 @@ locals {
       DATABASE_CLIENT = "postgres"
       DATABASE_SSL    = "false"
       # DB connection details will be injected by main.tf
+
+      # SMTP Configuration
+      SMTP_HOST      = ""
+      SMTP_PORT      = "587"
+      SMTP_USERNAME  = ""
+      # SMTP_PASSWORD should be passed via secrets
+      EMAIL_FROM     = ""
+      EMAIL_REPLY_TO = ""
+
+      # GCS Configuration
+      GCS_PUBLIC_FILES = "true"
+      GCS_UNIFORM      = "true"
     }
 
     # Initialization Jobs

@@ -14,6 +14,7 @@
     "@strapi/plugin-users-permissions": "4.24.2",
     "@strapi/plugin-i18n": "4.24.2",
     "@strapi/plugin-cloud": "4.24.2",
+    "@strapi-community/strapi-provider-upload-google-cloud-storage": "^4.0.0",
     "pg": "8.11.3",
     "sharp": "^0.32.6",
     "react": "^18.0.0",
