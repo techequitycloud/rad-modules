@@ -173,7 +173,7 @@ variable "mysql_database_availability_type" {
 variable "create_network_filesystem" {
   description = "Select to create NFS server for shared file storage and Redis for application caching and session storage using Compute Engine instances. {{UIMeta group=4 order=1 }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 ################################################################################
