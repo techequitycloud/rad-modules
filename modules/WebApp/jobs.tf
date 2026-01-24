@@ -1249,8 +1249,8 @@ resource "google_cloud_run_v2_job" "nfs_cleanup_job" {
 
         resources {
           limits = {
-            cpu    = "500m"
-            memory = "256Mi"
+            cpu    = "1000m"
+            memory = "512Mi"
           }
         }
 
