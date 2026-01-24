@@ -45,7 +45,7 @@ locals {
     # ✅ UPDATED: Container command includes /mnt/extra-addons
     container_command = ["/bin/bash", "-c"]
     container_args = [
-      "echo 'Starting Odoo with DB: $DB_HOST' && echo 'Data directory: /mnt/filestore' && ls -la /mnt/ && EXTRA_ARGS=\"\" && if [ \"$SMTP_SSL\" = \"true\" ]; then EXTRA_ARGS=\"--smtp-ssl\"; fi && exec odoo --database=\"$DB_NAME\" --db_host=\"$DB_HOST\" --db_port=5432 --db_user=\"$DB_USER\" --db_password=\"$DB_PASSWORD\" --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons --http-port=8069 --logfile=False --log-level=info --proxy-mode $EXTRA_ARGS $${SMTP_HOST:+--smtp-server=\"$SMTP_HOST\"} $${SMTP_PORT:+--smtp-port=\"$SMTP_PORT\"} $${SMTP_USER:+--smtp-user=\"$SMTP_USER\"} $${SMTP_PASSWORD:+--smtp-password=\"$SMTP_PASSWORD\"} $${EMAIL_FROM:+--email-from=\"$EMAIL_FROM\"} --admin_passwd=\"$ODOO_MASTER_PASS\""
+      "echo 'Starting Odoo...' && echo 'Config file: /mnt/odoo.conf' && if [ ! -f /mnt/odoo.conf ]; then echo 'Error: /mnt/odoo.conf not found. Ensure generate-config job ran.'; exit 1; fi && exec odoo -c /mnt/odoo.conf"
     ]
 
     # Environment variables
@@ -125,15 +125,25 @@ locals {
         execute_on_apply  = true
       },
       {
+        name            = "generate-config"
+        description     = "Generate Odoo configuration file"
+        image           = "alpine:3.19"
+        command         = ["/bin/sh", "-c"]
+        script_path     = "${path.module}/../../scripts/odoo-gen-config.sh"
+        mount_nfs       = true
+        execute_on_apply = true
+      },
+      {
         name            = "odoo-init"
         description     = "Initialize Odoo database"
         image           = null # Uses default container image (odoo)
         command         = ["/bin/bash", "-c"]
         args            = [
-          "echo 'Verifying mount points...' && echo 'NFS (/mnt):' && ls -la /mnt/ && echo 'GCS Addons:' && ls -la /mnt/extra-addons && echo 'Starting Odoo initialization...' && odoo -d $DB_NAME --db_host=$DB_HOST --db_port=5432 --db_user=$DB_USER --db_password=$DB_PASSWORD --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons -i base --stop-after-init --log-level=info"
+          "echo 'Verifying mount points...' && echo 'NFS (/mnt):' && ls -la /mnt/ && echo 'GCS Addons:' && ls -la /mnt/extra-addons && echo 'Starting Odoo initialization...' && odoo -c /mnt/odoo.conf -i base --stop-after-init --log-level=info"
         ]
         mount_nfs         = true
         mount_gcs_volumes = ["odoo-addons-volume"]
+        depends_on_jobs   = ["generate-config"]
         execute_on_apply  = true
       }
     ]
