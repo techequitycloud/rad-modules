@@ -349,8 +349,8 @@ locals {
       N8N_EDITOR_BASE_URL          = local.predicted_service_url
     } : {},
     var.application_module == "odoo" ? {
-      HOST    = local.db_internal_ip
-      DB_HOST = local.db_internal_ip
+      HOST    = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+      DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
       USER    = local.database_user_full
       DB_PORT = "5432"
       PGPORT  = "5432"
