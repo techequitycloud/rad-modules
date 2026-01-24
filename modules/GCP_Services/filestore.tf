@@ -19,14 +19,14 @@ resource "google_filestore_instance" "nfs_server" {
   name  = "nfsserver"
   project = local.project.project_id
   location = data.google_compute_zones.available_zones.names[0]
-  tier = "BASIC_HDD"
+  tier = var.filestore_tier
 
   file_shares {
-    capacity_gb = 1024
+    capacity_gb = var.filestore_capacity_mb
     name        = "share"
 
     nfs_export_options {
-      ip_ranges   = ["10.200.20.0/24"]
+      ip_ranges   = ["${local.gce_subnet_cidrs}"]
       access_mode = "READ_WRITE"
       squash_mode = "NO_ROOT_SQUASH"
     }
