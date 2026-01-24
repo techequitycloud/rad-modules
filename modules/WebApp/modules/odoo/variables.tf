@@ -32,7 +32,7 @@ locals {
 
     gcs_volumes = [
       {
-        name          = "odoo-addons-volume"
+        name          = "odoo-addons"
         mount_path    = "/mnt/extra-addons"
         read_only     = false
         mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
@@ -544,7 +544,7 @@ EOF
           EOT
         ]
         mount_nfs         = true
-        mount_gcs_volumes = ["odoo-addons-volume"]
+        mount_gcs_volumes = ["odoo-addons"]
         depends_on_jobs   = ["nfs-init", "db-init", "odoo-config"]
         execute_on_apply  = true
       }
