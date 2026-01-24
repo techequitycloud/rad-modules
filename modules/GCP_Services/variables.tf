@@ -192,15 +192,21 @@ variable "filestore_tier" {
   default     = "BASIC_HDD"
 }
 
-variable "filestore_capacity_mb" {
-  description = "Filestore disk size in MB. {{UIMeta group=5 order=3 }}"
+variable "filestore_capacity_gb" {
+  description = "Filestore disk size in GB. {{UIMeta group=5 order=3 }}"
   type        = number
   default     = 1024
 
   validation {
-    condition     = var.redis_memory_size_gb >= 1 && var.redis_memory_size_gb <= 300
-    error_message = "Redis memory size must be between 1 and 300 GB."
+    condition     = var.filestore_capacity_gb >= 1024
+    error_message = "Filestore capacity must be at least 1024 GB."
   }
+}
+
+variable "filestore_name" {
+  description = "Name of the Filestore instance. {{UIMeta group=5 order=4 }}"
+  type        = string
+  default     = null
 }
 
 variable "create_redis" {
