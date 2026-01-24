@@ -1160,7 +1160,7 @@ resource "google_cloud_run_v2_job" "db_cleanup_job" {
         resources {
           limits = {
             cpu    = "1000m"
-            memory = "512Mi"
+            memory = "1Gi"
           }
         }
       }
@@ -1250,7 +1250,7 @@ resource "google_cloud_run_v2_job" "nfs_cleanup_job" {
         resources {
           limits = {
             cpu    = "1000m"
-            memory = "256Mi"
+            memory = "1Gi"
           }
         }
 
