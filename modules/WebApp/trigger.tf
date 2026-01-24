@@ -161,7 +161,7 @@ resource "google_cloudbuild_trigger" "cicd_trigger" {
   }
 
   # Service account for builds
-  service_account = "projects/${local.project.project_id}/serviceAccounts/${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+  service_account = "projects/${local.project.project_id}/serviceAccounts/${local.cloudbuild_service_account}@${local.project.project_id}.iam.gserviceaccount.com"
 
   tags = ["cicd", "automated", local.application_name]
 
@@ -233,8 +233,8 @@ YAML
         --project="${local.project.project_id}" \
         --region="${local.region}" \
         --config=cloudbuild-placeholder.yaml \
-        --service-account="projects/${local.project.project_id}/serviceAccounts/${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com" \
-        ${local.impersonation_service_account != "" ? "--impersonate-service-account=${local.impersonation_service_account}" : ""} \
+        --service-account="projects/${local.project.project_id}/serviceAccounts/${local.cloudbuild_service_account}@${local.project.project_id}.iam.gserviceaccount.com" \
+        ${local.agent_service_account != null ? "--impersonate-service-account=${local.agent_service_account}" : ""} \
         --timeout=10m \
         .
 

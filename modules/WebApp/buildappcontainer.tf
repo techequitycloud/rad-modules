@@ -62,7 +62,7 @@ resource "null_resource" "build_and_push_application_image" {
 
   provisioner "local-exec" {
     working_dir = "${path.module}/scripts/app"
-    command     = "bash build-container.sh \"${local.project.project_id}\" \"${local.impersonation_service_account}\""
+    command     = "bash build-container.sh \"${local.project.project_id}\" \"${local.agent_service_account != null ? local.agent_service_account : ""}\""
   }
 
   depends_on = [

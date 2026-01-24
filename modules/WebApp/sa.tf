@@ -19,8 +19,8 @@
 data "external" "check_service_accounts" {
   program = ["bash", "-c", <<-EOT
     PROJECT_ID="${local.project.project_id}"
-    if [ -n "${local.impersonation_service_account}" ]; then
-      SA_ARG="--impersonate-service-account=${local.impersonation_service_account}"
+    if [ -n "${local.agent_service_account != null ? local.agent_service_account : ""}" ]; then
+      SA_ARG="--impersonate-service-account=${local.agent_service_account}"
     fi
 
     # Function to check if service account exists
@@ -34,8 +34,8 @@ data "external" "check_service_accounts" {
     }
 
     # Check service accounts used in Cloud Run deployment
-    CLOUD_BUILD_SA_EXISTS=$(check_sa "${local.cloudbuild_sa}")
-    CLOUD_RUN_SA_EXISTS=$(check_sa "${local.cloudrun_sa}")
+    CLOUD_BUILD_SA_EXISTS=$(check_sa "${local.cloudbuild_service_account}")
+    CLOUD_RUN_SA_EXISTS=$(check_sa "${local.cloudrun_service_account}")
 
     # Output JSON
     cat <<EOF
@@ -58,8 +58,8 @@ locals {
   cloud_run_sa_exists   = data.external.check_service_accounts.result["cloud_run_sa_exists"] == "true"
 
   # Service account email references (existing or newly created)
-  cloud_build_sa_email = "${local.cloudbuild_sa}@${local.project.project_id}.iam.gserviceaccount.com"
-  cloud_run_sa_email   = "${local.cloudrun_sa}@${local.project.project_id}.iam.gserviceaccount.com"
+  cloud_build_sa_email = "${local.cloudbuild_service_account}@${local.project.project_id}.iam.gserviceaccount.com"
+  cloud_run_sa_email   = "${local.cloudrun_service_account}@${local.project.project_id}.iam.gserviceaccount.com"
 
   # Service account resource IDs (required for IAM bindings)
   cloud_build_sa_id = "projects/${local.project.project_id}/serviceAccounts/${local.cloud_build_sa_email}"

@@ -318,15 +318,6 @@ locals {
     }
   )
 
-  # ===========================
-  # Compatibilty & Helper Locals
-  # ===========================
-
-  # Aliases for backward compatibility and missing references
-  impersonation_service_account = local.agent_service_account != null ? local.agent_service_account : ""
-  cloudbuild_sa                 = local.cloudbuild_service_account
-  cloudrun_sa                   = local.cloudrun_service_account
-
   # Monitoring configuration
   uptime_check_enabled = try(local.uptime_check_config.enabled, false)
   configure_monitoring = (
@@ -430,8 +421,8 @@ resource "null_resource" "update_csrf_origin" {
   provisioner "local-exec" {
     command = <<CMD
       IMPERSONATE_FLAG=""
-      if [ -n "${local.impersonation_service_account}" ]; then
-        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
+      if [ -n "${local.agent_service_account != null ? local.agent_service_account : ""}" ]; then
+        IMPERSONATE_FLAG="--impersonate-service-account=${local.agent_service_account}"
       fi
 
       SERVICE_NAME="${local.service_name}"
