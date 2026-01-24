@@ -12,7 +12,7 @@ locals {
     db_name         = "odoo"
     db_user         = "odoo"
 
-    enable_cloudsql_volume     = false
+    enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = ""
 
     nfs_enabled    = true
