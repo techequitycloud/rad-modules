@@ -16,6 +16,13 @@ locals {
     db_name         = "odoo"
     db_user         = "odoo"
 
+    # Custom build configuration
+    container_build_config = {
+      enabled            = true
+      context_path       = "scripts/odoo"
+      dockerfile_path    = "Dockerfile"
+    }
+
     # Performance optimization
     enable_cloudsql_volume     = false
     cloudsql_volume_mount_path = ""
