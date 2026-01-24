@@ -24,8 +24,8 @@ locals {
     }
 
     # Performance optimization
-    enable_cloudsql_volume     = false
-    cloudsql_volume_mount_path = ""
+    enable_cloudsql_volume     = true
+    cloudsql_volume_mount_path = "/cloudsql"
 
     # NFS Configuration
     nfs_enabled    = true

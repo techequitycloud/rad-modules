@@ -350,7 +350,7 @@ locals {
     } : {},
     var.application_module == "odoo" ? {
       HOST    = local.db_internal_ip
-      DB_HOST = local.db_internal_ip
+      DB_HOST = local.final_enable_cloudsql_volume ? "/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
       USER    = local.database_user_full
       DB_PORT = "5432"
       PGPORT  = "5432"
