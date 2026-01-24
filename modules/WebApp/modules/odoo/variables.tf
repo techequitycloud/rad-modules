@@ -99,23 +99,44 @@ locals {
             echo "Creating directories..."
             mkdir -p /mnt/filestore /mnt/sessions /mnt/backups
             
-            # Try to set ownership, fall back to 777 if it fails
-            echo "Setting ownership to UID 101 (Odoo user)..."
+            # Set ownership and permissions
+            echo "Setting ownership and permissions..."
+            
+            # Try method 1: Set ownership to Odoo user (101:101) with group write
             if chown -R 101:101 /mnt/filestore /mnt/sessions /mnt/backups 2>/dev/null; then
-              echo "✅ Ownership set successfully"
-              chmod -R 755 /mnt/filestore /mnt/sessions /mnt/backups
+              echo "✅ Ownership set to 101:101"
+              # Use 775 to allow group writes
+              chmod -R 775 /mnt/filestore /mnt/sessions /mnt/backups
+              echo "✅ Permissions set to 775 (rwxrwxr-x)"
             else
-              echo "⚠️  chown failed (NFS limitation), using 777 permissions..."
+              echo "⚠️  chown failed (NFS limitation)"
+              # Fallback: Use 777 for maximum compatibility
               chmod -R 777 /mnt/filestore /mnt/sessions /mnt/backups
+              echo "✅ Permissions set to 777 (rwxrwxrwx)"
             fi
             
-            # Verify
-            echo "✅ Directories created"
-            echo "Directory listing:"
+            # Verify final state
+            echo ""
+            echo "✅ Directories created and configured"
+            echo "Final directory listing:"
             ls -la /mnt/
+            echo ""
+            echo "Filestore permissions:"
+            ls -la /mnt/filestore/
+            echo ""
+            echo "Sessions permissions:"
+            ls -la /mnt/sessions/
+            echo ""
             
-            echo "Filestore contents:"
-            ls -la /mnt/filestore/ 2>/dev/null || echo "Empty"
+            # Test write access
+            echo "Testing write access..."
+            if touch /mnt/filestore/.test 2>/dev/null; then
+              echo "✅ Write test successful"
+              rm -f /mnt/filestore/.test
+            else
+              echo "⚠️  Write test failed - this may cause issues"
+              echo "Current user: $$(id)"
+            fi
             
             echo "✅ NFS initialization complete"
           EOT
@@ -204,7 +225,7 @@ locals {
         execute_on_apply  = true
       },
       
-      # Job 4: Odoo Initialization (waits for ALL prerequisites)
+      # Job 4: Odoo Initialization
       {
         name            = "odoo-init"
         description     = "Initialize Odoo database"
@@ -243,16 +264,37 @@ locals {
             echo "✅ GCS mount verified"
             echo ""
             
-            # Verify config file
-            echo "Checking configuration file..."
+            # Wait for config file with retry logic
+            echo "Waiting for configuration file..."
+            MAX_RETRIES=30
+            RETRY_COUNT=0
+            while [ $$RETRY_COUNT -lt $$MAX_RETRIES ]; do
+              if [ -f /mnt/odoo.conf ]; then
+                echo "✅ Configuration file found"
+                break
+              fi
+              RETRY_COUNT=$$((RETRY_COUNT + 1))
+              echo "Waiting for /mnt/odoo.conf... ($$RETRY_COUNT/$$MAX_RETRIES)"
+              sleep 2
+            done
+            
             if [ ! -f /mnt/odoo.conf ]; then
-                echo "❌ ERROR: /mnt/odoo.conf not found"
-                echo "This means odoo-config job failed or NFS mount is not working"
-                echo "NFS mount contents:"
-                ls -la /mnt/
-                exit 1
+              echo "❌ ERROR: /mnt/odoo.conf not found after waiting"
+              echo "This means odoo-config job failed"
+              echo "NFS mount contents:"
+              ls -la /mnt/
+              exit 1
             fi
-            echo "✅ Configuration file found"
+            echo ""
+            
+            # Verify config file is readable
+            echo "Verifying config file permissions..."
+            if ! cat /mnt/odoo.conf > /dev/null 2>&1; then
+              echo "❌ ERROR: Cannot read /mnt/odoo.conf"
+              ls -la /mnt/odoo.conf
+              exit 1
+            fi
+            echo "✅ Config file is readable"
             echo ""
             
             # Verify filestore directory
@@ -303,7 +345,7 @@ locals {
         ]
         mount_nfs         = true
         mount_gcs_volumes = ["odoo-addons-volume"]
-        depends_on_jobs   = ["nfs-init", "db-init", "odoo-config"]  # ✅ FIXED: Wait for all prerequisites
+        depends_on_jobs   = ["nfs-init", "db-init", "odoo-config"]
         execute_on_apply  = true
       }
     ]
