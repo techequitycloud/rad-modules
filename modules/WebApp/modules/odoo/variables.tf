@@ -126,7 +126,7 @@ locals {
         execute_on_apply  = true
       },
       
-      # Job 2: Database Initialization
+      # Job 2: Database Initialization (runs in parallel with nfs-init)
       {
         name            = "db-init"
         description     = "Create Odoo Database and User"
@@ -139,8 +139,10 @@ locals {
             echo "Database Initialization"
             echo "=========================================="
             
+            echo "Installing PostgreSQL client..."
             apk update && apk add --no-cache postgresql-client
 
+            echo "Connecting to database..."
             export PGPASSWORD=$$ROOT_PASSWORD
             until psql -h $$DB_HOST -p 5432 -U postgres -d postgres -c '\l' > /dev/null 2>&1; do
               echo "Waiting for database..."
@@ -149,6 +151,7 @@ locals {
             echo "✅ Database is accessible"
 
             # Create role
+            echo "Creating/updating database role..."
             psql -h $$DB_HOST -p 5432 -U postgres -d postgres <<EOF
             DO \$$\$$
             BEGIN
@@ -166,6 +169,7 @@ locals {
             EOF
 
             # Create database
+            echo "Creating database if not exists..."
             if ! psql -h $$DB_HOST -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$$DB_NAME'" | grep -q 1; then
               export PGPASSWORD=$$DB_PASSWORD
               psql -h $$DB_HOST -p 5432 -U $$DB_USER -d postgres -c "CREATE DATABASE \"$$DB_NAME\" OWNER \"$$DB_USER\";"
@@ -174,6 +178,7 @@ locals {
               echo "✅ Database already exists"
             fi
 
+            # Grant privileges
             export PGPASSWORD=$$ROOT_PASSWORD
             psql -h $$DB_HOST -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$$DB_NAME\" TO \"$$DB_USER\";"
 
@@ -186,7 +191,7 @@ locals {
         execute_on_apply  = true
       },
       
-      # Job 3: Configuration Generation
+      # Job 3: Configuration Generation (waits for nfs-init)
       {
         name            = "odoo-config"
         description     = "Generate Odoo configuration file"
@@ -195,11 +200,11 @@ locals {
         script_path     = "${path.module}/../../scripts/odoo/odoo-gen-config.sh"
         mount_nfs         = true
         mount_gcs_volumes = []
-        depends_on_jobs   = ["nfs-init"]
+        depends_on_jobs   = ["nfs-init"]  # ✅ Wait for NFS directories
         execute_on_apply  = true
       },
       
-      # Job 4: Odoo Initialization
+      # Job 4: Odoo Initialization (waits for ALL prerequisites)
       {
         name            = "odoo-init"
         description     = "Initialize Odoo database"
@@ -212,43 +217,93 @@ locals {
             echo "Odoo Database Initialization"
             echo "=========================================="
             
-            # Verify mounts
-            echo "Checking mount points..."
-            ls -la /mnt/ || exit 1
-            ls -la /mnt/extra-addons || exit 1
+            # Debug: Show all mount points
+            echo "Mounted filesystems:"
+            df -h | grep -E '(Filesystem|/mnt)'
+            echo ""
             
-            # Verify config
-            if [ ! -f /mnt/odoo.conf ]; then
-                echo "ERROR: /mnt/odoo.conf not found"
+            # Verify NFS mount
+            echo "Checking NFS mount (/mnt)..."
+            if [ ! -d /mnt ]; then
+                echo "❌ ERROR: /mnt directory does not exist"
                 exit 1
             fi
             
-            # Verify filestore is writable
+            echo "NFS mount contents:"
+            ls -la /mnt/ || { echo "❌ Cannot list /mnt"; exit 1; }
+            echo ""
+            
+            # Verify GCS mount
+            echo "Checking GCS mount (/mnt/extra-addons)..."
+            if [ ! -d /mnt/extra-addons ]; then
+                echo "❌ ERROR: /mnt/extra-addons not found"
+                exit 1
+            fi
+            ls -la /mnt/extra-addons || { echo "❌ Cannot list /mnt/extra-addons"; exit 1; }
+            echo "✅ GCS mount verified"
+            echo ""
+            
+            # Verify config file
+            echo "Checking configuration file..."
+            if [ ! -f /mnt/odoo.conf ]; then
+                echo "❌ ERROR: /mnt/odoo.conf not found"
+                echo "This means odoo-config job failed or NFS mount is not working"
+                echo "NFS mount contents:"
+                ls -la /mnt/
+                exit 1
+            fi
+            echo "✅ Configuration file found"
+            echo ""
+            
+            # Verify filestore directory
+            echo "Checking filestore directory..."
+            if [ ! -d /mnt/filestore ]; then
+                echo "❌ ERROR: /mnt/filestore not found"
+                echo "This means nfs-init job failed"
+                echo "NFS mount contents:"
+                ls -la /mnt/
+                exit 1
+            fi
+            echo "✅ Filestore directory found"
+            echo ""
+            
+            # Test filestore write access
             echo "Testing filestore write access..."
             if ! touch /mnt/filestore/.test 2>/dev/null; then
-                echo "ERROR: Cannot write to /mnt/filestore"
+                echo "❌ ERROR: Cannot write to /mnt/filestore"
+                echo "Filestore permissions:"
                 ls -la /mnt/filestore/
                 exit 1
             fi
             rm -f /mnt/filestore/.test
             echo "✅ Filestore is writable"
+            echo ""
             
-            # Check if already initialized
+            # Check if database is already initialized
+            echo "Checking if database is already initialized..."
             if psql "postgresql://$${DB_USER}:$${DB_PASSWORD}@$${DB_HOST}:5432/$${DB_NAME}" \
                  -c "SELECT 1 FROM information_schema.tables WHERE table_name='ir_module_module';" 2>/dev/null | grep -q 1; then
-                echo "⚠️  Database already initialized, skipping..."
+                echo "⚠️  Database already initialized, skipping initialization..."
                 exit 0
             fi
+            echo "Database not initialized, proceeding..."
+            echo ""
             
+            # Start Odoo initialization
+            echo "=========================================="
             echo "Starting Odoo initialization..."
+            echo "=========================================="
             odoo -c /mnt/odoo.conf -i base --stop-after-init --log-level=info
             
+            echo ""
+            echo "=========================================="
             echo "✅ Odoo initialization complete"
+            echo "=========================================="
           EOT
         ]
         mount_nfs         = true
         mount_gcs_volumes = ["odoo-addons-volume"]
-        depends_on_jobs   = ["db-init", "odoo-config"]
+        depends_on_jobs   = ["nfs-init", "db-init", "odoo-config"]  # ✅ FIXED: Wait for all prerequisites
         execute_on_apply  = true
       }
     ]
