@@ -316,6 +316,12 @@ variable "container_build_config" {
   default = null
 }
 
+variable "enable_image_mirroring" {
+  description = "Enable automated mirroring of container images to Artifact Registry. Useful for caching public images or compliance. {{UIMeta group=0 order=404 updatesafe }}"
+  type        = bool
+  default     = null
+}
+
 variable "github_repository_url" {
   description = "GitHub repository URL for automated CI/CD (e.g., 'https://github.com/username/repo'). Required when using Cloud Build triggers for automated deployments. {{UIMeta group=0 order=405 updatesafe }}"
   type        = string
