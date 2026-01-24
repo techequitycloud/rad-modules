@@ -13,7 +13,7 @@ locals {
     db_user         = "odoo"
 
     enable_cloudsql_volume     = true
-    cloudsql_volume_mount_path = ""
+    cloudsql_volume_mount_path = "/cloudsql"
 
     nfs_enabled    = true
     nfs_mount_path = "/mnt"
@@ -268,13 +268,13 @@ locals {
             echo "Waiting for configuration file..."
             MAX_RETRIES=30
             RETRY_COUNT=0
-            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            while [ $$RETRY_COUNT -lt $$MAX_RETRIES ]; do
               if [ -f /mnt/odoo.conf ]; then
                 echo "✅ Configuration file found"
                 break
               fi
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              echo "Waiting for /mnt/odoo.conf... ($RETRY_COUNT/$MAX_RETRIES)"
+              RETRY_COUNT=$$((RETRY_COUNT + 1))
+              echo "Waiting for /mnt/odoo.conf... ($$RETRY_COUNT/$$MAX_RETRIES)"
               sleep 2
             done
             
