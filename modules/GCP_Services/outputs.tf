@@ -114,3 +114,22 @@ output "redis_on_nfs_connection_string" {
   description = "Redis connection string for applications"
   value       = var.create_network_filesystem ? "redis://${google_compute_address.static_internal_ip[0].address}:6379" : null
 }
+
+#########################################################################
+# Filestore Outputs
+#########################################################################
+
+output "filestore_ip" {
+  description = "The IP address of the Filestore instance."
+  value       = var.create_filestore_nfs ? google_filestore_instance.nfs_server[0].networks[0].ip_addresses[0] : null
+}
+
+output "filestore_name" {
+  description = "The name of the Filestore instance."
+  value       = var.create_filestore_nfs ? google_filestore_instance.nfs_server[0].name : null
+}
+
+output "filestore_file_share_name" {
+  description = "The name of the Filestore file share."
+  value       = var.create_filestore_nfs ? google_filestore_instance.nfs_server[0].file_shares[0].name : null
+}

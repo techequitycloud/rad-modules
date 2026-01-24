@@ -16,24 +16,24 @@
 # Resource definition for a Google Cloud Filestore instance.
 resource "google_filestore_instance" "nfs_server" {
   count = var.create_filestore_nfs ? 1 : 0
-  name  = "nfsserver"
+  name  = var.filestore_name != null ? var.filestore_name : "filestore-${local.random_id}"
   project = local.project.project_id
   location = data.google_compute_zones.available_zones.names[0]
   tier = var.filestore_tier
 
   file_shares {
-    capacity_gb = var.filestore_capacity_mb
+    capacity_gb = var.filestore_capacity_gb
     name        = "share"
 
     nfs_export_options {
-      ip_ranges   = ["${local.gce_subnet_cidrs}"]
+      ip_ranges   = local.gce_subnet_cidrs
       access_mode = "READ_WRITE"
       squash_mode = "NO_ROOT_SQUASH"
     }
   }
 
   networks {
-    network      = google_compute_network.vpc.name
+    network      = google_compute_network.vpc_network.name
     modes        = ["MODE_IPV4"]
     connect_mode = "DIRECT_PEERING"
   }
