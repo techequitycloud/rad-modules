@@ -45,11 +45,18 @@ locals {
     # ✅ UPDATED: Container command includes /mnt/extra-addons
     container_command = ["/bin/bash", "-c"]
     container_args = [
-      "echo 'Starting Odoo with DB: $DB_HOST' && echo 'Data directory: /mnt/filestore' && ls -la /mnt/ && exec odoo --database=\"$DB_NAME\" --db_host=\"$DB_HOST\" --db_port=5432 --db_user=\"$DB_USER\" --db_password=\"$DB_PASSWORD\" --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons --http-port=8069 --logfile=False --log-level=info --proxy-mode"
+      "echo 'Starting Odoo with DB: $DB_HOST' && echo 'Data directory: /mnt/filestore' && ls -la /mnt/ && EXTRA_ARGS=\"\" && if [ \"$SMTP_SSL\" = \"true\" ]; then EXTRA_ARGS=\"--smtp-ssl\"; fi && exec odoo --database=\"$DB_NAME\" --db_host=\"$DB_HOST\" --db_port=5432 --db_user=\"$DB_USER\" --db_password=\"$DB_PASSWORD\" --data-dir=/mnt/filestore --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons --http-port=8069 --logfile=False --log-level=info --proxy-mode $EXTRA_ARGS $${SMTP_HOST:+--smtp-server=\"$SMTP_HOST\"} $${SMTP_PORT:+--smtp-port=\"$SMTP_PORT\"} $${SMTP_USER:+--smtp-user=\"$SMTP_USER\"} $${SMTP_PASSWORD:+--smtp-password=\"$SMTP_PASSWORD\"} $${EMAIL_FROM:+--email-from=\"$EMAIL_FROM\"} --admin_passwd=\"$ODOO_MASTER_PASS\""
     ]
 
     # Environment variables
-    environment_variables = {}
+    environment_variables = {
+      SMTP_HOST     = ""
+      SMTP_PORT     = "25"
+      SMTP_USER     = ""
+      SMTP_PASSWORD = ""
+      SMTP_SSL      = "false"
+      EMAIL_FROM    = "odoo@example.com"
+    }
 
     # ✅ UPDATED: Initialization Jobs (restored nfs-init, removed gcs checks for filestore)
     initialization_jobs = [
