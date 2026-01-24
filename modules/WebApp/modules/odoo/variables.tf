@@ -129,7 +129,7 @@ locals {
         description     = "Generate Odoo configuration file"
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
-        script_path     = "${path.module}/../../scripts/odoo-gen-config.sh"
+        script_path     = "${path.module}/../../scripts/odoo/odoo-gen-config.sh"
         mount_nfs       = true
         execute_on_apply = true
       },
