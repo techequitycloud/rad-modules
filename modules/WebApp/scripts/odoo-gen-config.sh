@@ -22,7 +22,7 @@ admin_passwd = ${ODOO_MASTER_PASS}
 
 ; Paths
 data_dir = /mnt/filestore
-addons_path = /usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons
+addons_path = /usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons,/mnt/addons
 
 ; Server Configuration
 xmlrpc_port = 8069
