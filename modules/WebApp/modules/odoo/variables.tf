@@ -78,7 +78,7 @@ locals {
     }
 
     initialization_jobs = [
-      # Job 1: NFS Initialization (FIXED)
+      # Job 1: NFS Initialization
       {
         name            = "nfs-init"
         description     = "Initialize NFS directories for Odoo"
@@ -141,41 +141,41 @@ locals {
             
             apk update && apk add --no-cache postgresql-client
 
-            export PGPASSWORD=$ROOT_PASSWORD
-            until psql -h $DB_HOST -p 5432 -U postgres -d postgres -c '\l' > /dev/null 2>&1; do
+            export PGPASSWORD=$$ROOT_PASSWORD
+            until psql -h $$DB_HOST -p 5432 -U postgres -d postgres -c '\l' > /dev/null 2>&1; do
               echo "Waiting for database..."
               sleep 2
             done
             echo "✅ Database is accessible"
 
             # Create role
-            psql -h $DB_HOST -p 5432 -U postgres -d postgres <<EOF
-            DO \$\$
+            psql -h $$DB_HOST -p 5432 -U postgres -d postgres <<EOF
+            DO \$$\$$
             BEGIN
-              IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER') THEN
-                CREATE ROLE "$DB_USER" WITH LOGIN PASSWORD '$DB_PASSWORD';
-                RAISE NOTICE 'Role created: $DB_USER';
+              IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$$DB_USER') THEN
+                CREATE ROLE "$$DB_USER" WITH LOGIN PASSWORD '$$DB_PASSWORD';
+                RAISE NOTICE 'Role created: $$DB_USER';
               ELSE
-                ALTER ROLE "$DB_USER" WITH PASSWORD '$DB_PASSWORD';
-                RAISE NOTICE 'Role updated: $DB_USER';
+                ALTER ROLE "$$DB_USER" WITH PASSWORD '$$DB_PASSWORD';
+                RAISE NOTICE 'Role updated: $$DB_USER';
               END IF;
             END
-            \$\$;
-            ALTER ROLE "$DB_USER" CREATEDB;
-            GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
+            \$$\$$;
+            ALTER ROLE "$$DB_USER" CREATEDB;
+            GRANT ALL PRIVILEGES ON DATABASE postgres TO "$$DB_USER";
             EOF
 
             # Create database
-            if ! psql -h $DB_HOST -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
-              export PGPASSWORD=$DB_PASSWORD
-              psql -h $DB_HOST -p 5432 -U $DB_USER -d postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
+            if ! psql -h $$DB_HOST -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$$DB_NAME'" | grep -q 1; then
+              export PGPASSWORD=$$DB_PASSWORD
+              psql -h $$DB_HOST -p 5432 -U $$DB_USER -d postgres -c "CREATE DATABASE \"$$DB_NAME\" OWNER \"$$DB_USER\";"
               echo "✅ Database created"
             else
               echo "✅ Database already exists"
             fi
 
-            export PGPASSWORD=$ROOT_PASSWORD
-            psql -h $DB_HOST -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
+            export PGPASSWORD=$$ROOT_PASSWORD
+            psql -h $$DB_HOST -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$$DB_NAME\" TO \"$$DB_USER\";"
 
             echo "✅ Database initialization complete"
           EOT
@@ -234,7 +234,7 @@ locals {
             echo "✅ Filestore is writable"
             
             # Check if already initialized
-            if psql "postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME}" \
+            if psql "postgresql://$${DB_USER}:$${DB_PASSWORD}@$${DB_HOST}:5432/$${DB_NAME}" \
                  -c "SELECT 1 FROM information_schema.tables WHERE table_name='ir_module_module';" 2>/dev/null | grep -q 1; then
                 echo "⚠️  Database already initialized, skipping..."
                 exit 0
