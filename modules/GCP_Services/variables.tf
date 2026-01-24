@@ -216,7 +216,7 @@ variable "redis_tier" {
 }
 
 variable "redis_memory_size_gb" {
-  description = "Memory size in GB for the Redis instance. {{UIMeta group=6 order=3 }}"
+  description = "Memory size in GB for the Redis instance. {{UIMeta group=5 order=6 }}"
   type        = number
   default     = 1
 
