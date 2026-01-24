@@ -282,6 +282,13 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
           each.value.script_path != null ? ["-c", file(each.value.script_path)] : null
         )
 
+        resources {
+          limits = {
+            cpu    = try(each.value.cpu_limit, "1000m")
+            memory = try(each.value.memory_limit, "512Mi")
+          }
+        }
+
         # NFS volume mount (if enabled) - ✅ UPDATED: Use deployment-specific path
         dynamic "volume_mounts" {
           for_each = each.value.mount_nfs && local.nfs_enabled && local.nfs_server_exists ? [1] : []

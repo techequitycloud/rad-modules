@@ -137,6 +137,8 @@ locals {
         name            = "odoo-init"
         description     = "Initialize Odoo database"
         image           = null # Uses default container image (odoo)
+        cpu_limit       = "2000m"
+        memory_limit    = "2Gi"
         command         = ["/bin/bash", "-c"]
         args            = [
           "echo 'Verifying mount points...' && echo 'NFS (/mnt):' && ls -la /mnt/ && echo 'GCS Addons:' && ls -la /mnt/extra-addons && echo 'Starting Odoo initialization...' && odoo -c /mnt/odoo.conf -i base --stop-after-init --log-level=info"
