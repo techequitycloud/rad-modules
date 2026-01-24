@@ -26,6 +26,10 @@ if [ "$DB_TYPE" = "POSTGRES" ]; then
     if psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
         psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DB_NAME';" || echo "Warning: Failed to terminate connections"
 
+        # ✅ ADD THIS: Transfer ownership to postgres user
+        echo "Changing database owner to postgres..."
+        psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO postgres;" || echo "Warning: Failed to change owner (database may already be owned by postgres)"
+
         echo "Dropping database $DB_NAME..."
         psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d postgres -c "DROP DATABASE \"$DB_NAME\";"
     else
