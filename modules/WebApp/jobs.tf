@@ -303,6 +303,26 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
             mount_path = volume_mounts.value.mount_path
           }
         }
+
+        # Cloud SQL instance volume mount (for Unix socket connections)
+        dynamic "volume_mounts" {
+          for_each = local.enable_cloudsql_volume && local.sql_server_exists ? [1] : []
+          content {
+            name       = "cloudsql"
+            mount_path = local.cloudsql_volume_mount_path
+          }
+        }
+      }
+
+      # Cloud SQL instance volume (for Unix socket connections)
+      dynamic "volumes" {
+        for_each = local.enable_cloudsql_volume && local.sql_server_exists ? [1] : []
+        content {
+          name = "cloudsql"
+          cloud_sql_instance {
+            instances = ["${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"]
+          }
+        }
       }
 
       # NFS volume (if enabled) - ✅ UPDATED: Use deployment-specific path
