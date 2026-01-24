@@ -472,7 +472,7 @@ resource "google_cloud_run_v2_job" "postgres_extensions_job" {
         resources {
           limits = {
             cpu    = "1000m"
-            memory = "512Mi"
+            memory = "1Gi"
           }
         }
       }
@@ -918,7 +918,7 @@ resource "google_cloud_run_v2_job" "mysql_plugins_job" {
         resources {
           limits = {
             cpu    = "1000m"
-            memory = "512Mi"
+            memory = "1Gi"
           }
         }
       }
