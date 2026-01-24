@@ -6,7 +6,14 @@ locals {
     app_name        = "odoo"
     description     = "Odoo ERP System - CRM, e-commerce, billing, accounting, manufacturing, warehouse, project management"
     container_image = "odoo:18.0"
-    image_source    = "prebuilt"
+    image_source    = "custom"
+    container_build_config = {
+      enabled            = true
+      dockerfile_path    = "Dockerfile"
+      context_path       = "odoo"
+      build_args         = {}
+      artifact_repo_name = "webapp-repo"
+    }
     container_port  = 8069
     database_type   = "POSTGRES_15"
     db_name         = "odoo"
