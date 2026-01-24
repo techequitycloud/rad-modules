@@ -193,7 +193,7 @@ variable "filestore_tier" {
 }
 
 variable "filestore_capacity_gb" {
-  description = "Filestore disk size in GB. {{UIMeta group=5 order=3 }}"
+  description = "Filestore capacity must be at least 1024 GB for BASIC_HDD, and 2560 GB for BASIC_SSD.{{UIMeta group=5 order=3 }}"
   type        = number
   default     = 1024
 
