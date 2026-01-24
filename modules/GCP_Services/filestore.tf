@@ -16,7 +16,7 @@
 # Resource definition for a Google Cloud Filestore instance.
 resource "google_filestore_instance" "nfs_server" {
   count = var.create_filestore_nfs ? 1 : 0
-  name  = var.filestore_name != null ? var.filestore_name : "filestore-${local.random_id}"
+  name  = "filestore-${local.random_id}"
   project = local.project.project_id
   location = data.google_compute_zones.available_zones.names[0]
   tier = var.filestore_tier
