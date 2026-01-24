@@ -45,28 +45,29 @@ EOF
 if [ -n "$SMTP_HOST" ]; then
     echo "smtp_server = $SMTP_HOST" >> "$CONFIG_FILE"
     echo "smtp_port = ${SMTP_PORT:-25}" >> "$CONFIG_FILE"
-
+    
     if [ -n "$SMTP_USER" ]; then
         echo "smtp_user = $SMTP_USER" >> "$CONFIG_FILE"
     fi
-
+    
     if [ -n "$SMTP_PASSWORD" ]; then
         echo "smtp_password = $SMTP_PASSWORD" >> "$CONFIG_FILE"
     fi
-
+    
     if [ "$SMTP_SSL" = "true" ]; then
         echo "smtp_ssl = True" >> "$CONFIG_FILE"
     else
         echo "smtp_ssl = False" >> "$CONFIG_FILE"
     fi
-
+    
     if [ -n "$EMAIL_FROM" ]; then
         echo "email_from = $EMAIL_FROM" >> "$CONFIG_FILE"
     fi
 fi
 
 # Set permissions
-chmod 644 "$CONFIG_FILE"
+chown 101:101 "$CONFIG_FILE"
+chmod 640 "$CONFIG_FILE"
 
 echo "Odoo configuration generated at $CONFIG_FILE"
 # NOTE: Not printing config file content to logs to avoid leaking secrets
