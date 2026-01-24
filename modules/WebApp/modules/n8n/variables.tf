@@ -5,8 +5,8 @@ locals {
   n8n_module = {
     app_name        = "n8n"
     description     = "n8n Workflow Automation - Workflow automation platform"
-    container_image = "n8nio/n8n:latest"
-    application_version = "latest"
+    container_image = "n8nio/n8n:2.4.6"
+    application_version = "2.4.6"
     image_source    = "prebuilt"
     container_port  = 5678
     database_type   = "POSTGRES_15"
@@ -26,8 +26,8 @@ locals {
       ]
     }]
     container_resources = {
-      cpu_limit    = "1000m"
-      memory_limit = "2Gi"
+      cpu_limit    = "2000m"
+      memory_limit = "4Gi"
     }
     min_instance_count = 0
     max_instance_count = 3
@@ -37,9 +37,15 @@ locals {
       N8N_USER_MANAGEMENT_DISABLED     = "false"
       EXECUTIONS_DATA_SAVE_ON_ERROR    = "all"
       EXECUTIONS_DATA_SAVE_ON_SUCCESS  = "all"
-      GENERIC_TIMEZONE                 = "America/New_York"
-      TZ                               = "America/New_York"
+      GENERIC_TIMEZONE                 = "UTC"
+      TZ                               = "UTC"
       N8N_DEFAULT_BINARY_DATA_MODE     = "filesystem"
+      N8N_EMAIL_MODE                   = "smtp"
+      N8N_SMTP_HOST                    = ""
+      N8N_SMTP_PORT                    = "587"
+      N8N_SMTP_USER                    = ""
+      N8N_SMTP_SENDER                  = ""
+      N8N_SMTP_SSL                     = "false"
     }
     enable_postgres_extensions = false
     postgres_extensions         = []
@@ -108,7 +114,7 @@ locals {
       enabled               = true
       type                  = "HTTP"
       path                  = "/"
-      initial_delay_seconds = 60
+      initial_delay_seconds = 120
       timeout_seconds       = 3
       period_seconds        = 10
       failure_threshold     = 3
