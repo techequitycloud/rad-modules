@@ -66,7 +66,7 @@ locals {
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
         args            = [
-          "mkdir -p /mnt/filestore /mnt/sessions /mnt/backups && chmod 777 /mnt/filestore /mnt/sessions /mnt/backups && echo 'NFS directories initialized successfully' && ls -la /mnt/"
+          "mkdir -p /mnt/filestore /mnt/sessions /mnt/backups && chown -R 101:101 /mnt/filestore /mnt/sessions /mnt/backups && echo 'NFS directories initialized successfully with UID 101' && ls -la /mnt/"
         ]
         mount_nfs        = true
         execute_on_apply = true
