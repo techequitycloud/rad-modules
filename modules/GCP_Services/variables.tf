@@ -203,12 +203,6 @@ variable "filestore_capacity_gb" {
   }
 }
 
-variable "filestore_name" {
-  description = "Name of the Filestore instance. {{UIMeta group=5 order=4 }}"
-  type        = string
-  default     = null
-}
-
 variable "create_redis" {
   description = "Select to create Managed Redis instance. {{UIMeta group=5 order=4 }}"
   type        = bool
