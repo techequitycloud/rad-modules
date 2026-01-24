@@ -11,8 +11,8 @@ ARG TARGETARCH
 
 # Odoo version arguments
 ARG APP_VERSION=18.0
-ARG APP_RELEASE=20251008
-ARG APP_SHA=c15a8eb3791e805b9cd3078f2dd4e0d78130b1c2
+ARG APP_RELEASE=20260119
+ARG APP_SHA=798dfc952eed08e0d976364c26dc47a45535be70
 
 # Install some deps, lessc and less-plugin-clean-css, and wkhtmltopdf
 RUN apt-get update && \
