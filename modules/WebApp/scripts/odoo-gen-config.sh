@@ -66,7 +66,8 @@ if [ -n "$SMTP_HOST" ]; then
 fi
 
 # Set permissions
-chmod 644 "$CONFIG_FILE"
+chown 101:101 "$CONFIG_FILE"
+chmod 640 "$CONFIG_FILE"
 
 echo "Odoo configuration generated at $CONFIG_FILE"
 # NOTE: Not printing config file content to logs to avoid leaking secrets
