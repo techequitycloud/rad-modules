@@ -45,7 +45,7 @@ locals {
     # ✅ UPDATED: Container command includes /mnt/extra-addons
     container_command = ["/bin/bash", "-c"]
     container_args = [
-      "echo 'Starting Odoo...' && echo 'Config file: /mnt/odoo.conf' && if [ ! -f /mnt/odoo.conf ]; then echo 'Error: /mnt/odoo.conf not found. Ensure generate-config job ran.'; exit 1; fi && exec odoo -c /mnt/odoo.conf"
+      "echo 'Starting Odoo...' && echo 'Config file: /mnt/odoo.conf' && if [ ! -f /mnt/odoo.conf ]; then echo 'Error: /mnt/odoo.conf not found. Ensure odoo-config job ran.'; exit 1; fi && exec odoo -c /mnt/odoo.conf"
     ]
 
     # Environment variables
@@ -125,7 +125,7 @@ locals {
         execute_on_apply  = true
       },
       {
-        name            = "generate-config"
+        name            = "odoo-config"
         description     = "Generate Odoo configuration file"
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
@@ -143,7 +143,7 @@ locals {
         ]
         mount_nfs         = true
         mount_gcs_volumes = ["odoo-addons-volume"]
-        depends_on_jobs   = ["generate-config"]
+        depends_on_jobs   = ["odoo-config"]
         execute_on_apply  = true
       }
     ]
