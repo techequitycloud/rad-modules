@@ -370,7 +370,8 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
   depends_on = [
     data.google_secret_manager_secret_version.db_password,
     google_secret_manager_secret_iam_member.secret_env_vars,
-    null_resource.mirror_image
+    null_resource.mirror_image,
+    null_resource.custom_build_dependency
   ]
 }
 
