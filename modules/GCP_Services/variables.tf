@@ -187,7 +187,7 @@ variable "create_filestore_nfs" {
 }
 
 variable "filestore_tier" {
-  description = "The service tier of the filestore instance. {{UIMeta group=5 order=2 options=BASIC,STANDARD_HA }}"
+  description = "The service tier of the filestore instance. {{UIMeta group=5 order=2 options=BASIC_HDD,BASIC_SSD }}"
   type        = string
   default     = "BASIC_HDD"
 }
@@ -199,7 +199,7 @@ variable "filestore_capacity_gb" {
 
   validation {
     condition     = var.filestore_capacity_gb >= 1024
-    error_message = "Filestore capacity must be at least 1024 GB."
+    error_message = "Filestore capacity must be at least 1024 GB for BASIC_HDD, and 2560 GB for BASIC_SSD."
   }
 }
 
