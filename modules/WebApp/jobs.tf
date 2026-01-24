@@ -467,7 +467,7 @@ resource "google_cloud_run_v2_job" "postgres_extensions_job" {
         }
 
         command = ["/bin/bash"]
-        args    = ["-c", file("${path.module}/scripts/install-postgres-extensions.sh")]
+        args    = ["-c", file("${path.module}/scripts/core/install-postgres-extensions.sh")]
 
         resources {
           limits = {
@@ -617,7 +617,7 @@ resource "google_cloud_run_v2_job" "gdrive_backup_job" {
         }
 
         command = ["/bin/bash"]
-        args    = ["-c", file("${path.module}/scripts/import-gdrive-backup.sh")]
+        args    = ["-c", file("${path.module}/scripts/core/import-gdrive-backup.sh")]
 
         resources {
           limits = {
@@ -774,7 +774,7 @@ resource "google_cloud_run_v2_job" "gcs_backup_job" {
         }
 
         command = ["/bin/bash"]
-        args    = ["-c", file("${path.module}/scripts/import-gcs-backup.sh")]
+        args    = ["-c", file("${path.module}/scripts/core/import-gcs-backup.sh")]
 
         resources {
           limits = {
@@ -913,7 +913,7 @@ resource "google_cloud_run_v2_job" "mysql_plugins_job" {
         }
 
         command = ["/bin/bash"]
-        args    = ["-c", file("${path.module}/scripts/install-mysql-plugins.sh")]
+        args    = ["-c", file("${path.module}/scripts/core/install-mysql-plugins.sh")]
 
         resources {
           limits = {
@@ -1073,7 +1073,7 @@ resource "google_cloud_run_v2_job" "custom_sql_scripts_job" {
         }
 
         command = ["/bin/bash"]
-        args    = ["-c", file("${path.module}/scripts/run-custom-sql-scripts.sh")]
+        args    = ["-c", file("${path.module}/scripts/core/run-custom-sql-scripts.sh")]
 
         resources {
           limits = {
@@ -1155,7 +1155,7 @@ resource "google_cloud_run_v2_job" "db_cleanup_job" {
         }
 
         command = ["/bin/sh"]
-        args    = ["-c", file("${path.module}/scripts/db-cleanup.sh")]
+        args    = ["-c", file("${path.module}/scripts/core/db-cleanup.sh")]
 
         resources {
           limits = {
@@ -1245,7 +1245,7 @@ resource "google_cloud_run_v2_job" "nfs_cleanup_job" {
         }
 
         command = ["/bin/sh"]
-        args    = ["-c", file("${path.module}/scripts/nfs-cleanup.sh")]
+        args    = ["-c", file("${path.module}/scripts/core/nfs-cleanup.sh")]
 
         resources {
           limits = {

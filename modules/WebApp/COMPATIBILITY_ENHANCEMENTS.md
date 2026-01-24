@@ -127,7 +127,7 @@ Automatically downloads and imports database backups from Google Drive during de
 ### Implementation Details
 
 **Files Created:**
-- `modules/WebApp/scripts/import-gdrive-backup.sh` - Backup import script
+- `modules/WebApp/scripts/core/import-gdrive-backup.sh` - Backup import script
 
 **Files Modified:**
 - `modules/WebApp/variables.tf` - Added backup configuration variables
@@ -232,7 +232,7 @@ Automatically installs PostgreSQL extensions during deployment. This is required
 ### Implementation Details
 
 **Files Created:**
-- `modules/WebApp/scripts/install-postgres-extensions.sh` - Extension installation script
+- `modules/WebApp/scripts/core/install-postgres-extensions.sh` - Extension installation script
 
 **Files Modified:**
 - `modules/WebApp/variables.tf` - Added extension configuration variables

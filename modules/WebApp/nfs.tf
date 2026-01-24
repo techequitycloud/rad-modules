@@ -18,7 +18,7 @@
 
 data "external" "nfs_instance_info" {
   count   = local.nfs_enabled ? 1 : 0
-  program = ["bash", "${path.module}/scripts/get-nfsserver-info.sh", local.project.project_id, local.region, local.impersonation_service_account]
+  program = ["bash", "${path.module}/scripts/core/get-nfsserver-info.sh", local.project.project_id, local.region, local.impersonation_service_account]
 }
 
 #########################################################################

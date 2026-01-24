@@ -17,7 +17,7 @@
 #########################################################################
 
 data "external" "sql_instance_info" {
-  program = ["bash", "${path.module}/scripts/get-sqlserver-info.sh", local.project.project_id, local.database_client_type, local.impersonation_service_account]
+  program = ["bash", "${path.module}/scripts/core/get-sqlserver-info.sh", local.project.project_id, local.database_client_type, local.impersonation_service_account]
 }
 
 #########################################################################

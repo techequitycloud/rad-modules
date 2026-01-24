@@ -31,7 +31,7 @@ resource "local_file" "app_cloudbuild" {
   count = local.enable_custom_build ? 1 : 0
 
   filename = "${path.module}/scripts/cloudbuild.yaml"
-  content = templatefile("${path.module}/scripts/cloudbuild.yaml.tpl", {
+  content = templatefile("${path.module}/scripts/core/cloudbuild.yaml.tpl", {
     PROJECT_ID    = local.project.project_id
     APP_NAME      = local.service_name
     IMAGE_REGION  = local.region
@@ -53,7 +53,7 @@ resource "null_resource" "build_and_push_application_image" {
 
   # Trigger rebuild on changes
   triggers = {
-    script_hash     = fileexists("${path.module}/scripts/build-container.sh") ? filesha256("${path.module}/scripts/build-container.sh") : timestamp()
+    script_hash     = fileexists("${path.module}/scripts/core/build-container.sh") ? filesha256("${path.module}/scripts/core/build-container.sh") : timestamp()
     dockerfile_hash = local.container_build_config.dockerfile_content != null ? sha256(local.container_build_config.dockerfile_content) : (
       fileexists("${path.module}/scripts/${local.container_build_config.context_path}/${local.container_build_config.dockerfile_path}") ?
       filesha256("${path.module}/scripts/${local.container_build_config.context_path}/${local.container_build_config.dockerfile_path}") :
@@ -66,7 +66,7 @@ resource "null_resource" "build_and_push_application_image" {
 
   provisioner "local-exec" {
     working_dir = "${path.module}/scripts"
-    command     = "bash build-container.sh \"${local.project.project_id}\" \"${local.impersonation_service_account}\""
+    command     = "bash core/build-container.sh \"${local.project.project_id}\" \"${local.impersonation_service_account}\""
   }
 
   depends_on = [
