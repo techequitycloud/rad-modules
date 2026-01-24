@@ -347,100 +347,87 @@ locals {
             echo "Odoo Database Initialization"
             echo "=========================================="
             
-            # Debug: Show all mount points
             echo "Mounted filesystems:"
             df -h | grep -E '(Filesystem|/mnt)'
             echo ""
             
-            # Verify NFS mount
             echo "Checking NFS mount (/mnt)..."
             if [ ! -d /mnt ]; then
-                echo "❌ ERROR: /mnt directory does not exist"
+                echo "ERROR: /mnt directory does not exist"
                 exit 1
             fi
             
             echo "NFS mount contents:"
-            ls -la /mnt/ || { echo "❌ Cannot list /mnt"; exit 1; }
+            ls -la /mnt/ || { echo "Cannot list /mnt"; exit 1; }
             echo ""
             
-            # Verify GCS mount
             echo "Checking GCS mount (/mnt/extra-addons)..."
             if [ ! -d /mnt/extra-addons ]; then
-                echo "❌ ERROR: /mnt/extra-addons not found"
+                echo "ERROR: /mnt/extra-addons not found"
                 exit 1
             fi
-            ls -la /mnt/extra-addons || { echo "❌ Cannot list /mnt/extra-addons"; exit 1; }
-            echo "✅ GCS mount verified"
+            ls -la /mnt/extra-addons || { echo "Cannot list /mnt/extra-addons"; exit 1; }
+            echo "GCS mount verified"
             echo ""
             
-            # Wait for config file with retry logic
             echo "Waiting for configuration file..."
             MAX_RETRIES=30
             RETRY_COUNT=0
-            while [ $$RETRY_COUNT -lt $$MAX_RETRIES ]; do
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
               if [ -f /mnt/odoo.conf ]; then
-                echo "✅ Configuration file found"
+                echo "Configuration file found"
                 break
               fi
-              RETRY_COUNT=$$((RETRY_COUNT + 1))
-              echo "Waiting for /mnt/odoo.conf... ($$RETRY_COUNT/$$MAX_RETRIES)"
+              RETRY_COUNT=$(expr $RETRY_COUNT + 1)
+              echo "Waiting for /mnt/odoo.conf... ($RETRY_COUNT/$MAX_RETRIES)"
               sleep 2
             done
             
             if [ ! -f /mnt/odoo.conf ]; then
-              echo "❌ ERROR: /mnt/odoo.conf not found after waiting"
-              echo "This means odoo-config job failed"
+              echo "ERROR: /mnt/odoo.conf not found after waiting"
               echo "NFS mount contents:"
               ls -la /mnt/
               exit 1
             fi
             echo ""
             
-            # Verify config file is readable
             echo "Verifying config file permissions..."
             if ! cat /mnt/odoo.conf > /dev/null 2>&1; then
-              echo "❌ ERROR: Cannot read /mnt/odoo.conf"
+              echo "ERROR: Cannot read /mnt/odoo.conf"
               ls -la /mnt/odoo.conf
               exit 1
             fi
-            echo "✅ Config file is readable"
+            echo "Config file is readable"
             echo ""
             
-            # Verify filestore directory
             echo "Checking filestore directory..."
             if [ ! -d /mnt/filestore ]; then
-                echo "❌ ERROR: /mnt/filestore not found"
-                echo "This means nfs-init job failed"
-                echo "NFS mount contents:"
+                echo "ERROR: /mnt/filestore not found"
                 ls -la /mnt/
                 exit 1
             fi
-            echo "✅ Filestore directory found"
+            echo "Filestore directory found"
             echo ""
             
-            # Test filestore write access
             echo "Testing filestore write access..."
             if ! touch /mnt/filestore/.test 2>/dev/null; then
-                echo "❌ ERROR: Cannot write to /mnt/filestore"
-                echo "Filestore permissions:"
+                echo "ERROR: Cannot write to /mnt/filestore"
                 ls -la /mnt/filestore/
                 exit 1
             fi
             rm -f /mnt/filestore/.test
-            echo "✅ Filestore is writable"
+            echo "Filestore is writable"
             echo ""
             
-            # Check if database is already initialized
             echo "Checking if database is already initialized..."
             if psql "postgresql://$${DB_USER}:$${DB_PASSWORD}@$${DB_HOST}:5432/$${DB_NAME}" \
                  -c "SELECT 1 FROM information_schema.tables WHERE table_name='ir_module_module';" 2>/dev/null | grep -q 1; then
-                echo "⚠️  Database already initialized, skipping initialization..."
+                echo "Database already initialized, skipping..."
                 exit 0
             fi
             echo "Database not initialized, proceeding..."
             echo ""
             
-            # Start Odoo initialization
             echo "=========================================="
             echo "Starting Odoo initialization..."
             echo "=========================================="
@@ -448,7 +435,7 @@ locals {
             
             echo ""
             echo "=========================================="
-            echo "✅ Odoo initialization complete"
+            echo "Odoo initialization complete"
             echo "=========================================="
           EOT
         ]
