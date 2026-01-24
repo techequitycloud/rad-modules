@@ -8,7 +8,6 @@ echo "=========================================="
 echo "Generating Odoo Configuration File"
 echo "=========================================="
 
-# Define config file path
 CONFIG_FILE="/mnt/odoo.conf"
 
 # Verify NFS mount is writable
@@ -42,14 +41,14 @@ echo "DB_PORT: ${DB_PORT:-5432}"
 echo "DB_NAME: $DB_NAME"
 echo "DB_USER: $DB_USER"
 
-# Generate configuration content
-cat <<'EOF' > "$CONFIG_FILE"
+# Generate configuration file directly (shell will substitute variables)
+cat > "$CONFIG_FILE" << EOF
 [options]
 #########################################################################
 # Database Configuration
 #########################################################################
 db_host = ${DB_HOST}
-db_port = ${DB_PORT}
+db_port = ${DB_PORT:-5432}
 db_user = ${DB_USER}
 db_password = ${DB_PASSWORD}
 db_name = ${DB_NAME}
@@ -85,27 +84,17 @@ workers = 4
 max_cron_threads = 2
 
 #########################################################################
-# Resource Limits (in bytes)
+# Resource Limits
 #########################################################################
-# Hard limit: 1.5GB per worker
 limit_memory_hard = 1610612736
-
-# Soft limit: 640MB per worker
 limit_memory_soft = 671088640
-
-# Request limit: 8192 requests per worker before restart
 limit_request = 8192
 
 #########################################################################
-# Time Limits (in seconds)
+# Time Limits
 #########################################################################
-# CPU time limit: 10 minutes
 limit_time_cpu = 600
-
-# Real time limit: 20 minutes
 limit_time_real = 1200
-
-# Cron time limit: unlimited
 limit_time_real_cron = -1
 
 #########################################################################
@@ -120,28 +109,19 @@ server_wide_modules = base,web
 unaccent = True
 EOF
 
-# Now substitute the environment variables
-# Using a temporary file to avoid issues with heredoc
-TMP_FILE=$(mktemp)
-envsubst < "$CONFIG_FILE" > "$TMP_FILE"
-mv "$TMP_FILE" "$CONFIG_FILE"
-
 # Append SMTP configuration if host is set
 if [ -n "$SMTP_HOST" ]; then
-    echo "" >> "$CONFIG_FILE"
-    echo "#########################################################################" >> "$CONFIG_FILE"
-    echo "# SMTP Configuration" >> "$CONFIG_FILE"
-    echo "#########################################################################" >> "$CONFIG_FILE"
-    echo "smtp_server = $SMTP_HOST" >> "$CONFIG_FILE"
-    echo "smtp_port = ${SMTP_PORT:-25}" >> "$CONFIG_FILE"
+    cat >> "$CONFIG_FILE" << EOF
+
+#########################################################################
+# SMTP Configuration
+#########################################################################
+smtp_server = ${SMTP_HOST}
+smtp_port = ${SMTP_PORT:-25}
+EOF
     
-    if [ -n "$SMTP_USER" ]; then
-        echo "smtp_user = $SMTP_USER" >> "$CONFIG_FILE"
-    fi
-    
-    if [ -n "$SMTP_PASSWORD" ]; then
-        echo "smtp_password = $SMTP_PASSWORD" >> "$CONFIG_FILE"
-    fi
+    [ -n "$SMTP_USER" ] && echo "smtp_user = ${SMTP_USER}" >> "$CONFIG_FILE"
+    [ -n "$SMTP_PASSWORD" ] && echo "smtp_password = ${SMTP_PASSWORD}" >> "$CONFIG_FILE"
     
     if [ "$SMTP_SSL" = "true" ]; then
         echo "smtp_ssl = True" >> "$CONFIG_FILE"
@@ -149,9 +129,7 @@ if [ -n "$SMTP_HOST" ]; then
         echo "smtp_ssl = False" >> "$CONFIG_FILE"
     fi
     
-    if [ -n "$EMAIL_FROM" ]; then
-        echo "email_from = $EMAIL_FROM" >> "$CONFIG_FILE"
-    fi
+    [ -n "$EMAIL_FROM" ] && echo "email_from = ${EMAIL_FROM}" >> "$CONFIG_FILE"
     
     echo "✅ SMTP configuration added"
 fi
@@ -167,7 +145,6 @@ ls -la "$CONFIG_FILE"
 echo ""
 echo "Configuration file contents (with secrets masked):"
 echo "=========================================="
-# Print config but mask sensitive values
 sed -e 's/\(password.*=\).*/\1 ***MASKED***/g' \
     -e 's/\(admin_passwd.*=\).*/\1 ***MASKED***/g' \
     "$CONFIG_FILE"
