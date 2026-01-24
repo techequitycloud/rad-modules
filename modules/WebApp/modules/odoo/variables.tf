@@ -42,19 +42,16 @@ locals {
         echo "Starting Odoo Server"
         echo "=========================================="
         
-        # Verify configuration
         if [ ! -f /mnt/odoo.conf ]; then
             echo "ERROR: /mnt/odoo.conf not found"
             exit 1
         fi
         
-        # Verify filestore directory exists and is writable
         if [ ! -d /mnt/filestore ]; then
             echo "ERROR: /mnt/filestore not found"
             exit 1
         fi
         
-        # Test write permissions
         if ! touch /mnt/filestore/.test 2>/dev/null; then
             echo "ERROR: Cannot write to /mnt/filestore"
             ls -la /mnt/filestore/
@@ -62,7 +59,7 @@ locals {
         fi
         rm -f /mnt/filestore/.test
         
-        echo "✅ All checks passed"
+        echo "All checks passed"
         echo "Starting Odoo server..."
         exec odoo -c /mnt/odoo.conf
       EOT
@@ -91,54 +88,40 @@ locals {
             echo "NFS Initialization"
             echo "=========================================="
             
-            # Show current state
             echo "Current /mnt contents:"
             ls -la /mnt/ 2>/dev/null || echo "Empty or not accessible"
             
-            # Create directories
             echo "Creating directories..."
             mkdir -p /mnt/filestore /mnt/sessions /mnt/backups
             
-            # Set ownership and permissions
             echo "Setting ownership and permissions..."
-            
-            # Try method 1: Set ownership to Odoo user (101:101) with group write
             if chown -R 101:101 /mnt/filestore /mnt/sessions /mnt/backups 2>/dev/null; then
-              echo "✅ Ownership set to 101:101"
-              # Use 775 to allow group writes
+              echo "Ownership set to 101:101"
               chmod -R 775 /mnt/filestore /mnt/sessions /mnt/backups
-              echo "✅ Permissions set to 775 (rwxrwxr-x)"
+              echo "Permissions set to 775"
             else
-              echo "⚠️  chown failed (NFS limitation)"
-              # Fallback: Use 777 for maximum compatibility
+              echo "chown failed, using 777 permissions"
               chmod -R 777 /mnt/filestore /mnt/sessions /mnt/backups
-              echo "✅ Permissions set to 777 (rwxrwxrwx)"
+              echo "Permissions set to 777"
             fi
             
-            # Verify final state
             echo ""
-            echo "✅ Directories created and configured"
             echo "Final directory listing:"
             ls -la /mnt/
             echo ""
             echo "Filestore permissions:"
             ls -la /mnt/filestore/
             echo ""
-            echo "Sessions permissions:"
-            ls -la /mnt/sessions/
-            echo ""
             
-            # Test write access
-            echo "Testing write access..."
             if touch /mnt/filestore/.test 2>/dev/null; then
-              echo "✅ Write test successful"
+              echo "Write test successful"
               rm -f /mnt/filestore/.test
             else
-              echo "⚠️  Write test failed - this may cause issues"
-              echo "Current user: $$(id)"
+              echo "Write test failed"
+              echo "Current user: $(id)"
             fi
             
-            echo "✅ NFS initialization complete"
+            echo "NFS initialization complete"
           EOT
         ]
         mount_nfs         = true
@@ -147,7 +130,7 @@ locals {
         execute_on_apply  = true
       },
       
-      # Job 2: Database Initialization with Enhanced Debugging
+      # Job 2: Database Initialization
       {
         name            = "db-init"
         description     = "Create Odoo Database and User"
@@ -157,180 +140,282 @@ locals {
           <<-EOT
             set -e
             echo "=========================================="
-            echo "Database Initialization - Enhanced Debug"
+            echo "Database Initialization"
             echo "=========================================="
             
-            # Show environment variables (mask passwords)
             echo "Environment Check:"
             echo "  DB_HOST: $${DB_HOST:-NOT_SET}"
             echo "  DB_PORT: 5432"
             echo "  DB_USER: $${DB_USER:-NOT_SET}"
             echo "  DB_NAME: $${DB_NAME:-NOT_SET}"
-            echo "  ROOT_PASSWORD: $${ROOT_PASSWORD:+***SET***}"
-            echo "  DB_PASSWORD: $${DB_PASSWORD:+***SET***}"
             echo ""
             
-            # Check if variables are actually set
             if [ -z "$${DB_HOST}" ]; then
-              echo "❌ ERROR: DB_HOST is not set!"
+              echo "ERROR: DB_HOST is not set!"
               exit 1
             fi
             
             if [ -z "$${ROOT_PASSWORD}" ]; then
-              echo "❌ ERROR: ROOT_PASSWORD is not set!"
+              echo "ERROR: ROOT_PASSWORD is not set!"
               exit 1
             fi
             
-            # Install tools
             echo "Installing tools..."
-            apk update && apk add --no-cache postgresql-client bind-tools netcat-openbsd curl
+            apk update && apk add --no-cache postgresql-client netcat-openbsd
             echo ""
             
-            # Test DNS resolution
-            echo "Testing DNS resolution for $${DB_HOST}..."
-            if nslookup $${DB_HOST} 2>&1; then
-              echo "✅ DNS resolution successful"
+            # Skip DNS check for private IPs
+            if echo "$${DB_HOST}" | grep -qE '^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)'; then
+              echo "Detected private IP address: $${DB_HOST}"
+              echo "Skipping DNS resolution check"
             else
-              echo "❌ DNS resolution failed for $${DB_HOST}"
-              echo "Trying to resolve google.com as a test..."
-              nslookup google.com || echo "DNS is completely broken"
-              exit 1
+              echo "Testing DNS resolution for $${DB_HOST}..."
+              nslookup $${DB_HOST} 2>&1 | grep -q "Address:" && echo "DNS OK" || echo "DNS warning"
             fi
             echo ""
             
-            # Get resolved IP
-            RESOLVED_IP=$(nslookup $${DB_HOST} | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | head -1)
-            echo "Resolved IP: $${RESOLVED_IP:-FAILED}"
-            echo ""
-            
-            # Test network connectivity
             echo "Testing network connectivity to $${DB_HOST}:5432..."
             if timeout 5 nc -zv $${DB_HOST} 5432 2>&1; then
-              echo "✅ Port 5432 is reachable"
+              echo "Port 5432 is reachable"
             else
-              echo "❌ Cannot reach $${DB_HOST}:5432"
-              echo ""
-              echo "Checking if this is a Cloud SQL instance..."
-              echo "If using Cloud SQL, ensure:"
-              echo "  1. Instance has public IP enabled"
-              echo "  2. Authorized networks include 0.0.0.0/0 (for testing)"
-              echo "  3. Cloud SQL Admin API is enabled"
-              echo "  4. Service account has cloudsql.client role"
-              echo ""
-              echo "Trying to ping the host..."
-              ping -c 3 $${DB_HOST} 2>&1 || echo "Ping failed"
+              echo "ERROR: Cannot reach $${DB_HOST}:5432"
+              echo "Check VPC connector or use public IP"
               exit 1
             fi
             echo ""
             
-            # Try connection with detailed error
-            echo "Attempting PostgreSQL connection..."
+            echo "Connecting to database..."
             export PGPASSWORD=$${ROOT_PASSWORD}
             export PGCONNECT_TIMEOUT=5
             
-            echo "First connection attempt (will show detailed error)..."
-            if psql -h $${DB_HOST} -p 5432 -U postgres -d postgres -c '\l' 2>&1; then
-              echo "✅ Connection successful on first try!"
-            else
-              echo "First attempt failed, will retry..."
-              echo ""
-            fi
-            
-            # Retry loop with progress
-            echo "Starting retry loop (max 60 attempts, 2 minutes)..."
             MAX_RETRIES=60
             RETRY_COUNT=0
             
             while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
               if psql -h $${DB_HOST} -p 5432 -U postgres -d postgres -c '\l' > /dev/null 2>&1; then
-                echo "✅ Database connection successful after $RETRY_COUNT attempts!"
+                echo "Database connected after $RETRY_COUNT attempts"
                 break
               fi
               
-              RETRY_COUNT=$((RETRY_COUNT + 1))
+              RETRY_COUNT=`expr $RETRY_COUNT + 1`
               
-              # Show detailed error every 10 attempts
-              if [ $((RETRY_COUNT % 10)) -eq 0 ]; then
-                echo "Attempt $RETRY_COUNT/$MAX_RETRIES - Detailed error:"
+              if [ `expr $RETRY_COUNT % 10` -eq 0 ]; then
+                echo "Attempt $RETRY_COUNT/$MAX_RETRIES"
                 psql -h $${DB_HOST} -p 5432 -U postgres -d postgres -c '\l' 2>&1 || true
-                echo ""
               else
-                echo "Waiting for database... ($RETRY_COUNT/$MAX_RETRIES)"
+                echo "Waiting... ($RETRY_COUNT/$MAX_RETRIES)"
               fi
               
               sleep 2
             done
             
             if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-              echo ""
-              echo "❌ Failed to connect after $MAX_RETRIES attempts"
-              echo ""
-              echo "Final connection attempt with full error details:"
-              psql -h $${DB_HOST} -p 5432 -U postgres -d postgres -c '\l' 2>&1 || true
-              echo ""
-              echo "Troubleshooting tips:"
-              echo "1. Check Cloud SQL instance is RUNNABLE:"
-              echo "   gcloud sql instances describe <instance-name>"
-              echo ""
-              echo "2. Check authorized networks:"
-              echo "   gcloud sql instances describe <instance-name> --format='value(settings.ipConfiguration.authorizedNetworks)'"
-              echo ""
-              echo "3. Verify password is correct in Secret Manager"
-              echo ""
-              echo "4. Check Cloud SQL logs:"
-              echo "   gcloud logging read 'resource.type=cloudsql_database' --limit=20"
+              echo "ERROR: Failed to connect after $MAX_RETRIES attempts"
               exit 1
             fi
             
             echo ""
-            echo "Database is accessible, proceeding with initialization..."
-            echo ""
-            
-            # Create role
-            echo "Creating/updating database role..."
+            echo "Creating database role..."
             psql -h $${DB_HOST} -p 5432 -U postgres -d postgres <<EOF
             DO \$\$
             BEGIN
               IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$${DB_USER}') THEN
                 CREATE ROLE "$${DB_USER}" WITH LOGIN PASSWORD '$${DB_PASSWORD}';
-                RAISE NOTICE 'Role created: $${DB_USER}';
               ELSE
                 ALTER ROLE "$${DB_USER}" WITH PASSWORD '$${DB_PASSWORD}';
-                RAISE NOTICE 'Role updated: $${DB_USER}';
               END IF;
             END
             \$\$;
             ALTER ROLE "$${DB_USER}" CREATEDB;
             GRANT ALL PRIVILEGES ON DATABASE postgres TO "$${DB_USER}";
             EOF
-            echo "✅ Role configured"
+            echo "Role configured"
             echo ""
       
-            # Create database
-            echo "Creating database if not exists..."
+            echo "Creating database..."
             if ! psql -h $${DB_HOST} -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$${DB_NAME}'" | grep -q 1; then
               export PGPASSWORD=$${DB_PASSWORD}
               psql -h $${DB_HOST} -p 5432 -U $${DB_USER} -d postgres -c "CREATE DATABASE \"$${DB_NAME}\" OWNER \"$${DB_USER}\";"
-              echo "✅ Database created"
+              echo "Database created"
             else
-              echo "✅ Database already exists"
+              echo "Database already exists"
             fi
             echo ""
       
-            # Grant privileges
             export PGPASSWORD=$${ROOT_PASSWORD}
             psql -h $${DB_HOST} -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$${DB_NAME}\" TO \"$${DB_USER}\";"
-            echo "✅ Privileges granted"
+            echo "Privileges granted"
             echo ""
-      
-            echo "=========================================="
-            echo "✅ Database initialization complete"
-            echo "=========================================="
+            echo "Database initialization complete"
           EOT
         ]
         mount_nfs         = false
         mount_gcs_volumes = []
         depends_on_jobs   = []
+        execute_on_apply  = true
+      },
+      
+      # Job 3: Configuration Generation (INLINE SCRIPT)
+      {
+        name            = "odoo-config"
+        description     = "Generate Odoo configuration file"
+        image           = "alpine:3.19"
+        command         = ["/bin/sh", "-c"]
+        args            = [
+          <<-EOT
+            set -e
+            echo "=========================================="
+            echo "Generating Odoo Configuration File"
+            echo "=========================================="
+            
+            CONFIG_FILE="/mnt/odoo.conf"
+            
+            # Verify NFS mount is writable
+            if [ ! -d "/mnt" ]; then
+                echo "ERROR: /mnt directory does not exist"
+                exit 1
+            fi
+            
+            if ! touch /mnt/.test 2>/dev/null; then
+                echo "ERROR: Cannot write to /mnt"
+                ls -la /mnt/
+                exit 1
+            fi
+            rm -f /mnt/.test
+            
+            echo "NFS mount is writable"
+            
+            # Validate required environment variables
+            if [ -z "$${DB_HOST}" ] || [ -z "$${DB_USER}" ] || [ -z "$${DB_PASSWORD}" ] || [ -z "$${DB_NAME}" ]; then
+                echo "ERROR: Missing required database environment variables"
+                echo "DB_HOST: $${DB_HOST:-NOT SET}"
+                echo "DB_USER: $${DB_USER:-NOT SET}"
+                echo "DB_PASSWORD: $${DB_PASSWORD:+SET}"
+                echo "DB_NAME: $${DB_NAME:-NOT SET}"
+                exit 1
+            fi
+            
+            echo "Environment variables validated"
+            echo "DB_HOST: $${DB_HOST}"
+            echo "DB_PORT: $${DB_PORT:-5432}"
+            echo "DB_NAME: $${DB_NAME}"
+            echo "DB_USER: $${DB_USER}"
+            
+            # Generate configuration file
+            cat > "$${CONFIG_FILE}" << 'EOF'
+            [options]
+            #########################################################################
+            # Database Configuration
+            #########################################################################
+            db_host = $${DB_HOST}
+            db_port = $${DB_PORT:-5432}
+            db_user = $${DB_USER}
+            db_password = $${DB_PASSWORD}
+            db_name = $${DB_NAME}
+            db_maxconn = 64
+            db_template = template0
+            
+            #########################################################################
+            # Admin Password
+            #########################################################################
+            admin_passwd = $${ODOO_MASTER_PASS}
+            
+            #########################################################################
+            # Paths
+            #########################################################################
+            data_dir = /mnt/filestore
+            addons_path = /usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons
+            
+            #########################################################################
+            # Server Configuration
+            #########################################################################
+            xmlrpc_port = 8069
+            longpolling_port = 8072
+            proxy_mode = True
+            logfile = /var/log/odoo/odoo.log
+            log_level = info
+            log_handler = :INFO
+            log_db = False
+            
+            #########################################################################
+            # Worker Configuration
+            #########################################################################
+            workers = 4
+            max_cron_threads = 2
+            
+            #########################################################################
+            # Resource Limits
+            #########################################################################
+            limit_memory_hard = 1610612736
+            limit_memory_soft = 671088640
+            limit_request = 8192
+            
+            #########################################################################
+            # Time Limits
+            #########################################################################
+            limit_time_cpu = 600
+            limit_time_real = 1200
+            limit_time_real_cron = -1
+            
+            #########################################################################
+            # Security
+            #########################################################################
+            list_db = False
+            
+            #########################################################################
+            # Performance
+            #########################################################################
+            server_wide_modules = base,web
+            unaccent = True
+            EOF
+            
+            # Append SMTP configuration if host is set
+            if [ -n "$${SMTP_HOST}" ]; then
+                cat >> "$${CONFIG_FILE}" << 'SMTP_EOF'
+            
+            #########################################################################
+            # SMTP Configuration
+            #########################################################################
+            smtp_server = $${SMTP_HOST}
+            smtp_port = $${SMTP_PORT:-25}
+            SMTP_EOF
+                
+                [ -n "$${SMTP_USER}" ] && echo "smtp_user = $${SMTP_USER}" >> "$${CONFIG_FILE}"
+                [ -n "$${SMTP_PASSWORD}" ] && echo "smtp_password = $${SMTP_PASSWORD}" >> "$${CONFIG_FILE}"
+                
+                if [ "$${SMTP_SSL}" = "true" ]; then
+                    echo "smtp_ssl = True" >> "$${CONFIG_FILE}"
+                else
+                    echo "smtp_ssl = False" >> "$${CONFIG_FILE}"
+                fi
+                
+                [ -n "$${EMAIL_FROM}" ] && echo "email_from = $${EMAIL_FROM}" >> "$${CONFIG_FILE}"
+                
+                echo "SMTP configuration added"
+            fi
+            
+            # Set proper permissions (Odoo runs as UID 101)
+            chown 101:101 "$${CONFIG_FILE}" 2>/dev/null || echo "Warning: Could not set ownership"
+            chmod 640 "$${CONFIG_FILE}"
+            
+            echo "Configuration file created at $${CONFIG_FILE}"
+            echo ""
+            echo "File permissions:"
+            ls -la "$${CONFIG_FILE}"
+            echo ""
+            echo "Configuration file contents (with secrets masked):"
+            echo "=========================================="
+            sed -e 's/\(password.*=\).*/\1 ***MASKED***/g' \
+                -e 's/\(admin_passwd.*=\).*/\1 ***MASKED***/g' \
+                "$${CONFIG_FILE}"
+            echo "=========================================="
+            echo ""
+            echo "Odoo configuration generation complete"
+          EOT
+        ]
+        mount_nfs         = true
+        mount_gcs_volumes = []
+        depends_on_jobs   = ["nfs-init"]
         execute_on_apply  = true
       },
       
@@ -351,81 +436,79 @@ locals {
             df -h | grep -E '(Filesystem|/mnt)'
             echo ""
             
-            echo "Checking NFS mount (/mnt)..."
+            echo "Checking NFS mount..."
             if [ ! -d /mnt ]; then
-                echo "ERROR: /mnt directory does not exist"
+                echo "ERROR: /mnt not found"
                 exit 1
             fi
             
-            echo "NFS mount contents:"
-            ls -la /mnt/ || { echo "Cannot list /mnt"; exit 1; }
+            echo "NFS contents:"
+            ls -la /mnt/ || exit 1
             echo ""
             
-            echo "Checking GCS mount (/mnt/extra-addons)..."
+            echo "Checking GCS mount..."
             if [ ! -d /mnt/extra-addons ]; then
                 echo "ERROR: /mnt/extra-addons not found"
                 exit 1
             fi
-            ls -la /mnt/extra-addons || { echo "Cannot list /mnt/extra-addons"; exit 1; }
+            ls -la /mnt/extra-addons || exit 1
             echo "GCS mount verified"
             echo ""
             
-            echo "Waiting for configuration file..."
+            echo "Waiting for odoo.conf..."
             MAX_RETRIES=30
             RETRY_COUNT=0
             while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
               if [ -f /mnt/odoo.conf ]; then
-                echo "Configuration file found"
+                echo "Config file found"
                 break
               fi
-              RETRY_COUNT=$(expr $RETRY_COUNT + 1)
-              echo "Waiting for /mnt/odoo.conf... ($RETRY_COUNT/$MAX_RETRIES)"
+              RETRY_COUNT=`expr $RETRY_COUNT + 1`
+              echo "Waiting... ($RETRY_COUNT/$MAX_RETRIES)"
               sleep 2
             done
             
             if [ ! -f /mnt/odoo.conf ]; then
-              echo "ERROR: /mnt/odoo.conf not found after waiting"
-              echo "NFS mount contents:"
+              echo "ERROR: /mnt/odoo.conf not found"
               ls -la /mnt/
               exit 1
             fi
             echo ""
             
-            echo "Verifying config file permissions..."
+            echo "Verifying config file..."
             if ! cat /mnt/odoo.conf > /dev/null 2>&1; then
               echo "ERROR: Cannot read /mnt/odoo.conf"
               ls -la /mnt/odoo.conf
               exit 1
             fi
-            echo "Config file is readable"
+            echo "Config file readable"
             echo ""
             
-            echo "Checking filestore directory..."
+            echo "Checking filestore..."
             if [ ! -d /mnt/filestore ]; then
                 echo "ERROR: /mnt/filestore not found"
-                ls -la /mnt/
                 exit 1
             fi
-            echo "Filestore directory found"
+            echo "Filestore found"
             echo ""
             
-            echo "Testing filestore write access..."
+            echo "Testing write access..."
             if ! touch /mnt/filestore/.test 2>/dev/null; then
                 echo "ERROR: Cannot write to /mnt/filestore"
                 ls -la /mnt/filestore/
                 exit 1
             fi
             rm -f /mnt/filestore/.test
-            echo "Filestore is writable"
+            echo "Filestore writable"
             echo ""
             
-            echo "Checking if database is already initialized..."
+            echo "Checking if DB already initialized..."
             if psql "postgresql://$${DB_USER}:$${DB_PASSWORD}@$${DB_HOST}:5432/$${DB_NAME}" \
                  -c "SELECT 1 FROM information_schema.tables WHERE table_name='ir_module_module';" 2>/dev/null | grep -q 1; then
-                echo "Database already initialized, skipping..."
+                echo "Database already initialized"
                 exit 0
             fi
-            echo "Database not initialized, proceeding..."
+            echo "Initializing database..."
             echo ""
             
             echo "=========================================="
@@ -434,9 +517,7 @@ locals {
             odoo -c /mnt/odoo.conf -i base --stop-after-init --log-level=info
             
             echo ""
-            echo "=========================================="
             echo "Odoo initialization complete"
-            echo "=========================================="
           EOT
         ]
         mount_nfs         = true
