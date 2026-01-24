@@ -211,7 +211,8 @@ resource "google_compute_firewall" "allow_redis" {
   count         = var.create_network_filesystem ? 1 : 0
   project       = local.project.project_id
   name          = "allow-redis-internal"
-  network       = "https://www.googleapis.com/compute/v1/projects/${var.existing_project_id}/global/networks/gce-vpc"
+  network       = "https://www.googleapis.com/compute/v1/projects/${local.project.project_id}/global/networks/${var.network_name}" 
+
   description   = "Allow Redis traffic within VPC"
 
   allow {
