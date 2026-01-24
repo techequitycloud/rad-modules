@@ -171,7 +171,7 @@ variable "mysql_database_availability_type" {
 ################################################################################
 
 variable "create_network_filesystem" {
-  description = "Select to create NFS server using Compute Engine instances for shared file storage. {{UIMeta group=4 order=1 }}"
+  description = "Select to create NFS server for shared file storage and Redis for application caching and session storage using Compute Engine instances. {{UIMeta group=4 order=1 }}"
   type        = bool
   default     = false
 }
@@ -180,20 +180,43 @@ variable "create_network_filesystem" {
 # GROUP 4: Cache Configuration (User-accessible)
 ################################################################################
 
+variable "create_filestore_nfs" {
+  description = "Select to create Filestore NFS server. {{UIMeta group=5 order=1 }}"
+  type        = bool
+  default     = false
+}
+
+variable "filestore_tier" {
+  description = "The service tier of the filestore instance. {{UIMeta group=5 order=2 options=BASIC,STANDARD_HA }}"
+  type        = string
+  default     = "BASIC_HDD"
+}
+
+variable "filestore_capacity_mb" {
+  description = "Filestore disk size in MB. {{UIMeta group=5 order=3 }}"
+  type        = number
+  default     = 1024
+
+  validation {
+    condition     = var.redis_memory_size_gb >= 1 && var.redis_memory_size_gb <= 300
+    error_message = "Redis memory size must be between 1 and 300 GB."
+  }
+}
+
 variable "create_redis" {
-  description = "Select to create Redis cache instance for application caching and session storage. {{UIMeta group=5 order=1 }}"
+  description = "Select to create Managed Redis instance. {{UIMeta group=5 order=4 }}"
   type        = bool
   default     = false
 }
 
 variable "redis_tier" {
-  description = "The service tier of the Redis instance. BASIC provides a standalone instance; STANDARD_HA provides high availability. {{UIMeta group=5 order=2 options=BASIC,STANDARD_HA }}"
+  description = "The service tier of the Redis instance. {{UIMeta group=5 order=5 options=BASIC,STANDARD_HA }}"
   type        = string
   default     = "BASIC"
 }
 
 variable "redis_memory_size_gb" {
-  description = "Memory size in GB for the Redis instance. {{UIMeta group=5 order=3 }}"
+  description = "Memory size in GB for the Redis instance. {{UIMeta group=6 order=3 }}"
   type        = number
   default     = 1
 
