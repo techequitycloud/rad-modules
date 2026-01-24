@@ -21,7 +21,7 @@ locals {
       context_path       = "odoo"
       dockerfile_content = null
       build_args         = {}
-      artifact_repo_name = "erp-repo"
+      artifact_repo_name = null
     }
 
     enable_cloudsql_volume     = true
