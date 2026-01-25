@@ -29,6 +29,10 @@ locals {
     db_name         = "medusa_db"
     db_user         = "medusa_user"
 
+    # Enable NFS for Redis
+    nfs_enabled     = true
+    nfs_mount_path  = "/mnt/nfs"
+
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
 
@@ -49,7 +53,7 @@ locals {
     # Resource limits
     container_resources = {
       cpu_limit    = "1000m"
-      memory_limit = "1Gi"
+      memory_limit = "2Gi"
     }
     min_instance_count = 0
     max_instance_count = 3
@@ -116,6 +120,23 @@ locals {
           EOT
         ]
         mount_nfs         = false
+        mount_gcs_volumes = []
+        execute_on_apply  = true
+      },
+      {
+        name            = "medusa-migrations"
+        description     = "Run Medusa Migrations"
+        image           = null # Use the application image
+        command         = ["/bin/sh", "-c"]
+        args            = [
+          <<-EOT
+            set -e
+            echo "Running Medusa migrations..."
+            yarn medusa migrations run
+            echo "Migrations complete."
+          EOT
+        ]
+        mount_nfs         = true
         mount_gcs_volumes = []
         execute_on_apply  = true
       }

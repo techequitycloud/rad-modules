@@ -422,10 +422,12 @@ locals {
       SWARM_MODE     = "yes"
     } : {},
     var.application_module == "medusa" ? {
-      DB_HOST     = local.db_internal_ip
+      DB_HOST     = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
       DB_PORT     = "5432"
       DB_NAME     = local.database_name_full
       DB_USER     = local.database_user_full
+      REDIS_URL   = local.nfs_enabled ? "redis://${local.nfs_internal_ip}:6379" : ""
+      MEDUSA_FILE_GOOGLE_BUCKET = try(local.storage_buckets["medusa-uploads"].name, "")
     } : {},
     var.application_module == "strapi" ? {
       DATABASE_HOST     = local.db_internal_ip
