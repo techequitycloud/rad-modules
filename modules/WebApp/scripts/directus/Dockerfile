@@ -1,1 +1,2 @@
-FROM directus/directus:11.1.0
+ARG APP_VERSION
+FROM directus/directus:${APP_VERSION}

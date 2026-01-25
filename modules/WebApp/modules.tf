@@ -320,6 +320,6 @@ locals {
     var.initialization_jobs
   )
 
-  # Final Image Mirroring - Use preset value (no input variable override currently supported)
-  final_enable_image_mirroring = local.module_enable_image_mirroring
+  # Final Image Mirroring - Use preset value with manual override capability
+  final_enable_image_mirroring = var.enable_image_mirroring != null ? var.enable_image_mirroring : local.module_enable_image_mirroring
 }
