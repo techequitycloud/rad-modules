@@ -29,19 +29,6 @@ locals {
 
     gcs_volumes = [
       {
-        name       = "django-static"
-        mount_path = "/app/static"
-        read_only  = false
-        mount_options = [
-          "implicit-dirs",
-          "metadata-cache-ttl-secs=60",
-          "uid=1000",
-          "gid=1000",
-          "dir-mode=777",
-          "file-mode=666"
-        ]
-      },
-      {
         name       = "django-media"
         mount_path = "/app/media"
         read_only  = false
@@ -57,8 +44,8 @@ locals {
     ]
 
     container_resources = {
-      cpu_limit    = "2000m"
-      memory_limit = "2Gi"
+      cpu_limit    = "1000m"
+      memory_limit = "1Gi"
     }
     min_instance_count = 0
     max_instance_count = 3
@@ -146,6 +133,16 @@ locals {
         mount_nfs         = false
         mount_gcs_volumes = []
         execute_on_apply  = true
+      },
+      {
+        name            = "migrate"
+        description     = "Run Django Migrations"
+        image           = null
+        command         = ["/bin/sh", "-c"]
+        args            = ["if [ -f manage.py ]; then python manage.py migrate; else echo 'manage.py not found, skipping migration'; fi"]
+        mount_nfs       = false
+        mount_gcs_volumes = ["django-media"]
+        execute_on_apply = true
       }
     ]
 
