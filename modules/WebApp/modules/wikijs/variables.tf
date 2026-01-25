@@ -27,7 +27,7 @@ locals {
       artifact_repo_name = null
     }
 
-    enable_image_mirroring = true
+    # enable_image_mirroring = true
 
     # Performance optimization
     enable_cloudsql_volume     = true
@@ -58,13 +58,12 @@ locals {
 
     # Environment variables
     environment_variables = {
-      DB_TYPE            = "postgres"
-      DB_PORT            = "5432"
-      DB_USER            = "wikijs"
-      DB_NAME            = "wikijs"
-      DB_SSL             = "false"
-      # HA_ACTIVE enables High Availability mode (requires PostgreSQL)
-      HA_ACTIVE          = "true"
+      DB_TYPE         = "postgres"
+      DB_PORT         = "5432"
+      DB_USER         = "wikijs"
+      DB_NAME         = "wikijs"
+      DB_SSL          = "false"
+      HA_STORAGE_PATH = "/wiki-storage"
       # DB_PASS injected via secrets in main.tf
     }
 
