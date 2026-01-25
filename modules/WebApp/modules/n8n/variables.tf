@@ -5,9 +5,18 @@ locals {
   n8n_module = {
     app_name        = "n8n"
     description     = "n8n Workflow Automation - Workflow automation platform"
-    container_image = "n8nio/n8n:2.4.6"
+    container_image = "n8nio/n8n"
     application_version = "2.4.6"
-    image_source    = "prebuilt"
+    image_source    = "custom"
+    enable_image_mirroring = true
+    container_build_config = {
+      enabled            = true
+      dockerfile_path    = "Dockerfile"
+      context_path       = "n8n"
+      dockerfile_content = null
+      build_args         = {}
+      artifact_repo_name = null
+    }
     container_port  = 5678
     database_type   = "POSTGRES_15"
     db_name         = "n8n_db"
