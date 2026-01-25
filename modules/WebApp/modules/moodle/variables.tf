@@ -11,7 +11,7 @@ locals {
     description     = "Moodle LMS - Online learning and course management platform"
     
     # ✅ Updated to use custom image build
-    container_image = "" # Will be populated by the build process
+    container_image = "bitnami/moodle:4" # Prebuilt image fallback
     image_source    = "custom"
     
     # ✅ Custom build configuration
@@ -32,8 +32,8 @@ locals {
     db_name         = "moodle"
     db_user         = "moodle"
 
-    # Explicitly disable image mirroring (uses custom build or Docker Hub)
-    enable_image_mirroring = false
+    # Configure image mirroring for prebuilt image support
+    enable_image_mirroring = true
 
     # Cloud SQL configuration
     enable_cloudsql_volume     = true

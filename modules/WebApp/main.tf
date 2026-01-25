@@ -382,6 +382,15 @@ locals {
       # Database type: "pgsql" for PostgreSQL, "mysqli" for MySQL
       MOODLE_DB_TYPE = local.database_client_type == "POSTGRES" ? "pgsql" : "mysqli"
       
+      # Bitnami Compatibility (Prebuilt Image Support)
+      MOODLE_DATABASE_HOST        = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+      MOODLE_DATABASE_PORT_NUMBER = tostring(local.database_port)
+      MOODLE_DATABASE_USER        = local.database_user_full
+      MOODLE_DATABASE_NAME        = local.database_name_full
+      MOODLE_DATABASE_TYPE        = local.database_client_type == "POSTGRES" ? "postgresql" : "mariadb"
+      MOODLE_USERNAME             = "admin"
+      MOODLE_EMAIL                = "admin@example.com"
+
       # Redis Configuration
       MOODLE_REDIS_HOST = local.nfs_enabled ? local.nfs_internal_ip : ""
 
@@ -504,9 +513,10 @@ locals {
     } : {},
     # ✅ UPDATED: Moodle secret environment variables
     var.application_module == "moodle" ? {
-      MOODLE_DB_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
-      MOODLE_CRON_PASSWORD = try(google_secret_manager_secret.moodle_cron_password[0].secret_id, "")
-      MOODLE_SMTP_PASSWORD = try(google_secret_manager_secret.moodle_smtp_password[0].secret_id, "")
+      MOODLE_DB_PASSWORD       = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      MOODLE_DATABASE_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      MOODLE_CRON_PASSWORD     = try(google_secret_manager_secret.moodle_cron_password[0].secret_id, "")
+      MOODLE_SMTP_PASSWORD     = try(google_secret_manager_secret.moodle_smtp_password[0].secret_id, "")
     } : {},
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
