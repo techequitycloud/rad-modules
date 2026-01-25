@@ -134,7 +134,13 @@ locals {
   # ✅ UPDATED: Image Mirroring Configuration (disabled for Moodle - Bitnami deprecated Aug 28, 2025)
   # Using lthub/moodle:latest which works directly from Docker Hub
   enable_image_mirroring = local.final_enable_image_mirroring
-  mirror_source_image    = local.final_container_image
+
+  # Determine source image for mirroring (Prebuilt or Custom Build Artifact)
+  mirror_source_image = (
+    local.container_image_source == "custom" && local.container_build_config.enabled && !local.enable_cicd_trigger ?
+    "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}" :
+    local.final_container_image
+  )
 
   # Extract tag from source image (e.g., "4" from "bitnami/moodle:4"), default to "latest"
   _mirror_image_parts    = split(":", local.mirror_source_image)
@@ -146,7 +152,7 @@ locals {
   # Container image logic:
   container_image = (
     local.container_image_source == "custom" && local.container_build_config.enabled && !local.enable_cicd_trigger ?
-    "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}" :
+      (local.enable_image_mirroring ? local.mirror_target_image : "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}") :
     local.enable_image_mirroring ? local.mirror_target_image :
     local.final_container_image != "" ? local.final_container_image : "gcr.io/cloudrun/hello"
   )
