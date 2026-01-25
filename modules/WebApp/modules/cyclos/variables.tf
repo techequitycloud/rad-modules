@@ -12,7 +12,18 @@ locals {
     app_name        = "cyclos"
     description     = "Cyclos Banking System on Cloud Run"
     container_image = "cyclos/cyclos:${var.app_version}"
-    image_source    = "prebuilt"
+    # image_source    = "prebuilt"
+    image_source    = "custom"
+    container_build_config = {
+      enabled            = true
+      dockerfile_path    = "Dockerfile"
+      context_path       = "cyclos"
+      dockerfile_content = null
+      build_args         = {
+        APP_VERSION = var.app_version
+      }
+      artifact_repo_name = null
+    }
     container_port  = 8080
     database_type   = "POSTGRES_15"
     db_name         = "cyclos"
