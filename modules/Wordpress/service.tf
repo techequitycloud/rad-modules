@@ -33,7 +33,12 @@ resource "google_cloud_run_v2_service" "app_service" {
     }
 
     containers {
-      image = "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}"
+      image = (
+        var.image_source == "custom" || var.enable_image_mirroring ?
+        "${local.region}-docker.pkg.dev/${local.project.project_id}/${var.application_name}-${var.tenant_deployment_id}-${local.random_id}/${var.application_name}:${var.application_version}" :
+        var.container_image
+      )
+
       ports {
         container_port = 80
       }
@@ -90,7 +95,7 @@ resource "google_cloud_run_v2_service" "app_service" {
 
       env {
         name  = "WORDPRESS_DB_HOST"
-        value = "${local.db_internal_ip}"
+        value = "localhost:/cloudsql/${local.project.project_id}:${local.region}:${local.db_instance_name}"
       }
 
       env {
@@ -98,9 +103,72 @@ resource "google_cloud_run_v2_service" "app_service" {
         value = "false"
       }
 
+      env {
+        name  = "DISABLE_WP_CRON"
+        value = "true"
+      }
+
+      # SMTP Configuration
+      dynamic "env" {
+        for_each = var.smtp_host != "" ? [1] : []
+        content {
+          name  = "WORDPRESS_SMTP_HOST"
+          value = var.smtp_host
+        }
+      }
+      dynamic "env" {
+        for_each = var.smtp_port != "" ? [1] : []
+        content {
+          name  = "WORDPRESS_SMTP_PORT"
+          value = var.smtp_port
+        }
+      }
+      dynamic "env" {
+        for_each = var.smtp_user != "" ? [1] : []
+        content {
+          name  = "WORDPRESS_SMTP_USER"
+          value = var.smtp_user
+        }
+      }
+      dynamic "env" {
+        for_each = var.smtp_password != "" ? [1] : []
+        content {
+          name = "WORDPRESS_SMTP_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret = "${var.application_name}-smtp-password-${var.tenant_deployment_id}-${local.random_id}"
+              version = "latest"
+            }
+          }
+        }
+      }
+      dynamic "env" {
+        for_each = var.smtp_from_email != "" ? [1] : []
+        content {
+          name  = "WORDPRESS_SMTP_FROM"
+          value = var.smtp_from_email
+        }
+      }
+
+      # Redis Configuration
+      dynamic "env" {
+        for_each = var.enable_redis ? [1] : []
+        content {
+          name  = "WORDPRESS_REDIS_HOST"
+          value = local.nfs_internal_ip
+        }
+      }
+      dynamic "env" {
+        for_each = var.enable_redis ? [1] : []
+        content {
+          name  = "WORDPRESS_REDIS_PORT"
+          value = "6379"
+        }
+      }
+
       volume_mounts {
         name      = "gcs-data-volume"
-        mount_path = "/var/www/html/wp-content"
+        mount_path = "/var/www/html/wp-content/themes"
       }
     }
 
@@ -142,6 +210,7 @@ resource "google_cloud_run_v2_service" "app_service" {
     null_resource.execute_import_db_job,
     google_secret_manager_secret_version.db_password,
     null_resource.build_and_push_application_image,
+    null_resource.mirror_application_image,
   ]
 }
 

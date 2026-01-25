@@ -10,7 +10,7 @@ locals {
     app_name        = "directus"
     description     = "Directus - Open Source Headless CMS and Backend-as-a-Service"
     container_image = "directus/directus:11.1.0"
-    image_source    = "prebuilt"
+    image_source    = "custom"
     container_port  = 8055
     database_type   = "POSTGRES_15"
     db_name         = "directus"
@@ -21,7 +21,7 @@ locals {
     cloudsql_volume_mount_path = ""
 
     # NFS Configuration
-    nfs_enabled    = false
+    nfs_enabled    = true
     nfs_mount_path = ""
 
     # GCS volumes for uploads
@@ -30,24 +30,34 @@ locals {
         name          = "directus-uploads"
         mount_path    = "/mnt/directus-uploads"
         read_only     = false
-        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
+        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60", "uid=1000", "gid=1000"]
       }
     ]
 
     # Resource limits
     container_resources = {
       cpu_limit    = "1000m"
-      memory_limit = "1024Mi"
+      memory_limit = "2Gi"
     }
     min_instance_count = 0
     max_instance_count = 3
+
+    # Container build config (requires image_source = "custom")
+    container_build_config = {
+      enabled         = true
+      context_path    = "directus"
+      dockerfile_path = "Dockerfile"
+    }
 
     # Container command and args
     container_command = [] # Use default
     container_args    = [] # Use default
 
     # Environment variables
-    environment_variables = {}
+    environment_variables = {
+      CORS_ENABLED = "true"
+      CORS_ORIGIN  = "*"
+    }
 
     # Initialization Jobs
     initialization_jobs = [

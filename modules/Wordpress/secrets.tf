@@ -71,3 +71,19 @@ data "google_secret_manager_secret_version" "db_password" {
   ]
 }
 
+# SMTP Password Secret
+resource "google_secret_manager_secret" "smtp_password" {
+  count      = var.smtp_password != "" ? 1 : 0
+  project    = local.project.project_id
+  secret_id  = "${var.application_name}-smtp-password-${var.tenant_deployment_id}-${local.random_id}"
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "smtp_password" {
+  count       = var.smtp_password != "" ? 1 : 0
+  secret      = google_secret_manager_secret.smtp_password[0].id
+  secret_data = var.smtp_password
+}

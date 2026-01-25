@@ -113,7 +113,7 @@ locals {
   container_image_source = local.final_container_image_source
 
   # Default Container Build Config
-  container_build_config = var.container_build_config != null ? var.container_build_config : (
+  _base_container_build_config = var.container_build_config != null ? var.container_build_config : (
     local.module_container_build_config != null ? local.module_container_build_config : {
       enabled            = false
       dockerfile_path    = "Dockerfile"
@@ -123,6 +123,16 @@ locals {
       artifact_repo_name = "webapp-repo"
     }
   )
+
+  # Inject APP_VERSION into build_args for custom builds
+  container_build_config = merge(local._base_container_build_config, {
+    build_args = merge(
+      try(local._base_container_build_config.build_args, {}),
+      {
+        APP_VERSION = local.application_version
+      }
+    )
+  })
 
   # Scoped resource names for multi-tenancy
   artifact_repo_id = "${local.application_name}${local.tenant_id}${local.deployment_id}-repo"
@@ -134,7 +144,13 @@ locals {
   # ✅ UPDATED: Image Mirroring Configuration (disabled for Moodle - Bitnami deprecated Aug 28, 2025)
   # Using lthub/moodle:latest which works directly from Docker Hub
   enable_image_mirroring = local.final_enable_image_mirroring
-  mirror_source_image    = local.final_container_image
+
+  # Determine source image for mirroring (Prebuilt or Custom Build Artifact)
+  mirror_source_image = (
+    local.container_image_source == "custom" && local.container_build_config.enabled && !local.enable_cicd_trigger ?
+    "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}" :
+    local.final_container_image
+  )
 
   # Extract tag from source image (e.g., "4" from "bitnami/moodle:4"), default to "latest"
   _mirror_image_parts    = split(":", local.mirror_source_image)
@@ -146,7 +162,7 @@ locals {
   # Container image logic:
   container_image = (
     local.container_image_source == "custom" && local.container_build_config.enabled && !local.enable_cicd_trigger ?
-    "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}" :
+      (local.enable_image_mirroring ? local.mirror_target_image : "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}") :
     local.enable_image_mirroring ? local.mirror_target_image :
     local.final_container_image != "" ? local.final_container_image : "gcr.io/cloudrun/hello"
   )
@@ -191,15 +207,6 @@ locals {
       }
     ] : [],
     var.application_module == "django" ? [
-      {
-        name_suffix              = "django-static"
-        location                 = var.deployment_region
-        storage_class            = "STANDARD"
-        force_destroy            = true
-        versioning_enabled       = false
-        lifecycle_rules          = []
-        public_access_prevention = "inherited"
-      },
       {
         name_suffix              = "django-media"
         location                 = var.deployment_region
@@ -348,6 +355,9 @@ locals {
       WEBHOOK_URL                  = local.predicted_service_url
       N8N_EDITOR_BASE_URL          = local.predicted_service_url
     } : {},
+    var.application_module == "cyclos" ? {
+      DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+    } : {},
     var.application_module == "odoo" ? {
       HOST    = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
       DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
@@ -367,7 +377,7 @@ locals {
     # ✅ UPDATED: Dynamic Moodle environment variables (PostgreSQL compatible with pre-calculated URL)
     var.application_module == "moodle" ? {
       # Database connection (supports both MySQL and PostgreSQL)
-      MOODLE_DB_HOST = local.db_internal_ip
+      MOODLE_DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
       MOODLE_DB_PORT = tostring(local.database_port)
       MOODLE_DB_USER = local.database_user_full
       MOODLE_DB_NAME = local.database_name_full
@@ -375,6 +385,16 @@ locals {
       # Database type: "pgsql" for PostgreSQL, "mysqli" for MySQL
       MOODLE_DB_TYPE = local.database_client_type == "POSTGRES" ? "pgsql" : "mysqli"
       
+      # Redis Configuration
+      MOODLE_REDIS_HOST = local.nfs_enabled ? local.nfs_internal_ip : ""
+
+      # SMTP Configuration
+      MOODLE_SMTP_HOST   = ""
+      MOODLE_SMTP_PORT   = "587"
+      MOODLE_SMTP_USER   = ""
+      MOODLE_SMTP_SECURE = "tls"
+      MOODLE_SMTP_AUTH   = "LOGIN"
+
       # ✅ Pre-calculated Cloud Run URL (deterministic format)
       MOODLE_WWWROOT  = local.predicted_service_url
       MOODLE_SITE_URL = local.predicted_service_url
@@ -385,8 +405,8 @@ locals {
       ENABLE_REVERSE_PROXY = "TRUE"
       MOODLE_REVERSE_PROXY = "true"
       
-      # ✅ Cron Configuration
-      CRON_INTERVAL = "1"
+      # ✅ Cron Configuration (Managed by Cloud Scheduler)
+      # CRON_INTERVAL = "1" # Deprecated
       
       # Site configuration
       MOODLE_SITE_NAME     = "Moodle LMS"
@@ -400,8 +420,8 @@ locals {
       MOODLE_UPDATE       = "yes"
       
       # Data directory
-      MOODLE_DATA_DIR = "/var/moodledata"
-      DATA_PATH       = "/var/moodledata"
+      MOODLE_DATA_DIR = "/mnt"
+      DATA_PATH       = "/mnt"
     } : {},
     var.application_module == "ghost" ? {
       url                            = local.predicted_service_url
@@ -411,15 +431,22 @@ locals {
       database__connection__port     = "3306"
       database__connection__socketPath = ""
     } : {},
+    var.application_module == "wikijs" ? {
+      DB_HOST    = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+      REDIS_HOST = local.nfs_server_exists ? local.nfs_internal_ip : ""
+      REDIS_PORT = local.nfs_server_exists ? "6379" : ""
+    } : {},
     var.application_module == "openemr" ? {
       MYSQL_DATABASE = local.database_name_full
       MYSQL_USER     = local.database_user_full
-      MYSQL_HOST     = local.db_internal_ip
+      MYSQL_HOST     = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
       MYSQL_PORT     = "3306"
       OE_USER        = "admin"
       MANUAL_SETUP   = "no"
       BACKUP_FILEID  = local.final_backup_uri != null ? local.final_backup_uri : ""
       SWARM_MODE     = "yes"
+      REDIS_SERVER   = local.nfs_server_exists ? local.nfs_internal_ip : ""
+      REDIS_PORT     = "6379"
     } : {},
     var.application_module == "medusa" ? {
       DB_HOST     = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
@@ -435,6 +462,7 @@ locals {
       DATABASE_NAME     = local.database_name_full
       DATABASE_USERNAME = local.database_user_full
       STRAPI_URL        = local.predicted_service_url
+      GCS_BUCKET_NAME   = try(local.storage_buckets["strapi-uploads"].name, "")
     } : {},
     var.application_module == "directus" ? {
       DB_CLIENT              = "pg"
@@ -447,12 +475,16 @@ locals {
       STORAGE_UPLOADS_DRIVER = "local"
       STORAGE_UPLOADS_ROOT   = "/mnt/directus-uploads"
       WEBSOCKETS_ENABLED     = "true"
-      CORS_ENABLED           = "true"
-      CORS_ORIGIN            = local.predicted_service_url
+      # CORS configuration removed from here to allow user override via environment_variables
       ADMIN_EMAIL            = try(local.final_environment_variables["ADMIN_EMAIL"], "admin@example.com")
     } : {},
     var.application_module == "sample" ? {
       DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+
+      # Redis Configuration for Caching
+      CACHE_ENABLED          = "true"
+      CACHE_STORE            = "redis"
+      REDIS                  = "redis://${local.nfs_internal_ip}:6379"
     } : {}
   )
 
@@ -466,7 +498,7 @@ locals {
       DB_NAME     = local.database_name_full
       DB_USER     = local.database_user_full
       DB_PORT     = tostring(local.database_port)
-      DB_HOST     = local.db_internal_ip
+      DB_HOST     = try(local.preset_env_vars["DB_HOST"], local.db_internal_ip)
       DB_IP       = local.db_internal_ip
     }
   )
@@ -480,19 +512,23 @@ locals {
     var.application_module == "n8n" ? {
       N8N_ENCRYPTION_KEY     = try(google_secret_manager_secret.encryption_key[0].secret_id, "")
       DB_POSTGRESDB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      N8N_SMTP_PASS          = try(google_secret_manager_secret.n8n_smtp_password[0].secret_id, "")
     } : {},
     var.application_module == "wordpress" ? {
       WORDPRESS_DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
     var.application_module == "django" ? {
       DJANGO_SUPERUSER_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      SECRET_KEY                = try(google_secret_manager_secret.django_secret_key[0].secret_id, "")
     } : {},
     var.application_module == "odoo" ? {
       ODOO_MASTER_PASS = try(google_secret_manager_secret.odoo_master_pass[0].secret_id, "")
     } : {},
     # ✅ UPDATED: Moodle secret environment variables
     var.application_module == "moodle" ? {
-      MOODLE_DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      MOODLE_DB_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      MOODLE_CRON_PASSWORD = try(google_secret_manager_secret.moodle_cron_password[0].secret_id, "")
+      MOODLE_SMTP_PASSWORD = try(google_secret_manager_secret.moodle_smtp_password[0].secret_id, "")
     } : {},
     var.application_module == "openemr" ? {
       MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
@@ -533,7 +569,7 @@ locals {
 
   # Service accounts
   # Inject N8N SA if active
-  cloudrun_sa_input = var.application_module == "n8n" && var.cloudrun_service_account == null ? google_service_account.n8n_sa[0].email : var.cloudrun_service_account
+  cloudrun_sa_input = var.cloudrun_service_account
   cloudrun_service_account   = local.cloudrun_sa_input != null && local.cloudrun_sa_input != "" ? local.cloudrun_sa_input : "cloudrun-sa"
 
   cloudbuild_service_account = var.cloudbuild_service_account != null && var.cloudbuild_service_account != "" ? var.cloudbuild_service_account : "cloudbuild-sa"
@@ -641,13 +677,6 @@ locals {
 # ==============================================================================
 # N8N SPECIFIC RESOURCES
 # ==============================================================================
-resource "google_service_account" "n8n_sa" {
-  count        = var.application_module == "n8n" ? 1 : 0
-  account_id   = "${local.wrapper_prefix}-sa"
-  display_name = "N8N Service Account"
-  project      = var.existing_project_id
-}
-
 resource "google_storage_bucket" "n8n_storage" {
   count         = var.application_module == "n8n" ? 1 : 0
   name          = "${local.wrapper_prefix}-storage"
@@ -657,18 +686,32 @@ resource "google_storage_bucket" "n8n_storage" {
   uniform_bucket_level_access = true
 }
 
-resource "google_storage_bucket_iam_member" "storage_admin" {
+resource "google_storage_bucket_iam_member" "n8n_cloudrun_access" {
   count  = var.application_module == "n8n" ? 1 : 0
   bucket = google_storage_bucket.n8n_storage[0].name
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${google_service_account.n8n_sa[0].email}"
+  member = "serviceAccount:${local.cloud_run_sa_email}"
 }
 
-resource "google_storage_bucket_iam_member" "n8n_cloudrun_access" {
-  count  = var.application_module == "n8n" && var.cloudrun_service_account != null ? 1 : 0
-  bucket = google_storage_bucket.n8n_storage[0].name
-  role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${local.cloud_run_sa_email}"
+resource "random_password" "n8n_smtp_password_dummy" {
+  count   = var.application_module == "n8n" ? 1 : 0
+  length  = 16
+  special = false
+}
+
+resource "google_secret_manager_secret" "n8n_smtp_password" {
+  count     = var.application_module == "n8n" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-smtp-password"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "n8n_smtp_password" {
+  count       = var.application_module == "n8n" ? 1 : 0
+  secret      = google_secret_manager_secret.n8n_smtp_password[0].id
+  secret_data = random_password.n8n_smtp_password_dummy[0].result
 }
 
 resource "random_password" "encryption_key" {
@@ -987,6 +1030,30 @@ resource "google_secret_manager_secret_version" "directus_admin_password" {
 }
 
 # ==============================================================================
+# DJANGO SPECIFIC RESOURCES
+# ==============================================================================
+resource "random_password" "django_secret_key" {
+  count   = var.application_module == "django" ? 1 : 0
+  length  = 50
+  special = true
+}
+
+resource "google_secret_manager_secret" "django_secret_key" {
+  count     = var.application_module == "django" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-secret-key"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "django_secret_key" {
+  count       = var.application_module == "django" ? 1 : 0
+  secret      = google_secret_manager_secret.django_secret_key[0].id
+  secret_data = random_password.django_secret_key[0].result
+}
+
+# ==============================================================================
 # ODOO SPECIFIC RESOURCES
 # ==============================================================================
 resource "random_password" "odoo_master_pass" {
@@ -1008,4 +1075,53 @@ resource "google_secret_manager_secret_version" "odoo_master_pass" {
   count       = var.application_module == "odoo" ? 1 : 0
   secret      = google_secret_manager_secret.odoo_master_pass[0].id
   secret_data = random_password.odoo_master_pass[0].result
+}
+
+# ==============================================================================
+# MOODLE SPECIFIC RESOURCES
+# ==============================================================================
+resource "random_password" "moodle_cron_password" {
+  count   = var.application_module == "moodle" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "moodle_cron_password" {
+  count     = var.application_module == "moodle" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-cron-password"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "moodle_cron_password" {
+  count       = var.application_module == "moodle" ? 1 : 0
+  secret      = google_secret_manager_secret.moodle_cron_password[0].id
+  secret_data = random_password.moodle_cron_password[0].result
+}
+
+resource "google_secret_manager_secret" "moodle_smtp_password" {
+  count     = var.application_module == "moodle" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-smtp-password"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_cloud_scheduler_job" "moodle_cron_job" {
+  count            = var.application_module == "moodle" ? 1 : 0
+  name             = "${local.resource_prefix}-moodle-cron"
+  description      = "Trigger Moodle Cron"
+  schedule         = "* * * * *"
+  time_zone        = "Etc/UTC"
+  attempt_deadline = "320s"
+  project          = var.existing_project_id
+  region           = var.deployment_region
+
+  http_target {
+    http_method = "GET"
+    uri         = "${local.predicted_service_url}/admin/cron.php?password=${random_password.moodle_cron_password[0].result}"
+  }
 }
