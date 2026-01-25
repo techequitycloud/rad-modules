@@ -12,7 +12,6 @@ locals {
     app_name        = "cyclos"
     description     = "Cyclos Banking System on Cloud Run"
     container_image = "cyclos/cyclos:${var.app_version}"
-    # image_source    = "prebuilt"
     image_source    = "custom"
     container_build_config = {
       enabled            = true
