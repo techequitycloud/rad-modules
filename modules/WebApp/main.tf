@@ -440,12 +440,14 @@ locals {
     var.application_module == "openemr" ? {
       MYSQL_DATABASE = local.database_name_full
       MYSQL_USER     = local.database_user_full
-      MYSQL_HOST     = local.db_internal_ip
+      MYSQL_HOST     = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
       MYSQL_PORT     = "3306"
       OE_USER        = "admin"
       MANUAL_SETUP   = "no"
       BACKUP_FILEID  = local.final_backup_uri != null ? local.final_backup_uri : ""
       SWARM_MODE     = "yes"
+      REDIS_SERVER   = local.nfs_server_exists ? local.nfs_internal_ip : ""
+      REDIS_PORT     = "6379"
     } : {},
     var.application_module == "medusa" ? {
       DB_HOST     = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
@@ -900,7 +902,7 @@ resource "google_secret_manager_secret_version" "strapi_app_keys" {
 # IMAGE MIRRORING RESOURCES
 # ==============================================================================
 resource "null_resource" "mirror_image" {
-  count = local.enable_image_mirroring ? 1 : 0
+  count = local.enable_image_mirroring && !local.enable_custom_build ? 1 : 0
 
   triggers = {
     source_image = local.mirror_source_image
