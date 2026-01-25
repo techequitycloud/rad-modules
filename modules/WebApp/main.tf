@@ -348,6 +348,9 @@ locals {
       WEBHOOK_URL                  = local.predicted_service_url
       N8N_EDITOR_BASE_URL          = local.predicted_service_url
     } : {},
+    var.application_module == "cyclos" ? {
+      DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+    } : {},
     var.application_module == "odoo" ? {
       HOST    = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
       DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
@@ -461,7 +464,7 @@ locals {
       DB_NAME     = local.database_name_full
       DB_USER     = local.database_user_full
       DB_PORT     = tostring(local.database_port)
-      DB_HOST     = local.db_internal_ip
+      DB_HOST     = try(local.preset_env_vars["DB_HOST"], local.db_internal_ip)
       DB_IP       = local.db_internal_ip
     }
   )

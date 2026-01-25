@@ -49,7 +49,8 @@ module "moodle_module" {
 }
 
 module "cyclos_module" {
-  source = "./modules/cyclos"
+  source      = "./modules/cyclos"
+  app_version = var.application_version != "latest" ? var.application_version : "4.16.15"
 }
 
 module "django_module" {

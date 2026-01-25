@@ -1,18 +1,24 @@
 # Copyright 2024 (c) Tech Equity Ltd
 # Licensed under the Apache License, Version 2.0
 
+variable "app_version" {
+  description = "Cyclos application version"
+  type        = string
+  default     = "4.16.15"
+}
+
 locals {
   cyclos_module = {
     app_name        = "cyclos"
     description     = "Cyclos Banking System on Cloud Run"
-    container_image = "cyclos/cyclos:4.16.15"
+    container_image = "cyclos/cyclos:${var.app_version}"
     image_source    = "prebuilt"
     container_port  = 8080
     database_type   = "POSTGRES_15"
     db_name         = "cyclos"
     db_user         = "cyclos"
     enable_cloudsql_volume     = true
-    cloudsql_volume_mount_path = "/var/run/postgresql"
+    cloudsql_volume_mount_path = "/cloudsql"
     gcs_volumes = []
     
     container_resources = {
