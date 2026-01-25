@@ -440,6 +440,15 @@ locals {
       database__connection__port     = "3306"
       database__connection__socketPath = ""
     } : {},
+    var.application_module == "wikijs" ? {
+      DB_HOST       = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+      # Using HA_REDIS_HOST/PORT as typically required by Wiki.js for HA/Caching
+      HA_REDIS_HOST = local.nfs_server_exists ? local.nfs_internal_ip : ""
+      HA_REDIS_PORT = local.nfs_server_exists ? "6379" : ""
+      # Also set standard REDIS_HOST just in case plugins/custom configs use it
+      REDIS_HOST    = local.nfs_server_exists ? local.nfs_internal_ip : ""
+      REDIS_PORT    = local.nfs_server_exists ? "6379" : ""
+    } : {},
     var.application_module == "openemr" ? {
       MYSQL_DATABASE = local.database_name_full
       MYSQL_USER     = local.database_user_full
