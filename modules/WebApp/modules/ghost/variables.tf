@@ -11,10 +11,15 @@ locals {
     description     = "Ghost - Professional publishing platform"
     container_image = "ghost:5"
     application_version = "5"
-    image_source    = "custom"
     enable_image_mirroring = true
 
-    # Custom build configuration to handle dynamic URL detection
+    # ✅ Prebuilt Deployment (Official Image)
+    image_source = "prebuilt"
+
+    # Custom Deployment (Optional)
+    # image_source = "custom"
+
+    # Custom build configuration to handle dynamic URL detection (only used when image_source = "custom")
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
