@@ -10,7 +10,7 @@ locals {
     app_name        = "directus"
     description     = "Directus - Open Source Headless CMS and Backend-as-a-Service"
     container_image = "directus/directus:11.1.0"
-    image_source    = "custom"
+    image_source    = "prebuilt"
     container_port  = 8055
     database_type   = "POSTGRES_15"
     db_name         = "directus"
