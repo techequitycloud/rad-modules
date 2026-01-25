@@ -124,11 +124,14 @@ locals {
     }
   )
 
-  # Inject APP_VERSION into build_args
+  # Inject APP_VERSION into build_args for custom builds
   container_build_config = merge(local._base_container_build_config, {
-    build_args = merge(local._base_container_build_config.build_args, {
-      APP_VERSION = local.application_version
-    })
+    build_args = merge(
+      try(local._base_container_build_config.build_args, {}),
+      {
+        APP_VERSION = local.application_version
+      }
+    )
   })
 
   # Scoped resource names for multi-tenancy
@@ -476,9 +479,13 @@ locals {
       STORAGE_UPLOADS_DRIVER = "local"
       STORAGE_UPLOADS_ROOT   = "/mnt/directus-uploads"
       WEBSOCKETS_ENABLED     = "true"
-      CORS_ENABLED           = "true"
-      CORS_ORIGIN            = local.predicted_service_url
+      # CORS configuration removed from here to allow user override via environment_variables
       ADMIN_EMAIL            = try(local.final_environment_variables["ADMIN_EMAIL"], "admin@example.com")
+
+      # Redis Configuration for Caching
+      CACHE_ENABLED          = "true"
+      CACHE_STORE            = "redis"
+      REDIS                  = "redis://${local.nfs_internal_ip}:6379"
     } : {}
   )
 

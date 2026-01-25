@@ -20,6 +20,9 @@ steps:
     - '--context=dir://${CONTEXT_PATH}'
     - '--destination=${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${IMAGE_VERSION}'
     - '--destination=${IMAGE_REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:latest'
+%{ for key, value in BUILD_ARGS }
+    - '--build-arg=${key}=${value}'
+%{ endfor }
     - '--cache=true'
     - '--cache-ttl=24h'
   timeout: '1800s'
