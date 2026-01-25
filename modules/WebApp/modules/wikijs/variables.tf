@@ -10,11 +10,22 @@ locals {
     app_name        = "wikijs"
     description     = "Wiki.js - The most powerful and extensible open source Wiki software"
     container_image = "requarks/wiki:2"
-    image_source    = "prebuilt"
+    # image_source    = "prebuilt"
     container_port  = 3000
     database_type   = "POSTGRES_15"
     db_name         = "wikijs"
     db_user         = "wikijs"
+
+    # Custom build configuration
+    image_source    = "custom"
+    container_build_config = {
+      enabled            = true
+      dockerfile_path    = "Dockerfile"
+      context_path       = "wikijs"
+      dockerfile_content = null
+      build_args         = {}
+      artifact_repo_name = null
+    }
 
     enable_image_mirroring = true
 
@@ -47,12 +58,13 @@ locals {
 
     # Environment variables
     environment_variables = {
-      DB_TYPE         = "postgres"
-      DB_PORT         = "5432"
-      DB_USER         = "wikijs"
-      DB_NAME         = "wikijs"
-      DB_SSL          = "false"
-      HA_STORAGE_PATH = "/wiki-storage"
+      DB_TYPE            = "postgres"
+      DB_PORT            = "5432"
+      DB_USER            = "wikijs"
+      DB_NAME            = "wikijs"
+      DB_SSL             = "false"
+      # HA_ACTIVE enables High Availability mode (requires PostgreSQL)
+      HA_ACTIVE          = "true"
       # DB_PASS injected via secrets in main.tf
     }
 
