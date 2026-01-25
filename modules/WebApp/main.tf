@@ -450,6 +450,9 @@ locals {
       CORS_ENABLED           = "true"
       CORS_ORIGIN            = local.predicted_service_url
       ADMIN_EMAIL            = try(local.final_environment_variables["ADMIN_EMAIL"], "admin@example.com")
+    } : {},
+    var.application_module == "sample" ? {
+      DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
     } : {}
   )
 
