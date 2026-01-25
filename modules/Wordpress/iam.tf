@@ -29,6 +29,18 @@ resource "google_secret_manager_secret_iam_member" "db_password" {
   ]
 }
 
+resource "google_secret_manager_secret_iam_member" "smtp_password" {
+  count     = var.smtp_password != "" ? 1 : 0
+  project   = local.project.project_id
+  secret_id = google_secret_manager_secret.smtp_password[0].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:cloudrun-sa@${local.project.project_id}.iam.gserviceaccount.com"
+
+  depends_on = [
+    google_secret_manager_secret.smtp_password,
+  ]
+}
+
 #########################################################################
 # IAM permissions for impersonated service account
 #########################################################################

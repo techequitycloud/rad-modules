@@ -5,8 +5,21 @@ locals {
   openemr_module = {
     app_name        = "openemr"
     description     = "OpenEMR - Electronic health records and medical practice management"
-    container_image = "openemr/openemr:7.0.3"
-    image_source    = "prebuilt"
+    container_image = "openemr/openemr"
+
+    # image_source    = "prebuilt"
+    image_source    = "custom"
+
+    container_build_config = {
+      enabled            = true
+      dockerfile_path    = "Dockerfile"
+      context_path       = "openemr"
+      dockerfile_content = null
+      build_args         = {}
+      artifact_repo_name = null
+    }
+
+    enable_image_mirroring = true
     container_port  = 80
     database_type   = "MYSQL_8_0"
     db_name         = "openemr"
@@ -17,7 +30,7 @@ locals {
     backup_source        = "gdrive"
     backup_uri           = null
 
-    enable_cloudsql_volume     = false
+    enable_cloudsql_volume     = true
 
     # NFS Configuration (Preferred for OpenEMR sites folder due to file locking)
     nfs_enabled    = true
@@ -32,7 +45,12 @@ locals {
     }
     min_instance_count = 0
     max_instance_count = 3
-    environment_variables = {}
+    environment_variables = {
+      PHP_MEMORY_LIMIT        = "512M"
+      PHP_MAX_EXECUTION_TIME  = "60"
+      PHP_UPLOAD_MAX_FILESIZE = "64M"
+      PHP_POST_MAX_SIZE       = "64M"
+    }
     enable_mysql_plugins = false
     mysql_plugins        = []
 

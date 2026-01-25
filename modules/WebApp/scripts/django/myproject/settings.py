@@ -42,16 +42,18 @@ if os.getenv("USE_CLOUD_SQL_AUTH_PROXY", None):
 # FIXED: Read from OS environment first, then fall back to APPLICATION_SETTINGS
 GS_BUCKET_NAME = os.environ.get("GS_BUCKET_NAME") or env("GS_BUCKET_NAME", default=None)
 
-if not GS_BUCKET_NAME:
-    raise ValueError("GS_BUCKET_NAME environment variable is not set")
+# Add WhiteNoise Middleware
+if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+STATIC_ROOT = os.environ.get("STATIC_ROOT", BASE_DIR / "staticfiles")
 
 STATICFILES_DIRS = []
 GS_DEFAULT_ACL = "publicRead"
 STORAGES = {
     "default": {
-        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
-    },
-    "staticfiles": {
         "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
     },
 }
