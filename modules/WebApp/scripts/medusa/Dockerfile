@@ -12,4 +12,7 @@ RUN yarn build
 
 EXPOSE 9000
 
+RUN chown -R node:node /app/medusa
+USER node
+
 CMD ["yarn", "start"]
