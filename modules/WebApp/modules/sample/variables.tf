@@ -62,45 +62,8 @@ locals {
       {
         name            = "db-init"
         description     = "Initialize Sample Database"
-        image           = "alpine:3.19"
-        command         = ["/bin/sh", "-c"]
-        args            = [
-          <<-EOT
-            set -e
-            echo "Installing postgresql-client..."
-            apk update && apk add --no-cache postgresql-client
-
-            # Use DB_IP if available (injected by WebApp), else DB_HOST
-            TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
-            echo "Using DB Host: $TARGET_DB_HOST"
-
-            echo "Waiting for database..."
-            export PGPASSWORD=$ROOT_PASSWORD
-            until pg_isready -h "$TARGET_DB_HOST" -p 5432; do
-              echo "Waiting for PostgreSQL..."
-              sleep 2
-            done
-
-            echo "Creating User $DB_USER if not exists..."
-            if ! psql -h "$TARGET_DB_HOST" -U postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
-                psql -h "$TARGET_DB_HOST" -U postgres -c "CREATE USER \"$DB_USER\" WITH PASSWORD '$DB_PASSWORD';"
-            else
-                psql -h "$TARGET_DB_HOST" -U postgres -c "ALTER USER \"$DB_USER\" WITH PASSWORD '$DB_PASSWORD';"
-            fi
-
-            echo "Creating Database $DB_NAME if not exists..."
-            if ! psql -h "$TARGET_DB_HOST" -U postgres -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
-                psql -h "$TARGET_DB_HOST" -U postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
-            else
-                psql -h "$TARGET_DB_HOST" -U postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
-            fi
-
-            echo "Granting privileges..."
-            psql -h "$TARGET_DB_HOST" -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
-
-            echo "Sample DB Init complete."
-          EOT
-        ]
+        image           = "postgres:15-alpine"
+        script_path     = "scripts/sample/db-init.sh"
         mount_nfs         = false
         mount_gcs_volumes = []
         execute_on_apply  = true
