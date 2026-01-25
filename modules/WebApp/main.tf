@@ -483,6 +483,7 @@ locals {
     var.application_module == "n8n" ? {
       N8N_ENCRYPTION_KEY     = try(google_secret_manager_secret.encryption_key[0].secret_id, "")
       DB_POSTGRESDB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
+      N8N_SMTP_PASS          = try(google_secret_manager_secret.n8n_smtp_password[0].secret_id, "")
     } : {},
     var.application_module == "wordpress" ? {
       WORDPRESS_DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
@@ -536,7 +537,7 @@ locals {
 
   # Service accounts
   # Inject N8N SA if active
-  cloudrun_sa_input = var.application_module == "n8n" && var.cloudrun_service_account == null ? google_service_account.n8n_sa[0].email : var.cloudrun_service_account
+  cloudrun_sa_input = var.cloudrun_service_account
   cloudrun_service_account   = local.cloudrun_sa_input != null && local.cloudrun_sa_input != "" ? local.cloudrun_sa_input : "cloudrun-sa"
 
   cloudbuild_service_account = var.cloudbuild_service_account != null && var.cloudbuild_service_account != "" ? var.cloudbuild_service_account : "cloudbuild-sa"
@@ -644,13 +645,6 @@ locals {
 # ==============================================================================
 # N8N SPECIFIC RESOURCES
 # ==============================================================================
-resource "google_service_account" "n8n_sa" {
-  count        = var.application_module == "n8n" ? 1 : 0
-  account_id   = "${local.wrapper_prefix}-sa"
-  display_name = "N8N Service Account"
-  project      = var.existing_project_id
-}
-
 resource "google_storage_bucket" "n8n_storage" {
   count         = var.application_module == "n8n" ? 1 : 0
   name          = "${local.wrapper_prefix}-storage"
@@ -660,18 +654,32 @@ resource "google_storage_bucket" "n8n_storage" {
   uniform_bucket_level_access = true
 }
 
-resource "google_storage_bucket_iam_member" "storage_admin" {
+resource "google_storage_bucket_iam_member" "n8n_cloudrun_access" {
   count  = var.application_module == "n8n" ? 1 : 0
   bucket = google_storage_bucket.n8n_storage[0].name
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${google_service_account.n8n_sa[0].email}"
+  member = "serviceAccount:${local.cloud_run_sa_email}"
 }
 
-resource "google_storage_bucket_iam_member" "n8n_cloudrun_access" {
-  count  = var.application_module == "n8n" && var.cloudrun_service_account != null ? 1 : 0
-  bucket = google_storage_bucket.n8n_storage[0].name
-  role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${local.cloud_run_sa_email}"
+resource "random_password" "n8n_smtp_password_dummy" {
+  count   = var.application_module == "n8n" ? 1 : 0
+  length  = 16
+  special = false
+}
+
+resource "google_secret_manager_secret" "n8n_smtp_password" {
+  count     = var.application_module == "n8n" ? 1 : 0
+  secret_id = "${local.wrapper_prefix}-smtp-password"
+  replication {
+    auto {}
+  }
+  project = var.existing_project_id
+}
+
+resource "google_secret_manager_secret_version" "n8n_smtp_password" {
+  count       = var.application_module == "n8n" ? 1 : 0
+  secret      = google_secret_manager_secret.n8n_smtp_password[0].id
+  secret_data = random_password.n8n_smtp_password_dummy[0].result
 }
 
 resource "random_password" "encryption_key" {
