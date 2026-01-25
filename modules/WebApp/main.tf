@@ -918,7 +918,7 @@ resource "google_secret_manager_secret_version" "strapi_app_keys" {
 # IMAGE MIRRORING RESOURCES
 # ==============================================================================
 resource "null_resource" "mirror_image" {
-  count = local.enable_image_mirroring && !local.enable_custom_build ? 1 : 0
+  count = local.enable_image_mirroring ? 1 : 0
 
   triggers = {
     source_image = local.mirror_source_image
