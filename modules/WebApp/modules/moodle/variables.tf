@@ -24,8 +24,8 @@ locals {
       artifact_repo_name = "webapp-repo"
     }
 
-    # ✅ Updated port - Standard HTTP port 80 (Apache in custom image)
-    container_port  = 80
+    # ✅ Updated port - Standard HTTP port 8080 (Apache in custom image)
+    container_port  = 8080
     
     # ✅ Switched to POSTGRES_15 as per requirement
     database_type   = "POSTGRES_15"
@@ -37,7 +37,7 @@ locals {
 
     # Cloud SQL configuration
     enable_cloudsql_volume     = true
-    cloudsql_volume_mount_path = "/var/run/postgresql" # Postgres socket path
+    cloudsql_volume_mount_path = "/cloudsql" # Standard Socket Path
 
     # NFS Configuration
     nfs_enabled    = true
@@ -46,13 +46,15 @@ locals {
     # GCS Volumes
     gcs_volumes = [{
       name       = "moodle-data"
-      mount_path = "/var/moodledata"
+      mount_path = "/mnt/filedir" # Mounted inside NFS share for filedir
       read_only  = false
       mount_options = [
         "implicit-dirs", 
         "metadata-cache-ttl-secs=60", 
         "uid=33", # www-data user
-        "gid=33"  # www-data group
+        "gid=33", # www-data group
+        "file-mode=770",
+        "dir-mode=770"
       ]
     }]
 
@@ -71,7 +73,7 @@ locals {
       ENABLE_REVERSE_PROXY = "TRUE"
       MOODLE_REVERSE_PROXY = "true"
       
-      # Cron Configuration
+      # Cron Configuration (Managed by Cloud Scheduler now)
       CRON_INTERVAL = "1"
       
       # Site configuration
@@ -88,8 +90,8 @@ locals {
       MOODLE_UPDATE       = "yes"
       
       # Data directory
-      MOODLE_DATA_DIR = "/var/moodledata"
-      DATA_PATH       = "/var/moodledata"
+      MOODLE_DATA_DIR = "/mnt"
+      DATA_PATH       = "/mnt"
     }
 
     # ✅ MySQL Plugins
@@ -107,7 +109,7 @@ locals {
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
         args            = [
-          "chown -R 33:33 /mnt && chmod -R 777 /mnt && echo 'NFS permissions initialized'"
+          "chown -R 33:33 /mnt && chmod -R 2770 /mnt && echo 'NFS permissions initialized'"
         ]
         mount_nfs        = true
         execute_on_apply = true
