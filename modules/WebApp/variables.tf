@@ -292,6 +292,12 @@ variable "container_port" {
   }
 }
 
+variable "enable_image_mirroring" {
+  description = "Enable container image mirroring to Artifact Registry. When enabled, the image is pulled from the source and pushed to the project's Artifact Registry. Required for some applications to ensure stability and availability. {{UIMeta group=0 order=402 updatesafe }}"
+  type        = bool
+  default     = null
+}
+
 variable "container_protocol" {
   description = "Container protocol: 'http1' or 'h2c' (HTTP/2 Cleartext). {{UIMeta group=0 order=403 updatesafe }}"
   type        = string

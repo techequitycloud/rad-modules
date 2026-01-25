@@ -12,6 +12,7 @@ locals {
     container_image = "ghost:5"
     application_version = "5"
     image_source    = "custom"
+    enable_image_mirroring = true
 
     # Custom build configuration to handle dynamic URL detection
     container_build_config = {
@@ -50,7 +51,7 @@ locals {
     # Resource limits
     container_resources = {
       cpu_limit    = "1000m"
-      memory_limit = "1Gi"
+      memory_limit = "2Gi"
     }
     min_instance_count = 0
     max_instance_count = 3
@@ -61,6 +62,14 @@ locals {
       url = "http://localhost:2368" # Should be overridden by user with actual domain
       mail__from = "noreply@localhost"
       logging__transports = "[\"stdout\"]"
+
+      # SMTP Configuration
+      mail__transport = "SMTP"
+      mail__options__host = "smtp.example.com"
+      mail__options__port = "587"
+      mail__options__auth__user = "user"
+      mail__options__auth__pass = "pass"
+      mail__options__secure = "false"
 
       # Database Connection
       database__client = "mysql"
