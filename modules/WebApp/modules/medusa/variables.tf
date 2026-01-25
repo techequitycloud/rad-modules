@@ -13,6 +13,9 @@ locals {
     # We provide a placeholder, but users should override this.
     container_image = "medusajs/medusa"
     image_source    = "custom"
+    
+    # Support for prebuilt image mirroring
+    enable_image_mirroring = true
 
     # Enable custom build from scripts/medusa
     container_build_config = {
