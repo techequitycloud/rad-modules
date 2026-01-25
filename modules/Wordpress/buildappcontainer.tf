@@ -46,7 +46,7 @@ resource "local_file" "app_cloudbuild" {
 
 # Resource to build the container image locally and push it to the container registry
 resource "null_resource" "build_and_push_application_image" {
-  count    = var.configure_environment ? 1 : 0
+  count    = var.configure_environment && var.image_source == "custom" ? 1 : 0
   # Trigger based on the hash of the build-container.sh script
   triggers = {
     script_hash     = filesha256("${path.module}/scripts/app/build-container.sh")
@@ -64,5 +64,33 @@ resource "null_resource" "build_and_push_application_image" {
     local_file.app_dockerfile,
     local_file.app_cloudbuild,
     google_artifact_registry_repository.application_image,
+  ]
+}
+
+# Resource to mirror the container image if using prebuilt source and mirroring enabled
+resource "null_resource" "mirror_application_image" {
+  count    = var.configure_environment && var.enable_image_mirroring && var.image_source == "prebuilt" ? 1 : 0
+
+  triggers = {
+    script_hash    = filesha256("${path.module}/scripts/app/mirror-image.sh")
+    source_image   = var.container_image
+  }
+
+  provisioner "local-exec" {
+    working_dir = "${path.module}/scripts/app"
+    command     = <<EOT
+      bash mirror-image.sh \
+        "${local.project.project_id}" \
+        "${local.region}" \
+        "${google_artifact_registry_repository.application_image.repository_id}" \
+        "${var.container_image}" \
+        "${var.application_name}" \
+        "${var.application_version}" \
+        "${local.impersonation_service_account}"
+    EOT
+  }
+
+  depends_on = [
+    google_artifact_registry_repository.application_image
   ]
 }
