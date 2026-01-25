@@ -156,3 +156,68 @@ variable "configure_monitoring" {
   type        = bool
   default     = true
 }
+
+# SMTP Configuration
+
+variable "smtp_host" {
+  description = "SMTP host."
+  type        = string
+  default     = ""
+}
+
+variable "smtp_port" {
+  description = "SMTP port."
+  type        = string
+  default     = "587"
+}
+
+variable "smtp_user" {
+  description = "SMTP user."
+  type        = string
+  default     = ""
+}
+
+variable "smtp_password" {
+  description = "SMTP password."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "smtp_from_email" {
+  description = "SMTP from email."
+  type        = string
+  default     = ""
+}
+
+# Redis Configuration
+
+variable "enable_redis" {
+  description = "Enable Redis integration."
+  type        = bool
+  default     = false
+}
+
+# Container Image Configuration
+
+variable "image_source" {
+  description = "Source of the container image. Options: 'custom', 'prebuilt'."
+  type        = string
+  default     = "custom"
+  validation {
+    condition     = contains(["custom", "prebuilt"], var.image_source)
+    error_message = "The image_source must be either 'custom' or 'prebuilt'."
+  }
+}
+
+variable "enable_image_mirroring" {
+  description = "Enable mirroring of the prebuilt image to Artifact Registry."
+  type        = bool
+  default     = false
+}
+
+variable "container_image" {
+  description = "The container image to use when image_source is 'prebuilt'."
+  type        = string
+  default     = "wordpress:latest"
+}

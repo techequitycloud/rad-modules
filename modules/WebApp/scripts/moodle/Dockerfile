@@ -6,7 +6,7 @@ ARG TARGETARCH
 # Default to latest Moodle version compatible with PHP 8.3 (4.4+)
 ARG APP_VERSION=4.4.1
 
-EXPOSE 80 443
+EXPOSE 8080
 ENV DEBIAN_FRONTEND noninteractive
 
 # 1. Install base dependencies and enable universe repository
@@ -25,7 +25,6 @@ RUN apt-get update && \
         git \
         locales \
         supervisor \
-        cron \
         gosu \
         pwgen \
         libcurl4 \
@@ -95,11 +94,18 @@ RUN add-apt-repository ppa:ondrej/php \
         php8.3-redis \
     && chown -R www-data:www-data /var/www/html
 
+# Configure Apache to listen on port 8080
+RUN sed -i 's/80/8080/g' /etc/apache2/ports.conf /etc/apache2/sites-available/*.conf
+
+# Configure PHP settings
+RUN sed -i "s/.*max_input_vars.*/max_input_vars = 5000/" /etc/php/8.3/apache2/php.ini
+
 # 5. Download and install Moodle
 ADD https://github.com/moodle/moodle/archive/refs/tags/v${APP_VERSION}.tar.gz /tmp/
 RUN tar -xzvf /tmp/v${APP_VERSION}.tar.gz -C /var/www/html/ --strip-components=1 \
     && rm /tmp/v${APP_VERSION}.tar.gz \
-    && rm -f /var/www/html/index.html
+    && rm -f /var/www/html/index.html \
+    && chown -R www-data:www-data /var/www/html
 
 # 6. Copy scripts and config
 COPY cloudrun-entrypoint.sh /
@@ -113,11 +119,12 @@ RUN chmod +x /etc/apache2/foreground.sh
 # Ensure Apache runtime directory exists
 RUN mkdir -p /var/run/apache2 && chown -R www-data:www-data /var/run/apache2
 
-COPY moodlecron /etc/cron.d/moodlecron
-RUN chmod 0644 /etc/cron.d/moodlecron
-RUN crontab /etc/cron.d/moodlecron
-
 # 7. Clean up
 RUN apt-get clean autoclean && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/lib/dpkg/* /var/lib/cache/* /var/lib/log/*
+
+# Ensure log directory exists and has correct permissions
+RUN mkdir -p /var/log/apache2 && chown -R www-data:www-data /var/log/apache2
+
+USER www-data
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/cloudrun-entrypoint.sh", "/etc/apache2/foreground.sh"]

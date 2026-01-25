@@ -49,7 +49,8 @@ module "moodle_module" {
 }
 
 module "cyclos_module" {
-  source = "./modules/cyclos"
+  source      = "./modules/cyclos"
+  app_version = var.application_version != "latest" ? var.application_version : "4.16.15"
 }
 
 module "django_module" {
@@ -230,7 +231,8 @@ locals {
   #########################################################################
 
   # Container configuration
-  final_container_image         = var.container_image != "" && var.container_image != null ? var.container_image : (local.module_container_image != null ? local.module_container_image : "")
+  _container_image_raw          = var.container_image != "" && var.container_image != null ? var.container_image : (local.module_container_image != null ? local.module_container_image : "")
+  final_container_image         = local._container_image_raw != "" && length(regexall(":", local._container_image_raw)) == 0 ? "${local._container_image_raw}:${local.final_application_version}" : local._container_image_raw
   final_container_port          = var.container_port != null ? var.container_port : coalesce(local.module_container_port, 8080)
   final_container_image_source  = var.container_image_source != null ? var.container_image_source : coalesce(local.module_container_image_source, "prebuilt")
   final_application_name        = var.application_name != null ? var.application_name : coalesce(local.module_application_name, "webapp")
@@ -320,6 +322,6 @@ locals {
     var.initialization_jobs
   )
 
-  # Final Image Mirroring - Use preset value unless overridden by input variable
+  # Final Image Mirroring - Use preset value (no input variable override currently supported)
   final_enable_image_mirroring = var.enable_image_mirroring != null ? var.enable_image_mirroring : local.module_enable_image_mirroring
 }

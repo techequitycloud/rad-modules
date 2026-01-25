@@ -31,20 +31,33 @@ const DATABASE_URL =
   process.env.DATABASE_URL ||
   `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
 
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+const REDIS_URL = process.env.REDIS_URL;
 
 const plugins = [
   `medusa-fulfillment-manual`,
   `medusa-payment-manual`,
-  {
+];
+
+if (process.env.MEDUSA_FILE_GOOGLE_BUCKET) {
+  plugins.push({
+    resolve: `medusa-file-google`,
+    options: {
+      bucket: process.env.MEDUSA_FILE_GOOGLE_BUCKET,
+    },
+  });
+} else {
+  plugins.push({
     resolve: `@medusajs/file-local`,
     options: {
       upload_dir: "uploads",
     },
-  },
-];
+  });
+}
 
 const modules = {};
+
+// Check if DB_HOST implies a Unix socket (starts with /)
+const isSocket = process.env.DB_HOST && process.env.DB_HOST.startsWith("/");
 
 /** @type {import('@medusajs/medusa').ConfigModule["projectConfig"]} */
 const projectConfig = {
@@ -53,8 +66,10 @@ const projectConfig = {
   store_cors: STORE_CORS,
   database_url: DATABASE_URL,
   admin_cors: ADMIN_CORS,
-  // redis_url: REDIS_URL,
-  database_extra: process.env.NODE_ENV !== "development" ? { ssl: { rejectUnauthorized: false } } : {},
+  redis_url: REDIS_URL,
+  database_extra: process.env.NODE_ENV !== "development" 
+    ? (isSocket ? {} : { ssl: { rejectUnauthorized: false } }) 
+    : {},
 };
 
 /** @type {import('@medusajs/medusa').ConfigModule} */

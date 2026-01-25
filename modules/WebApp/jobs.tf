@@ -259,6 +259,7 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
         # Secret environment variables
         dynamic "env" {
           for_each = merge(
+            local.secret_environment_variables,
             each.value.secret_env_vars,
             # Add database password if SQL server exists
             local.sql_server_exists ? { DB_PASSWORD = local.db_password_secret_name } : {},
