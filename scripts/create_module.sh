@@ -1,5 +1,5 @@
 #!/bin/bash
-# create_module.sh - Universal Module Creation Script (Complete)
+# create_module.sh - Universal Module Creation Script (Complete with App TF Symlinks)
 # Location: rad-modules/scripts/create_module.sh
 # Usage: ./create_module.sh
 
@@ -461,6 +461,76 @@ create_infrastructure_symlinks() {
     print_status "Created $symlinks_created symbolic links for shared infrastructure"
 }
 
+# ✅ NEW FUNCTION: Create symbolic links for other application TF files
+create_application_tf_symlinks() {
+    print_info "Creating symbolic links for other application TF files..."
+    
+    local module_dir="$MODULES_DIR/$MODULE_NAME"
+    cd "$module_dir"
+    
+    # Infrastructure files that should NOT be symlinked (already handled)
+    local infrastructure_files=(
+        "buildappcontainer.tf"
+        "iam.tf"
+        "jobs.tf"
+        "main.tf"
+        "modules.tf"
+        "monitoring.tf"
+        "network.tf"
+        "nfs.tf"
+        "outputs.tf"
+        "provider-auth.tf"
+        "registry.tf"
+        "sa.tf"
+        "secrets.tf"
+        "service.tf"
+        "sql.tf"
+        "storage.tf"
+        "trigger.tf"
+        "versions.tf"
+        "variables.tf"
+        "README.md"
+    )
+    
+    local app_symlinks_created=0
+    
+    # Iterate through all .tf files in WebApp
+    for tf_file in "$WEBAPP_DIR"/*.tf; do
+        if [[ -f "$tf_file" ]]; then
+            local filename=$(basename "$tf_file")
+            local app_name_from_file=$(basename "$tf_file" .tf)
+            
+            # Skip if it's an infrastructure file
+            local is_infrastructure=false
+            for infra_file in "${infrastructure_files[@]}"; do
+                if [[ "$filename" == "$infra_file" ]]; then
+                    is_infrastructure=true
+                    break
+                fi
+            done
+            
+            # Skip if it's the current app's TF file (already copied)
+            if [[ "$app_name_from_file" == "$APP_NAME" ]]; then
+                print_info "  ⏭️  Skipping $filename (already copied as your app)"
+                continue
+            fi
+            
+            # Create symlink for other application TF files
+            if [[ "$is_infrastructure" == false ]]; then
+                ln -sf "../WebApp/$filename" "$filename"
+                ((app_symlinks_created++))
+                print_info "  🔗 Linked $filename"
+            fi
+        fi
+    done
+    
+    if [[ $app_symlinks_created -gt 0 ]]; then
+        print_status "Created $app_symlinks_created symbolic links for application TF files"
+    else
+        print_warning "No additional application TF files found to symlink"
+    fi
+}
+
 # Function to create symbolic links for shared modules
 create_module_symlinks() {
     print_info "Creating symbolic links for shared modules..."
@@ -529,9 +599,10 @@ This module provides a standalone $APP_NAME deployment using shared infrastructu
 - \`modules/$APP_NAME/\` - $APP_NAME-specific Terraform module
 - \`scripts/$APP_NAME/\` - $APP_NAME-specific deployment scripts
 - \`examples/\` - Configuration examples and templates
-- \`$APP_NAME.tf\` - Main $APP_NAME Terraform configuration
-- \`variables.tf\` - Module variables
-- Other \`.tf\` files - Symbolic links to shared WebApp infrastructure
+- \`$APP_NAME.tf\` - Main $APP_NAME Terraform configuration (local copy)
+- \`variables.tf\` - Module variables (local copy)
+- Other application \`.tf\` files - Symbolic links to WebApp applications
+- Infrastructure \`.tf\` files - Symbolic links to shared WebApp infrastructure
 
 ## Quick Start
 
@@ -562,6 +633,20 @@ terraform apply -var-file="my-config.tfvars"
 The \`examples/\` directory contains various configuration templates:
 $(find "$module_dir/examples" -name "*.tfvars" -exec basename {} \; 2>/dev/null | sed 's/^/- /' || echo "- basic-$APP_NAME.tfvars")
 
+## File Organization
+
+### Local Files (Copied)
+- \`$APP_NAME.tf\` - Your application configuration
+- \`variables.tf\` - Module variables
+- \`modules/$APP_NAME/\` - Application-specific modules
+- \`scripts/$APP_NAME/\` - Application-specific scripts
+
+### Symlinked Files
+- Infrastructure files (\`main.tf\`, \`network.tf\`, etc.) → \`../WebApp/\`
+- Other application files (\`n8n.tf\`, \`cyclos.tf\`, etc.) → \`../WebApp/\`
+- Shared modules (\`modules/*/\`) → \`../../WebApp/modules/\`
+- Shared scripts (\`scripts/core/\`, etc.) → \`../../WebApp/scripts/\`
+
 ## Dependencies
 This module depends on shared infrastructure files from the WebApp module via symbolic links.
 Ensure the WebApp module is present in the parent directory.
@@ -570,7 +655,7 @@ Ensure the WebApp module is present in the parent directory.
 - **Generated:** $(date)
 - **Base Application:** $APP_NAME
 - **Module Name:** $MODULE_NAME
-- **Script Version:** create_module.sh v3.2 (macOS Bash 3.2 Compatible)
+- **Script Version:** create_module.sh v3.3 (Enhanced with Application TF Symlinks)
 
 ## Support
 For issues or questions, refer to the main rad-modules documentation or create an issue in the repository.
@@ -597,6 +682,16 @@ verify_setup() {
         fi
     done
     
+    # Check that the chosen app's TF file is a regular file (not symlink)
+    if [[ -f "$APP_NAME.tf" && ! -L "$APP_NAME.tf" ]]; then
+        print_status "✅ $APP_NAME.tf is a local copy (correct)"
+    elif [[ -L "$APP_NAME.tf" ]]; then
+        print_error "❌ $APP_NAME.tf should be a copy, not a symlink"
+        verification_passed=false
+    else
+        print_warning "⚠️  $APP_NAME.tf not found"
+    fi
+    
     # Check examples directory
     if [[ ! -d "examples" ]]; then
         print_error "Missing examples directory"
@@ -612,13 +707,30 @@ verify_setup() {
     
     # Test symlinks
     local broken_links=0
+    local app_tf_symlinks=0
     for link in *.tf; do
-        if [[ -L "$link" && ! -e "$link" ]]; then
-            print_warning "Broken symlink: $link"
-            ((broken_links++))
-            verification_passed=false
+        if [[ -L "$link" ]]; then
+            if [[ ! -e "$link" ]]; then
+                print_warning "Broken symlink: $link"
+                ((broken_links++))
+                verification_passed=false
+            else
+                # Count application TF symlinks (not infrastructure)
+                local link_name=$(basename "$link" .tf)
+                case "$link_name" in
+                    main|variables|versions|provider-auth|iam|network|storage|sql|nfs|secrets|service|registry|sa|outputs|modules|monitoring|jobs|buildappcontainer|trigger)
+                        ;;
+                    *)
+                        ((app_tf_symlinks++))
+                        ;;
+                esac
+            fi
         fi
     done
+    
+    if [[ $app_tf_symlinks -gt 0 ]]; then
+        print_status "Found $app_tf_symlinks application TF symlinks"
+    fi
     
     if [[ $broken_links -gt 0 ]]; then
         print_error "Found $broken_links broken symlinks"
@@ -652,6 +764,22 @@ display_summary() {
     local module_dir="$MODULES_DIR/$MODULE_NAME"
     local existing_modules=($(get_existing_modules))
     
+    # Count symlinked application TF files
+    local app_tf_count=0
+    cd "$module_dir"
+    for tf_file in *.tf; do
+        if [[ -L "$tf_file" ]]; then
+            local tf_name=$(basename "$tf_file" .tf)
+            case "$tf_name" in
+                main|variables|versions|provider-auth|iam|network|storage|sql|nfs|secrets|service|registry|sa|outputs|modules|monitoring|jobs|buildappcontainer|trigger)
+                    ;;
+                *)
+                    ((app_tf_count++))
+                    ;;
+            esac
+        fi
+    done
+    
     echo
     print_status "🎉 Module creation completed successfully!"
     echo
@@ -660,16 +788,22 @@ display_summary() {
     print_info "  Based on: $APP_NAME"
     print_info "  Location: $module_dir"
     print_info "  Total modules now: $((${#existing_modules[@]} + 1))"
+    print_info "  Application TF symlinks: $app_tf_count"
     echo
     print_highlight "Directory Structure:"
     print_info "  📁 $MODULE_NAME/"
     print_info "  ├── 📁 examples/          # Configuration templates"
     print_info "  ├── 📁 modules/$APP_NAME/ # App-specific Terraform modules"
     print_info "  ├── 📁 scripts/$APP_NAME/ # App-specific scripts"
-    print_info "  ├── 📄 $APP_NAME.tf       # Main app configuration"
-    print_info "  ├── 📄 variables.tf       # Module variables"
+    print_info "  ├── 📄 $APP_NAME.tf       # Main app configuration (local copy)"
+    print_info "  ├── 📄 variables.tf       # Module variables (local copy)"
     print_info "  ├── 📄 README.md          # Documentation"
-    print_info "  └── 🔗 *.tf              # Symlinks to shared infrastructure"
+    print_info "  ├── 🔗 n8n.tf, cyclos.tf  # Symlinks to other apps ($app_tf_count total)"
+    print_info "  └── 🔗 main.tf, etc.      # Symlinks to shared infrastructure"
+    echo
+    print_highlight "File Organization:"
+    print_info "  ✅ Local copies: $APP_NAME.tf, variables.tf, modules/$APP_NAME/, scripts/$APP_NAME/"
+    print_info "  🔗 Symlinked: Infrastructure files + other application TF files"
     echo
     print_highlight "Next Steps:"
     print_info "  1. cd $module_dir"
@@ -697,8 +831,8 @@ display_summary() {
 # Main execution
 main() {
     echo
-    print_section "🚀 RAD Modules - Universal Module Creator (Enhanced)"
-    print_section "=================================================="
+    print_section "🚀 RAD Modules - Universal Module Creator (Enhanced v3.3)"
+    print_section "========================================================="
     echo
     
     validate_prerequisites
@@ -707,6 +841,7 @@ main() {
     copy_app_files
     copy_examples
     create_infrastructure_symlinks
+    create_application_tf_symlinks  # ✅ NEW: Symlink other application TF files
     create_module_symlinks
     create_script_symlinks
     create_readme
