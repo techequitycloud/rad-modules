@@ -387,47 +387,37 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
 }
 
 # ============================================================================
-# Execute Custom Initialization Jobs
+# Execute Custom Initialization Jobs (Ordered)
 # ============================================================================
 
 resource "null_resource" "execute_initialization_jobs" {
-  for_each = {
-    for job_name, job_config in local.jobs_map :
-    job_name => job_config
-    if job_config.execute_on_apply
-  }
+  # Execute only if there are jobs to run
+  count = length([for k, v in local.jobs_map : k if v.execute_on_apply]) > 0 ? 1 : 0
 
   triggers = {
-    script_hash = each.value.script_path != null ? filesha256(each.value.script_path) : sha256(jsonencode(each.value))
-    job_name    = each.key
+    # Hash of all job configurations to trigger re-run if any job changes
+    jobs_hash = sha256(jsonencode([
+      for k, v in local.jobs_map : {
+        name        = k
+        config      = v
+        script_hash = v.script_path != null ? filesha256(v.script_path) : null
+      }
+      if v.execute_on_apply
+    ]))
   }
 
   provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command     = <<EOT
-      echo "Executing initialization job: ${each.key} for deployment: ${local.resource_prefix}"
-
-      IMPERSONATE_FLAG=""
-      if [ -n "${local.impersonation_service_account}" ]; then
-        IMPERSONATE_FLAG="--impersonate-service-account=${local.impersonation_service_account}"
-        echo "Using impersonation: ${local.impersonation_service_account}"
-      fi
-
-      echo "Waiting for IAM permissions to propagate..."
-      sleep 15
-
-      gcloud run jobs execute ${google_cloud_run_v2_job.initialization_jobs[each.key].name} \
-        --region ${local.region} \
-        --project ${local.project.project_id} \
-        $IMPERSONATE_FLAG \
-        --wait
-
-      if [ $? -eq 0 ]; then
-        echo "✓ Job ${each.key} completed successfully"
-      else
-        echo "✗ Job ${each.key} failed"
-        exit 1
-      fi
+    command = <<EOT
+      echo "Executing initialization jobs in order for deployment: ${local.resource_prefix}"
+      
+      # Use python script to handle dependency graph and sequential execution
+      # Encode JSON in Base64 to avoid shell quoting issues with complex scripts
+      python3 ${path.module}/scripts/core/run_ordered_jobs.py \
+        '${base64encode(jsonencode(local.jobs_map))}' \
+        '${local.resource_prefix}' \
+        '${local.region}' \
+        '${local.project.project_id}' \
+        '${local.impersonation_service_account}'
     EOT
   }
 

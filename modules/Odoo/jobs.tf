@@ -417,7 +417,7 @@ resource "null_resource" "execute_initialization_jobs" {
       
       # Use python script to handle dependency graph and sequential execution
       # Encode JSON in Base64 to avoid shell quoting issues with complex scripts
-      python3 ${path.module}/scripts/run_ordered_jobs.py \
+      python3 ${path.module}/scripts/core/run_ordered_jobs.py \
         '${base64encode(jsonencode(local.jobs_map))}' \
         '${local.resource_prefix}' \
         '${local.region}' \
