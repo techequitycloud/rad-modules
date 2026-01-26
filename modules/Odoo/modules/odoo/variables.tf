@@ -5,16 +5,16 @@ locals {
   odoo_module = {
     app_name        = "odoo"
     description     = "Odoo ERP System - CRM, e-commerce, billing, accounting, manufacturing, warehouse, project management"
-    container_image = "odoo:18.0"
+    container_image = "odoo:19.0"
     container_port  = 8069
     database_type   = "POSTGRES_15"
     db_name         = "odoo"
     db_user         = "odoo"
 
-    # image_source    = "prebuilt"
+    image_source    = "prebuilt"
 
     # ✅ Custom build configuration
-    image_source    = "custom"
+    # image_source    = "custom"
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
@@ -106,23 +106,22 @@ locals {
             echo "Creating directories..."
             mkdir -p /mnt/filestore /mnt/sessions /mnt/backups
             
-            echo "Setting ownership and permissions..."
-            if chown -R 101:101 /mnt/filestore /mnt/sessions /mnt/backups 2>/dev/null; then
-              echo "Ownership set to 101:101"
-              chmod -R 775 /mnt/filestore /mnt/sessions /mnt/backups
-              echo "Permissions set to 775"
-            else
-              echo "chown failed, using 777 permissions"
-              chmod -R 777 /mnt/filestore /mnt/sessions /mnt/backups
-              echo "Permissions set to 777"
-            fi
+            echo "Setting permissions (NFS-compatible)..."
+            # Use 777 permissions for NFS compatibility - no chown
+            chmod -R 777 /mnt/filestore /mnt/sessions /mnt/backups 2>/dev/null || {
+              echo "Warning: chmod -R failed, trying individual directories"
+              chmod 777 /mnt/filestore 2>/dev/null || true
+              chmod 777 /mnt/sessions 2>/dev/null || true
+              chmod 777 /mnt/backups 2>/dev/null || true
+            }
+            echo "Permissions set to 777 (NFS-compatible)"
             
             echo ""
             echo "Final directory listing:"
             ls -la /mnt/
             echo ""
             echo "Filestore permissions:"
-            ls -la /mnt/filestore/
+            ls -la /mnt/filestore/ 2>/dev/null || echo "Cannot list filestore"
             echo ""
             
             if touch /mnt/filestore/.test 2>/dev/null; then
@@ -134,6 +133,7 @@ locals {
             fi
             
             echo "NFS initialization complete"
+            exit 0
           EOT
         ]
         mount_nfs         = true

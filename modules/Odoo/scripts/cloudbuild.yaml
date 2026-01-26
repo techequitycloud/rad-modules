@@ -18,8 +18,8 @@ steps:
   args:
     - '--dockerfile=Dockerfile'
     - '--context=dir://odoo'
-    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/odoobasic-odoo9e4ee754-repo/odoo:latest'
-    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/odoobasic-odoo9e4ee754-repo/odoo:latest'
+    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/odoobasic-odoo339d8fed-repo/odoo:latest'
+    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/odoobasic-odoo339d8fed-repo/odoo:latest'
 
     - '--build-arg=APP_VERSION=latest'
 
