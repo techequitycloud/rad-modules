@@ -262,6 +262,16 @@ resource "google_compute_global_address" "psconnect_private_ip_alloc" {
   }
 }
 
+resource "google_project_service_identity" "servicenetworking_sa" {
+  provider = google-beta
+  project  = local.project.project_id
+  service  = "servicenetworking.googleapis.com"
+
+  depends_on = [
+    time_sleep.wait_for_apis
+  ]
+}
+
 resource "google_service_networking_connection" "psconnect" {
   network                 = "https://www.googleapis.com/compute/v1/projects/${local.project.project_id}/global/networks/${var.network_name}" 
   service                 = "servicenetworking.googleapis.com"
@@ -271,6 +281,7 @@ resource "google_service_networking_connection" "psconnect" {
 
   depends_on = [
     google_compute_global_address.psconnect_private_ip_alloc,
-    time_sleep.wait_for_apis
+    time_sleep.wait_for_apis,
+    google_project_service_identity.servicenetworking_sa
   ]
 }
