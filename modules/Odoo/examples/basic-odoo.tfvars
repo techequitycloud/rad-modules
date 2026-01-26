@@ -10,7 +10,7 @@ application_name     = "odoo"
 gcs_volumes = [
   {
     name          = "odoo-addons"
-    bucket_name   = "qwiklabs-03-5421a1d20b10-odoo-addons"
+    bucket_name   = ""
     mount_path    = "/mnt/extra-addons"
     read_only     = false
     mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
