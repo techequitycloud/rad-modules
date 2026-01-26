@@ -6,13 +6,13 @@ deployment_region    = "us-central1"
 application_module   = "odoo"
 application_name     = "odoo"
 
-# GCS Bucket for Odoo Custom Addons
-gcs_buckets = {
-  "odoo-addons" = {
-    name          = "qwiklabs-03-5421a1d20b10-odoo-addons"
-    location      = "US"
-    storage_class = "STANDARD"
-    versioning    = false
-    lifecycle_rules = []
+# GCS Volume mapping for Odoo Custom Addons
+gcs_volumes = [
+  {
+    name          = "odoo-addons"
+    bucket_name   = "qwiklabs-03-5421a1d20b10-odoo-addons"
+    mount_path    = "/mnt/extra-addons"
+    read_only     = false
+    mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
   }
-}
+]
