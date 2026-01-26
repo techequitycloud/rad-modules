@@ -303,7 +303,7 @@ create_module_structure() {
     local module_dir="$MODULES_DIR/$MODULE_NAME"
     
     # Create main directories
-    mkdir -p "$module_dir"/{modules/$APP_NAME,scripts/$APP_NAME,examples}
+    mkdir -p "$module_dir"/{modules/$APP_NAME,scripts/$APP_NAME,config}
     
     print_status "Created directory structure for $MODULE_NAME"
 }
@@ -347,50 +347,50 @@ copy_app_files() {
     fi
 }
 
-# Function to copy examples folder with enhanced handling
-copy_examples() {
-    print_info "Setting up examples folder..."
+# Function to copy config folder with enhanced handling
+copy_config() {
+    print_info "Setting up config folder..."
     
     local module_dir="$MODULES_DIR/$MODULE_NAME"
-    local examples_copied=0
+    local config_copied=0
     
-    # Ensure examples directory exists
-    mkdir -p "$module_dir/examples"
+    # Ensure config directory exists
+    mkdir -p "$module_dir/config"
     
-    # Copy all .tfvars files from WebApp/examples if the directory exists
-    if [[ -d "$WEBAPP_DIR/examples" ]]; then
-        print_info "Copying example files from WebApp/examples..."
+    # Copy all .tfvars files from WebApp/config if the directory exists
+    if [[ -d "$WEBAPP_DIR/config" ]]; then
+        print_info "Copying example files from WebApp/config..."
         
         # Copy all .tfvars files
-        for tfvars_file in "$WEBAPP_DIR/examples"/*.tfvars; do
+        for tfvars_file in "$WEBAPP_DIR/config"/*.tfvars; do
             if [[ -f "$tfvars_file" ]]; then
-                cp "$tfvars_file" "$module_dir/examples/"
-                ((examples_copied++))
+                cp "$tfvars_file" "$module_dir/config/"
+                ((config_copied++))
                 print_info "  • Copied $(basename "$tfvars_file")"
             fi
         done
         
         # Copy any README or documentation files
-        for doc_file in "$WEBAPP_DIR/examples"/{README.md,*.txt,*.md}; do
+        for doc_file in "$WEBAPP_DIR/config"/{README.md,*.txt,*.md}; do
             if [[ -f "$doc_file" ]]; then
-                cp "$doc_file" "$module_dir/examples/"
+                cp "$doc_file" "$module_dir/config/"
                 print_info "  • Copied $(basename "$doc_file")"
             fi
         done
         
-        if [[ $examples_copied -gt 0 ]]; then
-            print_status "Copied $examples_copied example files"
+        if [[ $config_copied -gt 0 ]]; then
+            print_status "Copied $config_copied example files"
         else
-            print_warning "No .tfvars files found in WebApp/examples"
+            print_warning "No .tfvars files found in WebApp/config"
         fi
     else
-        print_warning "WebApp/examples directory not found"
+        print_warning "WebApp/config directory not found"
     fi
     
     # Create a basic example file if none were copied
-    if [[ $examples_copied -eq 0 ]]; then
+    if [[ $config_copied -eq 0 ]]; then
         print_info "Creating basic example file..."
-        cat > "$module_dir/examples/basic-$APP_NAME.tfvars" << EOF
+        cat > "$module_dir/config/basic-$APP_NAME.tfvars" << EOF
 # Basic configuration for $MODULE_NAME module
 # Copy and customize this file for your deployment
 
@@ -411,9 +411,9 @@ EOF
         print_status "Created basic example file: basic-$APP_NAME.tfvars"
     fi
     
-    # List all files in examples directory
-    print_info "Examples directory contents:"
-    for example_file in "$module_dir/examples"/*; do
+    # List all files in config directory
+    print_info "config directory contents:"
+    for example_file in "$module_dir/config"/*; do
         if [[ -f "$example_file" ]]; then
             print_info "  • $(basename "$example_file")"
         fi
@@ -598,7 +598,7 @@ This module provides a standalone $APP_NAME deployment using shared infrastructu
 ## Structure
 - \`modules/$APP_NAME/\` - $APP_NAME-specific Terraform module
 - \`scripts/$APP_NAME/\` - $APP_NAME-specific deployment scripts
-- \`examples/\` - Configuration examples and templates
+- \`config/\` - Configuration config and templates
 - \`$APP_NAME.tf\` - Main $APP_NAME Terraform configuration (local copy)
 - \`variables.tf\` - Module variables (local copy)
 - Other application \`.tf\` files - Symbolic links to WebApp applications
@@ -610,7 +610,7 @@ This module provides a standalone $APP_NAME deployment using shared infrastructu
 Copy and customize an example configuration:
 \`\`\`bash
 # Copy example configuration
-cp examples/basic-$APP_NAME.tfvars my-config.tfvars
+cp config/basic-$APP_NAME.tfvars my-config.tfvars
 
 # Edit with your settings
 nano my-config.tfvars
@@ -630,8 +630,8 @@ terraform apply -var-file="my-config.tfvars"
 
 ## Example Configurations
 
-The \`examples/\` directory contains various configuration templates:
-$(find "$module_dir/examples" -name "*.tfvars" -exec basename {} \; 2>/dev/null | sed 's/^/- /' || echo "- basic-$APP_NAME.tfvars")
+The \`config/\` directory contains various configuration templates:
+$(find "$module_dir/config" -name "*.tfvars" -exec basename {} \; 2>/dev/null | sed 's/^/- /' || echo "- basic-$APP_NAME.tfvars")
 
 ## File Organization
 
@@ -692,14 +692,14 @@ verify_setup() {
         print_warning "⚠️  $APP_NAME.tf not found"
     fi
     
-    # Check examples directory
-    if [[ ! -d "examples" ]]; then
-        print_error "Missing examples directory"
+    # Check config directory
+    if [[ ! -d "config" ]]; then
+        print_error "Missing config directory"
         verification_passed=false
     else
-        local example_count=$(find examples -name "*.tfvars" 2>/dev/null | wc -l)
+        local example_count=$(find config -name "*.tfvars" 2>/dev/null | wc -l)
         if [[ $example_count -eq 0 ]]; then
-            print_warning "No .tfvars files found in examples directory"
+            print_warning "No .tfvars files found in config directory"
         else
             print_status "Found $example_count example configuration files"
         fi
@@ -792,7 +792,7 @@ display_summary() {
     echo
     print_highlight "Directory Structure:"
     print_info "  📁 $MODULE_NAME/"
-    print_info "  ├── 📁 examples/          # Configuration templates"
+    print_info "  ├── 📁 config/          # Configuration templates"
     print_info "  ├── 📁 modules/$APP_NAME/ # App-specific Terraform modules"
     print_info "  ├── 📁 scripts/$APP_NAME/ # App-specific scripts"
     print_info "  ├── 📄 $APP_NAME.tf       # Main app configuration (local copy)"
@@ -807,7 +807,7 @@ display_summary() {
     echo
     print_highlight "Next Steps:"
     print_info "  1. cd $module_dir"
-    print_info "  2. cp examples/basic-$APP_NAME.tfvars my-config.tfvars"
+    print_info "  2. cp config/basic-$APP_NAME.tfvars my-config.tfvars"
     print_info "  3. nano my-config.tfvars  # Edit configuration"
     print_info "  4. terraform init"
     print_info "  5. terraform plan -var-file=\"my-config.tfvars\""
@@ -839,7 +839,7 @@ main() {
     prompt_user_input
     create_module_structure
     copy_app_files
-    copy_examples
+    copy_config
     create_infrastructure_symlinks
     create_application_tf_symlinks  # ✅ NEW: Symlink other application TF files
     create_module_symlinks
