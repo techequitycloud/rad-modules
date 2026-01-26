@@ -425,7 +425,9 @@ resource "null_resource" "mirror_image" {
 
   depends_on = [
     # Artifact registry must exist
-    google_artifact_registry_repository.application_image
+    google_artifact_registry_repository.application_image,
+    # Wait for custom build if needed
+    null_resource.build_and_push_application_image
   ]
 }
 
