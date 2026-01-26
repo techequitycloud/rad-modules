@@ -33,7 +33,6 @@ locals {
     gcs_volumes = [
       {
         name          = "odoo-addons"
-        bucket_name   = "${local.project.project_id}-odoo-addons"
         mount_path    = "/mnt/extra-addons"
         read_only     = false
         mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
