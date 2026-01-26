@@ -69,8 +69,8 @@ locals {
   application_database_name = local.final_application_database_name
   application_database_user = local.final_application_database_user
 
-  database_name_full     = "${local.application_database_name}_${local.tenant_id}_${local.random_id}"
-  database_user_full     = "${local.application_database_user}_${local.tenant_id}_${local.random_id}"
+  database_name_full     = replace("${local.application_database_name}_${local.tenant_id}_${local.random_id}", "-", "_")
+  database_user_full     = replace("${local.application_database_user}_${local.tenant_id}_${local.random_id}", "-", "_")
 
   # ✅ UPDATED: Determine database port based on type (added POSTGRES_16)
   database_port = (
