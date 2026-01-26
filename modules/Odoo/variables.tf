@@ -267,7 +267,7 @@ variable "application_database_user" {
 variable "container_image_source" {
   description = "Container image source: 'prebuilt' (use existing image from registry) or 'custom' (build from Dockerfile). {{UIMeta group=0 order=400 updatesafe }}"
   type        = string
-  default     = "custom"
+  default     = null
 
   validation {
     condition     = var.container_image_source == null || contains(["prebuilt", "custom"], coalesce(var.container_image_source, "prebuilt"))
@@ -313,14 +313,7 @@ variable "container_build_config" {
     build_args         = optional(map(string), {})
     artifact_repo_name = optional(string, "webapp-repo")
   })
-  default = {
-    enabled            = true
-    dockerfile_path    = "Dockerfile"
-    context_path       = "odoo"
-    dockerfile_content = null
-    build_args         = {}
-    artifact_repo_name = null
-  }
+  default = null
 }
 
 variable "enable_image_mirroring" {
