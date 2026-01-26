@@ -65,13 +65,13 @@ variable "deployment_id" {
 }
 
 variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=11 }}"
+  description = "The Service Account used by terraform to create resources in the destination project. Assign time limited conditional Basic Owner IAM role in the destination project. {{UIMeta group=1 order=1 }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "trusted_users" {
-  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=0 order=12 }}"
+  description = "List of trusted users with limited Google Cloud project admin privileges. (e.g. `username@abc.com`). {{UIMeta group=1 order=2 }}"
   type        = list(string)
   default     = []
 }
@@ -117,7 +117,7 @@ variable "gce_subnet_cidr_range" {
 
 
 variable "agent_service_account" {
-  description = "If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account, e.g. rad-agent@gcp-project.sr65.iam.gserviceaccount.com, and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=1 order=0 updatesafe }}"
+  description = "If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account, e.g. rad-agent@gcp-project.sr65.iam.gserviceaccount.com, and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=0 order=0 updatesafe }}"
   type        = string
   default     = null
 }
@@ -181,19 +181,19 @@ variable "create_network_filesystem" {
 ################################################################################
 
 variable "create_filestore_nfs" {
-  description = "Select to create Filestore NFS server. {{UIMeta group=5 order=1 }}"
+  description = "Select to create Filestore NFS server. {{UIMeta group=0 order=1 }}"
   type        = bool
   default     = false
 }
 
 variable "filestore_tier" {
-  description = "The service tier of the filestore instance. {{UIMeta group=5 order=2 options=BASIC_HDD,BASIC_SSD }}"
+  description = "The service tier of the filestore instance. {{UIMeta group=0 order=2 options=BASIC_HDD,BASIC_SSD }}"
   type        = string
   default     = "BASIC_HDD"
 }
 
 variable "filestore_capacity_gb" {
-  description = "Filestore capacity must be at least 1024 GB for BASIC_HDD, and 2560 GB for BASIC_SSD.{{UIMeta group=5 order=3 }}"
+  description = "Filestore capacity must be at least 1024 GB for BASIC_HDD, and 2560 GB for BASIC_SSD.{{UIMeta group=0 order=3 }}"
   type        = number
   default     = 1024
 
@@ -204,19 +204,19 @@ variable "filestore_capacity_gb" {
 }
 
 variable "create_redis" {
-  description = "Select to create Managed Redis instance. {{UIMeta group=5 order=4 }}"
+  description = "Select to create Managed Redis instance. {{UIMeta group=0 order=4 }}"
   type        = bool
   default     = false
 }
 
 variable "redis_tier" {
-  description = "The service tier of the Redis instance. {{UIMeta group=5 order=5 options=BASIC,STANDARD_HA }}"
+  description = "The service tier of the Redis instance. {{UIMeta group=0 order=5 options=BASIC,STANDARD_HA }}"
   type        = string
   default     = "BASIC"
 }
 
 variable "redis_memory_size_gb" {
-  description = "Memory size in GB for the Redis instance. {{UIMeta group=5 order=6 }}"
+  description = "Memory size in GB for the Redis instance. {{UIMeta group=0 order=6 }}"
   type        = number
   default     = 1
 
