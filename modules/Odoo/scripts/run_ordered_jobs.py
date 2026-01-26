@@ -2,6 +2,7 @@ import sys
 import json
 import subprocess
 import time
+import base64
 
 def run_command(command):
     print(f"Running: {command}")
@@ -24,10 +25,21 @@ def run_command(command):
 
 def main():
     if len(sys.argv) < 5:
-        print("Usage: run_ordered_jobs.py <jobs_json> <resource_prefix> <region> <project_id> [impersonate_sa]")
+        print("Usage: run_ordered_jobs.py <jobs_json_base64> <resource_prefix> <region> <project_id> [impersonate_sa]")
         sys.exit(1)
 
-    jobs_map = json.loads(sys.argv[1])
+    try:
+        # Decode base64 argument to avoid shell escaping issues with complex JSON
+        json_str = base64.b64decode(sys.argv[1]).decode('utf-8')
+        jobs_map = json.loads(json_str)
+    except Exception as e:
+        print(f"Error parsing jobs JSON (expecting Base64): {e}")
+        # Fallback: try raw JSON if base64 fails (backward compatibility)
+        try:
+            jobs_map = json.loads(sys.argv[1])
+        except:
+            sys.exit(1)
+
     prefix = sys.argv[2]
     region = sys.argv[3]
     project = sys.argv[4]

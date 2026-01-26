@@ -741,8 +741,11 @@ variable "initialization_jobs" {
             apk update && apk add --no-cache postgresql-client netcat-openbsd
             echo ""
 
-            # Skip DNS check for private IPs
-            if echo "$${DB_HOST}" | grep -qE '^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)'; then
+            # Skip DNS check for private IPs or Unix sockets
+            if echo "$${DB_HOST}" | grep -q "^/"; then
+              echo "Detected Unix socket: $${DB_HOST}"
+              echo "Skipping DNS resolution check"
+            elif echo "$${DB_HOST}" | grep -qE '^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)'; then
               echo "Detected private IP address: $${DB_HOST}"
               echo "Skipping DNS resolution check"
             else
@@ -751,13 +754,17 @@ variable "initialization_jobs" {
             fi
             echo ""
 
-            echo "Testing network connectivity to $${DB_HOST}:5432..."
-            if timeout 5 nc -zv $${DB_HOST} 5432 2>&1; then
-              echo "Port 5432 is reachable"
+            if echo "$${DB_HOST}" | grep -q "^/"; then
+              echo "Skipping network connectivity check for Unix socket"
             else
-              echo "ERROR: Cannot reach $${DB_HOST}:5432"
-              echo "Check VPC connector or use public IP"
-              exit 1
+              echo "Testing network connectivity to $${DB_HOST}:5432..."
+              if timeout 5 nc -zv $${DB_HOST} 5432 2>&1; then
+                echo "Port 5432 is reachable"
+              else
+                echo "ERROR: Cannot reach $${DB_HOST}:5432"
+                echo "Check VPC connector or use public IP"
+                exit 1
+              fi
             fi
             echo ""
 
