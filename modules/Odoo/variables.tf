@@ -311,7 +311,7 @@ variable "container_build_config" {
     dockerfile_content = optional(string, null)
     context_path       = optional(string, ".")
     build_args         = optional(map(string), {})
-    artifact_repo_name = optional(string, "webapp-repo")
+    artifact_repo_name = optional(string, "cloudrunapp-repo")
   })
   default = {
     enabled            = true

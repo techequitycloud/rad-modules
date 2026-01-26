@@ -1,8 +1,8 @@
-# WebApp Application Modules
+# CloudRunApp Application Modules
 
 ## Overview
 
-The WebApp module now supports **Application Modules** - pre-configured profiles for popular applications that eliminate the need for manual configuration of container images, ports, database types, resource limits, and environment variables.
+The CloudRunApp module now supports **Application Modules** - pre-configured profiles for popular applications that eliminate the need for manual configuration of container images, ports, database types, resource limits, and environment variables.
 
 Simply select a module like `application_module = "odoo"` and the module automatically configures everything needed to deploy that application.
 
@@ -34,7 +34,7 @@ Deploy Odoo with zero configuration:
 
 ```hcl
 module "odoo" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Project configuration
   existing_project_id  = "my-project"
@@ -65,7 +65,7 @@ Use a module but customize specific values:
 
 ```hcl
 module "wordpress" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   existing_project_id  = "my-project"
   tenant_deployment_id = "prod"
@@ -304,7 +304,7 @@ locals {
 }
 
 module "wordpress" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   existing_project_id  = var.project_id
   tenant_deployment_id = var.environment
@@ -324,7 +324,7 @@ Use module for configuration but provide custom image:
 
 ```hcl
 module "custom_odoo" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   existing_project_id  = "my-project"
   tenant_deployment_id = "prod"
@@ -352,7 +352,7 @@ Combine modules with backup import, custom SQL scripts, etc.:
 
 ```hcl
 module "wordpress_with_backup" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   existing_project_id  = "my-project"
   tenant_deployment_id = "prod"
@@ -448,7 +448,7 @@ environment_variables = {
 
 ```hcl
 module "wordpress" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   existing_project_id  = "my-project"
   tenant_deployment_id = "prod"
@@ -491,7 +491,7 @@ module "wordpress" {
 
 ```hcl
 module "wordpress" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   existing_project_id  = "my-project"
   tenant_deployment_id = "prod"
@@ -582,7 +582,7 @@ max_instance_count = var.environment == "prod" ? 20 : 5
 
 ## Adding New Modules
 
-Module maintainers can add new modules by editing `modules/WebApp/modules.tf`:
+Module maintainers can add new modules by editing `modules/CloudRunApp/modules.tf`:
 
 ```hcl
 locals {
@@ -639,7 +639,7 @@ variable "application_module" {
 
 ## Summary
 
-Application Modules make deploying popular applications with WebApp dramatically simpler:
+Application Modules make deploying popular applications with CloudRunApp dramatically simpler:
 
 - **70% less configuration** for standard deployments
 - **Best practice settings** included by default

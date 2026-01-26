@@ -1,6 +1,6 @@
 # Odoo Module
 
-This module provides a standalone odoo deployment using shared infrastructure components from the WebApp module.
+This module provides a standalone odoo deployment using shared infrastructure components from the CloudRunApp module.
 
 ## Structure
 - `modules/odoo/` - odoo-specific Terraform module
@@ -8,7 +8,7 @@ This module provides a standalone odoo deployment using shared infrastructure co
 - `examples/` - Configuration examples and templates
 - `odoo.tf` - Main odoo Terraform configuration
 - `variables.tf` - Module variables
-- Other `.tf` files - Symbolic links to shared WebApp infrastructure
+- Other `.tf` files - Symbolic links to shared CloudRunApp infrastructure
 
 ## Quick Start
 
@@ -38,12 +38,12 @@ terraform apply -var-file="my-config.tfvars"
 
 The `examples/` directory contains various configuration templates:
 - nodejs-app.tfvars
-- simple-webapp.tfvars
-- advanced-webapp.tfvars
+- simple-cloudrunapp.tfvars
+- advanced-cloudrunapp.tfvars
 
 ## Dependencies
-This module depends on shared infrastructure files from the WebApp module via symbolic links.
-Ensure the WebApp module is present in the parent directory.
+This module depends on shared infrastructure files from the CloudRunApp module via symbolic links.
+Ensure the CloudRunApp module is present in the parent directory.
 
 ## Generated Information
 - **Generated:** Sun 25 Jan 2026 20:42:21 GMT

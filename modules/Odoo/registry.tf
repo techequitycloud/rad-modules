@@ -1,1 +1,1 @@
-../WebApp/registry.tf
+../CloudRunApp/registry.tf

@@ -1,1 +1,1 @@
-../WebApp/buildappcontainer.tf
+../CloudRunApp/buildappcontainer.tf

@@ -2,76 +2,68 @@
 # Licensed under the Apache License, Version 2.0
 
 #########################################################################
-# Medusa Ecommerce Preset Configuration
+# Strapi CMS Preset Configuration
 #########################################################################
 
 locals {
-  medusa_module = {
-    app_name        = "medusa"
-    description     = "Medusa - Building blocks for digital commerce"
-    # Medusa requires a custom built image with the storefront/backend code.
-    # We provide a placeholder, but users should override this.
-    container_image = "medusajs/medusa"
+  strapi_module = {
+    app_name        = "strapi"
+    description     = "Strapi - Open source Node.js Headless CMS"
+    # Strapi requires a custom built image.
+    container_image = ""
     image_source    = "custom"
-    
-    # Support for prebuilt image mirroring
-    enable_image_mirroring = true
 
-    # Enable custom build from scripts/medusa
+    # Custom build configuration
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "medusa"
+      context_path       = "strapi"
       dockerfile_content = null
       build_args         = {}
-      artifact_repo_name = "webapp-repo"
+      artifact_repo_name = "cloudrunapp-repo"
     }
 
-    container_port  = 9000
+    container_port  = 1337
     database_type   = "POSTGRES_15"
-    db_name         = "medusa_db"
-    db_user         = "medusa_user"
-
-    # Enable NFS for Redis
-    nfs_enabled     = true
-    nfs_mount_path  = "/mnt/nfs"
+    db_name         = "strapi"
+    db_user         = "strapi"
 
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
 
-    # Storage volumes
-    # Medusa supports S3/GCS plugins for file storage.
-    # We provision a bucket which can be used by the plugin.
-    # We also provide a local volume if needed, though ephemeral in Cloud Run without GCS Fuse.
-    gcs_volumes = [
-      {
-        name          = "medusa-uploads"
-        bucket_name   = null # Auto-generated based on suffix
-        mount_path    = "/uploads"
-        read_only     = false
-        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
-      }
-    ]
-
     # Resource limits
     container_resources = {
       cpu_limit    = "1000m"
-      memory_limit = "2Gi"
+      memory_limit = "1Gi"
     }
     min_instance_count = 0
     max_instance_count = 3
 
     # Environment variables
     environment_variables = {
-      NODE_ENV = "production"
+      NODE_ENV        = "production"
+      DATABASE_CLIENT = "postgres"
+      DATABASE_SSL    = "false"
       # DB connection details will be injected by main.tf
+
+      # SMTP Configuration
+      SMTP_HOST      = ""
+      SMTP_PORT      = "587"
+      SMTP_USERNAME  = ""
+      # SMTP_PASSWORD should be passed via secrets
+      EMAIL_FROM     = ""
+      EMAIL_REPLY_TO = ""
+
+      # GCS Configuration
+      GCS_PUBLIC_FILES = "true"
+      GCS_UNIFORM      = "true"
     }
 
     # Initialization Jobs
     initialization_jobs = [
       {
         name            = "db-init"
-        description     = "Create Medusa Database and User"
+        description     = "Create Strapi Database and User"
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
         args            = [
@@ -102,22 +94,27 @@ locals {
               END IF;
             END
             \$\$;
+            GRANT "$DB_USER" TO postgres;
             ALTER ROLE "$DB_USER" CREATEDB;
             GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
             EOF
 
             echo "Creating Database $DB_NAME if not exists..."
             if ! psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
-              echo "Database does not exist. Creating as $DB_USER..."
-              export PGPASSWORD=$DB_PASSWORD
-              psql -h "$TARGET_DB_HOST" -p 5432 -U $DB_USER -d postgres -c "CREATE DATABASE \"$DB_NAME\";"
+              echo "Database does not exist. Creating..."
+              # Create database with owner set to DB_USER
+              psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
             else
-              echo "Database $DB_NAME already exists."
+              echo "Database $DB_NAME already exists. Updating owner..."
+              psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
             fi
 
             echo "Granting privileges..."
             export PGPASSWORD=$ROOT_PASSWORD
             psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
+
+            echo "Granting schema permissions..."
+            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO \"$DB_USER\";"
 
             echo "DB Init complete."
           EOT
@@ -125,31 +122,14 @@ locals {
         mount_nfs         = false
         mount_gcs_volumes = []
         execute_on_apply  = true
-      },
-      {
-        name            = "medusa-migrations"
-        description     = "Run Medusa Migrations"
-        image           = null # Use the application image
-        command         = ["/bin/sh", "-c"]
-        args            = [
-          <<-EOT
-            set -e
-            echo "Running Medusa migrations..."
-            yarn medusa migrations run
-            echo "Migrations complete."
-          EOT
-        ]
-        mount_nfs         = true
-        mount_gcs_volumes = []
-        execute_on_apply  = true
       }
     ]
 
     startup_probe = {
       enabled               = true
-      type                  = "HTTP"
-      path                  = "/health"
-      initial_delay_seconds = 30
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 60
       timeout_seconds       = 5
       period_seconds        = 10
       failure_threshold     = 3
@@ -157,7 +137,7 @@ locals {
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
-      path                  = "/health"
+      path                  = "/_health"
       initial_delay_seconds = 60
       timeout_seconds       = 5
       period_seconds        = 30
@@ -166,7 +146,7 @@ locals {
   }
 }
 
-output "medusa_module" {
-  description = "medusa application module configuration"
-  value       = local.medusa_module
+output "strapi_module" {
+  description = "strapi application module configuration"
+  value       = local.strapi_module
 }

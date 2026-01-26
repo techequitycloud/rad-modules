@@ -1,1 +1,1 @@
-../WebApp/wikijs.tf
+../CloudRunApp/wikijs.tf

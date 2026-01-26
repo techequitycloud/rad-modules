@@ -1,6 +1,6 @@
-# WebApp Module Additional Enhancement Features
+# CloudRunApp Module Additional Enhancement Features
 
-This document describes three additional enhancement features added to the WebApp module to further improve compatibility, security, and flexibility.
+This document describes three additional enhancement features added to the CloudRunApp module to further improve compatibility, security, and flexibility.
 
 > **📢 NEW: Unified Backup Import Interface**
 >
@@ -70,7 +70,7 @@ Imports database backups from Google Cloud Storage instead of Google Drive. This
 ### Implementation Details
 
 **Files Created:**
-- `modules/WebApp/scripts/core/import-gcs-backup.sh` - GCS backup import script
+- `modules/CloudRunApp/scripts/core/import-gcs-backup.sh` - GCS backup import script
 
 **Script Features:**
 - Uses `gsutil` (pre-installed in Cloud Run) for downloads
@@ -85,7 +85,7 @@ Imports database backups from Google Cloud Storage instead of Google Drive. This
 **Basic SQL dump import:**
 ```hcl
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -100,7 +100,7 @@ module "app" {
 **Compressed backup import:**
 ```hcl
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -131,7 +131,7 @@ resource "google_storage_bucket_object" "backup" {
 }
 
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -211,7 +211,7 @@ Automatically installs MySQL plugins and components during deployment. Similar t
 ### Implementation Details
 
 **Files Created:**
-- `modules/WebApp/scripts/core/install-mysql-plugins.sh` - Plugin installation script
+- `modules/CloudRunApp/scripts/core/install-mysql-plugins.sh` - Plugin installation script
 
 **Script Features:**
 - Installs MySQL client automatically
@@ -226,7 +226,7 @@ Automatically installs MySQL plugins and components during deployment. Similar t
 **Password validation for security:**
 ```hcl
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -242,7 +242,7 @@ module "app" {
 **Audit logging for compliance:**
 ```hcl
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -265,7 +265,7 @@ module "app" {
 **LDAP authentication:**
 ```hcl
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -286,7 +286,7 @@ module "app" {
 **Replication setup:**
 ```hcl
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -392,7 +392,7 @@ Executes user-provided SQL scripts from Google Cloud Storage during database ini
 ### Implementation Details
 
 **Files Created:**
-- `modules/WebApp/scripts/core/run-custom-sql-scripts.sh` - SQL script executor
+- `modules/CloudRunApp/scripts/core/run-custom-sql-scripts.sh` - SQL script executor
 
 **Script Features:**
 - Downloads all `.sql` files from specified GCS path
@@ -419,7 +419,7 @@ resource "google_storage_bucket_object" "seed_data" {
 }
 
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -432,7 +432,7 @@ module "app" {
 **Multi-tenant initialization:**
 ```hcl
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -452,7 +452,7 @@ module "app" {
 **Complex initialization with extensions:**
 ```hcl
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -604,7 +604,7 @@ Here's an example using all six database initialization features:
 
 ```hcl
 module "complete_app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Basic Configuration
   existing_project_id  = "my-project"
@@ -641,7 +641,7 @@ module "complete_app" {
 
 ```hcl
 module "mysql_app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Basic Configuration
   existing_project_id  = "my-project"
@@ -932,4 +932,4 @@ custom_sql_scripts_path   = "init/"
 
 **Document Version:** 1.0
 **Last Updated:** 2026-01-20
-**Module Version:** WebApp v2.1 (with additional enhancements)
+**Module Version:** CloudRunApp v2.1 (with additional enhancements)

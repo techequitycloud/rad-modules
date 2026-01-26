@@ -69,7 +69,7 @@ rad-modules/
 │   │   ├── redis.tf         # Redis cache
 │   │   └── sa.tf            # Service accounts
 │   │
-│   └── WebApp/              # Application deployment layer
+│   └── CloudRunApp/              # Application deployment layer
 │       ├── modules/
 │       │   └── odoo/        # Odoo preset configuration
 │       │       └── variables.tf
@@ -263,7 +263,7 @@ resource "google_compute_firewall" "allow_nfs" {
 
 ### Odoo Application Preset
 
-The WebApp module uses a preset configuration system. Here's the complete Odoo preset from `modules/WebApp/modules/odoo/variables.tf`:
+The CloudRunApp module uses a preset configuration system. Here's the complete Odoo preset from `modules/CloudRunApp/modules/odoo/variables.tf`:
 
 ```hcl
 locals {
@@ -743,7 +743,7 @@ EOF
 
 ### Cloud Run Service Configuration
 
-The Cloud Run service is defined in `modules/WebApp/service.tf`:
+The Cloud Run service is defined in `modules/CloudRunApp/service.tf`:
 
 ```hcl
 resource "google_cloud_run_v2_service" "app_service" {
@@ -939,7 +939,7 @@ resource "google_cloud_run_v2_service" "app_service" {
 
 ### Custom Docker Image
 
-The custom Dockerfile (`modules/WebApp/scripts/odoo/Dockerfile`) extends the base Odoo image with GCP-specific optimizations:
+The custom Dockerfile (`modules/CloudRunApp/scripts/odoo/Dockerfile`) extends the base Odoo image with GCP-specific optimizations:
 
 ```dockerfile
 FROM ubuntu:jammy
@@ -1122,7 +1122,7 @@ module "gcp_services" {
 # odoo.tf
 
 module "odoo_app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Application selection
   app_name = "odoo"
@@ -1288,7 +1288,7 @@ For high availability across regions:
 
 ```hcl
 module "odoo_us_central" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   app_name = "odoo"
   region   = "us-central1"
@@ -1304,7 +1304,7 @@ module "odoo_us_central" {
 }
 
 module "odoo_us_east" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   app_name = "odoo"
   region   = "us-east1"
@@ -1452,7 +1452,7 @@ max_cron_threads = 2
 Add Redis for session storage:
 
 ```hcl
-# In WebApp module
+# In CloudRunApp module
 environment_variables = {
   REDIS_HOST = module.gcp_services.redis_host
   REDIS_PORT = "6379"
@@ -1475,10 +1475,10 @@ SESSION_REDIS = redis.StrictRedis(
 
 #### Cloud Monitoring Metrics
 
-The WebApp module automatically creates monitoring dashboards. Key metrics to watch:
+The CloudRunApp module automatically creates monitoring dashboards. Key metrics to watch:
 
 ```hcl
-# modules/WebApp/monitoring.tf includes:
+# modules/CloudRunApp/monitoring.tf includes:
 
 # 1. Container CPU utilization
 # 2. Container memory utilization
@@ -1954,7 +1954,7 @@ This implementation provides a production-ready, scalable, and cost-effective so
 
 ### Key Takeaways
 
-1. **Modularity**: Separate infrastructure (GCP_Services) from application (WebApp) for clean separation of concerns
+1. **Modularity**: Separate infrastructure (GCP_Services) from application (CloudRunApp) for clean separation of concerns
 2. **Security**: Use private networking, Secret Manager, and minimal IAM permissions
 3. **Scalability**: Cloud Run auto-scaling with session affinity for stateful sessions
 4. **Reliability**: Automated backups, health checks, and auto-healing

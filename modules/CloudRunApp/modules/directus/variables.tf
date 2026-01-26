@@ -2,68 +2,68 @@
 # Licensed under the Apache License, Version 2.0
 
 #########################################################################
-# Strapi CMS Preset Configuration
+# Directus CMS Preset Configuration
 #########################################################################
 
 locals {
-  strapi_module = {
-    app_name        = "strapi"
-    description     = "Strapi - Open source Node.js Headless CMS"
-    # Strapi requires a custom built image.
-    container_image = ""
+  directus_module = {
+    app_name        = "directus"
+    description     = "Directus - Open Source Headless CMS and Backend-as-a-Service"
+    container_image = "directus/directus:11.1.0"
     image_source    = "custom"
-
-    # Custom build configuration
-    container_build_config = {
-      enabled            = true
-      dockerfile_path    = "Dockerfile"
-      context_path       = "strapi"
-      dockerfile_content = null
-      build_args         = {}
-      artifact_repo_name = "webapp-repo"
-    }
-
-    container_port  = 1337
+    container_port  = 8055
     database_type   = "POSTGRES_15"
-    db_name         = "strapi"
-    db_user         = "strapi"
+    db_name         = "directus"
+    db_user         = "directus"
 
-    enable_cloudsql_volume     = true
-    cloudsql_volume_mount_path = "/cloudsql"
+    # Performance optimization
+    enable_cloudsql_volume     = false
+    cloudsql_volume_mount_path = ""
+
+    # NFS Configuration
+    nfs_enabled    = true
+    nfs_mount_path = ""
+
+    # GCS volumes for uploads
+    gcs_volumes = [
+      {
+        name          = "directus-uploads"
+        mount_path    = "/mnt/directus-uploads"
+        read_only     = false
+        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60", "uid=1000", "gid=1000"]
+      }
+    ]
 
     # Resource limits
     container_resources = {
       cpu_limit    = "1000m"
-      memory_limit = "1Gi"
+      memory_limit = "2Gi"
     }
     min_instance_count = 0
     max_instance_count = 3
 
+    # Container build config (requires image_source = "custom")
+    container_build_config = {
+      enabled         = true
+      context_path    = "directus"
+      dockerfile_path = "Dockerfile"
+    }
+
+    # Container command and args
+    container_command = [] # Use default
+    container_args    = [] # Use default
+
     # Environment variables
     environment_variables = {
-      NODE_ENV        = "production"
-      DATABASE_CLIENT = "postgres"
-      DATABASE_SSL    = "false"
-      # DB connection details will be injected by main.tf
-
-      # SMTP Configuration
-      SMTP_HOST      = ""
-      SMTP_PORT      = "587"
-      SMTP_USERNAME  = ""
-      # SMTP_PASSWORD should be passed via secrets
-      EMAIL_FROM     = ""
-      EMAIL_REPLY_TO = ""
-
-      # GCS Configuration
-      GCS_PUBLIC_FILES = "true"
-      GCS_UNIFORM      = "true"
+      CORS_ENABLED = "true"
+      CORS_ORIGIN  = "*"
     }
 
     # Initialization Jobs
     initialization_jobs = [
       {
         name            = "db-init"
-        description     = "Create Strapi Database and User"
+        description     = "Create Directus Database and User"
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
         args            = [
@@ -72,7 +72,7 @@ locals {
             echo "Installing dependencies..."
             apk update && apk add --no-cache postgresql-client
 
-            # Use DB_IP if available, else DB_HOST
+            # Use DB_IP if available (injected by CloudRunApp), else DB_HOST
             TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
             echo "Using DB Host: $TARGET_DB_HOST"
 
@@ -94,18 +94,18 @@ locals {
               END IF;
             END
             \$\$;
-            GRANT "$DB_USER" TO postgres;
             ALTER ROLE "$DB_USER" CREATEDB;
+            GRANT "$DB_USER" TO postgres;
             GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
             EOF
 
             echo "Creating Database $DB_NAME if not exists..."
             if ! psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
-              echo "Database does not exist. Creating..."
+              echo "Database does not exist. Creating as $DB_USER..."
               # Create database with owner set to DB_USER
               psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
             else
-              echo "Database $DB_NAME already exists. Updating owner..."
+              echo "Database $DB_NAME already exists."
               psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
             fi
 
@@ -113,7 +113,7 @@ locals {
             export PGPASSWORD=$ROOT_PASSWORD
             psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
 
-            echo "Granting schema permissions..."
+            echo "Granting schema permissions (PG15+)..."
             psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO \"$DB_USER\";"
 
             echo "DB Init complete."
@@ -125,11 +125,15 @@ locals {
       }
     ]
 
+    # PostgreSQL extensions
+    enable_postgres_extensions = true
+    postgres_extensions        = ["uuid-ossp"]
+
     startup_probe = {
       enabled               = true
-      type                  = "TCP"
-      path                  = "/"
-      initial_delay_seconds = 60
+      type                  = "HTTP"
+      path                  = "/server/health"
+      initial_delay_seconds = 30
       timeout_seconds       = 5
       period_seconds        = 10
       failure_threshold     = 3
@@ -137,16 +141,16 @@ locals {
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
-      path                  = "/_health"
-      initial_delay_seconds = 60
+      path                  = "/server/health"
+      initial_delay_seconds = 30
       timeout_seconds       = 5
-      period_seconds        = 30
+      period_seconds        = 15
       failure_threshold     = 3
     }
   }
 }
 
-output "strapi_module" {
-  description = "strapi application module configuration"
-  value       = local.strapi_module
+output "directus_module" {
+  description = "directus application module configuration"
+  value       = local.directus_module
 }

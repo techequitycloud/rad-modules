@@ -1,10 +1,10 @@
-# Migrating from Application-Specific Modules to WebApp
+# Migrating from Application-Specific Modules to CloudRunApp
 
-This guide shows how to deploy Odoo, Moodle, Cyclos, WordPress, Django, OpenEMR, and N8N using the general-purpose **WebApp** module instead of their application-specific modules.
+This guide shows how to deploy Odoo, Moodle, Cyclos, WordPress, Django, OpenEMR, and N8N using the general-purpose **CloudRunApp** module instead of their application-specific modules.
 
 ## Table of Contents
 
-1. [Why Migrate to WebApp?](#why-migrate-to-webapp)
+1. [Why Migrate to CloudRunApp?](#why-migrate-to-cloudrunapp)
 2. [Migration Overview](#migration-overview)
 3. [Application Migration Examples](#application-migration-examples)
    - [Odoo](#odoo)
@@ -19,9 +19,9 @@ This guide shows how to deploy Odoo, Moodle, Cyclos, WordPress, Django, OpenEMR,
 
 ---
 
-## Why Migrate to WebApp?
+## Why Migrate to CloudRunApp?
 
-The WebApp module provides several advantages over application-specific modules:
+The CloudRunApp module provides several advantages over application-specific modules:
 
 ### Benefits
 
@@ -34,7 +34,7 @@ The WebApp module provides several advantages over application-specific modules:
 
 ### Feature Comparison
 
-| Feature | App-Specific Modules | WebApp Module |
+| Feature | App-Specific Modules | CloudRunApp Module |
 |---------|---------------------|---------------|
 | Cloud SQL Unix Socket | ❌ No | ✅ Yes |
 | Backup Import (GCS) | ❌ No | ✅ Yes |
@@ -69,10 +69,10 @@ module "odoo" {
 }
 ```
 
-**After (WebApp Module)**:
+**After (CloudRunApp Module)**:
 ```hcl
 module "odoo" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   existing_project_id  = "my-project"
   tenant_deployment_id = "prod"
@@ -93,7 +93,7 @@ module "odoo" {
 
 | Aspect | Change Required |
 |--------|----------------|
-| **Module Source** | Change from `./modules/Odoo` to `./modules/WebApp` |
+| **Module Source** | Change from `./modules/Odoo` to `./modules/CloudRunApp` |
 | **Container Image** | Add `container_image` variable (e.g., `"odoo:18.0"`) |
 | **Application Port** | Add `application_port` variable (app-specific) |
 | **Database Type** | Add `sql_server_type` if needed (defaults to PostgreSQL) |
@@ -135,11 +135,11 @@ module "odoo" {
 }
 ```
 
-#### WebApp Migration
+#### CloudRunApp Migration
 
 ```hcl
 module "odoo" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Common configuration (same as before)
   existing_project_id       = "my-project"
@@ -193,7 +193,7 @@ module "odoo" {
 
 ```hcl
 module "odoo" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
   # ... (configuration from above)
 
   environment_variables = {
@@ -241,11 +241,11 @@ module "moodle" {
 }
 ```
 
-#### WebApp Migration
+#### CloudRunApp Migration
 
 ```hcl
 module "moodle" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Common configuration
   existing_project_id       = "my-project"
@@ -335,11 +335,11 @@ module "wordpress" {
 }
 ```
 
-#### WebApp Migration
+#### CloudRunApp Migration
 
 ```hcl
 module "wordpress" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Common configuration
   existing_project_id       = "my-project"
@@ -435,11 +435,11 @@ module "cyclos" {
 }
 ```
 
-#### WebApp Migration
+#### CloudRunApp Migration
 
 ```hcl
 module "cyclos" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Common configuration
   existing_project_id       = "my-project"
@@ -522,11 +522,11 @@ module "django" {
 }
 ```
 
-#### WebApp Migration
+#### CloudRunApp Migration
 
 ```hcl
 module "django" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Common configuration
   existing_project_id       = "my-project"
@@ -637,11 +637,11 @@ module "openemr" {
 }
 ```
 
-#### WebApp Migration
+#### CloudRunApp Migration
 
 ```hcl
 module "openemr" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Common configuration
   existing_project_id       = "my-project"
@@ -723,11 +723,11 @@ module "n8n" {
 }
 ```
 
-#### WebApp Migration (Simple N8N)
+#### CloudRunApp Migration (Simple N8N)
 
 ```hcl
 module "n8n" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Common configuration
   existing_project_id       = "my-project"
@@ -1037,7 +1037,7 @@ Applications that need more memory:
 2. **Update Terraform**:
    ```hcl
    # Change module source
-   source = "./modules/WebApp"  # Was "./modules/Odoo"
+   source = "./modules/CloudRunApp"  # Was "./modules/Odoo"
 
    # Add new required variables
    container_image  = "odoo:18.0"
@@ -1061,7 +1061,7 @@ Applications that need more memory:
 
 ## Summary
 
-The WebApp module provides a unified, feature-rich alternative to application-specific modules. Key benefits:
+The CloudRunApp module provides a unified, feature-rich alternative to application-specific modules. Key benefits:
 
 ✅ **Consistent interface** across all applications
 ✅ **Enhanced features** (Cloud SQL volumes, backup import, extensions)
