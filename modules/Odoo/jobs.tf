@@ -357,7 +357,8 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
           for vol_name in each.value.mount_gcs_volumes :
           local.gcs_volumes[vol_name]
           if contains(keys(local.gcs_volumes), vol_name) && 
-             try(local.gcs_volumes[vol_name].bucket_name, "") != ""
+             try(local.gcs_volumes[vol_name].bucket_name, null) != null &&
+             local.gcs_volumes[vol_name].bucket_name != ""
         ]
         content {
           name = volumes.value.name
