@@ -65,9 +65,9 @@ variable "deployment_id" {
 }
 
 variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=108 updatesafe }}"
+  description = "The Service Account used by terraform to create resources in the destination project. Assign time limited conditional Basic Owner IAM role in the destination project. {{UIMeta group=1 order=1 }}"
   type        = string
-  default     = null
+  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "resource_labels" {
@@ -157,7 +157,7 @@ variable "service_labels" {
 # ===========================
 
 variable "agent_service_account" {
-  description = "If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account (e.g., rad-agent@gcp-project.iam.gserviceaccount.com) and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=1 order=200 updatesafe }}"
+  description = "If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account (e.g., rad-agent@gcp-project.iam.gserviceaccount.com) and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=0 order=200 updatesafe }}"
   type        = string
   default     = null
 }
