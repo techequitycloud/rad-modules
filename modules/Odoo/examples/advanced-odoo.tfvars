@@ -1,4 +1,4 @@
-existing_project_id  = "CHANGE_ME"
+existing_project_id  = "qwiklabs-gcp-03-5421a1d20b10"
 tenant_deployment_id = "adv-odoo"
 deployment_region    = "europe-west1"
 

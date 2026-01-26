@@ -207,7 +207,7 @@ locals {
     local.directus_storage_buckets,
     local.cyclos_storage_buckets,
     local.openemr_storage_buckets,
-    local.sample_storage_buckets
+    local.sample_storage_buckets,
   )
 
   # Combined Storage Buckets
@@ -257,7 +257,7 @@ locals {
     local.medusa_env_vars,
     local.strapi_env_vars,
     local.directus_env_vars,
-    local.sample_env_vars
+    local.sample_env_vars,
   )
 
   # Environment variables (combined static and secret-based)
