@@ -98,7 +98,7 @@ resource "google_project_service" "gcp_services" {
 # Wait for APIs to fully propagate
 resource "time_sleep" "wait_for_apis" {
   depends_on      = [google_project_service.gcp_services]
-  create_duration = "90s"  # Increased wait time
+  create_duration = "180s"  # Increased wait time
 }
 
 # Data source to fetch the list of available compute zones in the region
