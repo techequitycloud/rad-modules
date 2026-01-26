@@ -18,17 +18,17 @@
 
 output "service_name" {
   description = "Name of the Cloud Run service"
-  value       = local.configure_environment ? google_cloud_run_v2_service.app_service[0].name : null
+  value = local.configure_environment && length(google_cloud_run_v2_service.app_service) > 0 ? google_cloud_run_v2_service.app_service[0].name : null
 }
 
 output "service_url" {
   description = "URL of the Cloud Run service"
-  value       = local.configure_environment ? google_cloud_run_v2_service.app_service[0].uri : null
+  value = local.configure_environment && length(google_cloud_run_v2_service.app_service) > 0 ? google_cloud_run_v2_service.app_service[0].uri : null
 }
 
 output "service_location" {
   description = "Location of the Cloud Run service"
-  value       = local.configure_environment ? google_cloud_run_v2_service.app_service[0].location : null
+  value = local.configure_environment && length(google_cloud_run_v2_service.app_service) > 0 ? google_cloud_run_v2_service.app_service[0].location : null
 }
 
 #########################################################################
@@ -205,7 +205,7 @@ output "deployment_summary" {
   description = "Summary of the deployment"
   value = {
     application_name    = local.application_display_name
-    service_url         = local.configure_environment ? google_cloud_run_v2_service.app_service[0].uri : null
+    service_url         = local.configure_environment && length(google_cloud_run_v2_service.app_service) > 0 ? google_cloud_run_v2_service.app_service[0].uri : null
     database_type       = local.database_type
     database_name       = local.sql_server_exists ? local.database_name_full : null
     storage_buckets     = local.create_cloud_storage ? keys(local.storage_buckets) : []

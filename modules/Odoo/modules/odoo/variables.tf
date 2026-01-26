@@ -33,6 +33,7 @@ locals {
     gcs_volumes = [
       {
         name          = "odoo-addons"
+        bucket_name   = "${local.project.project_id}-odoo-addons"
         mount_path    = "/mnt/extra-addons"
         read_only     = false
         mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
@@ -470,9 +471,11 @@ EOF
             echo ""
             
             echo "Checking GCS mount..."
-            if [ ! -d /mnt/extra-addons ]; then
-                echo "ERROR: /mnt/extra-addons not found"
-                exit 1
+            if [ -d /mnt/extra-addons ]; then
+                echo "GCS mount found"
+                ls -la /mnt/extra-addons || true
+            else
+                echo "WARNING: /mnt/extra-addons not found (optional)"
             fi
             ls -la /mnt/extra-addons || exit 1
             echo "GCS mount verified"

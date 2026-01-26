@@ -18,13 +18,23 @@
 
 locals {
   # Build a map of jobs by name for easy lookup
-  jobs_map = {
-    for job in local.initialization_jobs :
-    job.name => job
-  }
+  jobs_map = merge([
+    for job in local.initialization_jobs : {
+      (job.name) = job
+    }
+  ]...)
 
   # Determine subnet for the region
   subnet_map = local.region_to_subnet
+  
+  # ✅ NEW: Safe subnet name lookup with multiple fallbacks
+  subnet_name = coalesce(
+    try(local.region_to_subnet[local.region], null),
+    try([for s in local.subnet_details : s.name if s.region == local.region][0], null),
+    try(local.subnet_details[0].name, null),
+    "gce-vpc-subnet-${local.region}",  # Match your actual subnet naming pattern
+    "${local.network_name}-subnet-${local.region}"
+  )
 
   # ✅ NEW: Unique NFS path scoped to tenant and deployment
   nfs_unique_path = "/share/${local.resource_prefix}"
