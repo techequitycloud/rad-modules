@@ -7,7 +7,7 @@ locals {
     OE_USER        = "admin"
     MANUAL_SETUP   = "no"
     BACKUP_FILEID  = local.final_backup_uri != null ? local.final_backup_uri : ""
-    SWARM_MODE     = "yes"
+    SWARM_MODE     = "no"
     REDIS_SERVER   = local.nfs_server_exists ? local.nfs_internal_ip : ""
     REDIS_PORT     = "6379"
   } : {}
