@@ -1236,6 +1236,17 @@ resource "null_resource" "execute_db_cleanup_job" {
         IMPERSONATE_FLAG="--impersonate-service-account=${self.triggers.impersonation}"
       fi
 
+      # Check if the job exists before trying to execute it
+      echo "Checking if job exists..."
+      if ! gcloud run jobs describe ${self.triggers.job_name} \
+        --region ${self.triggers.region} \
+        --project ${self.triggers.project_id} \
+        $IMPERSONATE_FLAG \
+        --format="value(name)" 2>/dev/null; then
+        echo "⚠️  Job ${self.triggers.job_name} does not exist. Skipping cleanup execution."
+        exit 0
+      fi
+
       gcloud run jobs execute ${self.triggers.job_name} \
         --region ${self.triggers.region} \
         --project ${self.triggers.project_id} \
@@ -1353,6 +1364,17 @@ resource "null_resource" "execute_nfs_cleanup_job" {
       IMPERSONATE_FLAG=""
       if [ -n "${self.triggers.impersonation}" ]; then
         IMPERSONATE_FLAG="--impersonate-service-account=${self.triggers.impersonation}"
+      fi
+
+      # Check if the job exists before trying to execute it
+      echo "Checking if job exists..."
+      if ! gcloud run jobs describe ${self.triggers.job_name} \
+        --region ${self.triggers.region} \
+        --project ${self.triggers.project_id} \
+        $IMPERSONATE_FLAG \
+        --format="value(name)" 2>/dev/null; then
+        echo "⚠️  Job ${self.triggers.job_name} does not exist. Skipping cleanup execution."
+        exit 0
       fi
 
       gcloud run jobs execute ${self.triggers.job_name} \
