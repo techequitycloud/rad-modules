@@ -1,6 +1,9 @@
 locals {
+  # Cyclos uses PGSimpleDataSource with explicit portNumber=5432 in cyclos.properties
+  # This requires TCP connection (IP address), not Unix sockets.
+  # The Cloud SQL Auth Proxy sidecar is not needed when using private IP via VPC connector.
   cyclos_env_vars = var.application_module == "cyclos" ? {
-    DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+    DB_HOST = local.db_internal_ip
   } : {}
 
   cyclos_secret_env_vars = {}
