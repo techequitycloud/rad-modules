@@ -86,17 +86,18 @@ WHERE datname = '$DB_NAME'
   AND pid <> pg_backend_pid();
 EOF
         
-        # Step 2: Revoke connect privileges
-        echo "Revoking connect privileges..."
-        psql -h "$DB_HOST" -p "${DB_PORT:-5432}" -U postgres -d postgres -c \
-            "REVOKE CONNECT ON DATABASE \"$DB_NAME\" FROM PUBLIC, \"$DB_USER\";" -w \
-            2>/dev/null || echo "⚠️  Warning: Failed to revoke connect privileges (may not exist)"
-        
-        # Step 3: Grant role to postgres first
+        # Step 2: Grant role to postgres first
         echo "Granting role $DB_USER to postgres (required for reassignment)..."
         psql -h "$DB_HOST" -p "${DB_PORT:-5432}" -U postgres -d postgres -c \
             "GRANT \"$DB_USER\" TO postgres;" -w \
             2>/dev/null || echo "⚠️  Warning: Role grant failed (may already be granted)"
+
+        # Step 3: Revoke connect privileges
+        echo "Revoking connect privileges..."
+        # Explicitly grant connect to postgres first to ensure we don't lock ourselves out when revoking PUBLIC
+        psql -h "$DB_HOST" -p "${DB_PORT:-5432}" -U postgres -d postgres -c \
+            "GRANT CONNECT ON DATABASE \"$DB_NAME\" TO postgres; REVOKE CONNECT ON DATABASE \"$DB_NAME\" FROM PUBLIC, \"$DB_USER\";" -w \
+            2>/dev/null || echo "⚠️  Warning: Failed to revoke connect privileges (may not exist)"
         
         # Step 4: Connect to the database and reassign ownership
         echo "Reassigning ownership of objects in database $DB_NAME..."
