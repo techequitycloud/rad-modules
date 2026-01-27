@@ -267,7 +267,7 @@ variable "application_database_user" {
 variable "container_image_source" {
   description = "Container image source: 'prebuilt' (use existing image from registry) or 'custom' (build from Dockerfile). {{UIMeta group=0 order=400 updatesafe }}"
   type        = string
-  default     = "custom"
+  default     = null
 
   validation {
     condition     = var.container_image_source == null || contains(["prebuilt", "custom"], coalesce(var.container_image_source, "prebuilt"))
@@ -284,7 +284,7 @@ variable "container_image" {
 variable "container_port" {
   description = "Container port to expose (1-65535). {{UIMeta group=0 order=402 updatesafe }}"
   type        = number
-  default     = 8080
+  default     = null
 
   validation {
     condition     = var.container_port == null || (coalesce(var.container_port, 8080) > 0 && coalesce(var.container_port, 8080) <= 65535)
@@ -313,20 +313,13 @@ variable "container_build_config" {
     build_args         = optional(map(string), {})
     artifact_repo_name = optional(string, "cloudrunapp-repo")
   })
-  default = {
-    enabled            = true
-    dockerfile_path    = "Dockerfile"
-    context_path       = "moodle"
-    dockerfile_content = null
-    build_args         = {}
-    artifact_repo_name = null
-  }
+  default = null
 }
 
 variable "enable_image_mirroring" {
   description = "Enable automated mirroring of container images to Artifact Registry. Useful for caching public images or compliance. {{UIMeta group=0 order=404 updatesafe }}"
   type        = bool
-  default     = true
+  default     = null
 }
 
 variable "github_repository_url" {
@@ -376,7 +369,7 @@ variable "cicd_trigger_config" {
 variable "database_type" {
   description = "Database type: MYSQL, POSTGRES, SQLSERVER (or specific versions like MYSQL_8_0, POSTGRES_15). {{UIMeta group=0 order=500 updatesafe }}"
   type        = string
-  default     = "POSTGRES_15"
+  default     = null
 
   validation {
     condition     = var.database_type == null || contains(["MYSQL", "POSTGRES", "POSTGRESQL", "SQLSERVER", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE", "NONE"], coalesce(var.database_type, "POSTGRES"))
@@ -407,10 +400,7 @@ variable "container_resources" {
     cpu_request  = optional(string, null)
     mem_request  = optional(string, null)
   })
-  default = {
-    cpu_limit    = "2000m"
-    memory_limit = "4Gi"
-  }
+  default = null
 }
 
 variable "timeout_seconds" {
@@ -427,7 +417,7 @@ variable "timeout_seconds" {
 variable "min_instance_count" {
   description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=0 order=603 updatesafe }}"
   type        = number
-  default     = 0
+  default     = null
 
   validation {
     condition     = var.min_instance_count == null || (coalesce(var.min_instance_count, 0) >= 0 && coalesce(var.min_instance_count, 0) <= 1000)
@@ -438,7 +428,7 @@ variable "min_instance_count" {
 variable "max_instance_count" {
   description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=0 order=604 updatesafe }}"
   type        = number
-  default     = 3
+  default     = null
 
   validation {
     condition     = var.max_instance_count == null || (coalesce(var.max_instance_count, 1) >= 1 && coalesce(var.max_instance_count, 1) <= 1000)
@@ -473,13 +463,13 @@ variable "storage_buckets" {
 variable "nfs_enabled" {
   description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=0 order=701 updatesafe }}"
   type        = bool
-  default     = true
+  default     = null
 }
 
 variable "nfs_mount_path" {
   description = "NFS mount path in container (e.g., '/mnt', '/data'). {{UIMeta group=0 order=702 updatesafe }}"
   type        = string
-  default     = "/mnt"
+  default     = null
 }
 
 variable "gcs_volumes" {
@@ -495,31 +485,19 @@ variable "gcs_volumes" {
       "type-cache-ttl=60s"
     ])
   }))
-  default = [{
-      name       = "moodle-data"
-      mount_path = "/mnt/filedir" # Mounted inside NFS share for filedir
-      read_only  = false
-      mount_options = [
-        "implicit-dirs",
-        "metadata-cache-ttl-secs=60",
-        "uid=33", # www-data user
-        "gid=33", # www-data group
-        "file-mode=770",
-        "dir-mode=770"
-      ]
-  }]
+  default = []
 }
 
 variable "enable_cloudsql_volume" {
   description = "Enable Cloud SQL instance volume for Unix socket connections. When enabled, the Cloud SQL instance will be mounted as a volume, allowing connections via Unix socket instead of TCP/IP. {{UIMeta group=0 order=705 updatesafe }}"
   type        = bool
-  default     = true
+  default     = null
 }
 
 variable "cloudsql_volume_mount_path" {
   description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=0 order=706 updatesafe }}"
   type        = string
-  default     = "/cloudsql"
+  default     = null
 }
 
 # ===========================
@@ -529,17 +507,7 @@ variable "cloudsql_volume_mount_path" {
 variable "environment_variables" {
   description = "Static environment variables for the application as key-value pairs (e.g., {APP_ENV='production', LOG_LEVEL='info'}). {{UIMeta group=0 order=800 updatesafe }}"
   type        = map(string)
-  default     = {
-      MOODLE_SITE_NAME     = "Moodle LMS"
-      MOODLE_SITE_FULLNAME = "Moodle Learning Management System"
-      LANGUAGE             = "en"
-      MOODLE_ADMIN_USER    = "admin"
-      MOODLE_ADMIN_EMAIL   = "admin@example.com"
-      MOODLE_SKIP_INSTALL = "no"
-      MOODLE_UPDATE       = "yes"
-      MOODLE_DATA_DIR = "/mnt"
-      DATA_PATH       = "/mnt"
-  }
+  default     = {}
 }
 
 variable "secret_environment_variables" {
@@ -563,15 +531,7 @@ variable "health_check_config" {
     period_seconds        = optional(number, 10)
     failure_threshold     = optional(number, 3)
   })
-  default = {
-      enabled               = true
-      type                  = "HTTP"
-      path                  = "/"
-      initial_delay_seconds = 180
-      timeout_seconds       = 10
-      period_seconds        = 60
-      failure_threshold     = 3
-  }
+  default = null
 }
 
 variable "startup_probe_config" {
@@ -585,15 +545,7 @@ variable "startup_probe_config" {
     period_seconds        = optional(number, 240)
     failure_threshold     = optional(number, 1)
   })
-  default = {
-      enabled               = true
-      type                  = "TCP"
-      path                  = "/"
-      initial_delay_seconds = 180
-      timeout_seconds       = 60
-      period_seconds        = 120
-      failure_threshold     = 3
-  }
+  default = null
 }
 
 # ===========================
@@ -659,74 +611,7 @@ variable "initialization_jobs" {
     execute_on_apply  = optional(bool, false)
     script_path       = optional(string, null)
   }))
-  default = [
-      {
-        name            = "nfs-init"
-        description     = "Initialize NFS permissions for Moodle"
-        image           = "alpine:3.19"
-        command         = ["/bin/sh", "-c"]
-        args            = [
-          "chown -R 33:33 /mnt && chmod -R 2770 /mnt && echo 'NFS permissions initialized'"
-        ]
-        mount_nfs        = true
-        execute_on_apply = true
-      },
-      {
-        name            = "db-init"
-        description     = "Create Moodle Database and User in PostgreSQL"
-        image           = "alpine:3.19"
-        command         = ["/bin/sh", "-c"]
-        args            = [
-          <<-EOT
-            set -e
-            echo "Installing dependencies..."
-            apk update && apk add --no-cache postgresql-client
-
-            TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
-            echo "Using DB Host: $TARGET_DB_HOST"
-
-            # Wait for PostgreSQL
-            until pg_isready -h "$TARGET_DB_HOST" -p 5432; do
-              echo "Waiting for PostgreSQL..."
-              sleep 2
-            done
-
-            export PGPASSWORD=$ROOT_PASSWORD
-
-            echo "Creating User $DB_USER if not exists..."
-            # Check if user exists
-            if ! psql -h "$TARGET_DB_HOST" -U postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
-                psql -h "$TARGET_DB_HOST" -U postgres -c "CREATE USER \"$DB_USER\" WITH PASSWORD '$DB_PASSWORD';"
-            else
-                psql -h "$TARGET_DB_HOST" -U postgres -c "ALTER USER \"$DB_USER\" WITH PASSWORD '$DB_PASSWORD';"
-            fi
-
-            # Grant user role to postgres to allow setting owner
-            echo "Granting role $DB_USER to postgres..."
-            psql -h "$TARGET_DB_HOST" -U postgres -c "GRANT \"$DB_USER\" TO postgres;"
-
-            echo "Creating Database $DB_NAME if not exists..."
-            # Check if database exists
-            if ! psql -h "$TARGET_DB_HOST" -U postgres -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
-                psql -h "$TARGET_DB_HOST" -U postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
-            else
-                psql -h "$TARGET_DB_HOST" -U postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
-            fi
-
-            echo "Granting privileges..."
-            psql -h "$TARGET_DB_HOST" -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
-
-            # Allow user to create schema in public
-            psql -h "$TARGET_DB_HOST" -U postgres -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO \"$DB_USER\";"
-
-            echo "PostgreSQL DB Init complete."
-          EOT
-        ]
-        mount_nfs         = false
-        mount_gcs_volumes = []
-        execute_on_apply  = true
-      }
-  ]
+  default = []
 }
 
 # ===========================
