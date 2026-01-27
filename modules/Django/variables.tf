@@ -313,14 +313,7 @@ variable "container_build_config" {
     build_args         = optional(map(string), {})
     artifact_repo_name = optional(string, "cloudrunapp-repo")
   })
-  default = {
-    enabled            = true
-    dockerfile_path    = "Dockerfile"
-    context_path       = "modules/CloudRunApp/scripts/django"
-    dockerfile_content = null
-    build_args         = {}
-    artifact_repo_name = null
-  }
+  default = null
 }
 
 variable "enable_image_mirroring" {
