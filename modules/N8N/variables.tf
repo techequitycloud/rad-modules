@@ -179,6 +179,7 @@ variable "existing_project_id" {
 variable "tenant_deployment_id" {
   description = "Specify a unique tenant or deployment identifier. This uniquely identifies your application deployment and is used in resource naming (1-20 lowercase alphanumeric characters and hyphens). {{UIMeta group=2 order=201 updatesafe }}"
   type        = string
+  default     = "default"
 
   validation {
     condition     = can(regex("^[a-z0-9-]{1,20}$", var.tenant_deployment_id))
@@ -199,7 +200,7 @@ variable "deployment_region" {
 variable "application_module" {
   description = "Select a pre-configured application module for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=3 order=299 OPTIONS=odoo,wordpress,moodle,cyclos,django,openemr,n8n,payload,ghost,strapi,wikijs,directus updatesafe }}"
   type        = string
-  default     = null
+  default     = "n8n"
 
   validation {
     condition = var.application_module == null || var.application_module == "" || contains([
