@@ -23,6 +23,15 @@ swarm_wait() {
 }
 
 auto_setup() {
+    case "$MYSQL_HOST" in
+        /*)
+            echo "Detected Unix socket in MYSQL_HOST: $MYSQL_HOST"
+            export MYSQL_SOCKET="$MYSQL_HOST"
+            export MYSQL_HOST="localhost"
+            echo "mysqli.default_socket=$MYSQL_SOCKET" >> /etc/php83/php.ini
+            echo "pdo_mysql.default_socket=$MYSQL_SOCKET" >> /etc/php83/php.ini
+            ;;
+    esac
     prepareVariables
 
     find . -not -perm 600 -exec chmod 600 {} \+
@@ -40,6 +49,10 @@ auto_setup() {
     echo "opcache.file_cache_consistency_checks=1" >> auto_configure.ini
     echo "opcache.enable_file_override=1" >> auto_configure.ini
     echo "opcache.max_accelerated_files=1000000" >> auto_configure.ini
+    if [ -n "$MYSQL_SOCKET" ]; then
+        echo "mysqli.default_socket=$MYSQL_SOCKET" >> auto_configure.ini
+        echo "pdo_mysql.default_socket=$MYSQL_SOCKET" >> auto_configure.ini
+    fi
 
     #run auto_configure
     php auto_configure.php -c auto_configure.ini -f ${CONFIGURATION} || return 1
