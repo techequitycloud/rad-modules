@@ -48,7 +48,7 @@ fi
 
 # Check if image already exists
 echo "Checking if image exists in Artifact Registry..."
-if gcloud artifacts docker images describe "${FULL_TARGET_IMAGE}" "${gcloud_args[@]}" > /dev/null 2>&1; then
+if gcloud "${gcloud_args[@]}" artifacts docker images describe "${FULL_TARGET_IMAGE}" > /dev/null 2>&1; then
   echo "✅ Image ${FULL_TARGET_IMAGE} already exists. Skipping mirror."
   exit 0
 fi
@@ -80,7 +80,7 @@ EOF
 
 # Submit build
 echo "Submitting Cloud Build job..."
-gcloud builds submit "${gcloud_args[@]}" --config=cloudbuild.yaml --no-source
+gcloud "${gcloud_args[@]}" builds submit --config=cloudbuild.yaml --no-source
 
 # Cleanup
 popd > /dev/null
