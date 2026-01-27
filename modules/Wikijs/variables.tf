@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module can be used to deploy Cyclos, Django, Moodle, N8N, Odoo, OpenEMR, Wordpress, Ghost, Strapi, Wikijs or Directus"
+  default     = "This module can be used to deploy Wikijs"
 }
 
 variable "module_dependency" {
@@ -199,7 +199,7 @@ variable "deployment_region" {
 variable "application_module" {
   description = "Select a pre-configured application module for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=3 order=299 OPTIONS=odoo,wordpress,moodle,cyclos,django,openemr,n8n,payload,ghost,strapi,wikijs,directus updatesafe }}"
   type        = string
-  default     = null
+  default     = "wikijs"
 
   validation {
     condition = var.application_module == null || var.application_module == "" || contains([
@@ -212,7 +212,7 @@ variable "application_module" {
 variable "application_name" {
   description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=0 order=300 updatesafe }}"
   type        = string
-  default     = null
+  default     = "wikijs"
 
   validation {
     condition     = var.application_name == null || can(regex("^[a-z][a-z0-9-]{0,19}$", var.application_name))
@@ -223,7 +223,7 @@ variable "application_name" {
 variable "application_display_name" {
   description = "Human-readable application name for display purposes. {{UIMeta group=0 order=301 updatesafe }}"
   type        = string
-  default     = null
+  default     = "Wiki.js"
 }
 
 variable "application_version" {
@@ -241,7 +241,7 @@ variable "application_description" {
 variable "application_database_name" {
   description = "Application database name. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-63 characters). The actual database name includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=304 updatesafe }}"
   type        = string
-  default     = null
+  default     = "wikijs"
 
   validation {
     condition     = var.application_database_name == null || can(regex("^[a-z][a-z0-9_]{0,62}$", var.application_database_name))
@@ -252,7 +252,7 @@ variable "application_database_name" {
 variable "application_database_user" {
   description = "Application database user. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-32 characters). The actual database user includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=305 updatesafe }}"
   type        = string
-  default     = null
+  default     = "wikijs"
 
   validation {
     condition     = var.application_database_user == null || can(regex("^[a-z][a-z0-9_]{0,31}$", var.application_database_user))
@@ -267,7 +267,7 @@ variable "application_database_user" {
 variable "container_image_source" {
   description = "Container image source: 'prebuilt' (use existing image from registry) or 'custom' (build from Dockerfile). {{UIMeta group=0 order=400 updatesafe }}"
   type        = string
-  default     = null
+  default     = "custom"
 
   validation {
     condition     = var.container_image_source == null || contains(["prebuilt", "custom"], coalesce(var.container_image_source, "prebuilt"))
@@ -284,7 +284,7 @@ variable "container_image" {
 variable "container_port" {
   description = "Container port to expose (1-65535). {{UIMeta group=0 order=402 updatesafe }}"
   type        = number
-  default     = null
+  default     = 3000
 
   validation {
     condition     = var.container_port == null || (coalesce(var.container_port, 8080) > 0 && coalesce(var.container_port, 8080) <= 65535)
@@ -319,7 +319,14 @@ variable "container_build_config" {
     build_args         = optional(map(string), {})
     artifact_repo_name = optional(string, null)
   })
-  default = null
+  default = {
+    enabled            = true
+    dockerfile_path    = "Dockerfile"
+    context_path       = "wikijs"
+    dockerfile_content = null
+    build_args         = {}
+    artifact_repo_name = null
+  }
 }
 
 variable "github_repository_url" {
@@ -369,7 +376,7 @@ variable "cicd_trigger_config" {
 variable "database_type" {
   description = "Database type: MYSQL, POSTGRES, SQLSERVER (or specific versions like MYSQL_8_0, POSTGRES_15). {{UIMeta group=0 order=500 updatesafe }}"
   type        = string
-  default     = null
+  default     = "POSTGRES_15"
 
   validation {
     condition     = var.database_type == null || contains(["MYSQL", "POSTGRES", "POSTGRESQL", "SQLSERVER", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE", "NONE"], coalesce(var.database_type, "POSTGRES"))
@@ -400,7 +407,10 @@ variable "container_resources" {
     cpu_request  = optional(string, null)
     mem_request  = optional(string, null)
   })
-  default = null
+  default = {
+    cpu_limit    = "1000m"
+    memory_limit = "2Gi"
+  }
 }
 
 variable "timeout_seconds" {
@@ -417,7 +427,7 @@ variable "timeout_seconds" {
 variable "min_instance_count" {
   description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=0 order=603 updatesafe }}"
   type        = number
-  default     = null
+  default     = 0
 
   validation {
     condition     = var.min_instance_count == null || (coalesce(var.min_instance_count, 0) >= 0 && coalesce(var.min_instance_count, 0) <= 1000)
@@ -428,7 +438,7 @@ variable "min_instance_count" {
 variable "max_instance_count" {
   description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=0 order=604 updatesafe }}"
   type        = number
-  default     = null
+  default     = 3
 
   validation {
     condition     = var.max_instance_count == null || (coalesce(var.max_instance_count, 1) >= 1 && coalesce(var.max_instance_count, 1) <= 1000)
@@ -485,19 +495,33 @@ variable "gcs_volumes" {
       "type-cache-ttl=60s"
     ])
   }))
-  default = []
+  default = [
+    {
+      name          = "wikijs-storage"
+      mount_path    = "/wiki-storage"
+      read_only     = false
+      mount_options = [
+        "implicit-dirs",
+        "metadata-cache-ttl-secs=60",
+        "file-mode=770",
+        "dir-mode=770",
+        "uid=1000",
+        "gid=1000"
+      ]
+    }
+  ]
 }
 
 variable "enable_cloudsql_volume" {
   description = "Enable Cloud SQL instance volume for Unix socket connections. When enabled, the Cloud SQL instance will be mounted as a volume, allowing connections via Unix socket instead of TCP/IP. {{UIMeta group=0 order=705 updatesafe }}"
   type        = bool
-  default     = null
+  default     = true
 }
 
 variable "cloudsql_volume_mount_path" {
   description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=0 order=706 updatesafe }}"
   type        = string
-  default     = null
+  default     = "/cloudsql"
 }
 
 # ===========================
@@ -507,7 +531,14 @@ variable "cloudsql_volume_mount_path" {
 variable "environment_variables" {
   description = "Static environment variables for the application as key-value pairs (e.g., {APP_ENV='production', LOG_LEVEL='info'}). {{UIMeta group=0 order=800 updatesafe }}"
   type        = map(string)
-  default     = {}
+  default     = {
+    DB_TYPE         = "postgres"
+    DB_PORT         = "5432"
+    DB_USER         = "wikijs"
+    DB_NAME         = "wikijs"
+    DB_SSL          = "false"
+    HA_STORAGE_PATH = "/wiki-storage"
+  }
 }
 
 variable "secret_environment_variables" {
@@ -531,7 +562,15 @@ variable "health_check_config" {
     period_seconds        = optional(number, 10)
     failure_threshold     = optional(number, 3)
   })
-  default = null
+  default = {
+    enabled               = true
+    type                  = "HTTP"
+    path                  = "/healthz"
+    initial_delay_seconds = 60
+    timeout_seconds       = 5
+    period_seconds        = 30
+    failure_threshold     = 3
+  }
 }
 
 variable "startup_probe_config" {
@@ -545,7 +584,15 @@ variable "startup_probe_config" {
     period_seconds        = optional(number, 240)
     failure_threshold     = optional(number, 1)
   })
-  default = null
+  default = {
+    enabled               = true
+    type                  = "HTTP"
+    path                  = "/healthz"
+    initial_delay_seconds = 60
+    timeout_seconds       = 5
+    period_seconds        = 10
+    failure_threshold     = 3
+  }
 }
 
 # ===========================
@@ -611,7 +658,63 @@ variable "initialization_jobs" {
     execute_on_apply  = optional(bool, false)
     script_path       = optional(string, null)
   }))
-  default = []
+  default = [
+    {
+      name            = "db-init"
+      description     = "Create Wiki.js Database and User"
+      image           = "alpine:3.19"
+      command         = ["/bin/sh", "-c"]
+      args            = [
+        <<-EOT
+          set -e
+          echo "Installing dependencies..."
+          apk update && apk add --no-cache postgresql-client
+
+          TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
+          echo "Using DB Host: $TARGET_DB_HOST"
+
+          # Wait for PostgreSQL
+          until pg_isready -h "$TARGET_DB_HOST" -p 5432; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
+          export PGPASSWORD=$ROOT_PASSWORD
+
+          echo "Creating User $DB_USER if not exists..."
+          # Check if user exists
+          if ! psql -h "$TARGET_DB_HOST" -U postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+              psql -h "$TARGET_DB_HOST" -U postgres -c "CREATE USER \"$DB_USER\" WITH PASSWORD '$DB_PASSWORD';"
+          else
+              psql -h "$TARGET_DB_HOST" -U postgres -c "ALTER USER \"$DB_USER\" WITH PASSWORD '$DB_PASSWORD';"
+          fi
+
+          # Grant user role to postgres to allow setting owner
+          echo "Granting role $DB_USER to postgres..."
+          psql -h "$TARGET_DB_HOST" -U postgres -c "GRANT \"$DB_USER\" TO postgres;"
+
+          echo "Creating Database $DB_NAME if not exists..."
+          # Check if database exists
+          if ! psql -h "$TARGET_DB_HOST" -U postgres -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+              psql -h "$TARGET_DB_HOST" -U postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
+          else
+              psql -h "$TARGET_DB_HOST" -U postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
+          fi
+
+          echo "Granting privileges..."
+          psql -h "$TARGET_DB_HOST" -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
+
+          # Allow user to create schema in public
+          psql -h "$TARGET_DB_HOST" -U postgres -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO \"$DB_USER\";"
+
+          echo "PostgreSQL DB Init complete."
+        EOT
+      ]
+      mount_nfs         = false
+      mount_gcs_volumes = []
+      execute_on_apply  = true
+    }
+  ]
 }
 
 # ===========================
@@ -621,13 +724,13 @@ variable "initialization_jobs" {
 variable "enable_postgres_extensions" {
   description = "Enable automatic installation of PostgreSQL extensions. Only applicable when using PostgreSQL databases. {{UIMeta group=0 order=1300 updatesafe }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "postgres_extensions" {
   description = "List of PostgreSQL extensions to install (e.g., ['postgis', 'uuid-ossp', 'pg_trgm']). Common extensions: postgis, cube, earthdistance, unaccent, pg_stat_statements, uuid-ossp, pg_trgm. {{UIMeta group=0 order=1301 updatesafe }}"
   type        = list(string)
-  default     = []
+  default     = ["pg_trgm"]
 
   validation {
     condition     = alltrue([for ext in var.postgres_extensions : can(regex("^[a-z_][a-z0-9_-]*$", ext))])
