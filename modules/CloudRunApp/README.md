@@ -1,10 +1,10 @@
-# WebApp Terraform Module
+# CloudRunApp Terraform Module
 
 A unified Terraform module for deploying web applications on Google Cloud Platform using Cloud Run. This module acts as a wrapper that can deploy generic applications or pre-configured "presets" for popular applications like Django, Wordpress, Odoo, and more.
 
 ## Overview
 
-The WebApp module simplifies deployment by providing a single interface for various application types. You can deploy a custom application by providing your own configuration, or use a "preset" to get sensible defaults for specific applications.
+The CloudRunApp module simplifies deployment by providing a single interface for various application types. You can deploy a custom application by providing your own configuration, or use a "preset" to get sensible defaults for specific applications.
 
 ## Usage
 
@@ -13,8 +13,8 @@ The WebApp module simplifies deployment by providing a single interface for vari
 To deploy a custom application, simply use the module without specifying a preset (or explicitly set `deploy_app_preset = "custom"`).
 
 ```hcl
-module "webapp" {
-  source = "./modules/WebApp"
+module "cloudrunapp" {
+  source = "./modules/CloudRunApp"
 
   deploy_app_preset = "custom"
 
@@ -55,7 +55,7 @@ To deploy a supported application, set `deploy_app_preset` to the desired applic
 
 ```hcl
 module "wordpress" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   deploy_app_preset = "wordpress"
 
@@ -74,7 +74,7 @@ module "wordpress" {
 
 ```hcl
 module "django" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   deploy_app_preset = "django"
 

@@ -36,7 +36,7 @@ locals {
     nfs_enabled    = true
     nfs_mount_path = "/var/www/localhost/htdocs/openemr/sites"
 
-    # Note: GCS volume removed in favor of NFS for sites directory to match proven WebApp preset
+    # Note: GCS volume removed in favor of NFS for sites directory to match proven CloudRunApp preset
     gcs_volumes = []
 
     container_resources = {

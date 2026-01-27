@@ -1,6 +1,6 @@
 # Unified Backup Import Guide
 
-The WebApp module now provides a unified interface for importing database backups from either Google Drive or Google Cloud Storage. This document explains the new unified approach and how to migrate from the legacy variables.
+The CloudRunApp module now provides a unified interface for importing database backups from either Google Drive or Google Cloud Storage. This document explains the new unified approach and how to migrate from the legacy variables.
 
 ## Overview
 
@@ -46,7 +46,7 @@ The unified backup import system provides:
 
 ```hcl
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -64,7 +64,7 @@ module "app" {
 
 ```hcl
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -89,7 +89,7 @@ resource "google_storage_bucket_object" "backup" {
 }
 
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -117,7 +117,7 @@ variable "backup_location" {
 }
 
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -276,7 +276,7 @@ resource "google_storage_bucket_iam_member" "backup_access" {
 
 # Deploy with backup import
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   existing_project_id  = var.project_id
   tenant_deployment_id = "prod"
@@ -320,7 +320,7 @@ locals {
 }
 
 module "app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   existing_project_id  = var.project_id
   tenant_deployment_id = var.environment
@@ -424,4 +424,4 @@ A: The job timeout is 30 minutes (1800 seconds). This typically supports backups
 
 **Document Version:** 1.0
 **Last Updated:** 2026-01-20
-**Module Version:** WebApp v2.2 (with unified backup import)
+**Module Version:** CloudRunApp v2.2 (with unified backup import)

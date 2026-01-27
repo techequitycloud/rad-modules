@@ -3,7 +3,7 @@ set -e
 
 echo "=== Sample DB Init Script ==="
 
-# Use DB_IP if available (injected by WebApp), else DB_HOST
+# Use DB_IP if available (injected by CloudRunApp), else DB_HOST
 TARGET_DB_HOST="${DB_IP:-${DB_HOST}}"
 
 # Check if we are using Unix Socket

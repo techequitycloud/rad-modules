@@ -1,6 +1,6 @@
-# WebApp Module Compatibility Enhancements
+# CloudRunApp Module Compatibility Enhancements
 
-This document describes the compatibility enhancements added to the WebApp module to support deployment patterns from application-specific modules (Cyclos, Django, Moodle, N8N, N8N_AI, Odoo, OpenEMR, WordPress).
+This document describes the compatibility enhancements added to the CloudRunApp module to support deployment patterns from application-specific modules (Cyclos, Django, Moodle, N8N, N8N_AI, Odoo, OpenEMR, WordPress).
 
 ## Overview
 
@@ -32,8 +32,8 @@ Adds support for mounting Cloud SQL instances as volumes, enabling Unix socket c
 ### Implementation Details
 
 **Files Modified:**
-- `modules/WebApp/variables.tf` - Added volume configuration variables
-- `modules/WebApp/service.tf` - Added Cloud SQL volume mount and volume definition
+- `modules/CloudRunApp/variables.tf` - Added volume configuration variables
+- `modules/CloudRunApp/service.tf` - Added Cloud SQL volume mount and volume definition
 
 **Technical Implementation:**
 ```hcl
@@ -62,8 +62,8 @@ dynamic "volumes" {
 
 **For N8N deployment with Unix socket:**
 ```hcl
-module "n8n_webapp" {
-  source = "./modules/WebApp"
+module "n8n_cloudrunapp" {
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -79,8 +79,8 @@ module "n8n_webapp" {
 
 **For WordPress deployment:**
 ```hcl
-module "wordpress_webapp" {
-  source = "./modules/WebApp"
+module "wordpress_cloudrunapp" {
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -127,11 +127,11 @@ Automatically downloads and imports database backups from Google Drive during de
 ### Implementation Details
 
 **Files Created:**
-- `modules/WebApp/scripts/core/import-gdrive-backup.sh` - Backup import script
+- `modules/CloudRunApp/scripts/core/import-gdrive-backup.sh` - Backup import script
 
 **Files Modified:**
-- `modules/WebApp/variables.tf` - Added backup configuration variables
-- `modules/WebApp/jobs.tf` - Added Google Drive backup import job
+- `modules/CloudRunApp/variables.tf` - Added backup configuration variables
+- `modules/CloudRunApp/jobs.tf` - Added Google Drive backup import job
 
 **Script Features:**
 - Downloads backups from Google Drive using `gdown`
@@ -144,8 +144,8 @@ Automatically downloads and imports database backups from Google Drive during de
 
 **For Cyclos deployment with backup:**
 ```hcl
-module "cyclos_webapp" {
-  source = "./modules/WebApp"
+module "cyclos_cloudrunapp" {
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -159,8 +159,8 @@ module "cyclos_webapp" {
 
 **For Odoo deployment with tar backup:**
 ```hcl
-module "odoo_webapp" {
-  source = "./modules/WebApp"
+module "odoo_cloudrunapp" {
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -232,11 +232,11 @@ Automatically installs PostgreSQL extensions during deployment. This is required
 ### Implementation Details
 
 **Files Created:**
-- `modules/WebApp/scripts/core/install-postgres-extensions.sh` - Extension installation script
+- `modules/CloudRunApp/scripts/core/install-postgres-extensions.sh` - Extension installation script
 
 **Files Modified:**
-- `modules/WebApp/variables.tf` - Added extension configuration variables
-- `modules/WebApp/jobs.tf` - Added PostgreSQL extensions installation job
+- `modules/CloudRunApp/variables.tf` - Added extension configuration variables
+- `modules/CloudRunApp/jobs.tf` - Added PostgreSQL extensions installation job
 
 **Script Features:**
 - Installs PostgreSQL client automatically
@@ -249,8 +249,8 @@ Automatically installs PostgreSQL extensions during deployment. This is required
 
 **For Cyclos deployment:**
 ```hcl
-module "cyclos_webapp" {
-  source = "./modules/WebApp"
+module "cyclos_cloudrunapp" {
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -269,7 +269,7 @@ module "cyclos_webapp" {
 **For custom GIS application:**
 ```hcl
 module "gis_app" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # ... other configuration ...
 
@@ -331,8 +331,8 @@ This ensures:
 Here's a complete example using all three features together:
 
 ```hcl
-module "cyclos_on_webapp" {
-  source = "./modules/WebApp"
+module "cyclos_on_cloudrunapp" {
+  source = "./modules/CloudRunApp"
 
   # Basic Configuration
   existing_project_id  = "my-gcp-project"
@@ -423,7 +423,7 @@ module "cyclos" {
 **After:**
 ```hcl
 module "cyclos" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Add PostgreSQL extensions
   enable_postgres_extensions = true
@@ -450,7 +450,7 @@ module "n8n" {
 **After:**
 ```hcl
 module "n8n" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Enable Cloud SQL Unix socket
   enable_cloudsql_volume = true
@@ -477,7 +477,7 @@ module "wordpress" {
 **After:**
 ```hcl
 module "wordpress" {
-  source = "./modules/WebApp"
+  source = "./modules/CloudRunApp"
 
   # Enable Cloud SQL Unix socket
   enable_cloudsql_volume = true
@@ -609,4 +609,4 @@ For issues or questions:
 
 **Document Version:** 1.0
 **Last Updated:** 2026-01-20
-**Module Version:** WebApp v2.0 (with compatibility enhancements)
+**Module Version:** CloudRunApp v2.0 (with compatibility enhancements)

@@ -1,1 +1,1 @@
-../WebApp/django.tf
+../CloudRunApp/django.tf

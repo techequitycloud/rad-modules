@@ -1,1 +1,1 @@
-../WebApp/strapi.tf
+../CloudRunApp/strapi.tf

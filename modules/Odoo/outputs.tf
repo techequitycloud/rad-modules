@@ -1,1 +1,1 @@
-../WebApp/outputs.tf
+../CloudRunApp/outputs.tf

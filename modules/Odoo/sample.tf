@@ -1,1 +1,1 @@
-../WebApp/sample.tf
+../CloudRunApp/sample.tf

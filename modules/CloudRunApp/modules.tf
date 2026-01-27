@@ -235,14 +235,14 @@ locals {
   final_container_image         = local._container_image_raw != "" && length(regexall(":", local._container_image_raw)) == 0 ? "${local._container_image_raw}:${local.final_application_version}" : local._container_image_raw
   final_container_port          = var.container_port != null ? var.container_port : coalesce(local.module_container_port, 8080)
   final_container_image_source  = var.container_image_source != null ? var.container_image_source : coalesce(local.module_container_image_source, "prebuilt")
-  final_application_name        = var.application_name != null ? var.application_name : coalesce(local.module_application_name, "webapp")
+  final_application_name        = var.application_name != null ? var.application_name : coalesce(local.module_application_name, "cloudrunapp")
   final_application_version     = var.application_version != "latest" ? var.application_version : coalesce(local.module_application_version, "latest")
   final_application_description = var.application_description != "" ? var.application_description : (local.module_application_description != null ? local.module_application_description : "")
 
   # Database configuration
   final_database_type             = var.database_type != null ? var.database_type : coalesce(local.module_database_type, "POSTGRES")
-  final_application_database_name = var.application_database_name != null ? var.application_database_name : coalesce(local.module_application_database_name, "webapp_db")
-  final_application_database_user = var.application_database_user != null ? var.application_database_user : coalesce(local.module_application_database_user, "webapp_user")
+  final_application_database_name = var.application_database_name != null ? var.application_database_name : coalesce(local.module_application_database_name, "cloudrunapp_db")
+  final_application_database_user = var.application_database_user != null ? var.application_database_user : coalesce(local.module_application_database_user, "cloudrunapp_user")
 
   # Cloud SQL volume
   final_enable_cloudsql_volume     = var.enable_cloudsql_volume != null ? var.enable_cloudsql_volume : coalesce(local.module_enable_cloudsql_volume, false)

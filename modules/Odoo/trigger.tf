@@ -1,1 +1,1 @@
-../WebApp/trigger.tf
+../CloudRunApp/trigger.tf

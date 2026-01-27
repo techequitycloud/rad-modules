@@ -120,7 +120,7 @@ locals {
       dockerfile_content = null
       context_path       = "."
       build_args         = {}
-      artifact_repo_name = "webapp-repo"
+      artifact_repo_name = "cloudrunapp-repo"
     }
   )
 
@@ -386,7 +386,7 @@ locals {
       deployment   = local.deployment_id
       tenant       = local.tenant_id
       managed-by   = "terraform"
-      module       = "webapp"
+      module       = "cloudrunapp"
     }
   )
 

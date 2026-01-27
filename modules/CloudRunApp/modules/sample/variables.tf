@@ -16,7 +16,7 @@ locals {
       context_path       = "sample"
       dockerfile_content = null
       build_args         = {}
-      artifact_repo_name = "webapp-repo"
+      artifact_repo_name = "cloudrunapp-repo"
     }
 
     container_port  = 8080

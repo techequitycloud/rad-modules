@@ -1,1 +1,1 @@
-../WebApp/wordpress.tf
+../CloudRunApp/wordpress.tf

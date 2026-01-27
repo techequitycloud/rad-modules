@@ -84,14 +84,14 @@ locals {
               exit 1
             fi
 
-            # DB_PASSWORD and ROOT_PASSWORD are automatically injected by WebApp/jobs.tf
+            # DB_PASSWORD and ROOT_PASSWORD are automatically injected by CloudRunApp/jobs.tf
             if [ -z "$DB_PASSWORD" ]; then
-              echo "Error: DB_PASSWORD is not set. It should be injected by WebApp/jobs.tf."
+              echo "Error: DB_PASSWORD is not set. It should be injected by CloudRunApp/jobs.tf."
               exit 1
             fi
             
             if [ -z "$ROOT_PASSWORD" ]; then
-              echo "Error: ROOT_PASSWORD is not set. It should be injected by WebApp/jobs.tf."
+              echo "Error: ROOT_PASSWORD is not set. It should be injected by CloudRunApp/jobs.tf."
               exit 1
             fi
 

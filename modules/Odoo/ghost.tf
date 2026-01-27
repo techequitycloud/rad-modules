@@ -1,1 +1,1 @@
-../WebApp/ghost.tf
+../CloudRunApp/ghost.tf
