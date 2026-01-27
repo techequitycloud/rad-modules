@@ -4,15 +4,13 @@ FROM n8nio/n8n:${APP_VERSION}
 USER root
 
 # Install python3 and other useful tools often needed by n8n custom nodes or scripts
-RUN apk add --update --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
-    py3-pip \
+    python3-pip \
     git \
     bash \
     curl \
-    jq
-
-# Clean up
-RUN rm -rf /var/cache/apk/*
+    jq \
+    && rm -rf /var/lib/apt/lists/*
 
 USER node
