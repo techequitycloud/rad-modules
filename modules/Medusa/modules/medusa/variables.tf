@@ -149,17 +149,17 @@ locals {
       enabled               = true
       type                  = "HTTP"
       path                  = "/health"
-      initial_delay_seconds = 30
-      timeout_seconds       = 5
-      period_seconds        = 10
-      failure_threshold     = 3
+      initial_delay_seconds = 120
+      timeout_seconds       = 10
+      period_seconds        = 15
+      failure_threshold     = 12
     }
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
       path                  = "/health"
-      initial_delay_seconds = 60
-      timeout_seconds       = 5
+      initial_delay_seconds = 120
+      timeout_seconds       = 10
       period_seconds        = 30
       failure_threshold     = 3
     }
