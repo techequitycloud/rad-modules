@@ -889,6 +889,15 @@ variable "initialization_jobs" {
             DB_PORT_VALUE="$${DB_PORT:-5432}"
             SMTP_PORT_VALUE="$${SMTP_PORT:-25}"
 
+            # Dynamically configure addons path
+            ADDONS_PATH="/usr/lib/python3/dist-packages/cyclos/addons"
+            if [ -d "/mnt/extra-addons" ]; then
+                echo "Found extra addons directory"
+                ADDONS_PATH="$${ADDONS_PATH},/mnt/extra-addons"
+            else
+                echo "No extra addons directory found"
+            fi
+
             # Generate configuration file with variable substitution
             cat > "$${CONFIG_FILE}" << EOF
 [options]
@@ -912,7 +921,7 @@ admin_passwd = $${ODOO_MASTER_PASS}
 # Paths
 #########################################################################
 data_dir = /mnt/filestore
-addons_path = /usr/lib/python3/dist-packages/cyclos/addons,/mnt/extra-addons
+addons_path = $${ADDONS_PATH}
 
 #########################################################################
 # Server Configuration
@@ -1042,12 +1051,12 @@ EOF
             echo ""
 
             echo "Checking GCS mount..."
-            if [ ! -d /mnt/extra-addons ]; then
-                echo "ERROR: /mnt/extra-addons not found"
-                exit 1
+            if [ -d /mnt/extra-addons ]; then
+                echo "GCS mount found at /mnt/extra-addons"
+                ls -la /mnt/extra-addons || true
+            else
+                echo "GCS mount not found at /mnt/extra-addons (Skipping)"
             fi
-            ls -la /mnt/extra-addons || exit 1
-            echo "GCS mount verified"
             echo ""
 
             echo "Waiting for cyclos.conf..."
