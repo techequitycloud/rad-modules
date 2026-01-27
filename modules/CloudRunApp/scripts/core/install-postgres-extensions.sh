@@ -45,6 +45,22 @@ else
   echo "Database ${DB_NAME} already exists."
 fi
 
+# Verify we can connect to the database (handles case where CONNECT was revoked by failed cleanup)
+echo "Verifying connection to database ${DB_NAME}..."
+if ! PGPASSWORD="${ROOT_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${ROOT_USER}" -d "${DB_NAME}" -c "SELECT 1" >/dev/null 2>&1; then
+  echo "⚠️  Cannot connect to database ${DB_NAME}. Attempting to restore CONNECT privilege..."
+  PGPASSWORD="${ROOT_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${ROOT_USER}" -d "postgres" -c "GRANT CONNECT ON DATABASE \"${DB_NAME}\" TO \"${ROOT_USER}\", PUBLIC;" 2>/dev/null || true
+
+  # Retry connection
+  if ! PGPASSWORD="${ROOT_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${ROOT_USER}" -d "${DB_NAME}" -c "SELECT 1" >/dev/null 2>&1; then
+    echo "❌ ERROR: Still cannot connect to database ${DB_NAME} after restoring privileges."
+    echo "The database may be in an inconsistent state from a failed cleanup."
+    echo "Please manually check the database or run: DROP DATABASE IF EXISTS \"${DB_NAME}\";"
+    exit 1
+  fi
+  echo "✓ CONNECT privilege restored successfully"
+fi
+
 # Parse comma-separated extensions list
 IFS=',' read -ra EXTENSIONS <<< "$POSTGRES_EXTENSIONS"
 
