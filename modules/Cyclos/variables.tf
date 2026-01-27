@@ -473,7 +473,7 @@ variable "storage_buckets" {
 variable "nfs_enabled" {
   description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=0 order=701 updatesafe }}"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "nfs_mount_path" {
@@ -495,14 +495,7 @@ variable "gcs_volumes" {
       "type-cache-ttl=60s"
     ])
   }))
-  default = [
-    {
-      name          = "cyclos-addons"
-      mount_path    = "/mnt/extra-addons"
-      read_only     = false
-      mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
-    }
-  ]
+  default = []
 }
 
 variable "enable_cloudsql_volume" {
@@ -701,7 +694,7 @@ variable "initialization_jobs" {
             echo "NFS initialization complete"
           EOT
         ]
-        mount_nfs         = true
+        mount_nfs         = false
         mount_gcs_volumes = []
         depends_on_jobs   = []
         execute_on_apply  = true
@@ -889,6 +882,15 @@ variable "initialization_jobs" {
             DB_PORT_VALUE="$${DB_PORT:-5432}"
             SMTP_PORT_VALUE="$${SMTP_PORT:-25}"
 
+            # Dynamically configure addons path
+            ADDONS_PATH="/usr/lib/python3/dist-packages/cyclos/addons"
+            if [ -d "/mnt/extra-addons" ]; then
+                echo "Found extra addons directory"
+                ADDONS_PATH="$${ADDONS_PATH},/mnt/extra-addons"
+            else
+                echo "No extra addons directory found"
+            fi
+
             # Generate configuration file with variable substitution
             cat > "$${CONFIG_FILE}" << EOF
 [options]
@@ -912,7 +914,7 @@ admin_passwd = $${ODOO_MASTER_PASS}
 # Paths
 #########################################################################
 data_dir = /mnt/filestore
-addons_path = /usr/lib/python3/dist-packages/cyclos/addons,/mnt/extra-addons
+addons_path = $${ADDONS_PATH}
 
 #########################################################################
 # Server Configuration
@@ -1008,7 +1010,7 @@ EOF
             echo "Cyclos configuration generation complete"
           EOT
         ]
-        mount_nfs         = true
+        mount_nfs         = false
         mount_gcs_volumes = []
         depends_on_jobs   = ["nfs-init"]
         execute_on_apply  = true
@@ -1042,12 +1044,12 @@ EOF
             echo ""
 
             echo "Checking GCS mount..."
-            if [ ! -d /mnt/extra-addons ]; then
-                echo "ERROR: /mnt/extra-addons not found"
-                exit 1
+            if [ -d /mnt/extra-addons ]; then
+                echo "GCS mount found at /mnt/extra-addons"
+                ls -la /mnt/extra-addons || true
+            else
+                echo "GCS mount not found at /mnt/extra-addons (Skipping)"
             fi
-            ls -la /mnt/extra-addons || exit 1
-            echo "GCS mount verified"
             echo ""
 
             echo "Waiting for cyclos.conf..."
@@ -1115,8 +1117,8 @@ EOF
             echo "Cyclos initialization complete"
           EOT
         ]
-        mount_nfs         = true
-        mount_gcs_volumes = ["cyclos-addons"]
+        mount_nfs         = false
+        mount_gcs_volumes = []
         depends_on_jobs   = ["nfs-init", "db-init", "cyclos-config"]
         execute_on_apply  = true
       }
