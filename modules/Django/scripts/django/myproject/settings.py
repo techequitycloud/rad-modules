@@ -30,8 +30,21 @@ else:
 # Default false. True allows default landing pages to be visible
 DEBUG = env("DEBUG", default=False)
 
-# Set this value from django-environ
-DATABASES = {"default": env.db()}
+# Database Configuration
+# Try to parse DATABASE_URL first (django-environ), otherwise fall back to individual env vars
+if os.environ.get("DATABASE_URL"):
+    DATABASES = {"default": env.db()}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": os.environ.get("DB_ENGINE", "django.db.backends.postgresql"),
+            "NAME": os.environ.get("DB_NAME"),
+            "USER": os.environ.get("DB_USER"),
+            "PASSWORD": os.environ.get("DB_PASSWORD"),
+            "HOST": os.environ.get("DB_HOST"),
+            "PORT": os.environ.get("DB_PORT"),
+        }
+    }
 
 # Change database settings if using the Cloud SQL Auth Proxy
 if os.getenv("USE_CLOUD_SQL_AUTH_PROXY", None):
