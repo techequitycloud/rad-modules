@@ -17,9 +17,9 @@ steps:
 - name: 'gcr.io/kaniko-project/executor:latest'
   args:
     - '--dockerfile=Dockerfile'
-    - '--context=dir://cyclos'
-    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/cyclosbasic337b66cb-repo/cyclos:latest'
-    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/cyclosbasic337b66cb-repo/cyclos:latest'
+    - '--context=dir://modules/CloudRunApp/scripts/django'
+    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/djangobasic7b63b9d7-repo/django:latest'
+    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/djangobasic7b63b9d7-repo/django:latest'
 
     - '--build-arg=APP_VERSION=latest'
 

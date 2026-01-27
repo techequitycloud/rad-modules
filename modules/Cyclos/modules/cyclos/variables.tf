@@ -29,15 +29,7 @@ locals {
     db_user         = "cyclos"
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
-
-    gcs_volumes = [
-      {
-        name          = "cyclos-config"
-        mount_path    = "/mnt"
-        read_only     = false
-        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
-      }
-    ]
+    gcs_volumes = []
     
     container_resources = {
       cpu_limit    = "2000m"
@@ -124,7 +116,7 @@ locals {
           EOT
         ]
         mount_nfs         = false
-        mount_gcs_volumes = ["cyclos-config"]
+        mount_gcs_volumes = []
         execute_on_apply  = true
         cpu_limit         = "1000m"
         memory_limit      = "512Mi"

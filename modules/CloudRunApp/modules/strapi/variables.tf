@@ -20,7 +20,7 @@ locals {
       context_path       = "strapi"
       dockerfile_content = null
       build_args         = {}
-      artifact_repo_name = "cloudrunapp-repo"
+      artifact_repo_name = null
     }
 
     container_port  = 1337

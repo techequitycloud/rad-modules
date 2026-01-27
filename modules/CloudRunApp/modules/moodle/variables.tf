@@ -21,7 +21,7 @@ locals {
       context_path       = "moodle"
       dockerfile_content = null
       build_args         = {}
-      artifact_repo_name = "cloudrunapp-repo"
+      artifact_repo_name = null
     }
 
     # ✅ Updated port - Standard HTTP port 8080 (Apache in custom image)

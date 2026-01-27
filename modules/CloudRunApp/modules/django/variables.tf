@@ -18,7 +18,7 @@ locals {
       context_path       = "django"
       dockerfile_content = null
       build_args         = {}
-      artifact_repo_name = "cloudrunapp-repo"
+      artifact_repo_name = null
     }
 
     container_port  = 8080

@@ -26,7 +26,7 @@ locals {
       context_path       = "ghost"
       dockerfile_content = null
       build_args         = {}
-      artifact_repo_name = "cloudrunapp-repo"
+      artifact_repo_name = null
     }
 
     container_port  = 2368
