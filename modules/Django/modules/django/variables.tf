@@ -138,14 +138,15 @@ locals {
         execute_on_apply  = true
       },
       {
-        name            = "migrate"
-        description     = "Run Django Migrations"
-        image           = null
-        command         = ["/bin/sh", "-c"]
-        args            = ["if [ -f manage.py ]; then python manage.py migrate; else echo 'manage.py not found, skipping migration'; fi"]
-        mount_nfs       = false
+        name              = "migrate"
+        description       = "Run Django Migrations"
+        image             = null
+        command           = ["/bin/sh", "-c"]
+        args              = ["if [ -f manage.py ]; then python manage.py migrate; else echo 'manage.py not found, skipping migration'; fi"]
+        mount_nfs         = false
         mount_gcs_volumes = ["django-media"]
-        execute_on_apply = true
+        execute_on_apply  = true
+        depends_on_jobs   = ["db-init"]
       }
     ]
 
