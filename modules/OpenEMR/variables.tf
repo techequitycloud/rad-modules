@@ -741,7 +741,16 @@ variable "initialization_jobs" {
                 SQLCONF_FILE="$${APP_DIR}/default/sqlconf.php"
                 if [ -f "$${SQLCONF_FILE}" ]; then
                   echo "Updating $${SQLCONF_FILE}..."
-                  sed -i "s/[$$]host\\s*=\\s*'[^']*'/\\$host = '$${DB_HOST}'/" "$${SQLCONF_FILE}"
+                  
+                  # Check if DB_HOST is a socket path
+                  if echo "$${DB_HOST}" | grep -q "^/"; then
+                      echo "DB_HOST is a socket path. Setting host to localhost in config."
+                      FINAL_HOST="localhost"
+                  else
+                      FINAL_HOST="$${DB_HOST}"
+                  fi
+
+                  sed -i "s/[$$]host\\s*=\\s*'[^']*'/\\$host = '$${FINAL_HOST}'/" "$${SQLCONF_FILE}"
                   sed -i "s/[$$]port\\s*=\\s*'[^']*'/\\$port = '3306'/" "$${SQLCONF_FILE}"
                   sed -i "s/[$$]login\\s*=\\s*'[^']*'/\\$login = '$${DB_USER}'/" "$${SQLCONF_FILE}"
                   sed -i "s/[$$]pass\\s*=\\s*'[^']*'/\\$pass = '$${DB_PASS}'/" "$${SQLCONF_FILE}"
@@ -805,18 +814,31 @@ variable "initialization_jobs" {
             TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
             echo "Using DB Host: $TARGET_DB_HOST"
 
-            echo "Waiting for database..."
-            until nc -z $TARGET_DB_HOST 3306; do
-              echo "Waiting for MySQL port 3306..."
-              sleep 2
-            done
+            # Check if using Unix socket or TCP
+            if echo "$TARGET_DB_HOST" | grep -q "^/"; then
+                echo "Using Unix socket connection."
+                # Verify socket existence (optional, or just retry connection)
+            else
+                echo "Using TCP connection."
+                echo "Waiting for database..."
+                until nc -z $TARGET_DB_HOST 3306; do
+                  echo "Waiting for MySQL port 3306..."
+                  sleep 2
+                done
+            fi
 
             cat > ~/.my.cnf << EOF
 [client]
 user=root
 password=$${ROOT_PASSWORD}
-host=$TARGET_DB_HOST
 EOF
+
+            if echo "$TARGET_DB_HOST" | grep -q "^/"; then
+                echo "socket=$TARGET_DB_HOST" >> ~/.my.cnf
+            else
+                echo "host=$TARGET_DB_HOST" >> ~/.my.cnf
+            fi
+
             chmod 600 ~/.my.cnf
 
             echo "Creating User $${DB_USER} if not exists..."

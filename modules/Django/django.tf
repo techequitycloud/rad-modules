@@ -27,7 +27,7 @@ locals {
 resource "random_password" "django_secret_key" {
   count   = var.application_module == "django" ? 1 : 0
   length  = 50
-  special = true
+  special = false
 }
 
 resource "google_secret_manager_secret" "django_secret_key" {

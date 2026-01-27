@@ -7,8 +7,9 @@
 
 locals {
   moodle_module = {
-    app_name        = "moodle"
-    description     = "Moodle LMS - Online learning and course management platform"
+    app_name            = "moodle"
+    description         = "Moodle LMS - Online learning and course management platform"
+    application_version = "4.5.1"
     
     # ✅ Updated to use custom image build
     container_image = "bitnami/moodle:4" # Prebuilt image fallback
