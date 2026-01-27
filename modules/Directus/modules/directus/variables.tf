@@ -54,13 +54,6 @@ locals {
     min_instance_count = 0
     max_instance_count = 3
 
-    # Container build config (requires image_source = "custom")
-    container_build_config = {
-      enabled         = true
-      context_path    = "directus"
-      dockerfile_path = "Dockerfile"
-    }
-
     # Container command and args
     container_command = [] # Use default
     container_args    = [] # Use default
