@@ -222,10 +222,7 @@ resource "google_cloud_run_v2_service" "app_service" {
 
       # GCS volume mounts
       dynamic "volume_mounts" {
-        for_each = {
-          for k, v in local.gcs_volumes : k => v
-          if try(v.bucket_name, null) != null && try(v.bucket_name, "") != ""
-        }
+        for_each = local.gcs_volumes
         content {
           name       = volume_mounts.value.name
           mount_path = volume_mounts.value.mount_path
@@ -256,10 +253,7 @@ resource "google_cloud_run_v2_service" "app_service" {
 
     # GCS volumes definition
     dynamic "volumes" {
-      for_each = {
-        for k, v in local.gcs_volumes : k => v
-        if try(v.bucket_name, null) != null && try(v.bucket_name, "") != ""
-      }
+      for_each = local.gcs_volumes
       content {
         name = volumes.value.name
         gcs {

@@ -473,7 +473,7 @@ variable "storage_buckets" {
 variable "nfs_enabled" {
   description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=0 order=701 updatesafe }}"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "nfs_mount_path" {
@@ -495,14 +495,7 @@ variable "gcs_volumes" {
       "type-cache-ttl=60s"
     ])
   }))
-  default = [
-    {
-      name          = "cyclos-addons"
-      mount_path    = "/mnt/extra-addons"
-      read_only     = false
-      mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
-    }
-  ]
+  default = []
 }
 
 variable "enable_cloudsql_volume" {
@@ -701,7 +694,7 @@ variable "initialization_jobs" {
             echo "NFS initialization complete"
           EOT
         ]
-        mount_nfs         = true
+        mount_nfs         = false
         mount_gcs_volumes = []
         depends_on_jobs   = []
         execute_on_apply  = true
@@ -1017,7 +1010,7 @@ EOF
             echo "Cyclos configuration generation complete"
           EOT
         ]
-        mount_nfs         = true
+        mount_nfs         = false
         mount_gcs_volumes = []
         depends_on_jobs   = ["nfs-init"]
         execute_on_apply  = true
@@ -1124,8 +1117,8 @@ EOF
             echo "Cyclos initialization complete"
           EOT
         ]
-        mount_nfs         = true
-        mount_gcs_volumes = ["cyclos-addons"]
+        mount_nfs         = false
+        mount_gcs_volumes = []
         depends_on_jobs   = ["nfs-init", "db-init", "cyclos-config"]
         execute_on_apply  = true
       }
