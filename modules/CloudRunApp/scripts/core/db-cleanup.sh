@@ -95,6 +95,7 @@ EOF
         # Step 3: Revoke connect privileges
         echo "Revoking connect privileges..."
         # Explicitly grant connect to postgres first to ensure we don't lock ourselves out when revoking PUBLIC
+        echo "Explicitly granting CONNECT to postgres..."
         psql -h "$DB_HOST" -p "${DB_PORT:-5432}" -U postgres -d postgres -c \
             "GRANT CONNECT ON DATABASE \"$DB_NAME\" TO postgres; REVOKE CONNECT ON DATABASE \"$DB_NAME\" FROM PUBLIC, \"$DB_USER\";" -w \
             2>/dev/null || echo "⚠️  Warning: Failed to revoke connect privileges (may not exist)"
