@@ -229,7 +229,7 @@ variable "application_display_name" {
 variable "application_version" {
   description = "Application version tag (e.g., 1.0.0, latest). {{UIMeta group=0 order=302 updatesafe }}"
   type        = string
-  default     = "latest"
+  default     = "6.8.1"
 }
 
 variable "application_description" {
@@ -407,7 +407,10 @@ variable "container_resources" {
     cpu_request  = optional(string, null)
     mem_request  = optional(string, null)
   })
-  default = null
+  default = {
+    cpu_limit    = "1000m"
+    memory_limit = "2Gi"
+  }
 }
 
 variable "timeout_seconds" {
@@ -424,7 +427,7 @@ variable "timeout_seconds" {
 variable "min_instance_count" {
   description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=0 order=603 updatesafe }}"
   type        = number
-  default     = null
+  default     = 0
 
   validation {
     condition     = var.min_instance_count == null || (coalesce(var.min_instance_count, 0) >= 0 && coalesce(var.min_instance_count, 0) <= 1000)
@@ -435,7 +438,7 @@ variable "min_instance_count" {
 variable "max_instance_count" {
   description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=0 order=604 updatesafe }}"
   type        = number
-  default     = null
+  default     = 3
 
   validation {
     condition     = var.max_instance_count == null || (coalesce(var.max_instance_count, 1) >= 1 && coalesce(var.max_instance_count, 1) <= 1000)
@@ -492,19 +495,24 @@ variable "gcs_volumes" {
       "type-cache-ttl=60s"
     ])
   }))
-  default = []
+  default = [{
+    name          = "wp-uploads"
+    mount_path    = "/var/www/html/wp-content"
+    readonly      = false
+    mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
+  }]
 }
 
 variable "enable_cloudsql_volume" {
   description = "Enable Cloud SQL instance volume for Unix socket connections. When enabled, the Cloud SQL instance will be mounted as a volume, allowing connections via Unix socket instead of TCP/IP. {{UIMeta group=0 order=705 updatesafe }}"
   type        = bool
-  default     = null
+  default     = true
 }
 
 variable "cloudsql_volume_mount_path" {
   description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=0 order=706 updatesafe }}"
   type        = string
-  default     = null
+  default     = "/var/run/mysqld"
 }
 
 # ===========================
@@ -514,7 +522,11 @@ variable "cloudsql_volume_mount_path" {
 variable "environment_variables" {
   description = "Static environment variables for the application as key-value pairs (e.g., {APP_ENV='production', LOG_LEVEL='info'}). {{UIMeta group=0 order=800 updatesafe }}"
   type        = map(string)
-  default     = {}
+  default     = {
+    WORDPRESS_DB_HOST      = "localhost:/var/run/mysqld/mysqld.sock"
+    WORDPRESS_TABLE_PREFIX = "wp_"
+    WORDPRESS_DEBUG        = "false"
+  }
 }
 
 variable "secret_environment_variables" {
@@ -538,7 +550,15 @@ variable "health_check_config" {
     period_seconds        = optional(number, 10)
     failure_threshold     = optional(number, 3)
   })
-  default = null
+  default = {
+    enabled               = true
+    type                  = "HTTP"
+    path                  = "/wp-admin/install.php"
+    initial_delay_seconds = 300
+    timeout_seconds       = 60
+    period_seconds        = 60
+    failure_threshold     = 3
+  }
 }
 
 variable "startup_probe_config" {
@@ -552,7 +572,15 @@ variable "startup_probe_config" {
     period_seconds        = optional(number, 240)
     failure_threshold     = optional(number, 1)
   })
-  default = null
+  default = {
+    enabled               = true
+    type                  = "TCP"
+    path                  = "/"
+    initial_delay_seconds = 240
+    timeout_seconds       = 60
+    period_seconds        = 240
+    failure_threshold     = 1
+  }
 }
 
 # ===========================
@@ -618,7 +646,109 @@ variable "initialization_jobs" {
     execute_on_apply  = optional(bool, false)
     script_path       = optional(string, null)
   }))
-  default = []
+  default = [
+    {
+      name            = "db-init"
+      description     = "Create WordPress Database and User"
+      image           = "alpine:3.19"
+      command         = ["/bin/sh", "-c"]
+      args            = [
+        <<-EOT
+          set -e
+          echo "Installing dependencies..."
+          apk update && apk add --no-cache mysql-client netcat-openbsd
+
+          # Use WORDPRESS_DB_HOST which is available in static envs (mapped to internal IP)
+          DB_HOST_VAL=$WORDPRESS_DB_HOST
+          echo "Using DB Host: $DB_HOST_VAL"
+
+          # Check if DB_HOST_VAL is set
+          if [ -z "$DB_HOST_VAL" ]; then
+            echo "Error: WORDPRESS_DB_HOST is not set."
+            exit 1
+          fi
+
+          # DB_PASSWORD and ROOT_PASSWORD are automatically injected by CloudRunApp/jobs.tf
+          if [ -z "$DB_PASSWORD" ]; then
+            echo "Error: DB_PASSWORD is not set. It should be injected by CloudRunApp/jobs.tf."
+            exit 1
+          fi
+
+          if [ -z "$ROOT_PASSWORD" ]; then
+            echo "Error: ROOT_PASSWORD is not set. It should be injected by CloudRunApp/jobs.tf."
+            exit 1
+          fi
+
+          # Extract socket path if present (e.g. localhost:/path/to/socket -> /path/to/socket)
+          if echo "$DB_HOST_VAL" | grep -q "localhost:"; then
+            SOCKET_PATH=$(echo "$DB_HOST_VAL" | cut -d: -f2)
+            DB_HOST="localhost"
+          elif echo "$DB_HOST_VAL" | grep -q "^/"; then
+            SOCKET_PATH="$DB_HOST_VAL"
+            DB_HOST="localhost"
+          else
+            SOCKET_PATH=""
+            DB_HOST="$DB_HOST_VAL"
+          fi
+
+          if [ -n "$SOCKET_PATH" ]; then
+              echo "Detected Socket Path: $SOCKET_PATH"
+              echo "Waiting for socket file..."
+              until [ -S "$SOCKET_PATH" ]; do
+                  echo "Waiting for socket $SOCKET_PATH..."
+                  sleep 2
+              done
+          else
+              echo "Waiting for TCP host: $DB_HOST"
+              until nc -z "$DB_HOST" 3306; do
+                echo "Waiting for MySQL port 3306..."
+                sleep 2
+              done
+          fi
+
+          # Configure .my.cnf
+          if [ -n "$SOCKET_PATH" ]; then
+              cat > ~/.my.cnf << EOF
+[client]
+user=root
+password=$ROOT_PASSWORD
+socket=$SOCKET_PATH
+EOF
+          else
+              cat > ~/.my.cnf << EOF
+[client]
+user=root
+password=$ROOT_PASSWORD
+host=$DB_HOST
+EOF
+          fi
+          chmod 600 ~/.my.cnf
+
+          echo "Creating User $DB_USER if not exists..."
+          mysql --defaults-file=~/.my.cnf <<EOF
+CREATE USER IF NOT EXISTS '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
+ALTER USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
+FLUSH PRIVILEGES;
+EOF
+
+          echo "Creating Database $DB_NAME if not exists..."
+          mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;"
+
+          echo "Granting privileges..."
+          mysql --defaults-file=~/.my.cnf <<EOF
+GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
+FLUSH PRIVILEGES;
+EOF
+
+          rm -f ~/.my.cnf
+          echo "DB Init complete."
+        EOT
+      ]
+      mount_nfs         = false
+      mount_gcs_volumes = []
+      execute_on_apply  = true
+    }
+  ]
 }
 
 # ===========================
