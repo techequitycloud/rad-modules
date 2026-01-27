@@ -1,13 +1,13 @@
 existing_project_id  = "qwiklabs-gcp-03-5421a1d20b10"
-tenant_deployment_id = "adv-odoo"
-deployment_region    = "europe-west1"
+tenant_deployment_id = "advanced"
+deployment_region    = "eurous-central1"
 
-application_module       = "odoo"
-application_display_name = "Odoo Advanced"
+application_module       = "cloudrunapp"
+application_display_name = "cloudrunapp Advanced"
 
 # Use prebuilt image
 container_image_source = "prebuilt"
-container_image        = "odoo:16.0"
+container_image        = "cloudrunapp:16.0"
 container_port         = 8069
 
 # Resource Customization

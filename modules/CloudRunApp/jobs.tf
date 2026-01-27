@@ -158,7 +158,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
       vpc_access {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_name}"
           tags       = local.network_tags
         }
         egress = local.vpc_egress_setting
@@ -302,13 +302,16 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
           }
         }
 
-        # GCS volume mounts
+        # GCS volume mounts - Only mount if bucket_name is computed and not empty
         dynamic "volume_mounts" {
-          for_each = [
+          for_each = {
             for vol_name in each.value.mount_gcs_volumes :
-            local.gcs_volumes[vol_name]
-            if contains(keys(local.gcs_volumes), vol_name)
-          ]
+            vol_name => local.gcs_volumes[vol_name]
+            if contains(keys(local.gcs_volumes), vol_name) && 
+               can(local.gcs_volumes[vol_name].bucket_name) &&
+               local.gcs_volumes[vol_name].bucket_name != null &&
+               local.gcs_volumes[vol_name].bucket_name != ""
+          }
           content {
             name       = volume_mounts.value.name
             mount_path = volume_mounts.value.mount_path
@@ -353,7 +356,9 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
         for_each = [
           for vol_name in each.value.mount_gcs_volumes :
           local.gcs_volumes[vol_name]
-          if contains(keys(local.gcs_volumes), vol_name)
+          if contains(keys(local.gcs_volumes), vol_name) && 
+             try(local.gcs_volumes[vol_name].bucket_name, null) != null &&
+             local.gcs_volumes[vol_name].bucket_name != ""
         ]
         content {
           name = volumes.value.name
@@ -369,7 +374,7 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
       vpc_access {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_name}"
           tags       = local.network_tags
         }
         egress = local.vpc_egress_setting
@@ -502,7 +507,7 @@ resource "google_cloud_run_v2_job" "postgres_extensions_job" {
       vpc_access {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_name}"
           tags       = local.network_tags
         }
         egress = local.vpc_egress_setting
@@ -652,7 +657,7 @@ resource "google_cloud_run_v2_job" "gdrive_backup_job" {
       vpc_access {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_name}"
           tags       = local.network_tags
         }
         egress = local.vpc_egress_setting
@@ -809,7 +814,7 @@ resource "google_cloud_run_v2_job" "gcs_backup_job" {
       vpc_access {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_name}"
           tags       = local.network_tags
        }
         egress = local.vpc_egress_setting
@@ -948,7 +953,7 @@ resource "google_cloud_run_v2_job" "mysql_plugins_job" {
       vpc_access {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_name}"
           tags       = local.network_tags
         }
         egress = local.vpc_egress_setting
@@ -1108,7 +1113,7 @@ resource "google_cloud_run_v2_job" "custom_sql_scripts_job" {
       vpc_access {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_name}"
           tags       = local.network_tags
         }
         egress = local.vpc_egress_setting
@@ -1190,7 +1195,7 @@ resource "google_cloud_run_v2_job" "db_cleanup_job" {
       vpc_access {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_name}"
           tags       = local.network_tags
         }
         egress = local.vpc_egress_setting
@@ -1293,7 +1298,7 @@ resource "google_cloud_run_v2_job" "nfs_cleanup_job" {
       vpc_access {
         network_interfaces {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
-          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_map[local.region]}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_name}"
           tags       = local.network_tags
         }
         egress = local.vpc_egress_setting

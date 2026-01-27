@@ -1,6 +1,6 @@
 resource_creator_identity = ""
 existing_project_id  = "qwiklabs-gcp-03-5421a1d20b10"
-tenant_deployment_id = "adv-odoo"
+tenant_deployment_id = "advanced"
 deployment_region    = "europe-west1"
 
 application_module       = "odoo"
@@ -26,3 +26,27 @@ max_instance_count = 5
 database_type            = "POSTGRES_15"
 database_password_length = 24
 nfs_enabled              = true
+
+# GCS Volume mapping for Odoo Custom Addons
+gcs_volumes = [
+  {
+    name          = "odoo-addons"
+    bucket_name   = ""
+    mount_path    = "/mnt/extra-addons"
+    read_only     = false
+    mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
+  }
+]
+
+# Environment Variables
+environment_variables = {
+  LOG_LEVEL = "debug"
+  SMTP_HOST = "smtp.sendgrid.net"
+  SMTP_PORT = "587"
+  SMTP_USER = "apikey"
+}
+
+# Secret Environment Variables
+secret_environment_variables = {
+  SMTP_PASSWORD = "smtp-password-secret"
+}

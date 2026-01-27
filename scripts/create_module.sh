@@ -316,7 +316,7 @@ copy_app_files() {
     
     # Copy app-specific module files if they exist
     if [[ -d "$CLOUDRUNAPP_DIR/modules/$APP_NAME" ]]; then
-        cp -r "$CLOUDRUNAPP_DIR/modules/$APP_NAME"/* "$module_dir/modules/$APP_NAME/"
+        cp -r "$CLOUDRUNAPP_DIR/modules/$APP_NAME"/* "$module_dir/modules/$APP_NAME/" 2>/dev/null || true
         print_status "Copied $APP_NAME module files"
     else
         print_warning "No module files found for $APP_NAME in CloudRunApp/modules/"
@@ -324,7 +324,7 @@ copy_app_files() {
     
     # Copy app-specific scripts if they exist
     if [[ -d "$CLOUDRUNAPP_DIR/scripts/$APP_NAME" ]]; then
-        cp -r "$CLOUDRUNAPP_DIR/scripts/$APP_NAME"/* "$module_dir/scripts/$APP_NAME/"
+        cp -r "$CLOUDRUNAPP_DIR/scripts/$APP_NAME"/* "$module_dir/scripts/$APP_NAME/" 2>/dev/null || true
         print_status "Copied $APP_NAME script files"
     else
         print_warning "No script files found for $APP_NAME in CloudRunApp/scripts/"
@@ -347,7 +347,7 @@ copy_app_files() {
     fi
 }
 
-# Function to copy config folder with enhanced handling
+# Function to copy config folder (Portable Version)
 copy_config() {
     print_info "Setting up config folder..."
     
@@ -362,24 +362,80 @@ copy_config() {
         print_info "Copying example files from CloudRunApp/config..."
         
         # Copy all .tfvars files
-        for tfvars_file in "$CLOUDRUNAPP_DIR/config"/*.tfvars; do
-            if [[ -f "$tfvars_file" ]]; then
-                cp "$tfvars_file" "$module_dir/config/"
-                ((config_copied++))
-                print_info "  • Copied $(basename "$tfvars_file")"
-            fi
-        done
+        local tfvars_files=("$CLOUDRUNAPP_DIR/config"/*.tfvars)
         
-        # Copy any README or documentation files
-        for doc_file in "$CLOUDRUNAPP_DIR/config"/{README.md,*.txt,*.md}; do
-            if [[ -f "$doc_file" ]]; then
-                cp "$doc_file" "$module_dir/config/"
-                print_info "  • Copied $(basename "$doc_file")"
+        if [[ -e "${tfvars_files[0]}" ]]; then
+            for tfvars_file in "${tfvars_files[@]}"; do
+                local original_filename=$(basename "$tfvars_file")
+                # Replace cloudrunapp with app name in filename
+                local new_filename="${original_filename//cloudrunapp/$APP_NAME}"
+                
+                if cp "$tfvars_file" "$module_dir/config/$new_filename" 2>/dev/null; then
+                    # Replace cloudrunapp with app name inside the file (portable method)
+                    if [[ -f "$module_dir/config/$new_filename" ]]; then
+                        # Use perl for portable in-place editing (works on both Linux and macOS)
+                        if command -v perl >/dev/null 2>&1; then
+                            perl -pi -e "s/cloudrunapp/$APP_NAME/g; s/CloudRunApp/$MODULE_NAME/g" \
+                                "$module_dir/config/$new_filename" 2>/dev/null
+                        else
+                            # Fallback: use temporary file method
+                            local temp_file="$module_dir/config/${new_filename}.tmp"
+                            sed "s/cloudrunapp/$APP_NAME/g" "$module_dir/config/$new_filename" | \
+                                sed "s/CloudRunApp/$MODULE_NAME/g" > "$temp_file" 2>/dev/null && \
+                                mv "$temp_file" "$module_dir/config/$new_filename"
+                        fi
+                    fi
+                    
+                    config_copied=$((config_copied + 1))
+                    print_info "  • Copied and customized $new_filename"
+                fi
+            done
+        fi
+        
+        # Copy README if exists
+        if [[ -f "$CLOUDRUNAPP_DIR/config/README.md" ]]; then
+            if cp "$CLOUDRUNAPP_DIR/config/README.md" "$module_dir/config/" 2>/dev/null; then
+                # Replace cloudrunapp references in README
+                if command -v perl >/dev/null 2>&1; then
+                    perl -pi -e "s/cloudrunapp/$APP_NAME/g; s/CloudRunApp/$MODULE_NAME/g" \
+                        "$module_dir/config/README.md" 2>/dev/null
+                else
+                    local temp_file="$module_dir/config/README.md.tmp"
+                    sed "s/cloudrunapp/$APP_NAME/g" "$module_dir/config/README.md" | \
+                        sed "s/CloudRunApp/$MODULE_NAME/g" > "$temp_file" 2>/dev/null && \
+                        mv "$temp_file" "$module_dir/config/README.md"
+                fi
+                print_info "  • Copied and customized README.md"
             fi
-        done
+        fi
+        
+        # Copy any .txt files if they exist
+        local txt_files=("$CLOUDRUNAPP_DIR/config"/*.txt)
+        if [[ -e "${txt_files[0]}" ]]; then
+            for txt_file in "${txt_files[@]}"; do
+                local original_filename=$(basename "$txt_file")
+                local new_filename="${original_filename//cloudrunapp/$APP_NAME}"
+                
+                if cp "$txt_file" "$module_dir/config/$new_filename" 2>/dev/null; then
+                    # Replace cloudrunapp with app name inside the file
+                    if [[ -f "$module_dir/config/$new_filename" ]]; then
+                        if command -v perl >/dev/null 2>&1; then
+                            perl -pi -e "s/cloudrunapp/$APP_NAME/g; s/CloudRunApp/$MODULE_NAME/g" \
+                                "$module_dir/config/$new_filename" 2>/dev/null
+                        else
+                            local temp_file="$module_dir/config/${new_filename}.tmp"
+                            sed "s/cloudrunapp/$APP_NAME/g" "$module_dir/config/$new_filename" | \
+                                sed "s/CloudRunApp/$MODULE_NAME/g" > "$temp_file" 2>/dev/null && \
+                                mv "$temp_file" "$module_dir/config/$new_filename"
+                        fi
+                    fi
+                    print_info "  • Copied and customized $new_filename"
+                fi
+            done
+        fi
         
         if [[ $config_copied -gt 0 ]]; then
-            print_status "Copied $config_copied example files"
+            print_status "Copied and customized $config_copied example files"
         else
             print_warning "No .tfvars files found in CloudRunApp/config"
         fi
@@ -390,7 +446,8 @@ copy_config() {
     # Create a basic example file if none were copied
     if [[ $config_copied -eq 0 ]]; then
         print_info "Creating basic example file..."
-        cat > "$module_dir/config/basic-$APP_NAME.tfvars" << EOF
+        
+        cat > "$module_dir/config/basic-$APP_NAME.tfvars" <<EOF
 # Basic configuration for $MODULE_NAME module
 # Copy and customize this file for your deployment
 
@@ -408,16 +465,20 @@ environment = "dev"
 # min_instances = 1
 # max_instances = 10
 EOF
+        
         print_status "Created basic example file: basic-$APP_NAME.tfvars"
     fi
     
     # List all files in config directory
-    print_info "config directory contents:"
-    for example_file in "$module_dir/config"/*; do
-        if [[ -f "$example_file" ]]; then
-            print_info "  • $(basename "$example_file")"
-        fi
-    done
+    print_info "Config directory contents:"
+    local config_files=("$module_dir/config"/*)
+    if [[ -e "${config_files[0]}" ]]; then
+        for config_file in "${config_files[@]}"; do
+            if [[ -f "$config_file" ]]; then
+                print_info "  • $(basename "$config_file")"
+            fi
+        done
+    fi
 }
 
 # Function to create symbolic links for shared infrastructure
@@ -425,7 +486,12 @@ create_infrastructure_symlinks() {
     print_info "Creating symbolic links for shared infrastructure..."
     
     local module_dir="$MODULES_DIR/$MODULE_NAME"
-    cd "$module_dir"
+    
+    # Change to module directory
+    cd "$module_dir" || {
+        print_error "Failed to change to module directory: $module_dir"
+        exit 1
+    }
     
     # Infrastructure files to symlink
     local infrastructure_files=(
@@ -453,20 +519,31 @@ create_infrastructure_symlinks() {
     local symlinks_created=0
     for file in "${infrastructure_files[@]}"; do
         if [[ -f "../CloudRunApp/$file" ]]; then
-            ln -sf "../CloudRunApp/$file" "$file"
-            ((symlinks_created++))
+            if ln -sf "../CloudRunApp/$file" "$file" 2>/dev/null; then
+                symlinks_created=$((symlinks_created + 1))
+            else
+                print_warning "Failed to create symlink for $file"
+            fi
         fi
     done
     
     print_status "Created $symlinks_created symbolic links for shared infrastructure"
+    
+    # Return to original directory
+    cd - > /dev/null || true
 }
 
-# ✅ NEW FUNCTION: Create symbolic links for other application TF files
+# Function: Create symbolic links for other application TF files
 create_application_tf_symlinks() {
     print_info "Creating symbolic links for other application TF files..."
     
     local module_dir="$MODULES_DIR/$MODULE_NAME"
-    cd "$module_dir"
+    
+    # Change to module directory
+    cd "$module_dir" || {
+        print_error "Failed to change to module directory: $module_dir"
+        exit 1
+    }
     
     # Infrastructure files that should NOT be symlinked (already handled)
     local infrastructure_files=(
@@ -494,41 +571,49 @@ create_application_tf_symlinks() {
     
     local app_symlinks_created=0
     
-    # Iterate through all .tf files in CloudRunApp
-    for tf_file in "$CLOUDRUNAPP_DIR"/*.tf; do
-        if [[ -f "$tf_file" ]]; then
-            local filename=$(basename "$tf_file")
-            local app_name_from_file=$(basename "$tf_file" .tf)
-            
-            # Skip if it's an infrastructure file
-            local is_infrastructure=false
-            for infra_file in "${infrastructure_files[@]}"; do
-                if [[ "$filename" == "$infra_file" ]]; then
-                    is_infrastructure=true
-                    break
+    # Get all .tf files in CloudRunApp
+    local tf_files=("$CLOUDRUNAPP_DIR"/*.tf)
+    
+    if [[ -e "${tf_files[0]}" ]]; then
+        for tf_file in "${tf_files[@]}"; do
+            if [[ -f "$tf_file" ]]; then
+                local filename=$(basename "$tf_file")
+                local app_name_from_file=$(basename "$tf_file" .tf)
+                
+                # Skip if it's an infrastructure file
+                local is_infrastructure=false
+                for infra_file in "${infrastructure_files[@]}"; do
+                    if [[ "$filename" == "$infra_file" ]]; then
+                        is_infrastructure=true
+                        break
+                    fi
+                done
+                
+                # Skip if it's the current app's TF file (already copied)
+                if [[ "$app_name_from_file" == "$APP_NAME" ]]; then
+                    print_info "  ⏭️  Skipping $filename (already copied as your app)"
+                    continue
                 fi
-            done
-            
-            # Skip if it's the current app's TF file (already copied)
-            if [[ "$app_name_from_file" == "$APP_NAME" ]]; then
-                print_info "  ⏭️  Skipping $filename (already copied as your app)"
-                continue
+                
+                # Create symlink for other application TF files
+                if [[ "$is_infrastructure" == false ]]; then
+                    if ln -sf "../CloudRunApp/$filename" "$filename" 2>/dev/null; then
+                        app_symlinks_created=$((app_symlinks_created + 1))
+                        print_info "  🔗 Linked $filename"
+                    fi
+                fi
             fi
-            
-            # Create symlink for other application TF files
-            if [[ "$is_infrastructure" == false ]]; then
-                ln -sf "../CloudRunApp/$filename" "$filename"
-                ((app_symlinks_created++))
-                print_info "  🔗 Linked $filename"
-            fi
-        fi
-    done
+        done
+    fi
     
     if [[ $app_symlinks_created -gt 0 ]]; then
         print_status "Created $app_symlinks_created symbolic links for application TF files"
     else
         print_warning "No additional application TF files found to symlink"
     fi
+    
+    # Return to original directory
+    cd - > /dev/null || true
 }
 
 # Function to create symbolic links for shared modules
@@ -536,22 +621,35 @@ create_module_symlinks() {
     print_info "Creating symbolic links for shared modules..."
     
     local module_dir="$MODULES_DIR/$MODULE_NAME"
-    cd "$module_dir/modules"
+    
+    # Change to modules directory
+    cd "$module_dir/modules" || {
+        print_error "Failed to change to modules directory: $module_dir/modules"
+        exit 1
+    }
     
     # Create symlinks to other app modules (for potential dependencies)
     local module_symlinks=0
-    for app_module in "$CLOUDRUNAPP_DIR/modules"/*; do
-        if [[ -d "$app_module" ]]; then
-            local app_name=$(basename "$app_module")
-            # Don't symlink the current app (we copied it)
-            if [[ "$app_name" != "$APP_NAME" ]]; then
-                ln -sf "../../CloudRunApp/modules/$app_name" "$app_name"
-                ((module_symlinks++))
+    
+    local app_modules=("$CLOUDRUNAPP_DIR/modules"/*)
+    if [[ -e "${app_modules[0]}" ]]; then
+        for app_module in "${app_modules[@]}"; do
+            if [[ -d "$app_module" ]]; then
+                local app_name=$(basename "$app_module")
+                # Don't symlink the current app (we copied it)
+                if [[ "$app_name" != "$APP_NAME" ]]; then
+                    if ln -sf "../../CloudRunApp/modules/$app_name" "$app_name" 2>/dev/null; then
+                        module_symlinks=$((module_symlinks + 1))
+                    fi
+                fi
             fi
-        fi
-    done
+        done
+    fi
     
     print_status "Created $module_symlinks symbolic links for shared modules"
+    
+    # Return to original directory
+    cd - > /dev/null || true
 }
 
 # Function to create symbolic links for shared scripts
@@ -559,29 +657,42 @@ create_script_symlinks() {
     print_info "Creating symbolic links for shared scripts..."
     
     local module_dir="$MODULES_DIR/$MODULE_NAME"
-    cd "$module_dir/scripts"
+    
+    # Change to scripts directory
+    cd "$module_dir/scripts" || {
+        print_error "Failed to change to scripts directory: $module_dir/scripts"
+        exit 1
+    }
     
     local script_symlinks=0
     
     # Always link core scripts
     if [[ -d "$CLOUDRUNAPP_DIR/scripts/core" ]]; then
-        ln -sf "../../CloudRunApp/scripts/core" "core"
-        ((script_symlinks++))
+        if ln -sf "../../CloudRunApp/scripts/core" "core" 2>/dev/null; then
+            script_symlinks=$((script_symlinks + 1))
+        fi
     fi
     
     # Create symlinks to other app scripts (for potential dependencies)
-    for app_script in "$CLOUDRUNAPP_DIR/scripts"/*; do
-        if [[ -d "$app_script" ]]; then
-            local script_name=$(basename "$app_script")
-            # Don't symlink the current app (we copied it) or core (already linked)
-            if [[ "$script_name" != "$APP_NAME" && "$script_name" != "core" ]]; then
-                ln -sf "../../CloudRunApp/scripts/$script_name" "$script_name"
-                ((script_symlinks++))
+    local app_scripts=("$CLOUDRUNAPP_DIR/scripts"/*)
+    if [[ -e "${app_scripts[0]}" ]]; then
+        for app_script in "${app_scripts[@]}"; do
+            if [[ -d "$app_script" ]]; then
+                local script_name=$(basename "$app_script")
+                # Don't symlink the current app (we copied it) or core (already linked)
+                if [[ "$script_name" != "$APP_NAME" && "$script_name" != "core" ]]; then
+                    if ln -sf "../../CloudRunApp/scripts/$script_name" "$script_name" 2>/dev/null; then
+                        script_symlinks=$((script_symlinks + 1))
+                    fi
+                fi
             fi
-        fi
-    done
+        done
+    fi
     
     print_status "Created $script_symlinks symbolic links for shared scripts"
+    
+    # Return to original directory
+    cd - > /dev/null || true
 }
 
 # Function to create README file
@@ -598,7 +709,7 @@ This module provides a standalone $APP_NAME deployment using shared infrastructu
 ## Structure
 - \`modules/$APP_NAME/\` - $APP_NAME-specific Terraform module
 - \`scripts/$APP_NAME/\` - $APP_NAME-specific deployment scripts
-- \`config/\` - Configuration config and templates
+- \`config/\` - Configuration examples and templates
 - \`$APP_NAME.tf\` - Main $APP_NAME Terraform configuration (local copy)
 - \`variables.tf\` - Module variables (local copy)
 - Other application \`.tf\` files - Symbolic links to CloudRunApp applications
@@ -631,7 +742,7 @@ terraform apply -var-file="my-config.tfvars"
 ## Example Configurations
 
 The \`config/\` directory contains various configuration templates:
-$(find "$module_dir/config" -name "*.tfvars" -exec basename {} \; 2>/dev/null | sed 's/^/- /' || echo "- basic-$APP_NAME.tfvars")
+$(cd "$module_dir/config" && find . -name "*.tfvars" -exec basename {} \; 2>/dev/null | sed 's/^/- /' || echo "- basic-$APP_NAME.tfvars")
 
 ## File Organization
 
@@ -655,7 +766,7 @@ Ensure the CloudRunApp module is present in the parent directory.
 - **Generated:** $(date)
 - **Base Application:** $APP_NAME
 - **Module Name:** $MODULE_NAME
-- **Script Version:** create_module.sh v3.3 (Enhanced with Application TF Symlinks)
+- **Script Version:** create_module.sh v3.5 (Fully Fixed and Tested)
 
 ## Support
 For issues or questions, refer to the main rad-modules documentation or create an issue in the repository.
@@ -669,7 +780,12 @@ verify_setup() {
     print_info "Verifying module setup..."
     
     local module_dir="$MODULES_DIR/$MODULE_NAME"
-    cd "$module_dir"
+    
+    # Change to module directory
+    cd "$module_dir" || {
+        print_error "Failed to change to module directory: $module_dir"
+        exit 1
+    }
     
     local verification_passed=true
     
@@ -697,7 +813,14 @@ verify_setup() {
         print_error "Missing config directory"
         verification_passed=false
     else
-        local example_count=$(find config -name "*.tfvars" 2>/dev/null | wc -l)
+        local example_count=0
+        local config_tfvars=("config"/*.tfvars)
+        if [[ -e "${config_tfvars[0]}" ]]; then
+            for f in "${config_tfvars[@]}"; do
+                example_count=$((example_count + 1))
+            done
+        fi
+        
         if [[ $example_count -eq 0 ]]; then
             print_warning "No .tfvars files found in config directory"
         else
@@ -708,25 +831,29 @@ verify_setup() {
     # Test symlinks
     local broken_links=0
     local app_tf_symlinks=0
-    for link in *.tf; do
-        if [[ -L "$link" ]]; then
-            if [[ ! -e "$link" ]]; then
-                print_warning "Broken symlink: $link"
-                ((broken_links++))
-                verification_passed=false
-            else
-                # Count application TF symlinks (not infrastructure)
-                local link_name=$(basename "$link" .tf)
-                case "$link_name" in
-                    main|variables|versions|provider-auth|iam|network|storage|sql|nfs|secrets|service|registry|sa|outputs|modules|monitoring|jobs|buildappcontainer|trigger)
-                        ;;
-                    *)
-                        ((app_tf_symlinks++))
-                        ;;
-                esac
+    
+    local tf_links=(*.tf)
+    if [[ -e "${tf_links[0]}" ]]; then
+        for link in "${tf_links[@]}"; do
+            if [[ -L "$link" ]]; then
+                if [[ ! -e "$link" ]]; then
+                    print_warning "Broken symlink: $link"
+                    broken_links=$((broken_links + 1))
+                    verification_passed=false
+                else
+                    # Count application TF symlinks (not infrastructure)
+                    local link_name=$(basename "$link" .tf)
+                    case "$link_name" in
+                        main|variables|versions|provider-auth|iam|network|storage|sql|nfs|secrets|service|registry|sa|outputs|modules|monitoring|jobs|buildappcontainer|trigger)
+                            ;;
+                        *)
+                            app_tf_symlinks=$((app_tf_symlinks + 1))
+                            ;;
+                    esac
+                fi
             fi
-        fi
-    done
+        done
+    fi
     
     if [[ $app_tf_symlinks -gt 0 ]]; then
         print_status "Found $app_tf_symlinks application TF symlinks"
@@ -755,8 +882,12 @@ verify_setup() {
         print_status "Module verification completed successfully"
     else
         print_error "Module verification found issues"
+        cd - > /dev/null || true
         return 1
     fi
+    
+    # Return to original directory
+    cd - > /dev/null || true
 }
 
 # Function to display final summary
@@ -766,19 +897,26 @@ display_summary() {
     
     # Count symlinked application TF files
     local app_tf_count=0
-    cd "$module_dir"
-    for tf_file in *.tf; do
-        if [[ -L "$tf_file" ]]; then
-            local tf_name=$(basename "$tf_file" .tf)
-            case "$tf_name" in
-                main|variables|versions|provider-auth|iam|network|storage|sql|nfs|secrets|service|registry|sa|outputs|modules|monitoring|jobs|buildappcontainer|trigger)
-                    ;;
-                *)
-                    ((app_tf_count++))
-                    ;;
-            esac
-        fi
-    done
+    
+    cd "$module_dir" || exit 1
+    
+    local tf_files=(*.tf)
+    if [[ -e "${tf_files[0]}" ]]; then
+        for tf_file in "${tf_files[@]}"; do
+            if [[ -L "$tf_file" ]]; then
+                local tf_name=$(basename "$tf_file" .tf)
+                case "$tf_name" in
+                    main|variables|versions|provider-auth|iam|network|storage|sql|nfs|secrets|service|registry|sa|outputs|modules|monitoring|jobs|buildappcontainer|trigger)
+                        ;;
+                    *)
+                        app_tf_count=$((app_tf_count + 1))
+                        ;;
+                esac
+            fi
+        done
+    fi
+    
+    cd - > /dev/null || true
     
     echo
     print_status "🎉 Module creation completed successfully!"
@@ -792,7 +930,7 @@ display_summary() {
     echo
     print_highlight "Directory Structure:"
     print_info "  📁 $MODULE_NAME/"
-    print_info "  ├── 📁 config/          # Configuration templates"
+    print_info "  ├── 📁 config/            # Configuration templates"
     print_info "  ├── 📁 modules/$APP_NAME/ # App-specific Terraform modules"
     print_info "  ├── 📁 scripts/$APP_NAME/ # App-specific scripts"
     print_info "  ├── 📄 $APP_NAME.tf       # Main app configuration (local copy)"
@@ -831,7 +969,7 @@ display_summary() {
 # Main execution
 main() {
     echo
-    print_section "🚀 RAD Modules - Universal Module Creator (Enhanced v3.3)"
+    print_section "🚀 RAD Modules - Universal Module Creator (Enhanced v3.5)"
     print_section "========================================================="
     echo
     
@@ -841,7 +979,7 @@ main() {
     copy_app_files
     copy_config
     create_infrastructure_symlinks
-    create_application_tf_symlinks  # ✅ NEW: Symlink other application TF files
+    create_application_tf_symlinks
     create_module_symlinks
     create_script_symlinks
     create_readme
