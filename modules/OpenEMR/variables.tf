@@ -518,6 +518,10 @@ variable "environment_variables" {
   description = "Static environment variables for the application as key-value pairs (e.g., {APP_ENV='production', LOG_LEVEL='info'}). {{UIMeta group=0 order=800 updatesafe }}"
   type        = map(string)
   default     = {
+      PHP_MEMORY_LIMIT        = "512M"
+      PHP_MAX_EXECUTION_TIME  = "60"
+      PHP_UPLOAD_MAX_FILESIZE = "64M"
+      PHP_POST_MAX_SIZE       = "64M"
       SMTP_HOST     = ""
       SMTP_PORT     = "25"
       SMTP_USER     = ""
@@ -551,10 +555,10 @@ variable "health_check_config" {
   default = {
       enabled               = true
       type                  = "HTTP"
-      path                  = "/"
-      initial_delay_seconds = 120
+      path                  = "/interface/login/login.php"
+      initial_delay_seconds = 300
       timeout_seconds       = 60
-      period_seconds        = 120
+      period_seconds        = 60
       failure_threshold     = 3
   }
 }
@@ -574,10 +578,10 @@ variable "startup_probe_config" {
       enabled               = true
       type                  = "TCP"
       path                  = "/"
-      initial_delay_seconds = 180
+      initial_delay_seconds = 240
       timeout_seconds       = 60
-      period_seconds        = 120
-      failure_threshold     = 3
+      period_seconds        = 240
+      failure_threshold     = 5
   }
 }
 
@@ -794,38 +798,45 @@ variable "initialization_jobs" {
         args            = [
           <<-EOT
             set -e
-            echo "=========================================="
-            echo "MySQL Database Initialization"
-            echo "=========================================="
+            echo "Installing dependencies..."
+            apk update && apk add --no-cache mysql-client netcat-openbsd
 
-            echo "Environment Check:"
-            echo "  DB_HOST: $${DB_HOST}"
-            echo "  DB_USER: $${DB_USER}"
-            echo "  DB_NAME: $${DB_NAME}"
+            # Use DB_IP if available, else DB_HOST.
+            TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
+            echo "Using DB Host: $TARGET_DB_HOST"
 
-            if [ -z "$${DB_HOST}" ] || [ -z "$${ROOT_PASSWORD}" ]; then
-               echo "Error: DB_HOST or ROOT_PASSWORD not set."
-               exit 1
-            fi
-
-            echo "Installing mysql-client..."
-            apk update && apk add --no-cache mysql-client
-
-            echo "Checking connectivity..."
-            until mysqladmin ping -h "$${DB_HOST}" -u root -p"$${ROOT_PASSWORD}" --silent; do
-              echo "Waiting for database..."
+            echo "Waiting for database..."
+            until nc -z $TARGET_DB_HOST 3306; do
+              echo "Waiting for MySQL port 3306..."
               sleep 2
             done
 
-            echo "Creating database and user..."
-            mysql -h "$${DB_HOST}" -u root -p"$${ROOT_PASSWORD}" <<EOF
-            CREATE DATABASE IF NOT EXISTS \`$${DB_NAME}\`;
-            CREATE USER IF NOT EXISTS '$${DB_USER}'@'%' IDENTIFIED BY '$${DB_PASSWORD}';
-            GRANT ALL PRIVILEGES ON \`$${DB_NAME}\`.* TO '$${DB_USER}'@'%';
-            FLUSH PRIVILEGES;
-            EOF
+            cat > ~/.my.cnf << EOF
+[client]
+user=root
+password=$${ROOT_PASSWORD}
+host=$TARGET_DB_HOST
+EOF
+            chmod 600 ~/.my.cnf
 
-            echo "Database setup complete."
+            echo "Creating User $${DB_USER} if not exists..."
+            mysql --defaults-file=~/.my.cnf <<EOF
+CREATE USER IF NOT EXISTS '$${DB_USER}'@'%' IDENTIFIED BY '$${DB_PASSWORD}';
+ALTER USER '$${DB_USER}'@'%' IDENTIFIED BY '$${DB_PASSWORD}';
+FLUSH PRIVILEGES;
+EOF
+
+            echo "Creating Database $${DB_NAME} if not exists..."
+            mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$${DB_NAME}\`;"
+
+            echo "Granting privileges..."
+            mysql --defaults-file=~/.my.cnf <<EOF
+GRANT ALL PRIVILEGES ON \`$${DB_NAME}\`.* TO '$${DB_USER}'@'%';
+FLUSH PRIVILEGES;
+EOF
+
+            rm -f ~/.my.cnf
+            echo "DB Init complete."
           EOT
         ]
         mount_nfs         = false
