@@ -55,6 +55,7 @@ STORAGES = {
         "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
     },
     "staticfiles": {
+        # Use WhiteNoise for static files
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
