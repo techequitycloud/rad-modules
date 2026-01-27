@@ -63,6 +63,7 @@ locals {
         name            = "db-init"
         description     = "Initialize Sample Database"
         image           = "postgres:15-alpine"
+        command         = ["/bin/sh"]
         script_path     = "scripts/sample/db-init.sh"
         mount_nfs         = false
         mount_gcs_volumes = []
