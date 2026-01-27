@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module can be used to deploy Cyclos, Django, Moodle, N8N, Odoo, OpenEMR, Wordpress, Ghost, Strapi, Wikijs or Directus"
+  default     = "This module can be used to deploy Strapi"
 }
 
 variable "module_dependency" {
@@ -199,7 +199,7 @@ variable "deployment_region" {
 variable "application_module" {
   description = "Select a pre-configured application module for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=3 order=299 OPTIONS=odoo,wordpress,moodle,cyclos,django,openemr,n8n,payload,ghost,strapi,wikijs,directus updatesafe }}"
   type        = string
-  default     = null
+  default     = "strapi"
 
   validation {
     condition = var.application_module == null || var.application_module == "" || contains([
@@ -212,7 +212,7 @@ variable "application_module" {
 variable "application_name" {
   description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=0 order=300 updatesafe }}"
   type        = string
-  default     = null
+  default     = "strapi"
 
   validation {
     condition     = var.application_name == null || can(regex("^[a-z][a-z0-9-]{0,19}$", var.application_name))
@@ -223,7 +223,7 @@ variable "application_name" {
 variable "application_display_name" {
   description = "Human-readable application name for display purposes. {{UIMeta group=0 order=301 updatesafe }}"
   type        = string
-  default     = null
+  default     = "Strapi CMS"
 }
 
 variable "application_version" {
@@ -241,7 +241,7 @@ variable "application_description" {
 variable "application_database_name" {
   description = "Application database name. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-63 characters). The actual database name includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=304 updatesafe }}"
   type        = string
-  default     = null
+  default     = "strapi"
 
   validation {
     condition     = var.application_database_name == null || can(regex("^[a-z][a-z0-9_]{0,62}$", var.application_database_name))
@@ -252,7 +252,7 @@ variable "application_database_name" {
 variable "application_database_user" {
   description = "Application database user. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-32 characters). The actual database user includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=305 updatesafe }}"
   type        = string
-  default     = null
+  default     = "strapi"
 
   validation {
     condition     = var.application_database_user == null || can(regex("^[a-z][a-z0-9_]{0,31}$", var.application_database_user))
@@ -284,7 +284,7 @@ variable "container_image" {
 variable "container_port" {
   description = "Container port to expose (1-65535). {{UIMeta group=0 order=402 updatesafe }}"
   type        = number
-  default     = null
+  default     = 1337
 
   validation {
     condition     = var.container_port == null || (coalesce(var.container_port, 8080) > 0 && coalesce(var.container_port, 8080) <= 65535)
