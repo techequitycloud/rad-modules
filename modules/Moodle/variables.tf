@@ -126,7 +126,7 @@ variable "application_database_name" {
 variable "application_version" {
   description = "Enter application version. Container images are tagged with this version number. {{UIMeta group=0 order=504}}"
   type        = string
-  default     = "5.0.0"
+  default     = "4.5.1"
 }
 
 # GROUP 7: Tenant
