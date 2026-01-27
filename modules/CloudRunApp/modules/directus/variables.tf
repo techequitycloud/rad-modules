@@ -7,9 +7,10 @@
 
 locals {
   directus_module = {
-    app_name        = "directus"
-    description     = "Directus - Open Source Headless CMS and Backend-as-a-Service"
-    container_image = "directus/directus:11.1.0"
+    app_name            = "directus"
+    description         = "Directus - Open Source Headless CMS and Backend-as-a-Service"
+    application_version = "11.1.0"
+    container_image     = "directus/directus:11.1.0"
     container_port  = 8055
     database_type   = "POSTGRES_15"
     db_name         = "directus"
@@ -53,13 +54,6 @@ locals {
     }
     min_instance_count = 0
     max_instance_count = 3
-
-    # Container build config (requires image_source = "custom")
-    container_build_config = {
-      enabled         = true
-      context_path    = "directus"
-      dockerfile_path = "Dockerfile"
-    }
 
     # Container command and args
     container_command = [] # Use default
@@ -145,18 +139,18 @@ locals {
       enabled               = true
       type                  = "HTTP"
       path                  = "/server/health"
-      initial_delay_seconds = 30
+      initial_delay_seconds = 120
       timeout_seconds       = 5
-      period_seconds        = 10
-      failure_threshold     = 3
+      period_seconds        = 20
+      failure_threshold     = 15
     }
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
       path                  = "/server/health"
-      initial_delay_seconds = 30
+      initial_delay_seconds = 120
       timeout_seconds       = 5
-      period_seconds        = 15
+      period_seconds        = 20
       failure_threshold     = 3
     }
   }
