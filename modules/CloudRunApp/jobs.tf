@@ -306,11 +306,9 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
         dynamic "volume_mounts" {
           for_each = {
             for vol_name in each.value.mount_gcs_volumes :
-            vol_name => local.gcs_volumes[vol_name]
-            if contains(keys(local.gcs_volumes), vol_name) && 
-               can(local.gcs_volumes[vol_name].bucket_name) &&
-               local.gcs_volumes[vol_name].bucket_name != null &&
-               local.gcs_volumes[vol_name].bucket_name != ""
+            vol_name => try(local.gcs_volumes[vol_name], null)
+            if try(local.gcs_volumes[vol_name].bucket_name, null) != null &&
+               try(local.gcs_volumes[vol_name].bucket_name, "") != ""
           }
           content {
             name       = volume_mounts.value.name
@@ -355,10 +353,9 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
       dynamic "volumes" {
         for_each = [
           for vol_name in each.value.mount_gcs_volumes :
-          local.gcs_volumes[vol_name]
-          if contains(keys(local.gcs_volumes), vol_name) && 
-             try(local.gcs_volumes[vol_name].bucket_name, null) != null &&
-             local.gcs_volumes[vol_name].bucket_name != ""
+          try(local.gcs_volumes[vol_name], null)
+          if try(local.gcs_volumes[vol_name].bucket_name, null) != null &&
+             try(local.gcs_volumes[vol_name].bucket_name, "") != ""
         ]
         content {
           name = volumes.value.name
