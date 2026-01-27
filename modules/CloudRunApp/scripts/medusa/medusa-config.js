@@ -40,9 +40,10 @@ const plugins = [
 
 if (process.env.MEDUSA_FILE_GOOGLE_BUCKET) {
   plugins.push({
-    resolve: `medusa-file-google`,
+    resolve: `medusa-plugin-file-cloud-storage`,
     options: {
-      bucket: process.env.MEDUSA_FILE_GOOGLE_BUCKET,
+      publicBucketName: process.env.MEDUSA_FILE_GOOGLE_BUCKET,
+      privateBucketName: process.env.MEDUSA_FILE_GOOGLE_BUCKET,
     },
   });
 } else {
