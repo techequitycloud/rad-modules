@@ -92,14 +92,7 @@ EOF
             "GRANT \"$DB_USER\" TO postgres;" -w \
             2>/dev/null || echo "⚠️  Warning: Role grant failed (may already be granted)"
 
-        # Step 3: Revoke connect privileges
-        echo "Revoking connect privileges..."
-        # Explicitly grant connect to postgres first to ensure we don't lock ourselves out when revoking PUBLIC
-        psql -h "$DB_HOST" -p "${DB_PORT:-5432}" -U postgres -d postgres -c \
-            "GRANT CONNECT ON DATABASE \"$DB_NAME\" TO postgres; REVOKE CONNECT ON DATABASE \"$DB_NAME\" FROM PUBLIC, \"$DB_USER\";" -w \
-            2>/dev/null || echo "⚠️  Warning: Failed to revoke connect privileges (may not exist)"
-        
-        # Step 4: Connect to the database and reassign ownership
+        # Step 3: Connect to the database and reassign ownership (BEFORE revoking connect)
         echo "Reassigning ownership of objects in database $DB_NAME..."
         psql -h "$DB_HOST" -p "${DB_PORT:-5432}" -U postgres -d "$DB_NAME" -w <<EOF
 -- Reassign all objects owned by the user to postgres
@@ -108,13 +101,19 @@ REASSIGN OWNED BY "$DB_USER" TO postgres;
 -- Drop any remaining objects owned by the user
 DROP OWNED BY "$DB_USER" CASCADE;
 EOF
-        
-        # Step 5: Change database owner
+
+        # Step 4: Change database owner
         echo "Changing database owner to postgres..."
         psql -h "$DB_HOST" -p "${DB_PORT:-5432}" -U postgres -d postgres -c \
             "ALTER DATABASE \"$DB_NAME\" OWNER TO postgres;" -w \
             2>/dev/null || echo "⚠️  Warning: Database owner change failed (may already be postgres)"
-        
+
+        # Step 5: Revoke connect privileges (after all database operations are complete)
+        echo "Revoking connect privileges..."
+        psql -h "$DB_HOST" -p "${DB_PORT:-5432}" -U postgres -d postgres -c \
+            "REVOKE CONNECT ON DATABASE \"$DB_NAME\" FROM PUBLIC, \"$DB_USER\";" -w \
+            2>/dev/null || echo "⚠️  Warning: Failed to revoke connect privileges (may not exist)"
+
         # Step 6: Disconnect again and drop the database
         echo "Final connection termination..."
         psql -h "$DB_HOST" -p "${DB_PORT:-5432}" -U postgres -d postgres -w <<EOF
