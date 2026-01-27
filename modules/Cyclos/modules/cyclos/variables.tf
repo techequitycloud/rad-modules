@@ -27,7 +27,9 @@ locals {
     database_type   = "POSTGRES_15"
     db_name         = "cyclos"
     db_user         = "cyclos"
-    enable_cloudsql_volume     = true
+    # Cyclos uses PGSimpleDataSource with TCP connection (via private IP)
+    # Cloud SQL sidecar is not needed when using VPC connector
+    enable_cloudsql_volume     = false
     cloudsql_volume_mount_path = "/cloudsql"
     gcs_volumes = []
     
