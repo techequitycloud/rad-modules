@@ -17,7 +17,7 @@ steps:
 - name: 'gcr.io/kaniko-project/executor:latest'
   args:
     - '--dockerfile=Dockerfile'
-    - '--context=dir://modules/CloudRunApp/scripts/django'
+    - '--context=dir://django'
     - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/djangobasic7b63b9d7-repo/django:latest'
     - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/djangobasic7b63b9d7-repo/django:latest'
 

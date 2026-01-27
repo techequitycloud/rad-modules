@@ -10,11 +10,23 @@ locals {
     app_name        = "directus"
     description     = "Directus - Open Source Headless CMS and Backend-as-a-Service"
     container_image = "directus/directus:11.1.0"
-    image_source    = "custom"
     container_port  = 8055
     database_type   = "POSTGRES_15"
     db_name         = "directus"
     db_user         = "directus"
+
+    # image_source    = "prebuilt"
+
+    # Custom build configuration
+    image_source    = "custom"
+    container_build_config = {
+      enabled            = true
+      dockerfile_path    = "Dockerfile"
+      context_path       = "directus"
+      dockerfile_content = null
+      build_args         = {}
+      artifact_repo_name = null
+    }
 
     # Performance optimization
     enable_cloudsql_volume     = false

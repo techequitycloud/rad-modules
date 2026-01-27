@@ -46,8 +46,6 @@ GS_BUCKET_NAME = os.environ.get("GS_BUCKET_NAME") or env("GS_BUCKET_NAME", defau
 if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
     MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
 STATIC_ROOT = os.environ.get("STATIC_ROOT", BASE_DIR / "staticfiles")
 
 STATICFILES_DIRS = []
@@ -55,5 +53,9 @@ GS_DEFAULT_ACL = "publicRead"
 STORAGES = {
     "default": {
         "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+    },
+    "staticfiles": {
+        # Use WhiteNoise for static files
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }

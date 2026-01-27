@@ -20,6 +20,9 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # Final stage
 FROM python:3.11-slim
 
+# Force rebuild to pick up settings.py changes
+LABEL build_trigger="fix-storages-issue"
+
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1

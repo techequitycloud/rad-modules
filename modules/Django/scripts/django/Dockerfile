@@ -1,6 +1,9 @@
 # Build stage
 FROM python:3.11-slim as builder
 
+# Force rebuild to include settings.py changes
+LABEL rebuild_trigger="2025-01-27-fix-db-settings"
+
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
