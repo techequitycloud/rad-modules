@@ -212,7 +212,7 @@ variable "application_module" {
 variable "application_name" {
   description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=0 order=300 updatesafe }}"
   type        = string
-  default     = "odoo"
+  default     = null
 
   validation {
     condition     = var.application_name == null || can(regex("^[a-z][a-z0-9-]{0,19}$", var.application_name))
@@ -241,7 +241,7 @@ variable "application_description" {
 variable "application_database_name" {
   description = "Application database name. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-63 characters). The actual database name includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=304 updatesafe }}"
   type        = string
-  default     = "odoo"
+  default     = null
 
   validation {
     condition     = var.application_database_name == null || can(regex("^[a-z][a-z0-9_]{0,62}$", var.application_database_name))
@@ -252,7 +252,7 @@ variable "application_database_name" {
 variable "application_database_user" {
   description = "Application database user. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-32 characters). The actual database user includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=305 updatesafe }}"
   type        = string
-  default     = "odoo"
+  default     = null
 
   validation {
     condition     = var.application_database_user == null || can(regex("^[a-z][a-z0-9_]{0,31}$", var.application_database_user))
@@ -284,7 +284,7 @@ variable "container_image" {
 variable "container_port" {
   description = "Container port to expose (1-65535). {{UIMeta group=0 order=402 updatesafe }}"
   type        = number
-  default     = 8069
+  default     = null
 
   validation {
     condition     = var.container_port == null || (coalesce(var.container_port, 8080) > 0 && coalesce(var.container_port, 8080) <= 65535)
@@ -313,14 +313,7 @@ variable "container_build_config" {
     build_args         = optional(map(string), {})
     artifact_repo_name = optional(string, "cloudrunapp-repo")
   })
-  default = {
-    enabled            = true
-    dockerfile_path    = "Dockerfile"
-    context_path       = "odoo"
-    dockerfile_content = null
-    build_args         = {}
-    artifact_repo_name = null
-  }
+  default = null
 }
 
 variable "enable_image_mirroring" {
@@ -376,7 +369,7 @@ variable "cicd_trigger_config" {
 variable "database_type" {
   description = "Database type: MYSQL, POSTGRES, SQLSERVER (or specific versions like MYSQL_8_0, POSTGRES_15). {{UIMeta group=0 order=500 updatesafe }}"
   type        = string
-  default     = "POSTGRES_15"
+  default     = null
 
   validation {
     condition     = var.database_type == null || contains(["MYSQL", "POSTGRES", "POSTGRESQL", "SQLSERVER", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE", "NONE"], coalesce(var.database_type, "POSTGRES"))
@@ -407,10 +400,7 @@ variable "container_resources" {
     cpu_request  = optional(string, null)
     mem_request  = optional(string, null)
   })
-  default = {
-    cpu_limit    = "2000m"
-    memory_limit = "4Gi"
-  }
+  default = null
 }
 
 variable "timeout_seconds" {
@@ -427,7 +417,7 @@ variable "timeout_seconds" {
 variable "min_instance_count" {
   description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=0 order=603 updatesafe }}"
   type        = number
-  default     = 0
+  default     = null
 
   validation {
     condition     = var.min_instance_count == null || (coalesce(var.min_instance_count, 0) >= 0 && coalesce(var.min_instance_count, 0) <= 1000)
@@ -438,7 +428,7 @@ variable "min_instance_count" {
 variable "max_instance_count" {
   description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=0 order=604 updatesafe }}"
   type        = number
-  default     = 3
+  default     = null
 
   validation {
     condition     = var.max_instance_count == null || (coalesce(var.max_instance_count, 1) >= 1 && coalesce(var.max_instance_count, 1) <= 1000)
@@ -462,24 +452,19 @@ variable "storage_buckets" {
     public_access_prevention = optional(string, "enforced")
     uniform_bucket_level_access = optional(bool, false)
   }))
-  default = [
-    {
-      name_suffix = "data"
-      location    = "EU"
-    }
-  ]
+  default = []
 }
 
 variable "nfs_enabled" {
   description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=0 order=701 updatesafe }}"
   type        = bool
-  default     = true
+  default     = null
 }
 
 variable "nfs_mount_path" {
   description = "NFS mount path in container (e.g., '/mnt', '/data'). {{UIMeta group=0 order=702 updatesafe }}"
   type        = string
-  default     = "/mnt"
+  default     = null
 }
 
 variable "gcs_volumes" {
@@ -495,26 +480,19 @@ variable "gcs_volumes" {
       "type-cache-ttl=60s"
     ])
   }))
-  default = [
-    {
-      name          = "odoo-addons"
-      mount_path    = "/mnt/extra-addons"
-      read_only     = false
-      mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
-    }
-  ]
+  default = []
 }
 
 variable "enable_cloudsql_volume" {
   description = "Enable Cloud SQL instance volume for Unix socket connections. When enabled, the Cloud SQL instance will be mounted as a volume, allowing connections via Unix socket instead of TCP/IP. {{UIMeta group=0 order=705 updatesafe }}"
   type        = bool
-  default     = true
+  default     = null
 }
 
 variable "cloudsql_volume_mount_path" {
   description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=0 order=706 updatesafe }}"
   type        = string
-  default     = "/cloudsql"
+  default     = null
 }
 
 # ===========================
@@ -524,14 +502,7 @@ variable "cloudsql_volume_mount_path" {
 variable "environment_variables" {
   description = "Static environment variables for the application as key-value pairs (e.g., {APP_ENV='production', LOG_LEVEL='info'}). {{UIMeta group=0 order=800 updatesafe }}"
   type        = map(string)
-  default     = {
-      SMTP_HOST     = ""
-      SMTP_PORT     = "25"
-      SMTP_USER     = ""
-      SMTP_PASSWORD = ""
-      SMTP_SSL      = "false"
-      EMAIL_FROM    = "odoo@example.com"
-  }
+  default     = {}
 }
 
 variable "secret_environment_variables" {
@@ -555,15 +526,7 @@ variable "health_check_config" {
     period_seconds        = optional(number, 10)
     failure_threshold     = optional(number, 3)
   })
-  default = {
-      enabled               = true
-      type                  = "HTTP"
-      path                  = "/"
-      initial_delay_seconds = 120
-      timeout_seconds       = 60
-      period_seconds        = 120
-      failure_threshold     = 3
-  }
+  default = null
 }
 
 variable "startup_probe_config" {
@@ -577,15 +540,7 @@ variable "startup_probe_config" {
     period_seconds        = optional(number, 240)
     failure_threshold     = optional(number, 1)
   })
-  default = {
-      enabled               = true
-      type                  = "TCP"
-      path                  = "/"
-      initial_delay_seconds = 180
-      timeout_seconds       = 60
-      period_seconds        = 120
-      failure_threshold     = 3
-  }
+  default = null
 }
 
 # ===========================
