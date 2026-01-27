@@ -40,8 +40,8 @@ locals {
           "metadata-cache-ttl-secs=60",
           "uid=1000",
           "gid=1000",
-          "dir-mode=777",
-          "file-mode=666"
+          "dir-mode=770",
+          "file-mode=660"
         ]
       }
     ]
@@ -64,6 +64,11 @@ locals {
       MEDIA_ROOT                = "/app/media"
       DJANGO_SUPERUSER_EMAIL    = "admin@example.com"
       DJANGO_SUPERUSER_USERNAME = "admin"
+      SECURE_SSL_REDIRECT       = "True"
+      SECURE_PROXY_SSL_HEADER   = "HTTP_X_FORWARDED_PROTO,https"
+      SECURE_HSTS_SECONDS       = "31536000"
+      SECURE_HSTS_INCLUDE_SUBDOMAINS = "True"
+      SECURE_HSTS_PRELOAD       = "True"
     }
 
     enable_postgres_extensions = true
@@ -73,13 +78,11 @@ locals {
       {
         name            = "db-init"
         description     = "Create Django Database and User"
-        image           = "alpine:3.19"
+        image           = "postgres:15-alpine"
         command         = ["/bin/sh", "-c"]
         args            = [
           <<-EOT
             set -e
-            echo "Installing dependencies..."
-            apk update && apk add --no-cache postgresql-client
 
             # Use DB_IP if available (injected by CloudRunApp), else DB_HOST
             TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
