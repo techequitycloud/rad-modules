@@ -15,7 +15,11 @@ WORKDIR /opt/app
 
 # Install production dependencies
 COPY package.json package-lock.json* ./
-RUN npm install --omit=dev && npm cache clean --force
+# Install build tools for sharp, install deps, then remove build tools to keep image small
+RUN apk add --no-cache build-base gcc autoconf automake zlib-dev libpng-dev nasm bash && \
+    npm install --omit=dev && \
+    npm cache clean --force && \
+    apk del build-base gcc autoconf automake zlib-dev libpng-dev nasm bash
 
 # Copy source files
 COPY . .
