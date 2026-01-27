@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module can be used to deploy Cyclos, Django, Moodle, N8N, Odoo, OpenEMR, Wordpress, Ghost, Strapi, Wikijs or Directus"
+  default     = "This module can be used to deploy OpenEMR"
 }
 
 variable "module_dependency" {
@@ -199,7 +199,7 @@ variable "deployment_region" {
 variable "application_module" {
   description = "Select a pre-configured application module for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=3 order=299 OPTIONS=odoo,wordpress,moodle,cyclos,django,openemr,n8n,payload,ghost,strapi,wikijs,directus updatesafe }}"
   type        = string
-  default     = null
+  default     = "openemr"
 
   validation {
     condition = var.application_module == null || var.application_module == "" || contains([
@@ -212,7 +212,7 @@ variable "application_module" {
 variable "application_name" {
   description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=0 order=300 updatesafe }}"
   type        = string
-  default     = null
+  default     = "openemr"
 
   validation {
     condition     = var.application_name == null || can(regex("^[a-z][a-z0-9-]{0,19}$", var.application_name))
@@ -223,7 +223,7 @@ variable "application_name" {
 variable "application_display_name" {
   description = "Human-readable application name for display purposes. {{UIMeta group=0 order=301 updatesafe }}"
   type        = string
-  default     = null
+  default     = "OpenEMR"
 }
 
 variable "application_version" {
@@ -241,7 +241,7 @@ variable "application_description" {
 variable "application_database_name" {
   description = "Application database name. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-63 characters). The actual database name includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=304 updatesafe }}"
   type        = string
-  default     = null
+  default     = "openemr"
 
   validation {
     condition     = var.application_database_name == null || can(regex("^[a-z][a-z0-9_]{0,62}$", var.application_database_name))
@@ -252,7 +252,7 @@ variable "application_database_name" {
 variable "application_database_user" {
   description = "Application database user. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-32 characters). The actual database user includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=305 updatesafe }}"
   type        = string
-  default     = null
+  default     = "openemr"
 
   validation {
     condition     = var.application_database_user == null || can(regex("^[a-z][a-z0-9_]{0,31}$", var.application_database_user))
@@ -267,7 +267,7 @@ variable "application_database_user" {
 variable "container_image_source" {
   description = "Container image source: 'prebuilt' (use existing image from registry) or 'custom' (build from Dockerfile). {{UIMeta group=0 order=400 updatesafe }}"
   type        = string
-  default     = null
+  default     = "custom"
 
   validation {
     condition     = var.container_image_source == null || contains(["prebuilt", "custom"], coalesce(var.container_image_source, "prebuilt"))
@@ -284,7 +284,7 @@ variable "container_image" {
 variable "container_port" {
   description = "Container port to expose (1-65535). {{UIMeta group=0 order=402 updatesafe }}"
   type        = number
-  default     = null
+  default     = 80
 
   validation {
     condition     = var.container_port == null || (coalesce(var.container_port, 8080) > 0 && coalesce(var.container_port, 8080) <= 65535)
@@ -295,7 +295,7 @@ variable "container_port" {
 variable "enable_image_mirroring" {
   description = "Enable container image mirroring to Artifact Registry. When enabled, the image is pulled from the source and pushed to the project's Artifact Registry. Required for some applications to ensure stability and availability. {{UIMeta group=0 order=402 updatesafe }}"
   type        = bool
-  default     = null
+  default     = true
 }
 
 variable "container_protocol" {
@@ -317,9 +317,16 @@ variable "container_build_config" {
     dockerfile_content = optional(string, null)
     context_path       = optional(string, ".")
     build_args         = optional(map(string), {})
-    artifact_repo_name = optional(string, null)
+    artifact_repo_name = optional(string, "cloudrunapp-repo")
   })
-  default = null
+  default = {
+    enabled            = true
+    dockerfile_path    = "Dockerfile"
+    context_path       = "openemr"
+    dockerfile_content = null
+    build_args         = {}
+    artifact_repo_name = "cloudrunapp-repo"
+  }
 }
 
 variable "github_repository_url" {
@@ -369,7 +376,7 @@ variable "cicd_trigger_config" {
 variable "database_type" {
   description = "Database type: MYSQL, POSTGRES, SQLSERVER (or specific versions like MYSQL_8_0, POSTGRES_15). {{UIMeta group=0 order=500 updatesafe }}"
   type        = string
-  default     = null
+  default     = "MYSQL_8_0"
 
   validation {
     condition     = var.database_type == null || contains(["MYSQL", "POSTGRES", "POSTGRESQL", "SQLSERVER", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE", "NONE"], coalesce(var.database_type, "POSTGRES"))
@@ -400,7 +407,10 @@ variable "container_resources" {
     cpu_request  = optional(string, null)
     mem_request  = optional(string, null)
   })
-  default = null
+  default = {
+    cpu_limit    = "2000m"
+    memory_limit = "4Gi"
+  }
 }
 
 variable "timeout_seconds" {
@@ -417,7 +427,7 @@ variable "timeout_seconds" {
 variable "min_instance_count" {
   description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=0 order=603 updatesafe }}"
   type        = number
-  default     = null
+  default     = 0
 
   validation {
     condition     = var.min_instance_count == null || (coalesce(var.min_instance_count, 0) >= 0 && coalesce(var.min_instance_count, 0) <= 1000)
@@ -428,7 +438,7 @@ variable "min_instance_count" {
 variable "max_instance_count" {
   description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=0 order=604 updatesafe }}"
   type        = number
-  default     = null
+  default     = 3
 
   validation {
     condition     = var.max_instance_count == null || (coalesce(var.max_instance_count, 1) >= 1 && coalesce(var.max_instance_count, 1) <= 1000)
@@ -463,13 +473,13 @@ variable "storage_buckets" {
 variable "nfs_enabled" {
   description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=0 order=701 updatesafe }}"
   type        = bool
-  default     = null
+  default     = true
 }
 
 variable "nfs_mount_path" {
   description = "NFS mount path in container (e.g., '/mnt', '/data'). {{UIMeta group=0 order=702 updatesafe }}"
   type        = string
-  default     = null
+  default     = "/var/www/localhost/htdocs/openemr/sites"
 }
 
 variable "gcs_volumes" {
@@ -491,13 +501,13 @@ variable "gcs_volumes" {
 variable "enable_cloudsql_volume" {
   description = "Enable Cloud SQL instance volume for Unix socket connections. When enabled, the Cloud SQL instance will be mounted as a volume, allowing connections via Unix socket instead of TCP/IP. {{UIMeta group=0 order=705 updatesafe }}"
   type        = bool
-  default     = null
+  default     = true
 }
 
 variable "cloudsql_volume_mount_path" {
   description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=0 order=706 updatesafe }}"
   type        = string
-  default     = null
+  default     = "/cloudsql"
 }
 
 # ===========================
@@ -507,7 +517,18 @@ variable "cloudsql_volume_mount_path" {
 variable "environment_variables" {
   description = "Static environment variables for the application as key-value pairs (e.g., {APP_ENV='production', LOG_LEVEL='info'}). {{UIMeta group=0 order=800 updatesafe }}"
   type        = map(string)
-  default     = {}
+  default     = {
+      PHP_MEMORY_LIMIT        = "512M"
+      PHP_MAX_EXECUTION_TIME  = "60"
+      PHP_UPLOAD_MAX_FILESIZE = "64M"
+      PHP_POST_MAX_SIZE       = "64M"
+      SMTP_HOST     = ""
+      SMTP_PORT     = "25"
+      SMTP_USER     = ""
+      SMTP_PASSWORD = ""
+      SMTP_SSL      = "false"
+      EMAIL_FROM    = "openemr@example.com"
+  }
 }
 
 variable "secret_environment_variables" {
@@ -531,7 +552,15 @@ variable "health_check_config" {
     period_seconds        = optional(number, 10)
     failure_threshold     = optional(number, 3)
   })
-  default = null
+  default = {
+      enabled               = true
+      type                  = "HTTP"
+      path                  = "/interface/login/login.php"
+      initial_delay_seconds = 300
+      timeout_seconds       = 60
+      period_seconds        = 60
+      failure_threshold     = 3
+  }
 }
 
 variable "startup_probe_config" {
@@ -545,7 +574,15 @@ variable "startup_probe_config" {
     period_seconds        = optional(number, 240)
     failure_threshold     = optional(number, 1)
   })
-  default = null
+  default = {
+      enabled               = true
+      type                  = "TCP"
+      path                  = "/"
+      initial_delay_seconds = 240
+      timeout_seconds       = 60
+      period_seconds        = 240
+      failure_threshold     = 5
+  }
 }
 
 # ===========================
@@ -611,7 +648,203 @@ variable "initialization_jobs" {
     execute_on_apply  = optional(bool, false)
     script_path       = optional(string, null)
   }))
-  default = []
+  default = [
+      # Job 1: NFS Initialization and Backup Restore
+      {
+        name            = "nfs-init"
+        description     = "Initialize NFS directories for OpenEMR and restore backup if provided"
+        image           = "gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine"
+        command         = ["/bin/bash", "-c"]
+        args            = [
+          <<-EOT
+            set -e
+
+            echo "================================================"
+            echo "Starting OpenEMR NFS Setup Job"
+            echo "================================================"
+
+            # Expected Env Vars:
+            # NFS_MOUNT_PATH
+            # DB_HOST, DB_NAME, DB_USER, DB_PASS, ROOT_PASS
+            # BACKUP_FILEID
+
+            # Env Var Fallbacks
+            DB_HOST="$${DB_HOST:-$${MYSQL_HOST}}"
+            DB_PASS="$${DB_PASS:-$${DB_PASSWORD}}"
+            ROOT_PASS="$${ROOT_PASS:-$${ROOT_PASSWORD}}"
+            DB_USER="$${DB_USER:-$${MYSQL_USER}}"
+            DB_NAME="$${DB_NAME:-$${MYSQL_DATABASE}}"
+
+            if [ -z "$${NFS_MOUNT_PATH}" ]; then
+              echo "Error: NFS_MOUNT_PATH is not set."
+              exit 1
+            fi
+
+            APP_DIR="$${NFS_MOUNT_PATH}"
+
+            # Install packages
+            echo "Installing packages..."
+            apk add --no-cache bash python3 py3-pip unzip curl sed
+
+            echo "Working Directory: $${APP_DIR}"
+
+            # Set ownership (OpenEMR runs as 1000)
+            echo "Setting ownership..."
+            chown 1000:1000 "$${APP_DIR}"
+            chmod 775 "$${APP_DIR}"
+
+            # Download and Restore Backup if provided
+            if [ -n "$${BACKUP_FILEID}" ]; then
+              echo "Downloading backup..."
+              # Use a temp file
+              BACKUP_FILE="/tmp/backup.zip"
+
+              if [[ "$${BACKUP_FILEID}" == gs://* ]]; then
+                 echo "Detected GCS URI. Using gsutil..."
+                 if gsutil cp "$${BACKUP_FILEID}" "$${BACKUP_FILE}"; then
+                    echo "✓ Backup downloaded from GCS"
+                 else
+                    echo "✗ GCS download failed"
+                    exit 1
+                 fi
+              else
+                 echo "Assuming GDrive ID. Installing gdown..."
+                 apk add --no-cache python3 py3-pip
+                 pip3 install gdown --break-system-packages
+                 if gdown "$${BACKUP_FILEID}" -O "$${BACKUP_FILE}"; then
+                    echo "✓ Backup downloaded from GDrive"
+                 else
+                    echo "✗ GDrive download failed"
+                    exit 1
+                 fi
+              fi
+
+              if [ -f "$${BACKUP_FILE}" ]; then
+                echo "Extracting backup to $${APP_DIR}..."
+                # Clean target dir
+                rm -rf "$${APP_DIR}"/*
+
+                # Unzip to temp
+                mkdir -p /tmp/restore
+                unzip -q "$${BACKUP_FILE}" -d /tmp/restore
+
+                # Move contents
+                if [ -d "/tmp/restore/$${DB_NAME}" ]; then
+                  mv /tmp/restore/$${DB_NAME}/* "$${APP_DIR}"/
+                else
+                  mv /tmp/restore/* "$${APP_DIR}"/
+                fi
+
+                echo "✓ Files restored"
+
+                # Update sqlconf.php
+                SQLCONF_FILE="$${APP_DIR}/default/sqlconf.php"
+                if [ -f "$${SQLCONF_FILE}" ]; then
+                  echo "Updating $${SQLCONF_FILE}..."
+                  sed -i "s/[$$]host\\s*=\\s*'[^']*'/\\$host = '$${DB_HOST}'/" "$${SQLCONF_FILE}"
+                  sed -i "s/[$$]port\\s*=\\s*'[^']*'/\\$port = '3306'/" "$${SQLCONF_FILE}"
+                  sed -i "s/[$$]login\\s*=\\s*'[^']*'/\\$login = '$${DB_USER}'/" "$${SQLCONF_FILE}"
+                  sed -i "s/[$$]pass\\s*=\\s*'[^']*'/\\$pass = '$${DB_PASS}'/" "$${SQLCONF_FILE}"
+                  sed -i "s/[$$]dbase\\s*=\\s*'[^']*'/\\$dbase = '$${DB_NAME}'/" "$${SQLCONF_FILE}"
+
+                  if ! grep -q "[$$]rootpass" "$${SQLCONF_FILE}"; then
+                    sed -i "/[$$]pass\\s*=\\s*'[^']*'/a \\$rootpass = '$${ROOT_PASS}';" "$${SQLCONF_FILE}"
+                  else
+                    sed -i "s/[$$]rootpass\\s*=\\s*'[^']*'/\\$rootpass = '$${ROOT_PASS}'/" "$${SQLCONF_FILE}"
+                  fi
+
+                  echo "✓ Config updated"
+                else
+                  echo "⚠ sqlconf.php not found at $${SQLCONF_FILE}"
+                fi
+
+                # Permissions update
+                echo "Updating permissions..."
+                chown -R 1000:1000 "$${APP_DIR}"
+                find "$${APP_DIR}" -type d -exec chmod 755 {} \;
+                find "$${APP_DIR}" -type f -exec chmod 644 {} \;
+                if [ -d "$${APP_DIR}/default/documents" ]; then
+                  chmod -R 755 "$${APP_DIR}/default/documents"
+                fi
+                if [ -f "$${SQLCONF_FILE}" ]; then
+                  chmod 600 "$${SQLCONF_FILE}"
+                fi
+
+              else
+                echo "✗ Zip file not found"
+                exit 1
+              fi
+            else
+              echo "ℹ No backup specified"
+            fi
+
+            echo "================================================"
+            echo "✓ OpenEMR NFS Setup Completed"
+            echo "================================================"
+          EOT
+        ]
+        mount_nfs         = true
+        mount_gcs_volumes = []
+        depends_on_jobs   = []
+        execute_on_apply  = true
+      },
+
+      # Job 2: Database Initialization
+      {
+        name            = "db-init"
+        description     = "Create MySQL Database and User"
+        image           = "alpine:3.19"
+        command         = ["/bin/sh", "-c"]
+        args            = [
+          <<-EOT
+            set -e
+            echo "Installing dependencies..."
+            apk update && apk add --no-cache mysql-client netcat-openbsd
+
+            # Use DB_IP if available, else DB_HOST.
+            TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
+            echo "Using DB Host: $TARGET_DB_HOST"
+
+            echo "Waiting for database..."
+            until nc -z $TARGET_DB_HOST 3306; do
+              echo "Waiting for MySQL port 3306..."
+              sleep 2
+            done
+
+            cat > ~/.my.cnf << EOF
+[client]
+user=root
+password=$${ROOT_PASSWORD}
+host=$TARGET_DB_HOST
+EOF
+            chmod 600 ~/.my.cnf
+
+            echo "Creating User $${DB_USER} if not exists..."
+            mysql --defaults-file=~/.my.cnf <<EOF
+CREATE USER IF NOT EXISTS '$${DB_USER}'@'%' IDENTIFIED BY '$${DB_PASSWORD}';
+ALTER USER '$${DB_USER}'@'%' IDENTIFIED BY '$${DB_PASSWORD}';
+FLUSH PRIVILEGES;
+EOF
+
+            echo "Creating Database $${DB_NAME} if not exists..."
+            mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$${DB_NAME}\`;"
+
+            echo "Granting privileges..."
+            mysql --defaults-file=~/.my.cnf <<EOF
+GRANT ALL PRIVILEGES ON \`$${DB_NAME}\`.* TO '$${DB_USER}'@'%';
+FLUSH PRIVILEGES;
+EOF
+
+            rm -f ~/.my.cnf
+            echo "DB Init complete."
+          EOT
+        ]
+        mount_nfs         = false
+        mount_gcs_volumes = []
+        depends_on_jobs   = []
+        execute_on_apply  = true
+      }
+    ]
 }
 
 # ===========================
