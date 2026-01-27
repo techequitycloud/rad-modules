@@ -197,9 +197,9 @@ variable "deployment_region" {
 # ===========================
 
 variable "application_module" {
-  description = "Select a pre-configured application module for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=3 order=299 OPTIONS=odoo,wordpress,moodle,cyclos,django,openemr,n8n,payload,ghost,strapi,wikijs,directus updatesafe }}"
+  description = "Select a pre-configured application module for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=3 order=299 OPTIONS=odoo,wordpress,moodle,cyclos,django,openemr,n8n,payload,ghost,strapi,wikijs,directus,medusa updatesafe }}"
   type        = string
-  default     = null
+  default     = "medusa"
 
   validation {
     condition = var.application_module == null || var.application_module == "" || contains([
@@ -212,7 +212,7 @@ variable "application_module" {
 variable "application_name" {
   description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=0 order=300 updatesafe }}"
   type        = string
-  default     = null
+  default     = "medusa"
 
   validation {
     condition     = var.application_name == null || can(regex("^[a-z][a-z0-9-]{0,19}$", var.application_name))
@@ -223,7 +223,7 @@ variable "application_name" {
 variable "application_display_name" {
   description = "Human-readable application name for display purposes. {{UIMeta group=0 order=301 updatesafe }}"
   type        = string
-  default     = null
+  default     = "Medusa Ecommerce"
 }
 
 variable "application_version" {
