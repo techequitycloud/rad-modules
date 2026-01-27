@@ -1,0 +1,1 @@
+../CloudRunApp/strapi.tf

@@ -9,7 +9,9 @@ from .basesettings import *
 
 # Load the settings from the environment variable
 env = environ.Env()
-env.read_env(io.StringIO(os.environ.get("APPLICATION_SETTINGS", None)))
+# Read environment variables from APPLICATION_SETTINGS if present
+# This allows passing multiple env vars in a single block
+env.read_env(io.StringIO(os.environ.get("APPLICATION_SETTINGS", "")))
 
 # Setting this value from django-environ
 SECRET_KEY = env("SECRET_KEY")
@@ -30,21 +32,8 @@ else:
 # Default false. True allows default landing pages to be visible
 DEBUG = env("DEBUG", default=False)
 
-# Database Configuration
-# Try to parse DATABASE_URL first (django-environ), otherwise fall back to individual env vars
-if os.environ.get("DATABASE_URL"):
-    DATABASES = {"default": env.db()}
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": os.environ.get("DB_ENGINE", "django.db.backends.postgresql"),
-            "NAME": os.environ.get("DB_NAME"),
-            "USER": os.environ.get("DB_USER"),
-            "PASSWORD": os.environ.get("DB_PASSWORD"),
-            "HOST": os.environ.get("DB_HOST"),
-            "PORT": os.environ.get("DB_PORT"),
-        }
-    }
+# Set this value from django-environ
+DATABASES = {"default": env.db()}
 
 # Change database settings if using the Cloud SQL Auth Proxy
 if os.getenv("USE_CLOUD_SQL_AUTH_PROXY", None):
@@ -52,21 +41,27 @@ if os.getenv("USE_CLOUD_SQL_AUTH_PROXY", None):
     DATABASES["default"]["PORT"] = 5432
 
 # Define static storage via django-storages[google]
-# FIXED: Read from OS environment first, then fall back to APPLICATION_SETTINGS
+# Read from OS environment first, then fall back to APPLICATION_SETTINGS
 GS_BUCKET_NAME = os.environ.get("GS_BUCKET_NAME") or env("GS_BUCKET_NAME", default=None)
 
 # Add WhiteNoise Middleware
 if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
     MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
+# Static files settings
 STATIC_ROOT = os.environ.get("STATIC_ROOT", BASE_DIR / "staticfiles")
-
 STATICFILES_DIRS = []
+
+# Legacy setting for compatibility (though STORAGES takes precedence)
 GS_DEFAULT_ACL = "publicRead"
+
+# Configure STORAGES for Django 4.2+
+# This replaces DEFAULT_FILE_STORAGE and STATICFILES_STORAGE
 STORAGES = {
     "default": {
         "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
