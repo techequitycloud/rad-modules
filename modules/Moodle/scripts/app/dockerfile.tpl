@@ -1,4 +1,5 @@
 FROM ubuntu:24.04
+ARG APP_VERSION
 EXPOSE 80 443
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update -y
@@ -24,9 +25,9 @@ RUN apt-get -y install php8.3 php8.3-gd php8.3-pgsql php8.3-curl php8.3-xmlrpc p
     php8.3-mysql php8.3-xml php8.3-mbstring php8.3-zip php8.3-soap php8.3-ldap php8.3-redis \
     && apt-get -y install software-properties-common \
     && chown -R www-data:www-data /var/www/html && apt-get clean
-ADD https://github.com/moodle/moodle/archive/refs/tags/v${APP_VERSION}.tar.gz /tmp/
-RUN tar -xzvf /tmp/v${APP_VERSION}.tar.gz -C /var/www/html/ --strip-components=1 \
-    && rm /tmp/v${APP_VERSION}.tar.gz
+ADD https://github.com/moodle/moodle/archive/refs/tags/v$${APP_VERSION}.tar.gz /tmp/
+RUN tar -xzvf /tmp/v$${APP_VERSION}.tar.gz -C /var/www/html/ --strip-components=1 \
+    && rm /tmp/v$${APP_VERSION}.tar.gz
 RUN rm /var/www/html/index.html
 COPY ./cloudrun-entrypoint.sh /
 RUN chmod +x /cloudrun-entrypoint.sh
