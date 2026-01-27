@@ -56,8 +56,8 @@ locals {
     max_instance_count = 3
 
     # Container command and args
-    container_command = [] # Use default
-    container_args    = [] # Use default
+    container_command = null # Use default
+    container_args    = null # Use default
 
     # Environment variables
     environment_variables = {
