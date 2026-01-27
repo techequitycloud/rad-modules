@@ -13,7 +13,7 @@ locals {
 
   odoo_storage_buckets = var.application_module == "odoo" ? [
     {
-      name_suffix              = "odoo-addons"
+      name_suffix              = "odoo-addons-volume"
       location                 = var.deployment_region
       storage_class            = "STANDARD"
       force_destroy            = true
