@@ -279,7 +279,11 @@ locals {
   trusted_users              = var.trusted_users
   initialization_jobs        = local.final_initialization_jobs
 
-  cicd_trigger_config        = null
+  cicd_trigger_config        = {
+    description    = ""
+    branch_pattern = ""
+    substitutions  = {}
+  }
 
   enable_backup_import       = var.enable_backup_import
 
@@ -318,11 +322,11 @@ locals {
   _github_repo_clean = ""
 
   github_repo_parts = []
-  github_repo_owner = null
-  github_repo_name  = null
+  github_repo_owner = ""
+  github_repo_name  = ""
 
   # Normalized GitHub repository URL required for Cloud Build v2
-  github_repo_url = null
+  github_repo_url = ""
 
   # CI/CD trigger configuration (tenant-first for easier identification)
   cicd_trigger_name = "${local.tenant_id}-${local.deployment_id}-${local.application_name}-trigger"
