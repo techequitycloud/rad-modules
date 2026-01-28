@@ -17,11 +17,11 @@ steps:
 - name: 'gcr.io/kaniko-project/executor:latest'
   args:
     - '--dockerfile=Dockerfile'
-    - '--context=dir://sample'
-    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/samplebasic657c02ba-repo/sample:v1.0.0'
-    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/samplebasic657c02ba-repo/sample:latest'
+    - '--context=dir://openemr'
+    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/openemrbasicf4b50332-repo/openemr:latest'
+    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/openemrbasicf4b50332-repo/openemr:latest'
 
-    - '--build-arg=APP_VERSION=v1.0.0'
+    - '--build-arg=APP_VERSION=latest'
 
     - '--cache=true'
     - '--cache-ttl=24h'

@@ -1,50 +1,81 @@
 #!/bin/sh
 set -e
 
+echo "================================================"
+echo "Starting OpenEMR with Cloud Run Configuration"
+echo "================================================"
+
 # Logic to handle Cloud Run Unix socket connections
 if echo "$MYSQL_HOST" | grep -q "^/"; then
     echo "Detected Unix socket in MYSQL_HOST: $MYSQL_HOST"
     
-    # Identify PHP INI location (Alpine/OpenEMR specific)
-    # Search common locations
+    # Find PHP INI file
     PHP_INI_FILE=""
-    for loc in /etc/php83/php.ini /etc/php82/php.ini /etc/php81/php.ini /etc/php8/php.ini; do
+    for loc in /etc/php83/php.ini /etc/php82/php.ini /etc/php81/php.ini /etc/php8/php.ini /usr/local/etc/php/php.ini; do
         if [ -f "$loc" ]; then
             PHP_INI_FILE="$loc"
+            echo "Found PHP INI: $PHP_INI_FILE"
             break
         fi
     done
     
     if [ -n "$PHP_INI_FILE" ]; then
-        echo "Updating default_socket in $PHP_INI_FILE..."
+        echo "Configuring PHP for Unix socket..."
         
-        # Handle mysqli.default_socket
+        # Backup original
+        cp "$PHP_INI_FILE" "${PHP_INI_FILE}.backup" 2>/dev/null || true
+        
+        # Configure mysqli
         if grep -q "^;*mysqli.default_socket" "$PHP_INI_FILE"; then
             sed -i "s|^;*mysqli.default_socket.*|mysqli.default_socket = $MYSQL_HOST|" "$PHP_INI_FILE"
         else
             echo "mysqli.default_socket = $MYSQL_HOST" >> "$PHP_INI_FILE"
         fi
 
-        # Handle pdo_mysql.default_socket
+        # Configure PDO MySQL
         if grep -q "^;*pdo_mysql.default_socket" "$PHP_INI_FILE"; then
             sed -i "s|^;*pdo_mysql.default_socket.*|pdo_mysql.default_socket = $MYSQL_HOST|" "$PHP_INI_FILE"
         else
             echo "pdo_mysql.default_socket = $MYSQL_HOST" >> "$PHP_INI_FILE"
         fi
+        
+        echo "✓ PHP configured for Unix socket"
     else
-        echo "Warning: php.ini not found. Socket configuration might fail."
+        echo "⚠ Warning: php.ini not found. Socket configuration might fail."
     fi
 
-    # Force MYSQL_HOST to localhost so applications use the default socket
+    # Set environment variables for localhost
     export MYSQL_HOST="localhost"
     export DB_HOST="localhost"
+    echo "✓ Environment configured for localhost connection"
 fi
 
-# Execute original entrypoint
-# We assume the base image uses the standard OpenEMR entrypoint script.
-# If arguments are passed, run them; otherwise run the default command.
+# Check if sqlconf.php exists and needs updating
+SQLCONF="/var/www/localhost/htdocs/openemr/sites/default/sqlconf.php"
+if [ -f "$SQLCONF" ]; then
+    echo "Found existing sqlconf.php, updating database connection..."
+    
+    # Update database connection settings
+    sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${DB_HOST:-localhost}'/" "$SQLCONF" 2>/dev/null || true
+    sed -i "s/\$login\s*=\s*'[^']*'/\$login = '${MYSQL_USER}'/" "$SQLCONF" 2>/dev/null || true
+    sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '${MYSQL_PASSWORD}'/" "$SQLCONF" 2>/dev/null || true
+    sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = '${MYSQL_DATABASE}'/" "$SQLCONF" 2>/dev/null || true
+    
+    echo "✓ Database configuration updated"
+fi
+
+echo "================================================"
+echo "Starting OpenEMR Application..."
+echo "================================================"
+
+# Change to the correct working directory
+cd /var/www/localhost/htdocs/openemr
+
+# Execute the original command
 if [ "$#" -eq 0 ]; then
-    exec /sbin/tini -- /var/www/localhost/htdocs/openemr/contrib/util/docker-entrypoint.sh
+    # No arguments passed, use default command
+    exec ./openemr.sh
 else
+    # Arguments passed, execute them
     exec "$@"
 fi

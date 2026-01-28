@@ -18,8 +18,8 @@ steps:
   args:
     - '--dockerfile=Dockerfile'
     - '--context=dir://n8n'
-    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/n8nbasic4c75c4ab-repo/n8n:2.4.6'
-    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/n8nbasic4c75c4ab-repo/n8n:latest'
+    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/n8nbasic8183dbd2-repo/n8n:2.4.6'
+    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/n8nbasic8183dbd2-repo/n8n:latest'
 
     - '--build-arg=APP_VERSION=2.4.6'
 
