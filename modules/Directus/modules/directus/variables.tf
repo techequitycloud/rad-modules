@@ -74,7 +74,6 @@ locals {
       CORS_ORIGIN  = "true"
       
       # Server configuration
-      PORT = "8055"
       PUBLIC_URL = "https://your-directus-url.run.app"
       
       # Cache configuration
