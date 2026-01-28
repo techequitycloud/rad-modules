@@ -217,14 +217,15 @@ locals {
   storage_buckets = local.create_cloud_storage ? {
     for bucket in local.all_storage_buckets :
     bucket.name_suffix => {
-      name                     = "${local.resource_prefix}-${bucket.name_suffix}"
-      location                 = bucket.location
-      storage_class            = bucket.storage_class
-      force_destroy            = bucket.force_destroy
-      versioning_enabled       = bucket.versioning_enabled
-      lifecycle_rules          = bucket.lifecycle_rules
-      public_access_prevention = bucket.public_access_prevention
+      name                        = "${local.resource_prefix}-${bucket.name_suffix}"
+      location                    = bucket.location
+      storage_class               = bucket.storage_class
+      force_destroy               = bucket.force_destroy
+      versioning_enabled          = bucket.versioning_enabled
+      lifecycle_rules             = bucket.lifecycle_rules
+      public_access_prevention    = bucket.public_access_prevention
       uniform_bucket_level_access = try(bucket.uniform_bucket_level_access, false)
+      soft_delete_retention_seconds = try(bucket.soft_delete_retention_seconds, 0)
     }
   } : {}
 
