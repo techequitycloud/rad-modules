@@ -141,8 +141,6 @@ locals {
   enable_cicd_trigger = var.enable_cicd_trigger && var.github_repository_url != null
   github_token_secret = "${var.github_token_secret_name}-${local.tenant_id}"
 
-  # ✅ UPDATED: Image Mirroring Configuration (disabled for Moodle - Bitnami deprecated Aug 28, 2025)
-  # Using lthub/moodle:latest which works directly from Docker Hub
   enable_image_mirroring = local.final_enable_image_mirroring
 
   # Determine source image for mirroring (Prebuilt or Custom Build Artifact)
@@ -152,7 +150,6 @@ locals {
     local.final_container_image
   )
 
-  # Extract tag from source image (e.g., "4" from "bitnami/moodle:4"), default to "latest"
   _mirror_image_parts    = split(":", local.mirror_source_image)
   mirror_image_tag       = length(local._mirror_image_parts) > 1 ? local._mirror_image_parts[length(local._mirror_image_parts) - 1] : "latest"
 
@@ -195,19 +192,7 @@ locals {
 
   # Preset Storage Buckets
   preset_storage_buckets = concat(
-    local.odoo_storage_buckets,
-    local.django_storage_buckets,
-    local.wordpress_storage_buckets,
-    local.moodle_storage_buckets,
-    local.n8n_storage_buckets,
-    local.ghost_storage_buckets,
-    local.wikijs_storage_buckets,
-    local.medusa_storage_buckets,
-    local.strapi_storage_buckets,
-    local.directus_storage_buckets,
-    local.cyclos_storage_buckets,
-    local.openemr_storage_buckets,
-    local.sample_storage_buckets,
+    local.module_storage_buckets,
   )
 
   # Combined Storage Buckets
@@ -246,19 +231,7 @@ locals {
 
   # Dynamic Environment Variables for Modules (these depend on resources generated in this main.tf)
   preset_env_vars = merge(
-    local.n8n_env_vars,
-    local.cyclos_env_vars,
-    local.odoo_env_vars,
-    local.django_env_vars,
-    local.wordpress_env_vars,
-    local.moodle_env_vars,
-    local.ghost_env_vars,
-    local.wikijs_env_vars,
-    local.openemr_env_vars,
-    local.medusa_env_vars,
-    local.strapi_env_vars,
-    local.directus_env_vars,
-    local.sample_env_vars,
+    local.module_secret_env_vars,
   )
 
   # Environment variables (combined static and secret-based)
@@ -281,19 +254,7 @@ locals {
     local.sql_server_exists ? {
       DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
-    local.n8n_secret_env_vars,
-    local.wordpress_secret_env_vars,
-    local.django_secret_env_vars,
-    local.odoo_secret_env_vars,
-    local.moodle_secret_env_vars,
-    local.openemr_secret_env_vars,
-    local.ghost_secret_env_vars,
-    local.wikijs_secret_env_vars,
-    local.medusa_secret_env_vars,
-    local.strapi_secret_env_vars,
-    local.directus_secret_env_vars,
-    local.cyclos_secret_env_vars,
-    local.sample_secret_env_vars
+    local.module_secret_env_vars,
   )
 
   secret_environment_variables = merge(

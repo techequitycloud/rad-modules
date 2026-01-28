@@ -34,83 +34,11 @@
 # Load Individual Preset Configurations
 #########################################################################
 
-# Each module is defined in its own directory under modules/
-# This provides clean separation and makes it easy to maintain
-module "odoo_module" {
-  source = "./modules/odoo"
-}
-
-module "wordpress_module" {
-  source = "./modules/wordpress"
-}
-
-module "moodle_module" {
-  source = "./modules/moodle"
-}
-
-module "cyclos_module" {
-  source      = "./modules/cyclos"
-  app_version = var.application_version != "latest" ? var.application_version : "4.16.15"
-}
-
-module "django_module" {
-  source = "./modules/django"
-}
-
-module "openemr_module" {
-  source = "./modules/openemr"
-}
-
-module "n8n_module" {
-  source = "./modules/n8n"
-}
-
-module "ghost_module" {
-  source = "./modules/ghost"
-}
-
-module "wikijs_module" {
-  source = "./modules/wikijs"
-}
-
-module "medusa_module" {
-  source = "./modules/medusa"
-}
-  
-module "strapi_module" {
-  source = "./modules/strapi"
-}
-  
-module "directus_module" {
-  source = "./modules/directus"
-}
-
-module "sample_module" {
-  source = "./modules/sample"
-}
-
 #########################################################################
 # Application Modules Map
 #########################################################################
 
 locals {
-  # Aggregate all modules into a single map for easy lookup
-  application_modules = {
-    odoo      = module.odoo_module.odoo_module
-    wordpress = module.wordpress_module.wordpress_module
-    moodle    = module.moodle_module.moodle_module
-    cyclos    = module.cyclos_module.cyclos_module
-    django    = module.django_module.django_module
-    openemr   = module.openemr_module.openemr_module
-    n8n       = module.n8n_module.n8n_module
-    ghost     = module.ghost_module.ghost_module
-    wikijs    = module.wikijs_module.wikijs_module
-    medusa    = module.medusa_module.medusa_module
-    strapi    = module.strapi_module.strapi_module
-    directus  = module.directus_module.directus_module
-    sample    = module.sample_module.sample_module
-  }
-
   #########################################################################
   # Preset Selection Logic
   #########################################################################
