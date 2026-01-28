@@ -87,5 +87,5 @@ data "google_secret_manager_secret_version" "db_password" {
 data "google_secret_manager_secret" "github_token" {
   count     = local.enable_cicd_trigger && local.github_token_secret != null && local.github_token_secret != "" ? 1 : 0
   project   = local.project.project_id
-  secret_id = local.github_token_secret
+  secret_id = coalesce(local.github_token_secret, "unused")
 }
