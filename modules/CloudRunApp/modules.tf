@@ -18,13 +18,15 @@
 
 locals {
   #########################################################################
-  # Preset Selection Logic (Hardcoded for Cyclos)
+  # Preset Selection Logic (Dynamic)
   #########################################################################
 
-  # Always use the cyclos module preset
-  using_module    = true
-  selected_module = local.application_modules["cyclos"]
-  module_exists   = true
+  # Dynamically select the first available module from the map
+  # This supports generic wrapper modules (e.g., Cyclos, N8N)
+  using_module    = length(keys(local.application_modules)) > 0
+  _module_key     = local.using_module ? keys(local.application_modules)[0] : "default"
+  selected_module = local.using_module ? local.application_modules[local._module_key] : null
+  module_exists   = local.using_module
 
   #########################################################################
   # Smart Defaults - Extract preset values
