@@ -1,5 +1,17 @@
+module "n8n_module" {
+  source      = "./modules/n8n"
+}
+
 locals {
-  n8n_env_vars = var.application_module == "n8n" ? {
+  application_modules = {
+    n8n = module.n8n_module
+  }
+
+  module_env_vars = local.n8n_env_vars
+  module_secret_env_vars = local.n8n_secret_env_vars
+  module_storage_buckets = local.n8n_storage_buckets
+
+  n8n_env_vars = {
     N8N_PORT                     = "5678"
     N8N_PROTOCOL                 = "https"
     N8N_DIAGNOSTICS_ENABLED      = "true"
@@ -11,15 +23,15 @@ locals {
     N8N_DEFAULT_BINARY_DATA_MODE = "filesystem"
     WEBHOOK_URL                  = local.predicted_service_url
     N8N_EDITOR_BASE_URL          = local.predicted_service_url
-  } : {}
+  }
 
-  n8n_secret_env_vars = var.application_module == "n8n" ? {
-    N8N_ENCRYPTION_KEY     = try(google_secret_manager_secret.encryption_key[0].secret_id, "")
+  n8n_secret_env_vars = {
+    N8N_ENCRYPTION_KEY     = try(google_secret_manager_secret.encryption_key.secret_id, "")
     DB_POSTGRESDB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
-    N8N_SMTP_PASS          = try(google_secret_manager_secret.n8n_smtp_password[0].secret_id, "")
-  } : {}
+    N8N_SMTP_PASS          = try(google_secret_manager_secret.n8n_smtp_password.secret_id, "")
+  }
 
-  n8n_storage_buckets = var.application_module == "n8n" ? [
+  n8n_storage_buckets = [
     {
       name_suffix              = "n8n-data"
       location                 = var.deployment_region
@@ -29,14 +41,13 @@ locals {
       lifecycle_rules          = []
       public_access_prevention = "inherited"
     }
-  ] : []
+  ]
 }
 
 # ==============================================================================
 # N8N SPECIFIC RESOURCES
 # ==============================================================================
 resource "google_storage_bucket" "n8n_storage" {
-  count                       = var.application_module == "n8n" ? 1 : 0
   name                        = "${local.wrapper_prefix}-storage"
   location                    = var.deployment_region
   force_destroy               = true
@@ -45,20 +56,17 @@ resource "google_storage_bucket" "n8n_storage" {
 }
 
 resource "google_storage_bucket_iam_member" "n8n_cloudrun_access" {
-  count  = var.application_module == "n8n" ? 1 : 0
-  bucket = google_storage_bucket.n8n_storage[0].name
+  bucket = google_storage_bucket.n8n_storage.name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${local.cloud_run_sa_email}"
 }
 
 resource "random_password" "n8n_smtp_password_dummy" {
-  count   = var.application_module == "n8n" ? 1 : 0
   length  = 16
   special = false
 }
 
 resource "google_secret_manager_secret" "n8n_smtp_password" {
-  count     = var.application_module == "n8n" ? 1 : 0
   secret_id = "${local.wrapper_prefix}-smtp-password"
   replication {
     auto {}
@@ -67,19 +75,16 @@ resource "google_secret_manager_secret" "n8n_smtp_password" {
 }
 
 resource "google_secret_manager_secret_version" "n8n_smtp_password" {
-  count       = var.application_module == "n8n" ? 1 : 0
-  secret      = google_secret_manager_secret.n8n_smtp_password[0].id
-  secret_data = random_password.n8n_smtp_password_dummy[0].result
+  secret      = google_secret_manager_secret.n8n_smtp_password.id
+  secret_data = random_password.n8n_smtp_password_dummy.result
 }
 
 resource "random_password" "encryption_key" {
-  count   = var.application_module == "n8n" ? 1 : 0
   length  = 32
   special = true
 }
 
 resource "google_secret_manager_secret" "encryption_key" {
-  count     = var.application_module == "n8n" ? 1 : 0
   secret_id = "${local.wrapper_prefix}-encryption-key"
   replication {
     auto {}
@@ -88,7 +93,6 @@ resource "google_secret_manager_secret" "encryption_key" {
 }
 
 resource "google_secret_manager_secret_version" "encryption_key" {
-  count       = var.application_module == "n8n" ? 1 : 0
-  secret      = google_secret_manager_secret.encryption_key[0].id
-  secret_data = random_password.encryption_key[0].result
+  secret      = google_secret_manager_secret.encryption_key.id
+  secret_data = random_password.encryption_key.result
 }
