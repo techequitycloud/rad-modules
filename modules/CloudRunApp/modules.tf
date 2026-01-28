@@ -21,10 +21,10 @@ locals {
   # Preset Selection Logic (Hardcoded for Cyclos)
   #########################################################################
 
-  # Always use the cyclos module preset
-  using_module    = true
-  selected_module = local.application_modules["cyclos"]
-  module_exists   = true
+  # Automatically select the first available module preset
+  using_module    = length(keys(local.application_modules)) > 0
+  selected_module = local.using_module ? values(local.application_modules)[0] : null
+  module_exists   = local.using_module
 
   #########################################################################
   # Smart Defaults - Extract preset values
