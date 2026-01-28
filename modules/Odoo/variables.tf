@@ -179,6 +179,7 @@ variable "existing_project_id" {
 variable "tenant_deployment_id" {
   description = "Specify a unique tenant or deployment identifier. This uniquely identifies your application deployment and is used in resource naming (1-20 lowercase alphanumeric characters and hyphens). {{UIMeta group=2 order=201 updatesafe }}"
   type        = string
+  default     = "default"
 
   validation {
     condition     = can(regex("^[a-z0-9-]{1,20}$", var.tenant_deployment_id))
@@ -1177,52 +1178,6 @@ variable "backup_format" {
   }
 }
 
-# Legacy Variables (Deprecated - Use unified variables above)
-variable "enable_gdrive_backup_import" {
-  description = "DEPRECATED: Use enable_backup_import with backup_source='gdrive' instead. Enable automatic import of database backup from Google Drive. {{UIMeta group=0 order=1320 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "gdrive_backup_file_id" {
-  description = "DEPRECATED: Use backup_uri instead. Google Drive file ID of the backup to import. {{UIMeta group=0 order=1321 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "gdrive_backup_format" {
-  description = "DEPRECATED: Use backup_format instead. Backup file format for Google Drive. {{UIMeta group=0 order=1322 updatesafe }}"
-  type        = string
-  default     = "sql"
-
-  validation {
-    condition     = contains(["sql", "tar", "zip"], var.gdrive_backup_format)
-    error_message = "Backup format must be 'sql', 'tar', or 'zip'."
-  }
-}
-
-variable "enable_gcs_backup_import" {
-  description = "DEPRECATED: Use enable_backup_import with backup_source='gcs' instead. Enable automatic import of database backup from Google Cloud Storage. {{UIMeta group=0 order=1323 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "gcs_backup_uri" {
-  description = "DEPRECATED: Use backup_uri instead. Google Cloud Storage URI of the backup to import. {{UIMeta group=0 order=1324 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "gcs_backup_format" {
-  description = "DEPRECATED: Use backup_format instead. Backup file format for GCS import. {{UIMeta group=0 order=1325 updatesafe }}"
-  type        = string
-  default     = "sql"
-
-  validation {
-    condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.gcs_backup_format)
-    error_message = "Backup format must be 'sql', 'tar', 'gz', 'tgz', 'tar.gz', or 'zip'."
-  }
-}
 
 variable "enable_mysql_plugins" {
   description = "Enable automatic installation of MySQL plugins and components. Only applicable when using MySQL databases. {{UIMeta group=0 order=1308 updatesafe }}"

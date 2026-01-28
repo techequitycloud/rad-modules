@@ -284,13 +284,6 @@ locals {
 
   enable_backup_import       = var.enable_backup_import
 
-  enable_gdrive_backup_import = var.enable_gdrive_backup_import
-  gdrive_backup_file_id       = var.gdrive_backup_file_id
-  gdrive_backup_format        = var.gdrive_backup_format
-
-  enable_gcs_backup_import    = var.enable_gcs_backup_import
-  gcs_backup_uri              = var.gcs_backup_uri
-  gcs_backup_format           = var.gcs_backup_format
 
   enable_postgres_extensions  = local.final_enable_postgres_extensions
   postgres_extensions         = local.final_postgres_extensions
