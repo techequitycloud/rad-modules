@@ -24,6 +24,9 @@ RUN apk add --no-cache build-base gcc autoconf automake zlib-dev libpng-dev nasm
 # Copy source files
 COPY . .
 
+# Create public folder (required by Strapi at runtime)
+RUN mkdir -p public/uploads
+
 # Copy build artifacts
 COPY --from=build /opt/app/build ./build
 COPY --from=build /opt/app/.strapi ./.strapi
