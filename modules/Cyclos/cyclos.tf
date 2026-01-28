@@ -4,7 +4,7 @@ locals {
     app_version     = var.application_version
     display_name    = "Cyclos Community Edition"
     description     = "Cyclos Banking System on Cloud Run"
-    container_image = "cyclos/cyclos:${var.application_version}"
+    container_image = "cyclos/cyclos"
 
     # image_source    = "build"
     image_source    = "prebuilt"
