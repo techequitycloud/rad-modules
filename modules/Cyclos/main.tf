@@ -260,6 +260,8 @@ locals {
     local.preset_secret_env_vars
   )
 
+  secret_env_var_map = local.secret_environment_variables
+
   # Service accounts
   # Inject N8N SA if active
   cloudrun_sa_input = var.cloudrun_service_account
