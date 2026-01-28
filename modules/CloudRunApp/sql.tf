@@ -31,4 +31,7 @@ locals {
   database_version   = try(data.external.sql_instance_info.result["database_version"], "")
   db_internal_ip     = try(data.external.sql_instance_info.result["instance_ip"], "")
   db_root_password   = try(data.external.sql_instance_info.result["root_password"], "")
+
+  # Secret name for the database password (matches secret_id in secrets.tf)
+  db_password_secret_name = "${local.db_instance_name}-${local.application_database_name}-password-${local.tenant_id}-${local.random_id}"
 }
