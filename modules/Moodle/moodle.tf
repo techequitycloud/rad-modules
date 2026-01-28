@@ -9,7 +9,11 @@ locals {
 }
 
 locals {
-  moodle_env_vars = var.application_module == "moodle" ? {
+  application_modules = {
+    moodle = module.moodle_module
+  }
+
+  module_env_vars = var.application_module == "moodle" ? {
     # Database connection (supports both MySQL and PostgreSQL)
     MOODLE_DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
     MOODLE_DB_PORT = tostring(local.database_port)
@@ -58,13 +62,13 @@ locals {
     DATA_PATH       = "/mnt"
   } : {}
 
-  moodle_secret_env_vars = var.application_module == "moodle" ? {
+  module_secret_env_vars = var.application_module == "moodle" ? {
     MOODLE_DB_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
     MOODLE_CRON_PASSWORD = try(google_secret_manager_secret.moodle_cron_password[0].secret_id, "")
     MOODLE_SMTP_PASSWORD = try(google_secret_manager_secret.moodle_smtp_password[0].secret_id, "")
   } : {}
 
-  moodle_storage_buckets = var.application_module == "moodle" ? [
+  module_storage_buckets = var.application_module == "moodle" ? [
     {
       name_suffix              = "moodle-data"
       location                 = var.deployment_region
