@@ -9,11 +9,6 @@ locals {
 }
 
 locals {
-  # Aggregate all modules into a single map for easy lookup
-  application_modules = {
-    ghost = module.ghost_module
-  }
-
   module_env_vars = var.application_module == "ghost" ? {
     url                            = local.predicted_service_url
     database__connection__host     = local.db_internal_ip
