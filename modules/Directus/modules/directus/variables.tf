@@ -77,14 +77,14 @@ locals {
       PUBLIC_URL = "https://your-directus-url.run.app"
       
       # Cache configuration
-      CACHE_ENABLED = "true"
-      CACHE_STORE   = "redis"
-      CACHE_REDIS   = "redis://localhost:6379"
+      CACHE_ENABLED = "false"
+      # CACHE_STORE   = "redis"
+      # CACHE_REDIS   = "redis://localhost:6379"
       
       # Rate limiting
-      RATE_LIMITER_ENABLED  = "true"
-      RATE_LIMITER_STORE    = "redis"
-      RATE_LIMITER_REDIS    = "redis://localhost:6379"
+      RATE_LIMITER_ENABLED  = "false"
+      # RATE_LIMITER_STORE    = "redis"
+      # RATE_LIMITER_REDIS    = "redis://localhost:6379"
       RATE_LIMITER_POINTS   = "50"
       RATE_LIMITER_DURATION = "1"
       
