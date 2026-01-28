@@ -61,7 +61,7 @@ locals {
 
   # Application configuration
   application_name         = local.final_application_name
-  application_display_name = var.application_display_name != null ? var.application_display_name : local.application_name
+  application_display_name = local.final_application_display_name
   application_version      = local.final_application_version
 
   # Database configuration
@@ -113,16 +113,14 @@ locals {
   container_image_source = local.final_container_image_source
 
   # Default Container Build Config
-  _base_container_build_config = var.container_build_config != null ? var.container_build_config : (
-    local.module_container_build_config != null ? local.module_container_build_config : {
+  _base_container_build_config = local.module_container_build_config != null ? local.module_container_build_config : {
       enabled            = false
       dockerfile_path    = "Dockerfile"
       dockerfile_content = null
       context_path       = "."
       build_args         = {}
       artifact_repo_name = "cloudrunapp-repo"
-    }
-  )
+  }
 
   # Inject APP_VERSION into build_args for custom builds
   container_build_config = merge(local._base_container_build_config, {
@@ -137,9 +135,9 @@ locals {
   # Scoped resource names for multi-tenancy
   artifact_repo_id = "${local.application_name}${local.tenant_id}${local.deployment_id}-repo"
 
-  # CI/CD Configuration
-  enable_cicd_trigger = var.enable_cicd_trigger && var.github_repository_url != null
-  github_token_secret = "${var.github_token_secret_name}-${local.tenant_id}"
+  # CI/CD Configuration (Disabled)
+  enable_cicd_trigger = false
+  github_token_secret = null
 
   enable_image_mirroring = local.final_enable_image_mirroring
 
@@ -188,7 +186,7 @@ locals {
   enable_cloudsql_volume     = local.final_enable_cloudsql_volume
   cloudsql_volume_mount_path = local.final_cloudsql_volume_mount_path
 
-  create_cloud_storage       = var.application_module == "n8n" ? false : var.create_cloud_storage # N8N handles own storage
+  create_cloud_storage       = var.create_cloud_storage
 
   # Preset Storage Buckets
   preset_storage_buckets = concat(
@@ -281,7 +279,7 @@ locals {
   trusted_users              = var.trusted_users
   initialization_jobs        = local.final_initialization_jobs
 
-  cicd_trigger_config        = var.cicd_trigger_config
+  cicd_trigger_config        = null
 
   enable_backup_import       = var.enable_backup_import
 
@@ -302,8 +300,8 @@ locals {
   application_description     = local.final_application_description
   execution_environment       = var.execution_environment
   service_labels              = var.service_labels
-  container_protocol          = var.container_protocol
-  github_app_installation_id  = var.github_app_installation_id
+  container_protocol          = "http1"
+  github_app_installation_id  = null
   database_password_length    = var.database_password_length
   secret_propagation_delay    = var.secret_propagation_delay
 
@@ -314,20 +312,20 @@ locals {
   ingress_settings   = var.ingress_settings
 
   # Feature flags
-  enable_custom_build   = local.container_build_config.enabled && local.container_image_source == "custom"
+  enable_custom_build   = false
 
   # Parse GitHub repository URL to extract owner and name
-  _github_repo_clean = var.github_repository_url != null ? trimsuffix(trimprefix(trimprefix(var.github_repository_url, "https://github.com/"), "http://github.com/"), ".git") : ""
+  _github_repo_clean = ""
 
-  github_repo_parts = split("/", local._github_repo_clean)
-  github_repo_owner = length(local.github_repo_parts) >= 2 ? local.github_repo_parts[0] : null
-  github_repo_name  = length(local.github_repo_parts) >= 2 ? local.github_repo_parts[1] : null
+  github_repo_parts = []
+  github_repo_owner = null
+  github_repo_name  = null
 
   # Normalized GitHub repository URL required for Cloud Build v2
-  github_repo_url = local.github_repo_owner != null && local.github_repo_name != null ? "https://github.com/${local.github_repo_owner}/${local.github_repo_name}.git" : null
+  github_repo_url = null
 
   # CI/CD trigger configuration (tenant-first for easier identification)
-  cicd_trigger_name = local.cicd_trigger_config.trigger_name != null ? local.cicd_trigger_config.trigger_name : "${local.tenant_id}-${local.deployment_id}-${local.application_name}-trigger"
+  cicd_trigger_name = "${local.tenant_id}-${local.deployment_id}-${local.application_name}-trigger"
 
   # GitHub repository resource name scoped to tenant and deployment (tenant-first for easier identification)
   github_repository_resource_name = "${local.tenant_id}-${local.deployment_id}-${local.application_name}-repo"
