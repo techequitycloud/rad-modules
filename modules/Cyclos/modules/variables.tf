@@ -16,7 +16,7 @@ locals {
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "cyclos"
+      context_path       = "."
       dockerfile_content = null
       build_args         = {
         APP_VERSION = var.app_version
