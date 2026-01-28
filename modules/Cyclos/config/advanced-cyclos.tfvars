@@ -3,9 +3,6 @@ existing_project_id  = "qwiklabs-gcp-03-5421a1d20b10"
 tenant_deployment_id = "advanced"
 deployment_region    = "us-central1"
 
-application_module       = "cyclos"
-application_display_name = "cyclos Advanced"
-
 # Use prebuilt image
 container_image_source = "prebuilt"
 container_image        = "cyclos:4.16.15"
