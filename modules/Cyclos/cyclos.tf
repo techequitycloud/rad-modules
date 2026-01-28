@@ -1,5 +1,5 @@
 module "cyclos_module" {
-  source      = "./modules"
+  source      = "./modules/cyclos"
   app_version = var.application_version != "latest" ? var.application_version : "4.16.15"
 }
 
