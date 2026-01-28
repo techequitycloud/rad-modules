@@ -6,12 +6,6 @@ locals {
   application_modules = {
     n8n = module.n8n_module.n8n_module
   }
-}
-
-locals {
-  application_modules = {
-    n8n = module.n8n_module
-  }
 
   module_env_vars = local.n8n_env_vars
   module_secret_env_vars = local.n8n_secret_env_vars
@@ -40,6 +34,7 @@ locals {
   n8n_storage_buckets = [
     {
       name_suffix              = "n8n-data"
+      name                     = "${local.wrapper_prefix}-storage" # Preserving legacy naming
       location                 = var.deployment_region
       storage_class            = "STANDARD"
       force_destroy            = true
@@ -53,16 +48,9 @@ locals {
 # ==============================================================================
 # N8N SPECIFIC RESOURCES
 # ==============================================================================
-resource "google_storage_bucket" "n8n_storage" {
-  name                        = "${local.wrapper_prefix}-storage"
-  location                    = var.deployment_region
-  force_destroy               = true
-  project                     = var.existing_project_id
-  uniform_bucket_level_access = true
-}
 
 resource "google_storage_bucket_iam_member" "n8n_cloudrun_access" {
-  bucket = google_storage_bucket.n8n_storage.name
+  bucket = google_storage_bucket.buckets["n8n-data"].name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${local.cloud_run_sa_email}"
 }
