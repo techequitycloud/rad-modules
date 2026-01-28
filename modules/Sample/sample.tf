@@ -3,6 +3,12 @@ module "sample_module" {
 }
 
 locals {
+  application_modules = {
+    sample = module.sample_module.sample_module
+  }
+}
+
+locals {
   # Aggregate all modules into a single map for easy lookup
   application_modules = {
     sample = module.sample_module.sample_module

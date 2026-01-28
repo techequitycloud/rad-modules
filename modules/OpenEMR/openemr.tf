@@ -1,5 +1,11 @@
 module "openemr_module" {
-  source      = "./modules/openemr"
+  source = "./modules/openemr"
+}
+
+locals {
+  application_modules = {
+    openemr = module.openemr_module.openemr_module
+  }
 }
 
 locals {

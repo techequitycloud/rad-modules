@@ -1,5 +1,11 @@
 module "n8n_module" {
-  source      = "./modules/n8n"
+  source = "./modules/n8n"
+}
+
+locals {
+  application_modules = {
+    n8n = module.n8n_module.n8n_module
+  }
 }
 
 locals {

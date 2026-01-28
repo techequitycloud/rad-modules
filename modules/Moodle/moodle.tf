@@ -1,5 +1,11 @@
 module "moodle_module" {
-  source      = "./modules/moodle"
+  source = "./modules/moodle"
+}
+
+locals {
+  application_modules = {
+    moodle = module.moodle_module.moodle_module
+  }
 }
 
 locals {

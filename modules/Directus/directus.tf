@@ -1,5 +1,11 @@
 module "directus_module" {
-  source      = "./modules/directus"
+  source = "./modules/directus"
+}
+
+locals {
+  application_modules = {
+    directus = module.directus_module.directus_module
+  }
 }
 
 locals {

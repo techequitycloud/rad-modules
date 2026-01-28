@@ -6,6 +6,12 @@ locals {
   application_modules = {
     django = module.django_module.django_module
   }
+}
+
+locals {
+  application_modules = {
+    django = module.django_module.django_module
+  }
 
   module_env_vars = var.application_module == "django" ? {
     CLOUDRUN_SERVICE_URLS = local.predicted_service_url

@@ -6,6 +6,12 @@ locals {
   application_modules = {
     wordpress = module.wordpress_module.wordpress_module
   }
+}
+
+locals {
+  application_modules = {
+    wordpress = module.wordpress_module.wordpress_module
+  }
 
   module_env_vars = var.application_module == "wordpress" ? {
     WORDPRESS_DB_NAME = local.database_name_full

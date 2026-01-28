@@ -6,6 +6,12 @@ locals {
   application_modules = {
     medusa = module.medusa_module.medusa_module
   }
+}
+
+locals {
+  application_modules = {
+    medusa = module.medusa_module.medusa_module
+  }
 
   module_env_vars = var.application_module == "medusa" ? {
     DB_HOST                   = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip

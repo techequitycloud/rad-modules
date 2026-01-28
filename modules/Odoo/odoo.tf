@@ -4,6 +4,12 @@ module "odoo_module" {
 
 locals {
   application_modules = {
+    odoo = module.odoo_module.odoo_module
+  }
+}
+
+locals {
+  application_modules = {
     "odoo" = module.odoo_module.odoo_module
   }
 

@@ -1,5 +1,11 @@
 module "ghost_module" {
-  source      = "./modules/ghost"
+  source = "./modules/ghost"
+}
+
+locals {
+  application_modules = {
+    ghost = module.ghost_module.ghost_module
+  }
 }
 
 locals {
