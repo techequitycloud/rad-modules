@@ -6,12 +6,15 @@ echo "=== Sample DB Init Script ==="
 # Use DB_IP if available (injected by CloudRunApp), else DB_HOST
 TARGET_DB_HOST="${DB_IP:-${DB_HOST}}"
 
-# Check if we are using Unix Socket
-if [[ "$TARGET_DB_HOST" == /* ]]; then
-    echo "Using Unix Socket: $TARGET_DB_HOST"
-else
-    echo "Using TCP Host: $TARGET_DB_HOST"
-fi
+# Check if we are using Unix Socket (POSIX-compatible syntax)
+case "$TARGET_DB_HOST" in
+    /*)
+        echo "Using Unix Socket: $TARGET_DB_HOST"
+        ;;
+    *)
+        echo "Using TCP Host: $TARGET_DB_HOST"
+        ;;
+esac
 
 echo "Waiting for database..."
 export PGPASSWORD="$ROOT_PASSWORD"
@@ -25,6 +28,7 @@ done
 echo "Creating/Updating User $DB_USER..."
 
 # Use stdin to avoid exposing password in process list
+# Also grant role to postgres for Cloud SQL compatibility (postgres is not a true superuser)
 psql -h "$TARGET_DB_HOST" -U postgres <<EOF
 DO \$\$
 BEGIN
@@ -35,6 +39,7 @@ BEGIN
   END IF;
 END
 \$\$;
+GRANT "$DB_USER" TO postgres;
 EOF
 
 echo "Checking Database $DB_NAME..."
