@@ -118,13 +118,3 @@ resource "google_service_account_iam_member" "cloudbuild_sa_user" {
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${local.cloud_build_sa_email}"
 }
-
-# Grant Cloud Run service account access to Cloud Run API (Viewer)
-# Required for Ghost to fetch its own Service URL at runtime
-resource "google_project_iam_member" "cloudrun_viewer" {
-  count = var.application_module == "ghost" ? 1 : 0
-
-  project = local.project.project_id
-  role    = "roles/run.viewer"
-  member  = "serviceAccount:${local.cloud_run_sa_email}"
-}

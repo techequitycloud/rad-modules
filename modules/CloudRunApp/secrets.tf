@@ -83,30 +83,9 @@ data "google_secret_manager_secret_version" "db_password" {
 #########################################################################
 
 # Data source to access existing GitHub token secret
+# ✅ Fixed: Added condition to check if secret_id is not null/empty
 data "google_secret_manager_secret" "github_token" {
-  count     = local.enable_cicd_trigger && local.github_token_secret != null ? 1 : 0
+  count     = local.enable_cicd_trigger && local.github_token_secret != null && local.github_token_secret != "" ? 1 : 0
   project   = local.project.project_id
   secret_id = local.github_token_secret
-}
-
-#########################################################################
-# Local variables for secret references
-#########################################################################
-
-locals {
-  # Database password secret reference
-  db_password_secret_name = local.sql_server_exists ? google_secret_manager_secret.db_password[0].secret_id : ""
-
-  # GitHub token secret reference
-  github_token_secret_ref = local.enable_cicd_trigger && local.github_token_secret != null ? data.google_secret_manager_secret.github_token[0].name : null
-
-  # Map of environment variable names to secret names
-  secret_env_var_map = merge(
-    # Database password
-    local.sql_server_exists ? {
-      DB_PASSWORD = local.db_password_secret_name
-    } : {},
-    # User-defined secret environment variables
-    local.secret_environment_variables
-  )
 }
