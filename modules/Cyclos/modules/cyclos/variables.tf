@@ -12,11 +12,12 @@ locals {
     app_name        = "cyclos"
     description     = "Cyclos Banking System on Cloud Run"
     container_image = "cyclos/cyclos:${var.app_version}"
-    image_source    = "custom"
+    # image_source    = "build"
+    image_source    = "prebuilt"
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "cyclos"
+      context_path       = "."
       dockerfile_content = null
       build_args         = {
         APP_VERSION = var.app_version

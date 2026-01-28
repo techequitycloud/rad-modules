@@ -18,13 +18,13 @@ locals {
     application_sha     = "52d5f05c96a9155f78ed84700264307e5dea14b4"
 
     # image_source    = "prebuilt"
+    image_source    = "build"
 
     # ✅ Custom build configuration
-    image_source    = "custom"
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "wordpress"
+      context_path       = "."
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null

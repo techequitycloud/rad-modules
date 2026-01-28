@@ -12,7 +12,7 @@ locals {
     # Medusa requires a custom built image with the storefront/backend code.
     # We provide a placeholder, but users should override this.
     container_image = "medusajs/medusa"
-    image_source    = "custom"
+    image_source    = "build"
     
     # Support for prebuilt image mirroring
     enable_image_mirroring = true
@@ -21,7 +21,7 @@ locals {
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "medusa"
+      context_path       = "."
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null

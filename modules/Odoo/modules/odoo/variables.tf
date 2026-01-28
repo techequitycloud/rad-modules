@@ -11,14 +11,14 @@ locals {
     db_name         = "odoo"
     db_user         = "odoo"
 
-    image_source    = "prebuilt"
+    image_source    = "build"
 
     # ✅ Custom build configuration
     # image_source    = "custom"
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "odoo"
+      context_path       = "."
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null

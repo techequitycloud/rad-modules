@@ -8,12 +8,12 @@ locals {
     container_image = "openemr/openemr"
 
     # image_source    = "prebuilt"
-    image_source    = "custom"
+    image_source    = "build"
 
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "openemr"
+      context_path       = "."
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null

@@ -17,11 +17,11 @@ locals {
     db_user         = "wikijs"
 
     # Custom build configuration
-    image_source    = "custom"
+    image_source    = "build"
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "wikijs"
+      context_path       = "."
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null

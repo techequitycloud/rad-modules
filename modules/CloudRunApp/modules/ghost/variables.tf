@@ -9,21 +9,18 @@ locals {
   ghost_module = {
     app_name        = "ghost"
     description     = "Ghost - Professional publishing platform"
-    container_image = "ghost:5"
-    application_version = "5"
+    container_image = "ghost:6.10.3"
+    application_version = "6.10.3"
     enable_image_mirroring = true
 
-    # ✅ Prebuilt Deployment (Official Image)
-    image_source = "prebuilt"
-
-    # Custom Deployment (Optional)
-    # image_source = "custom"
+    # image_source = "prebuilt"
+    image_source = "build"
 
     # Custom build configuration to handle dynamic URL detection (only used when image_source = "custom")
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "ghost"
+      context_path       = "."
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null

@@ -6,16 +6,17 @@ locals {
     app_name        = "django"
     description     = "Django Web Application - High-level Python web framework"
     container_image = "python:3.11-slim" # Placeholder, image built via custom build
-    app_version     = "latest"
+    app_version     = "6.0.1"
 
     # image_source    = "prebuilt"
+    image_source    = "build"
+
 
     # Custom build configuration
-    image_source    = "custom"
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "django"
+      context_path       = "."
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null
@@ -38,10 +39,10 @@ locals {
         mount_options = [
           "implicit-dirs",
           "metadata-cache-ttl-secs=60",
-          "uid=1000",
-          "gid=1000",
-          "dir-mode=777",
-          "file-mode=666"
+          "uid=2000",
+          "gid=2000",
+          "dir-mode=755",
+          "file-mode=644"
         ]
       }
     ]
