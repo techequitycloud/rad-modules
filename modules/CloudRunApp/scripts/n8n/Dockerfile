@@ -4,13 +4,13 @@ FROM n8nio/n8n:${APP_VERSION}
 USER root
 
 # Install python3 and other useful tools often needed by n8n custom nodes or scripts
-# Note: n8n image is Alpine-based, use /sbin/apk with full path as apk may not be in PATH
-RUN /sbin/apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     python3 \
-    py3-pip \
+    python3-pip \
     git \
     bash \
     curl \
-    jq
+    jq \
+    && rm -rf /var/lib/apt/lists/*
 
 USER node
