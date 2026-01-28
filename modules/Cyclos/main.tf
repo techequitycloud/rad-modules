@@ -194,7 +194,7 @@ locals {
   create_cloud_storage       = var.create_cloud_storage
 
   # Preset Storage Buckets
-  preset_storage_buckets = local.cyclos_storage_buckets
+  preset_storage_buckets = local.module_storage_buckets
 
   # Combined Storage Buckets
   all_storage_buckets = concat(var.storage_buckets, local.preset_storage_buckets)
@@ -230,7 +230,7 @@ locals {
   }
 
   # Dynamic Environment Variables for Modules (these depend on resources generated in this main.tf)
-  preset_env_vars = local.cyclos_env_vars
+  preset_env_vars = local.module_env_vars
 
   # Environment variables (combined static and secret-based)
   static_env_vars = merge(
@@ -252,7 +252,7 @@ locals {
     local.sql_server_exists ? {
       DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     } : {},
-    local.cyclos_secret_env_vars
+    local.module_secret_env_vars
   )
 
   secret_environment_variables = merge(
