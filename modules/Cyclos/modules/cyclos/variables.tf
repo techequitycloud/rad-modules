@@ -10,6 +10,7 @@ variable "app_version" {
 locals {
   cyclos_module = {
     app_name        = "cyclos"
+    app_version     = var.app_version
     description     = "Cyclos Banking System on Cloud Run"
     container_image = "cyclos/cyclos:${var.app_version}"
     # image_source    = "build"

@@ -1,11 +1,11 @@
 module "cyclos_module" {
-  source      = "./modules"
+  source      = "./modules/cyclos"
 }
 
 locals {
   # Aggregate all modules into a single map for easy lookup
   application_modules = {
-    cyclos = module.cyclos_module
+    cyclos = module.cyclos_module.cyclos_module
   }
 
   # Cyclos uses PGSimpleDataSource with explicit portNumber=5432 in cyclos.properties
