@@ -11,13 +11,22 @@ if echo "$MYSQL_HOST" | grep -q "^/"; then
     
     # Find PHP INI file
     PHP_INI_FILE=""
-    for loc in /etc/php84/php.ini /etc/php83/php.ini /etc/php82/php.ini /etc/php81/php.ini /etc/php8/php.ini /usr/local/etc/php/php.ini; do
-        if [ -f "$loc" ]; then
-            PHP_INI_FILE="$loc"
-            echo "Found PHP INI: $PHP_INI_FILE"
-            break
-        fi
-    done
+
+    # Try dynamic detection first
+    DETECTED_INI=$(php --ini 2>/dev/null | grep "Loaded Configuration File" | sed 's/.*: *//')
+    if [ -n "$DETECTED_INI" ] && [ -f "$DETECTED_INI" ]; then
+        PHP_INI_FILE="$DETECTED_INI"
+        echo "Found PHP INI (via php --ini): $PHP_INI_FILE"
+    else
+        # Fallback to hardcoded paths
+        for loc in /etc/php84/php.ini /etc/php83/php.ini /etc/php82/php.ini /etc/php81/php.ini /etc/php8/php.ini /usr/local/etc/php/php.ini; do
+            if [ -f "$loc" ]; then
+                PHP_INI_FILE="$loc"
+                echo "Found PHP INI (via search): $PHP_INI_FILE"
+                break
+            fi
+        done
+    fi
     
     if [ -n "$PHP_INI_FILE" ]; then
         echo "Configuring PHP for Unix socket..."
