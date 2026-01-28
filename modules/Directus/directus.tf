@@ -1,3 +1,13 @@
+module "directus_module" {
+  source = "./modules/directus"
+}
+
+locals {
+  application_modules = {
+    directus = module.directus_module.directus_module
+  }
+}
+
 locals {
   directus_env_vars = var.application_module == "directus" ? {
     DB_CLIENT              = "pg"

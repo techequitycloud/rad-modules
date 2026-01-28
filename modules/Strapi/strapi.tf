@@ -1,3 +1,13 @@
+module "strapi_module" {
+  source = "./modules/strapi"
+}
+
+locals {
+  application_modules = {
+    strapi = module.strapi_module.strapi_module
+  }
+}
+
 locals {
   strapi_env_vars = var.application_module == "strapi" ? {
     DATABASE_HOST     = local.db_internal_ip

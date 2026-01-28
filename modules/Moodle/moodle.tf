@@ -1,3 +1,13 @@
+module "moodle_module" {
+  source = "./modules/moodle"
+}
+
+locals {
+  application_modules = {
+    moodle = module.moodle_module.moodle_module
+  }
+}
+
 locals {
   moodle_env_vars = var.application_module == "moodle" ? {
     # Database connection (supports both MySQL and PostgreSQL)

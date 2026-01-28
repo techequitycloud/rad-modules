@@ -1,3 +1,13 @@
+module "odoo_module" {
+  source = "./modules/odoo"
+}
+
+locals {
+  application_modules = {
+    odoo = module.odoo_module.odoo_module
+  }
+}
+
 locals {
   odoo_env_vars = var.application_module == "odoo" ? {
     HOST    = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip

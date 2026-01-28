@@ -1,3 +1,13 @@
+module "ghost_module" {
+  source = "./modules/ghost"
+}
+
+locals {
+  application_modules = {
+    ghost = module.ghost_module.ghost_module
+  }
+}
+
 locals {
   ghost_env_vars = var.application_module == "ghost" ? {
     url                            = local.predicted_service_url

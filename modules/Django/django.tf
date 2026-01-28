@@ -1,3 +1,13 @@
+module "django_module" {
+  source = "./modules/django"
+}
+
+locals {
+  application_modules = {
+    django = module.django_module.django_module
+  }
+}
+
 locals {
   django_env_vars = var.application_module == "django" ? {
     CLOUDRUN_SERVICE_URLS = local.predicted_service_url

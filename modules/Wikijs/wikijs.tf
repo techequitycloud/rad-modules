@@ -1,3 +1,13 @@
+module "wikijs_module" {
+  source = "./modules/wikijs"
+}
+
+locals {
+  application_modules = {
+    wikijs = module.wikijs_module.wikijs_module
+  }
+}
+
 locals {
   wikijs_env_vars = var.application_module == "wikijs" ? {
     DB_HOST    = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip

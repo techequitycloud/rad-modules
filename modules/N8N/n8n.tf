@@ -1,3 +1,13 @@
+module "n8n_module" {
+  source = "./modules/n8n"
+}
+
+locals {
+  application_modules = {
+    n8n = module.n8n_module.n8n_module
+  }
+}
+
 locals {
   n8n_env_vars = var.application_module == "n8n" ? {
     N8N_PORT                     = "5678"

@@ -1,3 +1,13 @@
+module "sample_module" {
+  source = "./modules/sample"
+}
+
+locals {
+  application_modules = {
+    sample = module.sample_module.sample_module
+  }
+}
+
 locals {
   sample_env_vars = var.application_module == "sample" ? {
     DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip

@@ -1,3 +1,13 @@
+module "openemr_module" {
+  source = "./modules/openemr"
+}
+
+locals {
+  application_modules = {
+    openemr = module.openemr_module.openemr_module
+  }
+}
+
 locals {
   openemr_env_vars = var.application_module == "openemr" ? {
     MYSQL_DATABASE = local.database_name_full
