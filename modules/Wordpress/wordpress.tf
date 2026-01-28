@@ -12,13 +12,14 @@ locals {
 
   wordpress_storage_buckets = var.application_module == "wordpress" ? [
     {
-      name_suffix              = "wp-uploads"
-      location                 = var.deployment_region
-      storage_class            = "STANDARD"
-      force_destroy            = true
-      versioning_enabled       = false
-      lifecycle_rules          = []
-      public_access_prevention = "inherited"
+      name_suffix                   = "wp-uploads"
+      location                      = var.deployment_region
+      storage_class                 = "STANDARD"
+      force_destroy                 = true
+      versioning_enabled            = false
+      lifecycle_rules               = []
+      public_access_prevention      = "inherited"
+      soft_delete_retention_seconds = 0
     }
   ] : []
 }

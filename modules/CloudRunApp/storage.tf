@@ -41,6 +41,11 @@ resource "google_storage_bucket" "buckets" {
   # Uniform bucket level access
   uniform_bucket_level_access = each.value.uniform_bucket_level_access
 
+  # Soft delete policy - disable to allow bucket deletion without waiting for retention
+  soft_delete_policy {
+    retention_duration_seconds = each.value.soft_delete_retention_seconds
+  }
+
   # Lifecycle rules
   dynamic "lifecycle_rule" {
     for_each = each.value.lifecycle_rules
