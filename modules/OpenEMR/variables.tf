@@ -655,6 +655,9 @@ variable "initialization_jobs" {
         description     = "Initialize NFS directories for OpenEMR and restore backup if provided"
         image           = "gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine"
         command         = ["/bin/bash", "-c"]
+        env_vars        = {
+          NFS_MOUNT_PATH = "/var/www/localhost/htdocs/openemr/sites"
+        }
         args            = [
           <<-EOT
             set -e
