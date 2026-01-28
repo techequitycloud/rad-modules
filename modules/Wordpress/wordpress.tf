@@ -9,18 +9,22 @@ locals {
 }
 
 locals {
-  wordpress_env_vars = var.application_module == "wordpress" ? {
+  application_modules = {
+    wordpress = module.wordpress_module.wordpress_module
+  }
+
+  module_env_vars = var.application_module == "wordpress" ? {
     WORDPRESS_DB_NAME = local.database_name_full
     WORDPRESS_DB_USER = local.database_user_full
     WORDPRESS_DB_HOST = local.db_internal_ip
     WORDPRESS_DEBUG   = "false"
   } : {}
 
-  wordpress_secret_env_vars = var.application_module == "wordpress" ? {
+  module_secret_env_vars = var.application_module == "wordpress" ? {
     WORDPRESS_DB_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
   } : {}
 
-  wordpress_storage_buckets = var.application_module == "wordpress" ? [
+  module_storage_buckets = var.application_module == "wordpress" ? [
     {
       name_suffix                   = "wp-uploads"
       location                      = var.deployment_region
