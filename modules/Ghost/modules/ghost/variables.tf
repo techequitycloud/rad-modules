@@ -218,18 +218,7 @@ EOF
             
             # ✅ Set MySQL 8.0 specific settings for Ghost 6.x
             echo "Configuring MySQL settings for Ghost 6.x..."
-            mysql -h $TARGET_DB_HOST -u root -p$ROOT_PASSWORD <<EOF
--- Set session variables for Ghost compatibility
-SET GLOBAL sql_mode = 'TRADITIONAL';
-SET GLOBAL innodb_strict_mode = ON;
-SET GLOBAL innodb_file_per_table = ON;
-
--- Optimize for Ghost workload
-SET GLOBAL max_allowed_packet = 67108864;  -- 64MB
-SET GLOBAL innodb_buffer_pool_size = 268435456;  -- 256MB (adjust based on instance size)
-EOF
-            
-            echo "✓ MySQL settings configured"
+            echo "Skipping global MySQL settings configuration (handled by Cloud SQL flags)"
             
             # Verify user can connect
             echo "Verifying user connection..."
