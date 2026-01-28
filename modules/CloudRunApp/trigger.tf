@@ -71,7 +71,7 @@ resource "google_cloudbuildv2_repository" "github_repository" {
   location          = local.region
   name              = local.github_repository_resource_name
   parent_connection = google_cloudbuildv2_connection.github_connection[0].name
-  remote_uri        = local.github_repo_url
+  remote_uri        = coalesce(local.github_repo_url, "https://github.com/unused/unused")
 
   depends_on = [
     time_sleep.wait_for_github_connection
