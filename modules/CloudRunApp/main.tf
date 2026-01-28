@@ -228,6 +228,7 @@ locals {
 
   # Dynamic Environment Variables for Modules (these depend on resources generated in this main.tf)
   preset_env_vars = merge(
+    local.module_env_vars,
     local.module_secret_env_vars,
   )
 
