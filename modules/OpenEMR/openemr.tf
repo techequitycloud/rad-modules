@@ -1,5 +1,13 @@
+module "openemr_module" {
+  source      = "./modules/openemr"
+}
+
 locals {
-  openemr_env_vars = var.application_module == "openemr" ? {
+  application_modules = {
+    openemr = module.openemr_module.openemr_module
+  }
+
+  module_env_vars = var.application_module == "openemr" ? {
     MYSQL_DATABASE = local.database_name_full
     MYSQL_USER     = local.database_user_full
     MYSQL_HOST     = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
@@ -12,13 +20,13 @@ locals {
     REDIS_PORT     = "6379"
   } : {}
 
-  openemr_secret_env_vars = var.application_module == "openemr" ? {
+  module_secret_env_vars = var.application_module == "openemr" ? {
     MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
     OE_PASS         = try(google_secret_manager_secret.openemr_admin_password[0].secret_id, "")
     MYSQL_PASS      = try(google_secret_manager_secret.db_password[0].secret_id, "")
   } : {}
 
-  openemr_storage_buckets = []
+  module_storage_buckets = []
 }
 
 # ==============================================================================
