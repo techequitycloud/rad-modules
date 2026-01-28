@@ -76,7 +76,7 @@ resource "google_secret_manager_secret_iam_member" "github_token" {
   count = local.enable_cicd_trigger && local.github_token_secret != null ? 1 : 0
 
   project   = local.project.project_id
-  secret_id = local.github_token_secret
+  secret_id = coalesce(local.github_token_secret, "unused")
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${local.cloud_build_sa_email}"
 
@@ -91,7 +91,7 @@ resource "google_secret_manager_secret_iam_member" "github_token_default_sa" {
   count = local.enable_cicd_trigger && local.github_token_secret != null ? 1 : 0
 
   project   = local.project.project_id
-  secret_id = local.github_token_secret
+  secret_id = coalesce(local.github_token_secret, "unused")
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:service-${local.project.project_number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
 
