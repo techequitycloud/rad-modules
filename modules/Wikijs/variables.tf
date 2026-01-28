@@ -284,7 +284,7 @@ variable "container_image" {
 variable "container_port" {
   description = "Container port to expose (1-65535). {{UIMeta group=0 order=402 updatesafe }}"
   type        = number
-  default     = 3000
+  default     = null
 
   validation {
     condition     = var.container_port == null || (coalesce(var.container_port, 8080) > 0 && coalesce(var.container_port, 8080) <= 65535)
@@ -462,12 +462,7 @@ variable "storage_buckets" {
     public_access_prevention = optional(string, "enforced")
     uniform_bucket_level_access = optional(bool, false)
   }))
-  default = [
-    {
-      name_suffix = "data"
-      location    = "EU"
-    }
-  ]
+  default = []
 }
 
 variable "nfs_enabled" {
@@ -521,7 +516,7 @@ variable "enable_cloudsql_volume" {
 variable "cloudsql_volume_mount_path" {
   description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=0 order=706 updatesafe }}"
   type        = string
-  default     = "/cloudsql"
+  default     = null
 }
 
 # ===========================
@@ -769,53 +764,6 @@ variable "backup_format" {
 
   validation {
     condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.backup_format)
-    error_message = "Backup format must be 'sql', 'tar', 'gz', 'tgz', 'tar.gz', or 'zip'."
-  }
-}
-
-# Legacy Variables (Deprecated - Use unified variables above)
-variable "enable_gdrive_backup_import" {
-  description = "DEPRECATED: Use enable_backup_import with backup_source='gdrive' instead. Enable automatic import of database backup from Google Drive. {{UIMeta group=0 order=1320 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "gdrive_backup_file_id" {
-  description = "DEPRECATED: Use backup_uri instead. Google Drive file ID of the backup to import. {{UIMeta group=0 order=1321 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "gdrive_backup_format" {
-  description = "DEPRECATED: Use backup_format instead. Backup file format for Google Drive. {{UIMeta group=0 order=1322 updatesafe }}"
-  type        = string
-  default     = "sql"
-
-  validation {
-    condition     = contains(["sql", "tar", "zip"], var.gdrive_backup_format)
-    error_message = "Backup format must be 'sql', 'tar', or 'zip'."
-  }
-}
-
-variable "enable_gcs_backup_import" {
-  description = "DEPRECATED: Use enable_backup_import with backup_source='gcs' instead. Enable automatic import of database backup from Google Cloud Storage. {{UIMeta group=0 order=1323 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "gcs_backup_uri" {
-  description = "DEPRECATED: Use backup_uri instead. Google Cloud Storage URI of the backup to import. {{UIMeta group=0 order=1324 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "gcs_backup_format" {
-  description = "DEPRECATED: Use backup_format instead. Backup file format for GCS import. {{UIMeta group=0 order=1325 updatesafe }}"
-  type        = string
-  default     = "sql"
-
-  validation {
-    condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.gcs_backup_format)
     error_message = "Backup format must be 'sql', 'tar', 'gz', 'tgz', 'tar.gz', or 'zip'."
   }
 }
