@@ -11,7 +11,7 @@ if echo "$MYSQL_HOST" | grep -q "^/"; then
     
     # Find PHP INI file
     PHP_INI_FILE=""
-    for loc in /etc/php83/php.ini /etc/php82/php.ini /etc/php81/php.ini /etc/php8/php.ini /usr/local/etc/php/php.ini; do
+    for loc in /etc/php84/php.ini /etc/php83/php.ini /etc/php82/php.ini /etc/php81/php.ini /etc/php8/php.ini /usr/local/etc/php/php.ini; do
         if [ -f "$loc" ]; then
             PHP_INI_FILE="$loc"
             echo "Found PHP INI: $PHP_INI_FILE"
