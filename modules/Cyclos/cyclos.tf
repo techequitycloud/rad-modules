@@ -1,5 +1,5 @@
 module "cyclos_module" {
-  source      = "./modules"
+  source      = "./modules/cyclos"
 }
 
 locals {
