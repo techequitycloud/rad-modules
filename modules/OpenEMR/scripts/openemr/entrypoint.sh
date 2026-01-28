@@ -44,7 +44,7 @@ fi
 # We assume the base image uses the standard OpenEMR entrypoint script.
 # If arguments are passed, run them; otherwise run the default command.
 if [ "$#" -eq 0 ]; then
-    exec /usr/bin/tini -- /var/www/localhost/htdocs/openemr/contrib/util/docker-entrypoint.sh
+    exec /sbin/tini -- /var/www/localhost/htdocs/openemr/contrib/util/docker-entrypoint.sh
 else
     exec "$@"
 fi
