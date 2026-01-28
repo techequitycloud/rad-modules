@@ -41,32 +41,19 @@ locals {
 
   # ============================================================================
   # Backup Import Configuration
-  # Supports both unified and legacy variables with automatic fallback
   # ============================================================================
 
-  # Determine if backup import is enabled (unified or legacy)
-  backup_import_enabled = local.enable_backup_import || local.enable_gdrive_backup_import || local.enable_gcs_backup_import
+  # Determine if backup import is enabled
+  backup_import_enabled = local.enable_backup_import
 
-  # Determine backup source (unified takes precedence)
-  backup_source = local.enable_backup_import ? var.backup_source : (
-    local.enable_gdrive_backup_import ? "gdrive" : (
-      local.enable_gcs_backup_import ? "gcs" : "gcs"
-    )
-  )
+  # Determine backup source
+  backup_source = local.enable_backup_import ? var.backup_source : "gcs"
 
-  # Determine backup URI/ID (unified takes precedence)
-  backup_uri = local.enable_backup_import && var.backup_uri != "" ? var.backup_uri : (
-    local.enable_gdrive_backup_import && local.gdrive_backup_file_id != "" ? local.gdrive_backup_file_id : (
-      local.enable_gcs_backup_import && local.gcs_backup_uri != "" ? local.gcs_backup_uri : ""
-    )
-  )
+  # Determine backup URI/ID
+  backup_uri = local.enable_backup_import && var.backup_uri != "" ? var.backup_uri : ""
 
-  # Determine backup format (unified takes precedence)
-  backup_format = local.enable_backup_import && var.backup_format != "" ? var.backup_format : (
-    local.enable_gdrive_backup_import ? local.gdrive_backup_format : (
-      local.enable_gcs_backup_import ? local.gcs_backup_format : "sql"
-    )
-  )
+  # Determine backup format
+  backup_format = local.enable_backup_import && var.backup_format != "" ? var.backup_format : "sql"
 
   # Determine which specific backup jobs to run
   enable_gdrive_backup_job = local.backup_import_enabled && local.backup_source == "gdrive" && local.backup_uri != ""
