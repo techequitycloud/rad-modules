@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: moodle-postgres
+    environment:
+      POSTGRES_USER: moodle
+      POSTGRES_PASSWORD: moodle_password
+      POSTGRES_DB: moodle
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=en_US.UTF-8 --lc-ctype=en_US.UTF-8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moodle"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - moodle-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: moodle-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - moodle-network
+
+  moodle:
+    image: moodle-custom:test
+    container_name: moodle-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: "4.5.1"
+        TARGETARCH: "amd64"
+    ports:
+      - "8080:8080"
+    volumes:
+      - moodle_data:/mnt
+      - ./uploads:/mnt/filedir  # For local file uploads
+    environment:
+      # Database Configuration
+      MOODLE_DB_TYPE: "pgsql"
+      MOODLE_DB_HOST: "postgres"
+      MOODLE_DB_PORT: "5432"
+      MOODLE_DB_NAME: "moodle"
+      MOODLE_DB_USER: "moodle"
+      MOODLE_DB_PASSWORD: "moodle_password"
+      
+      # Alternative DB_ variables (for compatibility)
+      DB_HOST: "postgres"
+      DB_PORT: "5432"
+      DB_NAME: "moodle"
+      DB_USER: "moodle"
+      DB_PASSWORD: "moodle_password"
+      
+      # Site Configuration
+      APP_URL: "http://localhost:8080"
+      MOODLE_URL: "http://localhost:8080"
+      
+      # Admin Configuration
+      MOODLE_ADMIN_USER: "admin"
+      MOODLE_ADMIN_PASSWORD: "Admin123!"
+      MOODLE_ADMIN_EMAIL: "admin@example.com"
+      MOODLE_ADMIN_FULLNAME: "Moodle Administrator"
+      
+      # Site Settings
+      MOODLE_SITE_NAME: "Moodle LMS"
+      MOODLE_SITE_FULLNAME: "Moodle Learning Management System"
+      MOODLE_LANGUAGE: "en"
+      
+      # Reverse Proxy (not needed for local, but good to test)
+      MOODLE_REVERSE_PROXY: "false"
+      ENABLE_REVERSE_PROXY: "FALSE"
+      
+      # Redis Configuration
+      MOODLE_REDIS_HOST: "redis"
+      MOODLE_REDIS_PORT: "6379"
+      
+      # Cron Configuration
+      CRON_INTERVAL: "1"
+      MOODLE_CRON_PASSWORD: "cron_secret_password"
+      
+      # PHP Configuration
+      PHP_MAX_INPUT_VARS: "5000"
+      PHP_MEMORY_LIMIT: "512M"
+      PHP_POST_MAX_SIZE: "512M"
+      PHP_UPLOAD_MAX_FILESIZE: "512M"
+      
+      # Data Directory
+      MOODLE_DATA_DIR: "/mnt"
+      DATA_PATH: "/mnt"
+      
+      # Debug Mode (set to false in production)
+      MOODLE_DEBUG: "false"
+      
+      # SMTP Configuration (optional)
+      # MOODLE_SMTP_HOST: "smtp.gmail.com"
+      # MOODLE_SMTP_PORT: "587"
+      # MOODLE_SMTP_USER: "your-email@gmail.com"
+      # MOODLE_SMTP_PASSWORD: "your-app-password"
+      # MOODLE_SMTP_SECURE: "tls"
+      # MOODLE_SMTP_AUTH: "LOGIN"
+      # MOODLE_NOREPLY_ADDRESS: "noreply@example.com"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    networks:
+      - moodle-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  moodle_data:
+    driver: local
+
+networks:
+  moodle-network:
+    driver: bridge

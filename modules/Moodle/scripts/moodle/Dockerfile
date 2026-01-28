@@ -1,16 +1,13 @@
 FROM ubuntu:jammy
 
-# Retrieve the target architecture to install the correct wkhtmltopdf package
+# Retrieve the target architecture
 ARG TARGETARCH
-
-# Default to latest Moodle version compatible with PHP 8.3 (4.4+)
-ARG APP_VERSION=4.4.1
+ARG APP_VERSION=4.5.1
 
 EXPOSE 8080
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
-# 1. Install base dependencies and enable universe repository
-# We explicitly enable universe to ensure packages like xfonts-75dpi (needed for wkhtmltopdf) are available
+# 1. Install base dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -37,12 +34,12 @@ RUN apt-get update && \
         fonts-noto-cjk \
         node-less \
         npm \
-        libcurl3-dev && \
+        libcurl3-dev \
+        sudo && \
     add-apt-repository universe && \
     apt-get update
 
 # 2. Install wkhtmltopdf
-# We install fonts and dependencies implicitly via apt-get install ./deb
 RUN if [ -z "$TARGETARCH" ]; then \
         TARGETARCH="$(dpkg --print-architecture)"; \
     fi; \
@@ -57,8 +54,7 @@ RUN if [ -z "$TARGETARCH" ]; then \
     && apt-get install -y --no-install-recommends ./wkhtmltox.deb \
     && rm -rf wkhtmltox.deb
 
-# 3. Install postgresql-client with retry for GPG key
-# Keyservers can be flaky, so we try multiple and retry
+# 3. Install PostgreSQL client
 RUN echo 'deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main' > /etc/apt/sources.list.d/pgdg.list \
     && GNUPGHOME="$(mktemp -d)" \
     && export GNUPGHOME \
@@ -72,15 +68,17 @@ RUN echo 'deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main' > /etc/a
     && gpgconf --kill all \
     && rm -rf "$GNUPGHOME" \
     && apt-get update \
-    && apt-get install --no-install-recommends -y postgresql-client-16
+    && apt-get install --no-install-recommends -y postgresql-client-15
 
-# 4. Install PHP and Apache
+# 4. Install PHP 8.3 and Apache
 RUN add-apt-repository ppa:ondrej/php \
     && apt-get update \
     && apt-get -y install --no-install-recommends \
         apache2 \
-        libapache2-mod-php \
+        libapache2-mod-php8.3 \
         php8.3 \
+        php8.3-cli \
+        php8.3-common \
         php8.3-gd \
         php8.3-pgsql \
         php8.3-curl \
@@ -92,39 +90,56 @@ RUN add-apt-repository ppa:ondrej/php \
         php8.3-soap \
         php8.3-ldap \
         php8.3-redis \
-    && chown -R www-data:www-data /var/www/html
+        php8.3-opcache
 
-# Configure Apache to listen on port 8080
-RUN sed -i 's/80/8080/g' /etc/apache2/ports.conf /etc/apache2/sites-available/*.conf
+# 5. Configure Apache
+RUN sed -i 's/80/8080/g' /etc/apache2/ports.conf /etc/apache2/sites-available/*.conf && \
+    a2enmod rewrite && \
+    a2enmod headers && \
+    a2enmod ssl
 
-# Configure PHP settings
-RUN sed -i "s/.*max_input_vars.*/max_input_vars = 5000/" /etc/php/8.3/apache2/php.ini
+# 6. Configure PHP
+RUN sed -i "s/.*max_input_vars.*/max_input_vars = 5000/" /etc/php/8.3/apache2/php.ini && \
+    sed -i "s/.*memory_limit.*/memory_limit = 512M/" /etc/php/8.3/apache2/php.ini && \
+    sed -i "s/.*post_max_size.*/post_max_size = 512M/" /etc/php/8.3/apache2/php.ini && \
+    sed -i "s/.*upload_max_filesize.*/upload_max_filesize = 512M/" /etc/php/8.3/apache2/php.ini && \
+    sed -i "s/.*max_execution_time.*/max_execution_time = 300/" /etc/php/8.3/apache2/php.ini
 
-# 5. Download and install Moodle
-ADD https://github.com/moodle/moodle/archive/refs/tags/v${APP_VERSION}.tar.gz /tmp/
-RUN tar -xzvf /tmp/v${APP_VERSION}.tar.gz -C /var/www/html/ --strip-components=1 \
-    && rm /tmp/v${APP_VERSION}.tar.gz \
+# 7. Download and install Moodle
+RUN curl -fSL "https://github.com/moodle/moodle/archive/refs/tags/v${APP_VERSION}.tar.gz" -o /tmp/moodle.tar.gz \
+    && tar -xzf /tmp/moodle.tar.gz -C /var/www/html/ --strip-components=1 \
+    && rm /tmp/moodle.tar.gz \
     && rm -f /var/www/html/index.html \
     && chown -R www-data:www-data /var/www/html
 
-# 6. Copy scripts and config
-COPY cloudrun-entrypoint.sh /
-RUN chmod +x /cloudrun-entrypoint.sh
+# 8. Create necessary directories
+RUN mkdir -p /var/run/apache2 /var/log/apache2 && \
+    chown -R www-data:www-data /var/run/apache2 /var/log/apache2
 
+# 9. Copy configuration files
 COPY moodle-config.php /var/www/html/config.php
-
 COPY foreground.sh /etc/apache2/foreground.sh
-RUN chmod +x /etc/apache2/foreground.sh
+COPY cloudrun-entrypoint.sh /cloudrun-entrypoint.sh
 
-# Ensure Apache runtime directory exists
-RUN mkdir -p /var/run/apache2 && chown -R www-data:www-data /var/run/apache2
+# 10. Set permissions
+RUN chmod +x /etc/apache2/foreground.sh /cloudrun-entrypoint.sh && \
+    chown www-data:www-data /var/www/html/config.php
 
-# 7. Clean up
-RUN apt-get clean autoclean && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/lib/dpkg/* /var/lib/cache/* /var/lib/log/*
+# 11. Clean up
+RUN apt-get clean autoclean && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Ensure log directory exists and has correct permissions
-RUN mkdir -p /var/log/apache2 && chown -R www-data:www-data /var/log/apache2
+# Set working directory
+WORKDIR /var/www/html
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+  CMD curl -f http://localhost:8080/ || exit 1
+
+# Switch to www-data user
 USER www-data
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/cloudrun-entrypoint.sh", "/etc/apache2/foreground.sh"]
+# Use tini as init system
+ENTRYPOINT ["/usr/bin/tini", "--", "/cloudrun-entrypoint.sh"]
+CMD ["/etc/apache2/foreground.sh"]
