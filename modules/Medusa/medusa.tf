@@ -9,7 +9,11 @@ locals {
 }
 
 locals {
-  medusa_env_vars = var.application_module == "medusa" ? {
+  application_modules = {
+    medusa = module.medusa_module.medusa_module
+  }
+
+  module_env_vars = var.application_module == "medusa" ? {
     DB_HOST                   = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
     DB_PORT                   = "5432"
     DB_NAME                   = local.database_name_full
@@ -18,13 +22,13 @@ locals {
     MEDUSA_FILE_GOOGLE_BUCKET = try(local.storage_buckets["medusa-uploads"].name, "")
   } : {}
 
-  medusa_secret_env_vars = var.application_module == "medusa" ? {
+  module_secret_env_vars = var.application_module == "medusa" ? {
     DB_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
     JWT_SECRET    = try(google_secret_manager_secret.medusa_jwt_secret[0].secret_id, "")
     COOKIE_SECRET = try(google_secret_manager_secret.medusa_cookie_secret[0].secret_id, "")
   } : {}
 
-  medusa_storage_buckets = var.application_module == "medusa" ? [
+  module_storage_buckets = var.application_module == "medusa" ? [
     {
       name_suffix              = "medusa-uploads"
       location                 = var.deployment_region

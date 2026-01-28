@@ -9,7 +9,12 @@ locals {
 }
 
 locals {
-  ghost_env_vars = var.application_module == "ghost" ? {
+  # Aggregate all modules into a single map for easy lookup
+  application_modules = {
+    ghost = module.ghost_module
+  }
+
+  module_env_vars = var.application_module == "ghost" ? {
     url                            = local.predicted_service_url
     database__connection__host     = local.db_internal_ip
     database__connection__user     = local.database_user_full
@@ -18,11 +23,11 @@ locals {
     database__connection__socketPath = ""
   } : {}
 
-  ghost_secret_env_vars = var.application_module == "ghost" ? {
+  module_secret_env_vars = var.application_module == "ghost" ? {
     database__connection__password = try(google_secret_manager_secret.db_password[0].secret_id, "")
   } : {}
 
-  ghost_storage_buckets = var.application_module == "ghost" ? [
+  module_storage_buckets = var.application_module == "ghost" ? [
     {
       name_suffix              = "ghost-content"
       location                 = var.deployment_region

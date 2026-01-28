@@ -197,15 +197,13 @@ variable "deployment_region" {
 # ===========================
 
 variable "application_module" {
-  description = "Select a pre-configured application module for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=0 order=299 OPTIONS=odoo,wordpress,moodle,cyclos,django,openemr,n8n,payload,ghost,strapi,wikijs,directus updatesafe }}"
+  description = "Select a pre-configured application module for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=0 order=299 OPTIONS=odoo updatesafe }}"
   type        = string
   default     = "odoo"
 
   validation {
-    condition = var.application_module == null || var.application_module == "" || contains([
-      "odoo", "wordpress", "moodle", "cyclos", "django", "openemr", "n8n", "ghost", "wikijs", "directus", "strapi", "medusa", "sample"
-    ], var.application_module)
-    error_message = "Application module must be one of: odoo, wordpress, moodle, cyclos, django, openemr, n8n, ghost, wikijs, directus, strapi, medusa, sample, or leave empty for manual configuration."
+    condition     = var.application_module == "odoo"
+    error_message = "Application module must be: odoo."
   }
 }
 

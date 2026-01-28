@@ -9,6 +9,10 @@ locals {
 }
 
 locals {
+  application_modules = {
+    strapi = module.strapi_module.strapi_module
+  }
+
   strapi_env_vars = var.application_module == "strapi" ? {
     DATABASE_HOST     = local.db_internal_ip
     DATABASE_PORT     = "5432"
@@ -38,6 +42,11 @@ locals {
       public_access_prevention = "inherited"
     }
   ] : []
+
+  # Generic mappings
+  module_env_vars        = local.strapi_env_vars
+  module_secret_env_vars = local.strapi_secret_env_vars
+  module_storage_buckets = local.strapi_storage_buckets
 }
 
 # ==============================================================================

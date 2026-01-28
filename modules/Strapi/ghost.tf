@@ -1,1 +1,0 @@
-../CloudRunApp/ghost.tf

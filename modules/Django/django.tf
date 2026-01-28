@@ -9,16 +9,20 @@ locals {
 }
 
 locals {
-  django_env_vars = var.application_module == "django" ? {
+  application_modules = {
+    django = module.django_module.django_module
+  }
+
+  module_env_vars = var.application_module == "django" ? {
     CLOUDRUN_SERVICE_URLS = local.predicted_service_url
   } : {}
 
-  django_secret_env_vars = var.application_module == "django" ? {
+  module_secret_env_vars = var.application_module == "django" ? {
     DJANGO_SUPERUSER_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
     SECRET_KEY                = try(google_secret_manager_secret.django_secret_key[0].secret_id, "")
   } : {}
 
-  django_storage_buckets = var.application_module == "django" ? [
+  module_storage_buckets = var.application_module == "django" ? [
     {
       name_suffix              = "django-media"
       location                 = var.deployment_region
