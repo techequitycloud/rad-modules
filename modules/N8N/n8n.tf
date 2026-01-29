@@ -4,14 +4,14 @@ locals {
     display_name    = "N8N Workflow Automation"
     description     = "n8n Workflow Automation - Workflow automation platform"
     container_image = "n8nio/n8n"
-    application_version = "2.4.6"
+    application_version = var.application_version
 
-    image_source    = "build"
+    image_source    = "prebuilt"
     enable_image_mirroring = true
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "n8n"
+      context_path       = "."
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null

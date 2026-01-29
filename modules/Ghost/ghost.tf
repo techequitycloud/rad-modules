@@ -2,12 +2,12 @@ locals {
   ghost_module = {
     app_name            = "ghost"
     description         = "Ghost - Professional publishing platform"
-    container_image     = "ghost:6.10.3-alpine"  # ✅ Updated to 6.10.3
-    application_version = "6.10.3"
+    container_image     = "ghost" 
+    application_version = var.application_version
     enable_image_mirroring = true
 
     # ✅ Use official image (recommended)
-    image_source = "prebuilt"
+    image_source = "build"
 
     # Custom build configuration (only if you need URL auto-detection)
     container_build_config = {
@@ -35,9 +35,6 @@ locals {
       read_only  = false
       mount_options = [
         "implicit-dirs",
-        "metadata-cache-ttl-secs=60",
-        "stat-cache-ttl-secs=60",
-        "type-cache-ttl-secs=60",
         "uid=1000",      # Ghost user
         "gid=1000",      # Ghost group
         "dir-mode=755",
