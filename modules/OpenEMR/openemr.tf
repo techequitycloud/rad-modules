@@ -198,8 +198,12 @@ locals {
                 echo "✓ Created default site directory"
               fi
 
-              # Create sqlconf.php if it doesn't exist
+              # Create sqlconf.php if it doesn't exist or is corrupted
               SQLCONF_FILE="$${APP_DIR}/default/sqlconf.php"
+              if [ -f "$${SQLCONF_FILE}" ] && grep -q '\\$$' "$${SQLCONF_FILE}" 2>/dev/null; then
+                echo "⚠ Existing sqlconf.php is corrupted, removing..."
+                rm -f "$${SQLCONF_FILE}"
+              fi
               if [ ! -f "$${SQLCONF_FILE}" ]; then
 
                 # Check if DB_HOST is a socket path
