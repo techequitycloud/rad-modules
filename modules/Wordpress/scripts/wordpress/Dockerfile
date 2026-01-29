@@ -7,7 +7,6 @@
 FROM php:8.4-apache
 
 ARG APP_VERSION
-ARG APP_SHA
 
 # persistent dependencies
 RUN set -eux; \
@@ -127,10 +126,8 @@ RUN set -eux; \
 
 RUN set -eux; \
 	version="${APP_VERSION}"; \
-	sha1="${APP_SHA}"; \
 	\
 	curl -o wordpress.tar.gz -fL "https://wordpress.org/wordpress-$version.tar.gz"; \
-	echo "$sha1 *wordpress.tar.gz" | sha1sum -c -; \
 	\
 # upstream tarballs include ./wordpress/ so this gives us /usr/src/wordpress
 	tar -xzf wordpress.tar.gz -C /usr/src/; \
