@@ -281,7 +281,7 @@ locals {
 
   cicd_trigger_config        = var.cicd_trigger_config
 
-  enable_backup_import       = var.enable_backup_import
+  enable_backup_import       = coalesce(var.enable_backup_import, false)
 
   enable_postgres_extensions  = local.final_enable_postgres_extensions
   postgres_extensions         = local.final_postgres_extensions
