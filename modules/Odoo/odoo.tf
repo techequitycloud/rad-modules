@@ -4,10 +4,10 @@ locals {
     app_version     = var.application_version
     display_name    = "Odoo Community Edition"
     description     = "Odoo ERP System - CRM, e-commerce, billing, accounting, manufacturing, warehouse, project management"
-    container_image = "odoo:latest"
+    container_image = "odoo"
 
     # image_source    = "build"
-    image_source    = "custom"
+    image_source    = "prebuilt"
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
