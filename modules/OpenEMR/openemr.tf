@@ -1,10 +1,11 @@
 locals {
   openemr_module = {
-    app_name        = "openemr"
-    app_version     = var.application_version
-    display_name    = "OpenEMR"
-    description     = "This module can be used to deploy OpenEMR"
-    container_image = "openemr"
+    app_name                = "openemr"
+    application_version     = var.application_version
+    display_name            = "OpenEMR"
+    description             = "This module can be used to deploy OpenEMR"
+    container_image         = "openemr/openemr"
+    enable_image_mirroring  = true
 
     image_source    = "build"
     container_build_config = {

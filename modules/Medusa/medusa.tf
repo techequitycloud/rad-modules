@@ -1,9 +1,9 @@
 locals {
   medusa_module = {
-    app_name        = "medusa"
-    app_version     = var.application_version
-    display_name    = "Medusa Ecommerce"
-    description     = "Medusa - Building blocks for digital commerce"
+    app_name            = "medusa"
+    application_version = var.application_version
+    display_name        = "Medusa Ecommerce"
+    description         = "Medusa - Building blocks for digital commerce"
 
     # Medusa requires a custom built image with the storefront/backend code.
     # We provide a placeholder, but users should override this.

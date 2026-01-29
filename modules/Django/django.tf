@@ -1,9 +1,9 @@
 locals {
   django_module = {
-    app_name        = "django"
-    description     = "Django Web Application - High-level Python web framework"
-    container_image = "python:3.11-slim" # Placeholder, image built via custom build
-    app_version     = "6.0.1"
+    app_name            = "django"
+    description         = "Django Web Application - High-level Python web framework"
+    container_image     = "python" # Placeholder, image built via custom build
+    application_version = var.application_version
 
     # image_source    = "prebuilt"
     image_source    = "build"

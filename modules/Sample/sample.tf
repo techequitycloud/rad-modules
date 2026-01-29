@@ -1,11 +1,11 @@
 locals {
   sample_module = {
-    app_name        = "sample-app"
-    display_name    = "Sample Application"
-    description     = "Sample Custom Application - Flask App with Database Connection"
-    container_image = "" # Empty for custom build to avoid double tagging
-    app_version     = "v1.0.0"
-    image_source    = "build"
+    app_name            = "sample-app"
+    display_name        = "Sample Application"
+    description         = "Sample Custom Application - Flask App with Database Connection"
+    container_image     = "sample" # Empty for custom build to avoid double tagging
+    application_version = "1.0.0"
+    image_source        = "custom"
 
     # Custom build configuration
     container_build_config = {

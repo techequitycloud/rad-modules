@@ -1,10 +1,10 @@
 locals {
   cyclos_module = {
-    app_name        = "cyclos"
-    app_version     = var.application_version
-    display_name    = "Cyclos Community Edition"
-    description     = "Cyclos Banking System on Cloud Run"
-    container_image = "cyclos/cyclos"
+    app_name            = "cyclos"
+    application_version = var.application_version
+    display_name        = "Cyclos Community Edition"
+    description         = "Cyclos Banking System on Cloud Run"
+    container_image     = "cyclos/cyclos"
 
     # image_source    = "build"
     image_source    = "prebuilt"

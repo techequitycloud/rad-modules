@@ -1,10 +1,11 @@
 locals {
   odoo_module = {
-    app_name        = "odoo"
-    app_version     = var.application_version
-    display_name    = "Odoo Community Edition"
-    description     = "Odoo ERP System - CRM, e-commerce, billing, accounting, manufacturing, warehouse, project management"
-    container_image = "odoo"
+    app_name                = "odoo"
+    application_version     = var.application_version
+    display_name            = "Odoo Community Edition"
+    description             = "Odoo ERP System - CRM, e-commerce, billing, accounting, manufacturing, warehouse, project management"
+    container_image         = "odoo"
+    enable_image_mirroring  = true
 
     # image_source    = "build"
     image_source    = "prebuilt"

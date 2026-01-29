@@ -1,9 +1,9 @@
 locals {
   n8n_module = {
-    app_name        = "n8n"
-    display_name    = "N8N Workflow Automation"
-    description     = "n8n Workflow Automation - Workflow automation platform"
-    container_image = "n8nio/n8n"
+    app_name            = "n8n"
+    display_name        = "N8N Workflow Automation"
+    description         = "n8n Workflow Automation - Workflow automation platform"
+    container_image     = "n8nio/n8n"
     application_version = var.application_version
 
     image_source    = "prebuilt"
