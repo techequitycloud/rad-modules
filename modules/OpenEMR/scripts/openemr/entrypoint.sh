@@ -129,6 +129,63 @@ SQLEOF
     echo ""
 fi
 
+# Create config.php if it doesn't exist
+CONFIGPHP="/var/www/localhost/htdocs/openemr/sites/default/config.php"
+if [ ! -f "$CONFIGPHP" ]; then
+    echo "ℹ config.php not found. Creating default configuration..."
+    mkdir -p "$(dirname "$CONFIGPHP")"
+    cat > "$CONFIGPHP" <<'CONFIGEOF'
+<?php
+
+use OpenEMR\Common\Crypto\CryptoGen;
+
+if (empty($GLOBALS['ongoing_sql_upgrade'])) {
+    $cryptoGen = new CryptoGen();
+    $GLOBALS['more_secure']['print_command'] = 'lpr -P HPLaserjet6P -o cpi=10 -o lpi=6 -o page-left=72 -o page-top=72';
+    $GLOBALS['more_secure']['hylafax_enscript'] = 'enscript -M Letter -B -e^ --margins=36:36:36:36';
+    foreach ($GLOBALS['more_secure'] as $key => $value) {
+        $GLOBALS['more_secure'][$key] = $cryptoGen->encryptStandard($value);
+    }
+}
+
+$GLOBALS['oer_config']['ofx']['bankid']     = "123456789";
+$GLOBALS['oer_config']['ofx']['acctid']     = "123456789";
+$GLOBALS['oer_config']['prescriptions']['format'] = "";
+$GLOBALS['oer_config']['documents']['repopath'] = $GLOBALS['OE_SITE_DIR'] . "/documents/";
+$GLOBALS['oer_config']['documents']['file_command_path'] = "/usr/bin/file";
+$GLOBALS['oer_config']['prescriptions']['logo_pic'] = "Rx.png";
+$GLOBALS['oer_config']['prescriptions']['sig_pic'] = "sig.png";
+$GLOBALS['oer_config']['prescriptions']['use_signature'] = false;
+$GLOBALS['oer_config']['prescriptions']['shading'] = false;
+$GLOBALS['oer_config']['prescriptions']['sendfax'] = '';
+$GLOBALS['oer_config']['prescriptions']['prefix'] = '';
+$GLOBALS['oer_config']['druglabels']['paper_size'] = [0, 0, 216, 216];
+$GLOBALS['oer_config']['druglabels']['left']   = 18;
+$GLOBALS['oer_config']['druglabels']['right']  = 18;
+$GLOBALS['oer_config']['druglabels']['top']    = 18;
+$GLOBALS['oer_config']['druglabels']['bottom'] = 18;
+$GLOBALS['oer_config']['druglabels']['logo_pic'] = 'druglogo.png';
+$GLOBALS['oer_config']['druglabels']['disclaimer'] =
+  'Caution: Federal law prohibits dispensing without a prescription. ' .
+  'Use only as directed.';
+
+$GLOBALS['oer_config']['prescriptions']['logo'] = __DIR__ .
+  "/../../interface/pic/" . $GLOBALS['oer_config']['prescriptions']['logo_pic'];
+$GLOBALS['oer_config']['prescriptions']['signature'] = __DIR__ .
+  "/../../interface/pic/" . $GLOBALS['oer_config']['prescriptions']['sig_pic'];
+
+$GLOBALS['oer_config']['druglabels']['logo'] = __DIR__ .
+  "/../../interface/pic/" . $GLOBALS['oer_config']['druglabels']['logo_pic'];
+
+$GLOBALS['oer_config']['documents']['repository'] = $GLOBALS['oer_config']['documents']['repopath'];
+CONFIGEOF
+
+    chown 1000:1000 "$CONFIGPHP"
+    chmod 600 "$CONFIGPHP"
+    echo "✓ Created config.php"
+    echo ""
+fi
+
 echo "================================================"
 echo "Starting OpenEMR Application..."
 echo "================================================"
