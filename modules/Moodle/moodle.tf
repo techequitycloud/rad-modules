@@ -13,13 +13,13 @@ locals {
     enable_image_mirroring  = true
 
     # ✅ Use custom build
-    image_source    = "build"          # Changed from "custom" to "build"
+    image_source    = "custom"          # Changed from "custom" to "build"
 
     # ✅ Custom build configuration
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "."
+      context_path       = "moodle"
       dockerfile_content = null
       build_args = {
         APP_VERSION = var.application_version
@@ -398,6 +398,18 @@ resource "google_secret_manager_secret" "moodle_smtp_password" {
     auto {}
   }
   project = var.existing_project_id
+}
+
+resource "random_password" "moodle_smtp_password" {
+  count   = 1
+  length  = 24
+  special = false
+}
+
+resource "google_secret_manager_secret_version" "moodle_smtp_password" {
+  count       = 1
+  secret      = google_secret_manager_secret.moodle_smtp_password[0].id
+  secret_data = random_password.moodle_smtp_password[0].result
 }
 
 resource "google_cloud_scheduler_job" "moodle_cron_job" {
