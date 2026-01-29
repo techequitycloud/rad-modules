@@ -200,7 +200,7 @@ locals {
 
               # Create sqlconf.php if it doesn't exist or is corrupted
               SQLCONF_FILE="$${APP_DIR}/default/sqlconf.php"
-              if [ -f "$${SQLCONF_FILE}" ] && grep -q '\\$$' "$${SQLCONF_FILE}" 2>/dev/null; then
+              if [ -f "$${SQLCONF_FILE}" ] && ! grep -q '$$host' "$${SQLCONF_FILE}" 2>/dev/null; then
                 echo "⚠ Existing sqlconf.php is corrupted, removing..."
                 rm -f "$${SQLCONF_FILE}"
               fi

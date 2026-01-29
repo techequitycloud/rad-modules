@@ -77,9 +77,9 @@ fi
 # Check if sqlconf.php exists and needs updating
 SQLCONF="/var/www/localhost/htdocs/openemr/sites/default/sqlconf.php"
 if [ -f "$SQLCONF" ]; then
-    # Check for corruption: literal \$ in file indicates bad escaping from prior deploy
-    if grep -q '\\$' "$SQLCONF" 2>/dev/null; then
-        echo "⚠ Existing sqlconf.php is corrupted (contains backslash-dollar), recreating..."
+    # Check for corruption: missing $host variable indicates broken sqlconf.php from prior deploy
+    if ! grep -q '$host' "$SQLCONF" 2>/dev/null; then
+        echo "⚠ Existing sqlconf.php is corrupted, recreating..."
         rm -f "$SQLCONF"
     fi
 fi
