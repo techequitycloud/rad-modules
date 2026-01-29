@@ -18,15 +18,18 @@
 
 locals {
   #########################################################################
-  # Preset Selection Logic (Dynamic)
+  # Preset Selection Logic
   #########################################################################
 
-  # Dynamically select the first available module from the map
-  # This supports generic wrapper modules (e.g., Cyclos, N8N)
-  using_module    = length(keys(local.application_modules)) > 0
-  _module_key     = local.using_module ? keys(local.application_modules)[0] : "default"
-  selected_module = local.using_module ? local.application_modules[local._module_key] : null
-  module_exists   = local.using_module
+  # Always use the defined module preset
+  using_module    = true
+
+  # Dynamic selection: Get the first available module from the map
+  # This allows the file to be shared across wrappers (Cyclos, Strapi, etc.)
+  # without hardcoding the module name.
+  module_name     = keys(local.application_modules)[0]
+  selected_module = local.application_modules[local.module_name]
+  module_exists   = true
 
   #########################################################################
   # Smart Defaults - Extract preset values
@@ -36,10 +39,10 @@ locals {
   module_container_image        = local.selected_module.container_image
   module_container_port         = local.selected_module.container_port
   module_container_image_source = try(local.selected_module.image_source, "prebuilt")
-  module_application_name       = try(local.selected_module.app_name, "cyclos")
+  module_application_name       = try(local.selected_module.app_name, "cloudrunapp")
   module_application_version    = try(local.selected_module.application_version, try(local.selected_module.app_version, null))
   module_application_description = try(local.selected_module.description, try(local.selected_module.application_description, ""))
-  module_application_display_name = try(local.selected_module.display_name, "Cyclos Community Edition")
+  module_application_display_name = try(local.selected_module.display_name, "Cloud Run Application")
 
   # Container command and args
   module_container_command = try(local.selected_module.container_command, null)
@@ -53,8 +56,8 @@ locals {
 
   # Database configuration
   module_database_type             = local.selected_module.database_type
-  module_application_database_name = try(local.selected_module.db_name, "cyclos")
-  module_application_database_user = try(local.selected_module.db_user, "cyclos")
+  module_application_database_name = try(local.selected_module.db_name, "cloudrunapp_db")
+  module_application_database_user = try(local.selected_module.db_user, "cloudrunapp_user")
 
   # Cloud SQL volume configuration
   module_enable_cloudsql_volume     = try(local.selected_module.enable_cloudsql_volume, false)

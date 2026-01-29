@@ -26,7 +26,7 @@ resource "random_id" "deployment" {
   byte_length = 4
 }
 
-# Generate wrapper-specific random ID for wrapper resources to avoid cycles
+# Generate wrapper-specific random ID for wrapper resources (like N8N SA) to avoid cycles
 resource "random_id" "wrapper_deployment" {
   byte_length = 4
 }
@@ -97,6 +97,11 @@ locals {
     "/var/run/postgresql" :
     "/var/run/mysqld"
   )
+
+  # ✅ Calculate predictable Cloud Run URL for Moodle
+  # Format: https://<SERVICE_NAME>-<PROJECT_NUMBER>.<REGION>.run.app
+  # This is deterministic and can be calculated before deployment
+  predicted_service_url = "https://${local.service_name}-${local.project.project_number}.${local.region}.run.app"
 
   # Resource naming
   resource_prefix = "app${local.application_name}${local.tenant_id}${local.random_id}"
@@ -197,7 +202,7 @@ locals {
   storage_buckets = local.create_cloud_storage ? {
     for bucket in local.all_storage_buckets :
     bucket.name_suffix => {
-      name                        = "${local.resource_prefix}-${bucket.name_suffix}"
+      name                        = try(bucket.name, "${local.resource_prefix}-${bucket.name_suffix}")
       location                    = bucket.location
       storage_class               = bucket.storage_class
       force_destroy               = bucket.force_destroy
@@ -214,7 +219,9 @@ locals {
     for idx, vol in local.final_gcs_volumes :
     vol.name => {
       name          = vol.name
-      bucket_name   = (vol.bucket_name != null && vol.bucket_name != "") ? vol.bucket_name : try(local.storage_buckets[vol.name].name, null)
+      bucket_name   = (vol.bucket_name != null && vol.bucket_name != "") ? vol.bucket_name : (
+        try(local.storage_buckets[vol.name].name, null)
+      )
       mount_path    = vol.mount_path
       readonly      = vol.readonly
       mount_options = vol.mount_options
@@ -224,7 +231,6 @@ locals {
   # Dynamic Environment Variables for Modules (these depend on resources generated in this main.tf)
   preset_env_vars = merge(
     local.module_env_vars,
-    local.module_secret_env_vars,
   )
 
   # Environment variables (combined static and secret-based)
@@ -256,6 +262,7 @@ locals {
   )
 
   # Service accounts
+  # Inject N8N SA if active
   cloudrun_sa_input = var.cloudrun_service_account
   cloudrun_service_account   = local.cloudrun_sa_input != null && local.cloudrun_sa_input != "" ? local.cloudrun_sa_input : "cloudrun-sa"
 
