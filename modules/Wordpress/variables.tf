@@ -179,6 +179,7 @@ variable "existing_project_id" {
 variable "tenant_deployment_id" {
   description = "Specify a unique tenant or deployment identifier. This uniquely identifies your application deployment and is used in resource naming (1-20 lowercase alphanumeric characters and hyphens). {{UIMeta group=2 order=201 updatesafe }}"
   type        = string
+  default     = "demo"
 
   validation {
     condition     = can(regex("^[a-z0-9-]{1,20}$", var.tenant_deployment_id))
@@ -196,193 +197,15 @@ variable "deployment_region" {
 # GROUP 3: Application Configuration
 # ===========================
 
-variable "application_module" {
-  description = "Select a pre-configured application module for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=3 order=299 OPTIONS=odoo,wordpress,moodle,cyclos,django,openemr,n8n,payload,ghost,strapi,wikijs,directus updatesafe }}"
-  type        = string
-  default     = "wordpress"
-
-  validation {
-    condition = var.application_module == null || var.application_module == "" || contains([
-      "wordpress"
-    ], var.application_module)
-    error_message = "Application module must be one of: wordpress, or leave empty for manual configuration."
-  }
-}
-
-variable "application_name" {
-  description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=0 order=300 updatesafe }}"
-  type        = string
-  default     = "wordpress"
-
-  validation {
-    condition     = var.application_name == null || can(regex("^[a-z][a-z0-9-]{0,19}$", var.application_name))
-    error_message = "Application name must start with a letter, be 1-20 characters, and contain only lowercase letters, numbers, and hyphens."
-  }
-}
-
-variable "application_display_name" {
-  description = "Human-readable application name for display purposes. {{UIMeta group=0 order=301 updatesafe }}"
-  type        = string
-  default     = "Wordpress CMS"
-}
-
 variable "application_version" {
   description = "Application version tag (e.g., 1.0.0, latest). {{UIMeta group=0 order=302 updatesafe }}"
   type        = string
   default     = "6.8.1"
 }
 
-variable "application_description" {
-  description = "Brief description of your application. {{UIMeta group=0 order=303 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "application_database_name" {
-  description = "Application database name. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-63 characters). The actual database name includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=304 updatesafe }}"
-  type        = string
-  default     = "wordpress"
-
-  validation {
-    condition     = var.application_database_name == null || can(regex("^[a-z][a-z0-9_]{0,62}$", var.application_database_name))
-    error_message = "Database name must start with a letter, be 1-63 characters, and contain only lowercase letters, numbers, and underscores."
-  }
-}
-
-variable "application_database_user" {
-  description = "Application database user. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-32 characters). The actual database user includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=305 updatesafe }}"
-  type        = string
-  default     = "wordpress"
-
-  validation {
-    condition     = var.application_database_user == null || can(regex("^[a-z][a-z0-9_]{0,31}$", var.application_database_user))
-    error_message = "Database user must start with a letter, be 1-32 characters, and contain only lowercase letters, numbers, and underscores."
-  }
-}
-
-# ===========================
-# GROUP 4: Container Configuration
-# ===========================
-
-variable "container_image_source" {
-  description = "Container image source: 'prebuilt' (use existing image from registry) or 'custom' (build from Dockerfile). {{UIMeta group=0 order=400 updatesafe }}"
-  type        = string
-  default     = "custom"
-
-  validation {
-    condition     = var.container_image_source == null || contains(["prebuilt", "custom"], coalesce(var.container_image_source, "prebuilt"))
-    error_message = "Container image source must be 'prebuilt' or 'custom'."
-  }
-}
-
-variable "container_image" {
-  description = "Pre-built container image (e.g., 'nginx:latest', 'gcr.io/project/app:v1'). Required when container_image_source='prebuilt' unless using an application_module. {{UIMeta group=0 order=401 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "container_port" {
-  description = "Container port to expose (1-65535). {{UIMeta group=0 order=402 updatesafe }}"
-  type        = number
-  default     = 80
-
-  validation {
-    condition     = var.container_port == null || (coalesce(var.container_port, 8080) > 0 && coalesce(var.container_port, 8080) <= 65535)
-    error_message = "Container port must be between 1 and 65535."
-  }
-}
-
-variable "enable_image_mirroring" {
-  description = "Enable container image mirroring to Artifact Registry. When enabled, the image is pulled from the source and pushed to the project's Artifact Registry. Required for some applications to ensure stability and availability. {{UIMeta group=0 order=402 updatesafe }}"
-  type        = bool
-  default     = null
-}
-
-variable "container_protocol" {
-  description = "Container protocol: 'http1' or 'h2c' (HTTP/2 Cleartext). {{UIMeta group=0 order=403 updatesafe }}"
-  type        = string
-  default     = "http1"
-
-  validation {
-    condition     = contains(["http1", "h2c"], var.container_protocol)
-    error_message = "Container protocol must be 'http1' or 'h2c'."
-  }
-}
-
-variable "container_build_config" {
-  description = "Custom container build configuration. Required when container_image_source='custom'. Provide Dockerfile path or content, build context, and optional build arguments. {{UIMeta group=0 order=404 updatesafe }}"
-  type = object({
-    enabled            = bool
-    dockerfile_path    = optional(string, "Dockerfile")
-    dockerfile_content = optional(string, null)
-    context_path       = optional(string, ".")
-    build_args         = optional(map(string), {})
-    artifact_repo_name = optional(string, null)
-  })
-  default = {
-    enabled            = true
-    dockerfile_path    = "Dockerfile"
-    context_path       = "wordpress"
-    dockerfile_content = null
-    build_args         = {}
-    artifact_repo_name = null
-  }
-}
-
-variable "github_repository_url" {
-  description = "GitHub repository URL for automated CI/CD (e.g., 'https://github.com/username/repo'). Required when using Cloud Build triggers for automated deployments. {{UIMeta group=0 order=405 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "github_token_secret_name" {
-  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. To generate: https://github.com/settings/tokens -> Generate new token (classic). Scopes: repo, admin:repo_hook, workflow, read:org. {{UIMeta group=0 order=406 updatesafe }}"
-  type        = string
-  default     = "github-token"
-}
-
-variable "github_app_installation_id" {
-  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. To find ID: https://github.com/settings/installations -> Configure. ID is at the end of the URL. {{UIMeta group=0 order=407 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "enable_cicd_trigger" {
-  description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=0 order=408 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "cicd_trigger_config" {
-  description = "Cloud Build trigger configuration for automated CI/CD pipeline. Configure branch patterns, included/ignored files, and build settings. {{UIMeta group=0 order=409 updatesafe }}"
-  type = object({
-    branch_pattern     = optional(string, "^main$")
-    included_files     = optional(list(string), [])
-    ignored_files      = optional(list(string), [])
-    trigger_name       = optional(string, null)
-    description        = optional(string, "Automated build and deployment trigger")
-    substitutions      = optional(map(string), {})
-  })
-  default = {
-    branch_pattern = "^main$"
-    description    = "Automated build and deployment trigger"
-  }
-}
-
 # ===========================
 # GROUP 5: Database Configuration
 # ===========================
-
-variable "database_type" {
-  description = "Database type: MYSQL, POSTGRES, SQLSERVER (or specific versions like MYSQL_8_0, POSTGRES_15). {{UIMeta group=0 order=500 updatesafe }}"
-  type        = string
-  default     = "MYSQL_8_0"
-
-  validation {
-    condition     = var.database_type == null || contains(["MYSQL", "POSTGRES", "POSTGRESQL", "SQLSERVER", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE", "NONE"], coalesce(var.database_type, "POSTGRES"))
-    error_message = "Database type must be a valid Cloud SQL database version or NONE."
-  }
-}
 
 variable "database_password_length" {
   description = "Length of auto-generated database password (8-64 characters). {{UIMeta group=0 order=501 updatesafe }}"
@@ -399,20 +222,6 @@ variable "database_password_length" {
 # GROUP 6: Resources & Scaling Configuration
 # ===========================
 
-variable "container_resources" {
-  description = "Container resource limits. Specify CPU (e.g., '1000m' for 1 CPU) and memory (e.g., '512Mi', '2Gi'). {{UIMeta group=0 order=600 updatesafe }}"
-  type = object({
-    cpu_limit    = string
-    memory_limit = string
-    cpu_request  = optional(string, null)
-    mem_request  = optional(string, null)
-  })
-  default = {
-    cpu_limit    = "1000m"
-    memory_limit = "2Gi"
-  }
-}
-
 variable "timeout_seconds" {
   description = "Request timeout in seconds (0-3600). Maximum time a request can take. {{UIMeta group=0 order=602 updatesafe }}"
   type        = number
@@ -421,28 +230,6 @@ variable "timeout_seconds" {
   validation {
     condition     = var.timeout_seconds >= 0 && var.timeout_seconds <= 3600
     error_message = "Timeout must be between 0 and 3600 seconds."
-  }
-}
-
-variable "min_instance_count" {
-  description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=0 order=603 updatesafe }}"
-  type        = number
-  default     = 0
-
-  validation {
-    condition     = var.min_instance_count == null || (coalesce(var.min_instance_count, 0) >= 0 && coalesce(var.min_instance_count, 0) <= 1000)
-    error_message = "Minimum instance count must be between 0 and 1000."
-  }
-}
-
-variable "max_instance_count" {
-  description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=0 order=604 updatesafe }}"
-  type        = number
-  default     = 3
-
-  validation {
-    condition     = var.max_instance_count == null || (coalesce(var.max_instance_count, 1) >= 1 && coalesce(var.max_instance_count, 1) <= 1000)
-    error_message = "Maximum instance count must be between 1 and 1000."
   }
 }
 
@@ -473,13 +260,13 @@ variable "storage_buckets" {
 variable "nfs_enabled" {
   description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=0 order=701 updatesafe }}"
   type        = bool
-  default     = null
+  default     = false
 }
 
 variable "nfs_mount_path" {
   description = "NFS mount path in container (e.g., '/mnt', '/data'). {{UIMeta group=0 order=702 updatesafe }}"
   type        = string
-  default     = null
+  default     = "/mnt"
 }
 
 variable "gcs_volumes" {
@@ -495,24 +282,7 @@ variable "gcs_volumes" {
       "type-cache-ttl=60s"
     ])
   }))
-  default = [{
-    name          = "wp-uploads"
-    mount_path    = "/var/www/html/wp-content"
-    readonly      = false
-    mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
-  }]
-}
-
-variable "enable_cloudsql_volume" {
-  description = "Enable Cloud SQL instance volume for Unix socket connections. When enabled, the Cloud SQL instance will be mounted as a volume, allowing connections via Unix socket instead of TCP/IP. {{UIMeta group=0 order=705 updatesafe }}"
-  type        = bool
-  default     = true
-}
-
-variable "cloudsql_volume_mount_path" {
-  description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=0 order=706 updatesafe }}"
-  type        = string
-  default     = "/var/run/mysqld"
+  default = []
 }
 
 # ===========================
@@ -533,54 +303,6 @@ variable "secret_environment_variables" {
   description = "Environment variables from Secret Manager. Map environment variable name to Secret Manager secret name (e.g., {API_KEY='my-api-key-secret'}). {{UIMeta group=0 order=801 updatesafe }}"
   type        = map(string)
   default     = {}
-}
-
-# ===========================
-# GROUP 9: Health Check Configuration
-# ===========================
-
-variable "health_check_config" {
-  description = "Liveness probe configuration. Checks if the application is running and restarts if unhealthy. {{UIMeta group=0 order=900 updatesafe }}"
-  type = object({
-    enabled               = bool
-    type                  = optional(string, "HTTP")
-    path                  = optional(string, "/")
-    initial_delay_seconds = optional(number, 0)
-    timeout_seconds       = optional(number, 1)
-    period_seconds        = optional(number, 10)
-    failure_threshold     = optional(number, 3)
-  })
-  default = {
-    enabled               = true
-    type                  = "HTTP"
-    path                  = "/wp-admin/install.php"
-    initial_delay_seconds = 300
-    timeout_seconds       = 60
-    period_seconds        = 60
-    failure_threshold     = 3
-  }
-}
-
-variable "startup_probe_config" {
-  description = "Startup probe configuration. Checks if the application has started successfully before accepting traffic. {{UIMeta group=0 order=901 updatesafe }}"
-  type = object({
-    enabled               = bool
-    type                  = optional(string, "TCP")
-    path                  = optional(string, "/")
-    initial_delay_seconds = optional(number, 0)
-    timeout_seconds       = optional(number, 240)
-    period_seconds        = optional(number, 240)
-    failure_threshold     = optional(number, 1)
-  })
-  default = {
-    enabled               = true
-    type                  = "TCP"
-    path                  = "/"
-    initial_delay_seconds = 240
-    timeout_seconds       = 60
-    period_seconds        = 240
-    failure_threshold     = 1
-  }
 }
 
 # ===========================
@@ -646,131 +368,12 @@ variable "initialization_jobs" {
     execute_on_apply  = optional(bool, false)
     script_path       = optional(string, null)
   }))
-  default = [
-    {
-      name            = "db-init"
-      description     = "Create WordPress Database and User"
-      image           = "alpine:3.19"
-      command         = ["/bin/sh", "-c"]
-      args            = [
-        <<-EOT
-          set -e
-          echo "Installing dependencies..."
-          apk update && apk add --no-cache mysql-client netcat-openbsd
-
-          # Use WORDPRESS_DB_HOST which is available in static envs (mapped to internal IP)
-          DB_HOST_VAL=$WORDPRESS_DB_HOST
-          echo "Using DB Host: $DB_HOST_VAL"
-
-          # Check if DB_HOST_VAL is set
-          if [ -z "$DB_HOST_VAL" ]; then
-            echo "Error: WORDPRESS_DB_HOST is not set."
-            exit 1
-          fi
-
-          # DB_PASSWORD and ROOT_PASSWORD are automatically injected by CloudRunApp/jobs.tf
-          if [ -z "$DB_PASSWORD" ]; then
-            echo "Error: DB_PASSWORD is not set. It should be injected by CloudRunApp/jobs.tf."
-            exit 1
-          fi
-
-          if [ -z "$ROOT_PASSWORD" ]; then
-            echo "Error: ROOT_PASSWORD is not set. It should be injected by CloudRunApp/jobs.tf."
-            exit 1
-          fi
-
-          # Extract socket path if present (e.g. localhost:/path/to/socket -> /path/to/socket)
-          if echo "$DB_HOST_VAL" | grep -q "localhost:"; then
-            SOCKET_PATH=$(echo "$DB_HOST_VAL" | cut -d: -f2)
-            DB_HOST="localhost"
-          elif echo "$DB_HOST_VAL" | grep -q "^/"; then
-            SOCKET_PATH="$DB_HOST_VAL"
-            DB_HOST="localhost"
-          else
-            SOCKET_PATH=""
-            DB_HOST="$DB_HOST_VAL"
-          fi
-
-          if [ -n "$SOCKET_PATH" ]; then
-              echo "Detected Socket Path: $SOCKET_PATH"
-              echo "Waiting for socket file..."
-              until [ -S "$SOCKET_PATH" ]; do
-                  echo "Waiting for socket $SOCKET_PATH..."
-                  sleep 2
-              done
-          else
-              echo "Waiting for TCP host: $DB_HOST"
-              until nc -z "$DB_HOST" 3306; do
-                echo "Waiting for MySQL port 3306..."
-                sleep 2
-              done
-          fi
-
-          # Configure .my.cnf
-          if [ -n "$SOCKET_PATH" ]; then
-              cat > ~/.my.cnf << EOF
-[client]
-user=root
-password=$ROOT_PASSWORD
-socket=$SOCKET_PATH
-EOF
-          else
-              cat > ~/.my.cnf << EOF
-[client]
-user=root
-password=$ROOT_PASSWORD
-host=$DB_HOST
-EOF
-          fi
-          chmod 600 ~/.my.cnf
-
-          echo "Creating User $DB_USER if not exists..."
-          mysql --defaults-file=~/.my.cnf <<EOF
-CREATE USER IF NOT EXISTS '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
-ALTER USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
-FLUSH PRIVILEGES;
-EOF
-
-          echo "Creating Database $DB_NAME if not exists..."
-          mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;"
-
-          echo "Granting privileges..."
-          mysql --defaults-file=~/.my.cnf <<EOF
-GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
-FLUSH PRIVILEGES;
-EOF
-
-          rm -f ~/.my.cnf
-          echo "DB Init complete."
-        EOT
-      ]
-      mount_nfs         = false
-      mount_gcs_volumes = []
-      execute_on_apply  = true
-    }
-  ]
+  default = []
 }
 
 # ===========================
 # GROUP 13: Database Extensions & Backup Configuration
 # ===========================
-
-variable "enable_postgres_extensions" {
-  description = "Enable automatic installation of PostgreSQL extensions. Only applicable when using PostgreSQL databases. {{UIMeta group=0 order=1300 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "postgres_extensions" {
-  description = "List of PostgreSQL extensions to install (e.g., ['postgis', 'uuid-ossp', 'pg_trgm']). Common extensions: postgis, cube, earthdistance, unaccent, pg_stat_statements, uuid-ossp, pg_trgm. {{UIMeta group=0 order=1301 updatesafe }}"
-  type        = list(string)
-  default     = []
-
-  validation {
-    condition     = alltrue([for ext in var.postgres_extensions : can(regex("^[a-z_][a-z0-9_-]*$", ext))])
-    error_message = "Extension names must start with a letter or underscore and contain only lowercase letters, numbers, underscores, and hyphens."
-  }
-}
 
 # Unified Backup Import Configuration (Recommended)
 variable "enable_backup_import" {
@@ -804,70 +407,6 @@ variable "backup_format" {
   validation {
     condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.backup_format)
     error_message = "Backup format must be 'sql', 'tar', 'gz', 'tgz', 'tar.gz', or 'zip'."
-  }
-}
-
-# Legacy Variables (Deprecated - Use unified variables above)
-variable "enable_gdrive_backup_import" {
-  description = "DEPRECATED: Use enable_backup_import with backup_source='gdrive' instead. Enable automatic import of database backup from Google Drive. {{UIMeta group=0 order=1320 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "gdrive_backup_file_id" {
-  description = "DEPRECATED: Use backup_uri instead. Google Drive file ID of the backup to import. {{UIMeta group=0 order=1321 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "gdrive_backup_format" {
-  description = "DEPRECATED: Use backup_format instead. Backup file format for Google Drive. {{UIMeta group=0 order=1322 updatesafe }}"
-  type        = string
-  default     = "sql"
-
-  validation {
-    condition     = contains(["sql", "tar", "zip"], var.gdrive_backup_format)
-    error_message = "Backup format must be 'sql', 'tar', or 'zip'."
-  }
-}
-
-variable "enable_gcs_backup_import" {
-  description = "DEPRECATED: Use enable_backup_import with backup_source='gcs' instead. Enable automatic import of database backup from Google Cloud Storage. {{UIMeta group=0 order=1323 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "gcs_backup_uri" {
-  description = "DEPRECATED: Use backup_uri instead. Google Cloud Storage URI of the backup to import. {{UIMeta group=0 order=1324 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "gcs_backup_format" {
-  description = "DEPRECATED: Use backup_format instead. Backup file format for GCS import. {{UIMeta group=0 order=1325 updatesafe }}"
-  type        = string
-  default     = "sql"
-
-  validation {
-    condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.gcs_backup_format)
-    error_message = "Backup format must be 'sql', 'tar', 'gz', 'tgz', 'tar.gz', or 'zip'."
-  }
-}
-
-variable "enable_mysql_plugins" {
-  description = "Enable automatic installation of MySQL plugins and components. Only applicable when using MySQL databases. {{UIMeta group=0 order=1308 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "mysql_plugins" {
-  description = "List of MySQL plugins to install (e.g., ['audit_log', 'validate_password']). Common plugins: validate_password, audit_log, clone, group_replication, authentication_ldap_simple. {{UIMeta group=0 order=1309 updatesafe }}"
-  type        = list(string)
-  default     = []
-
-  validation {
-    condition     = alltrue([for plugin in var.mysql_plugins : can(regex("^[a-z_][a-z0-9_]*$", plugin))])
-    error_message = "Plugin names must start with a letter or underscore and contain only lowercase letters, numbers, and underscores."
   }
 }
 

@@ -135,9 +135,9 @@ locals {
   # Scoped resource names for multi-tenancy
   artifact_repo_id = "${local.application_name}${local.tenant_id}${local.deployment_id}-repo"
 
-  # CI/CD Configuration (Disabled)
-  enable_cicd_trigger = false
-  github_token_secret = null
+  # CI/CD Configuration
+  enable_cicd_trigger = var.enable_cicd_trigger && var.github_repository_url != null
+  github_token_secret = "${var.github_token_secret_name}-${local.tenant_id}"
 
   enable_image_mirroring = local.final_enable_image_mirroring
 
@@ -281,11 +281,7 @@ locals {
   trusted_users              = var.trusted_users
   initialization_jobs        = local.final_initialization_jobs
 
-  cicd_trigger_config        = {
-    description    = ""
-    branch_pattern = ""
-    substitutions  = {}
-  }
+  cicd_trigger_config        = var.cicd_trigger_config
 
   enable_backup_import       = var.enable_backup_import
 
@@ -307,7 +303,7 @@ locals {
   execution_environment       = var.execution_environment
   service_labels              = var.service_labels
   container_protocol          = "http1"
-  github_app_installation_id  = null
+  github_app_installation_id  = var.github_app_installation_id
   database_password_length    = var.database_password_length
   secret_propagation_delay    = var.secret_propagation_delay
 
@@ -318,17 +314,17 @@ locals {
   ingress_settings   = var.ingress_settings
 
   # Feature flags
-  enable_custom_build   = false
+  enable_custom_build   = local.container_build_config.enabled && local.container_image_source == "custom"
 
   # Parse GitHub repository URL to extract owner and name
-  _github_repo_clean = ""
+  _github_repo_clean = var.github_repository_url != null ? trimsuffix(trimprefix(trimprefix(var.github_repository_url, "https://github.com/"), "http://github.com/"), ".git") : ""
 
-  github_repo_parts = []
-  github_repo_owner = ""
-  github_repo_name  = ""
+  github_repo_parts = split("/", local._github_repo_clean)
+  github_repo_owner = length(local.github_repo_parts) >= 2 ? local.github_repo_parts[0] : null
+  github_repo_name  = length(local.github_repo_parts) >= 2 ? local.github_repo_parts[1] : null
 
   # Normalized GitHub repository URL required for Cloud Build v2
-  github_repo_url = ""
+  github_repo_url = local.github_repo_owner != null && local.github_repo_name != null ? "https://github.com/${local.github_repo_owner}/${local.github_repo_name}.git" : null
 
   # CI/CD trigger configuration (tenant-first for easier identification)
   cicd_trigger_name = "${local.tenant_id}-${local.deployment_id}-${local.application_name}-trigger"
