@@ -139,7 +139,7 @@ locals {
 
   # Container configuration
   _container_image_raw          = local.module_container_image
-  final_container_image         = "${local._container_image_raw}:${local.final_application_version}"
+  final_container_image         = local._container_image_raw != "" ? "${local._container_image_raw}:${local.final_application_version}" : ""
   final_container_port          = local.module_container_port
   final_container_image_source  = local.module_container_image_source
   final_application_name        = local.module_application_name
