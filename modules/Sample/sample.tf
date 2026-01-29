@@ -6,6 +6,7 @@ locals {
     container_image     = "sample" # Empty for custom build to avoid double tagging
     application_version = "1.0.0"
     image_source        = "custom"
+    enable_image_mirroring = false
 
     # Custom build configuration
     container_build_config = {

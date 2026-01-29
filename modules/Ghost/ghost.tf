@@ -7,7 +7,7 @@ locals {
     enable_image_mirroring = true
 
     # ✅ Use official image (recommended)
-    image_source = "build"
+    image_source = "prebuilt"
 
     # Custom build configuration (only if you need URL auto-detection)
     container_build_config = {

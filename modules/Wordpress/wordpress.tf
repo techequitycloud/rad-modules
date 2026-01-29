@@ -10,8 +10,8 @@ locals {
     application_version = var.application_version
     application_sha     = "52d5f05c96a9155f78ed84700264307e5dea14b4"
 
-    # image_source    = "prebuilt"
     image_source    = "custom"
+    enable_image_mirroring = false
 
     # ✅ Custom build configuration
     container_build_config = {

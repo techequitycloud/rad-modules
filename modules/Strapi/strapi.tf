@@ -7,11 +7,14 @@ locals {
     image_source        = "build"
     application_version = var.application_version
 
+    image_source    = "custom"      
+    enable_image_mirroring = false
+
     # Custom build configuration
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "."
+      context_path       = "strapi"
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null

@@ -13,6 +13,7 @@ locals {
 
     # ✅ Use custom build
     image_source    = "custom"          # Changed from "custom" to "build"
+    enable_image_mirroring = false
 
     # ✅ Custom build configuration
     container_build_config = {
