@@ -15,7 +15,7 @@ locals {
       build_args         = {}
       artifact_repo_name = "cloudrunapp-repo"
     }
-    container_port  = 80
+    container_port  = 8080
     database_type   = "MYSQL_8_0"
     db_name         = "openemr"
     db_user         = "openemr"

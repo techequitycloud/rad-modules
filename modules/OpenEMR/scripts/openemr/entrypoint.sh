@@ -5,6 +5,25 @@ echo "================================================"
 echo "Starting OpenEMR with Cloud Run Configuration"
 echo "================================================"
 
+# Configure Apache Port and User
+if [ -n "$PORT" ]; then
+    echo "Configuring Apache to listen on port $PORT..."
+    for CONF in /etc/apache2/httpd.conf /etc/apache2/ports.conf /etc/httpd/conf/httpd.conf; do
+        if [ -f "$CONF" ]; then
+            # Update Listen port
+            sed -i "s/^Listen .*/Listen $PORT/" "$CONF"
+            # Ensure Apache workers run as user 1000 (matching NFS ownership)
+            sed -i "s/^User .*/User #1000/" "$CONF"
+            sed -i "s/^Group .*/Group #1000/" "$CONF"
+            echo "Updated $CONF (Port: $PORT, User: 1000)"
+        fi
+    done
+
+    # Ensure Apache directories exist and are writable
+    mkdir -p /run/apache2 /var/log/apache2
+    chown -R 1000:1000 /run/apache2 /var/log/apache2
+fi
+
 # Debug: Show current environment
 echo "Environment:"
 echo "  MYSQL_HOST: ${MYSQL_HOST:-not set}"
