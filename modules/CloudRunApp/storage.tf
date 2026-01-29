@@ -71,4 +71,10 @@ resource "google_storage_bucket" "buckets" {
     prevent_destroy = false
     create_before_destroy = false
  }
+
+  # Add provisioner to wait before destruction to allow GCS Fuse mounts to release
+  provisioner "local-exec" {
+    when    = destroy
+    command = "sleep 60"
+  }
 }
