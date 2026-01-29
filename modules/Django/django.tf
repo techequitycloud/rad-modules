@@ -13,7 +13,7 @@ locals {
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "."
+      context_path       = "django"
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null
@@ -173,6 +173,7 @@ locals {
 
   module_env_vars = {
     CLOUDRUN_SERVICE_URLS = local.predicted_service_url
+    GS_BUCKET_NAME        = "${local.wrapper_prefix}-django-media"
   }
 
   module_secret_env_vars = {
