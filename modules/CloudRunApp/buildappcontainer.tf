@@ -20,7 +20,7 @@ resource "local_file" "app_dockerfile" {
   count = local.enable_custom_build && local.container_build_config.dockerfile_content != null ? 1 : 0
 
   filename = "${path.module}/scripts/${local.container_build_config.context_path}/${local.container_build_config.dockerfile_path}"
-  content  = local.container_build_config.dockerfile_content
+  content  = local.container_build_config.dockerfile_content != null ? local.container_build_config.dockerfile_content : ""
 }
 
 #########################################################################
