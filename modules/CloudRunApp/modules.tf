@@ -27,7 +27,7 @@ locals {
   # Dynamic selection: Get the first available module from the map
   # This allows the file to be shared across wrappers (Cyclos, Strapi, etc.)
   # without hardcoding the module name.
-  module_name     = keys(local.application_modules)[0]
+  module_name     = element(keys(local.application_modules), 0)
   selected_module = local.application_modules[local.module_name]
   module_exists   = true
 
