@@ -201,12 +201,12 @@ locals {
     for bucket in local.all_storage_buckets :
     bucket.name_suffix => {
       name                        = try(bucket.name, "${local.resource_prefix}-${bucket.name_suffix}")
-      location                    = bucket.location
-      storage_class               = bucket.storage_class
-      force_destroy               = bucket.force_destroy
-      versioning_enabled          = bucket.versioning_enabled
-      lifecycle_rules             = bucket.lifecycle_rules
-      public_access_prevention    = bucket.public_access_prevention
+      location                    = try(bucket.location, var.deployment_region)
+      storage_class               = try(bucket.storage_class, "STANDARD")
+      force_destroy               = try(bucket.force_destroy, true)
+      versioning_enabled          = try(bucket.versioning_enabled, false)
+      lifecycle_rules             = try(bucket.lifecycle_rules, [])
+      public_access_prevention    = try(bucket.public_access_prevention, "enforced")
       uniform_bucket_level_access = try(bucket.uniform_bucket_level_access, false)
       soft_delete_retention_seconds = try(bucket.soft_delete_retention_seconds, 0)
     }
