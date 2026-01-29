@@ -177,8 +177,9 @@ EOF
 
   module_storage_buckets = [
     {
-      name_suffix = "wp-uploads"
-      location    = var.deployment_region
+      name_suffix   = "wp-uploads"
+      location      = var.deployment_region
+      force_destroy = true
     }
   ]
 }
