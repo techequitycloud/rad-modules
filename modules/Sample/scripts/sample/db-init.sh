@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 echo "=== Sample DB Init Script ==="
 
-# Use DB_IP if available (injected by CloudRunApp), else DB_HOST
-TARGET_DB_HOST="${DB_IP:-${DB_HOST}}"
+# Prefer DB_HOST (which may be socket path) over DB_IP
+TARGET_DB_HOST="${DB_HOST:-${DB_IP}}"
 
 # Check if we are using Unix Socket (POSIX-compatible syntax)
 case "$TARGET_DB_HOST" in
