@@ -1,17 +1,17 @@
 locals {
   strapi_module = {
-    app_name        = "strapi"
-    display_name    = "Strapi CMS"
-    description     = "Strapi - Open source Node.js Headless CMS"
-    # Strapi requires a custom built image.
-    container_image = ""
-    image_source    = "build"
+    app_name            = "strapi"
+    display_name        = "Strapi CMS"
+    description         = "Strapi - Open source Node.js Headless CMS"
+    container_image     = "strapi/strapi"
+    image_source        = "build"
+    application_version = var.application_version
 
     # Custom build configuration
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "strapi"
+      context_path       = "."
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null

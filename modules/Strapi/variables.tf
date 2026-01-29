@@ -107,7 +107,7 @@ variable "application_name" {
 variable "application_version" {
   description = "Application version tag (e.g., 1.0.0, latest). {{UIMeta group=0 order=302 updatesafe }}"
   type        = string
-  default     = "latest"
+  default     = "5.0"
 }
 
 variable "application_description" {
