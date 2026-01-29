@@ -108,7 +108,47 @@ if [ -n "$BACKUP_FILEID" ]; then
      exit 1
   fi
 else
-   echo "ℹ No backup specified"
+   echo "ℹ No backup specified. Creating default site structure..."
+
+   # Create default directory if it doesn't exist
+   if [ ! -d "$APP_DIR/default" ]; then
+     mkdir -p "$APP_DIR/default"
+     chown 1000:1000 "$APP_DIR/default"
+     chmod 755 "$APP_DIR/default"
+     echo "✓ Created default site directory"
+   fi
+
+   # Create sqlconf.php if it doesn't exist
+   SQLCONF_FILE="$APP_DIR/default/sqlconf.php"
+   if [ ! -f "$SQLCONF_FILE" ]; then
+     # Check if DB_HOST is a socket path
+     if echo "$DB_HOST" | grep -q "^/"; then
+         FINAL_HOST="localhost"
+     else
+         FINAL_HOST="$DB_HOST"
+     fi
+
+     cat > "$SQLCONF_FILE" <<SQLEOF
+<?php
+//  OpenEMR
+//  MySQL Config
+
+\$host	= '$FINAL_HOST';
+\$port	= '3306';
+\$login	= '$DB_USER';
+\$pass	= '$DB_PASS';
+\$dbase	= '$DB_NAME';
+
+\$rootpass	= '$ROOT_PASS';
+
+//Added by OpenEMR Configuration:
+\$config = 1;
+SQLEOF
+
+     chown 1000:1000 "$SQLCONF_FILE"
+     chmod 600 "$SQLCONF_FILE"
+     echo "✓ Created default sqlconf.php"
+   fi
 fi
 
 echo "================================================"
