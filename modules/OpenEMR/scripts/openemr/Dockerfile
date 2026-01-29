@@ -78,7 +78,11 @@ RUN chmod 500 \
     /root/fsupgrade-6.sh \
     /root/fsupgrade-7.sh
 #fix issue with apache2 dying prematurely
-RUN mkdir -p /run/apache2
+RUN mkdir -p /run/apache2 \
+    && sed -i 's/^user = nobody/user = apache/' /etc/php83/php-fpm.d/www.conf \
+    && sed -i 's/^group = nobody/group = apache/' /etc/php83/php-fpm.d/www.conf \
+    && sed -i 's/^;catch_workers_output = yes/catch_workers_output = yes/' /etc/php83/php-fpm.d/www.conf \
+    && sed -i 's/^;error_log = php_errors.log/error_log = \/dev\/stderr/' /etc/php83/php-fpm.d/www.conf
 #Copy dev tools library to root
 COPY utilities/devtoolsLibrary.source /root/
 #Ensure swarm/orchestration pieces are available if needed
