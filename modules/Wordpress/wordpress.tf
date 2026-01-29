@@ -11,7 +11,7 @@ locals {
     application_sha     = "52d5f05c96a9155f78ed84700264307e5dea14b4"
 
     # image_source    = "prebuilt"
-    image_source    = "build"
+    image_source    = "custom"
 
     # ✅ Custom build configuration
     container_build_config = {
