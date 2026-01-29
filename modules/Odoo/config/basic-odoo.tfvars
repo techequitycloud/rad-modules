@@ -1,19 +1,4 @@
 resource_creator_identity = ""
-existing_project_id  = "qwiklabs-gcp-03-5421a1d20b10"
+existing_project_id  = "qwiklabs-gcp-02-30b30b50c2a4"
 tenant_deployment_id = "basic"
-deployment_region    = "us-central1"
-container_image_source = "prebuilt"
-
-application_module   = "odoo"
-application_name     = "odoo"
-
-# GCS Volume mapping for Odoo Custom Addons
-gcs_volumes = [
-  {
-    name          = "odoo-addons"
-    bucket_name   = ""
-    mount_path    = "/mnt/extra-addons"
-    read_only     = false
-    mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
-  }
-]
+deployment_region    = "us-east1"
