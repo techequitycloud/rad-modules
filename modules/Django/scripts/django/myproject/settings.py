@@ -19,6 +19,13 @@ SECRET_KEY = env("SECRET_KEY")
 if "myproject" not in INSTALLED_APPS:
     INSTALLED_APPS.append("myproject")
 
+# Security Configuration for Cloud Run
+# Cloud Run handles SSL termination, so we need to tell Django to trust the headers
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=False)
+SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=False)
+CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=False)
+
 # Allowed Hosts Configuration
 CLOUDRUN_SERVICE_URLS = env("CLOUDRUN_SERVICE_URLS", default=None)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
@@ -44,6 +51,10 @@ STATIC_ROOT = env("STATIC_ROOT", default=None)
 MEDIA_ROOT = env("MEDIA_ROOT", default=None)
 MEDIA_URL = env("MEDIA_URL", default=None)
 
+# Add Whitenoise to Middleware (ensuring it's enabled if not already)
+if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+
 # Define static storage via django-storages[google]
 GS_BUCKET_NAME = env("GS_BUCKET_NAME", default=None)
 
@@ -56,5 +67,15 @@ if GS_BUCKET_NAME:
         },
         "staticfiles": {
             "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        },
+    }
+else:
+    # Use Whitenoise for static files if no GCS bucket is configured
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
         },
     }
