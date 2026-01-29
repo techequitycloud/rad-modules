@@ -25,7 +25,7 @@ locals {
 
     # Performance optimization
     enable_cloudsql_volume     = true
-    cloudsql_volume_mount_path = "/var/run/postgresql"
+    cloudsql_volume_mount_path = "/cloudsql"
 
     # Storage volumes
     gcs_volumes = [{
