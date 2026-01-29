@@ -2,20 +2,28 @@
 set -Eeuo pipefail
 
 # Cloud Run / Cloud SQL Socket Handling
-# The Cloud SQL Auth Proxy mounts the socket at /var/run/mysqld/<INSTANCE_NAME>
-# But WordPress expects a fixed path or we want to normalize it.
-if [ -d "/var/run/mysqld" ]; then
-    echo "Searching for Cloud SQL socket in /var/run/mysqld..."
-    # Find the first socket file
-    SOCKET_FILE=$(find /var/run/mysqld -type s -print -quit)
+echo "Searching for Cloud SQL socket..."
+SOCKET_FILE=""
 
-    if [ -n "$SOCKET_FILE" ]; then
-        echo "Found socket: $SOCKET_FILE"
-        echo "Symlinking to /tmp/mysqld.sock"
-        ln -sf "$SOCKET_FILE" /tmp/mysqld.sock
-    else
-        echo "No socket found in /var/run/mysqld."
-    fi
+# Check /cloudsql first (standard Cloud Run path)
+if [ -d "/cloudsql" ]; then
+    echo "Searching in /cloudsql..."
+    SOCKET_FILE=$(find /cloudsql -type s -print -quit)
+fi
+
+# Fallback to /var/run/mysqld
+if [ -z "$SOCKET_FILE" ] && [ -d "/var/run/mysqld" ]; then
+    echo "Searching in /var/run/mysqld..."
+    SOCKET_FILE=$(find /var/run/mysqld -type s -print -quit)
+fi
+
+if [ -n "$SOCKET_FILE" ]; then
+    echo "Found socket: $SOCKET_FILE"
+    mkdir -p /tmp
+    echo "Symlinking to /tmp/mysqld.sock"
+    ln -sf "$SOCKET_FILE" /tmp/mysqld.sock
+else
+    echo "No Cloud SQL socket found."
 fi
 
 if [[ "$1" == apache2* ]] || [ "$1" = 'php-fpm' ] || { self="$(basename "$0")" && [ "$self" = 'docker-ensure-installed.sh' ]; }; then
@@ -111,20 +119,6 @@ if [[ "$1" == apache2* ]] || [ "$1" = 'php-fpm' ] || { self="$(basename "$0")" &
 			fi
 		done
 	fi
-fi
-
-# Cloud Run & Cloud SQL Proxy Socket Handling
-if [ -d "/var/run/mysqld" ]; then
-    echo "Checking for Cloud SQL sockets in /var/run/mysqld..."
-    SOCKET_FILE=$(find /var/run/mysqld -maxdepth 1 -type s | head -n 1)
-    if [ -n "$SOCKET_FILE" ]; then
-        echo "Found socket: $SOCKET_FILE"
-        mkdir -p /tmp
-        ln -sf "$SOCKET_FILE" /tmp/mysqld.sock
-        echo "Symlinked $SOCKET_FILE to /tmp/mysqld.sock"
-    else
-        echo "No socket found in /var/run/mysqld"
-    fi
 fi
 
 exec "$@"
