@@ -67,13 +67,15 @@ locals {
             echo "Installing dependencies..."
             apk update && apk add --no-cache mysql-client netcat-openbsd
 
-            # Use WORDPRESS_DB_HOST which is available in static envs (mapped to internal IP)
-            DB_HOST_VAL=$WORDPRESS_DB_HOST
-            echo "Using DB Host: $DB_HOST_VAL"
+            # Use DB_IP (internal IP injected by CloudRunApp/jobs.tf) for TCP connection
+            # WORDPRESS_DB_HOST points to a Unix socket path used by the Cloud Run service,
+            # but the db-init job should connect via TCP to the database internal IP.
+            TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
+            echo "Using DB Host: $TARGET_DB_HOST"
 
-            # Check if DB_HOST_VAL is set
-            if [ -z "$DB_HOST_VAL" ]; then
-              echo "Error: WORDPRESS_DB_HOST is not set."
+            # Check if TARGET_DB_HOST is set
+            if [ -z "$TARGET_DB_HOST" ]; then
+              echo "Error: DB_HOST is not set."
               exit 1
             fi
 
@@ -88,64 +90,45 @@ locals {
               exit 1
             fi
 
-            # Extract socket path if present (e.g. localhost:/path/to/socket -> /path/to/socket)
-            if echo "$DB_HOST_VAL" | grep -q "localhost:"; then
-              SOCKET_PATH=$(echo "$DB_HOST_VAL" | cut -d: -f2)
-              DB_HOST="localhost"
-            elif echo "$DB_HOST_VAL" | grep -q "^/"; then
-              SOCKET_PATH="$DB_HOST_VAL"
-              DB_HOST="localhost"
+            # Check if using Unix socket or TCP
+            if echo "$TARGET_DB_HOST" | grep -q "^/"; then
+                echo "Using Unix socket connection."
             else
-              SOCKET_PATH=""
-              DB_HOST="$DB_HOST_VAL"
-            fi
-
-            if [ -n "$SOCKET_PATH" ]; then
-                echo "Detected Socket Path: $SOCKET_PATH"
-                echo "Waiting for socket file..."
-                until [ -S "$SOCKET_PATH" ]; do
-                    echo "Waiting for socket $SOCKET_PATH..."
-                    sleep 2
-                done
-            else
-                echo "Waiting for TCP host: $DB_HOST"
-                until nc -z "$DB_HOST" 3306; do
+                echo "Using TCP connection."
+                echo "Waiting for database..."
+                until nc -z $TARGET_DB_HOST 3306; do
                   echo "Waiting for MySQL port 3306..."
                   sleep 2
                 done
             fi
 
-            # Configure .my.cnf
-            if [ -n "$SOCKET_PATH" ]; then
-                cat > ~/.my.cnf << EOF
+            cat > ~/.my.cnf << EOF
 [client]
 user=root
-password=$ROOT_PASSWORD
-socket=$SOCKET_PATH
+password=$${ROOT_PASSWORD}
 EOF
+
+            if echo "$TARGET_DB_HOST" | grep -q "^/"; then
+                echo "socket=$TARGET_DB_HOST" >> ~/.my.cnf
             else
-                cat > ~/.my.cnf << EOF
-[client]
-user=root
-password=$ROOT_PASSWORD
-host=$DB_HOST
-EOF
+                echo "host=$TARGET_DB_HOST" >> ~/.my.cnf
             fi
+
             chmod 600 ~/.my.cnf
 
-            echo "Creating User $DB_USER if not exists..."
+            echo "Creating User $${DB_USER} if not exists..."
             mysql --defaults-file=~/.my.cnf <<EOF
-CREATE USER IF NOT EXISTS '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
-ALTER USER '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
+CREATE USER IF NOT EXISTS '$${DB_USER}'@'%' IDENTIFIED BY '$${DB_PASSWORD}';
+ALTER USER '$${DB_USER}'@'%' IDENTIFIED BY '$${DB_PASSWORD}';
 FLUSH PRIVILEGES;
 EOF
 
-            echo "Creating Database $DB_NAME if not exists..."
-            mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;"
+            echo "Creating Database $${DB_NAME} if not exists..."
+            mysql --defaults-file=~/.my.cnf -e "CREATE DATABASE IF NOT EXISTS \`$${DB_NAME}\`;"
 
             echo "Granting privileges..."
             mysql --defaults-file=~/.my.cnf <<EOF
-GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'%';
+GRANT ALL PRIVILEGES ON \`$${DB_NAME}\`.* TO '$${DB_USER}'@'%';
 FLUSH PRIVILEGES;
 EOF
 
