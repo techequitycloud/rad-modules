@@ -450,7 +450,7 @@ echo
 
 if [ "${OPERATOR}" = yes ]; then
     echo 'Starting PHP-FPM...'
-    /usr/sbin/php-fpm83
+    /usr/sbin/php-fpm83 -D
     echo 'Starting apache!'
     exec /usr/sbin/httpd -D FOREGROUND
 fi

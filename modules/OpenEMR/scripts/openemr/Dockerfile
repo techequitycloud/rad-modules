@@ -3,7 +3,7 @@ FROM alpine:3.20
 #Install dependencies and fix issue in apache
 RUN apk --no-cache upgrade
 RUN apk add --no-cache \
-    apache2 apache2-ssl apache2-utils apache2-proxy git php83 php83-tokenizer php83-ctype php83-session php83-apache2 \
+    apache2 apache2-ssl apache2-utils apache2-proxy git php83 php83-tokenizer php83-ctype php83-session \
     php83-json php83-pdo php83-pdo_mysql php83-curl php83-ldap php83-openssl php83-iconv \
     php83-xml php83-xsl php83-gd php83-zip php83-soap php83-mbstring php83-zlib \
     php83-mysqli php83-sockets php83-xmlreader php83-redis php83-simplexml php83-xmlwriter php83-phar php83-fileinfo \
@@ -81,8 +81,9 @@ RUN chmod 500 \
 RUN mkdir -p /run/apache2 \
     && sed -i 's/^user = nobody/user = apache/' /etc/php83/php-fpm.d/www.conf \
     && sed -i 's/^group = nobody/group = apache/' /etc/php83/php-fpm.d/www.conf \
+    && sed -i 's/^listen = .*/listen = 127.0.0.1:9000/' /etc/php83/php-fpm.d/www.conf \
     && sed -i 's/^;catch_workers_output = yes/catch_workers_output = yes/' /etc/php83/php-fpm.d/www.conf \
-    && sed -i 's/^;error_log = php_errors.log/error_log = \/dev\/stderr/' /etc/php83/php-fpm.d/www.conf
+    && sed -i 's/^;error_log = .*/error_log = \/dev\/stderr/' /etc/php83/php-fpm.conf
 #Copy dev tools library to root
 COPY utilities/devtoolsLibrary.source /root/
 #Ensure swarm/orchestration pieces are available if needed
