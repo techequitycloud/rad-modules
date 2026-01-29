@@ -130,8 +130,9 @@ locals {
     "roles/run.admin",
     "roles/secretmanager.secretAccessor",
     "roles/storage.objectUser",
-    "roles/storage.objectAdmin",        # 🔧 ADDED: For storage bucket access
-    "roles/cloudsql.client",            # 🔧 ADDED: For Cloud SQL connection (CRITICAL FIX)
+    "roles/storage.objectAdmin",        # For storage bucket access
+    "roles/cloudsql.client",            # For Cloud SQL connection (CRITICAL)
+    "roles/vpcaccess.user",             # For VPC Connector access
   ]
 }
 
@@ -156,7 +157,20 @@ resource "google_project_iam_member" "cloudrun_agent_shared_vpc_access" {
   role    = "roles/compute.networkUser"
   member  = "serviceAccount:service-${local.project_number}@serverless-robot-prod.iam.gserviceaccount.com"
 
-  depends_on   = [
+  depends_on = [
+    google_service_account.cloud_run_sa_admin,
+    google_service_account.cloud_build_sa_admin,
+    google_service_account.nfs_server_sa_admin,
+  ]
+}
+
+# Grant VPC Access User role to Cloud Run service agent
+resource "google_project_iam_member" "cloudrun_agent_vpc_access" {
+  project = var.existing_project_id
+  role    = "roles/vpcaccess.user"
+  member  = "serviceAccount:service-${local.project_number}@serverless-robot-prod.iam.gserviceaccount.com"
+
+  depends_on = [
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
     google_service_account.nfs_server_sa_admin,
@@ -180,6 +194,7 @@ locals {
   nfs_server_sa_project_roles = [
     "roles/storage.admin",
     "roles/logging.logWriter",
+    "roles/compute.instanceAdmin.v1",   # For managing NFS instances
   ]
 }
 
@@ -196,5 +211,59 @@ resource "google_project_iam_member" "nfs_server_sa" {
     google_service_account.cloud_run_sa_admin,
     google_service_account.cloud_build_sa_admin,
     google_service_account.nfs_server_sa_admin,
+  ]
+}
+
+#########################################################################
+# Service Networking Agent (for Private Service Connect)
+# Required for Cloud SQL, Memorystore, and other managed services
+#########################################################################
+
+# Get project details dynamically
+data "google_project" "current" {
+  project_id = var.existing_project_id
+}
+
+# Grant Service Networking Agent role (required for creating VPC peering)
+resource "google_project_iam_member" "servicenetworking_agent" {
+  project = var.existing_project_id
+  role    = "roles/servicenetworking.serviceAgent"
+  member  = "serviceAccount:service-${data.google_project.current.number}@service-networking.iam.gserviceaccount.com"
+
+  depends_on = [
+    time_sleep.wait_for_apis
+  ]
+}
+
+# Grant Compute Network Admin role (required for listing global addresses)
+resource "google_project_iam_member" "servicenetworking_network_admin" {
+  project = var.existing_project_id
+  role    = "roles/compute.networkAdmin"
+  member  = "serviceAccount:service-${data.google_project.current.number}@service-networking.iam.gserviceaccount.com"
+
+  depends_on = [
+    time_sleep.wait_for_apis
+  ]
+}
+
+# Additional permission for global address management
+resource "google_project_iam_member" "servicenetworking_compute_admin" {
+  project = var.existing_project_id
+  role    = "roles/compute.admin"
+  member  = "serviceAccount:service-${data.google_project.current.number}@service-networking.iam.gserviceaccount.com"
+
+  depends_on = [
+    time_sleep.wait_for_apis
+  ]
+}
+
+# Wait for IAM permissions to propagate before creating service networking connection
+resource "time_sleep" "wait_for_servicenetworking_iam" {
+  create_duration = "45s"
+
+  depends_on = [
+    google_project_iam_member.servicenetworking_agent,
+    google_project_iam_member.servicenetworking_network_admin,
+    google_project_iam_member.servicenetworking_compute_admin
   ]
 }
