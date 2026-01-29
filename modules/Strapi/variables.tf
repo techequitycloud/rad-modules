@@ -13,146 +13,6 @@
 # limitations under the License.
 
 # ===========================
-# GROUP 0: Module Metadata & Admin Configuration
-# ===========================
-
-variable "module_description" {
-  description = "The description of the module. {{UIMeta group=0 order=100 }}"
-  type        = string
-  default     = "This module can be used to deploy Strapi"
-}
-
-variable "module_dependency" {
-  description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=101 }}"
-  type        = list(string)
-  default     = ["GCP_Services"]
-}
-
-variable "module_services" {
-  description = "Specify the module services. {{UIMeta group=0 order=102 }}"
-  type        = list(string)
-  default     = ["Cloud Run", "Cloud Build", "Artifact Registry", "Cloud Storage", "Cloud SQL", "Cloud IAM", "Cloud Networking", "Secret Manager"]
-}
-
-variable "credit_cost" {
-  description = "Specify the module cost. {{UIMeta group=0 order=103 }}"
-  type        = number
-  default     = 100
-}
-
-variable "require_credit_purchases" {
-  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
-  type        = bool
-  default     = false
-}
-
-variable "enable_purge" {
-  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=105 }}"
-  type        = bool
-  default     = true
-}
-
-variable "public_access" {
-  description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
-  type        = bool
-  default     = true
-}
-
-variable "deployment_id" {
-  description = "Unique ID suffix for resources. Leave blank to generate random ID. {{UIMeta group=0 order=107 }}"
-  type        = string
-  default     = null
-}
-
-variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=108 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "resource_labels" {
-  description = "Labels to apply to all resources. {{UIMeta group=0 order=109 updatesafe }}"
-  type        = map(string)
-  default     = null
-}
-
-variable "deployment_regions" {
-  description = "List of regions for multi-region deployment (advanced users only). {{UIMeta group=0 order=110 updatesafe }}"
-  type        = list(string)
-  default     = []
-}
-
-variable "configure_environment" {
-  description = "Set to true to deploy Cloud Run service. {{UIMeta group=0 order=111 updatesafe }}"
-  type        = bool
-  default     = true
-}
-
-variable "create_cloud_storage" {
-  description = "Set to true to create Cloud Storage buckets. {{UIMeta group=0 order=112 updatesafe }}"
-  type        = bool
-  default     = true
-}
-
-variable "network_name" {
-  description = "Name of the VPC network. {{UIMeta group=0 order=114 updatesafe }}"
-  type        = string
-  default     = "vpc-network"
-}
-
-variable "cloudrun_service_account" {
-  description = "Service account for Cloud Run (auto-detected if not provided). {{UIMeta group=0 order=115 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "cloudbuild_service_account" {
-  description = "Service account for Cloud Build (auto-detected if not provided). {{UIMeta group=0 order=116 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "cloudsql_service_account" {
-  description = "Service account for Cloud SQL (auto-detected if not provided). {{UIMeta group=0 order=117 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "execution_environment" {
-  description = "Execution environment: gen1 or gen2. {{UIMeta group=0 order=118 updatesafe }}"
-  type        = string
-  default     = "gen2"
-
-  validation {
-    condition     = contains(["gen1", "gen2"], var.execution_environment)
-    error_message = "Execution environment must be 'gen1' or 'gen2'."
-  }
-}
-
-variable "secret_propagation_delay" {
-  description = "Delay in seconds after creating secrets before using them (0-300). {{UIMeta group=0 order=119 updatesafe }}"
-  type        = number
-  default     = 30
-
-  validation {
-    condition     = var.secret_propagation_delay >= 0 && var.secret_propagation_delay <= 300
-    error_message = "Secret propagation delay must be between 0 and 300 seconds."
-  }
-}
-
-variable "service_annotations" {
-  description = "Additional annotations for Cloud Run service (advanced). {{UIMeta group=0 order=120 updatesafe }}"
-  type        = map(string)
-  default     = {}
-}
-
-variable "service_labels" {
-  description = "Additional labels for Cloud Run service (advanced). {{UIMeta group=0 order=121 updatesafe }}"
-  type        = map(string)
-  default     = {}
-}
-
-# ===========================
 # GROUP 1: External Project Configuration
 # ===========================
 
@@ -179,6 +39,7 @@ variable "existing_project_id" {
 variable "tenant_deployment_id" {
   description = "Specify a unique tenant or deployment identifier. This uniquely identifies your application deployment and is used in resource naming (1-20 lowercase alphanumeric characters and hyphens). {{UIMeta group=2 order=201 updatesafe }}"
   type        = string
+  default     = "default"
 
   validation {
     condition     = can(regex("^[a-z0-9-]{1,20}$", var.tenant_deployment_id))
@@ -192,22 +53,45 @@ variable "deployment_region" {
   default     = "us-central1"
 }
 
+variable "deployment_regions" {
+  description = "List of regions for multi-region deployment (advanced users only). {{UIMeta group=0 order=110 updatesafe }}"
+  type        = list(string)
+  default     = []
+}
+
+variable "resource_creator_identity" {
+  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=108 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "resource_labels" {
+  description = "Labels to apply to all resources. {{UIMeta group=0 order=109 updatesafe }}"
+  type        = map(string)
+  default     = null
+}
+
+variable "deployment_id" {
+  description = "Unique ID suffix for resources. Leave blank to generate random ID. {{UIMeta group=0 order=107 }}"
+  type        = string
+  default     = null
+}
+
+variable "configure_environment" {
+  description = "Set to true to deploy Cloud Run service. {{UIMeta group=0 order=111 updatesafe }}"
+  type        = bool
+  default     = true
+}
+
+variable "create_cloud_storage" {
+  description = "Set to true to create Cloud Storage buckets. {{UIMeta group=0 order=112 updatesafe }}"
+  type        = bool
+  default     = true
+}
+
 # ===========================
 # GROUP 3: Application Configuration
 # ===========================
-
-variable "application_module" {
-  description = "Select a pre-configured application module for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=3 order=299 OPTIONS=strapi updatesafe }}"
-  type        = string
-  default     = "strapi"
-
-  validation {
-    condition = var.application_module == null || var.application_module == "" || contains([
-      "strapi"
-    ], var.application_module)
-    error_message = "Application module must be one of: strapi, or leave empty for manual configuration."
-  }
-}
 
 variable "application_name" {
   description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=0 order=300 updatesafe }}"
@@ -218,12 +102,6 @@ variable "application_name" {
     condition     = var.application_name == null || can(regex("^[a-z][a-z0-9-]{0,19}$", var.application_name))
     error_message = "Application name must start with a letter, be 1-20 characters, and contain only lowercase letters, numbers, and hyphens."
   }
-}
-
-variable "application_display_name" {
-  description = "Human-readable application name for display purposes. {{UIMeta group=0 order=301 updatesafe }}"
-  type        = string
-  default     = "Strapi CMS"
 }
 
 variable "application_version" {
@@ -238,107 +116,9 @@ variable "application_description" {
   default     = ""
 }
 
-variable "application_database_name" {
-  description = "Application database name. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-63 characters). The actual database name includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=304 updatesafe }}"
-  type        = string
-  default     = "strapi"
-
-  validation {
-    condition     = var.application_database_name == null || can(regex("^[a-z][a-z0-9_]{0,62}$", var.application_database_name))
-    error_message = "Database name must start with a letter, be 1-63 characters, and contain only lowercase letters, numbers, and underscores."
-  }
-}
-
-variable "application_database_user" {
-  description = "Application database user. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-32 characters). The actual database user includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=305 updatesafe }}"
-  type        = string
-  default     = "strapi"
-
-  validation {
-    condition     = var.application_database_user == null || can(regex("^[a-z][a-z0-9_]{0,31}$", var.application_database_user))
-    error_message = "Database user must start with a letter, be 1-32 characters, and contain only lowercase letters, numbers, and underscores."
-  }
-}
-
 # ===========================
 # GROUP 4: Container Configuration
 # ===========================
-
-variable "container_image_source" {
-  description = "Container image source: 'prebuilt' (use existing image from registry) or 'custom' (build from Dockerfile). {{UIMeta group=0 order=400 updatesafe }}"
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.container_image_source == null || contains(["prebuilt", "custom"], coalesce(var.container_image_source, "prebuilt"))
-    error_message = "Container image source must be 'prebuilt' or 'custom'."
-  }
-}
-
-variable "container_image" {
-  description = "Pre-built container image (e.g., 'nginx:latest', 'gcr.io/project/app:v1'). Required when container_image_source='prebuilt' unless using an application_module. {{UIMeta group=0 order=401 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "container_port" {
-  description = "Container port to expose (1-65535). {{UIMeta group=0 order=402 updatesafe }}"
-  type        = number
-  default     = 1337
-
-  validation {
-    condition     = var.container_port == null || (coalesce(var.container_port, 8080) > 0 && coalesce(var.container_port, 8080) <= 65535)
-    error_message = "Container port must be between 1 and 65535."
-  }
-}
-
-variable "enable_image_mirroring" {
-  description = "Enable container image mirroring to Artifact Registry. When enabled, the image is pulled from the source and pushed to the project's Artifact Registry. Required for some applications to ensure stability and availability. {{UIMeta group=0 order=402 updatesafe }}"
-  type        = bool
-  default     = null
-}
-
-variable "container_protocol" {
-  description = "Container protocol: 'http1' or 'h2c' (HTTP/2 Cleartext). {{UIMeta group=0 order=403 updatesafe }}"
-  type        = string
-  default     = "http1"
-
-  validation {
-    condition     = contains(["http1", "h2c"], var.container_protocol)
-    error_message = "Container protocol must be 'http1' or 'h2c'."
-  }
-}
-
-variable "container_build_config" {
-  description = "Custom container build configuration. Required when container_image_source='custom'. Provide Dockerfile path or content, build context, and optional build arguments. {{UIMeta group=0 order=404 updatesafe }}"
-  type = object({
-    enabled            = bool
-    dockerfile_path    = optional(string, "Dockerfile")
-    dockerfile_content = optional(string, null)
-    context_path       = optional(string, ".")
-    build_args         = optional(map(string), {})
-    artifact_repo_name = optional(string, null)
-  })
-  default = null
-}
-
-variable "github_repository_url" {
-  description = "GitHub repository URL for automated CI/CD (e.g., 'https://github.com/username/repo'). Required when using Cloud Build triggers for automated deployments. {{UIMeta group=0 order=405 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "github_token_secret_name" {
-  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. To generate: https://github.com/settings/tokens -> Generate new token (classic). Scopes: repo, admin:repo_hook, workflow, read:org. {{UIMeta group=0 order=406 updatesafe }}"
-  type        = string
-  default     = "github-token"
-}
-
-variable "github_app_installation_id" {
-  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. To find ID: https://github.com/settings/installations -> Configure. ID is at the end of the URL. {{UIMeta group=0 order=407 updatesafe }}"
-  type        = string
-  default     = null
-}
 
 variable "enable_cicd_trigger" {
   description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=0 order=408 updatesafe }}"
@@ -362,30 +142,51 @@ variable "cicd_trigger_config" {
   }
 }
 
-# ===========================
-# GROUP 5: Database Configuration
-# ===========================
-
-variable "database_type" {
-  description = "Database type: MYSQL, POSTGRES, SQLSERVER (or specific versions like MYSQL_8_0, POSTGRES_15). {{UIMeta group=0 order=500 updatesafe }}"
+variable "github_repository_url" {
+  description = "GitHub repository URL for automated CI/CD (e.g., 'https://github.com/username/repo'). Required when using Cloud Build triggers for automated deployments. {{UIMeta group=0 order=405 updatesafe }}"
   type        = string
   default     = null
+}
+
+variable "github_token_secret_name" {
+  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. To generate: https://github.com/settings/tokens -> Generate new token (classic). Scopes: repo, admin:repo_hook, workflow, read:org. {{UIMeta group=0 order=406 updatesafe }}"
+  type        = string
+  default     = "github-token"
+}
+
+variable "github_app_installation_id" {
+  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. To find ID: https://github.com/settings/installations -> Configure. ID is at the end of the URL. {{UIMeta group=0 order=407 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "execution_environment" {
+  description = "Execution environment: gen1 or gen2. {{UIMeta group=0 order=118 updatesafe }}"
+  type        = string
+  default     = "gen2"
 
   validation {
-    condition     = var.database_type == null || contains(["MYSQL", "POSTGRES", "POSTGRESQL", "SQLSERVER", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE", "NONE"], coalesce(var.database_type, "POSTGRES"))
-    error_message = "Database type must be a valid Cloud SQL database version or NONE."
+    condition     = contains(["gen1", "gen2"], var.execution_environment)
+    error_message = "Execution environment must be 'gen1' or 'gen2'."
   }
 }
 
-variable "database_password_length" {
-  description = "Length of auto-generated database password (8-64 characters). {{UIMeta group=0 order=501 updatesafe }}"
-  type        = number
-  default     = 16
+variable "cloudrun_service_account" {
+  description = "Service account for Cloud Run (auto-detected if not provided). {{UIMeta group=0 order=115 updatesafe }}"
+  type        = string
+  default     = null
+}
 
-  validation {
-    condition     = var.database_password_length >= 8 && var.database_password_length <= 64
-    error_message = "Password length must be between 8 and 64 characters."
-  }
+variable "cloudbuild_service_account" {
+  description = "Service account for Cloud Build (auto-detected if not provided). {{UIMeta group=0 order=116 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "cloudsql_service_account" {
+  description = "Service account for Cloud SQL (auto-detected if not provided). {{UIMeta group=0 order=117 updatesafe }}"
+  type        = string
+  default     = null
 }
 
 # ===========================
@@ -401,17 +202,6 @@ variable "container_resources" {
     mem_request  = optional(string, null)
   })
   default = null
-}
-
-variable "timeout_seconds" {
-  description = "Request timeout in seconds (0-3600). Maximum time a request can take. {{UIMeta group=0 order=602 updatesafe }}"
-  type        = number
-  default     = 300
-
-  validation {
-    condition     = var.timeout_seconds >= 0 && var.timeout_seconds <= 3600
-    error_message = "Timeout must be between 0 and 3600 seconds."
-  }
 }
 
 variable "min_instance_count" {
@@ -436,6 +226,17 @@ variable "max_instance_count" {
   }
 }
 
+variable "timeout_seconds" {
+  description = "Request timeout in seconds (0-3600). Maximum time a request can take. {{UIMeta group=0 order=602 updatesafe }}"
+  type        = number
+  default     = 300
+
+  validation {
+    condition     = var.timeout_seconds >= 0 && var.timeout_seconds <= 3600
+    error_message = "Timeout must be between 0 and 3600 seconds."
+  }
+}
+
 # ===========================
 # GROUP 7: Storage & Volume Configuration
 # ===========================
@@ -444,6 +245,7 @@ variable "storage_buckets" {
   description = "Cloud Storage buckets to create. Specify name suffix, location (e.g., 'US', 'EU'), storage class, versioning, and lifecycle rules. {{UIMeta group=0 order=700 updatesafe }}"
   type = list(object({
     name_suffix              = string
+    name                     = optional(string, null)
     location                 = optional(string, "EU")
     storage_class            = optional(string, "STANDARD")
     force_destroy            = optional(bool, true)
@@ -451,13 +253,9 @@ variable "storage_buckets" {
     lifecycle_rules          = optional(list(any), [])
     public_access_prevention = optional(string, "enforced")
     uniform_bucket_level_access = optional(bool, false)
+    soft_delete_retention_seconds = optional(number, 0)
   }))
-  default = [
-    {
-      name_suffix = "data"
-      location    = "EU"
-    }
-  ]
+  default = []
 }
 
 variable "nfs_enabled" {
@@ -477,6 +275,7 @@ variable "gcs_volumes" {
   type = list(object({
     name        = string
     bucket_name = optional(string, null)
+    bucket      = optional(string, null)
     mount_path  = string
     readonly    = optional(bool, false)
     mount_options = optional(list(string), [
@@ -486,18 +285,6 @@ variable "gcs_volumes" {
     ])
   }))
   default = []
-}
-
-variable "enable_cloudsql_volume" {
-  description = "Enable Cloud SQL instance volume for Unix socket connections. When enabled, the Cloud SQL instance will be mounted as a volume, allowing connections via Unix socket instead of TCP/IP. {{UIMeta group=0 order=705 updatesafe }}"
-  type        = bool
-  default     = null
-}
-
-variable "cloudsql_volume_mount_path" {
-  description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=0 order=706 updatesafe }}"
-  type        = string
-  default     = null
 }
 
 # ===========================
@@ -516,36 +303,26 @@ variable "secret_environment_variables" {
   default     = {}
 }
 
-# ===========================
-# GROUP 9: Health Check Configuration
-# ===========================
+variable "database_password_length" {
+  description = "Length of auto-generated database password (8-64 characters). {{UIMeta group=0 order=501 updatesafe }}"
+  type        = number
+  default     = 16
 
-variable "health_check_config" {
-  description = "Liveness probe configuration. Checks if the application is running and restarts if unhealthy. {{UIMeta group=0 order=900 updatesafe }}"
-  type = object({
-    enabled               = bool
-    type                  = optional(string, "HTTP")
-    path                  = optional(string, "/")
-    initial_delay_seconds = optional(number, 0)
-    timeout_seconds       = optional(number, 1)
-    period_seconds        = optional(number, 10)
-    failure_threshold     = optional(number, 3)
-  })
-  default = null
+  validation {
+    condition     = var.database_password_length >= 8 && var.database_password_length <= 64
+    error_message = "Password length must be between 8 and 64 characters."
+  }
 }
 
-variable "startup_probe_config" {
-  description = "Startup probe configuration. Checks if the application has started successfully before accepting traffic. {{UIMeta group=0 order=901 updatesafe }}"
-  type = object({
-    enabled               = bool
-    type                  = optional(string, "TCP")
-    path                  = optional(string, "/")
-    initial_delay_seconds = optional(number, 0)
-    timeout_seconds       = optional(number, 240)
-    period_seconds        = optional(number, 240)
-    failure_threshold     = optional(number, 1)
-  })
-  default = null
+variable "secret_propagation_delay" {
+  description = "Delay in seconds after creating secrets before using them (0-300). {{UIMeta group=0 order=119 updatesafe }}"
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.secret_propagation_delay >= 0 && var.secret_propagation_delay <= 300
+    error_message = "Secret propagation delay must be between 0 and 300 seconds."
+  }
 }
 
 # ===========================
@@ -585,6 +362,18 @@ variable "alert_policies" {
   default = []
 }
 
+variable "service_annotations" {
+  description = "Additional annotations for Cloud Run service (advanced). {{UIMeta group=0 order=120 updatesafe }}"
+  type        = map(string)
+  default     = {}
+}
+
+variable "service_labels" {
+  description = "Additional labels for Cloud Run service (advanced). {{UIMeta group=0 order=121 updatesafe }}"
+  type        = map(string)
+  default     = {}
+}
+
 # ===========================
 # GROUP 11: Initialization Jobs Configuration
 # ===========================
@@ -618,37 +407,19 @@ variable "initialization_jobs" {
 # GROUP 13: Database Extensions & Backup Configuration
 # ===========================
 
-variable "enable_postgres_extensions" {
-  description = "Enable automatic installation of PostgreSQL extensions. Only applicable when using PostgreSQL databases. {{UIMeta group=0 order=1300 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "postgres_extensions" {
-  description = "List of PostgreSQL extensions to install (e.g., ['postgis', 'uuid-ossp', 'pg_trgm']). Common extensions: postgis, cube, earthdistance, unaccent, pg_stat_statements, uuid-ossp, pg_trgm. {{UIMeta group=0 order=1301 updatesafe }}"
-  type        = list(string)
-  default     = []
-
-  validation {
-    condition     = alltrue([for ext in var.postgres_extensions : can(regex("^[a-z_][a-z0-9_-]*$", ext))])
-    error_message = "Extension names must start with a letter or underscore and contain only lowercase letters, numbers, underscores, and hyphens."
-  }
-}
-
-# Unified Backup Import Configuration (Recommended)
 variable "enable_backup_import" {
   description = "Enable automatic import of database backup during deployment. Use backup_source to specify Google Drive or Google Cloud Storage. {{UIMeta group=0 order=1302 updatesafe }}"
   type        = bool
-  default     = false
+  default     = null
 }
 
 variable "backup_source" {
   description = "Backup source: 'gdrive' (Google Drive) or 'gcs' (Google Cloud Storage). GCS is recommended for production due to better security and performance. {{UIMeta group=0 order=1303 updatesafe }}"
   type        = string
-  default     = "gcs"
+  default     = null
 
   validation {
-    condition     = contains(["gdrive", "gcs"], var.backup_source)
+    condition     = var.backup_source == null || contains(["gdrive", "gcs"], coalesce(var.backup_source, "gcs"))
     error_message = "Backup source must be 'gdrive' or 'gcs'."
   }
 }
@@ -656,81 +427,17 @@ variable "backup_source" {
 variable "backup_uri" {
   description = "Backup URI. For GCS: full URI like 'gs://bucket/path/backup.sql'. For Google Drive: file ID from URL 'https://drive.google.com/file/d/FILE_ID/view'. {{UIMeta group=0 order=1304 updatesafe }}"
   type        = string
-  default     = ""
+  default     = null
 }
 
 variable "backup_format" {
   description = "Backup file format. For GCS: 'sql', 'tar', 'gz', 'tgz', 'tar.gz', 'zip'. For Google Drive: 'sql', 'tar', 'zip'. {{UIMeta group=0 order=1305 updatesafe }}"
   type        = string
-  default     = "sql"
+  default     = null
 
   validation {
-    condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.backup_format)
+    condition     = var.backup_format == null || contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], coalesce(var.backup_format, "sql"))
     error_message = "Backup format must be 'sql', 'tar', 'gz', 'tgz', 'tar.gz', or 'zip'."
-  }
-}
-
-# Legacy Variables (Deprecated - Use unified variables above)
-variable "enable_gdrive_backup_import" {
-  description = "DEPRECATED: Use enable_backup_import with backup_source='gdrive' instead. Enable automatic import of database backup from Google Drive. {{UIMeta group=0 order=1320 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "gdrive_backup_file_id" {
-  description = "DEPRECATED: Use backup_uri instead. Google Drive file ID of the backup to import. {{UIMeta group=0 order=1321 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "gdrive_backup_format" {
-  description = "DEPRECATED: Use backup_format instead. Backup file format for Google Drive. {{UIMeta group=0 order=1322 updatesafe }}"
-  type        = string
-  default     = "sql"
-
-  validation {
-    condition     = contains(["sql", "tar", "zip"], var.gdrive_backup_format)
-    error_message = "Backup format must be 'sql', 'tar', or 'zip'."
-  }
-}
-
-variable "enable_gcs_backup_import" {
-  description = "DEPRECATED: Use enable_backup_import with backup_source='gcs' instead. Enable automatic import of database backup from Google Cloud Storage. {{UIMeta group=0 order=1323 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "gcs_backup_uri" {
-  description = "DEPRECATED: Use backup_uri instead. Google Cloud Storage URI of the backup to import. {{UIMeta group=0 order=1324 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "gcs_backup_format" {
-  description = "DEPRECATED: Use backup_format instead. Backup file format for GCS import. {{UIMeta group=0 order=1325 updatesafe }}"
-  type        = string
-  default     = "sql"
-
-  validation {
-    condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.gcs_backup_format)
-    error_message = "Backup format must be 'sql', 'tar', 'gz', 'tgz', 'tar.gz', or 'zip'."
-  }
-}
-
-variable "enable_mysql_plugins" {
-  description = "Enable automatic installation of MySQL plugins and components. Only applicable when using MySQL databases. {{UIMeta group=0 order=1308 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "mysql_plugins" {
-  description = "List of MySQL plugins to install (e.g., ['audit_log', 'validate_password']). Common plugins: validate_password, audit_log, clone, group_replication, authentication_ldap_simple. {{UIMeta group=0 order=1309 updatesafe }}"
-  type        = list(string)
-  default     = []
-
-  validation {
-    condition     = alltrue([for plugin in var.mysql_plugins : can(regex("^[a-z_][a-z0-9_]*$", plugin))])
-    error_message = "Plugin names must start with a letter or underscore and contain only lowercase letters, numbers, and underscores."
   }
 }
 
@@ -788,4 +495,10 @@ variable "ingress_settings" {
     condition     = contains(["all", "internal", "internal-and-cloud-load-balancing"], var.ingress_settings)
     error_message = "Ingress must be 'all', 'internal', or 'internal-and-cloud-load-balancing'."
   }
+}
+
+variable "network_name" {
+  description = "Name of the VPC network. {{UIMeta group=0 order=114 updatesafe }}"
+  type        = string
+  default     = "vpc-network"
 }
