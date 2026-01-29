@@ -78,7 +78,7 @@ fi
 SQLCONF="/var/www/localhost/htdocs/openemr/sites/default/sqlconf.php"
 if [ -f "$SQLCONF" ]; then
     # Check for corruption: literal \$ in file indicates bad escaping from prior deploy
-    if grep -q '\\$' "$SQLCONF" 2>/dev/null; then
+    if grep -qF '\$' "$SQLCONF" 2>/dev/null; then
         echo "⚠ Existing sqlconf.php is corrupted (contains backslash-dollar), recreating..."
         rm -f "$SQLCONF"
     fi
@@ -92,10 +92,10 @@ if [ -f "$SQLCONF" ]; then
 
     # Update database connection settings
     if [ -n "$MYSQL_USER" ]; then
-        sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${DB_HOST:-localhost}'/" "$SQLCONF" 2>/dev/null || true
-        sed -i "s/\$login\s*=\s*'[^']*'/\$login = '${MYSQL_USER}'/" "$SQLCONF" 2>/dev/null || true
-        sed -i "s/\$pass\s*=\s*'[^']*'/\$pass = '${MYSQL_PASS:-${MYSQL_PASSWORD}}'/" "$SQLCONF" 2>/dev/null || true
-        sed -i "s/\$dbase\s*=\s*'[^']*'/\$dbase = '${MYSQL_DATABASE}'/" "$SQLCONF" 2>/dev/null || true
+        sed -i "s/[$]host[ 	]*=[ 	]*'[^']*'/\$host = '${DB_HOST:-localhost}'/" "$SQLCONF" 2>/dev/null || true
+        sed -i "s/[$]login[ 	]*=[ 	]*'[^']*'/\$login = '${MYSQL_USER}'/" "$SQLCONF" 2>/dev/null || true
+        sed -i "s/[$]pass[ 	]*=[ 	]*'[^']*'/\$pass = '${MYSQL_PASS:-${MYSQL_PASSWORD}}'/" "$SQLCONF" 2>/dev/null || true
+        sed -i "s/[$]dbase[ 	]*=[ 	]*'[^']*'/\$dbase = '${MYSQL_DATABASE}'/" "$SQLCONF" 2>/dev/null || true
         echo "✓ Database configuration updated"
     fi
     echo ""
