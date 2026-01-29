@@ -14,6 +14,17 @@ sed -i "s/.*max_input_vars.*/max_input_vars = 5000/" /etc/php/8.3/apache2/php.in
 echo | cat /root/env.sh
 /usr/sbin/cron
 source /etc/apache2/envvars
+
+# Set default values if environment variables are missing
+: "${APACHE_RUN_DIR:=/var/run/apache2}"
+: "${APACHE_LOCK_DIR:=/var/lock/apache2}"
+: "${APACHE_LOG_DIR:=/var/log/apache2}"
+: "${APACHE_PID_FILE:=/var/run/apache2/apache2.pid}"
+: "${APACHE_RUN_USER:=www-data}"
+: "${APACHE_RUN_GROUP:=www-data}"
+
+export APACHE_RUN_DIR APACHE_LOCK_DIR APACHE_LOG_DIR APACHE_PID_FILE APACHE_RUN_USER APACHE_RUN_GROUP
+
 mkdir -p "$APACHE_RUN_DIR" "$APACHE_LOCK_DIR" "$APACHE_LOG_DIR"
 chown -R "$APACHE_RUN_USER:$APACHE_RUN_GROUP" "$APACHE_RUN_DIR" "$APACHE_LOCK_DIR" "$APACHE_LOG_DIR"
 tail -F /var/log/apache2/* 2>/dev/null &

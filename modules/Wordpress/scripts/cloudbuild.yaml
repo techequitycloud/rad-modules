@@ -17,11 +17,13 @@ steps:
 - name: 'gcr.io/kaniko-project/executor:latest'
   args:
     - '--dockerfile=Dockerfile'
-    - '--context=dir://django'
-    - '--destination=us-east1-docker.pkg.dev/qwiklabs-gcp-02-30b30b50c2a4/djangobasic62076fd2-repo/django:3.11-slim'
-    - '--destination=us-east1-docker.pkg.dev/qwiklabs-gcp-02-30b30b50c2a4/djangobasic62076fd2-repo/django:latest'
+    - '--context=dir://wordpress'
+    - '--destination=us-east1-docker.pkg.dev/qwiklabs-gcp-02-30b30b50c2a4/wpbasic3ec468b8-repo/wp:6.8.1'
+    - '--destination=us-east1-docker.pkg.dev/qwiklabs-gcp-02-30b30b50c2a4/wpbasic3ec468b8-repo/wp:latest'
 
-    - '--build-arg=APP_VERSION=3.11-slim'
+    - '--build-arg=APP_SHA=52d5f05c96a9155f78ed84700264307e5dea14b4'
+
+    - '--build-arg=APP_VERSION=6.8.1'
 
     - '--cache=true'
     - '--cache-ttl=24h'
