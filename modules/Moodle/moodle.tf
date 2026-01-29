@@ -166,7 +166,7 @@ locals {
           <<-EOT
             set -e
             echo "Installing dependencies..."
-            apk update && apk add --no-install-recommends postgresql-client
+            apk add --no-cache postgresql-client
 
             TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
             echo "Using DB Host: $TARGET_DB_HOST"
