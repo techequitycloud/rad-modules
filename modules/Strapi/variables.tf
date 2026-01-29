@@ -13,11 +13,151 @@
 # limitations under the License.
 
 # ===========================
+# GROUP 0: Module Metadata & Admin Configuration
+# ===========================
+
+variable "module_description" {
+  description = "The description of the module. {{UIMeta group=0 order=100 }}"
+  type        = string
+  default     = "This module can be used to deploy Strapi"
+}
+
+variable "module_dependency" {
+  description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=101 }}"
+  type        = list(string)
+  default     = ["GCP_Services"]
+}
+
+variable "module_services" {
+  description = "Specify the module services. {{UIMeta group=0 order=102 }}"
+  type        = list(string)
+  default     = ["Cloud Run", "Cloud Build", "Artifact Registry", "Cloud Storage", "Cloud SQL", "Cloud IAM", "Cloud Networking", "Secret Manager"]
+}
+
+variable "credit_cost" {
+  description = "Specify the module cost. {{UIMeta group=0 order=103 }}"
+  type        = number
+  default     = 100
+}
+
+variable "require_credit_purchases" {
+  description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=104 }}"
+  type        = bool
+  default     = false
+}
+
+variable "enable_purge" {
+  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=105 }}"
+  type        = bool
+  default     = true
+}
+
+variable "public_access" {
+  description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
+  type        = bool
+  default     = true
+}
+
+variable "deployment_id" {
+  description = "Unique ID suffix for resources. Leave blank to generate random ID. {{UIMeta group=0 order=107 }}"
+  type        = string
+  default     = null
+}
+
+variable "resource_creator_identity" {
+  description = "The Service Account used by terraform to create resources in the destination project. Assign time limited conditional Basic Owner IAM role in the destination project. {{UIMeta group=0 order=1 }}"
+  type        = string
+  default     = null
+}
+
+variable "resource_labels" {
+  description = "Labels to apply to all resources. {{UIMeta group=0 order=109 updatesafe }}"
+  type        = map(string)
+  default     = null
+}
+
+variable "deployment_regions" {
+  description = "List of regions for multi-region deployment (advanced users only). {{UIMeta group=0 order=110 updatesafe }}"
+  type        = list(string)
+  default     = []
+}
+
+variable "configure_environment" {
+  description = "Set to true to deploy Cloud Run service. {{UIMeta group=0 order=111 updatesafe }}"
+  type        = bool
+  default     = true
+}
+
+variable "create_cloud_storage" {
+  description = "Set to true to create Cloud Storage buckets. {{UIMeta group=0 order=112 updatesafe }}"
+  type        = bool
+  default     = true
+}
+
+variable "network_name" {
+  description = "Name of the VPC network. {{UIMeta group=0 order=114 updatesafe }}"
+  type        = string
+  default     = "vpc-network"
+}
+
+variable "cloudrun_service_account" {
+  description = "Service account for Cloud Run (auto-detected if not provided). {{UIMeta group=0 order=115 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "cloudbuild_service_account" {
+  description = "Service account for Cloud Build (auto-detected if not provided). {{UIMeta group=0 order=116 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "cloudsql_service_account" {
+  description = "Service account for Cloud SQL (auto-detected if not provided). {{UIMeta group=0 order=117 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "execution_environment" {
+  description = "Execution environment: gen1 or gen2. {{UIMeta group=0 order=118 updatesafe }}"
+  type        = string
+  default     = "gen2"
+
+  validation {
+    condition     = contains(["gen1", "gen2"], var.execution_environment)
+    error_message = "Execution environment must be 'gen1' or 'gen2'."
+  }
+}
+
+variable "secret_propagation_delay" {
+  description = "Delay in seconds after creating secrets before using them (0-300). {{UIMeta group=0 order=119 updatesafe }}"
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.secret_propagation_delay >= 0 && var.secret_propagation_delay <= 300
+    error_message = "Secret propagation delay must be between 0 and 300 seconds."
+  }
+}
+
+variable "service_annotations" {
+  description = "Additional annotations for Cloud Run service (advanced). {{UIMeta group=0 order=120 updatesafe }}"
+  type        = map(string)
+  default     = {}
+}
+
+variable "service_labels" {
+  description = "Additional labels for Cloud Run service (advanced). {{UIMeta group=0 order=121 updatesafe }}"
+  type        = map(string)
+  default     = {}
+}
+
+# ===========================
 # GROUP 1: External Project Configuration
 # ===========================
 
 variable "agent_service_account" {
-  description = "If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account (e.g., rad-agent@gcp-project.iam.gserviceaccount.com) and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=1 order=200 updatesafe }}"
+  description = "If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account (e.g., rad-agent@gcp-project.iam.gserviceaccount.com) and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=0 order=200 updatesafe }}"
   type        = string
   default     = null
 }
@@ -53,56 +193,9 @@ variable "deployment_region" {
   default     = "us-central1"
 }
 
-variable "deployment_regions" {
-  description = "List of regions for multi-region deployment (advanced users only). {{UIMeta group=0 order=110 updatesafe }}"
-  type        = list(string)
-  default     = []
-}
-
-variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=108 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "resource_labels" {
-  description = "Labels to apply to all resources. {{UIMeta group=0 order=109 updatesafe }}"
-  type        = map(string)
-  default     = null
-}
-
-variable "deployment_id" {
-  description = "Unique ID suffix for resources. Leave blank to generate random ID. {{UIMeta group=0 order=107 }}"
-  type        = string
-  default     = null
-}
-
-variable "configure_environment" {
-  description = "Set to true to deploy Cloud Run service. {{UIMeta group=0 order=111 updatesafe }}"
-  type        = bool
-  default     = true
-}
-
-variable "create_cloud_storage" {
-  description = "Set to true to create Cloud Storage buckets. {{UIMeta group=0 order=112 updatesafe }}"
-  type        = bool
-  default     = true
-}
-
 # ===========================
 # GROUP 3: Application Configuration
 # ===========================
-
-variable "application_name" {
-  description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=0 order=300 updatesafe }}"
-  type        = string
-  default     = "strapi"
-
-  validation {
-    condition     = var.application_name == null || can(regex("^[a-z][a-z0-9-]{0,19}$", var.application_name))
-    error_message = "Application name must start with a letter, be 1-20 characters, and contain only lowercase letters, numbers, and hyphens."
-  }
-}
 
 variable "application_version" {
   description = "Application version tag (e.g., 1.0.0, latest). {{UIMeta group=0 order=302 updatesafe }}"
@@ -110,121 +203,24 @@ variable "application_version" {
   default     = "5.0"
 }
 
-variable "application_description" {
-  description = "Brief description of your application. {{UIMeta group=0 order=303 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
 # ===========================
-# GROUP 4: Container Configuration
+# GROUP 5: Database Configuration
 # ===========================
 
-variable "enable_cicd_trigger" {
-  description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=0 order=408 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "cicd_trigger_config" {
-  description = "Cloud Build trigger configuration for automated CI/CD pipeline. Configure branch patterns, included/ignored files, and build settings. {{UIMeta group=0 order=409 updatesafe }}"
-  type = object({
-    branch_pattern     = optional(string, "^main$")
-    included_files     = optional(list(string), [])
-    ignored_files      = optional(list(string), [])
-    trigger_name       = optional(string, null)
-    description        = optional(string, "Automated build and deployment trigger")
-    substitutions      = optional(map(string), {})
-  })
-  default = {
-    branch_pattern = "^main$"
-    description    = "Automated build and deployment trigger"
-  }
-}
-
-variable "github_repository_url" {
-  description = "GitHub repository URL for automated CI/CD (e.g., 'https://github.com/username/repo'). Required when using Cloud Build triggers for automated deployments. {{UIMeta group=0 order=405 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "github_token_secret_name" {
-  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. To generate: https://github.com/settings/tokens -> Generate new token (classic). Scopes: repo, admin:repo_hook, workflow, read:org. {{UIMeta group=0 order=406 updatesafe }}"
-  type        = string
-  default     = "github-token"
-}
-
-variable "github_app_installation_id" {
-  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. To find ID: https://github.com/settings/installations -> Configure. ID is at the end of the URL. {{UIMeta group=0 order=407 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "execution_environment" {
-  description = "Execution environment: gen1 or gen2. {{UIMeta group=0 order=118 updatesafe }}"
-  type        = string
-  default     = "gen2"
+variable "database_password_length" {
+  description = "Length of auto-generated database password (8-64 characters). {{UIMeta group=0 order=501 updatesafe }}"
+  type        = number
+  default     = 16
 
   validation {
-    condition     = contains(["gen1", "gen2"], var.execution_environment)
-    error_message = "Execution environment must be 'gen1' or 'gen2'."
+    condition     = var.database_password_length >= 8 && var.database_password_length <= 64
+    error_message = "Password length must be between 8 and 64 characters."
   }
-}
-
-variable "cloudrun_service_account" {
-  description = "Service account for Cloud Run (auto-detected if not provided). {{UIMeta group=0 order=115 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "cloudbuild_service_account" {
-  description = "Service account for Cloud Build (auto-detected if not provided). {{UIMeta group=0 order=116 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "cloudsql_service_account" {
-  description = "Service account for Cloud SQL (auto-detected if not provided). {{UIMeta group=0 order=117 updatesafe }}"
-  type        = string
-  default     = null
 }
 
 # ===========================
 # GROUP 6: Resources & Scaling Configuration
 # ===========================
-
-variable "container_resources" {
-  description = "Container resource limits. Specify CPU (e.g., '1000m' for 1 CPU) and memory (e.g., '512Mi', '2Gi'). {{UIMeta group=0 order=600 updatesafe }}"
-  type = object({
-    cpu_limit    = string
-    memory_limit = string
-    cpu_request  = optional(string, null)
-    mem_request  = optional(string, null)
-  })
-  default = null
-}
-
-variable "min_instance_count" {
-  description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=0 order=603 updatesafe }}"
-  type        = number
-  default     = null
-
-  validation {
-    condition     = var.min_instance_count == null || (coalesce(var.min_instance_count, 0) >= 0 && coalesce(var.min_instance_count, 0) <= 1000)
-    error_message = "Minimum instance count must be between 0 and 1000."
-  }
-}
-
-variable "max_instance_count" {
-  description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=0 order=604 updatesafe }}"
-  type        = number
-  default     = null
-
-  validation {
-    condition     = var.max_instance_count == null || (coalesce(var.max_instance_count, 1) >= 1 && coalesce(var.max_instance_count, 1) <= 1000)
-    error_message = "Maximum instance count must be between 1 and 1000."
-  }
-}
 
 variable "timeout_seconds" {
   description = "Request timeout in seconds (0-3600). Maximum time a request can take. {{UIMeta group=0 order=602 updatesafe }}"
@@ -245,7 +241,6 @@ variable "storage_buckets" {
   description = "Cloud Storage buckets to create. Specify name suffix, location (e.g., 'US', 'EU'), storage class, versioning, and lifecycle rules. {{UIMeta group=0 order=700 updatesafe }}"
   type = list(object({
     name_suffix              = string
-    name                     = optional(string, null)
     location                 = optional(string, "EU")
     storage_class            = optional(string, "STANDARD")
     force_destroy            = optional(bool, true)
@@ -253,7 +248,6 @@ variable "storage_buckets" {
     lifecycle_rules          = optional(list(any), [])
     public_access_prevention = optional(string, "enforced")
     uniform_bucket_level_access = optional(bool, false)
-    soft_delete_retention_seconds = optional(number, 0)
   }))
   default = []
 }
@@ -275,7 +269,6 @@ variable "gcs_volumes" {
   type = list(object({
     name        = string
     bucket_name = optional(string, null)
-    bucket      = optional(string, null)
     mount_path  = string
     readonly    = optional(bool, false)
     mount_options = optional(list(string), [
@@ -301,28 +294,6 @@ variable "secret_environment_variables" {
   description = "Environment variables from Secret Manager. Map environment variable name to Secret Manager secret name (e.g., {API_KEY='my-api-key-secret'}). {{UIMeta group=0 order=801 updatesafe }}"
   type        = map(string)
   default     = {}
-}
-
-variable "database_password_length" {
-  description = "Length of auto-generated database password (8-64 characters). {{UIMeta group=0 order=501 updatesafe }}"
-  type        = number
-  default     = 16
-
-  validation {
-    condition     = var.database_password_length >= 8 && var.database_password_length <= 64
-    error_message = "Password length must be between 8 and 64 characters."
-  }
-}
-
-variable "secret_propagation_delay" {
-  description = "Delay in seconds after creating secrets before using them (0-300). {{UIMeta group=0 order=119 updatesafe }}"
-  type        = number
-  default     = 30
-
-  validation {
-    condition     = var.secret_propagation_delay >= 0 && var.secret_propagation_delay <= 300
-    error_message = "Secret propagation delay must be between 0 and 300 seconds."
-  }
 }
 
 # ===========================
@@ -362,18 +333,6 @@ variable "alert_policies" {
   default = []
 }
 
-variable "service_annotations" {
-  description = "Additional annotations for Cloud Run service (advanced). {{UIMeta group=0 order=120 updatesafe }}"
-  type        = map(string)
-  default     = {}
-}
-
-variable "service_labels" {
-  description = "Additional labels for Cloud Run service (advanced). {{UIMeta group=0 order=121 updatesafe }}"
-  type        = map(string)
-  default     = {}
-}
-
 # ===========================
 # GROUP 11: Initialization Jobs Configuration
 # ===========================
@@ -407,6 +366,7 @@ variable "initialization_jobs" {
 # GROUP 13: Database Extensions & Backup Configuration
 # ===========================
 
+# Unified Backup Import Configuration (Recommended)
 variable "enable_backup_import" {
   description = "Enable automatic import of database backup during deployment. Use backup_source to specify Google Drive or Google Cloud Storage. {{UIMeta group=0 order=1302 updatesafe }}"
   type        = bool
@@ -419,7 +379,7 @@ variable "backup_source" {
   default     = null
 
   validation {
-    condition     = var.backup_source == null || contains(["gdrive", "gcs"], coalesce(var.backup_source, "gcs"))
+    condition     = contains(["gdrive", "gcs"], var.backup_source)
     error_message = "Backup source must be 'gdrive' or 'gcs'."
   }
 }
@@ -436,7 +396,7 @@ variable "backup_format" {
   default     = null
 
   validation {
-    condition     = var.backup_format == null || contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], coalesce(var.backup_format, "sql"))
+    condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.backup_format)
     error_message = "Backup format must be 'sql', 'tar', 'gz', 'tgz', 'tar.gz', or 'zip'."
   }
 }
@@ -497,8 +457,44 @@ variable "ingress_settings" {
   }
 }
 
-variable "network_name" {
-  description = "Name of the VPC network. {{UIMeta group=0 order=114 updatesafe }}"
+# CI/CD Variables
+
+variable "github_repository_url" {
+  description = "GitHub repository URL for automated CI/CD (e.g., 'https://github.com/username/repo'). Required when using Cloud Build triggers for automated deployments. {{UIMeta group=0 order=405 updatesafe }}"
   type        = string
-  default     = "vpc-network"
+  default     = null
+}
+
+variable "github_token_secret_name" {
+  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. To generate: https://github.com/settings/tokens -> Generate new token (classic). Scopes: repo, admin:repo_hook, workflow, read:org. {{UIMeta group=0 order=406 updatesafe }}"
+  type        = string
+  default     = "github-token"
+}
+
+variable "github_app_installation_id" {
+  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. To find ID: https://github.com/settings/installations -> Configure. ID is at the end of the URL. {{UIMeta group=0 order=407 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "enable_cicd_trigger" {
+  description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=0 order=408 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "cicd_trigger_config" {
+  description = "Cloud Build trigger configuration for automated CI/CD pipeline. Configure branch patterns, included/ignored files, and build settings. {{UIMeta group=0 order=409 updatesafe }}"
+  type = object({
+    branch_pattern     = optional(string, "^main$")
+    included_files     = optional(list(string), [])
+    ignored_files      = optional(list(string), [])
+    trigger_name       = optional(string, null)
+    description        = optional(string, "Automated build and deployment trigger")
+    substitutions      = optional(map(string), {})
+  })
+  default = {
+    branch_pattern = "^main$"
+    description    = "Automated build and deployment trigger"
+  }
 }

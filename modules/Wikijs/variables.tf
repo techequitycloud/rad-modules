@@ -65,7 +65,7 @@ variable "deployment_id" {
 }
 
 variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=108 updatesafe }}"
+  description = "The Service Account used by terraform to create resources in the destination project. Assign time limited conditional Basic Owner IAM role in the destination project. {{UIMeta group=0 order=1 }}"
   type        = string
   default     = null
 }
@@ -157,7 +157,7 @@ variable "service_labels" {
 # ===========================
 
 variable "agent_service_account" {
-  description = "If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account (e.g., rad-agent@gcp-project.iam.gserviceaccount.com) and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=1 order=200 updatesafe }}"
+  description = "If deploying into an existing GCP project outside of the RAD platform, enter a RAD GCP project agent service account (e.g., rad-agent@gcp-project.iam.gserviceaccount.com) and grant this service account IAM Owner role in the target Google Cloud project. Leave this field blank if deploying into a target project on the RAD platform. {{UIMeta group=0 order=200 updatesafe }}"
   type        = string
   default     = null
 }
@@ -203,113 +203,6 @@ variable "application_version" {
   default     = "2.5.309"
 }
 
-# Hidden / Internal Variables (Managed by Preset)
-variable "application_module" {
-  description = "Managed by application module preset."
-  type        = string
-  default     = null
-}
-
-variable "application_name" {
-  description = "Managed by application module preset."
-  type        = string
-  default     = null
-}
-
-variable "application_display_name" {
-  description = "Managed by application module preset."
-  type        = string
-  default     = null
-}
-
-variable "application_description" {
-  description = "Managed by application module preset."
-  type        = string
-  default     = null
-}
-
-variable "application_database_name" {
-  description = "Managed by application module preset."
-  type        = string
-  default     = null
-}
-
-variable "application_database_user" {
-  description = "Managed by application module preset."
-  type        = string
-  default     = null
-}
-
-# ===========================
-# GROUP 4: Container Configuration
-# ===========================
-
-variable "container_image_source" {
-  description = "Managed by application module preset."
-  type        = string
-  default     = null
-}
-
-variable "container_image" {
-  description = "Managed by application module preset."
-  type        = string
-  default     = null
-}
-
-variable "container_port" {
-  description = "Managed by application module preset."
-  type        = number
-  default     = null
-}
-
-variable "container_protocol" {
-  description = "Managed by application module preset."
-  type        = string
-  default     = "http1"
-}
-
-variable "container_build_config" {
-  description = "Managed by application module preset."
-  type        = any
-  default     = null
-}
-
-variable "enable_image_mirroring" {
-  description = "Enable container image mirroring to Artifact Registry. When enabled, the image is pulled from the source and pushed to the project's Artifact Registry. Required for some applications to ensure stability and availability. {{UIMeta group=0 order=402 updatesafe }}"
-  type        = bool
-  default     = null
-}
-
-variable "github_repository_url" {
-  description = "Managed by application module preset."
-  type        = string
-  default     = null
-}
-
-variable "github_token_secret_name" {
-  description = "Managed by application module preset."
-  type        = string
-  default     = null
-}
-
-variable "github_app_installation_id" {
-  description = "Managed by application module preset."
-  type        = string
-  default     = null
-}
-
-variable "enable_cicd_trigger" {
-  description = "Managed by application module preset."
-  type        = bool
-  default     = false
-}
-
-variable "cicd_trigger_config" {
-  description = "Managed by application module preset."
-  type        = any
-  default     = null
-}
-
 # ===========================
 # GROUP 5: Database Configuration
 # ===========================
@@ -325,29 +218,9 @@ variable "database_password_length" {
   }
 }
 
-variable "database_type" {
-  description = "Managed by application module preset."
-  type        = string
-  default     = null
-}
-
 # ===========================
 # GROUP 6: Resources & Scaling Configuration
 # ===========================
-
-variable "container_resources" {
-  description = "Container resource limits. Specify CPU (e.g., '1000m' for 1 CPU) and memory (e.g., '512Mi', '2Gi'). {{UIMeta group=0 order=600 updatesafe }}"
-  type = object({
-    cpu_limit    = string
-    memory_limit = string
-    cpu_request  = optional(string, null)
-    mem_request  = optional(string, null)
-  })
-  default = {
-    cpu_limit    = "1000m"
-    memory_limit = "2Gi"
-  }
-}
 
 variable "timeout_seconds" {
   description = "Request timeout in seconds (0-3600). Maximum time a request can take. {{UIMeta group=0 order=602 updatesafe }}"
@@ -358,18 +231,6 @@ variable "timeout_seconds" {
     condition     = var.timeout_seconds >= 0 && var.timeout_seconds <= 3600
     error_message = "Timeout must be between 0 and 3600 seconds."
   }
-}
-
-variable "min_instance_count" {
-  description = "Managed by application module preset."
-  type        = number
-  default     = null
-}
-
-variable "max_instance_count" {
-  description = "Managed by application module preset."
-  type        = number
-  default     = null
 }
 
 # ===========================
@@ -436,18 +297,6 @@ variable "gcs_volumes" {
       ]
     }
   ]
-}
-
-variable "enable_cloudsql_volume" {
-  description = "Enable Cloud SQL instance volume for Unix socket connections. When enabled, the Cloud SQL instance will be mounted as a volume, allowing connections via Unix socket instead of TCP/IP. {{UIMeta group=0 order=705 updatesafe }}"
-  type        = bool
-  default     = true
-}
-
-variable "cloudsql_volume_mount_path" {
-  description = "Mount path for Cloud SQL Unix socket (e.g., '/cloudsql'). Only used when enable_cloudsql_volume is true. {{UIMeta group=0 order=706 updatesafe }}"
-  type        = string
-  default     = "/cloudsql"
 }
 
 # ===========================
@@ -543,30 +392,6 @@ variable "initialization_jobs" {
 # GROUP 13: Database Extensions & Backup Configuration
 # ===========================
 
-variable "enable_postgres_extensions" {
-  description = "Managed by application module preset."
-  type        = bool
-  default     = false
-}
-
-variable "postgres_extensions" {
-  description = "Managed by application module preset."
-  type        = list(string)
-  default     = []
-}
-
-variable "enable_mysql_plugins" {
-  description = "Managed by application module preset."
-  type        = bool
-  default     = false
-}
-
-variable "mysql_plugins" {
-  description = "Managed by application module preset."
-  type        = list(string)
-  default     = []
-}
-
 # Unified Backup Import Configuration (Recommended)
 variable "enable_backup_import" {
   description = "Enable automatic import of database backup during deployment. Use backup_source to specify Google Drive or Google Cloud Storage. {{UIMeta group=0 order=1302 updatesafe }}"
@@ -658,54 +483,42 @@ variable "ingress_settings" {
   }
 }
 
-# Legacy variables (kept for compatibility if needed, else they can be removed if sure they are not referenced)
-variable "health_check_config" {
-  description = "Managed by application module preset."
-  type        = any
+# CI/CD Variables
+
+variable "github_repository_url" {
+  description = "GitHub repository URL for automated CI/CD (e.g., 'https://github.com/username/repo'). Required when using Cloud Build triggers for automated deployments. {{UIMeta group=0 order=405 updatesafe }}"
+  type        = string
   default     = null
 }
 
-variable "startup_probe_config" {
-  description = "Managed by application module preset."
-  type        = any
+variable "github_token_secret_name" {
+  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. To generate: https://github.com/settings/tokens -> Generate new token (classic). Scopes: repo, admin:repo_hook, workflow, read:org. {{UIMeta group=0 order=406 updatesafe }}"
+  type        = string
   default     = null
 }
 
-# Deprecated backup vars need to be present if referenced, but I removed them in previous step.
-# CloudRunApp/main.tf uses them via local.enable_gdrive_backup_import which comes from var.
-# So I must restore them!
-variable "enable_gdrive_backup_import" {
-  description = "DEPRECATED: Use enable_backup_import instead."
+variable "github_app_installation_id" {
+  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. To find ID: https://github.com/settings/installations -> Configure. ID is at the end of the URL. {{UIMeta group=0 order=407 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "enable_cicd_trigger" {
+  description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=0 order=408 updatesafe }}"
   type        = bool
   default     = false
 }
 
-variable "gdrive_backup_file_id" {
-  description = "DEPRECATED: Use backup_uri instead."
-  type        = string
-  default     = ""
+variable "cicd_trigger_config" {
+  description = "Cloud Build trigger configuration for automated CI/CD pipeline. Configure branch patterns, included/ignored files, and build settings. {{UIMeta group=0 order=409 updatesafe }}"
+  type = object({
+    branch_pattern     = optional(string, "^main$")
+    included_files     = optional(list(string), [])
+    ignored_files      = optional(list(string), [])
+    trigger_name       = optional(string, null)
+    description        = optional(string, "Automated build and deployment trigger")
+    substitutions      = optional(map(string), {})
+  })
+  default = null
 }
 
-variable "gdrive_backup_format" {
-  description = "DEPRECATED: Use backup_format instead."
-  type        = string
-  default     = "sql"
-}
-
-variable "enable_gcs_backup_import" {
-  description = "DEPRECATED: Use enable_backup_import instead."
-  type        = bool
-  default     = false
-}
-
-variable "gcs_backup_uri" {
-  description = "DEPRECATED: Use backup_uri instead."
-  type        = string
-  default     = ""
-}
-
-variable "gcs_backup_format" {
-  description = "DEPRECATED: Use backup_format instead."
-  type        = string
-  default     = "sql"
-}
