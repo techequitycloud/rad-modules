@@ -44,6 +44,10 @@ locals {
         fi
         rm -f /mnt/filestore/.test
 
+        # Set permissive umask so new filestore subdirectories are world-writable
+        umask 0000
+        chmod -R 777 /mnt/filestore /mnt/sessions 2>/dev/null || true
+
         echo "All checks passed"
         echo "Starting Odoo server..."
         exec odoo -c /mnt/odoo.conf
