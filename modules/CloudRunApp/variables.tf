@@ -472,6 +472,12 @@ variable "nfs_mount_path" {
   default     = null
 }
 
+variable "nfs_server_path" {
+  description = "NFS server export path (e.g., '/share', '/'). {{UIMeta group=0 order=704 updatesafe }}"
+  type        = string
+  default     = "/share"
+}
+
 variable "gcs_volumes" {
   description = "GCS FUSE volume mounts. Specify volume name, bucket name (null for auto-created), mount path, readonly mode, and mount options. {{UIMeta group=0 order=703 updatesafe }}"
   type = list(object({

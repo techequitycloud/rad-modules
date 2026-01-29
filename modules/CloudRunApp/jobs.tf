@@ -37,7 +37,7 @@ locals {
   )
 
   # ✅ NEW: Unique NFS path scoped to tenant and deployment
-  nfs_unique_path = "/share/${local.resource_prefix}"
+  nfs_unique_path = "${var.nfs_server_path}/${local.resource_prefix}"
 
   # ============================================================================
   # Backup Import Configuration
@@ -79,7 +79,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
-        image = "alpine:3.19"
+        image = "debian:12-slim"
 
         env {
           name  = "DIR_NAME"
@@ -138,7 +138,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
         nfs {
           server = local.nfs_internal_ip
           # ✅ CHANGED: Mount root path to create unique path
-          path   = "/share"
+          path   = var.nfs_server_path
         }
       }
 
@@ -1282,7 +1282,7 @@ resource "google_cloud_run_v2_job" "nfs_cleanup_job" {
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
-        image = "alpine:3.19"
+        image = "debian:12-slim"
 
         env {
           name  = "NFS_BASE_PATH"
@@ -1309,7 +1309,7 @@ resource "google_cloud_run_v2_job" "nfs_cleanup_job" {
         name = "nfs-deployment-volume"
         nfs {
           server = local.nfs_internal_ip
-          path   = "/share"
+          path   = var.nfs_server_path
         }
       }
 
