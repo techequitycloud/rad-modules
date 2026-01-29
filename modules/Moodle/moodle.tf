@@ -6,22 +6,23 @@
 
 locals {
   moodle_module = {
-    app_name            = "moodle"
-    description         = "Moodle LMS - Online learning and course management platform"
-    application_version = "4.5.1"
+    app_name                = "moodle"
+    description             = "Moodle LMS - Online learning and course management platform"
+    application_version     = var.application_version
+    container_image         = "moodle"  # Name for built image
+    enable_image_mirroring  = true
 
     # ✅ Use custom build
-    container_image = "moodle"  # Name for built image
-    image_source    = "custom"          # Changed from "custom" to "build"
+    image_source    = "build"          # Changed from "custom" to "build"
 
     # ✅ Custom build configuration
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "moodle"  # ✅ Fixed: Build from scripts/moodle
+      context_path       = "."
       dockerfile_content = null
       build_args = {
-        APP_VERSION = "4.5.1"
+        APP_VERSION = var.application_version
         TARGETARCH  = "amd64"  # Or leave empty for auto-detection
       }
       artifact_repo_name = null
