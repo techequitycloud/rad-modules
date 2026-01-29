@@ -13,7 +13,7 @@ TARGET_SOCKET="/tmp/mysqld.sock"
 if [ -d "$SOCKET_DIR" ]; then
     # Find the socket file. It's usually the only file there.
     SOCKET_FILE=$(find "$SOCKET_DIR" -maxdepth 1 -mindepth 1 -print -quit)
-    
+
     if [ -n "$SOCKET_FILE" ]; then
         echo "Found Cloud SQL socket: $SOCKET_FILE"
         echo "Symlinking to $TARGET_SOCKET"
