@@ -78,8 +78,8 @@ locals {
             echo "Installing dependencies..."
             apk update && apk add --no-cache postgresql-client
 
-            # Use DB_IP if available, else DB_HOST
-            TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
+            # Use DB_HOST which is configured to be socket or IP
+            TARGET_DB_HOST="$${DB_HOST}"
             echo "Using DB Host: $TARGET_DB_HOST"
 
             echo "Waiting for database..."
