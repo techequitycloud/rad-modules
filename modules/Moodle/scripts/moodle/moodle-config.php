@@ -12,11 +12,20 @@ $CFG->getremoteaddrconf = 1; // to avoid "Installation must be finished from the
 $CFG->allowthemechangeonurl = true; // to allow theme change
 $CFG->dbtype    = 'pgsql';      // 'pgsql', 'mariadb', 'mysqli', 'mssql', 'sqlsrv' or 'oci'
 $CFG->dblibrary = 'native';     // 'native' only at the moment
-$CFG->dbhost    = getenv('DB_HOST');  // eg 'localhost' or 'db.isp.com' or IP
 $CFG->dbname    = getenv('DB_NAME');     // database name, eg moodle
 $CFG->dbuser    = getenv('DB_USER');   // your database username
 $CFG->dbpass    = getenv('DB_PASSWORD');   // your database password
 $CFG->prefix    = 'mdl_';       // prefix to use for all table names
+
+// Handle DB_HOST - if it starts with /, treat it as a socket path
+$raw_db_host = getenv('DB_HOST');
+if (strpos($raw_db_host, '/') === 0) {
+    $CFG->dbhost = 'localhost';
+    $dbsocket = $raw_db_host;
+} else {
+    $CFG->dbhost = $raw_db_host;
+    $dbsocket = false;
+}
 
 /**
 $CFG->debugdisplay = 1;
@@ -31,7 +40,7 @@ $CFG->debugsmtp = true;
 
 $CFG->dboptions = array(
     'dbpersist' => false,
-    'dbsocket'  => false,
+    'dbsocket'  => $dbsocket,
     'dbport'    => getenv('DB_PORT'),
     'dbhandlesoptions' => false,
     'dbcollation' => 'utf8mb4_unicode_ci', 

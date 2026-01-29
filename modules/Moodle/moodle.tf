@@ -302,6 +302,10 @@ locals {
   module_env_vars = {
     # Database connection (supports both MySQL and PostgreSQL)
     MOODLE_DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+
+    # Force DB_HOST to use socket if enabled
+    DB_HOST        = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+
     MOODLE_DB_PORT = tostring(local.database_port)
     MOODLE_DB_USER = local.database_user_full
     MOODLE_DB_NAME = local.database_name_full
