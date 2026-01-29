@@ -27,9 +27,15 @@ const ADMIN_CORS = process.env.ADMIN_CORS || "http://localhost:7000,http://local
 // CORS to avoid issues when consuming Medusa from a client
 const STORE_CORS = process.env.STORE_CORS || "http://localhost:8000";
 
-const DATABASE_URL =
-  process.env.DATABASE_URL ||
-  `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
+// Handle Cloud SQL socket connection if DB_HOST starts with /
+let DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  if (process.env.DB_HOST && process.env.DB_HOST.startsWith("/")) {
+    DATABASE_URL = `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@localhost:${process.env.DB_PORT}/${process.env.DB_NAME}?host=${process.env.DB_HOST}`;
+  } else {
+    DATABASE_URL = `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
+  }
+}
 
 const REDIS_URL = process.env.REDIS_URL;
 
