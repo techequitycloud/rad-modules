@@ -92,21 +92,8 @@ if [ -n "$DB_HOST" ]; then
     fi
 fi
 
-# Run database migrations
-echo "Running database migrations..."
-if ! python manage.py migrate --noinput; then
-    echo "ERROR: Database migrations failed"
-    exit 1
-fi
-echo "✓ Migrations completed"
-
-# Collect static files
-echo "Collecting static files..."
-if ! python manage.py collectstatic --noinput --clear; then
-    echo "ERROR: Static file collection failed"
-    exit 1
-fi
-echo "✓ Static files collected"
+# Note: Database migrations and static collection are handled by initialization jobs.
+# This ensures faster startup and prevents race conditions in scaled environments.
 
 # Create superuser if credentials are provided
 if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then

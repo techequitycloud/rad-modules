@@ -147,6 +147,7 @@ locals {
             fi
             if [ -f manage.py ]; then
               python manage.py migrate
+              python manage.py collectstatic --noinput --clear
             else
               echo 'manage.py not found, skipping migration'
             fi
