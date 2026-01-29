@@ -19,7 +19,10 @@ locals {
       dockerfile_path    = "Dockerfile"
       context_path       = "wordpress"
       dockerfile_content = null
-      build_args         = {}
+      build_args = {
+        APP_VERSION = var.application_version
+        APP_SHA     = "52d5f05c96a9155f78ed84700264307e5dea14b4"
+      }
       artifact_repo_name = null
     }
 

@@ -6,6 +6,9 @@
 
 FROM php:8.4-apache
 
+ARG APP_VERSION
+ARG APP_SHA
+
 # persistent dependencies
 RUN set -eux; \
 	apt-get update; \
@@ -123,8 +126,8 @@ RUN set -eux; \
 	find /etc/apache2 -type f -name '*.conf' -exec sed -ri 's/([[:space:]]*LogFormat[[:space:]]+"[^"]*)%h([^"]*")/\1%a\2/g' '{}' +
 
 RUN set -eux; \
-	version='${APP_VERSION}'; \
-	sha1='${APP_SHA}'; \
+	version="${APP_VERSION}"; \
+	sha1="${APP_SHA}"; \
 	\
 	curl -o wordpress.tar.gz -fL "https://wordpress.org/wordpress-$version.tar.gz"; \
 	echo "$sha1 *wordpress.tar.gz" | sha1sum -c -; \
