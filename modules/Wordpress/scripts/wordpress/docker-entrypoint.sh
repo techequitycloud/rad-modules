@@ -96,4 +96,18 @@ if [[ "$1" == apache2* ]] || [ "$1" = 'php-fpm' ] || { self="$(basename "$0")" &
 	fi
 fi
 
+# Cloud Run & Cloud SQL Proxy Socket Handling
+if [ -d "/var/run/mysqld" ]; then
+    echo "Checking for Cloud SQL sockets in /var/run/mysqld..."
+    SOCKET_FILE=$(find /var/run/mysqld -maxdepth 1 -type s | head -n 1)
+    if [ -n "$SOCKET_FILE" ]; then
+        echo "Found socket: $SOCKET_FILE"
+        mkdir -p /tmp
+        ln -sf "$SOCKET_FILE" /tmp/mysqld.sock
+        echo "Symlinked $SOCKET_FILE to /tmp/mysqld.sock"
+    else
+        echo "No socket found in /var/run/mysqld"
+    fi
+fi
+
 exec "$@"
