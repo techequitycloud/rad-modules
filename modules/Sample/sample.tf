@@ -1,17 +1,17 @@
 locals {
   sample_module = {
-    app_name            = "sample-app"
-    display_name        = "Sample Application"
-    description         = "Sample Custom Application - Flask App with Database Connection"
-    container_image     = "python" # Placeholder, actual image is built via custom build
-    applicaton_version  = var.application_version
-    image_source        = "build"
+    app_name        = "sample-app"
+    display_name    = "Sample Application"
+    description     = "Sample Custom Application - Flask App with Database Connection"
+    container_image = "" # Empty for custom build to avoid double tagging
+    app_version     = "v1.0.0"
+    image_source    = "build"
 
     # Custom build configuration
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "."
+      context_path       = "sample"
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null
