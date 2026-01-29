@@ -18,6 +18,37 @@ locals {
     }
     container_port  = 8069
     database_type   = "POSTGRES_15"
+
+    container_command = ["/bin/bash", "-c"]
+    container_args = [
+      <<-EOT
+        set -e
+        echo "=========================================="
+        echo "Starting Odoo Server"
+        echo "=========================================="
+
+        if [ ! -f /mnt/odoo.conf ]; then
+            echo "ERROR: /mnt/odoo.conf not found"
+            exit 1
+        fi
+
+        if [ ! -d /mnt/filestore ]; then
+            echo "ERROR: /mnt/filestore not found"
+            exit 1
+        fi
+
+        if ! touch /mnt/filestore/.test 2>/dev/null; then
+            echo "ERROR: Cannot write to /mnt/filestore"
+            ls -la /mnt/filestore/
+            exit 1
+        fi
+        rm -f /mnt/filestore/.test
+
+        echo "All checks passed"
+        echo "Starting Odoo server..."
+        exec odoo -c /mnt/odoo.conf
+      EOT
+    ]
     db_name         = "odoo"
     db_user         = "odoo"
 
