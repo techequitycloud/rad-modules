@@ -1,4 +1,5 @@
 FROM ubuntu:24.04
+ARG APP_VERSION
 EXPOSE 80 443
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update -y
