@@ -200,7 +200,7 @@ variable "deployment_region" {
 variable "application_version" {
   description = "Application version tag (e.g., 1.0.0, latest). {{UIMeta group=0 order=302 updatesafe }}"
   type        = string
-  default     = "5.0"
+  default     = "5.5.0"
 }
 
 # ===========================
@@ -255,13 +255,13 @@ variable "storage_buckets" {
 variable "nfs_enabled" {
   description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=0 order=701 updatesafe }}"
   type        = bool
-  default     = null
+  default     = true
 }
 
 variable "nfs_mount_path" {
   description = "NFS mount path in container (e.g., '/mnt', '/data'). {{UIMeta group=0 order=702 updatesafe }}"
   type        = string
-  default     = null
+  default     = "/mnt"
 }
 
 variable "gcs_volumes" {
@@ -370,13 +370,13 @@ variable "initialization_jobs" {
 variable "enable_backup_import" {
   description = "Enable automatic import of database backup during deployment. Use backup_source to specify Google Drive or Google Cloud Storage. {{UIMeta group=0 order=1302 updatesafe }}"
   type        = bool
-  default     = null
+  default     = false
 }
 
 variable "backup_source" {
   description = "Backup source: 'gdrive' (Google Drive) or 'gcs' (Google Cloud Storage). GCS is recommended for production due to better security and performance. {{UIMeta group=0 order=1303 updatesafe }}"
   type        = string
-  default     = null
+  default     = "gcs"
 
   validation {
     condition     = contains(["gdrive", "gcs"], var.backup_source)
@@ -387,13 +387,13 @@ variable "backup_source" {
 variable "backup_uri" {
   description = "Backup URI. For GCS: full URI like 'gs://bucket/path/backup.sql'. For Google Drive: file ID from URL 'https://drive.google.com/file/d/FILE_ID/view'. {{UIMeta group=0 order=1304 updatesafe }}"
   type        = string
-  default     = null
+  default     = ""
 }
 
 variable "backup_format" {
   description = "Backup file format. For GCS: 'sql', 'tar', 'gz', 'tgz', 'tar.gz', 'zip'. For Google Drive: 'sql', 'tar', 'zip'. {{UIMeta group=0 order=1305 updatesafe }}"
   type        = string
-  default     = null
+  default     = "gz"
 
   validation {
     condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.backup_format)

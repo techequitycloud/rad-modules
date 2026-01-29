@@ -200,7 +200,7 @@ variable "deployment_region" {
 variable "application_version" {
   description = "Application version tag (e.g., 1.0.0, latest). {{UIMeta group=0 order=302 updatesafe }}"
   type        = string
-  default     = "6.13.2"
+  default     = "5.103.1"
 }
 
 # ===========================
@@ -260,7 +260,7 @@ variable "storage_buckets" {
 variable "nfs_enabled" {
   description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=0 order=701 updatesafe }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "nfs_mount_path" {

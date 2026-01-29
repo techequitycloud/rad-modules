@@ -255,7 +255,7 @@ variable "storage_buckets" {
 variable "nfs_enabled" {
   description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=0 order=701 updatesafe }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "nfs_mount_path" {
@@ -393,7 +393,7 @@ variable "backup_uri" {
 variable "backup_format" {
   description = "Backup file format. For GCS: 'sql', 'tar', 'gz', 'tgz', 'tar.gz', 'zip'. For Google Drive: 'sql', 'tar', 'zip'. {{UIMeta group=0 order=1305 updatesafe }}"
   type        = string
-  default     = "sql"
+  default     = "gz"
 
   validation {
     condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.backup_format)
@@ -493,5 +493,8 @@ variable "cicd_trigger_config" {
     description        = optional(string, "Automated build and deployment trigger")
     substitutions      = optional(map(string), {})
   })
-  default = null
+  default = {
+    branch_pattern = "^main$"
+    description    = "Automated build and deployment trigger"
+  }
 }

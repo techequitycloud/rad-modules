@@ -260,13 +260,13 @@ variable "storage_buckets" {
 variable "nfs_enabled" {
   description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=0 order=701 updatesafe }}"
   type        = bool
-  default     = null
+  default     = true
 }
 
 variable "nfs_mount_path" {
   description = "NFS mount path in container (e.g., '/mnt', '/data'). {{UIMeta group=0 order=702 updatesafe }}"
   type        = string
-  default     = null
+  default     = "/mnt"
 }
 
 variable "gcs_volumes" {
@@ -419,7 +419,7 @@ variable "backup_uri" {
 variable "backup_format" {
   description = "Backup file format. For GCS: 'sql', 'tar', 'gz', 'tgz', 'tar.gz', 'zip'. For Google Drive: 'sql', 'tar', 'zip'. {{UIMeta group=0 order=1305 updatesafe }}"
   type        = string
-  default     = "sql"
+  default     = "gz"
 
   validation {
     condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.backup_format)
@@ -494,7 +494,7 @@ variable "github_repository_url" {
 variable "github_token_secret_name" {
   description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. To generate: https://github.com/settings/tokens -> Generate new token (classic). Scopes: repo, admin:repo_hook, workflow, read:org. {{UIMeta group=0 order=406 updatesafe }}"
   type        = string
-  default     = null
+  default     = "github-token"
 }
 
 variable "github_app_installation_id" {
@@ -519,6 +519,9 @@ variable "cicd_trigger_config" {
     description        = optional(string, "Automated build and deployment trigger")
     substitutions      = optional(map(string), {})
   })
-  default = null
+  default = {
+    branch_pattern = "^main$"
+    description    = "Automated build and deployment trigger"
+  }
 }
 

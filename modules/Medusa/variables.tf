@@ -260,7 +260,7 @@ variable "storage_buckets" {
 variable "nfs_enabled" {
   description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=0 order=701 updatesafe }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "nfs_mount_path" {
