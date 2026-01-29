@@ -35,9 +35,6 @@ locals {
       read_only  = false
       mount_options = [
         "implicit-dirs",
-        "metadata-cache-ttl-secs=60",
-        "stat-cache-ttl-secs=60",
-        "type-cache-ttl-secs=60",
         "uid=1000",      # Ghost user
         "gid=1000",      # Ghost group
         "dir-mode=755",

@@ -77,7 +77,7 @@ locals {
       bucket_name   = try(vol.bucket_name, replace(replace(try(vol.bucket, ""), "$${tenant_id}", var.tenant_deployment_id), "$${deployment_id}", var.deployment_id != null ? var.deployment_id : "default"))
       mount_path    = vol.mount_path
       readonly      = try(vol.read_only, try(vol.readonly, false))
-      mount_options = try(vol.mount_options, ["implicit-dirs", "metadata-cache-ttl-secs=60"])
+      mount_options = try(vol.mount_options, ["implicit-dirs"])
     }
   ]
 
@@ -169,7 +169,7 @@ locals {
       bucket_name   = try(vol.bucket_name, try(vol.bucket, null))
       mount_path    = vol.mount_path
       readonly      = try(vol.read_only, try(vol.readonly, false))
-      mount_options = try(vol.mount_options, ["implicit-dirs", "metadata-cache-ttl-secs=60"])
+      mount_options = try(vol.mount_options, ["implicit-dirs"])
     }
   ]
 
