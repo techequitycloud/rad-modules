@@ -28,4 +28,9 @@ export APACHE_RUN_DIR APACHE_LOCK_DIR APACHE_LOG_DIR APACHE_PID_FILE APACHE_RUN_
 mkdir -p "$APACHE_RUN_DIR" "$APACHE_LOCK_DIR" "$APACHE_LOG_DIR"
 chown -R "$APACHE_RUN_USER:$APACHE_RUN_GROUP" "$APACHE_RUN_DIR" "$APACHE_LOCK_DIR" "$APACHE_LOG_DIR"
 tail -F /var/log/apache2/* 2>/dev/null &
+
+# Configure Apache to listen on Cloud Run PORT
+echo "Configuring Apache to listen on port ${PORT:-8080}..."
+sed -i "s/80/${PORT:-8080}/g" /etc/apache2/ports.conf /etc/apache2/sites-enabled/*.conf
+
 exec apache2 -D FOREGROUND
