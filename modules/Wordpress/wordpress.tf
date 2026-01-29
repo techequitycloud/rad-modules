@@ -2,7 +2,7 @@ locals {
   wordpress_module = {
     app_name        = "wp"
     description     = "WordPress CMS - Popular content management system for websites and blogs"
-    container_image = "wordpress:6.8.1-apache"
+    container_image = ""
     container_port  = 80
     database_type   = "MYSQL_8_0"
     db_name         = "wp"
@@ -10,14 +10,13 @@ locals {
     application_version = "6.8.1"
     application_sha     = "52d5f05c96a9155f78ed84700264307e5dea14b4"
 
-    # image_source    = "prebuilt"
-    image_source    = "build"
+    image_source    = "custom"
 
     # ✅ Custom build configuration
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "."
+      context_path       = "scripts/wordpress"
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null
@@ -45,7 +44,7 @@ locals {
 
     # Environment variables
     environment_variables = {
-      WORDPRESS_DB_HOST      = "localhost:/var/run/mysqld/mysqld.sock"
+      WORDPRESS_DB_HOST      = "localhost:/tmp/mysqld.sock"
       WORDPRESS_TABLE_PREFIX = "wp_"
       WORDPRESS_DEBUG        = "false"
     }
@@ -101,10 +100,42 @@ locals {
             fi
 
             if [ -n "$SOCKET_PATH" ]; then
-                echo "Detected Socket Path: $SOCKET_PATH"
-                echo "Waiting for socket file..."
+                echo "Detected Socket Path Configuration: $SOCKET_PATH"
+                # Hardcoded search directory where Cloud SQL volume is mounted
+                SEARCH_DIR="/var/run/mysqld"
+
+                # Wait for search directory to exist
+                echo "Waiting for Cloud SQL volume at $SEARCH_DIR..."
+                until [ -d "$SEARCH_DIR" ]; do
+                    sleep 2
+                done
+
+                # Check for existing sockets in the search directory
+                echo "Searching for sockets in $SEARCH_DIR..."
+                FOUND_SOCKET=$(find "$SEARCH_DIR" -maxdepth 1 -type s | head -n 1)
+
+                if [ -n "$FOUND_SOCKET" ]; then
+                    echo "Found existing socket: $FOUND_SOCKET"
+                    # Create symlink at the expected location (SOCKET_PATH)
+                    echo "Symlinking $FOUND_SOCKET to $SOCKET_PATH"
+                    ln -sf "$FOUND_SOCKET" "$SOCKET_PATH"
+                else
+                    echo "No socket found yet in $SEARCH_DIR"
+                fi
+
+                echo "Waiting for socket file: $SOCKET_PATH..."
                 until [ -S "$SOCKET_PATH" ]; do
                     echo "Waiting for socket $SOCKET_PATH..."
+
+                    # Periodically check and relink if needed
+                    if [ ! -e "$SOCKET_PATH" ]; then
+                         FOUND_SOCKET=$(find "$SEARCH_DIR" -maxdepth 1 -type s | head -n 1)
+                         if [ -n "$FOUND_SOCKET" ]; then
+                             echo "Found socket: $FOUND_SOCKET. Symlinking to $SOCKET_PATH..."
+                             ln -sf "$FOUND_SOCKET" "$SOCKET_PATH"
+                         fi
+                    fi
+
                     sleep 2
                 done
             else
