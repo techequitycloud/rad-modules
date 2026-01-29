@@ -85,7 +85,7 @@ locals {
 
       # Email configuration (optional)
       EMAIL_FROM = "noreply@your-domain.com"
-      EMAIL_TRANSPORT = "smtp"
+      EMAIL_TRANSPORT = "json"
 
       # Logging
       LOG_LEVEL = "info"
