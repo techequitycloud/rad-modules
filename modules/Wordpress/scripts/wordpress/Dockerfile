@@ -142,11 +142,11 @@ RUN set -eux; \
 		echo '# BEGIN WordPress'; \
 		echo ''; \
 		echo 'RewriteEngine On'; \
-		echo 'RewriteRule .* - [E=HTTP_AUTHORIZATION:%%{HTTP:Authorization}]'; \
+		echo 'RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]'; \
 		echo 'RewriteBase /'; \
 		echo 'RewriteRule ^index\.php$ - [L]'; \
-		echo 'RewriteCond %%{REQUEST_FILENAME} !-f'; \
-		echo 'RewriteCond %%{REQUEST_FILENAME} !-d'; \
+		echo 'RewriteCond %{REQUEST_FILENAME} !-f'; \
+		echo 'RewriteCond %{REQUEST_FILENAME} !-d'; \
 		echo 'RewriteRule . /index.php [L]'; \
 		echo ''; \
 		echo '# END WordPress'; \
@@ -157,7 +157,7 @@ RUN set -eux; \
 # wp-content/cache: https://github.com/docker-library/wordpress/issues/534#issuecomment-705733507
 	mkdir wp-content; \
 	for dir in /usr/src/wordpress/wp-content/*/ cache; do \
-		dir="$(basename "$${dir%/}")"; \
+		dir="$(basename "${dir%/}")"; \
 		mkdir "wp-content/$dir"; \
 	done; \
 	chown -R www-data:www-data wp-content; \
