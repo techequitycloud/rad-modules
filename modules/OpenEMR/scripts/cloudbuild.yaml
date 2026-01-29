@@ -18,8 +18,8 @@ steps:
   args:
     - '--dockerfile=Dockerfile'
     - '--context=dir://openemr'
-    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/openemrbasicf1634de0-repo/openemr:7.0.4'
-    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/openemrbasicf1634de0-repo/openemr:latest'
+    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/openemrbasic7cc819f2-repo/openemr:7.0.4'
+    - '--destination=us-central1-docker.pkg.dev/qwiklabs-gcp-03-5421a1d20b10/openemrbasic7cc819f2-repo/openemr:latest'
 
     - '--build-arg=APP_VERSION=7.0.4'
 

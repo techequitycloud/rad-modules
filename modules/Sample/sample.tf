@@ -1,11 +1,11 @@
 locals {
   sample_module = {
-    app_name        = "sample-app"
-    display_name    = "Sample Application"
-    description     = "Sample Custom Application - Flask App with Database Connection"
-    container_image = "python:3.11-slim" # Placeholder, actual image is built via custom build
-    app_version     = "v1.0.0"
-    image_source    = "build"
+    app_name            = "sample-app"
+    display_name        = "Sample Application"
+    description         = "Sample Custom Application - Flask App with Database Connection"
+    container_image     = "python" # Placeholder, actual image is built via custom build
+    applicaton_version  = var.application_version
+    image_source        = "build"
 
     # Custom build configuration
     container_build_config = {

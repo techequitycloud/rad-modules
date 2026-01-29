@@ -6,12 +6,12 @@ locals {
     description     = "Odoo ERP System - CRM, e-commerce, billing, accounting, manufacturing, warehouse, project management"
     container_image = "odoo"
 
-    # image_source    = "build"
-    image_source    = "custom"
+    image_source    = "build"
+    # image_source    = "custom"
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "odoo"
+      context_path       = "."
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null

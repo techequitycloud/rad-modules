@@ -4,16 +4,16 @@ locals {
     app_version     = var.application_version
     display_name    = "OpenEMR"
     description     = "This module can be used to deploy OpenEMR"
-    container_image = ""
+    container_image = "openemr"
 
-    image_source    = "custom"
+    image_source    = "build"
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "openemr"
+      context_path       = "."
       dockerfile_content = null
       build_args         = {}
-      artifact_repo_name = "cloudrunapp-repo"
+      artifact_repo_name = null
     }
     container_port  = 80
     database_type   = "MYSQL_8_0"

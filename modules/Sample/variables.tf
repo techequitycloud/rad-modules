@@ -179,8 +179,7 @@ variable "existing_project_id" {
 variable "tenant_deployment_id" {
   description = "Specify a unique tenant or deployment identifier. This uniquely identifies your application deployment and is used in resource naming (1-20 lowercase alphanumeric characters and hyphens). {{UIMeta group=2 order=201 updatesafe }}"
   type        = string
-  default     = "default"
-  default     = "default"
+  default     = "demo"
 
   validation {
     condition     = can(regex("^[a-z0-9-]{1,20}$", var.tenant_deployment_id))
@@ -201,7 +200,7 @@ variable "deployment_region" {
 variable "application_version" {
   description = "Application version tag (e.g., 1.0.0, latest). {{UIMeta group=0 order=302 updatesafe }}"
   type        = string
-  default     = "v1.0.0"
+  default     = "3.11-slim"
 }
 
 # ===========================
