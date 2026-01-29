@@ -1,9 +1,10 @@
 ARG APP_VERSION=latest
 FROM wordpress:${APP_VERSION}
 
-# Install any additional dependencies here
-# RUN apt-get update && apt-get install -y ...
+# Copy the entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Example: Copy custom themes or plugins
-# COPY themes/ /var/www/html/wp-content/themes/
-# COPY plugins/ /var/www/html/wp-content/plugins/
+# Set the entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["apache2-foreground"]

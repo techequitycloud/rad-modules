@@ -17,7 +17,7 @@ locals {
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "."
+      context_path       = "wordpress"
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null
@@ -45,7 +45,7 @@ locals {
 
     # Environment variables
     environment_variables = {
-      WORDPRESS_DB_HOST      = "localhost:/var/run/mysqld/mysqld.sock"
+      WORDPRESS_DB_HOST      = "localhost:/tmp/mysqld.sock"
       WORDPRESS_TABLE_PREFIX = "wp_"
       WORDPRESS_DEBUG        = "false"
     }
