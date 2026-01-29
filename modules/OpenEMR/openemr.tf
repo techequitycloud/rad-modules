@@ -214,16 +214,16 @@ locals {
 //  OpenEMR
 //  MySQL Config
 
-\\\$host	= '$${FINAL_HOST}';
-\\\$port	= '3306';
-\\\$login	= '$${DB_USER}';
-\\\$pass	= '$${DB_PASS}';
-\\\$dbase	= '$${DB_NAME}';
+\$host	= '$${FINAL_HOST}';
+\$port	= '3306';
+\$login	= '$${DB_USER}';
+\$pass	= '$${DB_PASS}';
+\$dbase	= '$${DB_NAME}';
 
-\\\$rootpass	= '$${ROOT_PASS}';
+\$rootpass	= '$${ROOT_PASS}';
 
 //Added by OpenEMR Configuration:
-\\\$config = 1;
+\$config = 1;
 SQLEOF
 
                 chown 1000:1000 "$${SQLCONF_FILE}"
