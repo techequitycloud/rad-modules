@@ -50,10 +50,10 @@ locals {
   backup_source = local.enable_backup_import ? var.backup_source : "gcs"
 
   # Determine backup URI/ID
-  backup_uri = local.enable_backup_import && var.backup_uri != "" ? var.backup_uri : ""
+  backup_uri = local.enable_backup_import && var.backup_uri != null && var.backup_uri != "" ? var.backup_uri : ""
 
   # Determine backup format
-  backup_format = local.enable_backup_import && var.backup_format != "" ? var.backup_format : "sql"
+  backup_format = local.enable_backup_import && var.backup_format != null && var.backup_format != "" ? var.backup_format : "sql"
 
   # Determine which specific backup jobs to run
   enable_gdrive_backup_job = local.backup_import_enabled && local.backup_source == "gdrive" && local.backup_uri != ""
