@@ -1123,7 +1123,7 @@ resource "google_cloud_run_v2_job" "custom_sql_scripts_job" {
 # ============================================================================
 
 resource "google_cloud_run_v2_job" "db_cleanup_job" {
-  count               = local.sql_server_exists && local.database_client_type != "NONE" ? 1 : 0
+  count               = var.enable_purge && local.sql_server_exists && local.database_client_type != "NONE" ? 1 : 0
   project             = local.project.project_id
   name                = "${local.resource_prefix}-db-cleanup"
   location            = local.region
@@ -1197,7 +1197,7 @@ resource "google_cloud_run_v2_job" "db_cleanup_job" {
 }
 
 resource "null_resource" "execute_db_cleanup_job" {
-  count = local.sql_server_exists && local.database_client_type != "NONE" ? 1 : 0
+  count = var.enable_purge && local.sql_server_exists && local.database_client_type != "NONE" ? 1 : 0
 
   triggers = {
     job_name      = "${local.resource_prefix}-db-cleanup"
@@ -1272,7 +1272,7 @@ resource "null_resource" "execute_db_cleanup_job" {
 # ============================================================================
 
 resource "google_cloud_run_v2_job" "nfs_cleanup_job" {
-  count               = local.nfs_enabled && local.nfs_server_exists ? 1 : 0
+  count               = var.enable_purge && local.nfs_enabled && local.nfs_server_exists ? 1 : 0
   project             = local.project.project_id
   name                = "${local.resource_prefix}-nfs-cleanup"
   location            = local.region
@@ -1330,7 +1330,7 @@ resource "google_cloud_run_v2_job" "nfs_cleanup_job" {
 }
 
 resource "null_resource" "execute_nfs_cleanup_job" {
-  count = local.nfs_enabled && local.nfs_server_exists ? 1 : 0
+  count = var.enable_purge && local.nfs_enabled && local.nfs_server_exists ? 1 : 0
 
   triggers = {
     job_name      = "${local.resource_prefix}-nfs-cleanup"

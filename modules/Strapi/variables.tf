@@ -13,6 +13,16 @@
 # limitations under the License.
 
 # ===========================
+# GROUP 0: Module Metadata & Admin Configuration
+# ===========================
+
+variable "enable_purge" {
+  description = "Set to true to enable the ability to purge this module. {{UIMeta group=0 order=105 }}"
+  type        = bool
+  default     = true
+}
+
+# ===========================
 # GROUP 1: External Project Configuration
 # ===========================
 

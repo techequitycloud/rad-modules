@@ -22,7 +22,7 @@ resource "google_sql_database_instance" "mysql_instance" {
   region                  = local.region
   database_version        = var.mysql_database_version
   project                 = local.project.project_id
-  deletion_protection     = false
+  deletion_protection     = !var.enable_purge
 
   settings {
     activation_policy     = "ALWAYS"
