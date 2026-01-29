@@ -2,13 +2,12 @@ locals {
   wordpress_module = {
     app_name            = "wp"
     description         = "WordPress CMS - Popular content management system for websites and blogs"
-    container_image     = "wordpress"
+    container_image     = ""
     container_port      = 80
     database_type       = "MYSQL_8_0"
     db_name             = "wp"
     db_user             = "wp"
     application_version = var.application_version
-    application_sha     = "52d5f05c96a9155f78ed84700264307e5dea14b4"
 
     image_source    = "custom"
     enable_image_mirroring = false
@@ -21,7 +20,6 @@ locals {
       dockerfile_content = null
       build_args = {
         APP_VERSION = var.application_version
-        APP_SHA     = "52d5f05c96a9155f78ed84700264307e5dea14b4"
       }
       artifact_repo_name = null
     }
