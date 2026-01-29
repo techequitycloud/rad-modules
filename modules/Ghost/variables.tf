@@ -204,40 +204,6 @@ variable "application_version" {
 }
 
 # ===========================
-# GROUP 4: Container Configuration
-# ===========================
-
-variable "container_image_source" {
-  description = "Container image source: 'prebuilt' (use existing image from registry) or 'custom' (build from Dockerfile). {{UIMeta group=0 order=400 updatesafe }}"
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.container_image_source == null || contains(["prebuilt", "custom"], coalesce(var.container_image_source, "prebuilt"))
-    error_message = "Container image source must be 'prebuilt' or 'custom'."
-  }
-}
-
-variable "container_image" {
-  description = "Pre-built container image (e.g., 'nginx:latest', 'gcr.io/project/app:v1'). Required when container_image_source='prebuilt' unless using an application_module. {{UIMeta group=0 order=401 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "container_build_config" {
-  description = "Custom container build configuration. Required when container_image_source='custom'. Provide Dockerfile path or content, build context, and optional build arguments. {{UIMeta group=0 order=404 updatesafe }}"
-  type = object({
-    enabled            = bool
-    dockerfile_path    = optional(string, "Dockerfile")
-    dockerfile_content = optional(string, null)
-    context_path       = optional(string, ".")
-    build_args         = optional(map(string), {})
-    artifact_repo_name = optional(string, null)
-  })
-  default = null
-}
-
-# ===========================
 # GROUP 5: Database Configuration
 # ===========================
 
@@ -249,17 +215,6 @@ variable "database_password_length" {
   validation {
     condition     = var.database_password_length >= 8 && var.database_password_length <= 64
     error_message = "Password length must be between 8 and 64 characters."
-  }
-}
-
-variable "database_type" {
-  description = "Database type: MYSQL, POSTGRES, SQLSERVER (or specific versions like MYSQL_8_0, POSTGRES_15). {{UIMeta group=0 order=500 updatesafe }}"
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.database_type == null || contains(["MYSQL", "POSTGRES", "POSTGRESQL", "SQLSERVER", "MYSQL_5_6", "MYSQL_5_7", "MYSQL_8_0", "POSTGRES_9_6", "POSTGRES_10", "POSTGRES_11", "POSTGRES_12", "POSTGRES_13", "POSTGRES_14", "POSTGRES_15", "SQLSERVER_2017_STANDARD", "SQLSERVER_2017_ENTERPRISE", "SQLSERVER_2019_STANDARD", "SQLSERVER_2019_ENTERPRISE", "NONE"], coalesce(var.database_type, "POSTGRES"))
-    error_message = "Database type must be a valid Cloud SQL database version or NONE."
   }
 }
 
@@ -275,39 +230,6 @@ variable "timeout_seconds" {
   validation {
     condition     = var.timeout_seconds >= 0 && var.timeout_seconds <= 3600
     error_message = "Timeout must be between 0 and 3600 seconds."
-  }
-}
-
-variable "container_resources" {
-  description = "Container resource limits. Specify CPU (e.g., '1000m' for 1 CPU) and memory (e.g., '512Mi', '2Gi'). {{UIMeta group=0 order=600 updatesafe }}"
-  type = object({
-    cpu_limit    = string
-    memory_limit = string
-    cpu_request  = optional(string, null)
-    mem_request  = optional(string, null)
-  })
-  default = null
-}
-
-variable "min_instance_count" {
-  description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=0 order=603 updatesafe }}"
-  type        = number
-  default     = null
-
-  validation {
-    condition     = var.min_instance_count == null || (coalesce(var.min_instance_count, 0) >= 0 && coalesce(var.min_instance_count, 0) <= 1000)
-    error_message = "Minimum instance count must be between 0 and 1000."
-  }
-}
-
-variable "max_instance_count" {
-  description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=0 order=604 updatesafe }}"
-  type        = number
-  default     = null
-
-  validation {
-    condition     = var.max_instance_count == null || (coalesce(var.max_instance_count, 1) >= 1 && coalesce(var.max_instance_count, 1) <= 1000)
-    error_message = "Maximum instance count must be between 1 and 1000."
   }
 }
 
@@ -556,13 +478,13 @@ variable "github_repository_url" {
 }
 
 variable "github_token_secret_name" {
-  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. {{UIMeta group=0 order=406 updatesafe }}"
+  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. To generate: https://github.com/settings/tokens -> Generate new token (classic). Scopes: repo, admin:repo_hook, workflow, read:org. {{UIMeta group=0 order=406 updatesafe }}"
   type        = string
   default     = "github-token"
 }
 
 variable "github_app_installation_id" {
-  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. {{UIMeta group=0 order=407 updatesafe }}"
+  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. To find ID: https://github.com/settings/installations -> Configure. ID is at the end of the URL. {{UIMeta group=0 order=407 updatesafe }}"
   type        = string
   default     = null
 }
@@ -574,7 +496,7 @@ variable "enable_cicd_trigger" {
 }
 
 variable "cicd_trigger_config" {
-  description = "Cloud Build trigger configuration for automated CI/CD pipeline. {{UIMeta group=0 order=409 updatesafe }}"
+  description = "Cloud Build trigger configuration for automated CI/CD pipeline. Configure branch patterns, included/ignored files, and build settings. {{UIMeta group=0 order=409 updatesafe }}"
   type = object({
     branch_pattern     = optional(string, "^main$")
     included_files     = optional(list(string), [])

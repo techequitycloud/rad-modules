@@ -197,127 +197,15 @@ variable "deployment_region" {
 # GROUP 3: Application Configuration
 # ===========================
 
-variable "application_module" {
-  description = "Application module name (internal). {{UIMeta group=3 order=299 updatesafe }}"
-  type        = string
-  default     = "moodle"
-}
-
-variable "application_name" {
-  description = "Application name (internal). {{UIMeta group=0 order=300 updatesafe }}"
-  type        = string
-  default     = "moodle"
-}
-
-variable "application_display_name" {
-  description = "Application display name. {{UIMeta group=0 order=301 updatesafe }}"
-  type        = string
-  default     = "Moodle LMS"
-}
-
 variable "application_version" {
   description = "Application version tag (e.g., 1.0.0, latest). {{UIMeta group=0 order=302 updatesafe }}"
   type        = string
   default     = "4.5.1"
 }
 
-variable "application_description" {
-  description = "Brief description of your application. {{UIMeta group=0 order=303 updatesafe }}"
-  type        = string
-  default     = "Moodle Learning Management System"
-}
-
-variable "application_database_name" {
-  description = "Application database name (internal). {{UIMeta group=0 order=304 updatesafe }}"
-  type        = string
-  default     = "moodle"
-}
-
-variable "application_database_user" {
-  description = "Application database user (internal). {{UIMeta group=0 order=305 updatesafe }}"
-  type        = string
-  default     = "moodle"
-}
-
-# ===========================
-# GROUP 4: Container Configuration
-# ===========================
-
-variable "container_image_source" {
-  description = "Container image source (internal). {{UIMeta group=0 order=400 updatesafe }}"
-  type        = string
-  default     = "custom"
-}
-
-variable "container_image" {
-  description = "Container image (internal). {{UIMeta group=0 order=401 updatesafe }}"
-  type        = string
-  default     = ""
-}
-
-variable "container_port" {
-  description = "Container port (internal). {{UIMeta group=0 order=402 updatesafe }}"
-  type        = number
-  default     = 8080
-}
-
-variable "enable_image_mirroring" {
-  description = "Enable image mirroring (internal). {{UIMeta group=0 order=402 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "container_protocol" {
-  description = "Container protocol (internal). {{UIMeta group=0 order=403 updatesafe }}"
-  type        = string
-  default     = "http1"
-}
-
-variable "container_build_config" {
-  description = "Container build config (internal). {{UIMeta group=0 order=404 updatesafe }}"
-  type        = any
-  default     = null
-}
-
-variable "github_repository_url" {
-  description = "GitHub URL (internal). {{UIMeta group=0 order=405 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "github_token_secret_name" {
-  description = "GitHub token secret (internal). {{UIMeta group=0 order=406 updatesafe }}"
-  type        = string
-  default     = "github-token"
-}
-
-variable "github_app_installation_id" {
-  description = "GitHub App ID (internal). {{UIMeta group=0 order=407 updatesafe }}"
-  type        = string
-  default     = null
-}
-
-variable "enable_cicd_trigger" {
-  description = "Enable CI/CD (internal). {{UIMeta group=0 order=408 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "cicd_trigger_config" {
-  description = "CI/CD config (internal). {{UIMeta group=0 order=409 updatesafe }}"
-  type        = any
-  default     = null
-}
-
 # ===========================
 # GROUP 5: Database Configuration
 # ===========================
-
-variable "database_type" {
-  description = "Database type (internal). {{UIMeta group=0 order=500 updatesafe }}"
-  type        = string
-  default     = "POSTGRES_15"
-}
 
 variable "database_password_length" {
   description = "Length of auto-generated database password (8-64 characters). {{UIMeta group=0 order=501 updatesafe }}"
@@ -334,12 +222,6 @@ variable "database_password_length" {
 # GROUP 6: Resources & Scaling Configuration
 # ===========================
 
-variable "container_resources" {
-  description = "Container resources (internal). {{UIMeta group=0 order=600 updatesafe }}"
-  type        = any
-  default     = null
-}
-
 variable "timeout_seconds" {
   description = "Request timeout in seconds (0-3600). Maximum time a request can take. {{UIMeta group=0 order=602 updatesafe }}"
   type        = number
@@ -349,18 +231,6 @@ variable "timeout_seconds" {
     condition     = var.timeout_seconds >= 0 && var.timeout_seconds <= 3600
     error_message = "Timeout must be between 0 and 3600 seconds."
   }
-}
-
-variable "min_instance_count" {
-  description = "Minimum instance count (internal). {{UIMeta group=0 order=603 updatesafe }}"
-  type        = number
-  default     = 0
-}
-
-variable "max_instance_count" {
-  description = "Maximum instance count (internal). {{UIMeta group=0 order=604 updatesafe }}"
-  type        = number
-  default     = 5
 }
 
 # ===========================
@@ -410,18 +280,6 @@ variable "gcs_volumes" {
   default = []
 }
 
-variable "enable_cloudsql_volume" {
-  description = "Enable Cloud SQL volume (internal). {{UIMeta group=0 order=705 updatesafe }}"
-  type        = bool
-  default     = true
-}
-
-variable "cloudsql_volume_mount_path" {
-  description = "Cloud SQL volume mount path (internal). {{UIMeta group=0 order=706 updatesafe }}"
-  type        = string
-  default     = "/cloudsql"
-}
-
 # ===========================
 # GROUP 8: Environment Variables
 # ===========================
@@ -436,22 +294,6 @@ variable "secret_environment_variables" {
   description = "Environment variables from Secret Manager. Map environment variable name to Secret Manager secret name (e.g., {API_KEY='my-api-key-secret'}). {{UIMeta group=0 order=801 updatesafe }}"
   type        = map(string)
   default     = {}
-}
-
-# ===========================
-# GROUP 9: Health Check Configuration
-# ===========================
-
-variable "health_check_config" {
-  description = "Liveness probe configuration (internal). {{UIMeta group=0 order=900 updatesafe }}"
-  type        = any
-  default     = null
-}
-
-variable "startup_probe_config" {
-  description = "Startup probe configuration (internal). {{UIMeta group=0 order=901 updatesafe }}"
-  type        = any
-  default     = null
 }
 
 # ===========================
@@ -523,23 +365,6 @@ variable "initialization_jobs" {
 # ===========================
 # GROUP 13: Database Extensions & Backup Configuration
 # ===========================
-
-variable "enable_postgres_extensions" {
-  description = "Enable automatic installation of PostgreSQL extensions. Only applicable when using PostgreSQL databases. {{UIMeta group=0 order=1300 updatesafe }}"
-  type        = bool
-  default     = false
-}
-
-variable "postgres_extensions" {
-  description = "List of PostgreSQL extensions to install (e.g., ['postgis', 'uuid-ossp', 'pg_trgm']). Common extensions: postgis, cube, earthdistance, unaccent, pg_stat_statements, uuid-ossp, pg_trgm. {{UIMeta group=0 order=1301 updatesafe }}"
-  type        = list(string)
-  default     = []
-
-  validation {
-    condition     = alltrue([for ext in var.postgres_extensions : can(regex("^[a-z_][a-z0-9_-]*$", ext))])
-    error_message = "Extension names must start with a letter or underscore and contain only lowercase letters, numbers, underscores, and hyphens."
-  }
-}
 
 # Unified Backup Import Configuration (Recommended)
 variable "enable_backup_import" {
@@ -632,14 +457,41 @@ variable "ingress_settings" {
   }
 }
 
-variable "enable_mysql_plugins" {
-  description = "Enable automatic installation of MySQL plugins and components. Only applicable when using MySQL databases. {{UIMeta group=0 order=1308 updatesafe }}"
+# CI/CD Variables
+
+variable "github_repository_url" {
+  description = "GitHub repository URL for automated CI/CD (e.g., 'https://github.com/username/repo'). Required when using Cloud Build triggers for automated deployments. {{UIMeta group=0 order=405 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "github_token_secret_name" {
+  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. To generate: https://github.com/settings/tokens -> Generate new token (classic). Scopes: repo, admin:repo_hook, workflow, read:org. {{UIMeta group=0 order=406 updatesafe }}"
+  type        = string
+  default     = "github-token"
+}
+
+variable "github_app_installation_id" {
+  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. To find ID: https://github.com/settings/installations -> Configure. ID is at the end of the URL. {{UIMeta group=0 order=407 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "enable_cicd_trigger" {
+  description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=0 order=408 updatesafe }}"
   type        = bool
   default     = false
 }
 
-variable "mysql_plugins" {
-  description = "List of MySQL plugins to install (e.g., ['audit_log', 'validate_password']). Common plugins: validate_password, audit_log, clone, group_replication, authentication_ldap_simple. {{UIMeta group=0 order=1309 updatesafe }}"
-  type        = list(string)
-  default     = []
+variable "cicd_trigger_config" {
+  description = "Cloud Build trigger configuration for automated CI/CD pipeline. Configure branch patterns, included/ignored files, and build settings. {{UIMeta group=0 order=409 updatesafe }}"
+  type = object({
+    branch_pattern     = optional(string, "^main$")
+    included_files     = optional(list(string), [])
+    ignored_files      = optional(list(string), [])
+    trigger_name       = optional(string, null)
+    description        = optional(string, "Automated build and deployment trigger")
+    substitutions      = optional(map(string), {})
+  })
+  default = null
 }
