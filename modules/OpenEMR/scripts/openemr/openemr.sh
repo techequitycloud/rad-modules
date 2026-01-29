@@ -449,6 +449,8 @@ echo " > https://opencollective.com/openemr/donate"
 echo
 
 if [ "${OPERATOR}" = yes ]; then
+    echo 'Starting PHP-FPM...'
+    /usr/sbin/php-fpm83
     echo 'Starting apache!'
     exec /usr/sbin/httpd -D FOREGROUND
 fi
