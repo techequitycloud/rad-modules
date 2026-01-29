@@ -45,6 +45,20 @@ fi
 # Wait for database (if DB_HOST is set)
 if [ -n "$DB_HOST" ]; then
     echo "Waiting for database at $DB_HOST:${DB_PORT:-5432}..."
+
+    # Construct DATABASE_URL if not set
+    if [ -z "$DATABASE_URL" ]; then
+        if [ -n "$DB_USER" ] && [ -n "$DB_NAME" ]; then
+            echo "DATABASE_URL not set. Constructing from environment variables..."
+            # Check for password
+            if [ -z "$DB_PASSWORD" ]; then
+                echo "WARNING: DB_PASSWORD is not set. Database connection may fail."
+            fi
+            export DATABASE_URL="postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:${DB_PORT:-5432}/$DB_NAME"
+        else
+            echo "WARNING: DATABASE_URL not set and missing DB_USER/DB_NAME. Django might fail to connect."
+        fi
+    fi
     
     MAX_RETRIES=30
     RETRY_COUNT=0
@@ -55,7 +69,7 @@ if [ -n "$DB_HOST" ]; then
             echo "✓ Database port is reachable"
             
             # Now try to connect with Django
-            if python manage.py check --database default > /dev/null 2>&1; then
+            if python manage.py check --database default; then
                 echo "✓ Database connection verified"
                 break
             else
