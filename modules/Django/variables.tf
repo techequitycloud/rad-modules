@@ -468,3 +468,45 @@ variable "ingress_settings" {
     error_message = "Ingress must be 'all', 'internal', or 'internal-and-cloud-load-balancing'."
   }
 }
+
+# CI/CD Variables
+
+variable "github_repository_url" {
+  description = "GitHub repository URL for automated CI/CD (e.g., 'https://github.com/username/repo'). Required when using Cloud Build triggers for automated deployments. {{UIMeta group=0 order=405 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "github_token_secret_name" {
+  description = "Name of the secret in Secret Manager containing the GitHub personal access token. The secret must be created manually before running Terraform. Required when enable_cicd_trigger is true. {{UIMeta group=0 order=406 updatesafe }}"
+  type        = string
+  default     = "github-token"
+}
+
+variable "github_app_installation_id" {
+  description = "GitHub App installation ID for Cloud Build v2 connection. Required when enable_cicd_trigger is true. {{UIMeta group=0 order=407 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "enable_cicd_trigger" {
+  description = "Enable automated Cloud Build trigger for CI/CD. When enabled, pushes to the main branch will automatically build and deploy your application. {{UIMeta group=0 order=408 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "cicd_trigger_config" {
+  description = "Cloud Build trigger configuration for automated CI/CD pipeline. {{UIMeta group=0 order=409 updatesafe }}"
+  type = object({
+    branch_pattern     = optional(string, "^main$")
+    included_files     = optional(list(string), [])
+    ignored_files      = optional(list(string), [])
+    trigger_name       = optional(string, null)
+    description        = optional(string, "Automated build and deployment trigger")
+    substitutions      = optional(map(string), {})
+  })
+  default = {
+    branch_pattern = "^main$"
+    description    = "Automated build and deployment trigger"
+  }
+}
