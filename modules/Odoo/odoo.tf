@@ -44,6 +44,10 @@ locals {
         fi
         rm -f /mnt/filestore/.test
 
+        # Set permissive umask so new filestore subdirectories are world-writable
+        umask 0000
+        chmod -R 777 /mnt/filestore /mnt/sessions 2>/dev/null || true
+
         echo "All checks passed"
         echo "Starting Odoo server..."
         exec odoo -c /mnt/odoo.conf
@@ -109,15 +113,9 @@ locals {
             mkdir -p /mnt/filestore /mnt/sessions /mnt/backups
 
             echo "Setting ownership and permissions..."
-            if chown -R 101:101 /mnt/filestore /mnt/sessions /mnt/backups 2>/dev/null; then
-              echo "Ownership set to 101:101"
-              chmod -R 775 /mnt/filestore /mnt/sessions /mnt/backups
-              echo "Permissions set to 775"
-            else
-              echo "chown failed, using 777 permissions"
-              chmod -R 777 /mnt/filestore /mnt/sessions /mnt/backups
-              echo "Permissions set to 777"
-            fi
+            chown -R 101:101 /mnt/filestore /mnt/sessions /mnt/backups 2>/dev/null || echo "Warning: chown failed"
+            chmod -R 777 /mnt/filestore /mnt/sessions /mnt/backups
+            echo "Permissions set to 777"
 
             echo ""
             echo "Final directory listing:"
