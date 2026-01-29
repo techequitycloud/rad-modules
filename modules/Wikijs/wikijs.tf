@@ -1,14 +1,15 @@
 locals {
   wikijs_module = {
-    app_name            = "wikijs"
-    display_name        = "Wiki.js"
-    description         = "Wiki.js - The most powerful and extensible open source Wiki software"
-    container_image     = "requarks/wiki"
-    application_version = var.application_version
+    app_name                = "wikijs"
+    display_name            = "Wiki.js"
+    description             = "Wiki.js - The most powerful and extensible open source Wiki software"
+    container_image         = "requarks/wiki"
+    enable_image_mirroring  = true
+    application_version     = var.application_version
 
 
     # Image source
-    image_source    = "build"
+    image_source    = "prebuilt"
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"

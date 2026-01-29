@@ -137,8 +137,7 @@ locals {
 
   # CI/CD Configuration
   enable_cicd_trigger = var.enable_cicd_trigger && var.github_repository_url != null
-  github_token_secret = "${var.github_token_secret_name}-${local.tenant_id}"
-
+  github_token_secret = var.github_token_secret_name != null ? "${var.github_token_secret_name}-${local.tenant_id}" : null
   enable_image_mirroring = local.final_enable_image_mirroring
 
   # Determine source image for mirroring (Prebuilt or Custom Build Artifact)
