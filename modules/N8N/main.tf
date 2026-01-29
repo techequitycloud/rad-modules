@@ -188,7 +188,7 @@ locals {
   enable_cloudsql_volume     = local.final_enable_cloudsql_volume
   cloudsql_volume_mount_path = local.final_cloudsql_volume_mount_path
 
-  create_cloud_storage       = false # N8N handles own storage in n8n.tf
+  create_cloud_storage       = var.create_cloud_storage
 
   # Preset Storage Buckets
   preset_storage_buckets = concat(
@@ -202,7 +202,7 @@ locals {
   storage_buckets = local.create_cloud_storage ? {
     for bucket in local.all_storage_buckets :
     bucket.name_suffix => {
-      name                        = "${local.resource_prefix}-${bucket.name_suffix}"
+      name                        = try(bucket.name, "${local.resource_prefix}-${bucket.name_suffix}")
       location                    = bucket.location
       storage_class               = bucket.storage_class
       force_destroy               = bucket.force_destroy
@@ -220,7 +220,6 @@ locals {
     vol.name => {
       name          = vol.name
       bucket_name   = (vol.bucket_name != null && vol.bucket_name != "") ? vol.bucket_name : (
-        vol.name == "n8n-data" ? google_storage_bucket.n8n_storage.name :
         try(local.storage_buckets[vol.name].name, null)
       )
       mount_path    = vol.mount_path
