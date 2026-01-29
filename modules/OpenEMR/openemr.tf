@@ -4,9 +4,9 @@ locals {
     application_version = var.application_version
     display_name        = "OpenEMR"
     description         = "This module can be used to deploy OpenEMR"
-    container_image     = "openemr"
+    container_image     = ""
 
-    image_source    = "build"
+    image_source    = "custom"
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
