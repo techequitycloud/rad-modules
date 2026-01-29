@@ -154,16 +154,16 @@ locals {
                       FINAL_HOST="$${DB_HOST}"
                   fi
 
-                  sed -i "s/[$$]host\\s*=\\s*'[^']*'/\\$host = '$${FINAL_HOST}'/" "$${SQLCONF_FILE}"
-                  sed -i "s/[$$]port\\s*=\\s*'[^']*'/\\$port = '3306'/" "$${SQLCONF_FILE}"
-                  sed -i "s/[$$]login\\s*=\\s*'[^']*'/\\$login = '$${DB_USER}'/" "$${SQLCONF_FILE}"
-                  sed -i "s/[$$]pass\\s*=\\s*'[^']*'/\\$pass = '$${DB_PASS}'/" "$${SQLCONF_FILE}"
-                  sed -i "s/[$$]dbase\\s*=\\s*'[^']*'/\\$dbase = '$${DB_NAME}'/" "$${SQLCONF_FILE}"
+                  sed -i "s/[$$]host\\s*=\\s*'[^']*'/\$host = '$${FINAL_HOST}'/" "$${SQLCONF_FILE}"
+                  sed -i "s/[$$]port\\s*=\\s*'[^']*'/\$port = '3306'/" "$${SQLCONF_FILE}"
+                  sed -i "s/[$$]login\\s*=\\s*'[^']*'/\$login = '$${DB_USER}'/" "$${SQLCONF_FILE}"
+                  sed -i "s/[$$]pass\\s*=\\s*'[^']*'/\$pass = '$${DB_PASS}'/" "$${SQLCONF_FILE}"
+                  sed -i "s/[$$]dbase\\s*=\\s*'[^']*'/\$dbase = '$${DB_NAME}'/" "$${SQLCONF_FILE}"
 
                   if ! grep -q "[$$]rootpass" "$${SQLCONF_FILE}"; then
-                    sed -i "/[$$]pass\\s*=\\s*'[^']*'/a \\$rootpass = '$${ROOT_PASS}';" "$${SQLCONF_FILE}"
+                    sed -i "/[$$]pass\\s*=\\s*'[^']*'/a \$rootpass = '$${ROOT_PASS}';" "$${SQLCONF_FILE}"
                   else
-                    sed -i "s/[$$]rootpass\\s*=\\s*'[^']*'/\\$rootpass = '$${ROOT_PASS}'/" "$${SQLCONF_FILE}"
+                    sed -i "s/[$$]rootpass\\s*=\\s*'[^']*'/\$rootpass = '$${ROOT_PASS}'/" "$${SQLCONF_FILE}"
                   fi
 
                   echo "✓ Config updated"
@@ -218,16 +218,16 @@ locals {
 //  OpenEMR
 //  MySQL Config
 
-\\$host	= '$${FINAL_HOST}';
-\\$port	= '3306';
-\\$login	= '$${DB_USER}';
-\\$pass	= '$${DB_PASS}';
-\\$dbase	= '$${DB_NAME}';
+\$host	= '$${FINAL_HOST}';
+\$port	= '3306';
+\$login	= '$${DB_USER}';
+\$pass	= '$${DB_PASS}';
+\$dbase	= '$${DB_NAME}';
 
-\\$rootpass	= '$${ROOT_PASS}';
+\$rootpass	= '$${ROOT_PASS}';
 
 //Added by OpenEMR Configuration:
-\\$config = 1;
+\$config = 1;
 SQLEOF
 
                 chown 1000:1000 "$${SQLCONF_FILE}"
