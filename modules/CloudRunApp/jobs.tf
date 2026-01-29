@@ -1255,7 +1255,9 @@ resource "null_resource" "execute_db_cleanup_job" {
             --format="value(textPayload)" \
             $IMPERSONATE_FLAG
 
-          exit $EXIT_CODE
+          # Gracefully exit even if the job failed, as the service might already be gone
+          echo "⚠ Job execution failed, but continuing with destruction (graceful failure)."
+          exit 0
         }
 
       echo "✓ DB cleanup completed successfully"
