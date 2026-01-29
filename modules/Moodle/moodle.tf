@@ -9,8 +9,7 @@ locals {
     app_name                = "moodle"
     description             = "Moodle LMS - Online learning and course management platform"
     application_version     = var.application_version
-    container_image         = "moodle"  # Name for built image
-    enable_image_mirroring  = true
+    container_image         = ""  # Empty for custom build
 
     # ✅ Use custom build
     image_source    = "custom"          # Changed from "custom" to "build"
