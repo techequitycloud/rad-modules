@@ -77,11 +77,19 @@ fi
 # Check if sqlconf.php exists and needs updating
 SQLCONF="/var/www/localhost/htdocs/openemr/sites/default/sqlconf.php"
 if [ -f "$SQLCONF" ]; then
+    # Validate existing sqlconf.php - check for PHP syntax errors
+    if command -v php > /dev/null 2>&1 && ! php -l "$SQLCONF" > /dev/null 2>&1; then
+        echo "⚠ Existing sqlconf.php has syntax errors, recreating..."
+        rm -f "$SQLCONF"
+    fi
+fi
+
+if [ -f "$SQLCONF" ]; then
     echo "Found existing sqlconf.php, updating database connection..."
-    
+
     # Backup
     cp "$SQLCONF" "${SQLCONF}.backup" 2>/dev/null || true
-    
+
     # Update database connection settings
     if [ -n "$MYSQL_USER" ]; then
         sed -i "s/\$host\s*=\s*'[^']*'/\$host = '${DB_HOST:-localhost}'/" "$SQLCONF" 2>/dev/null || true
