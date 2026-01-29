@@ -19,7 +19,7 @@ if [ -n "$MYSQL_HOST" ] && echo "$MYSQL_HOST" | grep -q "^/"; then
     
     # Find PHP INI file
     PHP_INI_FILE=""
-    for loc in /etc/php83/php.ini /etc/php82/php.ini /etc/php81/php.ini /etc/php8/php.ini /usr/local/etc/php/php.ini; do
+    for loc in /etc/php84/php.ini /etc/php83/php.ini /etc/php82/php.ini /etc/php81/php.ini /etc/php8/php.ini /usr/local/etc/php/php.ini; do
         if [ -f "$loc" ]; then
             PHP_INI_FILE="$loc"
             echo "✓ Found PHP INI: $PHP_INI_FILE"
@@ -92,7 +92,32 @@ if [ -f "$SQLCONF" ]; then
     fi
     echo ""
 else
-    echo "ℹ sqlconf.php not found yet (will be created on first run)"
+    echo "ℹ sqlconf.php not found. Creating default configuration..."
+    # Ensure the directory structure exists
+    mkdir -p "$(dirname "$SQLCONF")"
+    chown 1000:1000 "$(dirname "$SQLCONF")"
+
+    # Create sqlconf.php with current environment variables
+    cat > "$SQLCONF" <<SQLEOF
+<?php
+//  OpenEMR
+//  MySQL Config
+
+\$host	= '${DB_HOST:-localhost}';
+\$port	= '3306';
+\$login	= '${MYSQL_USER}';
+\$pass	= '${MYSQL_PASS:-${MYSQL_PASSWORD}}';
+\$dbase	= '${MYSQL_DATABASE}';
+
+\$rootpass	= '${MYSQL_ROOT_PASS:-${ROOT_PASSWORD}}';
+
+//Added by OpenEMR Configuration:
+\$config = 1;
+SQLEOF
+
+    chown 1000:1000 "$SQLCONF"
+    chmod 600 "$SQLCONF"
+    echo "✓ Created sqlconf.php with database configuration"
     echo ""
 fi
 
