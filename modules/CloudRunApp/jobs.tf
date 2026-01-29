@@ -1207,7 +1207,10 @@ resource "null_resource" "execute_db_cleanup_job" {
   }
 
   depends_on = [
-    google_cloud_run_v2_job.db_cleanup_job
+    google_cloud_run_v2_job.db_cleanup_job,
+    google_secret_manager_secret_iam_member.db_password,
+    google_secret_manager_secret_iam_member.root_password,
+    google_secret_manager_secret_iam_member.secret_env_vars
   ]
 
   lifecycle {
