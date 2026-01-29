@@ -14,5 +14,7 @@ sed -i "s/.*max_input_vars.*/max_input_vars = 5000/" /etc/php/8.3/apache2/php.in
 echo | cat /root/env.sh
 /usr/sbin/cron
 source /etc/apache2/envvars
+mkdir -p "$APACHE_RUN_DIR" "$APACHE_LOCK_DIR" "$APACHE_LOG_DIR"
+chown -R "$APACHE_RUN_USER:$APACHE_RUN_GROUP" "$APACHE_RUN_DIR" "$APACHE_LOCK_DIR" "$APACHE_LOG_DIR"
 tail -F /var/log/apache2/* 2>/dev/null &
 exec apache2 -D FOREGROUND
