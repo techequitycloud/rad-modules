@@ -67,6 +67,19 @@ resource "google_storage_bucket_iam_member" "bucket_access" {
   ]
 }
 
+# Grant Cloud Run service account access to bucket metadata (needed for django-storages)
+resource "google_storage_bucket_iam_member" "bucket_metadata_access" {
+  for_each = local.create_cloud_storage ? local.storage_buckets : {}
+
+  bucket = google_storage_bucket.buckets[each.key].name
+  role   = "roles/storage.legacyBucketReader"
+  member = "serviceAccount:${local.cloud_run_sa_email}"
+
+  depends_on = [
+    google_storage_bucket.buckets,
+  ]
+}
+
 #########################################################################
 # IAM permissions for CI/CD (Cloud Build)
 #########################################################################
