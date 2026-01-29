@@ -405,7 +405,7 @@ variable "backup_uri" {
 variable "backup_format" {
   description = "Backup file format. For GCS: 'sql', 'tar', 'gz', 'tgz', 'tar.gz', 'zip'. For Google Drive: 'sql', 'tar', 'zip'. {{UIMeta group=0 order=1305 updatesafe }}"
   type        = string
-  default     = "sql"
+  default     = "gz"
 
   validation {
     condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.backup_format)

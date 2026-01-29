@@ -200,7 +200,7 @@ variable "deployment_region" {
 variable "application_version" {
   description = "Application version tag (e.g., 1.0.0, latest). {{UIMeta group=0 order=302 updatesafe }}"
   type        = string
-  default     = "6.8.1"
+  default     = "6.7.1"
 }
 
 # ===========================
@@ -260,7 +260,7 @@ variable "storage_buckets" {
 variable "nfs_enabled" {
   description = "Enable NFS volume mount for persistent file storage. {{UIMeta group=0 order=701 updatesafe }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "nfs_mount_path" {
@@ -402,7 +402,7 @@ variable "backup_uri" {
 variable "backup_format" {
   description = "Backup file format. For GCS: 'sql', 'tar', 'gz', 'tgz', 'tar.gz', 'zip'. For Google Drive: 'sql', 'tar', 'zip'. {{UIMeta group=0 order=1305 updatesafe }}"
   type        = string
-  default     = "sql"
+  default     = "gz"
 
   validation {
     condition     = contains(["sql", "tar", "gz", "tgz", "tar.gz", "zip"], var.backup_format)
