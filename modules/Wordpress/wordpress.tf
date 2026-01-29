@@ -2,12 +2,12 @@ locals {
   wordpress_module = {
     app_name        = "wp"
     description     = "WordPress CMS - Popular content management system for websites and blogs"
-    container_image = "wordpress:6.8.1-apache"
+    container_image = "wordpress"
     container_port  = 80
     database_type   = "MYSQL_8_0"
     db_name         = "wp"
     db_user         = "wp"
-    application_version = "6.8.1"
+    application_version = var.application_version
     application_sha     = "52d5f05c96a9155f78ed84700264307e5dea14b4"
 
     # image_source    = "prebuilt"
