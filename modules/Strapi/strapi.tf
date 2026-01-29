@@ -3,11 +3,10 @@ locals {
     app_name            = "strapi"
     display_name        = "Strapi CMS"
     description         = "Strapi - Open source Node.js Headless CMS"
-    container_image     = "strapi/strapi"
-    image_source        = "build"
+    container_image     = ""
+    image_source        = "custom"
     application_version = var.application_version
 
-    image_source    = "custom"      
     enable_image_mirroring = false
 
     # Custom build configuration
@@ -155,6 +154,7 @@ locals {
     DATABASE_USERNAME = local.database_user_full
     STRAPI_URL        = local.predicted_service_url
     GCS_BUCKET_NAME   = try(local.storage_buckets["strapi-uploads"].name, "")
+    GCS_BASE_URL      = "https://storage.googleapis.com/${try(local.storage_buckets["strapi-uploads"].name, "")}"
   }
 
   module_secret_env_vars = {
