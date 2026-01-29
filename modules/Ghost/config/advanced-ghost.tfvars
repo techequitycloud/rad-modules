@@ -3,13 +3,9 @@ existing_project_id  = "qwiklabs-gcp-03-5421a1d20b10"
 tenant_deployment_id = "advanced"
 deployment_region    = "us-central1"
 
-application_module       = "ghost"
-application_display_name = "ghost Advanced"
-
 # Use prebuilt image
 container_image_source = "prebuilt"
 container_image        = "ghost:16.0"
-container_port         = 8069
 
 # Resource Customization
 container_resources = {
