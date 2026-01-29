@@ -200,7 +200,7 @@ variable "deployment_region" {
 variable "application_version" {
   description = "Application version tag (e.g., 1.0.0, latest). {{UIMeta group=0 order=302 updatesafe }}"
   type        = string
-  default     = "latest"
+  default     = "2.5.309"
 }
 
 # Hidden / Internal Variables (Managed by Preset)

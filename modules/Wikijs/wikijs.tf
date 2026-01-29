@@ -1,8 +1,11 @@
 locals {
   wikijs_module = {
-    app_name        = "wikijs"
-    description     = "Wiki.js - The most powerful and extensible open source Wiki software"
-    container_image = "requarks/wiki:2"
+    app_name            = "wikijs"
+    display_name        = "Wiki.js"
+    description         = "Wiki.js - The most powerful and extensible open source Wiki software"
+    container_image     = "requarks/wiki"
+    application_version = var.application_version
+
 
     # Image source
     image_source    = "build"
@@ -22,7 +25,7 @@ locals {
 
     # Performance optimization
     enable_cloudsql_volume     = true
-    cloudsql_volume_mount_path = "/var/run/postgresql"
+    cloudsql_volume_mount_path = "/cloudsql"
 
     # Storage volumes
     gcs_volumes = [{
