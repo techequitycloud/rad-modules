@@ -24,13 +24,16 @@ fi
 
 if [ -d "$TARGET_DIR" ]; then
     # Double check to ensure we are inside mount point
-    if [[ "$TARGET_DIR" == "$MOUNT_POINT"* ]]; then
-        echo "Removing directory: $TARGET_DIR"
-        rm -rf "$TARGET_DIR"
-    else
-        echo "Error: Target directory is not within mount point. Aborting."
-        exit 1
-    fi
+    case "$TARGET_DIR" in
+        "$MOUNT_POINT"/*)
+            echo "Removing directory: $TARGET_DIR"
+            rm -rf "$TARGET_DIR"
+            ;;
+        *)
+            echo "Error: Target directory is not within mount point. Aborting."
+            exit 1
+            ;;
+    esac
 else
     echo "Directory $TARGET_DIR does not exist."
 fi
