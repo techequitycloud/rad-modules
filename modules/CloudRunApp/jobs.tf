@@ -1368,29 +1368,38 @@ resource "null_resource" "execute_nfs_cleanup_job" {
         exit 0
       fi
 
-      gcloud run jobs execute ${self.triggers.job_name} \
+      # Use timeout to prevent hanging if NFS server or network is already destroyed
+      CLEANUP_TIMEOUT=120
+
+      echo "Running NFS cleanup with $${CLEANUP_TIMEOUT}s timeout..."
+      timeout $${CLEANUP_TIMEOUT} gcloud run jobs execute ${self.triggers.job_name} \
         --region ${self.triggers.region} \
         --project ${self.triggers.project_id} \
         $IMPERSONATE_FLAG \
-        --wait || {
-          EXIT_CODE=$?
-          echo "✗ Job execution failed with exit code $EXIT_CODE"
-          echo "Fetching logs for debugging..."
+        --wait 2>&1
+      EXIT_CODE=$?
 
-          # Wait a moment for logs to be available
-          sleep 5
+      if [ $EXIT_CODE -eq 124 ]; then
+        echo "⚠️  NFS cleanup timed out after $${CLEANUP_TIMEOUT}s (NFS server or network may already be destroyed). Continuing with destroy."
+        exit 0
+      elif [ $EXIT_CODE -ne 0 ]; then
+        echo "⚠️  NFS cleanup failed with exit code $EXIT_CODE. Continuing with destroy."
+        echo "Fetching logs for debugging..."
 
-          LOG_FILTER='resource.type="cloud_run_job" AND resource.labels.job_name="${self.triggers.job_name}"'
+        sleep 5
 
-          gcloud logging read "$LOG_FILTER" \
-            --project=${self.triggers.project_id} \
-            --limit=20 \
-            --freshness=10m \
-            --format="value(textPayload)" \
-            $IMPERSONATE_FLAG
+        LOG_FILTER='resource.type="cloud_run_job" AND resource.labels.job_name="${self.triggers.job_name}"'
 
-          exit $EXIT_CODE
-        }
+        gcloud logging read "$LOG_FILTER" \
+          --project=${self.triggers.project_id} \
+          --limit=20 \
+          --freshness=10m \
+          --format="value(textPayload)" \
+          $IMPERSONATE_FLAG 2>/dev/null || true
+
+        # Don't block destroy on cleanup failure
+        exit 0
+      fi
 
       echo "✓ NFS cleanup completed successfully"
     EOT
