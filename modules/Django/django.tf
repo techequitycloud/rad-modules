@@ -162,7 +162,7 @@ locals {
     startup_probe = {
       enabled               = true
       type                  = "HTTP"
-      path                  = "/"
+      path                  = "/health/"
       initial_delay_seconds = 90
       timeout_seconds       = 5
       period_seconds        = 10
@@ -171,7 +171,7 @@ locals {
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
-      path                  = "/"
+      path                  = "/health/"
       initial_delay_seconds = 60
       timeout_seconds       = 5
       period_seconds        = 30
