@@ -3,7 +3,7 @@ FROM alpine:3.20
 #Install dependencies and fix issue in apache
 RUN apk --no-cache upgrade
 RUN apk add --no-cache \
-    apache2 apache2-ssl apache2-utils apache2-proxy git php83 php83-tokenizer php83-ctype php83-session \
+    apache2 apache2-utils apache2-proxy git php83 php83-tokenizer php83-ctype php83-session \
     php83-json php83-pdo php83-pdo_mysql php83-curl php83-ldap php83-openssl php83-iconv \
     php83-xml php83-xsl php83-gd php83-zip php83-soap php83-mbstring php83-zlib \
     php83-mysqli php83-sockets php83-xmlreader php83-redis php83-simplexml php83-xmlwriter php83-phar php83-fileinfo \
@@ -46,9 +46,7 @@ RUN apk add --no-cache git build-base \
     && mkdir -p /etc/ssl/certs /etc/ssl/private \
     && apk del --no-cache git build-base \
     && sed -i 's/^ *CustomLog/#CustomLog/' /etc/apache2/httpd.conf \
-    && sed -i 's/^ *ErrorLog/#ErrorLog/' /etc/apache2/httpd.conf \
-    && sed -i 's/^ *CustomLog/#CustomLog/' /etc/apache2/conf.d/ssl.conf \
-    && sed -i 's/^ *TransferLog/#TransferLog/' /etc/apache2/conf.d/ssl.conf
+    && sed -i 's/^ *ErrorLog/#ErrorLog/' /etc/apache2/httpd.conf
 WORKDIR /var/www/localhost/htdocs/openemr
 #configure apache & php properly
 ENV APACHE_LOG_DIR=/var/log/apache2
@@ -91,6 +89,7 @@ RUN mkdir /swarm-pieces \
     && rsync --owner --group --perms --delete --recursive --links /etc/ssl /swarm-pieces/ \
     && rsync --owner --group --perms --delete --recursive --links /var/www/localhost/htdocs/openemr/sites /swarm-pieces/
 #go
+ENV PORT=8080
 CMD [ "./openemr.sh" ]
 
-EXPOSE 80 443
+EXPOSE 8080
