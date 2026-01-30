@@ -30,10 +30,14 @@ const STORE_CORS = process.env.STORE_CORS || "http://localhost:8000";
 // Handle Cloud SQL socket connection if DB_HOST starts with /
 let DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
+  const dbUser = encodeURIComponent(process.env.DB_USER);
+  const dbPassword = encodeURIComponent(process.env.DB_PASSWORD);
+  const dbName = encodeURIComponent(process.env.DB_NAME);
+
   if (process.env.DB_HOST && process.env.DB_HOST.startsWith("/")) {
-    DATABASE_URL = `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@localhost:${process.env.DB_PORT}/${process.env.DB_NAME}?host=${process.env.DB_HOST}`;
+    DATABASE_URL = `postgres://${dbUser}:${dbPassword}@localhost:${process.env.DB_PORT}/${dbName}?host=${process.env.DB_HOST}`;
   } else {
-    DATABASE_URL = `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
+    DATABASE_URL = `postgres://${dbUser}:${dbPassword}@${process.env.DB_HOST}:${process.env.DB_PORT}/${dbName}`;
   }
 }
 
