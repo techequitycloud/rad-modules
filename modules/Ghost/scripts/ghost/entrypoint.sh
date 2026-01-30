@@ -2,7 +2,7 @@
 set -e
 
 echo "=========================================="
-echo "Ghost 6.10.3 Container Startup"
+echo "Ghost Container Startup"
 echo "=========================================="
 
 # ============================================================================
@@ -190,12 +190,12 @@ if [ "$database__client" = "mysql" ]; then
 fi
 
 # ============================================================================
-# Ghost 6.10.3 Configuration Summary
+# Ghost Configuration Summary
 # ============================================================================
 
 echo ""
 echo "=========================================="
-echo "Ghost 6.10.3 Configuration"
+echo "Ghost Configuration"
 echo "=========================================="
 echo "URL: $url"
 echo "Admin URL: ${admin__url:-$url}"
@@ -210,7 +210,7 @@ echo ""
 # Start Ghost
 # ============================================================================
 
-echo "Starting Ghost 6.10.3..."
+echo "Starting Ghost..."
 echo ""
 
 # Execute the original Ghost entrypoint

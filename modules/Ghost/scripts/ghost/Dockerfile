@@ -1,5 +1,6 @@
-# Ghost 6.10.3 Custom Dockerfile
-FROM ghost:6.10.3-alpine
+# Ghost Custom Dockerfile
+ARG APP_VERSION=6.16.0
+FROM ghost:${APP_VERSION}-alpine
 
 # Install dependencies for startup script
 RUN apk add --no-cache \
