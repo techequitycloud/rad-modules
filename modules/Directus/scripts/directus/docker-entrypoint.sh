@@ -11,7 +11,7 @@ wait_for_db() {
         local max_attempts=30
         local attempt=0
         
-        while [ $attempt -lt $max_attempts ]; do
+        while [ "$attempt" -lt "$max_attempts" ]; do
             if pg_isready -h "$DB_HOST" -p "${DB_PORT:-5432}" -U "${DB_USER:-directus}" > /dev/null 2>&1; then
                 echo "Database is ready!"
                 return 0

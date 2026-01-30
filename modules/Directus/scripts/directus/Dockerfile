@@ -16,8 +16,8 @@ RUN mkdir -p \
     /directus/uploads \
     /directus/extensions \
     /directus/database && \
-    chown -R node:node /directus && \
-    chmod -R 755 /directus/
+    chown -R node:node /directus/uploads /directus/extensions /directus/database && \
+    chmod -R 755 /directus/uploads /directus/extensions /directus/database
 
 # Copy custom entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
