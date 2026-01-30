@@ -190,7 +190,6 @@ variable "tenant_deployment_id" {
 variable "deployment_region" {
   description = "Primary deployment region for your application (e.g., us-central1, europe-west1). {{UIMeta group=0 order=202 updatesafe }}"
   type        = string
-  default     = "us-central1"
 }
 
 # ===========================

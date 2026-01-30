@@ -1,4 +1,5 @@
 import os
+from urllib.parse import quote_plus
 from flask import Flask, jsonify
 from sqlalchemy import create_engine, text, Column, Integer
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -13,6 +14,10 @@ db_pass = os.environ.get('DB_PASSWORD')
 db_port = os.environ.get('DB_PORT', '5432')
 
 # Construct connection string
+# URL encode user and password to handle special characters
+db_user = quote_plus(db_user) if db_user else db_user
+db_pass = quote_plus(db_pass) if db_pass else db_pass
+
 if db_host and db_host.startswith('/'):
     # Unix Socket connection
     # SQLAlchemy format: postgresql://user:password@/dbname?host=/path/to/socket
