@@ -1282,7 +1282,7 @@ resource "google_cloud_run_v2_job" "nfs_cleanup_job" {
     template {
       service_account       = local.cloud_run_sa_email
       max_retries           = 0
-      timeout               = "300s"
+      timeout               = "900s"
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
