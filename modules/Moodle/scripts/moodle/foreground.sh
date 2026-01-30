@@ -2,6 +2,10 @@
 read pid cmd state ppid pgrp session tty_nr tpgid rest < /proc/self/stat
 trap "kill -TERM -$pgrp; exit" EXIT TERM KILL SIGKILL SIGTERM SIGQUIT
 export APP_URL=https://$(echo "$APP_URL" | tr " " "\n"  | sed 's/^"//; s/"$//; s~^https\?://~~; s/:[0-9]\+$//')
+
+# Ensure /root/env.sh exists before use
+touch /root/env.sh
+
 if grep -q "^export APP_URL=" /root/env.sh >/dev/null 2>&1; then
     echo "Updating APP_URL variable in /root/env.sh to $APP_URL"
     sed -i "s/^export APP_URL=.*/export APP_URL=$APP_URL/" /root/env.sh
@@ -12,7 +16,7 @@ fi
 echo "Setting max_input_vars variable in /etc/php/8.3/apache2/php.ini to 5000"
 sed -i "s/.*max_input_vars.*/max_input_vars = 5000/" /etc/php/8.3/apache2/php.ini
 echo | cat /root/env.sh
-/usr/sbin/cron
+/usr/sbin/cron 2>/dev/null || true
 source /etc/apache2/envvars
 
 # Set default values if environment variables are missing
@@ -30,7 +34,14 @@ chown -R "$APACHE_RUN_USER:$APACHE_RUN_GROUP" "$APACHE_RUN_DIR" "$APACHE_LOCK_DI
 tail -F /var/log/apache2/* 2>/dev/null &
 
 # Configure Apache to listen on Cloud Run PORT
-echo "Configuring Apache to listen on port ${PORT:-8080}..."
-sed -i "s/80/${PORT:-8080}/g" /etc/apache2/ports.conf /etc/apache2/sites-enabled/*.conf
+LISTEN_PORT=${PORT:-8080}
+echo "Configuring Apache to listen on port ${LISTEN_PORT}..."
+sed -i "s/Listen 80$/Listen ${LISTEN_PORT}/" /etc/apache2/ports.conf
+sed -i "s/<VirtualHost \*:80>/<VirtualHost *:${LISTEN_PORT}>/" /etc/apache2/sites-enabled/*.conf
 
+# Validate Apache configuration before starting
+echo "Validating Apache configuration..."
+apache2 -t 2>&1 || echo "WARNING: Apache config test reported issues"
+
+echo "Starting Apache in foreground mode..."
 exec apache2 -D FOREGROUND
