@@ -18,7 +18,7 @@
     "watch": "cross-env ./node_modules/.bin/tsc --watch",
     "test": "cross-env ./node_modules/.bin/jest",
     "seed": "cross-env ./node_modules/.bin/medusa seed -f ./data/seed.json",
-    "start": "cross-env ./node_modules/.bin/medusa start",
+    "start": "medusa start",
     "start:custom": "cross-env ./node_modules/.bin/medusa start",
     "dev": "cross-env ./node_modules/.bin/medusa develop"
   },
