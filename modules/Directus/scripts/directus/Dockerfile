@@ -11,7 +11,8 @@ RUN apk add --no-cache \
     postgresql-client
 
 # Install GCS storage driver
-RUN npm install @directus/storage-driver-gcs@11.1.0
+RUN npm install -g npm@latest && \
+    npm install @directus/storage-driver-gcs@11.1.0
 
 # Create extensions directory (no uploads - using GCS)
 RUN mkdir -p /directus/extensions && \
