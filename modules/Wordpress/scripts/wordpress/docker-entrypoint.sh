@@ -26,6 +26,14 @@ else
     echo "No Cloud SQL socket found."
 fi
 
+# Check WP-CLI
+if command -v wp &> /dev/null; then
+    echo "WP-CLI version:"
+    wp --info --allow-root
+else
+    echo "WP-CLI not found."
+fi
+
 if [[ "$1" == apache2* ]] || [ "$1" = 'php-fpm' ] || { self="$(basename "$0")" && [ "$self" = 'docker-ensure-installed.sh' ]; }; then
 	uid="$(id -u)"
 	gid="$(id -g)"

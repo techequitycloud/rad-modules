@@ -14,6 +14,8 @@ RUN set -eux; \
 	apt-get install -y --no-install-recommends \
 # Ghostscript is required for rendering PDF previews
 		ghostscript \
+# MySQL client for wp-cli
+		mariadb-client \
 	; \
 	rm -rf /var/lib/apt/lists/*
 
@@ -50,7 +52,8 @@ RUN set -ex; \
 	; \
 # https://pecl.php.net/package/imagick
 	pecl install imagick-3.8.0; \
-	docker-php-ext-enable imagick; \
+	pecl install redis; \
+	docker-php-ext-enable imagick redis; \
 	rm -r /tmp/pear; \
 	\
 # some misbehaving extensions end up outputting to stdout 🙈 (https://github.com/docker-library/wordpress/issues/669#issuecomment-993945967)
@@ -89,7 +92,20 @@ RUN set -eux; \
 		echo 'opcache.interned_strings_buffer=8'; \
 		echo 'opcache.max_accelerated_files=4000'; \
 		echo 'opcache.revalidate_freq=2'; \
-	} > /usr/local/etc/php/conf.d/opcache-recommended.ini
+	} > /usr/local/etc/php/conf.d/opcache-recommended.ini; \
+	{ \
+		echo 'upload_max_filesize = 64M'; \
+		echo 'post_max_size = 64M'; \
+		echo 'memory_limit = 512M'; \
+		echo 'max_execution_time = 300'; \
+	} > /usr/local/etc/php/conf.d/uploads.ini
+
+# Install WP-CLI
+RUN set -eux; \
+	curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar; \
+	chmod +x wp-cli.phar; \
+	mv wp-cli.phar /usr/local/bin/wp
+
 # https://wordpress.org/support/article/editing-wp-config-php/#configure-error-logging
 RUN { \
 # https://www.php.net/manual/en/errorfunc.constants.php
