@@ -29,12 +29,15 @@ if [ -d "$TARGET_DIR" ]; then
             echo "Removing directory: $TARGET_DIR"
             # Use timeout to prevent indefinite hanging (Cloud Run job timeout is 900s)
             # Set internal timeout slightly lower to allow for graceful exit logging
-            if timeout 880 rm -rf "$TARGET_DIR"; then
+            # Use SIGKILL (-9) to force termination if hung
+            if timeout -s 9 850 rm -rf "$TARGET_DIR"; then
                 echo "Directory removed successfully."
             else
                 EXIT_CODE=$?
                 echo "Error: Failed to remove directory (Exit Code: $EXIT_CODE). Operation might have timed out."
-                exit $EXIT_CODE
+                # Don't fail the job if cleanup times out, just warn.
+                # This prevents Terraform destroy from hanging indefinitely or failing.
+                echo "Warning: Cleanup timed out or failed. Proceeding to exit to avoid blocking destruction."
             fi
             ;;
         *)
