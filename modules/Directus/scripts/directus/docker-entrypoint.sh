@@ -34,11 +34,11 @@ check_gcs_storage() {
             echo "ERROR: STORAGE_GCS_BUCKET is not set"
             exit 1
         fi
-
+        
         if [ -z "$STORAGE_GCS_PROJECT_ID" ]; then
             echo "WARNING: STORAGE_GCS_PROJECT_ID not set, using default credentials"
         fi
-
+        
         echo "GCS Storage configured: bucket=$STORAGE_GCS_BUCKET"
     else
         echo "WARNING: Not using GCS storage. Cloud Run requires external storage!"
@@ -51,7 +51,7 @@ check_cloud_run_env() {
         echo "Running on Cloud Run: $K_SERVICE"
         echo "Cloud Run Revision: ${K_REVISION:-unknown}"
         echo "Cloud Run Configuration: ${K_CONFIGURATION:-unknown}"
-
+        
         # Use Cloud Run's PORT if available
         if [ -n "$PORT" ]; then
             export PORT="$PORT"

@@ -44,7 +44,7 @@ locals {
 
       # SMTP Configuration
       SMTP_HOST      = ""
-      SMTP_PORT      = "587"
+      SMTP_PORT      = ""
       SMTP_USERNAME  = ""
       # SMTP_PASSWORD should be passed via secrets
       EMAIL_FROM     = ""

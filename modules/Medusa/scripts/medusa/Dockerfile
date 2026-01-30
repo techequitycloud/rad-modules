@@ -1,4 +1,4 @@
-FROM node:18-alpine AS build
+FROM node:22-alpine AS build
 
 WORKDIR /app/medusa
 
@@ -18,11 +18,14 @@ RUN yarn install --frozen-lockfile
 # Copy application files
 COPY . .
 
+# Create data directory (in case it's missing from source)
+RUN mkdir -p data
+
 # Build the application
 RUN yarn build
 
 # Production stage
-FROM node:18-alpine
+FROM node:22-alpine
 
 WORKDIR /app/medusa
 

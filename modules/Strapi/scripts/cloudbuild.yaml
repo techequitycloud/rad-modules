@@ -18,8 +18,8 @@ steps:
   args:
     - '--dockerfile=Dockerfile'
     - '--context=dir://strapi'
-    - '--destination=us-east1-docker.pkg.dev/qwiklabs-gcp-02-30b30b50c2a4/strapibasicdfc83a02-repo/strapi:5.5.0'
-    - '--destination=us-east1-docker.pkg.dev/qwiklabs-gcp-02-30b30b50c2a4/strapibasicdfc83a02-repo/strapi:latest'
+    - '--destination=us-east1-docker.pkg.dev/qwiklabs-gcp-02-30b30b50c2a4/strapibasic98a0c95a-repo/strapi:5.5.0'
+    - '--destination=us-east1-docker.pkg.dev/qwiklabs-gcp-02-30b30b50c2a4/strapibasic98a0c95a-repo/strapi:latest'
 
     - '--build-arg=APP_VERSION=5.5.0'
 
