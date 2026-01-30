@@ -19,6 +19,9 @@ SECRET_KEY = env("SECRET_KEY")
 if "myproject" not in INSTALLED_APPS:
     INSTALLED_APPS.append("myproject")
 
+if "myproject.sample" not in INSTALLED_APPS:
+    INSTALLED_APPS.append("myproject.sample")
+
 # Security Configuration for Cloud Run
 # Cloud Run handles SSL termination, so we need to tell Django to trust the headers
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
