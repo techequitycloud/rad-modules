@@ -18,6 +18,9 @@ RUN yarn install --frozen-lockfile
 # Copy application files
 COPY . .
 
+# Create data directory (in case it's missing from source)
+RUN mkdir -p data
+
 # Build the application
 RUN yarn build
 
