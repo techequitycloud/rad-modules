@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+echo "=== WordPress Docker Entrypoint for Google Cloud Run ==="
+
 # Cloud Run / Cloud SQL Socket Handling
 echo "Searching for Cloud SQL socket..."
 SOCKET_FILE=""
@@ -18,21 +20,39 @@ if [ -z "$SOCKET_FILE" ] && [ -d "/var/run/mysqld" ]; then
 fi
 
 if [ -n "$SOCKET_FILE" ]; then
-    echo "Found socket: $SOCKET_FILE"
+    echo "✓ Found socket: $SOCKET_FILE"
     mkdir -p /tmp
-    echo "Symlinking to /tmp/mysqld.sock"
+    echo "  Symlinking to /tmp/mysqld.sock"
     ln -sf "$SOCKET_FILE" /tmp/mysqld.sock
 else
-    echo "No Cloud SQL socket found."
+    echo "⚠ No Cloud SQL socket found (using TCP connection)"
 fi
 
-# Check WP-CLI
+# Check WP-CLI availability and version
 if command -v wp &> /dev/null; then
-    echo "WP-CLI version:"
+    echo "✓ WP-CLI is available"
     wp --info --allow-root
 else
-    echo "WP-CLI not found."
+    echo "⚠ WP-CLI not found"
 fi
+
+# Check Redis extension
+if php -m | grep -q redis; then
+    echo "✓ Redis extension loaded"
+else
+    echo "⚠ Redis extension not found"
+fi
+
+# Verify required PHP extensions
+echo "Checking required PHP extensions..."
+REQUIRED_EXTS="mysqli gd imagick zip intl"
+for ext in $REQUIRED_EXTS; do
+    if php -m | grep -q "$ext"; then
+        echo "  ✓ $ext"
+    else
+        echo "  ✗ $ext (missing)"
+    fi
+done
 
 if [[ "$1" == apache2* ]] || [ "$1" = 'php-fpm' ] || { self="$(basename "$0")" && [ "$self" = 'docker-ensure-installed.sh' ]; }; then
 	uid="$(id -u)"
@@ -64,9 +84,9 @@ if [[ "$1" == apache2* ]] || [ "$1" = 'php-fpm' ] || { self="$(basename "$0")" &
 			chown "$user:$group" .
 		fi
 
-		echo >&2 "WordPress not found in $PWD - copying now..."
+		echo "WordPress not found in $PWD - copying now..."
 		if [ -n "$(find -mindepth 1 -maxdepth 1 -not -name wp-content)" ]; then
-			echo >&2 "WARNING: $PWD is not empty! (copying anyhow)"
+			echo "⚠ WARNING: $PWD is not empty! (copying anyhow)"
 		fi
 		sourceTarArgs=(
 			--create
@@ -92,12 +112,12 @@ if [[ "$1" == apache2* ]] || [ "$1" = 'php-fpm' ] || { self="$(basename "$0")" &
 			[ -e "$contentPath" ] || continue
 			contentPath="${contentPath#/usr/src/wordpress/}" # "wp-content/plugins/akismet", etc.
 			if [ -e "$PWD/$contentPath" ]; then
-				echo >&2 "WARNING: '$PWD/$contentPath' exists! (not copying the WordPress version)"
+				echo "  ⚠ '$PWD/$contentPath' exists! (not copying the WordPress version)"
 				sourceTarArgs+=( --exclude "./$contentPath" )
 			fi
 		done
 		tar "${sourceTarArgs[@]}" . | tar "${targetTarArgs[@]}"
-		echo >&2 "Complete! WordPress has been successfully copied to $PWD"
+		echo "✓ Complete! WordPress has been successfully copied to $PWD"
 	fi
 
 	wpEnvs=( "${!WORDPRESS_@}" )
@@ -107,7 +127,8 @@ if [[ "$1" == apache2* ]] || [ "$1" = 'php-fpm' ] || { self="$(basename "$0")" &
 			/usr/src/wordpress/wp-config-docker.php \
 		; do
 			if [ -s "$wpConfigDocker" ]; then
-				echo >&2 "No 'wp-config.php' found in $PWD, but 'WORDPRESS_...' variables supplied; copying '$wpConfigDocker' (${wpEnvs[*]})"
+				echo "No 'wp-config.php' found in $PWD, but 'WORDPRESS_...' variables supplied"
+				echo "Generating wp-config.php from template (${wpEnvs[*]})"
 				# using "awk" to replace all instances of "put your unique phrase here" with a properly unique string (for AUTH_KEY and friends to have safe defaults if they aren't specified with environment variables)
 				awk '
 					/put your unique phrase here/ {
@@ -123,10 +144,22 @@ if [[ "$1" == apache2* ]] || [ "$1" = 'php-fpm' ] || { self="$(basename "$0")" &
 					# could be on a filesystem that doesn't allow chown (like some NFS setups)
 					chown "$user:$group" wp-config.php || true
 				fi
+				echo "✓ wp-config.php generated successfully"
 				break
 			fi
 		done
 	fi
+
+	# Configure Redis object cache if available
+	if [ -n "${WORDPRESS_REDIS_HOST:-}" ] && command -v wp &> /dev/null; then
+		echo "Configuring Redis object cache..."
+		if [ -f wp-config.php ]; then
+			# Install Redis object cache plugin via WP-CLI
+			wp plugin install redis-cache --activate --allow-root || echo "⚠ Could not install redis-cache plugin"
+			wp redis enable --allow-root || echo "⚠ Could not enable Redis"
+		fi
+	fi
 fi
 
+echo "=== Starting WordPress on port ${PORT:-80} ==="
 exec "$@"
