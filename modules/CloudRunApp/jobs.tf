@@ -1368,40 +1368,17 @@ resource "null_resource" "execute_nfs_cleanup_job" {
         exit 0
       fi
 
-      # Use timeout to prevent hanging if NFS server or network is already destroyed
-      CLEANUP_TIMEOUT=120
-
-      echo "Running NFS cleanup with $${CLEANUP_TIMEOUT}s timeout..."
-      timeout $${CLEANUP_TIMEOUT} gcloud run jobs execute ${self.triggers.job_name} \
+      # Fire-and-forget: launch the cleanup job asynchronously.
+      # During terraform destroy, the NFS server itself will be destroyed,
+      # so blocking on cleanup is unnecessary and causes hangs when the
+      # NFS server becomes unreachable mid-cleanup.
+      gcloud run jobs execute ${self.triggers.job_name} \
         --region ${self.triggers.region} \
         --project ${self.triggers.project_id} \
         $IMPERSONATE_FLAG \
-        --wait 2>&1
-      EXIT_CODE=$?
+        --async 2>&1 || true
 
-      if [ $EXIT_CODE -eq 124 ]; then
-        echo "⚠️  NFS cleanup timed out after $${CLEANUP_TIMEOUT}s (NFS server or network may already be destroyed). Continuing with destroy."
-        exit 0
-      elif [ $EXIT_CODE -ne 0 ]; then
-        echo "⚠️  NFS cleanup failed with exit code $EXIT_CODE. Continuing with destroy."
-        echo "Fetching logs for debugging..."
-
-        sleep 5
-
-        LOG_FILTER='resource.type="cloud_run_job" AND resource.labels.job_name="${self.triggers.job_name}"'
-
-        gcloud logging read "$LOG_FILTER" \
-          --project=${self.triggers.project_id} \
-          --limit=20 \
-          --freshness=10m \
-          --format="value(textPayload)" \
-          $IMPERSONATE_FLAG 2>/dev/null || true
-
-        # Don't block destroy on cleanup failure
-        exit 0
-      fi
-
-      echo "✓ NFS cleanup completed successfully"
+      echo "✓ NFS cleanup job launched (async) - proceeding with destroy"
     EOT
   }
 }
