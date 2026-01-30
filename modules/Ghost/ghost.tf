@@ -4,7 +4,7 @@ locals {
     description         = "Ghost - Professional publishing platform"
     container_image     = "ghost" 
     application_version = var.application_version
-    enable_image_mirroring = true
+    enable_image_mirroring = false
 
     # ✅ Use official image (recommended)
     image_source = "prebuilt"
