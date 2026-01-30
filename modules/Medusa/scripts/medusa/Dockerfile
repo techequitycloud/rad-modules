@@ -2,9 +2,11 @@ FROM node:18-alpine AS build
 
 WORKDIR /app/medusa
 
-COPY package.json yarn.lock* ./
+RUN apk add --no-cache python3 make g++
 
-RUN yarn install
+COPY package.json yarn.lock ./
+
+RUN yarn install --frozen-lockfile
 
 COPY . .
 
@@ -14,9 +16,11 @@ FROM node:18-alpine
 
 WORKDIR /app/medusa
 
-COPY package.json yarn.lock* ./
+RUN apk add --no-cache tini
 
-RUN yarn install --production && yarn cache clean
+COPY package.json yarn.lock ./
+
+RUN yarn install --production --frozen-lockfile && yarn cache clean
 
 COPY --from=build /app/medusa/dist ./dist
 COPY --from=build /app/medusa/medusa-config.js ./
@@ -27,5 +31,7 @@ EXPOSE 9000
 
 RUN chown -R node:node /app/medusa
 USER node
+
+ENTRYPOINT ["/sbin/tini", "--"]
 
 CMD ["yarn", "start"]
