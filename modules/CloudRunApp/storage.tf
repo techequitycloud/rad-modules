@@ -75,6 +75,16 @@ resource "google_storage_bucket" "buckets" {
   # Add provisioner to wait before destruction to allow GCS Fuse mounts to release
   provisioner "local-exec" {
     when    = destroy
-    command = "sleep 60"
+    command = <<EOT
+      echo "Emptying bucket ${self.name} before destruction..."
+      # Try gcloud storage first (faster), fall back to gsutil
+      if command -v gcloud >/dev/null 2>&1; then
+        gcloud storage rm --recursive "gs://${self.name}/**" --quiet || true
+      elif command -v gsutil >/dev/null 2>&1; then
+        gsutil -m rm -r "gs://${self.name}/**" || true
+      fi
+      echo "Waiting 60s for GCSFuse mounts to release..."
+      sleep 60
+    EOT
   }
 }
