@@ -26,13 +26,13 @@ locals {
 
   # Determine subnet for the region
   subnet_map = local.region_to_subnet
-  
+
   # ✅ NEW: Safe subnet name lookup with multiple fallbacks
   subnet_name = coalesce(
     try(local.region_to_subnet[local.region], null),
     try([for s in local.subnet_details : s.name if s.region == local.region][0], null),
     try(local.subnet_details[0].name, null),
-    "gce-vpc-subnet-${local.region}",  # Match your actual subnet naming pattern
+    "gce-vpc-subnet-${local.region}", # Match your actual subnet naming pattern
     "${local.network_name}-subnet-${local.region}"
   )
 
@@ -138,7 +138,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
         nfs {
           server = local.nfs_internal_ip
           # ✅ CHANGED: Mount root path to create unique path
-          path   = "/share"
+          path = "/share"
         }
       }
 
@@ -175,38 +175,15 @@ resource "null_resource" "execute_nfs_setup_job" {
 
       sleep 10
 
-      # Execute with 660s timeout
-      timeout 660 gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
+      # Execute without timeout wrapper (rely on Cloud Run timeout)
+      gcloud run jobs execute ${google_cloud_run_v2_job.nfs_setup_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         $IMPERSONATE_FLAG \
         --wait || {
           EXIT_CODE=$?
-          if [ $EXIT_CODE -eq 124 ]; then
-            echo "⚠ Job timed out - checking logs for completion..."
-            sleep 5
-            
-            # ✅ FIXED: Properly escaped regex pattern
-            LOG_FILTER='resource.type="cloud_run_job" AND resource.labels.job_name="${google_cloud_run_v2_job.nfs_setup_job[0].name}" AND textPayload:"NFS setup complete"'
-            
-            gcloud logging read "$LOG_FILTER" \
-              --project=${local.project.project_id} \
-              --limit=1 \
-              --freshness=3m \
-              --format="value(textPayload)" \
-              $IMPERSONATE_FLAG 2>/dev/null | grep -q "NFS setup complete" && {
-                echo "✓ Job completed successfully (verified via logs)"
-                exit 0
-              } || {
-                echo "✗ Could not verify completion. Checking if directory was created..."
-                # Alternative: Just assume success since job ran
-                echo "⚠ Assuming success - job executed without errors"
-                exit 0
-              }
-          else
-            echo "✗ Job failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
+          echo "✗ Job failed with exit code $EXIT_CODE"
+          exit $EXIT_CODE
         }
 
       echo "✓ NFS setup completed successfully"
@@ -295,9 +272,9 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
             for vol_name in each.value.mount_gcs_volumes :
             vol_name => local.gcs_volumes[vol_name]
             if contains(keys(local.gcs_volumes), vol_name) &&
-               can(local.gcs_volumes[vol_name].bucket_name) &&
-               local.gcs_volumes[vol_name].bucket_name != null &&
-               local.gcs_volumes[vol_name].bucket_name != ""
+            can(local.gcs_volumes[vol_name].bucket_name) &&
+            local.gcs_volumes[vol_name].bucket_name != null &&
+            local.gcs_volumes[vol_name].bucket_name != ""
           }
           content {
             name       = volume_mounts.value.name
@@ -344,14 +321,14 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
           for vol_name in each.value.mount_gcs_volumes :
           local.gcs_volumes[vol_name]
           if contains(keys(local.gcs_volumes), vol_name) &&
-             try(local.gcs_volumes[vol_name].bucket_name, null) != null &&
-             local.gcs_volumes[vol_name].bucket_name != ""
+          try(local.gcs_volumes[vol_name].bucket_name, null) != null &&
+          local.gcs_volumes[vol_name].bucket_name != ""
         ]
         content {
           name = volumes.value.name
           gcs {
-            bucket    = volumes.value.bucket_name
-            read_only = volumes.value.readonly
+            bucket        = volumes.value.bucket_name
+            read_only     = volumes.value.readonly
             mount_options = volumes.value.mount_options
           }
         }
@@ -531,19 +508,14 @@ resource "null_resource" "execute_postgres_extensions_job" {
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
-      timeout 360 gcloud run jobs execute ${google_cloud_run_v2_job.postgres_extensions_job[0].name} \
+      gcloud run jobs execute ${google_cloud_run_v2_job.postgres_extensions_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         $IMPERSONATE_FLAG \
         --wait || {
           EXIT_CODE=$?
-          if [ $EXIT_CODE -eq 124 ]; then
-            echo "⚠ Job execution timed out after 6 minutes"
-            exit 1
-          else
-            echo "✗ PostgreSQL extensions installation job failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
+          echo "✗ PostgreSQL extensions installation job failed with exit code $EXIT_CODE"
+          exit $EXIT_CODE
         }
 
       echo "✓ PostgreSQL extensions installed successfully"
@@ -570,7 +542,7 @@ resource "google_cloud_run_v2_job" "gdrive_backup_job" {
     template {
       service_account       = local.cloud_run_sa_email
       max_retries           = 1
-      timeout               = "1800s"  # 30 minutes for large backups
+      timeout               = "1800s" # 30 minutes for large backups
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
@@ -663,10 +635,10 @@ resource "null_resource" "execute_gdrive_backup_job" {
   count = local.enable_gdrive_backup_job && local.sql_server_exists ? 1 : 0
 
   triggers = {
-    backup_uri     = local.backup_uri
-    backup_format  = local.backup_format
-    backup_source  = local.backup_source
-    job_name       = google_cloud_run_v2_job.gdrive_backup_job[0].name
+    backup_uri    = local.backup_uri
+    backup_format = local.backup_format
+    backup_source = local.backup_source
+    job_name      = google_cloud_run_v2_job.gdrive_backup_job[0].name
   }
 
   provisioner "local-exec" {
@@ -686,20 +658,14 @@ resource "null_resource" "execute_gdrive_backup_job" {
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
-      timeout 1920 gcloud run jobs execute ${google_cloud_run_v2_job.gdrive_backup_job[0].name} \
+      gcloud run jobs execute ${google_cloud_run_v2_job.gdrive_backup_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         $IMPERSONATE_FLAG \
         --wait || {
           EXIT_CODE=$?
-          if [ $EXIT_CODE -eq 124 ]; then
-            echo "⚠ Job execution timed out after 32 minutes"
-            echo "The backup import may still be running. Check Cloud Run jobs in the console."
-            exit 1
-          else
-            echo "✗ Backup import job failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
+          echo "✗ Backup import job failed with exit code $EXIT_CODE"
+          exit $EXIT_CODE
         }
 
       echo "✓ Backup imported successfully from ${local.backup_source == "gdrive" ? "Google Drive" : "Google Cloud Storage"}"
@@ -727,7 +693,7 @@ resource "google_cloud_run_v2_job" "gcs_backup_job" {
     template {
       service_account       = local.cloud_run_sa_email
       max_retries           = 1
-      timeout               = "1800s"  # 30 minutes for large backups
+      timeout               = "1800s" # 30 minutes for large backups
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
@@ -804,7 +770,7 @@ resource "google_cloud_run_v2_job" "gcs_backup_job" {
           network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
           subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_name}"
           tags       = local.network_tags
-       }
+        }
         egress = local.vpc_egress_setting
       }
     }
@@ -844,20 +810,14 @@ resource "null_resource" "execute_gcs_backup_job" {
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
-      timeout 1920 gcloud run jobs execute ${google_cloud_run_v2_job.gcs_backup_job[0].name} \
+      gcloud run jobs execute ${google_cloud_run_v2_job.gcs_backup_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         $IMPERSONATE_FLAG \
         --wait || {
           EXIT_CODE=$?
-          if [ $EXIT_CODE -eq 124 ]; then
-            echo "⚠ Job execution timed out after 32 minutes"
-            echo "The backup import may still be running. Check Cloud Run jobs in the console."
-            exit 1
-          else
-            echo "✗ Backup import job failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
+          echo "✗ Backup import job failed with exit code $EXIT_CODE"
+          exit $EXIT_CODE
         }
 
       echo "✓ Backup imported successfully from ${local.backup_source == "gdrive" ? "Google Drive" : "Google Cloud Storage"}"
@@ -977,19 +937,14 @@ resource "null_resource" "execute_mysql_plugins_job" {
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
-      timeout 360 gcloud run jobs execute ${google_cloud_run_v2_job.mysql_plugins_job[0].name} \
+      gcloud run jobs execute ${google_cloud_run_v2_job.mysql_plugins_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         $IMPERSONATE_FLAG \
         --wait || {
           EXIT_CODE=$?
-          if [ $EXIT_CODE -eq 124 ]; then
-            echo "⚠ Job execution timed out after 6 minutes"
-            exit 1
-          else
-            echo "✗ MySQL plugins installation job failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
+          echo "✗ MySQL plugins installation job failed with exit code $EXIT_CODE"
+          exit $EXIT_CODE
         }
 
       echo "✓ MySQL plugins installed successfully"
@@ -1015,8 +970,8 @@ resource "google_cloud_run_v2_job" "custom_sql_scripts_job" {
   template {
     template {
       service_account       = local.cloud_run_sa_email
-      max_retries           = 0  # Don't retry custom scripts
-      timeout               = "600s"  # 10 minutes
+      max_retries           = 0      # Don't retry custom scripts
+      timeout               = "600s" # 10 minutes
       execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
       containers {
@@ -1410,19 +1365,14 @@ resource "null_resource" "execute_custom_sql_scripts_job" {
       echo "Waiting for IAM permissions to propagate..."
       sleep 15
 
-      timeout 660 gcloud run jobs execute ${google_cloud_run_v2_job.custom_sql_scripts_job[0].name} \
+      gcloud run jobs execute ${google_cloud_run_v2_job.custom_sql_scripts_job[0].name} \
         --region ${local.region} \
         --project ${local.project.project_id} \
         $IMPERSONATE_FLAG \
         --wait || {
           EXIT_CODE=$?
-          if [ $EXIT_CODE -eq 124 ]; then
-            echo "⚠ Job execution timed out after 11 minutes"
-            exit 1
-          else
-            echo "✗ Custom SQL scripts job failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
+          echo "✗ Custom SQL scripts job failed with exit code $EXIT_CODE"
+          exit $EXIT_CODE
         }
 
       echo "✓ Custom SQL scripts executed successfully"

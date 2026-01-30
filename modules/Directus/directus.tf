@@ -10,9 +10,9 @@ locals {
     db_user             = "directus"
 
     # Custom build configuration
-    image_source = "custom"
+    image_source           = "custom"
     enable_image_mirroring = false
-    
+
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
@@ -35,17 +35,17 @@ locals {
     # GCS volumes for uploads
     gcs_volumes = [
       {
-        name          = "directus-uploads"
-        bucket_name   = null  # Will be auto-generated
-        mount_path    = "/directus/uploads"
-        read_only     = false
-        readonly      = false
+        name        = "directus-uploads"
+        bucket_name = null # Will be auto-generated
+        mount_path  = "/directus/uploads"
+        read_only   = false
+        readonly    = false
         mount_options = [
           "implicit-dirs",
           "file-mode=777",
           "dir-mode=777",
-          "uid=1000",      # node user UID
-          "gid=1000"       # node group GID
+          "uid=1000", # node user UID
+          "gid=1000"  # node group GID
         ]
       }
     ]
@@ -80,19 +80,20 @@ locals {
       RATE_LIMITER_DURATION = "1"
 
       # Storage configuration - Use LOCAL with GCS Fuse mount
-      STORAGE_LOCATIONS = "local"
+      STORAGE_LOCATIONS  = "local"
       STORAGE_LOCAL_ROOT = "/directus/uploads"
 
       # Email configuration (optional)
       EMAIL_FROM = "noreply@your-domain.com"
-      EMAIL_TRANSPORT = "json"
+      # Removing EMAIL_TRANSPORT to use default behavior (disabled/console depending on version)
+      # to avoid "Illegal transport" errors.
 
       # Logging
       LOG_LEVEL = "info"
       LOG_STYLE = "pretty"
 
       # Assets
-      ASSETS_CACHE_TTL = "30m"
+      ASSETS_CACHE_TTL                = "30m"
       ASSETS_TRANSFORM_MAX_CONCURRENT = "4"
 
       # Database Client (Static)
@@ -106,11 +107,11 @@ locals {
     # Initialization Jobs
     initialization_jobs = [
       {
-        name            = "db-init"
-        description     = "Create Directus Database and User"
-        image           = "postgres:15-alpine"
-        command         = ["/bin/sh", "-c"]
-        args            = [
+        name        = "db-init"
+        description = "Create Directus Database and User"
+        image       = "postgres:15-alpine"
+        command     = ["/bin/sh", "-c"]
+        args = [
           <<-EOT
             set -e
             echo "Installing dependencies..."
@@ -175,11 +176,11 @@ locals {
         depends_on_jobs   = []
       },
       {
-        name            = "directus-bootstrap"
-        description     = "Bootstrap Directus (run migrations)"
-        image           = null
-        command         = ["/bin/sh", "-c"]
-        args            = [
+        name        = "directus-bootstrap"
+        description = "Bootstrap Directus (run migrations)"
+        image       = null
+        command     = ["/bin/sh", "-c"]
+        args = [
           <<-EOT
             set -e
             echo "Waiting for database to be ready..."
@@ -233,11 +234,11 @@ locals {
   }
 
   module_env_vars = {
-    DB_HOST                = local.db_internal_ip
-    DB_DATABASE            = local.database_name_full
-    DB_USER                = local.database_user_full
-    PUBLIC_URL             = local.predicted_service_url
-    ADMIN_EMAIL            = try(local.final_environment_variables["ADMIN_EMAIL"], "admin@example.com")
+    DB_HOST     = local.db_internal_ip
+    DB_DATABASE = local.database_name_full
+    DB_USER     = local.database_user_full
+    PUBLIC_URL  = local.predicted_service_url
+    ADMIN_EMAIL = try(local.final_environment_variables["ADMIN_EMAIL"], "admin@example.com")
   }
 
   module_secret_env_vars = {

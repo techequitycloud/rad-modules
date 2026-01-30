@@ -14,7 +14,8 @@ RUN apk add --no-cache \
 
 # Install GCS storage driver in Directus directory
 WORKDIR /directus
-RUN corepack enable && \
+RUN npm install -g corepack@latest && \
+    corepack enable && \
     pnpm install @directus/storage-driver-gcs@${DIRECTUS_VERSION} && \
     chown -R node:node /directus
 
