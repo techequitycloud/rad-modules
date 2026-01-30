@@ -40,6 +40,8 @@ check_gcs_storage() {
         fi
         
         echo "GCS Storage configured: bucket=$STORAGE_GCS_BUCKET"
+    elif [ "$STORAGE_LOCATIONS" = "local" ] && [ -d "/directus/uploads" ]; then
+         echo "Using Local Storage (likely GCS Fuse mount)."
     else
         echo "WARNING: Not using GCS storage. Cloud Run requires external storage!"
     fi

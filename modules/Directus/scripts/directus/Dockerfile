@@ -1,6 +1,8 @@
-# Directus for Google Cloud Run - Production Ready
 ARG DIRECTUS_VERSION=11.1.0
 FROM directus/directus:${DIRECTUS_VERSION}
+
+# Redeclare ARG so it is available in the build stage
+ARG DIRECTUS_VERSION
 
 USER root
 
@@ -13,7 +15,8 @@ RUN apk add --no-cache \
 # Install GCS storage driver in Directus directory
 WORKDIR /directus
 RUN corepack enable && \
-    pnpm install @directus/storage-driver-gcs@11.1.0
+    pnpm install @directus/storage-driver-gcs@${DIRECTUS_VERSION} && \
+    chown -R node:node /directus
 
 # Create extensions directory (no uploads - using GCS)
 RUN mkdir -p /directus/extensions && \
