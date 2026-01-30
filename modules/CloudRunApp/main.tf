@@ -54,10 +54,10 @@ locals {
   wrapper_prefix = "app${local.application_name}${local.tenant_id}${local.random_id}"
 
   # Primary region configuration
-  region = var.deployment_region
+  region = (var.deployment_region != null && var.deployment_region != "") ? var.deployment_region : (length(keys(local.region_to_subnet)) > 0 ? keys(local.region_to_subnet)[0] : "us-central1")
 
   # Multi-region configuration
-  regions = length(var.deployment_regions) > 0 ? var.deployment_regions : [local.region]
+  regions = length(var.deployment_regions) > 0 ? var.deployment_regions : (length(keys(local.region_to_subnet)) > 1 ? keys(local.region_to_subnet) : [local.region])
 
   # Application configuration
   application_name         = local.final_application_name
