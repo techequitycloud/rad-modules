@@ -257,3 +257,7 @@ echo ""
 echo "=========================================="
 echo "✅ Database cleanup complete!"
 echo "=========================================="
+
+# Ensure clean exit
+sync
+exit 0
