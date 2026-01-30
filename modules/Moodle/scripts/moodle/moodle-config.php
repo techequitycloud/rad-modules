@@ -43,7 +43,7 @@ $CFG->dboptions = array(
     'dbsocket'  => $dbsocket,
     'dbport'    => getenv('DB_PORT'),
     'dbhandlesoptions' => false,
-    'dbcollation' => 'utf8mb4_unicode_ci', 
+    'dbcollation' => '',
 );
 $CFG->wwwroot   = getenv('APP_URL');
 $CFG->dataroot  = '/mnt';

@@ -13,7 +13,7 @@ container_build_config = {
   context_path       = "custom-moodle"
   dockerfile_content = null
   build_args         = {
-    ODOO_VERSION = "17.0"
+    APP_VERSION = "4.5"
   }
   artifact_repo_name = "moodle-repo"
 }
