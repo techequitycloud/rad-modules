@@ -6,3 +6,6 @@ build/
 .cache/
 public/uploads/
 .strapi/
+Dockerfile
+README.md
+*.tf

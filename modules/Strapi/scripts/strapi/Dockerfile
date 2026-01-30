@@ -10,7 +10,7 @@ RUN npm run build
 
 FROM node:18-alpine
 # Installing libvips-dev for sharp Compatibility
-RUN apk update && apk add --no-cache vips-dev
+RUN apk update && apk add --no-cache vips-dev tini
 WORKDIR /opt/app
 
 # Install production dependencies
@@ -39,4 +39,5 @@ USER node
 
 ENV NODE_ENV=production
 EXPOSE 1337
-CMD ["npm", "run", "start"]
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "node_modules/@strapi/strapi/bin/strapi.js", "start"]
