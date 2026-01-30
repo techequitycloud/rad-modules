@@ -27,7 +27,15 @@ if [ -d "$TARGET_DIR" ]; then
     case "$TARGET_DIR" in
         "$MOUNT_POINT"/*)
             echo "Removing directory: $TARGET_DIR"
-            rm -rf "$TARGET_DIR"
+            # Use timeout to prevent indefinite hanging (Cloud Run job timeout is 900s)
+            # Set internal timeout slightly lower to allow for graceful exit logging
+            if timeout 880 rm -rf "$TARGET_DIR"; then
+                echo "Directory removed successfully."
+            else
+                EXIT_CODE=$?
+                echo "Error: Failed to remove directory (Exit Code: $EXIT_CODE). Operation might have timed out."
+                exit $EXIT_CODE
+            fi
             ;;
         *)
             echo "Error: Target directory is not within mount point. Aborting."
@@ -39,3 +47,7 @@ else
 fi
 
 echo "NFS Cleanup complete."
+# Ensure buffers are flushed and exit explicitly
+sync
+echo "Exiting with success status"
+exit 0
