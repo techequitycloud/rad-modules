@@ -8,8 +8,8 @@ application_display_name = "moodle Advanced"
 
 # Use prebuilt image
 container_image_source = "prebuilt"
-container_image        = "moodle:16.0"
-container_port         = 8069
+container_image        = "moodle:4.5"
+container_port         = 8080
 
 # Resource Customization
 container_resources = {

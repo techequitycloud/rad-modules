@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     gnupg2 \
     gosu pwgen curl libcurl4 libcurl3-dev unzip cron \
-    wget supervisor locales apache2 libapache2-mod-php \    
+    wget supervisor locales apache2 libapache2-mod-php \
     && add-apt-repository ppa:ondrej/php \
     && apt-get update
 
