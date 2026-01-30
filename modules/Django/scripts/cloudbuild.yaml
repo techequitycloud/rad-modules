@@ -18,8 +18,8 @@ steps:
   args:
     - '--dockerfile=Dockerfile'
     - '--context=dir://django'
-    - '--destination=us-east1-docker.pkg.dev/qwiklabs-gcp-02-30b30b50c2a4/djangobasica4907358-repo/django:3.11-slim'
-    - '--destination=us-east1-docker.pkg.dev/qwiklabs-gcp-02-30b30b50c2a4/djangobasica4907358-repo/django:latest'
+    - '--destination=us-east1-docker.pkg.dev/qwiklabs-gcp-02-30b30b50c2a4/djangobasic59b56f8a-repo/django:3.11-slim'
+    - '--destination=us-east1-docker.pkg.dev/qwiklabs-gcp-02-30b30b50c2a4/djangobasic59b56f8a-repo/django:latest'
 
     - '--build-arg=APP_VERSION=3.11-slim'
 

@@ -207,7 +207,9 @@ variable "application_version" {
 # ===========================
 
 variable "database_password_length" {
-  description = "Length of auto-generated database password (8-64 characters). {{UIMeta group=0 order=501 updatesafe }}"
+  description = "Length of auto-generated d
+  
+  teatabase password (8-64 characters). {{UIMeta group=0 order=501 updatesafe }}"
   type        = number
   default     = 16
 
