@@ -449,6 +449,10 @@ echo " > https://opencollective.com/openemr/donate"
 echo
 
 if [ "${OPERATOR}" = yes ]; then
+    # Configure Apache to listen on the correct port
+    sed -i "s/^Listen 80$/Listen ${PORT:-8080}/" /etc/apache2/httpd.conf
+    sed -i "s/<VirtualHost \*:80>/<VirtualHost *:${PORT:-8080}>/" /etc/apache2/conf.d/openemr.conf
+
     echo 'Starting PHP-FPM...'
     /usr/sbin/php-fpm83
     echo 'Starting apache!'

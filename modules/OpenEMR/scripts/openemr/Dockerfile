@@ -3,15 +3,14 @@ FROM alpine:3.20
 #Install dependencies and fix issue in apache
 RUN apk --no-cache upgrade
 RUN apk add --no-cache \
-    apache2 apache2-ssl apache2-utils apache2-proxy git php83 php83-tokenizer php83-ctype php83-session php83-apache2 \
+    apache2 apache2-ssl apache2-utils apache2-proxy git php83 php83-tokenizer php83-ctype php83-session \
     php83-json php83-pdo php83-pdo_mysql php83-curl php83-ldap php83-openssl php83-iconv \
     php83-xml php83-xsl php83-gd php83-zip php83-soap php83-mbstring php83-zlib \
     php83-mysqli php83-sockets php83-xmlreader php83-redis php83-simplexml php83-xmlwriter php83-phar php83-fileinfo \
     php83-sodium php83-calendar php83-intl php83-opcache php83-pecl-apcu php83-fpm \
     perl mysql-client mariadb-connector-c tar curl imagemagick nodejs npm \
     certbot openssl openssl-dev dcron \
-    rsync shadow ncurses \
-    && sed -i 's/^Listen 80$/Listen 0.0.0.0:80/' /etc/apache2/httpd.conf
+    rsync shadow ncurses
 # Needed to ensure permissions work across shared volumes with openemr, nginx, and php-fpm dockers
 RUN usermod -u 1000 apache
 
@@ -20,8 +19,10 @@ RUN ln -sf /usr/bin/php83 /usr/bin/php
 # Install composer for openemr package building
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
 
+ARG APP_VERSION=rel-704
+
 RUN apk add --no-cache git build-base \
-    && git clone https://github.com/openemr/openemr.git --branch rel-704 --depth 1 \
+    && git clone https://github.com/openemr/openemr.git --branch ${APP_VERSION} --depth 1 \
     && rm -rf openemr/.git \
     && cd openemr \
     && composer install --no-dev \
@@ -49,7 +50,6 @@ RUN apk add --no-cache git build-base \
     && sed -i 's/^ *CustomLog/#CustomLog/' /etc/apache2/conf.d/ssl.conf \
     && sed -i 's/^ *TransferLog/#TransferLog/' /etc/apache2/conf.d/ssl.conf
 WORKDIR /var/www/localhost/htdocs/openemr
-VOLUME [ "/etc/letsencrypt/", "/etc/ssl" ]
 #configure apache & php properly
 ENV APACHE_LOG_DIR=/var/log/apache2
 COPY php.ini /etc/php83/php.ini
@@ -81,6 +81,7 @@ RUN chmod 500 \
 RUN mkdir -p /run/apache2 \
     && sed -i 's/^user = nobody/user = apache/' /etc/php83/php-fpm.d/www.conf \
     && sed -i 's/^group = nobody/group = apache/' /etc/php83/php-fpm.d/www.conf \
+    && sed -i 's/^listen =.*/listen = 127.0.0.1:9000/' /etc/php83/php-fpm.d/www.conf \
     && sed -i 's/^;catch_workers_output = yes/catch_workers_output = yes/' /etc/php83/php-fpm.d/www.conf \
     && sed -i 's/^;error_log = php_errors.log/error_log = \/dev\/stderr/' /etc/php83/php-fpm.d/www.conf
 #Copy dev tools library to root
