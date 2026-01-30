@@ -10,9 +10,10 @@ RUN apk add --no-cache \
     bash \
     postgresql-client
 
-# Install GCS storage driver
-RUN npm install -g npm@10.8.2 && \
-    npm install @directus/storage-driver-gcs@11.1.0
+# Install GCS storage driver in Directus directory
+WORKDIR /directus
+RUN corepack enable && \
+    pnpm install @directus/storage-driver-gcs@11.1.0
 
 # Create extensions directory (no uploads - using GCS)
 RUN mkdir -p /directus/extensions && \
