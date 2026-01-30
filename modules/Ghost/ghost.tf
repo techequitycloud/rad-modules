@@ -6,16 +6,17 @@ locals {
     application_version = var.application_version
     enable_image_mirroring = false
 
-    # ✅ Use official image (recommended)
-    image_source = "prebuilt"
+    # Use custom build to avoid Docker Hub pull restrictions in Cloud Build
+    image_source = "custom"
 
-    # Custom build configuration (only if you need URL auto-detection)
     container_build_config = {
-      enabled            = false  # Set to true if using custom Dockerfile
+      enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "."
+      context_path       = "ghost"
       dockerfile_content = null
-      build_args         = {}
+      build_args = {
+        APP_VERSION = var.application_version
+      }
       artifact_repo_name = null
     }
 
