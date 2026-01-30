@@ -1,13 +1,13 @@
 # Ghost Custom Dockerfile
-ARG APP_VERSION=6.16.0
-FROM ghost:${APP_VERSION}-alpine
+ARG APP_VERSION=6.14.0
+FROM ghost:${APP_VERSION}
 
 # Install dependencies for startup script
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     jq \
-    bash \
-    netcat-openbsd
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy custom entrypoint script
 COPY entrypoint.sh /usr/local/bin/custom-entrypoint.sh
