@@ -124,8 +124,12 @@ fi
 if [ ! -d "${MOODLE_DATA_DIR}" ]; then
     echo "Creating moodledata directory: ${MOODLE_DATA_DIR}"
     mkdir -p "${MOODLE_DATA_DIR}"
-    chown -R www-data:www-data "${MOODLE_DATA_DIR}"
-    chmod -R 770 "${MOODLE_DATA_DIR}"
+    # NOTE: We skip recursive chown here as it can cause timeouts on NFS mounts.
+    # Permissions should be handled by initialization jobs or the infrastructure.
+    chown www-data:www-data "${MOODLE_DATA_DIR}" || true
+    chmod 770 "${MOODLE_DATA_DIR}" || true
+else
+    echo "Using existing moodledata directory: ${MOODLE_DATA_DIR}"
 fi
 
 # Check if Moodle is already installed
@@ -223,12 +227,13 @@ echo "Starting Moodle cron service..."
 service cron start
 echo "✓ Cron service started"
 
-# Fix permissions
+# Fix permissions (non-recursive for data dir)
 echo "Verifying file permissions..."
-chown -R www-data:www-data "${MOODLE_WWW_DIR}" "${MOODLE_DATA_DIR}"
+chown -R www-data:www-data "${MOODLE_WWW_DIR}"
 find "${MOODLE_WWW_DIR}" -type d -exec chmod 755 {} \;
 find "${MOODLE_WWW_DIR}" -type f -exec chmod 644 {} \;
-chmod -R 770 "${MOODLE_DATA_DIR}"
+# Avoid recursive chown on potentially large remote mount
+chmod 770 "${MOODLE_DATA_DIR}" || true
 echo "✓ Permissions verified"
 
 echo "=== Moodle initialization complete ==="
