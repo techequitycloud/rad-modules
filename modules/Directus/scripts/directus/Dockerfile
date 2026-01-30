@@ -1,23 +1,22 @@
-# Directus with GCS Fuse Mount Support - Production Ready
+# Directus for Google Cloud Run - Production Ready
 ARG DIRECTUS_VERSION=11.1.0
 FROM directus/directus:${DIRECTUS_VERSION}
 
 USER root
 
-# Install utilities
+# Install only essential utilities for Cloud Run
 RUN apk add --no-cache \
-    tini \
     curl \
     bash \
     postgresql-client
 
-# Create directories
-RUN mkdir -p \
-    /directus/uploads \
-    /directus/extensions \
-    /directus/database && \
-    chown -R node:node /directus/uploads /directus/extensions /directus/database && \
-    chmod -R 755 /directus/uploads /directus/extensions /directus/database
+# Install GCS storage driver
+RUN pnpm install @directus/storage-gcs
+
+# Create extensions directory (no uploads - using GCS)
+RUN mkdir -p /directus/extensions && \
+    chown -R node:node /directus/extensions && \
+    chmod -R 755 /directus/extensions
 
 # Copy custom entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
@@ -28,19 +27,17 @@ USER node
 
 WORKDIR /directus
 
-# Environment variables
+# Environment variables for Cloud Run
 ENV NODE_ENV=production \
-    PORT=8055 \
-    STORAGE_LOCATIONS=local \
-    STORAGE_LOCAL_ROOT=/directus/uploads \
     LOG_LEVEL=info \
-    LOG_STYLE=pretty \
+    LOG_STYLE=json \
     DB_CLIENT=pg
 
+# Cloud Run provides PORT dynamically
 EXPOSE 8055
 
-# Use tini and custom entrypoint
-ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
+# No tini needed - Cloud Run handles signals
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Start Directus
 CMD ["node", "cli.js", "start"]
