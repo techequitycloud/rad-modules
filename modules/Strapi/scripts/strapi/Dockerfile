@@ -1,4 +1,4 @@
-FROM node:18-alpine as build
+FROM node:20-alpine as build
 # Installing libvips-dev for sharp Compatibility
 RUN apk update && apk add --no-cache build-base gcc autoconf automake zlib-dev libpng-dev nasm bash vips-dev
 WORKDIR /opt/app
@@ -8,7 +8,7 @@ COPY . .
 ENV NODE_ENV=production
 RUN npm run build
 
-FROM node:18-alpine
+FROM node:20-alpine
 # Installing libvips-dev for sharp Compatibility
 RUN apk update && apk add --no-cache vips-dev tini
 WORKDIR /opt/app
