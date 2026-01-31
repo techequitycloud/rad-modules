@@ -52,6 +52,17 @@ auto_setup() {
     #ensure auto_configure.php is readable by the apache user before running it
     chmod 644 auto_configure.php
 
+    # Re-check if another instance already completed setup (Cloud Run race condition)
+    if [ -f /var/www/localhost/htdocs/openemr/sites/default/sqlconf.php ]; then
+        RECHECK_CONFIG=$(php -r "require_once('/var/www/localhost/htdocs/openemr/sites/default/sqlconf.php'); echo \$config;" 2>/dev/null) || RECHECK_CONFIG="0"
+        if [ "${RECHECK_CONFIG}" = "1" ]; then
+            echo "Another instance already completed setup. Skipping auto_configure."
+            rm -rf ${TMP_FILE_CACHE_LOCATION}
+            rm -f auto_configure.ini
+            return 0
+        fi
+    fi
+
     #run auto_configure as apache user
     su -s /bin/sh -c "php -c auto_configure.ini auto_configure.php -f ${CONFIGURATION} no_root_db_access=1" apache || return 1
 
@@ -246,6 +257,14 @@ if [ "${AUTHORITY}" = "yes" ]; then
             echo " - You didn't spin up a MySQL container or connect your OpenEMR container to a mysql instance"
             echo " - MySQL is still starting up and wasn't ready for connection yet"
             echo " - The Mysql credentials were incorrect"
+            # Re-check if another instance completed setup during our retry wait
+            if [ -f /var/www/localhost/htdocs/openemr/sites/default/sqlconf.php ]; then
+                RETRY_CONFIG=$(php -r "require_once('/var/www/localhost/htdocs/openemr/sites/default/sqlconf.php'); echo \$config;" 2>/dev/null) || RETRY_CONFIG="0"
+                if [ "${RETRY_CONFIG}" = "1" ]; then
+                    echo "Another instance completed setup. Skipping further attempts."
+                    break
+                fi
+            fi
             if [ "${SETUP_ATTEMPTS}" -ge "${MAX_SETUP_ATTEMPTS}" ]; then
                 echo "Exceeded ${MAX_SETUP_ATTEMPTS} setup attempts. Exiting to avoid infinite loop."
                 echo "If the database was partially configured, you may need to drop and recreate it."
