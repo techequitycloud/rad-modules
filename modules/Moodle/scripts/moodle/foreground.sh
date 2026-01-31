@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 read pid cmd state ppid pgrp session tty_nr tpgid rest < /proc/self/stat
 trap "kill -TERM -$pgrp; exit" EXIT TERM KILL SIGKILL SIGTERM SIGQUIT
 export APP_URL=https://$(echo "$APP_URL" | tr " " "\n"  | sed 's/^"//; s/"$//; s~^https\?://~~; s/:[0-9]\+$//')

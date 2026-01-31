@@ -15,11 +15,11 @@ RUN apt-get update && apt-get install -y \
 
 # Install Helper Utilities and Tools 
 RUN apt-get update -y && apt-get install -y tini \
-nfs-kernel-server \
-nfs-common \
-netbase \
-procps \
-net-tools
+    nfs-kernel-server \
+    nfs-common \
+    netbase \
+    procps \
+    net-tools
 
 RUN apt-get -y install php8.3 php8.3-gd php8.3-pgsql php8.3-curl php8.3-xmlrpc php8.3-intl \
     php8.3-mysql php8.3-xml php8.3-mbstring php8.3-zip php8.3-soap php8.3-ldap php8.3-redis \
@@ -38,6 +38,4 @@ COPY moodlecron /etc/cron.d/moodlecron
 RUN chmod 0644 /etc/cron.d/moodlecron
 RUN crontab /etc/cron.d/moodlecron
 RUN apt-get clean autoclean && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/lib/dpkg/* /var/lib/cache/* /var/lib/log/*
-# ENTRYPOINT ["/usr/bin/tini", "--", "/cloudrun-entrypoint.sh"]
-# CMD /etc/apache2/foreground.sh
 ENTRYPOINT ["/usr/bin/tini", "--", "/cloudrun-entrypoint.sh", "/etc/apache2/foreground.sh"]

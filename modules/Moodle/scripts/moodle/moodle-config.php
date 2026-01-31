@@ -2,7 +2,7 @@
 unset($CFG);  // Ignore this line
 global $CFG;  // This is necessary here for PHPUnit execution
 $CFG = new stdClass();
-$http_user_agent = $_SERVER['HTTP_USER_AGENT'];
+$http_user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
 if (strstr($http_user_agent, "GoogleHC")) {
     echo "ok";
     die;
@@ -46,7 +46,7 @@ $CFG->dboptions = array(
     'dbcollation' => '',
 );
 $CFG->wwwroot   = getenv('APP_URL');
-$CFG->dataroot  = '/mnt';
+$CFG->dataroot  = '/gcs/moodle-data';  // Updated to match GCS mount path
 $CFG->directorypermissions = 02777;
 $CFG->admin = 'admin';
 $CFG->reverseproxy = false;

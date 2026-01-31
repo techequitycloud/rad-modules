@@ -6,7 +6,7 @@
 set -eo pipefail
 
 # Set permissions for directories
-chown -R www-data:www-data /mnt 2>/dev/null || true
+chown -R www-data:www-data /gcs/moodle-data 2>/dev/null || true
 
-# Other startup commands
+# Execute the command passed to the container
 exec "$@"

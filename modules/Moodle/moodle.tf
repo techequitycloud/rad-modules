@@ -6,13 +6,13 @@
 
 locals {
   moodle_module = {
-    app_name                = "moodle"
-    description             = "Moodle LMS - Online learning and course management platform"
-    application_version     = var.application_version
-    container_image         = ""  # Empty for custom build
+    app_name            = "moodle"
+    description         = "Moodle LMS - Online learning and course management platform"
+    application_version = var.application_version
+    container_image     = "" # Empty for custom build
 
     # ✅ Use custom build
-    image_source    = "custom"          # Changed from "custom" to "build"
+    image_source           = "custom"
     enable_image_mirroring = false
 
     # ✅ Custom build configuration
@@ -23,18 +23,18 @@ locals {
       dockerfile_content = null
       build_args = {
         APP_VERSION = var.application_version
-        TARGETARCH  = "amd64"  # Or leave empty for auto-detection
+        TARGETARCH  = "amd64"
       }
       artifact_repo_name = null
     }
 
     # ✅ Standard HTTP port 8080 (Apache)
-    container_port  = 8080
+    container_port = 8080
 
     # ✅ PostgreSQL 15
-    database_type   = "POSTGRES_15"
-    db_name         = "moodle"
-    db_user         = "moodle"
+    database_type = "POSTGRES_15"
+    db_name       = "moodle"
+    db_user       = "moodle"
 
     # ✅ Disable image mirroring (not needed for custom builds)
     enable_image_mirroring = false
@@ -47,21 +47,21 @@ locals {
     nfs_enabled    = true
     nfs_mount_path = "/mnt"
 
-    # GCS Volumes
+    # GCS Volumes - Mount path changed to avoid conflict with NFS /mnt
     gcs_volumes = [
       {
-        name          = "moodle-data"
-        bucket_name   = null  # Auto-generated
-        mount_path    = "/mnt/filedir"
-        read_only     = false
-        readonly      = false
+        name        = "moodle-data"
+        bucket_name = null               # Auto-generated
+        mount_path  = "/gcs/moodle-data" # Changed from /mnt/filedir
+        read_only   = false
+        readonly    = false
         mount_options = [
           "implicit-dirs",
           "metadata-cache-ttl-secs=60",
           "file-mode=770",
           "dir-mode=770",
-          "uid=33",   # www-data user
-          "gid=33"    # www-data group
+          "uid=33", # www-data user
+          "gid=33"  # www-data group
         ]
       }
     ]
@@ -74,8 +74,8 @@ locals {
     max_instance_count = 5
 
     # Container command and args
-    container_command = null  # Use default from Dockerfile
-    container_args    = null  # Use default from Dockerfile
+    container_command = null # Use default from Dockerfile
+    container_args    = null # Use default from Dockerfile
 
     # ✅ Environment variables
     environment_variables = {
@@ -106,9 +106,9 @@ locals {
       DATA_PATH       = "/mnt"
 
       # PHP Configuration
-      PHP_MAX_INPUT_VARS = "5000"
-      PHP_MEMORY_LIMIT   = "512M"
-      PHP_POST_MAX_SIZE  = "512M"
+      PHP_MAX_INPUT_VARS      = "5000"
+      PHP_MEMORY_LIMIT        = "512M"
+      PHP_POST_MAX_SIZE       = "512M"
       PHP_UPLOAD_MAX_FILESIZE = "512M"
 
       # Apache Configuration
@@ -126,16 +126,16 @@ locals {
 
     # ✅ PostgreSQL extensions
     enable_postgres_extensions = true
-    postgres_extensions        = ["pg_trgm"]  # Useful for Moodle search
+    postgres_extensions        = ["pg_trgm"] # Useful for Moodle search
 
     # ✅ Initialization Jobs
     initialization_jobs = [
       {
-        name            = "nfs-init"
-        description     = "Initialize NFS permissions for Moodle"
-        image           = "alpine:3.19"
-        command         = ["/bin/sh", "-c"]
-        args            = [
+        name        = "nfs-init"
+        description = "Initialize NFS permissions for Moodle"
+        image       = "alpine:3.19"
+        command     = ["/bin/sh", "-c"]
+        args = [
           <<-EOT
             set -e
             echo "Creating Moodle data directories..."
@@ -159,11 +159,11 @@ locals {
         depends_on_jobs   = []
       },
       {
-        name            = "db-init"
-        description     = "Create Moodle Database and User in PostgreSQL"
-        image           = "postgres:15-alpine"
-        command         = ["/bin/sh", "-c"]
-        args            = [
+        name        = "db-init"
+        description = "Create Moodle Database and User in PostgreSQL"
+        image       = "postgres:15-alpine"
+        command     = ["/bin/sh", "-c"]
+        args = [
           <<-EOT
             set -e
             echo "Installing dependencies..."
@@ -226,11 +226,11 @@ locals {
         depends_on_jobs   = []
       },
       {
-        name            = "moodle-install"
-        description     = "Install Moodle if not already installed"
-        image           = null  # Use application image
-        command         = ["/bin/sh", "-c"]
-        args            = [
+        name        = "moodle-install"
+        description = "Install Moodle if not already installed"
+        image       = null # Use application image
+        command     = ["/bin/sh", "-c"]
+        args = [
           <<-EOT
             set -e
 
@@ -268,7 +268,7 @@ locals {
         max_retries       = 1
         mount_nfs         = true
         mount_gcs_volumes = ["moodle-data"]
-        execute_on_apply  = false  # Run manually after deployment
+        execute_on_apply  = false # Run manually after deployment
         depends_on_jobs   = ["db-init", "nfs-init"]
       }
     ]
@@ -281,7 +281,7 @@ locals {
       initial_delay_seconds = 0
       timeout_seconds       = 10
       period_seconds        = 30
-      failure_threshold     = 20  # Moodle takes time to start
+      failure_threshold     = 20 # Moodle takes time to start
     }
 
     liveness_probe = {
@@ -304,7 +304,7 @@ locals {
     MOODLE_DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
 
     # Force DB_HOST to use socket if enabled
-    DB_HOST        = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+    DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
 
     MOODLE_DB_PORT = tostring(local.database_port)
     MOODLE_DB_USER = local.database_user_full
