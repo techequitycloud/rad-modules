@@ -1,60 +1,31 @@
-# CloudRunApp Terraform Module
+# CloudRunApp Module
 
-A unified Terraform module for deploying web applications on Google Cloud Platform using Cloud Run. This module acts as a wrapper that can deploy generic applications or pre-configured "presets".
+The base wrapper module that implements the core logic for deploying applications to Cloud Run. It standardizes identity, security, networking, and lifecycle management for all application modules.
 
-## Overview
+## Architecture
+- **Compute**: Deploys containerized applications to Cloud Run (Gen2).
+- **Identity**: Manages Service Accounts for Cloud Run, Cloud Build, and Cloud SQL.
+- **Security**: Integrates with Secret Manager for sensitive environment variables.
+- **Networking**: Configures Serverless VPC Access Connectors and Load Balancing.
 
-The CloudRunApp module simplifies deployment by providing a single interface for various application types. You can deploy a custom application by providing your own configuration, or use a "preset" to get sensible defaults for specific applications.
+## Key Features
+- **Lifecycle Hooks**: Supports initialization jobs (e.g., DB migrations) and cleanup jobs.
+- **Storage Abstraction**: Handles NFS mounts (Filestore) and GCS FUSE mounts.
+- **Database Management**: Includes scripts for database creation, user management, and safe deletion.
+- **NFS Cleanup**: Implements robust logic to clean up NFS directories upon module destruction.
+
+## Dependencies
+This module relies on:
+`GCP_Services` (for underlying infrastructure).
 
 ## Usage
+This module is intended to be used as part of the RAD Modules ecosystem. It is typically deployed via the wrapper configuration in the root of the repository or as a sub-module.
 
-### 1. Custom Application (Default)
-
-To deploy a custom application, simply use the module without specifying a preset (or explicitly set `application_module = "custom"`).
-
+### Terraform
 ```hcl
-module "cloudrunapp" {
+module "CloudRunApp" {
   source = "./modules/CloudRunApp"
 
-  application_module = "custom"
-
-  existing_project_id      = "my-project"
-  tenant_deployment_id     = "prod"
-  application_name         = "myapp"
-  application_database_name = "myapp_db"
-  application_database_user = "myapp_user"
-
-  container_image = "nginx:latest"
-  container_port  = 80
+  # ... configuration variables
 }
 ```
-
-### 2. Using Presets
-
-To deploy a supported application, set `application_module` to the desired application name. This will automatically configure defaults for:
-- Database type (MySQL/PostgreSQL)
-- Container ports and resources
-- Health checks and startup probes
-- Volume mounts (Cloud SQL, NFS, etc.)
-
-**Supported Presets:**
-- `cloudrunapp`
-
-## Presets Configuration
-
-Each preset applies specific configurations. You can override any of these by passing the corresponding variable explicitly.
-
-| Preset | Database | Port | Probes | Notes |
-|--------|----------|------|--------|-------|
-| `cloudrunapp` | PostgreSQL | 8080 | TCP / HTTP | |
-
-## Inputs
-
-See `variables.tf` for the full list of inputs.
-
-- `application_module`: (Optional) The preset to use. Default: `custom`.
-- `impersonation_service_account`: (Optional) Service account to impersonate for gcloud commands.
-
-## Outputs
-
-See `outputs.tf` for the full list of outputs. The module passes through all outputs from the underlying Core module.

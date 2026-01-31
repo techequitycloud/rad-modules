@@ -1,70 +1,30 @@
 # Django Module
 
-This module provides a standalone django deployment using shared infrastructure components from the CloudRunApp module.
+Deploys a Django-based Python web application platform.
 
-## Structure
-- `modules/django/` - django-specific Terraform module
-- `scripts/django/` - django-specific deployment scripts
-- `config/` - Configuration examples and templates
-- `django.tf` - Main django Terraform configuration (local copy)
-- `variables.tf` - Module variables (local copy)
-- Other application `.tf` files - Symbolic links to CloudRunApp applications
-- Infrastructure `.tf` files - Symbolic links to shared CloudRunApp infrastructure
+## Architecture
+- **Base Image**: `python:3.11-slim` (Multi-stage build).
+- **Database**: PostgreSQL.
+- **Server**: Gunicorn.
 
-## Quick Start
-
-### 1. Configure Variables
-Copy and customize an example configuration:
-```bash
-# Copy example configuration
-cp config/basic-django.tfvars my-config.tfvars
-
-# Edit with your settings
-nano my-config.tfvars
-```
-
-### 2. Deploy
-```bash
-# Initialize Terraform
-terraform init
-
-# Plan deployment
-terraform plan -var-file="my-config.tfvars"
-
-# Deploy
-terraform apply -var-file="my-config.tfvars"
-```
-
-## Example Configurations
-
-The `config/` directory contains various configuration templates:
-- basic-django.tfvars
-- advanced-django.tfvars
-- custom-django.tfvars
-
-## File Organization
-
-### Local Files (Copied)
-- `django.tf` - Your application configuration
-- `variables.tf` - Module variables
-- `modules/django/` - Application-specific modules
-- `scripts/django/` - Application-specific scripts
-
-### Symlinked Files
-- Infrastructure files (`main.tf`, `network.tf`, etc.) → `../CloudRunApp/`
-- Other application files (`n8n.tf`, `cyclos.tf`, etc.) → `../CloudRunApp/`
-- Shared modules (`modules/*/`) → `../../CloudRunApp/modules/`
-- Shared scripts (`scripts/core/`, etc.) → `../../CloudRunApp/scripts/`
+## Key Features
+- **GCS Media**: Mounts a GCS bucket to `/app/media` for persistent media storage.
+- **Initialization**: Includes jobs for database initialization (`db-init`) and migrations (`migrate`).
+- **Postgres Extensions**: Enables `pg_trgm`, `unaccent`, `hstore`, `citext`.
+- **Superuser Creation**: Automatically creates a Django superuser if credentials are provided.
 
 ## Dependencies
-This module depends on shared infrastructure files from the CloudRunApp module via symbolic links.
-Ensure the CloudRunApp module is present in the parent directory.
+This module relies on:
+`CloudRunApp`
 
-## Generated Information
-- **Generated:** Tue Jan 27 11:54:11 AM UTC 2026
-- **Base Application:** django
-- **Module Name:** Django
-- **Script Version:** create_module.sh v3.5 (Fully Fixed and Tested)
+## Usage
+This module is intended to be used as part of the RAD Modules ecosystem. It is typically deployed via the wrapper configuration in the root of the repository or as a sub-module.
 
-## Support
-For issues or questions, refer to the main rad-modules documentation or create an issue in the repository.
+### Terraform
+```hcl
+module "Django" {
+  source = "./modules/Django"
+
+  # ... configuration variables
+}
+```

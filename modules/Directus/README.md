@@ -1,70 +1,29 @@
 # Directus Module
 
-This module provides a standalone directus deployment using shared infrastructure components from the CloudRunApp module.
+Deploys Directus, an open-source headless CMS and Backend-as-a-Service.
 
-## Structure
-- `modules/directus/` - directus-specific Terraform module
-- `scripts/directus/` - directus-specific deployment scripts
-- `config/` - Configuration examples and templates
-- `directus.tf` - Main directus Terraform configuration (local copy)
-- `variables.tf` - Module variables (local copy)
-- Other application `.tf` files - Symbolic links to CloudRunApp applications
-- Infrastructure `.tf` files - Symbolic links to shared CloudRunApp infrastructure
+## Architecture
+- **Base Image**: `directus/directus`.
+- **Database**: PostgreSQL (Cloud SQL).
+- **Storage**: Uses Google Cloud Storage (GCS) driver for file uploads.
 
-## Quick Start
-
-### 1. Configure Variables
-Copy and customize an example configuration:
-```bash
-# Copy example configuration
-cp config/basic-directus.tfvars my-config.tfvars
-
-# Edit with your settings
-nano my-config.tfvars
-```
-
-### 2. Deploy
-```bash
-# Initialize Terraform
-terraform init
-
-# Plan deployment
-terraform plan -var-file="my-config.tfvars"
-
-# Deploy
-terraform apply -var-file="my-config.tfvars"
-```
-
-## Example Configurations
-
-The `config/` directory contains various configuration templates:
-- basic-directus.tfvars
-- custom-directus.tfvars
-- advanced-directus.tfvars
-
-## File Organization
-
-### Local Files (Copied)
-- `directus.tf` - Your application configuration
-- `variables.tf` - Module variables
-- `modules/directus/` - Application-specific modules
-- `scripts/directus/` - Application-specific scripts
-
-### Symlinked Files
-- Infrastructure files (`main.tf`, `network.tf`, etc.) → `../CloudRunApp/`
-- Other application files (`n8n.tf`, `cyclos.tf`, etc.) → `../CloudRunApp/`
-- Shared modules (`modules/*/`) → `../../CloudRunApp/modules/`
-- Shared scripts (`scripts/core/`, etc.) → `../../CloudRunApp/scripts/`
+## Key Features
+- **Custom Build**: Installs `@directus/storage-driver-gcs` to support stateless file storage.
+- **Auto-Migration**: Supports automatic database migrations (`AUTO_MIGRATE`) and bootstrapping (`BOOTSTRAP`) on startup.
+- **Fail-Fast**: Entrypoint script implements retry logic for DB connection and fail-fast mechanisms for critical errors.
 
 ## Dependencies
-This module depends on shared infrastructure files from the CloudRunApp module via symbolic links.
-Ensure the CloudRunApp module is present in the parent directory.
+This module relies on:
+`CloudRunApp`
 
-## Generated Information
-- **Generated:** Tue Jan 27 03:38:40 PM UTC 2026
-- **Base Application:** directus
-- **Module Name:** Directus
-- **Script Version:** create_module.sh v3.5 (Fully Fixed and Tested)
+## Usage
+This module is intended to be used as part of the RAD Modules ecosystem. It is typically deployed via the wrapper configuration in the root of the repository or as a sub-module.
 
-## Support
-For issues or questions, refer to the main rad-modules documentation or create an issue in the repository.
+### Terraform
+```hcl
+module "Directus" {
+  source = "./modules/Directus"
+
+  # ... configuration variables
+}
+```
