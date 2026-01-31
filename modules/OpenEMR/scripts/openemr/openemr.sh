@@ -25,7 +25,8 @@ swarm_wait() {
 auto_setup() {
     prepareVariables
 
-    find . -not -perm 600 -exec chmod 600 {} \+
+    # Relax permissions adjustment to avoid failures on broken links/missing files
+    find . -type f -not -perm 600 -exec chmod 600 {} + 2>/dev/null || true
 
     #create temporary file cache directory for auto_configure.php to use
     TMP_FILE_CACHE_LOCATION="/tmp/php-file-cache"

@@ -8,22 +8,19 @@ RUN apk add --no-cache \
     php83-xml php83-xsl php83-gd php83-zip php83-soap php83-mbstring php83-zlib \
     php83-mysqli php83-sockets php83-xmlreader php83-redis php83-simplexml php83-xmlwriter php83-phar php83-fileinfo \
     php83-sodium php83-calendar php83-intl php83-opcache php83-pecl-apcu php83-fpm \
-    perl mysql-client mariadb-connector-c tar curl imagemagick \
+    perl mysql-client mariadb-connector-c tar curl imagemagick nodejs npm \
     openssl openssl-dev dcron \
     rsync shadow ncurses \
     && sed -i 's/^Listen 80$/Listen 0.0.0.0:80/' /etc/apache2/httpd.conf
-
 # Needed to ensure permissions work across shared volumes with openemr, nginx, and php-fpm dockers
 RUN usermod -u 1000 apache
 
 #BELOW LINE NEEDED TO SUPPORT PHP8 ON ALPINE 3.13+; SHOULD BE ABLE TO REMOVE THIS IN FUTURE ALPINE VERSIONS
 RUN ln -sf /usr/bin/php83 /usr/bin/php
-
 # Install composer for openemr package building
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
 
 RUN apk add --no-cache git build-base python3 \
-    && apk add --no-cache nodejs npm --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main \
     && git clone https://github.com/openemr/openemr.git --branch rel-704 --depth 1 \
     && rm -rf openemr/.git \
     && cd openemr \
@@ -49,20 +46,16 @@ RUN apk add --no-cache git build-base python3 \
     && apk del --no-cache git build-base python3 \
     && sed -i 's/^ *CustomLog/#CustomLog/' /etc/apache2/httpd.conf \
     && sed -i 's/^ *ErrorLog/#ErrorLog/' /etc/apache2/httpd.conf
-
 WORKDIR /var/www/localhost/htdocs/openemr
-
 #configure apache & php properly
 ENV APACHE_LOG_DIR=/var/log/apache2
 COPY php.ini /etc/php83/php.ini
 COPY openemr.conf /etc/apache2/conf.d/
-
 #add runner and auto_configure and prevent auto_configure from being run w/o being enabled
 COPY openemr.sh xdebug.sh auto_configure.php /var/www/localhost/htdocs/openemr/
 COPY utilities/unlock_admin.php utilities/unlock_admin.sh /root/
 RUN chmod 500 openemr.sh xdebug.sh /root/unlock_admin.sh \
     && chmod 000 auto_configure.php /root/unlock_admin.php
-
 #bring in pieces used for automatic upgrade process
 COPY upgrade/docker-version \
      upgrade/fsupgrade-1.sh \
@@ -81,22 +74,18 @@ RUN chmod 500 \
     /root/fsupgrade-5.sh \
     /root/fsupgrade-6.sh \
     /root/fsupgrade-7.sh
-
 #fix issue with apache2 dying prematurely
 RUN mkdir -p /run/apache2 \
     && sed -i 's/^user = nobody/user = apache/' /etc/php83/php-fpm.d/www.conf \
     && sed -i 's/^group = nobody/group = apache/' /etc/php83/php-fpm.d/www.conf \
     && sed -i 's/^;catch_workers_output = yes/catch_workers_output = yes/' /etc/php83/php-fpm.d/www.conf \
     && sed -i 's/^;error_log = php_errors.log/error_log = \/dev\/stderr/' /etc/php83/php-fpm.d/www.conf
-
 #Copy dev tools library to root
 COPY utilities/devtoolsLibrary.source /root/
-
 #Ensure swarm/orchestration pieces are available if needed
 RUN mkdir /swarm-pieces \
     && rsync --owner --group --perms --delete --recursive --links /etc/ssl /swarm-pieces/ \
     && rsync --owner --group --perms --delete --recursive --links /var/www/localhost/htdocs/openemr/sites /swarm-pieces/
-
 #go
 CMD [ "./openemr.sh" ]
 
