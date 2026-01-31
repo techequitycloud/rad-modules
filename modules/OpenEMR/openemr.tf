@@ -35,8 +35,8 @@ locals {
       memory_limit = "4Gi"
     }
 
-    min_instance_count = 0
-    max_instance_count = 3
+    min_instance_count = 1
+    max_instance_count = 1
 
     environment_variables = {
       PHP_MEMORY_LIMIT        = "512M"
