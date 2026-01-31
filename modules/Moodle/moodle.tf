@@ -361,7 +361,7 @@ locals {
   module_storage_buckets = [
     {
       name_suffix              = "moodle-data"
-      location                 = var.deployment_region
+      location                 = local.region
       storage_class            = "STANDARD"
       force_destroy            = true
       versioning_enabled       = false
@@ -424,7 +424,7 @@ resource "google_cloud_scheduler_job" "moodle_cron_job" {
   time_zone        = "Etc/UTC"
   attempt_deadline = "320s"
   project          = var.existing_project_id
-  region           = var.deployment_region
+  region           = local.region
 
   http_target {
     http_method = "GET"
