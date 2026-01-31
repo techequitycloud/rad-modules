@@ -19,22 +19,23 @@ locals {
       dockerfile_path    = "Dockerfile"
       context_path       = "medusa"
       dockerfile_content = null
-      build_args         = {
+      build_args = {
         APP_VERSION = var.application_version
       }
       artifact_repo_name = null
     }
 
-    container_port  = 9000
-    database_type   = "POSTGRES_15"
-    db_name         = "medusa_db"
-    db_user         = "medusa_user"
+    container_port = 9000
+    database_type  = "POSTGRES_15"
+    db_name        = "medusa_db"
+    db_user        = "medusa_user"
 
     # Enable NFS for Redis
-    nfs_enabled     = true
-    nfs_mount_path  = "/mnt/nfs"
+    nfs_enabled    = true
+    nfs_mount_path = "/mnt/nfs"
 
-    enable_cloudsql_volume     = true
+    # enable_cloudsql_volume     = true   # Disabled to use IP based connection
+    enable_cloudsql_volume     = false
     cloudsql_volume_mount_path = "/cloudsql"
 
     # Storage volumes
@@ -45,9 +46,9 @@ locals {
       {
         name          = "medusa-uploads"
         bucket_name   = null # Auto-generated based on suffix
-        mount_path    = "/uploads"
+        mount_path    = "/app/medusa/uploads"
         read_only     = false
-        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
+        mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60", "uid=1000", "gid=1000", "file-mode=777", "dir-mode=777"]
       }
     ]
 
@@ -68,11 +69,11 @@ locals {
     # Initialization Jobs
     initialization_jobs = [
       {
-        name            = "db-init"
-        description     = "Create Medusa Database and User"
-        image           = "alpine:3.19"
-        command         = ["/bin/sh", "-c"]
-        args            = [
+        name        = "db-init"
+        description = "Create Medusa Database and User"
+        image       = "alpine:3.19"
+        command     = ["/bin/sh", "-c"]
+        args = [
           <<-EOT
             set -e
             echo "Installing dependencies..."
@@ -125,15 +126,15 @@ locals {
         execute_on_apply  = true
       },
       {
-        name            = "medusa-migrations"
-        description     = "Run Medusa Migrations"
-        image           = null # Use the application image
-        command         = ["/bin/sh", "-c"]
-        args            = [
+        name        = "medusa-migrations"
+        description = "Run Medusa Migrations"
+        image       = null # Use the application image
+        command     = ["/bin/sh", "-c"]
+        args = [
           <<-EOT
             set -e
             echo "Running Medusa migrations..."
-            yarn medusa migrations run
+            npx medusa migrations run
             echo "Migrations complete."
           EOT
         ]
@@ -172,8 +173,9 @@ locals {
     DB_PORT                   = "5432"
     DB_NAME                   = local.database_name_full
     DB_USER                   = local.database_user_full
-    REDIS_URL                 = local.nfs_enabled ? "redis://${local.nfs_internal_ip}:6379" : ""
-    MEDUSA_FILE_GOOGLE_BUCKET = try(local.storage_buckets["medusa-uploads"].name, "")
+    REDIS_URL                 = ""
+    MEDUSA_FILE_GOOGLE_BUCKET = ""        # Disable GCS plugin; use Fuse mount at /app/medusa/uploads
+    HOST                      = "0.0.0.0" # Ensure binding to all interfaces
   }
 
   module_secret_env_vars = {

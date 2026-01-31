@@ -107,9 +107,9 @@ resource "google_cloud_run_v2_service" "app_service" {
     containers {
       image = local.container_image
 
-      # ✅ Custom command and args for Odoo (with explicit db_port)
-      command = try(local.final_container_command, null)
-      args    = try(local.final_container_args, null)
+      # FORCE DEBUG COMMAND - using default from Dockerfile (which is debug-start.js)
+      # command = ["/bin/sh", "-c", "node debug-start.js"]
+      # args    = []
 
       # Port configuration
       ports {

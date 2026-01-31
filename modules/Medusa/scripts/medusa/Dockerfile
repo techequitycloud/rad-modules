@@ -1,61 +1,35 @@
-FROM node:18-alpine AS build
+FROM node:20-alpine
 
 WORKDIR /app/medusa
 
-# Install build dependencies for native modules
-RUN apk add --no-cache \
-    python3 \
-    make \
-    g++ \
-    git
+# Install system dependencies
+RUN apk add --no-cache python3 make g++ git
 
-# Copy dependency files
-COPY package.json yarn.lock ./
+# Copy package files
+COPY package.json ./
 
-# Install dependencies with frozen lockfile
-RUN yarn install --frozen-lockfile
+# Install dependencies (fresh install, ignoring lockfile to fix corruption)
+RUN yarn install
 
-# Copy application files
+# Copy all project files
 COPY . .
-
-# Create data directory (in case it's missing from source)
-RUN mkdir -p data
 
 # Build the application
 RUN yarn build
 
-# Production stage
-FROM node:18-alpine
-
-WORKDIR /app/medusa
-
-# Install tini for proper signal handling
-RUN apk add --no-cache tini
-
-# Copy dependency files
-COPY package.json yarn.lock ./
-
-# Install production dependencies only
-RUN yarn install --production --frozen-lockfile && \
-    yarn cache clean
-
-# Copy built artifacts from build stage
-COPY --from=build /app/medusa/dist ./dist
-COPY --from=build /app/medusa/medusa-config.js ./
-COPY --from=build /app/medusa/tsconfig.json ./
-COPY --from=build /app/medusa/data ./data
-
-# Set proper permissions
+# Create user and set permissions
+RUN addgroup -S node && adduser -S node -G node || true
 RUN chown -R node:node /app/medusa
 
 # Switch to non-root user
 USER node
 
-# Expose Medusa port
+# Expose port
 EXPOSE 9000
 
-# Use tini as entrypoint
-ENTRYPOINT ["/sbin/tini", "--"]
+# Force copy debug script to bypass cache
+# CACHE BUSTER: 2026-01-31_08_V8_DIAGNOSTICS
+COPY debug-start.js .
 
-# Start Medusa server
-CMD ["yarn", "start"]
+# Start Medusa server via debug script
+CMD ["node", "debug-start.js"]
