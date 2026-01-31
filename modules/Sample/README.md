@@ -1,70 +1,28 @@
 # Sample Module
 
-This module provides a standalone sample deployment using shared infrastructure components from the CloudRunApp module.
+Deploys a simple sample application (Flask) to demonstrate module capabilities.
 
-## Structure
-- `modules/sample/` - sample-specific Terraform module
-- `scripts/sample/` - sample-specific deployment scripts
-- `config/` - Configuration examples and templates
-- `sample.tf` - Main sample Terraform configuration (local copy)
-- `variables.tf` - Module variables (local copy)
-- Other application `.tf` files - Symbolic links to CloudRunApp applications
-- Infrastructure `.tf` files - Symbolic links to shared CloudRunApp infrastructure
+## Architecture
+- **Base Image**: `python:3.11-slim`.
+- **Framework**: Flask.
+- **Database**: PostgreSQL (optional connection).
 
-## Quick Start
-
-### 1. Configure Variables
-Copy and customize an example configuration:
-```bash
-# Copy example configuration
-cp config/basic-sample.tfvars my-config.tfvars
-
-# Edit with your settings
-nano my-config.tfvars
-```
-
-### 2. Deploy
-```bash
-# Initialize Terraform
-terraform init
-
-# Plan deployment
-terraform plan -var-file="my-config.tfvars"
-
-# Deploy
-terraform apply -var-file="my-config.tfvars"
-```
-
-## Example Configurations
-
-The `config/` directory contains various configuration templates:
-- advanced-sample.tfvars
-- basic-sample.tfvars
-- custom-sample.tfvars
-
-## File Organization
-
-### Local Files (Copied)
-- `sample.tf` - Your application configuration
-- `variables.tf` - Module variables
-- `modules/sample/` - Application-specific modules
-- `scripts/sample/` - Application-specific scripts
-
-### Symlinked Files
-- Infrastructure files (`main.tf`, `network.tf`, etc.) → `../CloudRunApp/`
-- Other application files (`n8n.tf`, `cyclos.tf`, etc.) → `../CloudRunApp/`
-- Shared modules (`modules/*/`) → `../../CloudRunApp/modules/`
-- Shared scripts (`scripts/core/`, etc.) → `../../CloudRunApp/scripts/`
+## Key Features
+- **Demonstration**: Serves as a reference implementation for custom application modules.
+- **DB Init**: Includes a script to initialize a sample database and user.
 
 ## Dependencies
-This module depends on shared infrastructure files from the CloudRunApp module via symbolic links.
-Ensure the CloudRunApp module is present in the parent directory.
+This module relies on:
+`CloudRunApp`
 
-## Generated Information
-- **Generated:** Tue Jan 27 05:27:02 PM UTC 2026
-- **Base Application:** sample
-- **Module Name:** Sample
-- **Script Version:** create_module.sh v3.5 (Fully Fixed and Tested)
+## Usage
+This module is intended to be used as part of the RAD Modules ecosystem. It is typically deployed via the wrapper configuration in the root of the repository or as a sub-module.
 
-## Support
-For issues or questions, refer to the main rad-modules documentation or create an issue in the repository.
+### Terraform
+```hcl
+module "Sample" {
+  source = "./modules/Sample"
+
+  # ... configuration variables
+}
+```
