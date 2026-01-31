@@ -107,9 +107,9 @@ resource "google_cloud_run_v2_service" "app_service" {
     containers {
       image = local.container_image
 
-      # FORCE DEBUG COMMAND - using default from Dockerfile (which is debug-start.js)
-      # command = ["/bin/sh", "-c", "node debug-start.js"]
-      # args    = []
+      # Container command and args (overrides Dockerfile ENTRYPOINT/CMD if specified by module)
+      command = local.final_container_command
+      args    = local.final_container_args
 
       # Port configuration
       ports {
