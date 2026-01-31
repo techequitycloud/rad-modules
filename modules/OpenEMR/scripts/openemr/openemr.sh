@@ -273,6 +273,8 @@ if [ "${AUTHORITY}" = "yes" ]; then
             sleep 1;
         done
         echo "Setup Complete!"
+        # Re-read CONFIG since auto_setup just set $config = 1 in sqlconf.php
+        CONFIG=$(php -r "require_once('/var/www/localhost/htdocs/openemr/sites/default/sqlconf.php'); echo \$config;" 2>/dev/null) || CONFIG="0"
     fi
 fi
 
@@ -394,13 +396,24 @@ if
                 find . -maxdepth 1 -not -name "." -not -name "sites" -exec chown -R apache:apache {} +
                 find . -maxdepth 1 -not -name "." -not -name "sites" -exec chmod -R u+rwX,g+rX,o-rwx {} +
 
-                # Fix permissions for NFS-mounted files created by root
-                # Note: valid chown might fail on NFS due to root squash, so we ensure loose permissions
+                # Fix permissions for NFS-mounted files and directories
+                # Note: chown might fail on NFS due to root squash, so we ensure loose permissions
+                if [ -d sites/default ]; then
+                    chmod 777 sites/default
+                    chown apache:apache sites/default || true
+                fi
                 if [ -f sites/default/sqlconf.php ]; then
                     chown apache:apache sites/default/sqlconf.php || true
                     chmod 666 sites/default/sqlconf.php
                 fi
+                if [ -f sites/default/config.php ]; then
+                    chown apache:apache sites/default/config.php || true
+                    chmod 666 sites/default/config.php
+                fi
                 if [ -d sites/default/documents ]; then
+                    # Ensure required subdirectories exist on NFS for CryptoGen key storage
+                    mkdir -p sites/default/documents/logs_and_misc/methods
+                    mkdir -p sites/default/documents/certificates
                     chown -R apache:apache sites/default/documents || true
                     chmod -R 777 sites/default/documents
                 fi
