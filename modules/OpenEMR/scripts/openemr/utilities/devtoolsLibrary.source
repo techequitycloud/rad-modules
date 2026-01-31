@@ -54,6 +54,8 @@ prepareVariables() {
 
 setGlobalSettings() {
     # Set requested openemr settings
+    # SECURITY NOTE: Environment variable values are interpolated directly into SQL.
+    # This is acceptable for admin configuration but should not be exposed to untrusted input.
     OPENEMR_SETTINGS=$(printenv | grep '^OPENEMR_SETTING_')
     if [ -n "${OPENEMR_SETTINGS}" ]; then
         echo "${OPENEMR_SETTINGS}" |

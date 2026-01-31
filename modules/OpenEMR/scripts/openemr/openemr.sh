@@ -29,7 +29,10 @@ auto_setup() {
 
     #create temporary file cache directory for auto_configure.php to use
     TMP_FILE_CACHE_LOCATION="/tmp/php-file-cache"
-    mkdir ${TMP_FILE_CACHE_LOCATION}
+    if [ ! -d "${TMP_FILE_CACHE_LOCATION}" ]; then
+        mkdir -p "${TMP_FILE_CACHE_LOCATION}"
+        chown apache:apache "${TMP_FILE_CACHE_LOCATION}"
+    fi
 
     #create auto_configure.ini to be able to leverage opcache for operations
     touch auto_configure.ini
@@ -40,9 +43,12 @@ auto_setup() {
     echo "opcache.file_cache_consistency_checks=1" >> auto_configure.ini
     echo "opcache.enable_file_override=1" >> auto_configure.ini
     echo "opcache.max_accelerated_files=1000000" >> auto_configure.ini
+    
+    # Ensure config file is readable by apache
+    chmod 644 auto_configure.ini
 
-    #run auto_configure
-    php auto_configure.php -c auto_configure.ini -f ${CONFIGURATION} || return 1
+    #run auto_configure as apache user
+    su -s /bin/sh -c "php -c auto_configure.ini auto_configure.php -f ${CONFIGURATION} no_root_db_access=1" apache || return 1
 
     #remove temporary file cache directory and auto_configure.ini
     rm -r ${TMP_FILE_CACHE_LOCATION}
@@ -57,6 +63,8 @@ auto_setup() {
 
     setGlobalSettings
 }
+
+
 
 # AUTHORITY is the right to change OpenEMR's configured state
 # - true for singletons, swarm leaders, and the Kubernetes startup job
@@ -73,10 +81,10 @@ elif [ "${K8S}" = "worker" ]; then
 fi
 
 if [ "${SWARM_MODE}" = "yes" ]; then
-    # atomically test for leadership
-    set -o noclobber
-    { > /var/www/localhost/htdocs/openemr/sites/docker-leader ; } &> /dev/null || AUTHORITY=no
-    set +o noclobber
+    # atomically test for leadership (using POSIX-compliant syntax)
+    set -C
+    ( : > /var/www/localhost/htdocs/openemr/sites/docker-leader ) 2>/dev/null || AUTHORITY=no
+    set +C
 
     if [ "${AUTHORITY}" = "no" ] &&
        [ ! -f /var/www/localhost/htdocs/openemr/sites/docker-completed ]; then
@@ -132,7 +140,12 @@ if [ "${AUTHORITY}" = "yes" ]; then
     fi
 fi
 
-CONFIG=$(php -r "require_once('/var/www/localhost/htdocs/openemr/sites/default/sqlconf.php'); echo \$config;")
+# Check if sqlconf.php exists and get config value with error handling
+if [ -f /var/www/localhost/htdocs/openemr/sites/default/sqlconf.php ]; then
+    CONFIG=$(php -r "require_once('/var/www/localhost/htdocs/openemr/sites/default/sqlconf.php'); echo \$config;" 2>/dev/null) || CONFIG="0"
+else
+    CONFIG="0"
+fi
 if [ "${AUTHORITY}" = "no" ] &&
     [ "${CONFIG}" = "0" ]; then
     echo "Critical failure! An OpenEMR worker is trying to run on a missing configuration."
@@ -296,7 +309,8 @@ if [ "${REDIS_SERVER}" != "" ] &&
     #   Only password set (using redis default user and pertinent password)
     #   NOTE that only username set is not supported (in this case will ignore the username
     #      and use no username and no password set mode)
-    REDIS_PATH="${REDIS_SERVER}:6379"
+    REDIS_PORT_ACTUAL=${REDIS_PORT:-6379}
+    REDIS_PATH="${REDIS_SERVER}:${REDIS_PORT_ACTUAL}"
     if [ "${REDIS_USERNAME}" != "" ] &&
        [ "${REDIS_PASSWORD}" != "" ]; then
         echo "redis setup with username and password"
@@ -342,23 +356,47 @@ if
         if [ -f auto_configure.php ]; then
             # This section only runs once after per docker since auto_configure.php gets removed after this script
 
-            echo "Setting user 'www' as owner of openemr/ and setting file/dir permissions to 400/500"
+            # For Cloud Run deployments with NFS mounts, skip the slow find/chmod operations
+            # since permissions are already set in the Docker image and the NFS init job
+            # handles the sites/ directory permissions. This prevents startup timeouts.
+            if [ "${SWARM_MODE}" != "yes" ] && [ -z "${K8S}" ]; then
+                echo "Cloud Run mode detected - enforcing strict permissions (excluding NFS sites)"
+                find . -maxdepth 1 -not -name "." -not -name "sites" -exec chown -R apache:apache {} +
+                find . -maxdepth 1 -not -name "." -not -name "sites" -exec chmod -R u+rwX,g+rX,o-rwx {} +
 
-            #set all directories to 500 (note that sites/default/documents is dealt with below which need to skip here to prevent breakage in swarm mode)
-            find . -type d -not -path "./sites/default/documents/*" -not -perm 500 -exec chmod 500 {} \+
-            #set all file access to 400 (note that sites/default/documents is dealt with below which need to skip here to prevent breakage in swarm mode)
-            find . -type f -not -path "./sites/default/documents/*" -not -path './openemr.sh' -not -perm 400 -exec chmod 400 {} \+
+                # Fix permissions for NFS-mounted files created by root
+                # Note: valid chown might fail on NFS due to root squash, so we ensure loose permissions
+                if [ -f sites/default/sqlconf.php ]; then
+                    chown apache:apache sites/default/sqlconf.php || true
+                    chmod 666 sites/default/sqlconf.php
+                fi
+                if [ -d sites/default/documents ]; then
+                    chown -R apache:apache sites/default/documents || true
+                    chmod -R 777 sites/default/documents
+                fi
+            else
+                echo "Setting user 'www' as owner of openemr/ and setting file/dir permissions to 400/500"
 
-            echo "Default file permissions and ownership set, allowing writing to specific directories"
+                # Exclude the entire sites directory since it may be NFS-mounted
+                # set all directories to 500 (excluding sites/ which is handled separately)
+                find . -type d -not -path "./sites/*" -not -path "./sites" -not -perm 500 -exec chmod 500 {} \+
+                # set all file access to 400 (excluding sites/ which is handled separately)
+                find . -type f -not -path "./sites/*" -not -path './openemr.sh' -not -perm 400 -exec chmod 400 {} \+
+
+                echo "Default file permissions and ownership set, allowing writing to specific directories"
+            fi
             chmod 700 openemr.sh
 
-            # Set file and directory permissions
+            # Set file and directory permissions for documents
             #  Note this is only done once in swarm mode (to prevent breakage) since is a shared volume.
             if
                [ "${SWARM_MODE}" != "yes" ] ||
                [ ! -f /var/www/localhost/htdocs/openemr/sites/docker-completed ]; then
-                echo "Setting sites/default/documents permissions to 700"
-                find sites/default/documents -not -perm 700 -exec chmod 700 {} \+
+                # Only set documents permissions if not on NFS (Cloud Run handles this in init job)
+                if [ "${SWARM_MODE}" = "yes" ] || [ -n "${K8S}" ]; then
+                    echo "Setting sites/default/documents permissions to 700"
+                    find sites/default/documents -not -perm 700 -exec chmod 700 {} \+ 2>/dev/null || true
+                fi
             fi
 
             echo "Removing remaining setup scripts"

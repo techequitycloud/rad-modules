@@ -6,9 +6,9 @@ locals {
     description         = "This module can be used to deploy OpenEMR"
     container_image     = ""
 
-    image_source    = "custom"
+    image_source           = "custom"
     enable_image_mirroring = false
-    
+
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
@@ -17,10 +17,10 @@ locals {
       build_args         = {}
       artifact_repo_name = null
     }
-    container_port  = 80
-    database_type   = "MYSQL_8_0"
-    db_name         = "openemr"
-    db_user         = "openemr"
+    container_port = 80
+    database_type  = "MYSQL_8_0"
+    db_name        = "openemr"
+    db_user        = "openemr"
 
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
@@ -43,25 +43,25 @@ locals {
       PHP_MAX_EXECUTION_TIME  = "60"
       PHP_UPLOAD_MAX_FILESIZE = "64M"
       PHP_POST_MAX_SIZE       = "64M"
-      SMTP_HOST     = ""
-      SMTP_PORT     = "25"
-      SMTP_USER     = ""
-      SMTP_PASSWORD = ""
-      SMTP_SSL      = "false"
-      EMAIL_FROM    = "openemr@example.com"
+      SMTP_HOST               = ""
+      SMTP_PORT               = "25"
+      SMTP_USER               = ""
+      SMTP_PASSWORD           = ""
+      SMTP_SSL                = "false"
+      EMAIL_FROM              = "openemr@example.com"
     }
 
     initialization_jobs = [
       # Job 1: NFS Initialization and Backup Restore
       {
-        name            = "nfs-init"
-        description     = "Initialize NFS directories for OpenEMR and restore backup if provided"
-        image           = "gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine"
-        command         = ["/bin/bash", "-c"]
-        env_vars        = {
+        name        = "nfs-init"
+        description = "Initialize NFS directories for OpenEMR and restore backup if provided"
+        image       = "gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine"
+        command     = ["/bin/bash", "-c"]
+        env_vars = {
           NFS_MOUNT_PATH = "/var/www/localhost/htdocs/openemr/sites"
         }
-        args            = [
+        args = [
           <<-EOT
             set -e
 
@@ -200,6 +200,21 @@ locals {
                 echo "✓ Created default site directory"
               fi
 
+              # Create required OpenEMR subdirectories
+              echo "Creating OpenEMR required directories..."
+              mkdir -p "$${APP_DIR}/default/documents/smarty/gacl"
+              mkdir -p "$${APP_DIR}/default/documents/smarty/main"
+              mkdir -p "$${APP_DIR}/default/documents/smarty/templates_c"
+              mkdir -p "$${APP_DIR}/default/documents/mpdf/ttfontdata"
+              mkdir -p "$${APP_DIR}/default/documents/onsite_portal_documents"
+              mkdir -p "$${APP_DIR}/default/documents/logs"
+              mkdir -p "$${APP_DIR}/default/documents/era"
+              mkdir -p "$${APP_DIR}/default/documents/edi"
+              mkdir -p "$${APP_DIR}/default/documents/procedure_results"
+              chown -R 1000:1000 "$${APP_DIR}/default/documents"
+              chmod -R 777 "$${APP_DIR}/default/documents"
+              echo "✓ Created OpenEMR required directories"
+
               # Create sqlconf.php if it doesn't exist or is corrupted
               SQLCONF_FILE="$${APP_DIR}/default/sqlconf.php"
               if [ -f "$${SQLCONF_FILE}" ] && ! grep -q '$$host' "$${SQLCONF_FILE}" 2>/dev/null; then
@@ -229,7 +244,7 @@ locals {
 \$rootpass	= '$${ROOT_PASS}';
 
 //Added by OpenEMR Configuration:
-\$config = 1;
+\$config = 0;
 SQLEOF
 
                 chown 1000:1000 "$${SQLCONF_FILE}"
@@ -305,11 +320,11 @@ CONFIGEOF
 
       # Job 2: Database Initialization
       {
-        name            = "db-init"
-        description     = "Create MySQL Database and User"
-        image           = "alpine:3.19"
-        command         = ["/bin/sh", "-c"]
-        args            = [
+        name        = "db-init"
+        description = "Create MySQL Database and User"
+        image       = "alpine:3.19"
+        command     = ["/bin/sh", "-c"]
+        args = [
           <<-EOT
             set -e
             echo "Installing dependencies..."
@@ -401,20 +416,22 @@ EOF
   module_env_vars = {
     MYSQL_DATABASE = local.database_name_full
     MYSQL_USER     = local.database_user_full
-    MYSQL_HOST     = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
-    MYSQL_PORT     = "3306"
-    OE_USER        = "admin"
-    MANUAL_SETUP   = "no"
-    BACKUP_FILEID  = local.final_backup_uri != null ? local.final_backup_uri : ""
-    SWARM_MODE     = "no"
-    REDIS_SERVER   = local.nfs_server_exists ? local.nfs_internal_ip : ""
-    REDIS_PORT     = "6379"
+    MYSQL_HOST     = local.db_internal_ip
+    # MYSQL_HOST     = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+    MYSQL_PORT      = "3306"
+    OE_USER         = "admin"
+    MANUAL_SETUP    = "no"
+    BACKUP_FILEID   = local.final_backup_uri != null ? local.final_backup_uri : ""
+    SWARM_MODE      = "no"
+    REDIS_SERVER    = local.nfs_server_exists ? local.nfs_internal_ip : ""
+    REDIS_PORT      = "6379"
+    MYSQL_ROOT_PASS = "BLANK"
   }
 
   module_secret_env_vars = {
-    MYSQL_ROOT_PASS = "${local.db_instance_name}-root-password"
-    OE_PASS         = try(google_secret_manager_secret.openemr_admin_password[0].secret_id, "")
-    MYSQL_PASS      = try(google_secret_manager_secret.db_password[0].secret_id, "")
+
+    OE_PASS    = try(google_secret_manager_secret.openemr_admin_password[0].secret_id, "")
+    MYSQL_PASS = try(google_secret_manager_secret.db_password[0].secret_id, "")
   }
 
   module_storage_buckets = []

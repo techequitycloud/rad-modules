@@ -17,7 +17,7 @@ if [ ! -f /etc/php-xdebug-configured ]; then
     echo "zend_extension=/usr/lib/php83/modules/xdebug.so" >> /etc/php83/php.ini
     echo "xdebug.output_dir=/tmp" >> /etc/php83/php.ini
     echo "xdebug.start_with_request=trigger" >> /etc/php83/php.ini
-    echo "xdebug.remote_handler=dbgp" >> /etc/php83/php.ini
+    # Note: xdebug.remote_handler is deprecated in Xdebug 3.x and removed
     echo "xdebug.log=/tmp/xdebug.log" >> /etc/php83/php.ini
     echo "xdebug.discover_client_host=1" >> /etc/php83/php.ini
     if [ "${XDEBUG_PROFILER_ON}" = 1 ]; then

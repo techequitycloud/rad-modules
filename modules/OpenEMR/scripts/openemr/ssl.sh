@@ -25,8 +25,9 @@ if [ ! -f /etc/ssl/docker-selfsigned-configured ]; then
 fi
 
 if [ "${DOMAIN}" != "" ]; then
-        if [ "${EMAIL}" != "" ]; then
-        EMAIL="-m ${EMAIL}"
+    EMAIL_OPT=""
+    if [ "${EMAIL}" != "" ]; then
+        EMAIL_OPT="-m ${EMAIL}"
     else
         echo "WARNING: SETTING AN EMAIL VIA \$EMAIL is HIGHLY RECOMMENDED IN ORDER TO"
         echo "         RECEIVE ALERTS FROM LETSENCRYPT ABOUT YOUR SSL CERTIFICATE."
@@ -36,7 +37,7 @@ if [ "${DOMAIN}" != "" ]; then
     if ! [ -f /etc/letsencrypt/live/${DOMAIN}/fullchain.pem ]; then
         /usr/sbin/httpd -k start
         sleep 2
-        certbot certonly --webroot -n -w /var/www/localhost/htdocs/openemr/ -d ${DOMAIN} ${EMAIL} --agree-tos
+        certbot certonly --webroot -n -w /var/www/localhost/htdocs/openemr/ -d ${DOMAIN} ${EMAIL_OPT} --agree-tos
         /usr/sbin/httpd -k stop
         echo "1 23  *   *   *   certbot renew -q --post-hook \"httpd -k graceful\"" >> /etc/crontabs/root
     fi
