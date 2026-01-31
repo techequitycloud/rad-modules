@@ -109,9 +109,7 @@ if [ "${SWARM_MODE}" = "yes" ]; then
     fi
 fi
 
-if [ "${AUTHORITY}" = "yes" ]; then
-    sh ssl.sh
-fi
+# SSL setup removed for Cloud Run
 
 UPGRADE_YES=false;
 if [ "${AUTHORITY}" = "yes" ]; then
@@ -489,6 +487,13 @@ echo
 if [ "${OPERATOR}" = yes ]; then
     echo 'Starting PHP-FPM...'
     /usr/sbin/php-fpm83
+
+    # Cloud Run dynamic port configuration
+    APACHE_PORT="${PORT:-80}"
+    echo "Updating Apache to listen on port ${APACHE_PORT}..."
+    sed -i "s/^Listen .*/Listen 0.0.0.0:${APACHE_PORT}/" /etc/apache2/httpd.conf
+    echo "ServerName localhost" >> /etc/apache2/httpd.conf
+
     echo 'Starting apache!'
     exec /usr/sbin/httpd -D FOREGROUND
 fi
