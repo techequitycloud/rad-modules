@@ -20,7 +20,7 @@ RUN ln -sf /usr/bin/php83 /usr/bin/php
 # Install composer for openemr package building
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
 
-RUN apk add --no-cache git build-base \
+RUN apk add --no-cache git build-base python3 \
     && git clone https://github.com/openemr/openemr.git --branch rel-704 --depth 1 \
     && rm -rf openemr/.git \
     && cd openemr \
@@ -43,7 +43,7 @@ RUN apk add --no-cache git build-base \
     && chown -R apache openemr/ \
     && mv openemr /var/www/localhost/htdocs/ \
     && mkdir -p /etc/ssl/certs /etc/ssl/private \
-    && apk del --no-cache git build-base \
+    && apk del --no-cache git build-base python3 \
     && sed -i 's/^ *CustomLog/#CustomLog/' /etc/apache2/httpd.conf \
     && sed -i 's/^ *ErrorLog/#ErrorLog/' /etc/apache2/httpd.conf
 WORKDIR /var/www/localhost/htdocs/openemr
