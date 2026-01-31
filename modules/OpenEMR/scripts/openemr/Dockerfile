@@ -55,7 +55,7 @@ COPY openemr.conf /etc/apache2/conf.d/
 COPY openemr.sh xdebug.sh auto_configure.php /var/www/localhost/htdocs/openemr/
 COPY utilities/unlock_admin.php utilities/unlock_admin.sh /root/
 RUN chmod 500 openemr.sh xdebug.sh /root/unlock_admin.sh \
-    && chmod 000 auto_configure.php /root/unlock_admin.php
+    && chmod 400 auto_configure.php /root/unlock_admin.php
 #bring in pieces used for automatic upgrade process
 COPY upgrade/docker-version \
      upgrade/fsupgrade-1.sh \
