@@ -26,7 +26,8 @@ auto_setup() {
     prepareVariables
 
     # Relax permissions adjustment to avoid failures on broken links/missing files
-    find . -type f -not -perm 600 -exec chmod 600 {} + 2>/dev/null || true
+    # Exclude sites/ directory since it may be NFS-mounted and root cannot chmod there
+    find . -path ./sites -prune -o -type f -not -perm 600 -exec chmod 600 {} + 2>/dev/null || true
 
     #create temporary file cache directory for auto_configure.php to use
     TMP_FILE_CACHE_LOCATION="/tmp/php-file-cache"
@@ -237,11 +238,19 @@ if [ "${AUTHORITY}" = "yes" ]; then
        [ "${MANUAL_SETUP}" != "yes" ]; then
 
         echo "Running quick setup!"
+        SETUP_ATTEMPTS=0
+        MAX_SETUP_ATTEMPTS=10
         while ! auto_setup; do
+            SETUP_ATTEMPTS=$((SETUP_ATTEMPTS + 1))
             echo "Couldn't set up. Any of these reasons could be what's wrong:"
             echo " - You didn't spin up a MySQL container or connect your OpenEMR container to a mysql instance"
             echo " - MySQL is still starting up and wasn't ready for connection yet"
             echo " - The Mysql credentials were incorrect"
+            if [ "${SETUP_ATTEMPTS}" -ge "${MAX_SETUP_ATTEMPTS}" ]; then
+                echo "Exceeded ${MAX_SETUP_ATTEMPTS} setup attempts. Exiting to avoid infinite loop."
+                echo "If the database was partially configured, you may need to drop and recreate it."
+                exit 1
+            fi
             sleep 1;
         done
         echo "Setup Complete!"
