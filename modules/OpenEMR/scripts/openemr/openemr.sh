@@ -48,6 +48,9 @@ auto_setup() {
     # Ensure config file is readable by apache
     chmod 644 auto_configure.ini
 
+    #ensure auto_configure.php is readable by the apache user before running it
+    chmod 644 auto_configure.php
+
     #run auto_configure as apache user
     su -s /bin/sh -c "php -c auto_configure.ini auto_configure.php -f ${CONFIGURATION} no_root_db_access=1" apache || return 1
 
