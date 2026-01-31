@@ -9,7 +9,7 @@ locals {
     db_user             = "wp"
     application_version = var.application_version
 
-    image_source    = "custom"
+    image_source           = "custom"
     enable_image_mirroring = false
 
     # ✅ Custom build configuration
@@ -30,9 +30,9 @@ locals {
 
     # Storage volumes
     gcs_volumes = [{
-      name       = "wp-uploads"
-      mount_path = "/var/www/html/wp-content"
-      read_only  = false
+      name          = "wp-uploads"
+      mount_path    = "/var/www/html/wp-content"
+      read_only     = false
       mount_options = ["implicit-dirs", "metadata-cache-ttl-secs=60"]
     }]
 
@@ -58,11 +58,11 @@ locals {
     # Initialization Jobs
     initialization_jobs = [
       {
-        name            = "db-init"
-        description     = "Create WordPress Database and User"
-        image           = "alpine:3.19"
-        command         = ["/bin/sh", "-c"]
-        args            = [
+        name        = "db-init"
+        description = "Create WordPress Database and User"
+        image       = "alpine:3.19"
+        command     = ["/bin/sh", "-c"]
+        args = [
           <<-EOT
             set -e
             echo "Installing dependencies..."
@@ -147,10 +147,10 @@ EOF
       enabled               = true
       type                  = "TCP"
       path                  = "/"
-      initial_delay_seconds = 240
-      timeout_seconds       = 240
-      period_seconds        = 240
-      failure_threshold     = 1
+      initial_delay_seconds = 30
+      timeout_seconds       = 10
+      period_seconds        = 15
+      failure_threshold     = 20
     }
     liveness_probe = {
       enabled               = true

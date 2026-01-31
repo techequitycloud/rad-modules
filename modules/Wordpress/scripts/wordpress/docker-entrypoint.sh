@@ -4,17 +4,30 @@ set -Eeuo pipefail
 # Cloud Run / Cloud SQL Socket Handling
 echo "Searching for Cloud SQL socket..."
 SOCKET_FILE=""
+MAX_WAIT_SECONDS=30
+WAIT_COUNT=0
 
-# Check /cloudsql first (standard Cloud Run path)
-if [ -d "/cloudsql" ]; then
-    echo "Searching in /cloudsql..."
-    SOCKET_FILE=$(find /cloudsql -type s -print -quit)
-fi
+# Wait for Cloud SQL socket with retry loop
+while [ -z "$SOCKET_FILE" ] && [ $WAIT_COUNT -lt $MAX_WAIT_SECONDS ]; do
+    if [ -d "/cloudsql" ]; then
+        SOCKET_FILE=$(find /cloudsql -type s -print -quit 2>/dev/null)
+    fi
+    
+    if [ -z "$SOCKET_FILE" ] && [ -d "/var/run/mysqld" ]; then
+        SOCKET_FILE=$(find /var/run/mysqld -type s -print -quit 2>/dev/null)
+    fi
+    
+    if [ -z "$SOCKET_FILE" ]; then
+        if [ $WAIT_COUNT -eq 0 ]; then
+            echo "Waiting for Cloud SQL socket..."
+        fi
+        sleep 1
+        WAIT_COUNT=$((WAIT_COUNT + 1))
+    fi
+done
 
-# Fallback to /var/run/mysqld
-if [ -z "$SOCKET_FILE" ] && [ -d "/var/run/mysqld" ]; then
-    echo "Searching in /var/run/mysqld..."
-    SOCKET_FILE=$(find /var/run/mysqld -type s -print -quit)
+if [ $WAIT_COUNT -gt 0 ]; then
+    echo "Waited ${WAIT_COUNT}s for socket"
 fi
 
 if [ -n "$SOCKET_FILE" ]; then
@@ -22,8 +35,27 @@ if [ -n "$SOCKET_FILE" ]; then
     mkdir -p /tmp
     echo "Symlinking to /tmp/mysqld.sock"
     ln -sf "$SOCKET_FILE" /tmp/mysqld.sock
+    # Ensure WORDPRESS_DB_HOST uses the symlinked socket
+    export WORDPRESS_DB_HOST="localhost:/tmp/mysqld.sock"
+    echo "Set WORDPRESS_DB_HOST to localhost:/tmp/mysqld.sock (socket)"
 else
-    echo "No Cloud SQL socket found."
+    echo "WARNING: No Cloud SQL socket found after ${MAX_WAIT_SECONDS}s!"
+    # Fall back to TCP connection using DB_HOST or DB_IP if available
+    if [ -n "${DB_HOST:-}" ]; then
+        export WORDPRESS_DB_HOST="$DB_HOST"
+        echo "Falling back to TCP: WORDPRESS_DB_HOST=$DB_HOST"
+    elif [ -n "${DB_IP:-}" ]; then
+        export WORDPRESS_DB_HOST="$DB_IP"
+        echo "Falling back to TCP: WORDPRESS_DB_HOST=$DB_IP"
+    else
+        echo "ERROR: No database connection method available!"
+    fi
+fi
+
+# Suppress Apache ServerName warning
+if [ ! -f /etc/apache2/conf-available/servername.conf ]; then
+    echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf
+    a2enconf servername 2>/dev/null || true
 fi
 
 if [[ "$1" == apache2* ]] || [ "$1" = 'php-fpm' ] || { self="$(basename "$0")" && [ "$self" = 'docker-ensure-installed.sh' ]; }; then
