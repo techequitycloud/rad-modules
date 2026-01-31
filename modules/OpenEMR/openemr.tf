@@ -440,12 +440,6 @@ EOF
 # ==============================================================================
 # OPENEMR SPECIFIC RESOURCES
 # ==============================================================================
-resource "random_password" "openemr_admin_password" {
-  count   = 1
-  length  = 20
-  special = false
-}
-
 resource "google_secret_manager_secret" "openemr_admin_password" {
   count     = 1
   secret_id = "${local.wrapper_prefix}-admin-password"
@@ -458,5 +452,5 @@ resource "google_secret_manager_secret" "openemr_admin_password" {
 resource "google_secret_manager_secret_version" "openemr_admin_password" {
   count       = 1
   secret      = google_secret_manager_secret.openemr_admin_password[0].id
-  secret_data = random_password.openemr_admin_password[0].result
+  secret_data = "admin"
 }
