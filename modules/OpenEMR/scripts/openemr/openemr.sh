@@ -401,6 +401,8 @@ if
                     chmod 666 sites/default/sqlconf.php
                 fi
                 if [ -d sites/default/documents ]; then
+                    # Ensure required subdirectories exist on NFS for CryptoGen key storage
+                    mkdir -p sites/default/documents/logs_and_misc/methods
                     chown -R apache:apache sites/default/documents || true
                     chmod -R 777 sites/default/documents
                 fi
