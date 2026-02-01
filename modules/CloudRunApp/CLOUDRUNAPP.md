@@ -1,4 +1,4 @@
-# Deep Dive Analysis: `modules/CloudRunApp`
+# CloudRunApp on Google Cloud Platform
 
 This document provides a comprehensive analysis of the `modules/CloudRunApp` Terraform module on Google Cloud Platform. It details the architecture, IAM configuration, service integrations, and potential enhancements.
 
@@ -75,27 +75,3 @@ The module leverages Cloud Run Jobs to perform complex setup tasks that cannot b
 *   **`db-init` / `db-cleanup`**: Runs custom SQL or scripts for schema migration.
 *   **`backup-import`**: Can automatically import a database dump from GCS or Google Drive during initial deployment.
 
----
-
-## 4. Potential Enhancements
-
-To improve the platform's security, flexibility, and observability, the following enhancements are recommended:
-
-### 1. Security & Access Control
-*   **Enforce `public_access` Variable**: Update `iam.tf` to strictly respect the `var.public_access` setting. If `false`, the `allUsers` binding should be removed.
-*   **Cloud Armor Integration**: Add support for attaching Cloud Armor security policies (WAF, DDoS protection) directly to the Cloud Run service or via a Load Balancer integration.
-*   **Granular Invokers**: Add a variable to accept a list of specific emails/groups (e.g., `allowed_invokers`) for internal-only applications, replacing the binary "Public vs Private" model.
-
-### 2. Resilience & Deployment
-*   **Traffic Splitting**: Currently, 100% of traffic is routed to the `latest` revision. Adding a `traffic_split` variable would allow for Canary or Blue/Green deployments (e.g., 10% to new, 90% to old).
-*   **Multi-Region Support**: While `deployment_regions` is a variable, full active-active multi-region logic (with global load balancing) could be solidified.
-
-### 3. Performance & Services
-*   **Native Redis Support**: Currently, Redis support relies on external provisioning or wrappers. Adding a native option to provision or discover a **Cloud Memorystore (Redis)** instance would benefit caching-heavy apps (like Django/Magento).
-*   **CDN Integration**: For public apps, integrating with **Cloud CDN** (via Load Balancer) would significantly improve static asset delivery speed.
-
-### 4. Developer Experience
-*   **Buildpacks**: The module supports custom Dockerfiles. Adding support for **Google Cloud Buildpacks** would allow deploying source code directly without needing to write/maintain a `Dockerfile`.
-
----
-This analysis confirms `modules/CloudRunApp` is a mature, feature-rich module capable of handling complex enterprise workloads, with clear paths for future optimization.
