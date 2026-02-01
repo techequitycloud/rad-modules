@@ -55,7 +55,7 @@ resource "null_resource" "build_and_push_application_image" {
   triggers = {
     script_hash = fileexists("${path.module}/scripts/core/build-container.sh") ? filesha256("${path.module}/scripts/core/build-container.sh") : timestamp()
     # Trigger rebuild on any file change in the context directory
-    context_hash = sha256(join("", [for f in fileset("${path.module}/scripts/${local.container_build_config.context_path}", "**") : filesha256("${path.module}/scripts/${local.container_build_config.context_path}/${f}")]))
+    context_hash = sha256(join("", [for f in fileset("${path.module}/scripts/${local.container_build_config.context_path}", "**") : filesha256("${path.module}/scripts/${local.container_build_config.context_path}/${f}") if f != "cloudbuild.yaml" && f != local.container_build_config.dockerfile_path]))
     dockerfile_hash = local.container_build_config.dockerfile_content != null ? sha256(local.container_build_config.dockerfile_content) : (
       fileexists("${path.module}/scripts/${local.container_build_config.context_path}/${local.container_build_config.dockerfile_path}") ?
       filesha256("${path.module}/scripts/${local.container_build_config.context_path}/${local.container_build_config.dockerfile_path}") :
