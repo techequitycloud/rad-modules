@@ -156,8 +156,8 @@ locals {
     GCS_BUCKET_NAME   = try(local.storage_buckets["strapi-uploads"].name, "")
     GCS_BASE_URL      = "https://storage.googleapis.com/${try(local.storage_buckets["strapi-uploads"].name, "")}"
     },
-    var.redis_enabled && (var.redis_host != null && var.redis_host != "" || try(local.nfs_server_ip, "") != "") ? {
-      REDIS_HOST = var.redis_host != null && var.redis_host != "" ? var.redis_host : local.nfs_server_ip
+    var.redis_enabled && (var.redis_host != null && var.redis_host != "" || try(local.nfs_internal_ip, "") != "") ? {
+      REDIS_HOST = var.redis_host != null && var.redis_host != "" ? var.redis_host : local.nfs_internal_ip
       REDIS_PORT = var.redis_port
     } : {}
   )
