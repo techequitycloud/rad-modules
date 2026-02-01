@@ -34,6 +34,12 @@ variable "module_services" {
   default     = ["Cloud Run", "Cloud Build", "Artifact Registry", "Cloud Storage", "Cloud SQL", "Cloud IAM", "Cloud Networking", "Secret Manager"]
 }
 
+variable "enable_redis" {
+  description = "Set to true to enable the use of Redis (requires NFS server with Redis). {{UIMeta group=0 order=103 }}"
+  type        = bool
+  default     = false
+}
+
 variable "credit_cost" {
   description = "Specify the module cost. {{UIMeta group=0 order=103 }}"
   type        = number
