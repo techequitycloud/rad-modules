@@ -67,16 +67,17 @@ The module provisions *two* storage types, but the application is configured to 
     -   **Dynamic DB Host:** Detects if `DB_HOST` starts with `/` to toggle Socket vs TCP mode.
     -   **Health Check Bypass:** Explicitly returns "ok" for `GoogleHC` User-Agent to prevent health check logic from triggering heavy Moodle bootstrapping.
     -   **Permissions:** Sets `directorypermissions` to `02777` (required for GCS FUSE compatibility).
+    -   **Redis Support:** If `redis_enabled` is true, configures `$CFG->session_handler_class` to use Redis, offloading session I/O from GCS.
 
 ## 5. Existing Features
 -   **Automated Cron:** A Cloud Scheduler job hits `/admin/cron.php?password=...` every minute.
 -   **Auto-Installation:** The system attempts to self-install on first boot via the `moodle-install` job.
 -   **PDF Annotation:** `ghostscript` is installed to support Moodle's PDF annotation features.
+-   **Redis Session Handling:** Optional configuration to use an external Redis instance for PHP sessions, reducing latency and storage I/O.
 
 ## 6. Potential Enhancements
 
 ### Performance
--   **Redis Session/Cache:** The Dockerfile installs `php-redis`, but `moodle.tf` only sets `MOODLE_REDIS_HOST`. Explicit configuration in `moodle-config.php` to use Redis for `$CFG->session_handler` and Moodle Universal Cache (MUC) is highly recommended to offload I/O from GCS FUSE.
 -   **CDN:** Implementing Cloud CDN for static assets (`/theme/`, `/lib/javascript/`) would significantly reduce container load and latency.
 
 ### Security

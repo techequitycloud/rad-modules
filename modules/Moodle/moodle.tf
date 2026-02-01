@@ -314,7 +314,10 @@ locals {
     MOODLE_DB_TYPE = local.database_client_type == "POSTGRES" ? "pgsql" : "mysqli"
 
     # Redis Configuration
-    MOODLE_REDIS_HOST = local.nfs_enabled ? local.nfs_internal_ip : ""
+    MOODLE_REDIS_ENABLED  = tostring(var.redis_enabled)
+    MOODLE_REDIS_HOST     = var.redis_enabled ? var.redis_host : ""
+    MOODLE_REDIS_PORT     = var.redis_port
+    MOODLE_REDIS_PASSWORD = var.redis_auth
 
     # SMTP Configuration
     MOODLE_SMTP_HOST   = ""

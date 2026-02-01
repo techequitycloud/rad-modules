@@ -52,4 +52,20 @@ $CFG->admin = 'admin';
 $CFG->reverseproxy = false;
 $CFG->sslproxy = true;
 
+// Redis Session Handling and MUC
+if (getenv('MOODLE_REDIS_ENABLED') === 'true') {
+    $CFG->session_handler_class = '\core\session\redis';
+    $CFG->session_redis_host = getenv('MOODLE_REDIS_HOST');
+    $CFG->session_redis_port = getenv('MOODLE_REDIS_PORT');
+    $CFG->session_redis_auth = getenv('MOODLE_REDIS_PASSWORD');
+    $CFG->session_redis_database = 0;
+    $CFG->session_redis_prefix = 'moodle_prod_sess_';
+    $CFG->session_redis_acquire_lock_timeout = 120;
+    $CFG->session_redis_lock_expire = 7200;
+
+    // Note regarding Moodle Universal Cache (MUC):
+    // Full MUC offloading typically requires defining stores in 'muc/config.php' or via the GUI.
+    // However, enabling Redis for sessions significantly reduces I/O on the shared storage.
+}
+
 require_once(dirname(__FILE__) . '/lib/setup.php'); // Do not edit
