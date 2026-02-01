@@ -1,7 +1,7 @@
 locals {
-  # Logic to determine Redis Host (Prefer var.redis_host, else fallback to NFS server IP if NFS is enabled)
-  # This assumes Redis is running on the NFS server (standard for this platform's internal stack)
-  redis_host_final = var.redis_host != null ? var.redis_host : (var.enable_redis && try(local.nfs_server_exists, false) ? try(local.nfs_internal_ip, "") : "")
+  # Logic to determine Redis Host (Terraform only handles explicit overrides to avoid cycles)
+  # Runtime fallback logic is handled in the odoo-config job script
+  redis_host_final = var.redis_host != null ? var.redis_host : ""
 
   odoo_module = {
     app_name                = "odoo"
@@ -438,9 +438,25 @@ EOF
                 echo "SMTP configuration added"
             fi
 
-            # Append Redis configuration if enabled and host is present
-            if [ "$${ENABLE_REDIS}" = "true" ] && [ -n "$${REDIS_HOST}" ]; then
-                cat >> "$${CONFIG_FILE}" << EOF
+            # Append Redis configuration if enabled
+            if [ "$${ENABLE_REDIS}" = "true" ]; then
+                # If REDIS_HOST is empty, attempt to auto-detect from NFS mount
+                # This breaks the Terraform dependency cycle by resolving the IP at runtime
+                if [ -z "$${REDIS_HOST}" ]; then
+                    echo "Redis enabled but no host provided. Attempting auto-detection from NFS mount..."
+                    # Extract IP from /proc/mounts (format: IP:/path /mnt ...)
+                    NFS_IP=$(grep " /mnt " /proc/mounts | awk '{print $1}' | cut -d: -f1)
+                    
+                    if [ -n "$${NFS_IP}" ]; then
+                        echo "Detected NFS Server IP: $${NFS_IP}"
+                        REDIS_HOST="$${NFS_IP}"
+                    else
+                        echo "WARNING: Could not detect NFS IP. Redis configuration skipped."
+                    fi
+                fi
+
+                if [ -n "$${REDIS_HOST}" ]; then
+                    cat >> "$${CONFIG_FILE}" << EOF
 
 #########################################################################
 # Redis Configuration
@@ -448,7 +464,8 @@ EOF
 redis_host = $${REDIS_HOST}
 redis_port = $${REDIS_PORT}
 EOF
-                echo "Redis configuration added"
+                    echo "Redis configuration added (Host: $${REDIS_HOST})"
+                fi
             fi
 
             # Set proper permissions (Odoo runs as UID 101)
