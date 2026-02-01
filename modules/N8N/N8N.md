@@ -1,4 +1,4 @@
-# Deep Dive Analysis: modules/N8N on Google Cloud Platform
+# N8N on Google Cloud Platform
 
 This document provides a comprehensive analysis of the `modules/N8N` implementation, detailing its architecture, IAM configuration, services, and potential enhancements.
 
