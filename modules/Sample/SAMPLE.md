@@ -85,12 +85,9 @@ The core service is a Cloud Run v2 service.
 ### 6.1. IAM & Security
 *   **Granular Access:** Expose a variable to restrict `roles/run.invoker` to specific groups instead of `allUsers`.
 *   **Workload Identity:** strictly enforce Workload Identity Federation for any external integrations.
-*   **SQL Proxy:** While Unix Sockets are supported, adding `cloud_sql_proxy` as a sidecar (if moving to GKE or VM) or ensuring `run.googleapis.com/cloudsql-instances` annotation is strictly validated.
 
 ### 6.2. Configuration
-*   **Redis Integration:** The foundation module likely supports Memorystore; `Sample` could be enhanced to demonstrate a Redis connection for session caching.
 *   **CDN/Load Balancing:** Integration with Global Load Balancer (Cloud CDN) for static asset caching.
-*   **Resource Tuning:** Expose `concurrency` settings for the Cloud Run service to handle more requests per instance.
 
 ### 6.3. Operational
 *   **Readiness Probes:** Add a distinct readiness probe (e.g., checking DB connectivity) separate from liveness.
