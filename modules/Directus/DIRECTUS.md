@@ -1,4 +1,4 @@
-# Deep Dive Analysis: Directus Module on Google Cloud Platform
+# Directus on Google Cloud Platform
 
 This document provides a comprehensive analysis of the `modules/Directus` implementation. It details the architecture, IAM security model, service configurations, and opportunities for enhancement.
 
@@ -80,26 +80,16 @@ Uniquely, this module defines a **`db-init` Job** (run via Cloud Run Jobs or an 
 ## 5. Potential Enhancements & Recommendations
 
 ### A. Performance & Scaling (High Impact)
-*   **Enable Redis Caching:** Currently, `CACHE_ENABLED` is false.
-    *   *Enhancement:* Provision a Memorystore (Redis) instance (via the `GCP_Services` module) and set `CACHE_ENABLED=true`, `CACHE_STORE=redis`.
-    *   *Benefit:* Drastically reduces database load and API latency. Essential for production workloads.
-    *   *Requirement for Scaling:* Redis is **required** for horizontal scaling ( > 1 instance) to handle Websocket/Subscription state synchronization between nodes.
 *   **Cloud CDN:**
     *   *Enhancement:* Enable Cloud CDN on the Load Balancer for the `/assets/*` path.
     *   *Benefit:* Offloads asset delivery from the Directus Node.js process, lowering costs and improving speed for end-users.
 
-### B. Storage Optimization
-*   **Native GCS Driver vs. Fuse:**
-    *   *Current:* Uses Fuse mount (`STORAGE_LOCATIONS=local`). Easy, but has higher latency for metadata operations.
-    *   *Enhancement:* Switch to the native driver (`STORAGE_LOCATIONS=gcs`). The driver is already installed in the Dockerfile.
-    *   *Benefit:* Better performance for large asset libraries; supports features like signed URLs for private assets.
-
-### C. Observability
+### B. Observability
 *   **Structured Logging:**
     *   *Current:* `LOG_STYLE=json` is set in Dockerfile, which is excellent for Cloud Logging.
     *   *Enhancement:* Integrate `OpenTelemetry` or trace headers to correlate frontend requests with backend database queries.
 
-### D. Security
+### C. Security
 *   **Rate Limiting:**
     *   *Enhancement:* Enable `RATE_LIMITER_ENABLED` and back it with Redis.
     *   *Benefit:* Protects the API from brute-force attacks or runaway scripts.
