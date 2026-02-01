@@ -1,4 +1,4 @@
-# Deep Dive Analysis: modules/Django
+# Django on Google Cloud Platform
 
 ## 1. Executive Summary
 The `modules/Django` module is a specialized wrapper around the platform's core `CloudRunApp` module. It is designed to deploy a production-ready Django application on Google Cloud Run, backed by Cloud SQL (PostgreSQL) and Cloud Storage (GCS) for media files. The architecture emphasizes statelessness for the application server while ensuring persistence for data and media through managed services.
@@ -75,7 +75,6 @@ The module implements a least-privilege security model using dedicated Service A
 To further harden and improve the module, the following enhancements are recommended:
 
 ### A. Performance & Caching
-*   **Redis/Memorystore Integration**: currently, the module does not explicitly wire up Redis for Django caching or session storage. Adding a `redis.tf` (via `GCP_Services`) and injecting `REDIS_URL` env var would allow using `django-redis`.
 *   **CDN for Static Files**: Currently, `collectstatic` runs locally. For high traffic, configuring `django-storages` to serve static files directly from GCS (public bucket) with Cloud CDN enabled would significantly reduce container load.
 
 ### B. Security
