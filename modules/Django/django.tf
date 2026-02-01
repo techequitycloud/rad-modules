@@ -1,4 +1,12 @@
 locals {
+  # Determine Redis host:
+  # 1. Use provided redis_host if specified.
+  # 2. If redis_host is empty, try to use NFS server IP (if NFS exists).
+  # 3. If neither, leave empty (application should handle missing Redis configuration or fail if strictly required).
+  redis_host_final = var.enable_redis ? (
+    var.redis_host != "" ? var.redis_host : (local.nfs_server_exists ? local.nfs_internal_ip : "")
+  ) : ""
+
   django_module = {
     app_name            = "django"
     description         = "Django Web Application - High-level Python web framework"
@@ -51,7 +59,7 @@ locals {
     min_instance_count = 0
     max_instance_count = 3
 
-    environment_variables = {
+    environment_variables = merge({
       DJANGO_SETTINGS_MODULE    = "myproject.settings"
       APPLICATION_SETTINGS      = ""
       DEBUG                     = "False"
@@ -62,7 +70,11 @@ locals {
       MEDIA_ROOT                = "/app/media"
       DJANGO_SUPERUSER_EMAIL    = "admin@example.com"
       DJANGO_SUPERUSER_USERNAME = "admin"
-    }
+      }, var.enable_redis ? {
+      REDIS_HOST = local.redis_host_final
+      REDIS_PORT = var.redis_port
+      REDIS_URL  = "redis://${local.redis_host_final}:${var.redis_port}/0"
+    } : {})
 
     enable_postgres_extensions = true
     postgres_extensions         = ["pg_trgm", "unaccent", "hstore", "citext"]
