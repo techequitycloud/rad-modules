@@ -315,7 +315,7 @@ locals {
 
     # Redis Configuration
     MOODLE_REDIS_ENABLED  = tostring(var.redis_enabled)
-    MOODLE_REDIS_HOST     = var.redis_enabled ? (var.redis_host != "" ? var.redis_host : local.nfs_internal_ip) : ""
+    MOODLE_REDIS_HOST     = var.redis_enabled ? (var.redis_host != "" ? var.redis_host : (local.nfs_enabled ? local.nfs_internal_ip : "")) : ""
     MOODLE_REDIS_PORT     = var.redis_port
     MOODLE_REDIS_PASSWORD = var.redis_auth
 
