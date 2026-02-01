@@ -317,3 +317,31 @@ variable "network_filesystem_capacity" {
   type        = number
   default     = 10
 }
+
+################################################################################
+# GROUP 0: Advanced Configuration (Admin-only) - Monitoring
+################################################################################
+
+variable "notification_channels" {
+  description = "List of notification channels for alerting. {{UIMeta group=0 order=100 }}"
+  type        = list(string)
+  default     = []
+}
+
+variable "alert_cpu_threshold" {
+  description = "CPU utilization threshold for alerting (percentage). {{UIMeta group=0 order=101 }}"
+  type        = number
+  default     = 80
+}
+
+variable "alert_memory_threshold" {
+  description = "Memory utilization threshold for alerting (percentage). {{UIMeta group=0 order=102 }}"
+  type        = number
+  default     = 80
+}
+
+variable "alert_disk_threshold" {
+  description = "Disk utilization threshold for alerting (percentage). {{UIMeta group=0 order=103 }}"
+  type        = number
+  default     = 80
+}
