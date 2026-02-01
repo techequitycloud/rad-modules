@@ -254,6 +254,38 @@ variable "mysql_tier" {
   default     = "db-custom-1-3840"
 }
 
+variable "postgres_database_flags" {
+  description = "List of database flags to assign to the PostgreSQL instance. {{UIMeta group=0 order=44 }}"
+  type = list(object({
+    name  = string
+    value = string
+  }))
+  default = [
+    {
+      name  = "max_connections"
+      value = "30000"
+    }
+  ]
+}
+
+variable "mysql_database_flags" {
+  description = "List of database flags to assign to the MySQL instance. {{UIMeta group=0 order=45 }}"
+  type = list(object({
+    name  = string
+    value = string
+  }))
+  default = [
+    {
+      name  = "max_connections"
+      value = "30000"
+    },
+    {
+      name  = "local_infile"
+      value = "off"
+    }
+  ]
+}
+
 ################################################################################
 # GROUP 0: Advanced Configuration (Admin-only) - Cache
 ################################################################################
@@ -284,4 +316,32 @@ variable "network_filesystem_capacity" {
   description = "Size of NFS server disks in GB. {{UIMeta group=0 order=91 }}"
   type        = number
   default     = 10
+}
+
+################################################################################
+# GROUP 0: Advanced Configuration (Admin-only) - Monitoring
+################################################################################
+
+variable "notification_channels" {
+  description = "List of notification channels for alerting. {{UIMeta group=0 order=100 }}"
+  type        = list(string)
+  default     = []
+}
+
+variable "alert_cpu_threshold" {
+  description = "CPU utilization threshold for alerting (percentage). {{UIMeta group=0 order=101 }}"
+  type        = number
+  default     = 80
+}
+
+variable "alert_memory_threshold" {
+  description = "Memory utilization threshold for alerting (percentage). {{UIMeta group=0 order=102 }}"
+  type        = number
+  default     = 80
+}
+
+variable "alert_disk_threshold" {
+  description = "Disk utilization threshold for alerting (percentage). {{UIMeta group=0 order=103 }}"
+  type        = number
+  default     = 80
 }
