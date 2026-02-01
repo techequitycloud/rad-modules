@@ -144,6 +144,9 @@ if [[ "$1" == apache2* ]] || [ "$1" = 'php-fpm' ] || { self="$(basename "$0")" &
 						print "if (getenv(\"WP_REDIS_HOST\")) {"
 						print "  define( \"WP_REDIS_HOST\", getenv(\"WP_REDIS_HOST\") );"
 						print "}"
+						print "if (getenv(\"WP_REDIS_PORT\")) {"
+						print "  define( \"WP_REDIS_PORT\", getenv(\"WP_REDIS_PORT\") );"
+						print "}"
 					}
 					{ print }
 				' "$wpConfigDocker" > wp-config.php
