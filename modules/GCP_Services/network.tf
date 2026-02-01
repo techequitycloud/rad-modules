@@ -245,6 +245,10 @@ module "cloud_router" {
 # Enable Private Service Connect in VPC (only if VPC doesn't exist)
 #########################################################################
 
+#########################################################################
+# Enable Private Service Connect in VPC (only if VPC doesn't exist)
+#########################################################################
+
 resource "google_compute_global_address" "psconnect_private_ip_alloc" {  
   project       = local.project.project_id 
   name          = "${var.network_name}-psconnect-ip-range"
@@ -262,6 +266,7 @@ resource "google_compute_global_address" "psconnect_private_ip_alloc" {
   }
 }
 
+# Create the Service Networking service identity
 resource "google_project_service_identity" "servicenetworking_sa" {
   provider = google-beta
   project  = local.project.project_id
@@ -272,16 +277,46 @@ resource "google_project_service_identity" "servicenetworking_sa" {
   ]
 }
 
+# Grant necessary permissions to the Service Networking service account
+resource "google_project_iam_member" "servicenetworking_networksadmin" {
+  project = local.project.project_id
+  role    = "roles/servicenetworking.networksAdmin"
+  member  = "serviceAccount:${google_project_service_identity.servicenetworking_sa.email}"
+
+  depends_on = [
+    google_project_service_identity.servicenetworking_sa
+  ]
+}
+
+resource "google_project_iam_member" "servicenetworking_serviceagent" {
+  project = local.project.project_id
+  role    = "roles/servicenetworking.serviceAgent"
+  member  = "serviceAccount:${google_project_service_identity.servicenetworking_sa.email}"
+
+  depends_on = [
+    google_project_service_identity.servicenetworking_sa
+  ]
+}
+
+# Wait for IAM permissions to propagate
+resource "time_sleep" "wait_for_servicenetworking_iam" {
+  create_duration = "60s"
+
+  depends_on = [
+    google_project_iam_member.servicenetworking_networksadmin,
+    google_project_iam_member.servicenetworking_serviceagent
+  ]
+}
+
+# Create the Service Networking Connection
 resource "google_service_networking_connection" "psconnect" {
-  network                 = "https://www.googleapis.com/compute/v1/projects/${local.project.project_id}/global/networks/${var.network_name}" 
+  network                 = google_compute_network.vpc_network.id
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.psconnect_private_ip_alloc.name] 
-  provider                = google-beta
   deletion_policy         = "ABANDON"
 
   depends_on = [
     google_compute_global_address.psconnect_private_ip_alloc,
-    time_sleep.wait_for_apis,
-    google_project_service_identity.servicenetworking_sa
+    time_sleep.wait_for_servicenetworking_iam
   ]
 }
