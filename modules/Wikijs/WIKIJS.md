@@ -1,4 +1,4 @@
-# Deep Dive Analysis: Wiki.js on Google Cloud Platform
+# DWiki.js on Google Cloud Platform
 
 This document details the implementation of the `modules/Wikijs` module, covering its architecture, security posture, configuration, and potential enhancements.
 
