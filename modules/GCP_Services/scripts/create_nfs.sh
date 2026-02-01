@@ -40,6 +40,14 @@ fi
 echo "Installation complete! gdown is ready to use."
 
 #########################################################################
+# Install Google Cloud Ops Agent
+#########################################################################
+
+echo "Installing Google Cloud Ops Agent..."
+curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+sudo bash add-google-cloud-ops-agent-repo.sh --also-install
+
+#########################################################################
 # Setup Local Disk for NFS Share
 #########################################################################
 
