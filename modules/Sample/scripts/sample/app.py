@@ -1,10 +1,31 @@
 import os
 from urllib.parse import quote_plus
-from flask import Flask, jsonify
+from flask import Flask, jsonify, session
+from flask_session import Session
+import redis
 from sqlalchemy import create_engine, text, Column, Integer
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 app = Flask(__name__)
+
+# Redis Session Configuration
+enable_redis = os.environ.get('ENABLE_REDIS', 'false').lower() == 'true'
+
+if enable_redis:
+    redis_host = os.environ.get('REDIS_HOST')
+    redis_port = int(os.environ.get('REDIS_PORT', 6379))
+    print(f"Redis enabled. Connecting to {redis_host}:{redis_port}")
+
+    app.config['SESSION_TYPE'] = 'redis'
+    app.config['SESSION_PERMANENT'] = False
+    app.config['SESSION_USE_SIGNER'] = True
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_secret_key')
+    app.config['SESSION_REDIS'] = redis.from_url(f"redis://{redis_host}:{redis_port}")
+
+    Session(app)
+else:
+    print("Redis disabled. Using default cookie-based sessions.")
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_secret_key')
 
 # Database Configuration
 db_host = os.environ.get('DB_HOST')
@@ -56,18 +77,25 @@ init_db()
 @app.route('/')
 def hello():
     try:
-        with SessionLocal() as session:
+        # Database Counter
+        with SessionLocal() as db_session:
             # Increment counter
-            visitor = session.query(Visitor).first()
+            visitor = db_session.query(Visitor).first()
             if not visitor:
                 visitor = Visitor(count=0)
-                session.add(visitor)
+                db_session.add(visitor)
 
             visitor.count += 1
-            session.commit()
+            db_session.commit()
             count = visitor.count
 
-        return f"Hello from Sample App! Visitor count: {count}"
+        # Session Counter
+        session_msg = ""
+        if enable_redis:
+            session['visits'] = session.get('visits', 0) + 1
+            session_msg = f" Your session visits: {session['visits']}"
+
+        return f"Hello from Sample App! DB Visitor count: {count}.{session_msg}"
     except Exception as e:
         # Fallback if DB fails
         return f"Hello from Sample App! (DB unavailable: {str(e)})"
