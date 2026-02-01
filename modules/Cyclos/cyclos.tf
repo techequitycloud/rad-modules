@@ -37,9 +37,11 @@ locals {
     max_instance_count = 1
 
     environment_variables = {
-      DB_HOST     = "/var/run/postgresql"
-      DB_PORT     = "5432"
-      CYCLOS_HOME = "/usr/local/cyclos"
+      DB_HOST                             = "/var/run/postgresql"
+      DB_PORT                             = "5432"
+      CYCLOS_HOME                         = "/usr/local/cyclos"
+      "cyclos.storedFileContentManager"            = "gcs"
+      "cyclos.storedFileContentManager.bucketName" = "${var.tenant_deployment_id}-cyclos-storage"
     }
 
     # ✅ Enable PostgreSQL extensions
@@ -240,5 +242,14 @@ locals {
 
   module_secret_env_vars = {}
 
-  module_storage_buckets = []
+  module_storage_buckets = [
+    {
+      name_suffix              = "cyclos-storage"
+      location                 = var.deployment_region
+      storage_class            = "STANDARD"
+      force_destroy            = true
+      versioning_enabled       = false
+      public_access_prevention = "enforced"
+    }
+  ]
 }
