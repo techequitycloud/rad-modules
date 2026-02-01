@@ -151,7 +151,7 @@ RUN set -eux; \
 		echo ''; \
 		echo 'RewriteEngine On'; \
 		echo 'RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]'; \
-		echo 'RewriteBase /'; \
+		echo 'RewriteBase /'; \https://github.com/techequitycloud/rad-modules/blob/main/modules/Wordpress/scripts/wordpress/Dockerfile
 		echo 'RewriteRule ^index\.php$ - [L]'; \
 		echo 'RewriteCond %{REQUEST_FILENAME} !-f'; \
 		echo 'RewriteCond %{REQUEST_FILENAME} !-d'; \
