@@ -147,3 +147,4 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/cloudrun-entrypoint.sh"]
 
 # ✅ CUSTOM: Explicitly set HTTP port to 8069
 CMD ["/entrypoint.sh", "odoo", "--http-port=8069"]
+# Force rebuild hash
