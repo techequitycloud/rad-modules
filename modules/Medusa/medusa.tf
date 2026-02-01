@@ -173,7 +173,7 @@ locals {
     DB_PORT                   = "5432"
     DB_NAME                   = local.database_name_full
     DB_USER                   = local.database_user_full
-    REDIS_URL                 = ""
+    REDIS_URL                 = local.final_redis_url
     MEDUSA_FILE_GOOGLE_BUCKET = ""        # Disable GCS plugin; use Fuse mount at /app/medusa/uploads
     HOST                      = "0.0.0.0" # Ensure binding to all interfaces
   }
@@ -200,6 +200,24 @@ locals {
 # ==============================================================================
 # MEDUSA SPECIFIC RESOURCES
 # ==============================================================================
+# ==============================================================================
+# REDIS CONFIGURATION LOGIC
+# ==============================================================================
+locals {
+  # Logic to determine Redis Host
+  # 1. Use var.redis_host if provided
+  # 2. Fallback to NFS server IP if var.redis_host is empty and NFS is enabled
+  # 3. Otherwise empty
+  final_redis_host = var.enable_redis ? (
+    var.redis_host != "" ? var.redis_host : (
+      local.medusa_module.nfs_enabled ? try(local.nfs_internal_ip, "") : ""
+    )
+  ) : ""
+
+  # Construct Redis URL if host is available
+  final_redis_url = local.final_redis_host != "" ? "redis://${local.final_redis_host}:${var.redis_port}" : ""
+}
+
 resource "random_password" "medusa_jwt_secret" {
   length  = 32
   special = false

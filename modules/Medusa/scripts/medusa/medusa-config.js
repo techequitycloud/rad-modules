@@ -142,10 +142,16 @@ console.log("Active Plugins:", JSON.stringify(plugins, null, 2));
 
 const modules = {
   eventBus: {
-    resolve: "@medusajs/event-bus-local",
+    resolve: REDIS_URL ? "@medusajs/event-bus-redis" : "@medusajs/event-bus-local",
+    options: {
+      redisUrl: REDIS_URL,
+    },
   },
   cacheService: {
-    resolve: "@medusajs/cache-inmemory",
+    resolve: REDIS_URL ? "@medusajs/cache-redis" : "@medusajs/cache-inmemory",
+    options: {
+      redisUrl: REDIS_URL,
+    },
   },
 };
 
