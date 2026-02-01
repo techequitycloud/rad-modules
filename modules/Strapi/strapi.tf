@@ -158,7 +158,7 @@ locals {
     },
     var.redis_enabled ? {
       REDIS_HOST = var.redis_host != null && var.redis_host != "" ? var.redis_host : try(local.nfs_server_ip, "")
-      REDIS_PORT = "6379"
+      REDIS_PORT = var.redis_port
     } : {}
   )
 
