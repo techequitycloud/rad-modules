@@ -423,7 +423,7 @@ EOF
     MANUAL_SETUP    = "no"
     BACKUP_FILEID   = local.final_backup_uri != null ? local.final_backup_uri : ""
     SWARM_MODE      = "no"
-    REDIS_SERVER    = local.nfs_server_exists ? local.nfs_internal_ip : ""
+    REDIS_SERVER    = var.enable_redis ? (var.redis_host != "" ? var.redis_host : (local.nfs_server_exists ? local.nfs_internal_ip : "")) : ""
     REDIS_PORT      = "6379"
     MYSQL_ROOT_PASS = "BLANK"
   }

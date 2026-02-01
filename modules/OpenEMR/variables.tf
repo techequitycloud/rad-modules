@@ -284,6 +284,18 @@ variable "gcs_volumes" {
   default = []
 }
 
+variable "enable_redis" {
+  description = "Enable Redis for session management. {{UIMeta group=0 order=704 updatesafe }}"
+  type        = bool
+  default     = true
+}
+
+variable "redis_host" {
+  description = "Redis host address (e.g., IP address or hostname). If not specified and enable_redis is true, the NFS server will be used as the Redis host. {{UIMeta group=0 order=705 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
 # ===========================
 # GROUP 8: Environment Variables
 # ===========================
