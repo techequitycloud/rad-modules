@@ -16,20 +16,20 @@
 # Cloud SQL Monitoring
 #########################################################################
 
-resource "google_monitoring_alert_policy" "nfs_server_memory_high" {
-  count        = var.create_network_filesystem ? 1 : 0
-  display_name = "NFS Server - High Memory Usage"
+resource "google_monitoring_alert_policy" "cloud_sql_cpu_high" {
+  count        = (var.create_postgres || var.create_mysql) ? 1 : 0
+  display_name = "Cloud SQL - High CPU Usage"
   combiner     = "OR"
   project      = local.project.project_id
 
   conditions {
-    display_name = "NFS Server Memory > ${var.alert_memory_threshold}%"
+    display_name = "Cloud SQL CPU > ${var.alert_cpu_threshold}%"
 
     condition_threshold {
-      filter          = "resource.type = \"gce_instance\" AND metric.type = \"agent.googleapis.com/memory/percent_used\" AND metadata.user_labels.nfsserver = \"true\""
+      filter          = "resource.type = \"cloudsql_database\" AND metric.type = \"cloudsql.googleapis.com/database/cpu/utilization\""
       duration        = "300s"
       comparison      = "COMPARISON_GT"
-      threshold_value = var.alert_memory_threshold
+      threshold_value = var.alert_cpu_threshold / 100.0
 
       aggregations {
         alignment_period   = "60s"
@@ -141,17 +141,19 @@ resource "google_monitoring_alert_policy" "nfs_server_memory_high" {
   conditions {
     display_name = "NFS Server Memory > ${var.alert_memory_threshold}%"
 
-    # Note: Memory utilization metric requires Ops Agent.
-    # Fallback to standard observability metric if agent not present, but for now assuming standard GCE metrics.
-    # Using alias for Agent metric as best practice if Agent is installed.
-    filter          = "resource.type = \"gce_instance\" AND metric.type = \"agent.googleapis.com/memory/percent_used\" AND metadata.user_labels.nfsserver = \"true\""
-    duration        = "300s"
-    comparison      = "COMPARISON_GT"
-    threshold_value = var.alert_memory_threshold
+    condition_threshold {
+      # Note: Memory utilization metric requires Ops Agent.
+      # Fallback to standard observability metric if agent not present, but for now assuming standard GCE metrics.
+      # Using alias for Agent metric as best practice if Agent is installed.
+      filter          = "resource.type = \"gce_instance\" AND metric.type = \"agent.googleapis.com/memory/percent_used\" AND metadata.user_labels.nfsserver = \"true\""
+      duration        = "300s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = var.alert_memory_threshold
 
-    aggregations {
-      alignment_period   = "60s"
-      per_series_aligner = "ALIGN_MEAN"
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_MEAN"
+      }
     }
   }
 
