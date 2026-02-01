@@ -53,10 +53,7 @@ resource "google_sql_database_instance" "mysql_instance" {
 
     # Database flags for performance and security
     dynamic "database_flags" {
-      for_each = [
-        { name = "max_connections", value = "30000" },
-        { name = "local_infile", value = "off" }
-      ]
+      for_each = var.mysql_database_flags
       content {
         name  = database_flags.value.name
         value = database_flags.value.value

@@ -54,9 +54,12 @@ resource "google_sql_database_instance" "postgres_instance" {
       transaction_log_retention_days = 7                     
     }
 
-    database_flags {
-      name  = "max_connections"
-      value = "30000"
+    dynamic "database_flags" {
+      for_each = var.postgres_database_flags
+      content {
+        name  = database_flags.value.name
+        value = database_flags.value.value
+      }
     }
   }
 

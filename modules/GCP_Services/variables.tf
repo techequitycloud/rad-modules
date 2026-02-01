@@ -254,6 +254,38 @@ variable "mysql_tier" {
   default     = "db-custom-1-3840"
 }
 
+variable "postgres_database_flags" {
+  description = "List of database flags to assign to the PostgreSQL instance. {{UIMeta group=0 order=44 }}"
+  type = list(object({
+    name  = string
+    value = string
+  }))
+  default = [
+    {
+      name  = "max_connections"
+      value = "30000"
+    }
+  ]
+}
+
+variable "mysql_database_flags" {
+  description = "List of database flags to assign to the MySQL instance. {{UIMeta group=0 order=45 }}"
+  type = list(object({
+    name  = string
+    value = string
+  }))
+  default = [
+    {
+      name  = "max_connections"
+      value = "30000"
+    },
+    {
+      name  = "local_infile"
+      value = "off"
+    }
+  ]
+}
+
 ################################################################################
 # GROUP 0: Advanced Configuration (Admin-only) - Cache
 ################################################################################
