@@ -106,6 +106,18 @@ variable "enable_redis" {
   default     = true
 }
 
+variable "redis_host" {
+  description = "Redis host (optional). If provided, overrides the default NFS server Redis. {{UIMeta group=0 order=110 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
+variable "redis_port" {
+  description = "Redis port. {{UIMeta group=0 order=110 updatesafe }}"
+  type        = string
+  default     = "6379"
+}
+
 variable "configure_environment" {
   description = "Set to true to deploy Cloud Run service. {{UIMeta group=0 order=111 updatesafe }}"
   type        = bool
