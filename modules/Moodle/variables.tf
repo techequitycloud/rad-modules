@@ -41,9 +41,9 @@ variable "redis_enabled" {
 }
 
 variable "redis_host" {
-  description = "Redis host address. Required if redis_enabled is true. {{UIMeta group=0 order=123 updatesafe }}"
+  description = "Redis host address. Required if redis_enabled is true. If left empty, defaults to the NFS server IP. {{UIMeta group=0 order=123 updatesafe }}"
   type        = string
-  default     = "localhost"
+  default     = ""
 }
 
 variable "redis_port" {
