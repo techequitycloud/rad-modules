@@ -32,7 +32,7 @@ locals {
       cpu_limit    = "1000m"
       memory_limit = "1Gi"
     }
-    min_instance_count = 0
+    min_instance_count = 1
     max_instance_count = 3
 
     # Environment variables
