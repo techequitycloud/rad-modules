@@ -59,7 +59,7 @@ locals {
       # Cache configuration
       CACHE_ENABLED = tostring(var.redis_enabled)
       CACHE_STORE   = var.redis_enabled ? "redis" : "memory"
-      REDIS         = var.redis_enabled ? (var.redis_host != "" ? "redis://${var.redis_host}:${var.redis_port}" : "redis://${local.nfs_internal_ip}:${var.redis_port}") : ""
+      REDIS         = var.redis_enabled ? (var.redis_host != "" ? "redis://${var.redis_host}:${var.redis_port}" : (local.nfs_enabled ? "redis://${local.nfs_internal_ip}:${var.redis_port}" : "")) : ""
 
       # Rate limiting
       RATE_LIMITER_ENABLED  = "false"
