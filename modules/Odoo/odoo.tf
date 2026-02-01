@@ -1,4 +1,8 @@
 locals {
+  # Logic to determine Redis Host (Prefer var.redis_host, else fallback to NFS server IP if NFS is enabled)
+  # This assumes Redis is running on the NFS server (standard for this platform's internal stack)
+  redis_host_final = var.redis_host != null ? var.redis_host : (var.enable_redis && try(local.nfs_server_exists, false) ? try(local.nfs_internal_ip, "") : "")
+
   odoo_module = {
     app_name                = "odoo"
     application_version     = var.application_version
@@ -8,13 +12,15 @@ locals {
     enable_image_mirroring  = true
 
     # image_source    = "build"
-    image_source    = "prebuilt"
+    image_source    = "custom"
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
       context_path       = "."
       dockerfile_content = null
-      build_args         = {}
+      build_args = {
+        ODOO_VERSION = var.application_version
+      }
       artifact_repo_name = null
     }
     container_port  = 8069
@@ -281,7 +287,12 @@ locals {
         description     = "Generate Odoo configuration file"
         image           = "alpine:3.19"
         command         = ["/bin/sh", "-c"]
-        args            = [
+        env_vars = {
+          REDIS_HOST   = local.redis_host_final
+          REDIS_PORT   = var.redis_port
+          ENABLE_REDIS = tostring(var.enable_redis)
+        }
+        args = [
           <<-EOT
             set -e
             echo "=========================================="
@@ -364,7 +375,9 @@ log_db = False
 #########################################################################
 # Worker Configuration
 #########################################################################
-workers = 4
+# Set workers to 0 (Threaded) for Cloud Run compatibility (Single Port 8069)
+# If workers > 0 (Prefork), Odoo splits Longpolling to 8072 which is not exposed.
+workers = 0
 max_cron_threads = 2
 
 #########################################################################
@@ -423,6 +436,19 @@ EOF
                 fi
 
                 echo "SMTP configuration added"
+            fi
+
+            # Append Redis configuration if enabled and host is present
+            if [ "$${ENABLE_REDIS}" = "true" ] && [ -n "$${REDIS_HOST}" ]; then
+                cat >> "$${CONFIG_FILE}" << EOF
+
+#########################################################################
+# Redis Configuration
+#########################################################################
+redis_host = $${REDIS_HOST}
+redis_port = $${REDIS_PORT}
+EOF
+                echo "Redis configuration added"
             fi
 
             # Set proper permissions (Odoo runs as UID 101)

@@ -152,6 +152,24 @@ variable "service_labels" {
   default     = {}
 }
 
+variable "enable_redis" {
+  description = "Set to true to enable Redis usage (defaults to internal Redis if available). {{UIMeta group=0 order=122 updatesafe }}"
+  type        = bool
+  default     = true
+}
+
+variable "redis_host" {
+  description = "Override the Redis host. If left blank and enable_redis is true, the internal Redis server will be used. {{UIMeta group=0 order=123 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "redis_port" {
+  description = "Override the Redis port. {{UIMeta group=0 order=124 updatesafe }}"
+  type        = string
+  default     = "6379"
+}
+
 # ===========================
 # GROUP 1: External Project Configuration
 # ===========================
