@@ -170,18 +170,24 @@ resource "google_monitoring_alert_policy" "nfs_server_memory_high" {
 
 resource "google_monitoring_alert_policy" "nfs_server_health_check_failed" {
   count        = var.create_network_filesystem ? 1 : 0
-  display_name = "NFS Server - Health Check Failed"
+  display_name = "NFS Server - Instance Down or Unhealthy"
   combiner     = "OR"
   enabled      = true
   project      = local.project.project_id
 
   conditions {
-    display_name = "NFS Server Unhealthy"
+    display_name = "NFS Server CPU metrics absent (instance down)"
 
-    condition_monitoring_query_language {
-      # Monitor NFS server uptime via the MIG auto-healing health check
-      query    = "fetch instance_group :: compute.googleapis.com/instance_group/size | filter resource.instance_group_name == '${google_compute_instance_group_manager.nfs_server[0].name}' | group_by [], [val: sum(value.size)] | condition val < 1"
-      duration = "60s"
+    condition_absent {
+      # If CPU metrics are absent, the instance is down or unreachable
+      filter   = "resource.type = \"gce_instance\" AND metric.type = \"compute.googleapis.com/instance/cpu/utilization\" AND metadata.user_labels.nfsserver = \"true\""
+      duration = "300s"
+
+      aggregations {
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_MEAN"
+        cross_series_reducer = "REDUCE_COUNT"
+      }
     }
   }
 
@@ -190,3 +196,4 @@ resource "google_monitoring_alert_policy" "nfs_server_health_check_failed" {
     auto_close = "3600s"
   }
 }
+
