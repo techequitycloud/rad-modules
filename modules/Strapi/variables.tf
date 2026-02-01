@@ -34,6 +34,18 @@ variable "module_services" {
   default     = ["Cloud Run", "Cloud Build", "Artifact Registry", "Cloud Storage", "Cloud SQL", "Cloud IAM", "Cloud Networking", "Secret Manager"]
 }
 
+variable "redis_enabled" {
+  description = "Enable Redis for caching or session storage. {{UIMeta group=0 order=122 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "redis_host" {
+  description = "External Redis host (e.g., Memorystore IP). If left blank and NFS is enabled, the NFS server's internal IP will be used as the Redis host. {{UIMeta group=0 order=123 updatesafe }}"
+  type        = string
+  default     = null
+}
+
 variable "credit_cost" {
   description = "Specify the module cost. {{UIMeta group=0 order=103 }}"
   type        = number
