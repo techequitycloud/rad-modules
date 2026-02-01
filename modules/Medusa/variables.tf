@@ -503,8 +503,21 @@ variable "cicd_trigger_config" {
   }
 }
 
-variable "redis_url" {
-  description = "Connection URL for Redis (e.g., 'redis://:password@host:port'). Required if you want to use Redis for event bus and caching. {{UIMeta group=0 order=802 updatesafe }}"
+
+variable "enable_redis" {
+  description = "Enable Redis for caching and event bus. {{UIMeta group=0 order=802 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "redis_host" {
+  description = "Redis host address. If not provided and NFS is enabled, defaults to the NFS server IP. {{UIMeta group=0 order=803 updatesafe }}"
   type        = string
   default     = ""
+}
+
+variable "redis_port" {
+  description = "Redis port. {{UIMeta group=0 order=804 updatesafe }}"
+  type        = number
+  default     = 6379
 }
