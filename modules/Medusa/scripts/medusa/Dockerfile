@@ -27,9 +27,5 @@ USER node
 # Expose port
 EXPOSE 9000
 
-# Force copy debug script to bypass cache
-# CACHE BUSTER: 2026-01-31_08_V8_DIAGNOSTICS
-COPY debug-start.js .
-
-# Start Medusa server via debug script
-CMD ["node", "debug-start.js"]
+# Start Medusa server
+CMD ["yarn", "start"]

@@ -502,3 +502,9 @@ variable "cicd_trigger_config" {
     description    = "Automated build and deployment trigger"
   }
 }
+
+variable "redis_url" {
+  description = "Connection URL for Redis (e.g., 'redis://:password@host:port'). Required if you want to use Redis for event bus and caching. {{UIMeta group=0 order=802 updatesafe }}"
+  type        = string
+  default     = ""
+}

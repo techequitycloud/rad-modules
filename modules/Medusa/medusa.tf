@@ -173,7 +173,7 @@ locals {
     DB_PORT                   = "5432"
     DB_NAME                   = local.database_name_full
     DB_USER                   = local.database_user_full
-    REDIS_URL                 = ""
+    REDIS_URL                 = var.redis_url
     MEDUSA_FILE_GOOGLE_BUCKET = ""        # Disable GCS plugin; use Fuse mount at /app/medusa/uploads
     HOST                      = "0.0.0.0" # Ensure binding to all interfaces
   }
