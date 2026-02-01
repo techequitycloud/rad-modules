@@ -1,6 +1,11 @@
 locals {
-  # Determine Redis host: Use provided host if set, otherwise default to NFS server if enabled
-  redis_host_final = var.enable_redis ? (var.redis_host != "" ? var.redis_host : local.nfs_internal_ip) : ""
+  # Determine Redis host:
+  # 1. Use provided redis_host if specified.
+  # 2. If redis_host is empty, try to use NFS server IP (if NFS exists).
+  # 3. If neither, leave empty (application should handle missing Redis configuration or fail if strictly required).
+  redis_host_final = var.enable_redis ? (
+    var.redis_host != "" ? var.redis_host : (local.nfs_server_exists ? local.nfs_internal_ip : "")
+  ) : ""
 
   django_module = {
     app_name            = "django"
