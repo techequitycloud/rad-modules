@@ -1,6 +1,6 @@
-# OpenEMR on Google Cloud Platform: Deep Dive Analysis
+# OpenEMR on Google Cloud Platform
 
-This document provides a comprehensive analysis of the OpenEMR implementation within the `modules/OpenEMR` directory. It details the architecture, IAM configurations, service specifications, and available features, along with recommendations for enhancement.
+This document provides an analysis of the OpenEMR implementation within the `modules/OpenEMR` directory. It details the architecture, IAM configurations, service specifications, and available features, along with recommendations for enhancement.
 
 ## 1. Executive Summary
 
@@ -102,7 +102,7 @@ The module implements the Principle of Least Privilege through dedicated Service
 ## 6. Potential Enhancements
 
 ### Infrastructure & Architecture
-1.  **Separate Redis Service:** Currently, Redis is assumed to run on the NFS Server (GCE). Migrating to **Cloud Memorystore for Redis** would improve reliability, manageability, and scalability.
+1.  **Separate Redis Service:** Migrating to **Cloud Memorystore for Redis** would improve reliability, manageability, and scalability.
 2.  **Managed NFS (Filestore):** Replacing the GCE-based NFS server with **Cloud Filestore** (Basic Tier) would remove the burden of managing the storage VM and improve availability.
 3.  **WAF / Cloud Armor:** If `ingress_settings` is `all`, the service is exposed directly. Implementing a Global Load Balancer with **Cloud Armor** is recommended to protect against OWASP Top 10 attacks.
 
