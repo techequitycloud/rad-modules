@@ -40,6 +40,12 @@ variable "enable_redis" {
   default     = false
 }
 
+variable "redis_host" {
+  description = "Specify a custom Redis host. If provided, this overrides the default NFS server Redis instance. {{UIMeta group=0 order=103 }}"
+  type        = string
+  default     = null
+}
+
 variable "credit_cost" {
   description = "Specify the module cost. {{UIMeta group=0 order=103 }}"
   type        = number
