@@ -46,6 +46,12 @@ variable "redis_host" {
   default     = null
 }
 
+variable "redis_port" {
+  description = "The port for the Redis connection. {{UIMeta group=0 order=103 }}"
+  type        = string
+  default     = "6379"
+}
+
 variable "credit_cost" {
   description = "Specify the module cost. {{UIMeta group=0 order=103 }}"
   type        = number
