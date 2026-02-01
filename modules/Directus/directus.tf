@@ -219,7 +219,7 @@ locals {
   application_modules = {
     directus = local.directus_module
   }
-  
+
   redis_connection_string = var.redis_enabled ? (
     var.redis_host != "" ? "redis://${var.redis_host}:${var.redis_port}" : 
     "redis://${local.nfs_internal_ip}:${var.redis_port}"
@@ -234,13 +234,17 @@ locals {
     STORAGE_GCS_BUCKET = "${local.resource_prefix}-directus-uploads"
   }
 
-  module_secret_env_vars = {
-    KEY            = try(google_secret_manager_secret.directus_key.secret_id, "")
-    SECRET         = try(google_secret_manager_secret.directus_secret.secret_id, "")
-    ADMIN_PASSWORD = try(google_secret_manager_secret.directus_admin_password.secret_id, "")
-    DB_PASSWORD    = try(google_secret_manager_secret.db_password[0].secret_id, "")
-    REDIS          = var.redis_enabled ? try(google_secret_manager_secret.directus_redis[0].secret_id, "") : ""
-  }
+  module_secret_env_vars = merge(
+    {
+      KEY            = try(google_secret_manager_secret.directus_key.secret_id, "")
+      SECRET         = try(google_secret_manager_secret.directus_secret.secret_id, "")
+      ADMIN_PASSWORD = try(google_secret_manager_secret.directus_admin_password.secret_id, "")
+      DB_PASSWORD    = try(google_secret_manager_secret.db_password[0].secret_id, "")
+    },
+    var.redis_enabled ? {
+      REDIS = try(google_secret_manager_secret.directus_redis[0].secret_id, "")
+    } : {}
+  )
 
   module_storage_buckets = [
     {
@@ -274,37 +278,44 @@ resource "google_secret_manager_secret_version" "directus_redis" {
   secret_data = local.redis_connection_string
 }
 
-# Grant Cloud Run service account access to the Redis secret
-# Note: iam.tf handles generic secret access if it iterates over all secrets?
-# iam.tf iterates over `local.secret_environment_variables`.
-# Since we added REDIS to `module_secret_env_vars`, it will be included in `local.secret_environment_variables`.
-# So iam.tf will automatically grant access!
-
-
 # ==============================================================================
 # DIRECTUS SPECIFIC RESOURCES
 # ==============================================================================
 
-# Explicitly create the GCS bucket since we removed it from gcs_volumes
-resource "google_storage_bucket" "directus_uploads" {
-  name                        = "${local.resource_prefix}-directus-uploads"
-  location                    = var.deployment_region
-  storage_class               = "STANDARD"
-  force_destroy               = true
-  uniform_bucket_level_access = true
-  public_access_prevention    = "inherited"
-
-  lifecycle {
-    prevent_destroy = false
-  }
-}
-
 # Grant Cloud Run Service Account access to the bucket
-resource "google_storage_bucket_iam_member" "directus_uploads_admin" {
-  bucket = google_storage_bucket.directus_uploads.name
-  role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${local.cloud_run_sa_email}"
-}
+# Note: The bucket is created via module_storage_buckets logic in main.tf (storage.tf), 
+# because we included it in `module_storage_buckets`.
+# So we don't need to create it here again.
+# We just need to ensure permissions.
+# `storage.tf` creates `google_storage_bucket.buckets` based on `local.storage_buckets`.
+
+# Wait, `module_storage_buckets` logic in `main.tf`:
+# storage_buckets = local.create_cloud_storage ? { for bucket in local.all_storage_buckets ... }
+# all_storage_buckets = concat(var.storage_buckets, local.preset_storage_buckets)
+# preset_storage_buckets = concat(local.module_storage_buckets)
+# So yes, the bucket IS created by `main.tf` -> `storage.tf`.
+# The previous `gcs_volumes` logic was separate or supplementary?
+# Ah, `gcs_volumes` usually implies mounting. If `bucket_name` is null, does it create it?
+# In `main.tf`, `gcs_volumes` logic: `bucket_name = (vol.bucket_name != null ...) ? ... : try(local.storage_buckets[vol.name].name, null)`
+# It tries to find the bucket in `local.storage_buckets`.
+# So the bucket creation was ALWAYS driven by `module_storage_buckets` (or `var.storage_buckets`).
+# `gcs_volumes` just referenced it.
+
+# Therefore:
+# 1. We keep `module_storage_buckets` (we have it).
+# 2. `storage.tf` creates the bucket.
+# 3. `iam.tf` grants `roles/storage.objectAdmin` to `local.cloud_run_sa_email` for all buckets in `local.storage_buckets`.
+#    Checking `iam.tf`:
+#    resource "google_storage_bucket_iam_member" "bucket_access" {
+#      for_each = local.create_cloud_storage ? local.storage_buckets : {}
+#      bucket = google_storage_bucket.buckets[each.key].name
+#      role   = "roles/storage.objectAdmin"
+#      member = "serviceAccount:${local.cloud_run_sa_email}"
+#    }
+
+# CONCLUSION:
+# - We do NOT need `resource "google_storage_bucket" "directus_uploads"` here. (It duplicates main.tf/storage.tf).
+# - We do NOT need explicit IAM binding here. (`iam.tf` handles it).
 
 resource "random_password" "directus_key" {
   length  = 32
