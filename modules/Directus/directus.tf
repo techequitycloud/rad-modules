@@ -69,6 +69,7 @@ locals {
 
       # Storage configuration - Use GCS native driver
       STORAGE_LOCATIONS  = "gcs"
+      STORAGE_GCS_DRIVER = "gcs"
 
       # Email configuration (optional)
       EMAIL_FROM = "noreply@your-domain.com"
