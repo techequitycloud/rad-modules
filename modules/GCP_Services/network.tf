@@ -261,14 +261,3 @@ resource "google_compute_global_address" "psconnect_private_ip_alloc" {
     prevent_destroy = false
   }
 }
-
-# Create the Service Networking service identity
-resource "google_project_service_identity" "servicenetworking_sa" {
-  provider = google-beta
-  project  = local.project.project_id
-  service  = "servicenetworking.googleapis.com"
-
-  depends_on = [
-    time_sleep.wait_for_apis
-  ]
-}
