@@ -19,7 +19,10 @@ locals {
       context_path       = "wordpress"
       dockerfile_content = null
       build_args = {
-        APP_VERSION = var.application_version
+        APP_VERSION         = var.application_version
+        PHP_MEMORY_LIMIT    = var.php_memory_limit
+        UPLOAD_MAX_FILESIZE = var.upload_max_filesize
+        POST_MAX_SIZE       = var.post_max_size
       }
       artifact_repo_name = null
     }

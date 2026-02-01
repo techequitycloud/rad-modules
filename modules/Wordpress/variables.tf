@@ -82,6 +82,24 @@ variable "deployment_regions" {
   default     = []
 }
 
+variable "php_memory_limit" {
+  description = "PHP memory limit (e.g., '512M'). {{UIMeta group=0 order=110 updatesafe }}"
+  type        = string
+  default     = "512M"
+}
+
+variable "upload_max_filesize" {
+  description = "Maximum upload file size (e.g., '64M'). {{UIMeta group=0 order=110 updatesafe }}"
+  type        = string
+  default     = "64M"
+}
+
+variable "post_max_size" {
+  description = "Maximum POST data size (e.g., '64M'). {{UIMeta group=0 order=110 updatesafe }}"
+  type        = string
+  default     = "64M"
+}
+
 variable "configure_environment" {
   description = "Set to true to deploy Cloud Run service. {{UIMeta group=0 order=111 updatesafe }}"
   type        = bool
