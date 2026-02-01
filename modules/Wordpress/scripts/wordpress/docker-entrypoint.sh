@@ -143,6 +143,8 @@ if [[ "$1" == apache2* ]] || [ "$1" = 'php-fpm' ] || { self="$(basename "$0")" &
 					/Stop editing/ {
 						print "if (getenv(\"WP_REDIS_HOST\")) {"
 						print "  define( \"WP_REDIS_HOST\", getenv(\"WP_REDIS_HOST\") );"
+						print "} elseif (getenv(\"NFS_SERVER_IP\")) {"
+						print "  define( \"WP_REDIS_HOST\", getenv(\"NFS_SERVER_IP\") );"
 						print "}"
 						print "if (getenv(\"WP_REDIS_PORT\")) {"
 						print "  define( \"WP_REDIS_PORT\", getenv(\"WP_REDIS_PORT\") );"
