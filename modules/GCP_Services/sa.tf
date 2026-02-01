@@ -256,14 +256,3 @@ resource "google_project_iam_member" "servicenetworking_compute_admin" {
     time_sleep.wait_for_apis
   ]
 }
-
-# Wait for IAM permissions to propagate before creating service networking connection
-resource "time_sleep" "wait_for_servicenetworking_iam" {
-  create_duration = "45s"
-
-  depends_on = [
-    google_project_iam_member.servicenetworking_agent,
-    google_project_iam_member.servicenetworking_network_admin,
-    google_project_iam_member.servicenetworking_compute_admin
-  ]
-}
