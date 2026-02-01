@@ -129,6 +129,24 @@ variable "execution_environment" {
   }
 }
 
+variable "enable_redis" {
+  description = "Set to true to enable Redis configuration. If enabled and no host is provided, it defaults to the NFS server. {{UIMeta group=0 order=119 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "redis_host" {
+  description = "Hostname or IP of the Redis server. If left blank and enable_redis is true, defaults to the NFS server IP. {{UIMeta group=0 order=120 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
+variable "redis_port" {
+  description = "Port of the Redis server. {{UIMeta group=0 order=121 updatesafe }}"
+  type        = string
+  default     = "6379"
+}
+
 variable "secret_propagation_delay" {
   description = "Delay in seconds after creating secrets before using them (0-300). {{UIMeta group=0 order=119 updatesafe }}"
   type        = number
