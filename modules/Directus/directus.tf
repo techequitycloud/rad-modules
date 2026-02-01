@@ -33,22 +33,7 @@ locals {
     nfs_mount_path = "/mnt/nfs"
 
     # GCS volumes for uploads
-    gcs_volumes = [
-      {
-        name        = "directus-uploads"
-        bucket_name = null # Will be auto-generated
-        mount_path  = "/directus/uploads"
-        read_only   = false
-        readonly    = false
-        mount_options = [
-          "implicit-dirs",
-          "file-mode=777",
-          "dir-mode=777",
-          "uid=1000", # node user UID
-          "gid=1000"  # node group GID
-        ]
-      }
-    ]
+    gcs_volumes = []
 
     # Resource limits
     container_resources = {
@@ -72,16 +57,17 @@ locals {
       PUBLIC_URL = "https://your-directus-url.run.app"
 
       # Cache configuration
-      CACHE_ENABLED = "false"
+      CACHE_ENABLED = tostring(var.redis_enabled)
+      CACHE_STORE   = var.redis_enabled ? "redis" : "memory"
+      REDIS         = var.redis_enabled ? (var.redis_host != "" ? "redis://${var.redis_host}:${var.redis_port}" : (local.nfs_enabled ? "redis://${local.nfs_internal_ip}:${var.redis_port}" : "")) : ""
 
       # Rate limiting
       RATE_LIMITER_ENABLED  = "false"
       RATE_LIMITER_POINTS   = "50"
       RATE_LIMITER_DURATION = "1"
 
-      # Storage configuration - Use LOCAL with GCS Fuse mount
-      STORAGE_LOCATIONS  = "local"
-      STORAGE_LOCAL_ROOT = "/directus/uploads"
+      # Storage configuration - Use GCS native driver
+      STORAGE_LOCATIONS  = "gcs"
 
       # Email configuration (optional)
       EMAIL_FROM = "noreply@your-domain.com"
@@ -234,11 +220,12 @@ locals {
   }
 
   module_env_vars = {
-    DB_HOST     = local.db_internal_ip
-    DB_DATABASE = local.database_name_full
-    DB_USER     = local.database_user_full
-    PUBLIC_URL  = local.predicted_service_url
-    ADMIN_EMAIL = try(local.final_environment_variables["ADMIN_EMAIL"], "admin@example.com")
+    DB_HOST            = local.db_internal_ip
+    DB_DATABASE        = local.database_name_full
+    DB_USER            = local.database_user_full
+    PUBLIC_URL         = local.predicted_service_url
+    ADMIN_EMAIL        = try(local.final_environment_variables["ADMIN_EMAIL"], "admin@example.com")
+    STORAGE_GCS_BUCKET = "${local.resource_prefix}-directus-uploads"
   }
 
   module_secret_env_vars = {
