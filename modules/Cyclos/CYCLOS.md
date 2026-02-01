@@ -88,10 +88,9 @@ To improve performance, scalability, and cost-efficiency, the following enhancem
     2.  **Use GCS:** For better scalability, configure `cyclos.storedFileContentManager = gcs` and provide the bucket name.
 
 ### B. Enable Clustering & Auto-Scaling
-*   **Observation:** The service is pinned to 1 instance.
-*   **Recommendation:** Enable Hazelcast clustering to allow multiple Cloud Run instances.
+*   **Observation:** The service is pinned to 1 instance. Hazelcast requires a discovery mechanism (TCP/IP or K8s DNS). 
+*   **Recommendation:** Migrate to GKE and enable Hazelcast clustering to allow multiple Cloud Run instances.
     *   Update `cyclos.properties`: `cyclos.clusterHandler = hazelcast`.
-    *   Challenge: Hazelcast requires a discovery mechanism (TCP/IP or K8s DNS). On Cloud Run, this may require specific "peer discovery" agents or using **Google Memorystore (Redis)** for session sharing if Cyclos supports Redis-backed sessions (property `cyclos.sessions.save_handler`).
 
 ### C. Offload Search to OpenSearch
 *   **Observation:** Search runs on the DB, competing for resources.
