@@ -1,4 +1,4 @@
-# Deep Dive Analysis: modules/Odoo on GCP
+# Odoo on Google Cloud Platform
 
 This analysis details the implementation of the `modules/Odoo` module, covering architecture, IAM, services, configuration, features, and the implemented enhancements.
 
@@ -80,22 +80,3 @@ The Cloud Run service overrides the container's default command:
     *   Includes `wkhtmltopdf` (patched).
     *   Flexible SHA verification for nightly builds.
 
-## 5. Enhancements Implemented
-
-The following enhancements have been applied:
-
-1.  **Redis Integration:**
-    *   Added `enable_redis` (default `true`), `redis_host`, and `redis_port` (default `6379`) variables.
-    *   Logic automatically detects the internal NFS IP (where Redis runs) if available and no override is provided.
-    *   `python3-redis` library added to the container image.
-
-2.  **Version Control:**
-    *   Pinned default Odoo version to **18.0** (Stable).
-    *   Allowed module creators to specify version via `application_version`.
-    *   Made Dockerfile build args flexible (skipping SHA check if not provided) to support nightly builds dynamically.
-
-3.  **Cloud Run Optimization:**
-    *   Configured `workers = 0` (Threaded Mode) by default. This avoids the port split (8069/8072) caused by Prefork mode, ensuring all traffic (including Longpolling) is handled correctly on the single exposed Cloud Run port.
-
-4.  **Custom Image:**
-    *   Switched default `image_source` to `custom` to ensure all the above package dependencies and build arguments are utilized.
