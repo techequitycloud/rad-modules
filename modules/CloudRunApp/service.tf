@@ -189,6 +189,8 @@ resource "google_cloud_run_v2_service" "app_service" {
         for_each = merge(
           # Default database host (can be overridden by static_env_vars)
           local.sql_server_exists ? { DB_HOST = local.db_internal_ip } : {},
+          # Inject NFS Server IP if NFS is enabled
+          local.nfs_enabled && local.nfs_server_exists ? { NFS_SERVER_IP = local.nfs_internal_ip } : {},
           local.static_env_vars
         )
         content {
