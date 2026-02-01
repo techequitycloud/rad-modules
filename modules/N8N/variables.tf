@@ -34,6 +34,24 @@ variable "module_services" {
   default     = ["Cloud Run", "Cloud Build", "Artifact Registry", "Cloud Storage", "Cloud SQL", "Cloud IAM", "Cloud Networking", "Secret Manager"]
 }
 
+variable "enable_redis" {
+  description = "Set to true to enable the use of Redis (requires NFS server with Redis). {{UIMeta group=0 order=103 }}"
+  type        = bool
+  default     = false
+}
+
+variable "redis_host" {
+  description = "Specify a custom Redis host. If provided, this overrides the default NFS server Redis instance. {{UIMeta group=0 order=103 }}"
+  type        = string
+  default     = null
+}
+
+variable "redis_port" {
+  description = "The port for the Redis connection. {{UIMeta group=0 order=103 }}"
+  type        = string
+  default     = "6379"
+}
+
 variable "credit_cost" {
   description = "Specify the module cost. {{UIMeta group=0 order=103 }}"
   type        = number

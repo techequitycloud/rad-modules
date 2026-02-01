@@ -158,6 +158,8 @@ locals {
     N8N_DEFAULT_BINARY_DATA_MODE = "filesystem"
     WEBHOOK_URL                  = local.predicted_service_url
     N8N_EDITOR_BASE_URL          = local.predicted_service_url
+    QUEUE_BULL_REDIS_HOST        = var.redis_host != null ? var.redis_host : (var.enable_redis && local.nfs_server_exists ? local.nfs_internal_ip : "")
+    QUEUE_BULL_REDIS_PORT        = var.redis_host != null || (var.enable_redis && local.nfs_server_exists) ? var.redis_port : ""
   }
 
   n8n_secret_env_vars = {
