@@ -1,4 +1,4 @@
-# Deep Dive Analysis: modules/Medusa
+# Medusa on Google Cloud Platform
 
 This document provides a comprehensive technical analysis of the `modules/Medusa` implementation on Google Cloud Platform. It details the architecture, IAM configuration, service integrations, and operational logic, along with recommendations for enhancements.
 
