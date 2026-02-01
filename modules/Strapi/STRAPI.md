@@ -1,4 +1,4 @@
-# Deep Dive Analysis: modules/Strapi
+# Strapi on the Google Cloud Platform
 
 This document provides a comprehensive analysis of the `modules/Strapi` implementation on the Google Cloud Platform. It covers the architectural design, IAM and access control, service configurations, existing features, and potential enhancements.
 
@@ -106,7 +106,6 @@ Sensitive information is strictly managed via **Secret Manager**. The module aut
 While the current implementation is robust, the following enhancements could improve performance, security, and manageability:
 
 ### Performance & Scalability
-*   **Redis Caching:** Strapi supports Redis for caching. Provisioning a Cloud Memorystore (Redis) instance and injecting `REDIS_HOST`/`REDIS_PORT` would allow configuring the Redis cache plugin.
 *   **CDN Integration:** Setting up Cloud CDN in front of the GCS bucket used for uploads would drastically reduce latency for media delivery.
 
 ### Security
