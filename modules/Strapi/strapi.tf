@@ -147,7 +147,7 @@ locals {
 
   # Environment Variables Mapping
   # Maps infrastructure values (IPs, Secrets) to Application Env Vars
-  module_env_vars = {
+  module_env_vars = merge({
     DATABASE_HOST     = local.db_internal_ip
     DATABASE_PORT     = "5432"
     DATABASE_NAME     = local.database_name_full
@@ -155,7 +155,12 @@ locals {
     STRAPI_URL        = local.predicted_service_url
     GCS_BUCKET_NAME   = try(local.storage_buckets["strapi-uploads"].name, "")
     GCS_BASE_URL      = "https://storage.googleapis.com/${try(local.storage_buckets["strapi-uploads"].name, "")}"
-  }
+    },
+    var.redis_enabled && (var.redis_host != null && var.redis_host != "" || try(local.nfs_server_ip, "") != "") ? {
+      REDIS_HOST = var.redis_host != null && var.redis_host != "" ? var.redis_host : local.nfs_server_ip
+      REDIS_PORT = var.redis_port
+    } : {}
+  )
 
   module_secret_env_vars = {
     DATABASE_PASSWORD   = try(google_secret_manager_secret.db_password[0].secret_id, "")
