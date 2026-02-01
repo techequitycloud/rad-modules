@@ -4,7 +4,7 @@ This document provides a comprehensive analysis of the `modules/Ghost` implement
 
 ## 1. Executive Summary
 
-The `modules/Ghost` module leverages a **Wrapper Module Architecture**. It acts as a specialized configuration layer around a shared foundation (likely `modules/CloudRunApp`), inheriting robust infrastructure logic while injecting Ghost-specific requirements.
+The `modules/Ghost` module leverages a **Wrapper Module Architecture**. It acts as a specialized configuration layer around a shared foundation (`modules/CloudRunApp`), inheriting robust infrastructure logic while injecting Ghost-specific requirements.
 
 *   **Architecture:** Symlinked Terraform files (`service.tf`, `iam.tf`, etc.) reuse core platform logic, while `ghost.tf` provides the specific application definition.
 *   **Runtime:** Runs on **Cloud Run (Gen2)** using a custom container image based on `ghost:6.14.0`.
