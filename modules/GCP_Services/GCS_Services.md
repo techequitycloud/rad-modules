@@ -133,22 +133,10 @@ To further mature the platform, the following enhancements are recommended:
 ### 6.1 Security Hardening
 1.  **Cloud SQL SSL Enforcement:** Set `ssl_mode = "ENCRYPTED_ONLY"` (Postgres) or `require_ssl` (MySQL) to mandate encrypted connections. Current config allows unencrypted fallback.
 2.  **Deletion Protection:** Enable `deletion_protection` for Production databases to prevent accidental Terraform destroy data loss.
-3.  **Least Privilege for Cloud Build:** The `cloudbuild-sa` has `roles/owner`-level equivalence. Scoping this down (e.g., restricting which secrets it can access) reduces blast radius.
-4.  **CMEK Support:** Add support for Customer-Managed Encryption Keys for Cloud SQL and GCS buckets for regulated environments.
+3.  **CMEK Support:** Add support for Customer-Managed Encryption Keys for Cloud SQL and GCS buckets for regulated environments.
 
 ### 6.2 Reliability & Availability
 1.  **Multi-Region config:** While subnets are multi-region, the resources (SQL, NFS) default to `local.region` (index 0). Adding logic to deploy Read Replicas for SQL in a secondary region would improve DR.
 2.  **Filestore Enterprise:** Add support for `ENTERPRISE` tier Filestore for critical workloads requiring regional availability (current config supports BASIC tiers).
+3.  **Memorystore for Redis:** Add support for `STABDARD` tier for a highly available Redis instance that includes automatically enabled cross-zone replication and automatic failover..
 
-### 6.3 Observability
-1.  **Alerting Policies:** The module creates infrastructure but no monitors. Add `google_monitoring_alert_policy` resources for:
-    *   Cloud SQL CPU/Memory/Disk usage high.
-    *   NFS Server health check failure.
-    *   Redis memory usage.
-2.  **Dashboard:** Create a standard Cloud Monitoring Dashboard in Terraform visualizing these key metrics.
-
-### 6.4 Cost Management
-1.  **Cloud Scheduler:** Implement a "Sleep Mode" using Cloud Scheduler to stop the NFS VM and Cloud SQL instances during non-business hours for Dev environments.
-
-### 6.5 Configuration
-1.  **Database Flags:** Expose `database_flags` as a variable map to allow users to tune Postgres/MySQL parameters (e.g., `work_mem`, `max_connections`) without editing module code.
