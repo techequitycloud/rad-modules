@@ -1,7 +1,7 @@
-# Deep Dive Analysis: `modules/Sample`
+# Sample web application on Google Cloud Platform
 
 ## 1. Executive Summary
-The `modules/Sample` module acts as a reference implementation for deploying custom applications on the Google Cloud Platform (GCP) using the platform's wrapper module architecture. It leverages the foundation `CloudRunApp` module to deploy a Python Flask application connected to a Cloud SQL PostgreSQL database. It demonstrates best practices for containerization, database initialization, secrets management, and secure networking.
+The `modules/Sample` module acts as a reference implementation for deploying custom web applications on the Google Cloud Platform (GCP) using the platform's wrapper module architecture. It leverages the foundation `CloudRunApp` module to deploy a Python Flask application connected to a Cloud SQL PostgreSQL database. It demonstrates best practices for containerization, database initialization, secrets management, and secure networking.
 
 ## 2. Architecture Overview
 The module employs a serverless architecture centered around Cloud Run, utilizing a "Wrapper Module" pattern where `Sample` inherits infrastructure logic from `CloudRunApp` via symlinks, defining only its specific configuration in `sample.tf` and application logic in `scripts/sample`.
