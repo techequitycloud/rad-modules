@@ -79,17 +79,8 @@ The Cloud Run Service Account is granted:
 
 ## 5. Findings & Potential Enhancements
 
-### Findings
-- **Redis Discrepancy**: The `README.md` claims Redis support and the installation of the Redis PHP extension. However, the analysis reveals that **neither the Redis PHP extension (`pecl install redis`) is installed in the Dockerfile, nor is a Redis instance (Memorystore) connected/provisioned.**
-- **Upload Limits**: PHP upload limits (`upload_max_filesize`, `post_max_size`) rely on defaults. Explicit configuration via `uploads.ini` would be beneficial.
-
 ### Enhancements
-1.  **Implement Redis Caching**:
-    - Install `redis` PHP extension in `Dockerfile`.
-    - Integrate with Cloud Memorystore (Redis) via `GCP_Services` or a new resource.
-    - Configure `WP_REDIS_HOST` environment variable.
 2.  **PHP Tuning**:
-    - Expose `PHP_MEMORY_LIMIT` and upload limits as environment variables.
     - Tune `opcache` further based on load.
 3.  **Email Delivery**:
     - Configure SMTP settings (e.g., SendGrid, Mailgun) via environment variables to ensure WordPress can send emails (currently relies on default PHP `mail()`, which often fails in containers).
