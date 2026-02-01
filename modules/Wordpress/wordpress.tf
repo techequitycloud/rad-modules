@@ -52,7 +52,7 @@ locals {
       WORDPRESS_DB_HOST      = "localhost:/tmp/mysqld.sock"
       WORDPRESS_TABLE_PREFIX = "wp_"
       WORDPRESS_DEBUG        = "false"
-    }, var.enable_redis && local.nfs_server_exists ? { WP_REDIS_HOST = local.nfs_internal_ip } : {})
+    }, var.enable_redis ? (var.redis_host != "" ? { WP_REDIS_HOST = var.redis_host } : (local.nfs_server_exists ? { WP_REDIS_HOST = local.nfs_internal_ip } : {})) : {})
 
     # MySQL plugins
     enable_mysql_plugins = false

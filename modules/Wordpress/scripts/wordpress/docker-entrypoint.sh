@@ -140,6 +140,11 @@ if [[ "$1" == apache2* ]] || [ "$1" = 'php-fpm' ] || { self="$(basename "$0")" &
 						close(cmd)
 						gsub("put your unique phrase here", str)
 					}
+					/Stop editing/ {
+						print "if (getenv(\"WP_REDIS_HOST\")) {"
+						print "  define( \"WP_REDIS_HOST\", getenv(\"WP_REDIS_HOST\") );"
+						print "}"
+					}
 					{ print }
 				' "$wpConfigDocker" > wp-config.php
 				if [ "$uid" = '0' ]; then
