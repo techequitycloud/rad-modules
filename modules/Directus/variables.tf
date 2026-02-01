@@ -291,6 +291,12 @@ variable "redis_host" {
   default     = ""
 }
 
+variable "redis_port" {
+  description = "Redis port. Defaults to 6379. {{UIMeta group=0 order=706 updatesafe }}"
+  type        = string
+  default     = "6379"
+}
+
 # ===========================
 # GROUP 8: Environment Variables
 # ===========================
