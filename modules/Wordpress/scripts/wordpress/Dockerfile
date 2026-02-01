@@ -7,6 +7,9 @@
 FROM php:8.4-apache
 
 ARG APP_VERSION
+ARG PHP_MEMORY_LIMIT=512M
+ARG UPLOAD_MAX_FILESIZE=64M
+ARG POST_MAX_SIZE=64M
 
 # persistent dependencies
 RUN set -eux; \
@@ -51,6 +54,8 @@ RUN set -ex; \
 # https://pecl.php.net/package/imagick
 	pecl install imagick-3.8.0; \
 	docker-php-ext-enable imagick; \
+	pecl install redis; \
+	docker-php-ext-enable redis; \
 	rm -r /tmp/pear; \
 	\
 # some misbehaving extensions end up outputting to stdout 🙈 (https://github.com/docker-library/wordpress/issues/669#issuecomment-993945967)
@@ -104,6 +109,12 @@ RUN { \
 		echo 'ignore_repeated_source = Off'; \
 		echo 'html_errors = Off'; \
 	} > /usr/local/etc/php/conf.d/error-logging.ini
+
+RUN { \
+		echo "memory_limit = ${PHP_MEMORY_LIMIT}"; \
+		echo "upload_max_filesize = ${UPLOAD_MAX_FILESIZE}"; \
+		echo "post_max_size = ${POST_MAX_SIZE}"; \
+	} > /usr/local/etc/php/conf.d/uploads.ini
 
 RUN set -eux; \
 	a2enmod rewrite expires; \

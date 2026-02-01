@@ -19,7 +19,10 @@ locals {
       context_path       = "wordpress"
       dockerfile_content = null
       build_args = {
-        APP_VERSION = var.application_version
+        APP_VERSION         = var.application_version
+        PHP_MEMORY_LIMIT    = var.php_memory_limit
+        UPLOAD_MAX_FILESIZE = var.upload_max_filesize
+        POST_MAX_SIZE       = var.post_max_size
       }
       artifact_repo_name = null
     }
@@ -45,11 +48,11 @@ locals {
     max_instance_count = 3
 
     # Environment variables
-    environment_variables = {
+    environment_variables = merge({
       WORDPRESS_DB_HOST      = "localhost:/tmp/mysqld.sock"
       WORDPRESS_TABLE_PREFIX = "wp_"
       WORDPRESS_DEBUG        = "false"
-    }
+    }, var.enable_redis && local.nfs_server_exists ? { WP_REDIS_HOST = local.nfs_internal_ip } : {})
 
     # MySQL plugins
     enable_mysql_plugins = false
