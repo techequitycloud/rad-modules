@@ -219,40 +219,56 @@ resource "google_project_iam_member" "nfs_server_sa" {
 # Required for Cloud SQL, Memorystore, and other managed services
 #########################################################################
 
-# Get project details dynamically
-data "google_project" "current" {
-  project_id = var.existing_project_id
+# Create the Service Networking service identity
+resource "google_project_service_identity" "servicenetworking_sa" {
+  provider = google-beta
+  project  = local.project.project_id
+  service  = "servicenetworking.googleapis.com"
+
+  depends_on = [
+    time_sleep.wait_for_apis
+  ]
 }
 
-# Grant Service Networking Agent role (required for creating VPC peering)
-resource "google_project_iam_member" "servicenetworking_agent" {
-  project = var.existing_project_id
+# Grant necessary permissions to the Service Networking service account
+resource "google_project_iam_member" "servicenetworking_networksadmin" {
+  project = local.project.project_id
+  role    = "roles/servicenetworking.networksAdmin"
+  member  = "serviceAccount:${google_project_service_identity.servicenetworking_sa.email}"
+
+  depends_on = [
+    google_project_service_identity.servicenetworking_sa
+  ]
+}
+
+resource "google_project_iam_member" "servicenetworking_serviceagent" {
+  project = local.project.project_id
   role    = "roles/servicenetworking.serviceAgent"
-  member  = "serviceAccount:service-${data.google_project.current.number}@service-networking.iam.gserviceaccount.com"
+  member  = "serviceAccount:${google_project_service_identity.servicenetworking_sa.email}"
 
   depends_on = [
-    time_sleep.wait_for_apis
+    google_project_service_identity.servicenetworking_sa
   ]
 }
 
-# Grant Compute Network Admin role (required for listing global addresses)
-resource "google_project_iam_member" "servicenetworking_network_admin" {
-  project = var.existing_project_id
+# Grant Compute Network Admin role for managing VPC peering
+resource "google_project_iam_member" "servicenetworking_compute_network_admin" {
+  project = local.project.project_id
   role    = "roles/compute.networkAdmin"
-  member  = "serviceAccount:service-${data.google_project.current.number}@service-networking.iam.gserviceaccount.com"
+  member  = "serviceAccount:${google_project_service_identity.servicenetworking_sa.email}"
 
   depends_on = [
-    time_sleep.wait_for_apis
+    google_project_service_identity.servicenetworking_sa
   ]
 }
 
-# Additional permission for global address management
-resource "google_project_iam_member" "servicenetworking_compute_admin" {
-  project = var.existing_project_id
-  role    = "roles/compute.admin"
-  member  = "serviceAccount:service-${data.google_project.current.number}@service-networking.iam.gserviceaccount.com"
+# Wait for IAM permissions to propagate
+resource "time_sleep" "wait_for_servicenetworking_iam" {
+  create_duration = "60s"
 
   depends_on = [
-    time_sleep.wait_for_apis
+    google_project_iam_member.servicenetworking_networksadmin,
+    google_project_iam_member.servicenetworking_serviceagent,
+    google_project_iam_member.servicenetworking_compute_network_admin
   ]
 }
