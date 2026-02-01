@@ -59,7 +59,7 @@ locals {
     min_instance_count = 0
     max_instance_count = 3
 
-    environment_variables = merge({
+    environment_variables = {
       DJANGO_SETTINGS_MODULE    = "myproject.settings"
       APPLICATION_SETTINGS      = ""
       DEBUG                     = "False"
@@ -70,11 +70,7 @@ locals {
       MEDIA_ROOT                = "/app/media"
       DJANGO_SUPERUSER_EMAIL    = "admin@example.com"
       DJANGO_SUPERUSER_USERNAME = "admin"
-      }, var.enable_redis ? {
-      REDIS_HOST = local.redis_host_final
-      REDIS_PORT = var.redis_port
-      REDIS_URL  = "redis://${local.redis_host_final}:${var.redis_port}/0"
-    } : {})
+    }
 
     enable_postgres_extensions = true
     postgres_extensions         = ["pg_trgm", "unaccent", "hstore", "citext"]
@@ -195,10 +191,14 @@ locals {
     django = local.django_module
   }
 
-  module_env_vars = {
+  module_env_vars = merge({
     CLOUDRUN_SERVICE_URLS = local.predicted_service_url
     GS_BUCKET_NAME        = "${local.wrapper_prefix}-django-media"
-  }
+    }, var.enable_redis ? {
+    REDIS_HOST = local.redis_host_final
+    REDIS_PORT = var.redis_port
+    REDIS_URL  = "redis://${local.redis_host_final}:${var.redis_port}/0"
+  } : {})
 
   module_secret_env_vars = {
     DJANGO_SUPERUSER_PASSWORD = try(google_secret_manager_secret.db_password[0].secret_id, "")
