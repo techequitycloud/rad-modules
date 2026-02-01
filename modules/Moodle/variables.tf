@@ -34,6 +34,31 @@ variable "module_services" {
   default     = ["Cloud Run", "Cloud Build", "Artifact Registry", "Cloud Storage", "Cloud SQL", "Cloud IAM", "Cloud Networking", "Secret Manager"]
 }
 
+variable "redis_enabled" {
+  description = "Set to true to enable Redis for Moodle session handling. {{UIMeta group=0 order=122 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "redis_host" {
+  description = "Redis host address. Required if redis_enabled is true. If left empty, defaults to the NFS server IP. {{UIMeta group=0 order=123 updatesafe }}"
+  type        = string
+  default     = ""
+}
+
+variable "redis_port" {
+  description = "Redis port. {{UIMeta group=0 order=124 updatesafe }}"
+  type        = string
+  default     = "6379"
+}
+
+variable "redis_auth" {
+  description = "Redis password/auth string. Leave empty if no auth. {{UIMeta group=0 order=125 updatesafe }}"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "credit_cost" {
   description = "Specify the module cost. {{UIMeta group=0 order=103 }}"
   type        = number
