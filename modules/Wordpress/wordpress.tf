@@ -48,11 +48,11 @@ locals {
     max_instance_count = 3
 
     # Environment variables
-    environment_variables = {
+    environment_variables = merge({
       WORDPRESS_DB_HOST      = "localhost:/tmp/mysqld.sock"
       WORDPRESS_TABLE_PREFIX = "wp_"
       WORDPRESS_DEBUG        = "false"
-    }
+    }, var.enable_redis && local.nfs_server_exists ? { WP_REDIS_HOST = local.nfs_internal_ip } : {})
 
     # MySQL plugins
     enable_mysql_plugins = false

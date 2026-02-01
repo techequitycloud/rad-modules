@@ -100,6 +100,12 @@ variable "post_max_size" {
   default     = "64M"
 }
 
+variable "enable_redis" {
+  description = "Enable Redis for object caching. {{UIMeta group=0 order=110 updatesafe }}"
+  type        = bool
+  default     = true
+}
+
 variable "configure_environment" {
   description = "Set to true to deploy Cloud Run service. {{UIMeta group=0 order=111 updatesafe }}"
   type        = bool
