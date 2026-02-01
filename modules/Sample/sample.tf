@@ -77,7 +77,10 @@ locals {
   }
 
   module_env_vars = {
-    DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+    DB_HOST      = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+    ENABLE_REDIS = tostring(var.enable_redis)
+    REDIS_HOST   = var.enable_redis ? (var.redis_host != null ? var.redis_host : local.nfs_internal_ip) : ""
+    REDIS_PORT   = var.enable_redis ? tostring(var.redis_port) : ""
   }
 
   module_secret_env_vars = {}

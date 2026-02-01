@@ -301,6 +301,28 @@ variable "secret_environment_variables" {
 }
 
 # ===========================
+# GROUP 9: Redis Configuration
+# ===========================
+
+variable "enable_redis" {
+  description = "Enable Redis session caching. {{UIMeta group=0 order=900 updatesafe }}"
+  type        = bool
+  default     = false
+}
+
+variable "redis_host" {
+  description = "Redis host. If not provided, defaults to the NFS server IP if NFS is enabled. {{UIMeta group=0 order=901 updatesafe }}"
+  type        = string
+  default     = null
+}
+
+variable "redis_port" {
+  description = "Redis port. {{UIMeta group=0 order=902 updatesafe }}"
+  type        = number
+  default     = 6379
+}
+
+# ===========================
 # GROUP 10: Monitoring & Alerting Configuration
 # ===========================
 
