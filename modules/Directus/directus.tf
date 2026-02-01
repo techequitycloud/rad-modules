@@ -220,139 +220,6 @@ locals {
     directus = local.directus_module
   }
 
-  # Calculate Redis connection string
-  # To avoid cycles:
-  # 1. We assume NFS is enabled if we are using this module (directus_module sets nfs_enabled = true).
-  # 2. We use local.nfs_internal_ip from nfs.tf.
-  # If the cycle persists, it means module_env_vars depends on nfs_internal_ip,
-  # which depends on nfs_enabled (from main.tf), which depends on directus_module (from this file).
-
-  # To break the cycle, we can decouple nfs_enabled determination for the purpose of this calculation
-  # or use a different source for the IP if possible.
-  # However, here we can assume: if var.redis_host is set, we don't need NFS info.
-  # If var.redis_host is NOT set, we try to use NFS.
-
-  # The cycle is:
-  # local.module_env_vars -> local.redis_connection_string -> local.nfs_internal_ip -> local.nfs_enabled -> local.directus_module -> local.module_env_vars
-
-  # We CANNOT reference local.nfs_internal_ip inside local.directus_module or anything that feeds back into it
-  # (like module_env_vars which is referenced in main.tf).
-
-  # Wait, module_env_vars IS part of the output of directus.tf that main.tf uses.
-  # So we cannot use local.nfs_internal_ip here if nfs.tf depends on the output of this file.
-
-  # Strategy:
-  # Pass the logic to the shell/runtime via script? No, environment variables are terraform-time.
-  # Use a separate local for the final environment variables that is NOT part of the module definition map?
-  # But main.tf expects module_env_vars to be defined.
-
-  # The issue is specifically that main.tf determines `local.final_nfs_enabled` based on `local.selected_module.nfs_enabled`.
-  # And `nfs.tf` uses `local.final_nfs_enabled`.
-
-  # If we remove `REDIS` from `module_env_vars` here and instead inject it in `main.tf` using a merge,
-  # we can break the cycle because `main.tf` can access `local.nfs_internal_ip` AFTER it has determined `local.final_nfs_enabled`.
-
-  # But we are editing directus.tf, not main.tf.
-
-  # Alternative: Hardcode the assumption? No.
-
-  # If we cannot change main.tf, we are stuck with the cycle if we use `local.nfs_internal_ip` here.
-  # UNLESS `nfs.tf` does NOT depend on `local.final_nfs_enabled`?
-  # `nfs.tf` uses `count = local.nfs_enabled ? 1 : 0`. `local.nfs_enabled` comes from `main.tf`.
-
-  # Does `local.nfs_internal_ip` exist if `nfs_enabled` is false?
-  # It is `try(..., "")`.
-
-  # The cycle is strict.
-  # We must supply the REDIS variable in a way that doesn't depend on the module configuration itself.
-
-  # Can we set `REDIS` to a template string and replace it later? No easy way in Terraform without changing main.tf.
-
-  # WAIT. If we look at `variables.tf`, we have `redis_host`.
-  # If `redis_host` is provided, we don't need NFS IP.
-  # If `redis_host` is missing, we need NFS IP.
-
-  # If we cannot resolve the NFS IP here, we might have to rely on `directus_module` NOT defining `module_env_vars`
-  # with the Redis string, and assume `main.tf` or another mechanism handles it?
-  # But `main.tf` merges `local.module_env_vars`.
-
-  # Let's try to break the chain by observing that `nfs_internal_ip` relies on `data.external`.
-  # The data source depends on `local.nfs_enabled`.
-
-  # What if we use `var.nfs_enabled` (if non-null) to short-circuit?
-  # `local.final_nfs_enabled` in `main.tf` uses `var.nfs_enabled` if set.
-
-  # If the user does not set `var.nfs_enabled`, it falls back to the module default.
-
-  # The only way to fix this WITHOUT modifying main.tf is if the `REDIS` variable can be constructed
-  # without referencing `local.nfs_internal_ip` directly.
-  # But we need the IP.
-
-  # What if we define `REDIS` as `redis://${DB_HOST}:6379`? No, DB host is different.
-  # Use a DNS name? `nfs-server`? No.
-
-  # Maybe we can use the `cloudrun-entrypoint` script to construct the env var at runtime?
-  # We can pass `REDIS_HOST_OVERRIDE` and `REDIS_PORT`.
-  # If `REDIS_HOST_OVERRIDE` is set, use it.
-  # Else if NFS is enabled (detected via mount?), use NFS IP.
-  # We can't easily detect NFS IP inside the container unless we mount it or pass it.
-
-  # But wait, `directus.tf` is a "wrapper" configuration.
-  # It seems `main.tf` is symlinked from `CloudRunApp` usually?
-  # If `main.tf` is symlinked, we can't edit it easily for just this module without affecting others
-  # (unless we copy it, which breaks the pattern).
-  # Checking file list... `main.tf` is present in `modules/Directus/`.
-  # Is it a symlink? `ls -F` earlier showed `@`.
-  # Yes, `main.tf@`. So we CANNOT edit main.tf directly without affecting all modules.
-
-  # SO: We must solve this in `directus.tf`.
-  # But we cannot access `local.nfs_internal_ip` in `directus.tf`.
-
-  # Let's look at `nfs.tf`. It is also a symlink (`nfs.tf@`).
-  # So we cannot edit `nfs.tf`.
-
-  # We are stuck.
-  # 1. We need `REDIS` env var.
-  # 2. It depends on `nfs_internal_ip`.
-  # 3. `nfs_internal_ip` depends on `nfs_enabled`.
-  # 4. `nfs_enabled` depends on `directus_module`.
-  # 5. `directus_module` contains `REDIS` env var.
-
-  # Breaking the link:
-  # Can we use a separate resource to manage the Secret or Env Var injection?
-  # We can create a `google_secret_manager_secret` for the Redis URL?
-  # Then pass it as a secret env var?
-  # `module_secret_env_vars` maps Name -> Secret ID.
-  # We can calculate the secret value (string) using `local.nfs_internal_ip`.
-  # Creating a resource (`google_secret_manager_secret_version`) depends on `local.nfs_internal_ip`.
-  # Does `module_secret_env_vars` create a dependency back to `directus_module`?
-  # `main.tf` uses `local.module_secret_env_vars` to construct `local.preset_secret_env_vars`.
-  # This feeds into `local.secret_environment_variables`.
-  # This feeds into `local.secret_env_var_map`.
-  # This DOES NOT feed back into `local.final_nfs_enabled` or `local.directus_module`.
-
-  # YES! `main.tf` logic:
-  # `local.final_nfs_enabled` comes from `local.module_nfs_enabled`.
-  # `local.module_nfs_enabled` comes from `local.selected_module.nfs_enabled`.
-  # `local.selected_module` is `local.application_modules[...]`.
-
-  # `local.module_secret_env_vars` is accessed via `local.module_secret_env_vars` directly in `main.tf` (line 331).
-  # It is NOT accessed via `local.selected_module`.
-  # Wait, `main.tf` has:
-  # `preset_secret_env_vars = merge(..., local.module_secret_env_vars)`
-  # It assumes `local.module_secret_env_vars` is defined in the wrapper's specific tf file.
-
-  # So, if we define `REDIS_URL` via a Secret, we move the dependency out of the `directus_module` map.
-  # The `directus_module` map (which causes the cycle via `nfs_enabled`) will no longer contain the dependency on `nfs_internal_ip`.
-  # `local.module_secret_env_vars` will depend on `nfs_internal_ip`, but `directus_module` will not.
-  # `main.tf` uses `directus_module` to determine NFS enabled -> `nfs.tf` calculates IP -> `directus.tf` uses IP for Secret -> `main.tf` uses Secret Map.
-  # This is linear!
-
-  # Plan:
-  # 1. Create a `random_password` or just a `google_secret_manager_secret_version` with the Redis URL string.
-  # 2. Add `REDIS` to `module_secret_env_vars` pointing to this secret.
-  # 3. Remove `REDIS` from `module_env_vars`.
-
   redis_connection_string = var.redis_enabled ? (
     var.redis_host != "" ? "redis://${var.redis_host}:${var.redis_port}" :
     "redis://${local.nfs_internal_ip}:${var.redis_port}"
@@ -367,13 +234,17 @@ locals {
     STORAGE_GCS_BUCKET = "${local.resource_prefix}-directus-uploads"
   }
 
-  module_secret_env_vars = {
-    KEY            = try(google_secret_manager_secret.directus_key.secret_id, "")
-    SECRET         = try(google_secret_manager_secret.directus_secret.secret_id, "")
-    ADMIN_PASSWORD = try(google_secret_manager_secret.directus_admin_password.secret_id, "")
-    DB_PASSWORD    = try(google_secret_manager_secret.db_password[0].secret_id, "")
-    REDIS          = var.redis_enabled ? try(google_secret_manager_secret.directus_redis[0].secret_id, "") : ""
-  }
+  module_secret_env_vars = merge(
+    {
+      KEY            = try(google_secret_manager_secret.directus_key.secret_id, "")
+      SECRET         = try(google_secret_manager_secret.directus_secret.secret_id, "")
+      ADMIN_PASSWORD = try(google_secret_manager_secret.directus_admin_password.secret_id, "")
+      DB_PASSWORD    = try(google_secret_manager_secret.db_password[0].secret_id, "")
+    },
+    var.redis_enabled ? {
+      REDIS = try(google_secret_manager_secret.directus_redis[0].secret_id, "")
+    } : {}
+  )
 
   module_storage_buckets = [
     {
@@ -407,37 +278,44 @@ resource "google_secret_manager_secret_version" "directus_redis" {
   secret_data = local.redis_connection_string
 }
 
-# Grant Cloud Run service account access to the Redis secret
-# Note: iam.tf handles generic secret access if it iterates over all secrets?
-# iam.tf iterates over `local.secret_environment_variables`.
-# Since we added REDIS to `module_secret_env_vars`, it will be included in `local.secret_environment_variables`.
-# So iam.tf will automatically grant access!
-
-
 # ==============================================================================
 # DIRECTUS SPECIFIC RESOURCES
 # ==============================================================================
 
-# Explicitly create the GCS bucket since we removed it from gcs_volumes
-resource "google_storage_bucket" "directus_uploads" {
-  name                        = "${local.resource_prefix}-directus-uploads"
-  location                    = var.deployment_region
-  storage_class               = "STANDARD"
-  force_destroy               = true
-  uniform_bucket_level_access = true
-  public_access_prevention    = "inherited"
-
-  lifecycle {
-    prevent_destroy = false
-  }
-}
-
 # Grant Cloud Run Service Account access to the bucket
-resource "google_storage_bucket_iam_member" "directus_uploads_admin" {
-  bucket = google_storage_bucket.directus_uploads.name
-  role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${local.cloud_run_sa_email}"
-}
+# Note: The bucket is created via module_storage_buckets logic in main.tf (storage.tf),
+# because we included it in `module_storage_buckets`.
+# So we don't need to create it here again.
+# We just need to ensure permissions.
+# `storage.tf` creates `google_storage_bucket.buckets` based on `local.storage_buckets`.
+
+# Wait, `module_storage_buckets` logic in `main.tf`:
+# storage_buckets = local.create_cloud_storage ? { for bucket in local.all_storage_buckets ... }
+# all_storage_buckets = concat(var.storage_buckets, local.preset_storage_buckets)
+# preset_storage_buckets = concat(local.module_storage_buckets)
+# So yes, the bucket IS created by `main.tf` -> `storage.tf`.
+# The previous `gcs_volumes` logic was separate or supplementary?
+# Ah, `gcs_volumes` usually implies mounting. If `bucket_name` is null, does it create it?
+# In `main.tf`, `gcs_volumes` logic: `bucket_name = (vol.bucket_name != null ...) ? ... : try(local.storage_buckets[vol.name].name, null)`
+# It tries to find the bucket in `local.storage_buckets`.
+# So the bucket creation was ALWAYS driven by `module_storage_buckets` (or `var.storage_buckets`).
+# `gcs_volumes` just referenced it.
+
+# Therefore:
+# 1. We keep `module_storage_buckets` (we have it).
+# 2. `storage.tf` creates the bucket.
+# 3. `iam.tf` grants `roles/storage.objectAdmin` to `local.cloud_run_sa_email` for all buckets in `local.storage_buckets`.
+#    Checking `iam.tf`:
+#    resource "google_storage_bucket_iam_member" "bucket_access" {
+#      for_each = local.create_cloud_storage ? local.storage_buckets : {}
+#      bucket = google_storage_bucket.buckets[each.key].name
+#      role   = "roles/storage.objectAdmin"
+#      member = "serviceAccount:${local.cloud_run_sa_email}"
+#    }
+
+# CONCLUSION:
+# - We do NOT need `resource "google_storage_bucket" "directus_uploads"` here. (It duplicates main.tf/storage.tf).
+# - We do NOT need explicit IAM binding here. (`iam.tf` handles it).
 
 resource "random_password" "directus_key" {
   length  = 32
