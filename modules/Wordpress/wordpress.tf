@@ -52,10 +52,9 @@ locals {
       WORDPRESS_DB_HOST      = "localhost:/tmp/mysqld.sock"
       WORDPRESS_TABLE_PREFIX = "wp_"
       WORDPRESS_DEBUG        = "false"
-    }, var.enable_redis ? merge(
-      var.redis_host != "" ? { WP_REDIS_HOST = var.redis_host } : (local.nfs_server_exists ? { WP_REDIS_HOST = local.nfs_internal_ip } : {}),
-      { WP_REDIS_PORT = var.redis_port }
-    ) : {})
+    }, var.enable_redis && var.redis_host != "" ? { WP_REDIS_HOST = var.redis_host } : {},
+       var.enable_redis ? { WP_REDIS_PORT = var.redis_port } : {}
+    )
 
     # MySQL plugins
     enable_mysql_plugins = false

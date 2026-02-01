@@ -54,7 +54,8 @@ RUN set -ex; \
 # https://pecl.php.net/package/imagick
 	pecl install imagick-3.8.0; \
 	docker-php-ext-enable imagick; \
-	pecl install redis; \
+	# Install Redis extension non-interactively
+	printf "\n" | pecl install redis; \
 	docker-php-ext-enable redis; \
 	rm -r /tmp/pear; \
 	\
