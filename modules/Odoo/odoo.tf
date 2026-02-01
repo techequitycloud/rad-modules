@@ -114,9 +114,9 @@ locals {
             mkdir -p /mnt/filestore /mnt/sessions /mnt/backups
 
             echo "Setting ownership and permissions..."
-            chown -R 101:101 /mnt/filestore /mnt/sessions /mnt/backups 2>/dev/null || echo "Warning: chown failed"
-            chmod -R 777 /mnt/filestore /mnt/sessions /mnt/backups
-            echo "Permissions set to 777"
+            timeout 30 chown 101:101 /mnt/filestore /mnt/sessions /mnt/backups 2>/dev/null || echo "Warning: chown failed or timed out"
+            timeout 30 chmod 777 /mnt/filestore /mnt/sessions /mnt/backups 2>/dev/null || echo "Warning: chmod failed or timed out"
+            echo "Permissions set"
 
             echo ""
             echo "Final directory listing:"

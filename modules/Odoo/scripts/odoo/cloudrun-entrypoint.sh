@@ -10,7 +10,7 @@ umask 0000
 
 # Ensure NFS directories exist and are writable
 mkdir -p /mnt/filestore /mnt/sessions 2>/dev/null || true
-chmod -R 777 /mnt/filestore /mnt/sessions 2>/dev/null || true
+timeout 30 chmod 777 /mnt/filestore /mnt/sessions 2>/dev/null || true
 
 # Check if we have write permission to the config file
 if [ -w /etc/odoo/odoo.conf ]; then
