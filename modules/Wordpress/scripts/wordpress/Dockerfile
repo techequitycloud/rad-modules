@@ -54,7 +54,8 @@ RUN set -ex; \
 # https://pecl.php.net/package/imagick
 	pecl install imagick-3.8.0; \
 	docker-php-ext-enable imagick; \
-	pecl install redis; \
+	# Install Redis extension non-interactively
+	printf "\n" | pecl install redis; \
 	docker-php-ext-enable redis; \
 	rm -r /tmp/pear; \
 	\
@@ -151,7 +152,7 @@ RUN set -eux; \
 		echo ''; \
 		echo 'RewriteEngine On'; \
 		echo 'RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]'; \
-		echo 'RewriteBase /'; \https://github.com/techequitycloud/rad-modules/blob/main/modules/Wordpress/scripts/wordpress/Dockerfile
+		echo 'RewriteBase /'; \
 		echo 'RewriteRule ^index\.php$ - [L]'; \
 		echo 'RewriteCond %{REQUEST_FILENAME} !-f'; \
 		echo 'RewriteCond %{REQUEST_FILENAME} !-d'; \
