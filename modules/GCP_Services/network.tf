@@ -261,3 +261,17 @@ resource "google_compute_global_address" "psconnect_private_ip_alloc" {
     prevent_destroy = false
   }
 }
+
+# Create the Service Networking Connection
+resource "google_service_networking_connection" "psconnect" {
+  network                 = google_compute_network.vpc_network.id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.psconnect_private_ip_alloc.name] 
+  deletion_policy         = "ABANDON"
+
+  depends_on = [
+    google_compute_global_address.psconnect_private_ip_alloc,
+    time_sleep.wait_for_servicenetworking_iam
+  ]
+}
+
