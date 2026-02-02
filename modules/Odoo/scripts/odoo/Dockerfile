@@ -12,7 +12,6 @@ ARG TARGETARCH
 # Odoo version arguments
 ARG ODOO_VERSION=18.0
 ARG ODOO_RELEASE=latest
-ARG ODOO_SHA=""
 
 # Install some deps, lessc and less-plugin-clean-css, and wkhtmltopdf
 RUN apt-get update && \
@@ -90,12 +89,11 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ✅ CUSTOM: Install missing Python dependencies
-RUN pip3 install --upgrade --break-system-packages lxml-html-clean
+RUN pip3 install --upgrade --break-system-packages lxml-html-clean redis
 
 # Install Odoo
 ENV ODOO_VERSION=${ODOO_VERSION}
 RUN curl -o odoo.deb -sSL http://nightly.odoo.com/${ODOO_VERSION}/nightly/deb/odoo_${ODOO_VERSION}.${ODOO_RELEASE}_all.deb \
-    && if [ -n "${ODOO_SHA}" ]; then echo "${ODOO_SHA} odoo.deb" | sha1sum -c -; else echo "Skipping SHA check for flexible versioning"; fi \
     && apt-get update \
     && apt-get -y install --no-install-recommends --ignore-missing ./odoo.deb \
     && rm -rf /var/lib/apt/lists/* odoo.deb
@@ -147,4 +145,3 @@ ENTRYPOINT ["/usr/bin/tini", "--", "/cloudrun-entrypoint.sh"]
 
 # ✅ CUSTOM: Explicitly set HTTP port to 8069
 CMD ["/entrypoint.sh", "odoo", "--http-port=8069"]
-# Force rebuild hash
