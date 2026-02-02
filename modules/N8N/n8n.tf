@@ -6,12 +6,12 @@ locals {
     container_image     = "n8nio/n8n"
     application_version = var.application_version
 
-    image_source    = "prebuilt"
+    image_source    = "custom"
     enable_image_mirroring = true
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "."
+      context_path       = "n8n"
       dockerfile_content = null
       build_args         = {}
       artifact_repo_name = null
