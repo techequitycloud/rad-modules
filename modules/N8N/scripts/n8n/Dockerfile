@@ -13,7 +13,7 @@ RUN apk add --no-cache \
     su-exec
 
 # Install n8n globally
-RUN npm install -g n8n@2.4.6
+RUN npm install -g n8n@2.4.7
 
 # Create node user
 RUN addgroup -g 1000 node 2>/dev/null || true && \
