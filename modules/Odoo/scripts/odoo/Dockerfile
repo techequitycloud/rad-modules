@@ -11,8 +11,7 @@ ARG TARGETARCH
 
 # Odoo version arguments
 ARG ODOO_VERSION=18.0
-ARG ODOO_RELEASE=20260119
-ARG ODOO_SHA=798dfc952eed08e0d976364c26dc47a45535be70
+ARG ODOO_RELEASE=latest
 
 # Install some deps, lessc and less-plugin-clean-css, and wkhtmltopdf
 RUN apt-get update && \
@@ -95,7 +94,6 @@ RUN pip3 install --upgrade --break-system-packages lxml-html-clean redis
 # Install Odoo
 ENV ODOO_VERSION=${ODOO_VERSION}
 RUN curl -o odoo.deb -sSL http://nightly.odoo.com/${ODOO_VERSION}/nightly/deb/odoo_${ODOO_VERSION}.${ODOO_RELEASE}_all.deb \
-    && echo "${ODOO_SHA} odoo.deb" | sha1sum -c - \
     && apt-get update \
     && apt-get -y install --no-install-recommends --ignore-missing ./odoo.deb \
     && rm -rf /var/lib/apt/lists/* odoo.deb
