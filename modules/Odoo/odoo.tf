@@ -16,7 +16,7 @@ locals {
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
-      context_path       = "."
+      context_path       = "odoo"
       dockerfile_content = null
       build_args = {
         ODOO_VERSION = var.application_version

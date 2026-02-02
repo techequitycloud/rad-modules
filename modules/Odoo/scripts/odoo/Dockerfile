@@ -90,7 +90,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ✅ CUSTOM: Install missing Python dependencies
-RUN pip3 install --upgrade --break-system-packages lxml-html-clean
+RUN pip3 install --upgrade --break-system-packages lxml-html-clean redis
 
 # Install Odoo
 ENV ODOO_VERSION=${ODOO_VERSION}
