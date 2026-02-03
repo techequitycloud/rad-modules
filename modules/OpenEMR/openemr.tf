@@ -32,6 +32,9 @@ locals {
 
     container_resources = {
       cpu_limit    = "2000m"
+
+
+      
       memory_limit = "4Gi"
     }
 
