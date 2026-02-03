@@ -26,3 +26,11 @@ max_instance_count = 5
 database_type            = "POSTGRES_15"
 database_password_length = 24
 nfs_enabled              = true
+
+# AI Components Configuration
+enable_ai_components = true
+enable_qdrant        = true
+qdrant_version       = "latest"
+enable_ollama        = true
+ollama_version       = "latest"
+ollama_model         = "llama3.2"
