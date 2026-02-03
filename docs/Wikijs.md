@@ -4,6 +4,7 @@ sidebar_label: Wiki.js
 slug: /applications/wiki-js
 ---
 
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # Wiki.js on Google Cloud Platform

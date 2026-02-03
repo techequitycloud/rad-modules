@@ -4,6 +4,7 @@ sidebar_label: Sample
 slug: /applications/sample
 ---
 
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # Sample web application on Google Cloud Platform

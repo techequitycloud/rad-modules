@@ -4,6 +4,7 @@ sidebar_label: Ghost
 slug: /applications/ghost
 ---
 
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # Ghost on Google Cloud Platform

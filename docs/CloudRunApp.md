@@ -4,6 +4,7 @@ sidebar_label: Cloud Run App
 slug: /applications/cloud-run-app
 ---
 
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # CloudRunApp on Google Cloud Platform

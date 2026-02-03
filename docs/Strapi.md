@@ -4,6 +4,7 @@ sidebar_label: Strapi
 slug: /applications/strapi
 ---
 
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # Strapi on the Google Cloud Platform

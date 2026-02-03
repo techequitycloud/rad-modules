@@ -4,6 +4,52 @@ sidebar_label: OpenEMR
 slug: /applications/openemr
 ---
 
+# OpenEMR Module Guide
+
+## Overview
+The **OpenEMR** module deploys a leading open-source electronic health records (EHR) and medical practice management solution. It is designed for healthcare providers who need a secure, HIPAA-compliant-ready environment to manage patient data, scheduling, and billing.
+
+## Key Benefits
+- **Patient Data Sovereignty**: Keep full control and ownership of your patient records by hosting them on your own cloud instance.
+- **Secure & Compliant**: Built on Google Cloud's secure foundation, with encrypted databases and private networking to help meet compliance requirements.
+- **High Availability**: Ensures patient records are always accessible when needed by clinicians.
+- **Disaster Recovery**: Integrated backup solutions to protect against data loss.
+
+## Functionality
+- Deploys OpenEMR application.
+- Configures a secure MySQL/MariaDB database.
+- Sets up encrypted storage for patient documents and certificates.
+- Automates certificate management (SSL) for secure web access.
+
+---
+
+
+# OpenEMR Module Technical Features
+
+## Architecture
+This module deploys OpenEMR on **Cloud Run**, backed by **Cloud SQL (MySQL)**. It addresses the specific requirements of OpenEMR, such as its reliance on a filesystem for configuration (`sqlconf.php`) and document storage, using **NFS**.
+
+## Cloud Capabilities
+
+### Infrastructure Components
+- **App Engine**: Cloud Run Service (Gen2).
+- **Database**: Cloud SQL for MySQL. OpenEMR is heavily dependent on MySQL features.
+- **Storage**: NFS volume mount for the `sites` directory. This is critical as OpenEMR writes configuration files and stores patient documents/images in the `sites/default/documents` folder.
+
+### Initialization & Upgrades
+- **Database Load**: Includes a specialized Cloud Run Job (`import_db_job`) that downloads the correct `database.sql` schema for the specific `application_version` and populates the database.
+- **Configuration**: Dynamically generates `sqlconf.php` with database credentials and writes it to the NFS volume during the init phase.
+
+### Security
+- **PHP Hardening**: The container configuration typically includes PHP settings (like `memory_limit`, `max_execution_time`) tuned for EMR workloads.
+- **Network Isolation**: Database connections are strictly internal. The NFS share is accessible only within the VPC.
+
+## Configuration & Enhancement
+- **Backup Restoration**: The module features a `restore_job` capability. By providing a `application_backup_fileid`, the system can download a backup archive (e.g., from Drive/GCS) and restore the entire practice state during deployment.
+- **Scaling**: Configurable CPU/RAM limits allow the instance to be sized for small clinics or larger hospitals.
+
+
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # OpenEMR on Google Cloud Platform

@@ -4,6 +4,7 @@ sidebar_label: Directus
 slug: /applications/directus
 ---
 
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # Directus on Google Cloud Platform

@@ -4,6 +4,50 @@ sidebar_label: Odoo
 slug: /applications/odoo
 ---
 
+# Odoo Module Guide
+
+## Overview
+The **Odoo** module deploys a comprehensive Enterprise Resource Planning (ERP) suite. Odoo offers a single platform for CRM, Accounting, Inventory, Manufacturing, eCommerce, and more. This module provides a turnkey solution to host Odoo Enterprise or Community on Google Cloud, ensuring it is secure, backed up, and scalable.
+
+## Key Benefits
+- **All-in-One Business Management**: Consolidate your fragmented software tools into one unified platform.
+- **Enterprise Reliability**: Deployed on Google's high-reliability infrastructure with automated daily backups.
+- **Secure Access**: Protect your business data with enterprise-grade security, firewalls, and private database connections.
+- **Customizable**: Ready for custom add-ons and modules to fit your specific business processes.
+
+## Functionality
+- Deploys the Odoo application server.
+- Provisions a dedicated PostgreSQL database.
+- Sets up a persistent filestore for attachments and session data.
+- Configures automated backups to protect against data loss.
+
+---
+
+
+# Odoo Module Technical Features
+
+## Architecture
+Odoo requires a specific setup to run effectively in a containerized environment. This module deploys Odoo on **Cloud Run** and solves the "multi-process" and "filestore" challenges using a combination of **Cloud SQL** and **NFS**.
+
+## Cloud Capabilities
+
+### Persistence Layer
+- **Filestore**: Mounts an NFS volume (from `GCP_Services`) to `/var/lib/odoo`. This is crucial because Odoo stores session files and binary attachments (PDFs, images) on the filesystem, not just the database.
+- **Database**: Connects to PostgreSQL. The module handles the initial `odoo -i base` command via a Cloud Run Job to initialize the database schema on first deploy.
+
+### Configuration Management
+- **Odoo Config**: Generates the `odoo.conf` file dynamically based on Terraform variables (e.g., `db_host`, `admin_passwd`) and mounts it as a Secret or ConfigMap.
+- **Master Password**: Securely manages the `admin_passwd` (Master Password) via **Secret Manager**, preventing it from being exposed in plain text.
+
+### Backup Strategy
+- **Automated Backups**: Integrates `configure_backups` logic which sets up a **Cloud Scheduler** job. This job triggers a backup script (running in a temporary container) to dump the database and filestore, compress them, and upload them to a secure **Cloud Storage** bucket.
+
+## Configuration & Enhancement
+- **Module Installation**: The `init_db_job` can be customized to pre-install specific Odoo modules (e.g., `-i sale,stock,account`) during the deployment phase.
+- **Custom Addons**: Technical users can extend the Docker image or mount an additional NFS volume to `/mnt/extra-addons` to load custom Odoo modules without rebuilding the container.
+
+
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # Odoo on Google Cloud Platform
