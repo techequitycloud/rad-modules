@@ -1,4 +1,21 @@
-# N8N AI Module Guide
+---
+title: N8N AI
+sidebar_label: N8N AI
+slug: /applications/n8n-ai
+---
+
+import AudioPlayer from '@site/src/components/AudioPlayer';
+
+# N8N AI on Google Cloud Platform
+
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/n8nai_module.png" alt="N8N AI on Google Cloud Platform" style={{marginBottom: '20px'}} />
+
+<AudioPlayer url="https://storage.googleapis.com/rad-public-2b65/modules/n8nai_module.m4a" title="N8N AI on Google Cloud Platform Audio" />
+
+<video width="100%" controls style={{marginTop: '20px'}}>
+  <source src="https://storage.googleapis.com/rad-public-2b65/modules/n8nai_module.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
 
 ## Overview
 The **N8N AI** module is a supercharged version of the standard N8N deployment, pre-configured for the era of Generative AI. It allows your business to build intelligent agents, chat bots, and document analysis workflows using state-of-the-art Local LLMs and Vector Databases, all hosted securely in your own cloud environment.
@@ -16,9 +33,6 @@ The **N8N AI** module is a supercharged version of the standard N8N deployment, 
 - Connects all three components automatically so they work out of the box.
 
 ---
-
-
-# N8N AI Module Technical Features
 
 ## Architecture
 This module extends the standard N8N architecture by adding two additional services: **Qdrant** and **Ollama**. These can be deployed as separate Cloud Run services or sidecars, depending on the specific implementation version, but typically they are distinct services communicating over the private VPC network.

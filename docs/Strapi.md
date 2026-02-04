@@ -7,7 +7,7 @@ slug: /applications/strapi
 
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
-# Strapi on the Google Cloud Platform
+# Strapi on Google Cloud Platform
 
 <img src="https://storage.googleapis.com/rad-public-2b65/modules/strapi_module.png" alt="Strapi on the Google Cloud Platform" style={{marginBottom: '20px'}} />
 

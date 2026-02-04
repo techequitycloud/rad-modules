@@ -4,7 +4,18 @@ sidebar_label: Django
 slug: /applications/django
 ---
 
-# Django Module Guide
+import AudioPlayer from '@site/src/components/AudioPlayer';
+
+# Django on Google Cloud Platform
+
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/django_module.png" alt="Django on Google Cloud Platform" style={{marginBottom: '20px'}} />
+
+<AudioPlayer url="https://storage.googleapis.com/rad-public-2b65/modules/django_module.m4a" title="Django on Google Cloud Platform Audio" />
+
+<video width="100%" controls style={{marginTop: '20px'}}>
+  <source src="https://storage.googleapis.com/rad-public-2b65/modules/django_module.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
 
 ## Overview
 The **Django** module is a rapid deployment accelerator for Python web applications. It provides a standardized, best-practice environment for hosting Django-based projects on Google Cloud. Whether you are building a CMS, a custom business app, or an API backend, this module gets you up and running in minutes.
@@ -23,49 +34,6 @@ The **Django** module is a rapid deployment accelerator for Python web applicati
 
 ---
 
-
-# Django Module Technical Features
-
-## Architecture
-This module implements a standard 12-Factor App architecture for Django on **Cloud Run**. It handles the "deployment glue" required to make a stateless Django container work with stateful Google Cloud services like **Cloud SQL** and **Secret Manager**.
-
-## Cloud Capabilities
-
-### Compute & Runtime
-- **Resource**: `google_cloud_run_v2_service`
-- **Capabilities**:
-  - Deploys the Django container.
-  - **Database Migration**: Includes logic (often via Cloud Run Jobs or Init Containers) to run `python manage.py migrate` during deployment to keep the schema in sync.
-  - **Static Files**: configured to serve static assets efficiently or integrate with WhiteNoise.
-
-### Database Integration
-- **Connection**: Uses the Cloud SQL Proxy (built-in to Cloud Run Gen2) for secure, encrypted connections to PostgreSQL.
-- **Secrets**: Retrieves `DATABASE_URL` and `DJANGO_SECRET_KEY` from **Secret Manager**, ensuring no sensitive data is hardcoded in `settings.py`.
-
-### Observability
-- **Monitoring**: Deploys `google_monitoring_service` resources (if `configure_monitoring` is true) to set up Uptime Checks and Alert Policies for high latency or error rates.
-
-## Configuration & Enhancement
-- **Superuser Automation**: The module automates the creation of the initial Django superuser (`django_superuser_email`, `django_superuser_username`) using a post-deployment script or job, removing a manual setup step.
-- **Dependency Management**: Designed to work with `GCP_Services` for its database and network dependency (`module_dependency`).
-- **Secret Rotation**: Updates to secrets in Secret Manager are automatically picked up on the next revision deployment.
-
-
-
-import AudioPlayer from '@site/src/components/AudioPlayer';
-
-# Django on Google Cloud Platform
-
-<img src="https://storage.googleapis.com/rad-public-2b65/modules/django_module.png" alt="Django on Google Cloud Platform" style={{marginBottom: '20px'}} />
-
-<AudioPlayer url="https://storage.googleapis.com/rad-public-2b65/modules/django_module.m4a" title="Django on Google Cloud Platform Audio" />
-
-<video width="100%" controls style={{marginTop: '20px'}}>
-  <source src="https://storage.googleapis.com/rad-public-2b65/modules/django_module.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
-
-## 1. Executive Summary
 The `Django` module is a specialized wrapper around the platform's core `CloudRunApp` module. It is designed to deploy a production-ready Django application on Google Cloud Run, backed by Cloud SQL (PostgreSQL) and Cloud Storage (GCS) for media files. The architecture emphasizes statelessness for the application server while ensuring persistence for data and media through managed services.
 
 ## 2. IAM and Access Control Configuration

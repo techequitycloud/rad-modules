@@ -4,7 +4,18 @@ sidebar_label: OpenEMR
 slug: /applications/openemr
 ---
 
-# OpenEMR Module Guide
+import AudioPlayer from '@site/src/components/AudioPlayer';
+
+# OpenEMR on Google Cloud Platform
+
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/openemr_module.png" alt="OpenEMR on Google Cloud Platform" style={{marginBottom: '20px'}} />
+
+<AudioPlayer url="https://storage.googleapis.com/rad-public-2b65/modules/openemr_module.m4a" title="OpenEMR on Google Cloud Platform Audio" />
+
+<video width="100%" controls style={{marginTop: '20px'}}>
+  <source src="https://storage.googleapis.com/rad-public-2b65/modules/openemr_module.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
 
 ## Overview
 The **OpenEMR** module deploys a leading open-source electronic health records (EHR) and medical practice management solution. It is designed for healthcare providers who need a secure, HIPAA-compliant-ready environment to manage patient data, scheduling, and billing.
@@ -23,49 +34,9 @@ The **OpenEMR** module deploys a leading open-source electronic health records (
 
 ---
 
-
-# OpenEMR Module Technical Features
-
-## Architecture
-This module deploys OpenEMR on **Cloud Run**, backed by **Cloud SQL (MySQL)**. It addresses the specific requirements of OpenEMR, such as its reliance on a filesystem for configuration (`sqlconf.php`) and document storage, using **NFS**.
-
-## Cloud Capabilities
-
-### Infrastructure Components
-- **App Engine**: Cloud Run Service (Gen2).
-- **Database**: Cloud SQL for MySQL. OpenEMR is heavily dependent on MySQL features.
-- **Storage**: NFS volume mount for the `sites` directory. This is critical as OpenEMR writes configuration files and stores patient documents/images in the `sites/default/documents` folder.
-
-### Initialization & Upgrades
-- **Database Load**: Includes a specialized Cloud Run Job (`import_db_job`) that downloads the correct `database.sql` schema for the specific `application_version` and populates the database.
-- **Configuration**: Dynamically generates `sqlconf.php` with database credentials and writes it to the NFS volume during the init phase.
-
-### Security
-- **PHP Hardening**: The container configuration typically includes PHP settings (like `memory_limit`, `max_execution_time`) tuned for EMR workloads.
-- **Network Isolation**: Database connections are strictly internal. The NFS share is accessible only within the VPC.
-
-## Configuration & Enhancement
-- **Backup Restoration**: The module features a `restore_job` capability. By providing a `application_backup_fileid`, the system can download a backup archive (e.g., from Drive/GCS) and restore the entire practice state during deployment.
-- **Scaling**: Configurable CPU/RAM limits allow the instance to be sized for small clinics or larger hospitals.
-
-
-
-import AudioPlayer from '@site/src/components/AudioPlayer';
-
-# OpenEMR on Google Cloud Platform
-
-<img src="https://storage.googleapis.com/rad-public-2b65/modules/openemr_module.png" alt="OpenEMR on Google Cloud Platform" style={{marginBottom: '20px'}} />
-
-<AudioPlayer url="https://storage.googleapis.com/rad-public-2b65/modules/openemr_module.m4a" title="OpenEMR on Google Cloud Platform Audio" />
-
-<video width="100%" controls style={{marginTop: '20px'}}>
-  <source src="https://storage.googleapis.com/rad-public-2b65/modules/openemr_module.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
-
 This document provides an analysis of the `OpenEMR` module. It details the architecture, IAM configurations, service specifications, and available features, along with recommendations for enhancement.
 
-## 1. Executive Summary
+
 
 The OpenEMR module deploys a scalable, containerized instance of OpenEMR on Google Cloud Run. It utilizes a wrapper architecture (`CloudRunApp`) to provision standard infrastructure components while defining OpenEMR-specific configurations. Key architectural decisions include using Cloud SQL for the database, an external NFS server (GCE instance) for shared file storage (sites directory), and Redis for session management (hosted on the same NFS infrastructure).
 

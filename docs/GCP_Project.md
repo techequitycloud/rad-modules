@@ -1,4 +1,21 @@
-# GCP Project Module Guide
+---
+title: GCP Project
+sidebar_label: GCP Project
+slug: /applications/gcp-project
+---
+
+import AudioPlayer from '@site/src/components/AudioPlayer';
+
+# GCP Project on Google Cloud Platform
+
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/gcpproject_module.png" alt="GCP Project on Google Cloud Platform" style={{marginBottom: '20px'}} />
+
+<AudioPlayer url="https://storage.googleapis.com/rad-public-2b65/modules/gcpproject_module.m4a" title="GCP Project on Google Cloud Platform Audio" />
+
+<video width="100%" controls style={{marginTop: '20px'}}>
+  <source src="https://storage.googleapis.com/rad-public-2b65/modules/gcpproject_module.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
 
 ## Overview
 The **GCP Project** module is the starting point for your cloud journey. It automates the creation and configuration of a new Google Cloud Platform project, ensuring that your environment is set up with best practices from day one. This module handles the administrative overhead of project provisioning, allowing your team to focus on building applications rather than managing cloud settings.
@@ -17,9 +34,6 @@ The **GCP Project** module is the starting point for your cloud journey. It auto
 - Assigns "Trusted User" roles to specified team members for safe project administration.
 
 ---
-
-
-# GCP Project Module Technical Features
 
 ## Architecture
 This module uses Terraform to bootstrap a Google Cloud Project, serving as the root dependency for all subsequent infrastructure modules. It abstracts the complexity of the `google_project` and `google_project_service` resources.

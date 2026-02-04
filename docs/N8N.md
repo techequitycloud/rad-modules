@@ -4,7 +4,18 @@ sidebar_label: N8N
 slug: /applications/n8n
 ---
 
-# N8N Module Guide
+import AudioPlayer from '@site/src/components/AudioPlayer';
+
+# N8N on Google Cloud Platform
+
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/n8n_module.png" alt="N8N on Google Cloud Platform" style={{marginBottom: '20px'}} />
+
+<AudioPlayer url="https://storage.googleapis.com/rad-public-2b65/modules/n8n_module.m4a" title="N8N on Google Cloud Platform Audio" />
+
+<video width="100%" controls style={{marginTop: '20px'}}>
+  <source src="https://storage.googleapis.com/rad-public-2b65/modules/n8n_module.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
 
 ## Overview
 The **N8N** module deploys n8n, a fair-code workflow automation tool, onto Google Cloud. This tool allows your business to connect disparate apps, APIs, and data sources to automate processes without writing complex code.
@@ -22,47 +33,9 @@ The **N8N** module deploys n8n, a fair-code workflow automation tool, onto Googl
 
 ---
 
-
-# N8N Module Technical Features
-
-## Architecture
-This module deploys the standard `n8n` container image on **Cloud Run**. It uses **Cloud SQL (PostgreSQL)** as the backend `DB_TYPE` to store workflows, credentials, and execution data, ensuring state is preserved across container restarts.
-
-## Cloud Capabilities
-
-### Compute
-- **Resource**: `google_cloud_run_v2_service`
-- **Details**: Configured with `cpu_idle = false` (often required for n8n to ensure background triggers/pollers run reliably if not using the separate worker mode).
-
-### Persistence
-- **Database**: Connects to the PostgreSQL instance via Cloud SQL Proxy.
-- **Encryption**: Uses **Secret Manager** to generate and inject the `N8N_ENCRYPTION_KEY`. This key is critical; if lost, credentials stored in n8n cannot be decrypted. The module ensures this key is generated once and persisted.
-
-### Networking
-- **Webhooks**: Exposes the Cloud Run URL. Technical users can configure custom domains via Cloud Run domain mapping for professional webhook URLs.
-
-## Configuration & Enhancement
-- **Environment Variables**: The module supports passing standard n8n environment variables (e.g., `N8N_Basic_Auth_Active`, `WEBHOOK_URL`) to customize authentication and behavior.
-- **Scaling**: For heavy workloads, this architecture can be enhanced by separating n8n into "Main", "Worker", and "Webhook" services (though this module deploys the monolith mode by default for simplicity).
-
-
-
-import AudioPlayer from '@site/src/components/AudioPlayer';
-
-# N8N on Google Cloud Platform
-
-<img src="https://storage.googleapis.com/rad-public-2b65/modules/n8n_module.png" alt="N8N on Google Cloud Platform" style={{marginBottom: '20px'}} />
-
-<AudioPlayer url="https://storage.googleapis.com/rad-public-2b65/modules/n8n_module.m4a" title="N8N on Google Cloud Platform Audio" />
-
-<video width="100%" controls style={{marginTop: '20px'}}>
-  <source src="https://storage.googleapis.com/rad-public-2b65/modules/n8n_module.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
-
 This document provides a comprehensive analysis of the `N8N` implementation, detailing its architecture, IAM configuration, services, and potential enhancements.
 
-## 1. Overview
+
 
 The `modules/N8N` module is a **Wrapper Module** that leverages the core logic from `modules/CloudRunApp`. It deploys the [n8n](https://n8n.io/) workflow automation platform as a containerized service on Google Cloud Run, backed by Cloud SQL (PostgreSQL) and Cloud Storage for persistence.
 
