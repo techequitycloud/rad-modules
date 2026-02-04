@@ -1,112 +1,100 @@
-# Creating New Modules
+---
+name: terraform-module-implementation
+description: Guide for implementing Terraform Application Modules using the CloudRunApp wrapper pattern.
+---
 
-This guide outlines how to create a new application module based on the `CloudRunApp` module architecture.
+# Terraform Module Implementation Skill
 
-## Overview
+This skill details how to implement new Application Modules in this repository. These modules act as wrappers around the foundational `CloudRunApp` module, reusing its core logic while defining application-specific configurations.
 
-The `CloudRunApp` module serves as a central hub for shared infrastructure components (networking, storage, IAM, Cloud Run services, etc.). Individual application modules (e.g., `Strapi`, `Wordpress`, `N8N`) act as wrappers that:
+## 1. Overview & The Wrapper Pattern
 
-1.  **Symlink Shared Infrastructure**: Reuse core Terraform files from `CloudRunApp` to maintain consistency and reduce duplication.
-2.  **Define Application Logic**: Provide a specific configuration file (`<app>.tf`) that defines the application's container image, environment variables, database requirements, and initialization jobs.
-3.  **Local Variables**: Override standard variables using a local `variables.tf`.
+The repository uses a "Wrapper Pattern" for Application Modules.
+- **Foundation**: `modules/CloudRunApp` contains the core Terraform logic (services, IAM, networking, storage, etc.).
+- **Wrapper**: Each Application Module (e.g., `modules/Odoo`, `modules/Wordpress`) symlinks to the core files in `CloudRunApp`.
+- **Configuration**: The wrapper defines its specific logic in a local `.tf` file (e.g., `odoo.tf`) by setting `local.application_modules`.
 
-## Method 1: Automated Creation (Recommended for Existing Apps)
+**Benefits:**
+- Consistent infrastructure across all apps.
+- Single point of maintenance for core logic.
+- Rapid creation of new modules.
 
-If the application you want to deploy is already defined within `modules/CloudRunApp` (i.e., it has a corresponding `<app>.tf` file in `modules/CloudRunApp/`), you can use the automated script.
+## 2. Directory Structure
 
-1.  **Run the Script**:
-    ```bash
-    ./scripts/create_module.sh
-    ```
+A standard Application Module should look like this:
 
-2.  **Follow the Prompts**:
-    - Enter a name for your new module (e.g., `MyCompanyBlog`).
-    - Select the base application from the list (e.g., `wordpress`).
-
-3.  **Verify**:
-    - The script will create the directory structure, symlinks, and configuration files automatically.
-    - Check the `modules/<NewModule>/README.md` for specific instructions.
-
-## Method 2: Manual Creation (For New Applications)
-
-If you are adding a completely new application that does not exist in `CloudRunApp`, follow these steps to create a new module wrapper.
-
-### 1. Create Directory Structure
-
-Create the module directory and necessary subdirectories:
-
-```bash
-# Replace MyNewApp with your module name
-export MODULE_NAME="MyNewApp"
-export APP_NAME="mynewapp" # Lowercase, no spaces
-
-mkdir -p modules/$MODULE_NAME/{config,modules,scripts}
-mkdir -p modules/$MODULE_NAME/scripts/$APP_NAME
+```
+modules/MyModule/
+├── main.tf -> ../CloudRunApp/main.tf
+├── variables.tf                 # Module-specific variables (Copy from template)
+├── mymodule.tf                  # MAIN CONFIGURATION FILE (Local logic)
+├── scripts/
+│   └── mymodule/
+│       ├── Dockerfile           # If building a custom image
+│       └── ...                  # Other helper scripts
+├── config/                      # Configuration templates (e.g., nginx.conf, php.ini)
+│   └── ...
+├── .gitignore
+├── README.md
+├── MYMODULE.md                  # Detailed documentation
+└── [Symlinks to CloudRunApp]    # See list below
 ```
 
-### 2. Symlink Shared Infrastructure
+**Required Symlinks:**
+Ensure these point to `../CloudRunApp/`:
+- `buildappcontainer.tf`, `iam.tf`, `jobs.tf`, `main.tf`, `modules.tf`, `monitoring.tf`, `network.tf`, `nfs.tf`, `outputs.tf`, `provider-auth.tf`, `registry.tf`, `sa.tf`, `secrets.tf`, `service.tf`, `sql.tf`, `storage.tf`, `trigger.tf`, `versions.tf`
 
-Run the following commands to create symbolic links to the shared `CloudRunApp` infrastructure files. Run this from the root of the repo:
+**Note:** `variables.tf` is **NOT** a symlink. It must be a local file.
 
-```bash
-cd modules/$MODULE_NAME
+## 3. Module Configuration (`<module_name>.tf`)
 
-# Infrastructure files
-ln -sf ../CloudRunApp/buildappcontainer.tf buildappcontainer.tf
-ln -sf ../CloudRunApp/iam.tf iam.tf
-ln -sf ../CloudRunApp/jobs.tf jobs.tf
-ln -sf ../CloudRunApp/main.tf main.tf
-ln -sf ../CloudRunApp/modules.tf modules.tf
-ln -sf ../CloudRunApp/monitoring.tf monitoring.tf
-ln -sf ../CloudRunApp/network.tf network.tf
-ln -sf ../CloudRunApp/nfs.tf nfs.tf
-ln -sf ../CloudRunApp/outputs.tf outputs.tf
-ln -sf ../CloudRunApp/provider-auth.tf provider-auth.tf
-ln -sf ../CloudRunApp/registry.tf registry.tf
-ln -sf ../CloudRunApp/sa.tf sa.tf
-ln -sf ../CloudRunApp/secrets.tf secrets.tf
-ln -sf ../CloudRunApp/service.tf service.tf
-ln -sf ../CloudRunApp/sql.tf sql.tf
-ln -sf ../CloudRunApp/storage.tf storage.tf
-ln -sf ../CloudRunApp/trigger.tf trigger.tf
-ln -sf ../CloudRunApp/versions.tf versions.tf
+This file is the heart of the module. It must define a `locals` block with specific keys that `CloudRunApp` expects.
 
-# Core scripts
-cd scripts
-ln -sf ../../CloudRunApp/scripts/core core
-cd ../..
-```
-
-### 3. Create Application Configuration
-
-Create a file named `${APP_NAME}.tf` in `modules/${MODULE_NAME}/`. This file defines your application's specific settings.
-
-**Template (`modules/${MODULE_NAME}/${APP_NAME}.tf`):**
+### Required Locals
 
 ```hcl
 locals {
-  # Define the module configuration
-  my_app_module = {
-    app_name            = "mynewapp"
-    display_name        = "My New Application"
-    description         = "A custom application deployed on Cloud Run"
+  # 1. Define the module configuration
+  mymodule_module = {
+    app_name                = "mymodule"
+    application_version     = var.application_version
+    display_name            = "My Module Display Name"
+    description             = "Description of what this module does"
 
-    # Container Image
-    container_image     = "gcr.io/my-project/my-image:latest"
-    # OR for custom build:
-    # image_source        = "custom"
-    # container_build_config = {
-    #   enabled         = true
-    #   dockerfile_path = "Dockerfile"
-    #   context_path    = "."
-    # }
+    # Container Image Config
+    container_image         = "repo/image"  # Base image name
+    image_source            = "custom"      # "custom" (build local) or "prebuilt" (pull public)
 
-    container_port      = 8080
+    # Build Config (if image_source = "custom")
+    container_build_config = {
+      enabled            = true
+      dockerfile_path    = "Dockerfile"
+      context_path       = "mymodule"       # Maps to scripts/mymodule/
+      build_args         = {
+         SOME_ARG = "value"
+      }
+    }
 
-    # Database Configuration (Optional)
-    database_type       = "POSTGRES_15" # or MYSQL_8_0, NONE
-    db_name             = "myappdb"
-    db_user             = "myappuser"
+    container_port          = 8080
+
+    # Database Config
+    database_type           = "POSTGRES_15" # NONE, MYSQL_8_0, POSTGRES_15, SQLSERVER_2019_STANDARD
+    db_name                 = "mydb"
+    db_user                 = "myuser"
+    enable_cloudsql_volume  = true          # Mount Cloud SQL via Unix socket
+    cloudsql_volume_mount_path = "/cloudsql"
+
+    # Storage Config
+    nfs_enabled             = true
+    nfs_mount_path          = "/mnt"
+
+    gcs_volumes = [
+      {
+        name          = "my-data"
+        mount_path    = "/data"
+        read_only     = false
+      }
+    ]
 
     # Resources
     container_resources = {
@@ -114,91 +102,82 @@ locals {
       memory_limit = "512Mi"
     }
 
-    min_instance_count = 0
-    max_instance_count = 5
-
-    # Environment Variables
-    environment_variables = {
-      ENV_VAR_1 = "value1"
-    }
-
-    # Probes
-    startup_probe = {
-      enabled = true
-      path    = "/health"
-    }
-    liveness_probe = {
-      enabled = true
-      path    = "/health"
-    }
-
-    # Initialization Jobs (Optional)
-    initialization_jobs = []
+    # Initialization Jobs (Cloud Run Jobs)
+    initialization_jobs = [
+      {
+        name        = "init-db"
+        description = "Initialize database"
+        command     = ["/bin/sh", "-c"]
+        args        = ["./init.sh"]
+        mount_nfs   = true
+        execute_on_apply = true
+      }
+    ]
   }
 
-  # Register the module
+  # 2. Register the module
   application_modules = {
-    mynewapp = local.my_app_module
+    mymodule = local.mymodule_module
   }
 
-  # Map infrastructure values to App Environment Variables
+  # 3. Define Environment Variables (Static + Secrets)
   module_env_vars = {
-    DB_HOST = local.enable_cloudsql_volume ? "/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
+    DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/..." : local.db_internal_ip
   }
 
-  # Map Secrets
-  module_secret_env_vars = {}
+  module_secret_env_vars = {
+    ADMIN_PASS = try(google_secret_manager_secret.admin_pass.secret_id, "")
+  }
 
-  # Define Storage Buckets
+  # 4. Define Storage Buckets
   module_storage_buckets = []
 }
 ```
 
-### 4. Create Variables File
+## 4. Variables & UIMeta (Standard Order)
 
-Copy `variables.tf` from `CloudRunApp` or another module, or create a new one.
+Variables in `variables.tf` must follow the "Standard Order" and include `UIMeta` annotations for the platform UI.
 
-**Template (`modules/${MODULE_NAME}/variables.tf`):**
+| Group ID | Name | Description |
+| :--- | :--- | :--- |
+| **0** | Metadata | Module description, documentation links |
+| **100** | Basic | Enable flags, public access, basic settings |
+| **200** | Project | Project ID, Region, Tenant ID |
+| **300** | Application | Version, specific app settings |
+| **400** | CI/CD | GitHub repo, triggers |
+| **500** | Env Vars | Custom environment variables |
+| **600** | Health | Probes (startup, liveness) |
+| **700** | Monitoring | Alerts, trusted users |
+| **800** | Init Jobs | Custom job configs |
+| **900** | Network | VPC, Ingress settings |
+| **1000** | DB/Backup | Passwords, Backup config |
 
+**Example:**
 ```hcl
 variable "module_description" {
-  description = "The description of the module."
+  description = "The description of the module. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys MyNewApp on Cloud Run."
+  default     = "This module deploys MyModule"
 }
-
-variable "module_dependency" {
-  description = "Modules this module depends on."
-  type        = list(string)
-  default     = ["GCP_Services"]
-}
-
-# ... Add standard variables from CloudRunApp/variables.tf ...
-# It is recommended to copy the full variables.tf from modules/CloudRunApp/variables.tf
-# and adjust defaults as needed.
 ```
 
-### 5. Create README
+## 5. Scripts & Docker
 
-Create a `README.md` file in `modules/${MODULE_NAME}/` describing the module and how to use it.
+- Place Dockerfiles and scripts in `scripts/<module_name>/`.
+- In `<module_name>.tf`, set `context_path = "<module_name>"` in `container_build_config`.
+- This ensures Kaniko builds relative to `scripts/<module_name>/` but can access the root if needed (though typically restricted).
 
-## Verification
+## 6. Creation Process
 
-1.  **Initialize Terraform**:
-    ```bash
-    cd modules/$MODULE_NAME
-    terraform init
-    ```
+**Recommended:** Use the helper script to verify prerequisites and clone a base module.
 
-2.  **Validate Configuration**:
-    ```bash
-    terraform validate
-    ```
-
-3.  **Plan Deployment**:
-    Create a `terraform.tfvars` or use defaults.
-    ```bash
-    terraform plan
-    ```
-
-If the plan succeeds without errors, your new module is ready!
+1.  Run `./scripts/create_module.sh`.
+2.  Select a similar existing module to clone (e.g., `Odoo` if you need DB + NFS).
+3.  Enter the new module name.
+4.  The script will:
+    -   Clone the directory.
+    -   Rename files (`Old.tf` -> `New.tf`).
+    -   Replace internal strings.
+    -   Setup symlinks.
+5.  Edit `modules/NewModule/newmodule.tf` to customize logic.
+6.  Edit `modules/NewModule/variables.tf` to update metadata.
