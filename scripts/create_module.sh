@@ -95,7 +95,7 @@ get_available_apps() {
                 local module_name=$(basename "$module_dir")
                 # Exclude CloudRunApp (Foundation) and GCP_Services (Platform) and others if needed
                 case "$module_name" in
-                    CloudRunApp|GCP_Services|Sample)
+                    CloudRunApp|GCP_Services|GCP_Project|Sample)
                         ;;
                     *)
                         apps+=("$module_name")
@@ -298,6 +298,14 @@ rename_resources() {
     elif [[ -f "$module_dir/$app_name_lower.tf" ]]; then
         mv "$module_dir/$app_name_lower.tf" "$module_dir/$module_name_lower.tf"
         print_status "Renamed main TF file to $module_name_lower.tf"
+    fi
+
+    # Rename uppercase documentation file (e.g., DJANGO.md → NEWMODULE.md)
+    local app_name_upper=$(to_uppercase "$APP_NAME")
+    local module_name_upper=$(to_uppercase "$MODULE_NAME")
+    if [[ -f "$module_dir/$app_name_upper.md" ]]; then
+        mv "$module_dir/$app_name_upper.md" "$module_dir/$module_name_upper.md"
+        print_status "Renamed documentation file to $module_name_upper.md"
     fi
 
     # Rename scripts directory
