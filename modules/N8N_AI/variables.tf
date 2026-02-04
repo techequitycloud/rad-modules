@@ -568,11 +568,11 @@ variable "ollama_model" {
 variable "application_module" {
   description = "Select a pre-configured application module for automatic configuration. Leave empty or null for manual configuration. When using a module, container image, port, database type, resource limits, and other settings are automatically configured. You can still override any module value by explicitly setting the corresponding variable. {{UIMeta group=0 order=299 OPTIONS=cloudrunapp updatesafe }}"
   type        = string
-  default     = null
+  default     = "n8nai"
 
   validation {
     condition = var.application_module == null || var.application_module == "" || contains([
-      "cloudrunapp"
+      "n8nai"
     ], var.application_module)
     error_message = "Application module must be cloudrunapp or leave empty for manual configuration."
   }
