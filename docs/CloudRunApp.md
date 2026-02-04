@@ -4,6 +4,7 @@ sidebar_label: Cloud Run App
 slug: /applications/cloud-run-app
 ---
 
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # CloudRunApp on Google Cloud Platform
@@ -21,11 +22,17 @@ This document provides a comprehensive analysis of the `CloudRunApp` module on G
 
 ---
 
-## 1. Module Overview
+## Overview
 
 The `CloudRunApp` module is a foundational building block for deploying containerized applications on Google Cloud Run (v2). It is designed to be highly configurable and orchestrates not just the compute layer, but also the surrounding ecosystem of networking, storage, databases, and observability.
 
-**Key Capabilities:**
+## Key Benefits
+*   **Accelerated Deployment**: Reduces weeks of infrastructure boilerplate work into a single module instantiation.
+*   **Security by Design**: Implements least-privilege IAM, VPC egress controls, and Secret Manager integration out of the box.
+*   **Serverless Scalability**: Leverages Cloud Run to automatically scale from zero to N instances based on demand, optimizing costs.
+*   **Production Ready**: Includes built-in support for observability (logging/monitoring), database connectivity (Cloud SQL Auth Proxy), and persistent storage (NFS/GCS).
+
+## Functionality
 *   **Compute**: Deploys Cloud Run v2 Services (Gen2 execution environment).
 *   **Data Persistence**: Integrates with Cloud SQL, NFS, and GCS (including GCS Fuse).
 *   **Lifecycle Management**: Supports initialization jobs (DB migrations, backups, setup).

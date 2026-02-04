@@ -4,6 +4,49 @@ sidebar_label: N8N
 slug: /applications/n8n
 ---
 
+# N8N Module Guide
+
+## Overview
+The **N8N** module deploys n8n, a fair-code workflow automation tool, onto Google Cloud. This tool allows your business to connect disparate apps, APIs, and data sources to automate processes without writing complex code.
+
+## Key Benefits
+- **Own Your Automation**: Unlike SaaS automation tools, you host this yourself, giving you full control over your data and no per-execution fees.
+- **Enterprise Grade**: Runs on Google Cloud's secure infrastructure with a dedicated database, making it suitable for mission-critical workflows.
+- **Cost Efficient**: Serverless deployment means you pay for the compute only when your workflows are actually running (or keep it minimum for listeners).
+- **Secure Connectivity**: Deploy within your private VPC to securely connect to internal databases and services that aren't exposed to the public internet.
+
+## Functionality
+- Deploys the n8n editor and execution engine on Cloud Run.
+- Provisions a dedicated PostgreSQL database for storing workflow definitions and execution history.
+- Configures webhook endpoints to trigger automations from external events.
+
+---
+
+
+# N8N Module Technical Features
+
+## Architecture
+This module deploys the standard `n8n` container image on **Cloud Run**. It uses **Cloud SQL (PostgreSQL)** as the backend `DB_TYPE` to store workflows, credentials, and execution data, ensuring state is preserved across container restarts.
+
+## Cloud Capabilities
+
+### Compute
+- **Resource**: `google_cloud_run_v2_service`
+- **Details**: Configured with `cpu_idle = false` (often required for n8n to ensure background triggers/pollers run reliably if not using the separate worker mode).
+
+### Persistence
+- **Database**: Connects to the PostgreSQL instance via Cloud SQL Proxy.
+- **Encryption**: Uses **Secret Manager** to generate and inject the `N8N_ENCRYPTION_KEY`. This key is critical; if lost, credentials stored in n8n cannot be decrypted. The module ensures this key is generated once and persisted.
+
+### Networking
+- **Webhooks**: Exposes the Cloud Run URL. Technical users can configure custom domains via Cloud Run domain mapping for professional webhook URLs.
+
+## Configuration & Enhancement
+- **Environment Variables**: The module supports passing standard n8n environment variables (e.g., `N8N_Basic_Auth_Active`, `WEBHOOK_URL`) to customize authentication and behavior.
+- **Scaling**: For heavy workloads, this architecture can be enhanced by separating n8n into "Main", "Worker", and "Webhook" services (though this module deploys the monolith mode by default for simplicity).
+
+
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # N8N on Google Cloud Platform

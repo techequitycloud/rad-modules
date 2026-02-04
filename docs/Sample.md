@@ -4,6 +4,7 @@ sidebar_label: Sample
 slug: /applications/sample
 ---
 
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # Sample web application on Google Cloud Platform
@@ -17,7 +18,23 @@ import AudioPlayer from '@site/src/components/AudioPlayer';
   Your browser does not support the video tag.
 </video>
 
-## 1. Executive Summary
+## Overview
+The **Sample** module acts as a reference implementation for deploying custom web applications on Google Cloud Platform. It demonstrates how to build a production-ready "Wrapper Module" that inherits the platform's best practices while deploying a custom Python Flask application.
+
+## Key Benefits
+*   **Blueprint for Success**: serves as a copy-pasteable template for developers to create their own custom modules.
+*   **Best Practices**: Implements secure networking, secrets management, and IAM according to strict standards.
+*   **Full Stack Demo**: Deploys a complete stack including Compute (Cloud Run), Database (Cloud SQL), and Storage (GCS).
+
+## Functionality
+*   Deploys a Python Flask application.
+*   Connects to a PostgreSQL database via Unix Sockets.
+*   Demonstrates automated database schema initialization using Cloud Run Jobs.
+*   Shows how to handle secret injection and environment configuration.
+
+---
+
+## 1. Technical Summary
 The `Sample` module acts as a reference implementation for deploying custom web applications on the Google Cloud Platform (GCP) using the platform's wrapper module architecture. It leverages the foundation `CloudRunApp` module to deploy a Python Flask application connected to a Cloud SQL PostgreSQL database. It demonstrates best practices for containerization, database initialization, secrets management, and secure networking.
 
 ## 2. Architecture Overview

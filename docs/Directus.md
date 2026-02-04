@@ -4,6 +4,7 @@ sidebar_label: Directus
 slug: /applications/directus
 ---
 
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # Directus on Google Cloud Platform
@@ -16,6 +17,23 @@ import AudioPlayer from '@site/src/components/AudioPlayer';
   <source src="https://storage.googleapis.com/rad-public-2b65/modules/directus_module.mp4" type="video/mp4" />
   Your browser does not support the video tag.
 </video>
+
+## Overview
+The **Directus** module deploys Directus, an open data platform, on Google Cloud. It instantly turns any SQL database into an API and provides a beautiful no-code app for managing the content.
+
+## Key Benefits
+*   **Instant Backend**: Automatically generates REST and GraphQL APIs based on your database schema.
+*   **No-Code Management**: Provides a modern, intuitive Admin App for non-technical users to manage content.
+*   **Database Autonomy**: Directus mirrors your SQL database. You stay in control of your data and schema without vendor lock-in.
+*   **Scalable & Serverless**: Runs on Cloud Run, scaling automatically to handle high traffic loads while keeping costs low during idle times.
+
+## Functionality
+*   Deploys the Directus container with PostGIS extensions.
+*   Connects to a managed Cloud SQL (PostgreSQL) database.
+*   Integrates with Cloud Storage for limitless asset management.
+*   Automates database migrations and bootstrapping on deployment.
+
+---
 
 This document provides a comprehensive analysis of the `Directus` module implementation. It details the architecture, IAM security model, service configurations, and opportunities for enhancement.
 

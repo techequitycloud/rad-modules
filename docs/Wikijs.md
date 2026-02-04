@@ -4,6 +4,7 @@ sidebar_label: Wiki.js
 slug: /applications/wiki-js
 ---
 
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # Wiki.js on Google Cloud Platform
@@ -16,6 +17,23 @@ import AudioPlayer from '@site/src/components/AudioPlayer';
   <source src="https://storage.googleapis.com/rad-public-2b65/modules/wikijs_module.mp4" type="video/mp4" />
   Your browser does not support the video tag.
 </video>
+
+## Overview
+The **Wiki.js** module deploys the most powerful and extensible open-source wiki software on Google Cloud. It is designed to make knowledge management beautiful and intuitive for teams of all sizes.
+
+## Key Benefits
+*   **Modern Interface**: Features a beautiful, responsive UI that makes writing documentation a pleasure.
+*   **Git-Backed**: content can be synced with a Git repository, providing version control and backup.
+*   **Powerful Search**: Native full-text search capability (via PostgreSQL) ensures users can find what they need instantly.
+*   **Extensible**: Modular architecture supports various authentication providers, editors (Markdown, WYSIWYG), and storage backends.
+
+## Functionality
+*   Deploys Wiki.js container.
+*   Connects to a managed Cloud SQL (PostgreSQL) database with `pg_trgm` extension enabled.
+*   Mounts Cloud Storage (GCS) for scalable asset storage.
+*   Configures auto-scaling and health checks.
+
+---
 
 This document details the implementation of the `Wiki.js` module, covering its architecture, security posture, configuration, and potential enhancements.
 

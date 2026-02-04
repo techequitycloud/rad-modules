@@ -4,6 +4,7 @@ sidebar_label: Ghost
 slug: /applications/ghost
 ---
 
+
 import AudioPlayer from '@site/src/components/AudioPlayer';
 
 # Ghost on Google Cloud Platform
@@ -17,9 +18,26 @@ import AudioPlayer from '@site/src/components/AudioPlayer';
   Your browser does not support the video tag.
 </video>
 
+## Overview
+The **Ghost** module deploys the Ghost publishing platform on Google Cloud. Ghost is a powerful app for professional publishers to create, share, and grow a business around their content.
+
+## Key Benefits
+*   **Professional Publishing**: Built for journalism and newsletters, offering a clean writing experience and native membership features.
+*   **High Performance**: Runs on a modern Node.js stack, optimized for speed and SEO.
+*   **Maintenance Free**: Serverless deployment removes the need for OS patching or server management.
+*   **Scalable**: Handles traffic spikes from viral posts automatically via Cloud Run.
+
+## Functionality
+*   Deploys the Ghost container (Gen2 execution environment).
+*   Connects to a managed Cloud SQL (MySQL 8.0) database.
+*   Persists media and themes to Cloud Storage (GCS) via FUSE mount.
+*   Configures privacy and caching settings optimized for production.
+
+---
+
 This document provides a comprehensive overview of the `modules/Ghost` implementation, covering its architecture, IAM and access control, service configuration, and potential enhancements.
 
-## 1. Executive Summary
+## 1. Technical Overview
 
 The `Ghost` module leverages a **Wrapper Module Architecture**. It acts as a specialized configuration layer around a shared foundation (`CloudRunApp` module), inheriting robust infrastructure logic while injecting Ghost-specific requirements.
 
