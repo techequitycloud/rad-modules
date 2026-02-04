@@ -581,7 +581,7 @@ variable "application_module" {
 variable "application_name" {
   description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=0 order=300 updatesafe }}"
   type        = string
-  default     = null
+  default     = "n8nai"
 
   validation {
     condition     = var.application_name == null || can(regex("^[a-z][a-z0-9-]{0,19}$", var.application_name))
