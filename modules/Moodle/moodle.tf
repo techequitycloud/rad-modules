@@ -134,21 +134,7 @@ locals {
         name        = "nfs-init"
         description = "Initialize NFS permissions for Moodle"
         image       = "alpine:3.19"
-        command     = ["/bin/sh", "-c"]
-        args = [
-          <<-EOT
-            set -e
-            echo "Creating Moodle data directories..."
-            mkdir -p /mnt/filedir /mnt/temp /mnt/cache /mnt/localcache
-
-            echo "Setting permissions..."
-            chown -R 33:33 /mnt
-            chmod -R 2770 /mnt
-
-            echo "NFS permissions initialized successfully"
-            ls -la /mnt
-          EOT
-        ]
+        script_path       = "${path.module}/scripts/moodle/nfs-init.sh"
         cpu_limit         = "500m"
         memory_limit      = "256Mi"
         timeout_seconds   = 300
@@ -162,60 +148,7 @@ locals {
         name        = "db-init"
         description = "Create Moodle Database and User in PostgreSQL"
         image       = "postgres:15-alpine"
-        command     = ["/bin/sh", "-c"]
-        args = [
-          <<-EOT
-            set -e
-            echo "Installing dependencies..."
-            apk add --no-cache postgresql-client
-
-            TARGET_DB_HOST="$${DB_IP:-$${DB_HOST}}"
-            echo "Using DB Host: $TARGET_DB_HOST"
-
-            echo "Waiting for PostgreSQL..."
-            export PGPASSWORD="$ROOT_PASSWORD"
-            until psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c '\l' > /dev/null 2>&1; do
-              echo "Waiting for database connection..."
-              sleep 2
-            done
-
-            echo "Creating Role $DB_USER if not exists..."
-            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres <<EOF
-            DO \$\$
-            BEGIN
-              IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DB_USER') THEN
-                CREATE ROLE "$DB_USER" WITH LOGIN PASSWORD '$DB_PASSWORD';
-              ELSE
-                ALTER ROLE "$DB_USER" WITH PASSWORD '$DB_PASSWORD';
-              END IF;
-            END
-            \$\$;
-            ALTER ROLE "$DB_USER" CREATEDB;
-            GRANT "$DB_USER" TO postgres;
-            GRANT ALL PRIVILEGES ON DATABASE postgres TO "$DB_USER";
-            EOF
-
-            echo "Creating Database $DB_NAME if not exists..."
-            if ! psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
-              echo "Database does not exist. Creating as $DB_USER..."
-              psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\" ENCODING 'UTF8' LC_COLLATE='en_US.UTF-8' LC_CTYPE='en_US.UTF-8' TEMPLATE=template0;"
-            else
-              echo "Database $DB_NAME already exists."
-              psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
-            fi
-
-            echo "Granting privileges..."
-            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
-
-            echo "Granting schema permissions..."
-            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO \"$DB_USER\";"
-
-            echo "Installing extensions..."
-            psql -h "$TARGET_DB_HOST" -p 5432 -U postgres -d "$DB_NAME" -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
-
-            echo "PostgreSQL DB Init complete."
-          EOT
-        ]
+        script_path       = "${path.module}/scripts/moodle/db-init.sh"
         cpu_limit         = "1000m"
         memory_limit      = "512Mi"
         timeout_seconds   = 600
@@ -229,39 +162,7 @@ locals {
         name        = "moodle-install"
         description = "Install Moodle if not already installed"
         image       = null # Use application image
-        command     = ["/bin/sh", "-c"]
-        args = [
-          <<-EOT
-            set -e
-
-            echo "Checking if Moodle is already installed..."
-            if [ -f /mnt/moodledata_installed ]; then
-              echo "Moodle already installed, skipping..."
-              exit 0
-            fi
-
-            echo "Running Moodle CLI installation..."
-            cd /var/www/html
-
-            # Wait for database to be ready
-            sleep 10
-
-            # Run Moodle installation
-            sudo -u www-data php admin/cli/install_database.php \
-              --lang=en \
-              --adminuser="$${MOODLE_ADMIN_USER:-admin}" \
-              --adminpass="$${MOODLE_ADMIN_PASSWORD:-Admin123!}" \
-              --adminemail="$${MOODLE_ADMIN_EMAIL:-admin@example.com}" \
-              --fullname="$${MOODLE_SITE_FULLNAME:-Moodle LMS}" \
-              --shortname="$${MOODLE_SITE_NAME:-Moodle}" \
-              --agree-license || echo "Installation may have already been completed"
-
-            # Mark as installed
-            touch /mnt/moodledata_installed
-
-            echo "Moodle installation complete."
-          EOT
-        ]
+        script_path       = "${path.module}/scripts/moodle/moodle-install.sh"
         cpu_limit         = "2000m"
         memory_limit      = "4Gi"
         timeout_seconds   = 1800
