@@ -18,9 +18,26 @@ import AudioPlayer from '@site/src/components/AudioPlayer';
   Your browser does not support the video tag.
 </video>
 
+## Overview
+The **Strapi** module deploys the leading open-source Headless CMS on Google Cloud. It empowers developers to build performant, customizable APIs while giving content editors a user-friendly interface.
+
+## Key Benefits
+*   **Developer Freedom**: Fully customizable API and content structure using standard Node.js.
+*   **Omnichannel Delivery**: Distribute content to websites, mobile apps, and IoT devices from a single source.
+*   **Enterprise Scalability**: Runs on Cloud Run with Cloud SQL, capable of handling high traffic and large datasets.
+*   **Secure & Compliant**: Self-hosted on your private Google Cloud infrastructure, ensuring data sovereignty.
+
+## Functionality
+*   Deploys Strapi v4/v5 container.
+*   Connects to a dedicated Cloud SQL (PostgreSQL) database.
+*   Integrates with Google Cloud Storage for media asset management.
+*   Automates database user creation and schema initialization.
+
+---
+
 This document provides a comprehensive analysis of the `Strapi` implementation on the Google Cloud Platform. It covers the architectural design, IAM and access control, service configurations, existing features, and potential enhancements.
 
-## 1. Overview
+## 1. Technical Overview
 
 The `modules/Strapi` module is a wrapper around the `modules/CloudRunApp` foundation module. It streamlines the deployment of a production-ready Strapi (Headless CMS) application by pre-configuring necessary infrastructure components and application runtime settings.
 
