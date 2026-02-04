@@ -4,7 +4,18 @@ sidebar_label: Cyclos
 slug: /applications/cyclos
 ---
 
-# Cyclos Module Guide
+import AudioPlayer from '@site/src/components/AudioPlayer';
+
+# Cyclos on Google Cloud Platform
+
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/cyclos_module.png" alt="Cyclos on Google Cloud Platform" style={{marginBottom: '20px'}} />
+
+<AudioPlayer url="https://storage.googleapis.com/rad-public-2b65/modules/cyclos_module.m4a" title="Cyclos on Google Cloud Platform Audio" />
+
+<video width="100%" controls style={{marginTop: '20px'}}>
+  <source src="https://storage.googleapis.com/rad-public-2b65/modules/cyclos_module.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
 
 ## Overview
 The **Cyclos** module creates a complete, secure environment for hosting the Cyclos Banking System on Google Cloud. Cyclos is a payment and banking software for microfinance institutions, local banks, and complementary currency systems. This module takes the complexity out of deploying Cyclos by automating the setup of its web servers, database, and storage.
@@ -22,49 +33,6 @@ The **Cyclos** module creates a complete, secure environment for hosting the Cyc
 - Sets up secure networking to protect the banking interface.
 
 ---
-
-
-# Cyclos Module Technical Features
-
-## Architecture
-This module deploys the Cyclos application as a stateless service on **Google Cloud Run**, backed by **Cloud SQL (PostgreSQL)**. It leverages **NFS** for shared persistent storage requirements of the application (e.g., for generated reports or uploaded user documents).
-
-## Cloud Capabilities
-
-### Compute
-- **Resource**: `google_cloud_run_v2_service`
-- **Capabilities**:
-  - Deploys the Cyclos container image (version controllable via `application_version`).
-  - Configures resource limits (CPU/Memory) optimized for Java-based banking workloads.
-  - Integration with **Secret Manager** to securely inject sensitive database credentials at runtime.
-
-### Data Persistence
-- **Database**: Connects to the PostgreSQL instance provisioned by the `GCP_Services` module.
-- **File Storage**: Mounts an NFS volume (from `GCP_Services`) to the Cloud Run container to provide persistent, shared storage for application artifacts that must survive container restarts.
-
-### Security
-- **Identity**: Runs with a dedicated Service Account (`sa.tf`) with least-privilege access.
-- **Traffic**: Ingress controls can restrict access to internal VPC traffic or allow public internet access based on the `public_access` variable.
-
-## Configuration & Enhancement
-- **Version Control**: The `application_version` variable allows seamless upgrades of the Cyclos software by simply changing the tag and re-applying Terraform.
-- **Environment Tuning**: The module supports passing environment variables (`configure_environment`) to customize Cyclos runtime behavior (e.g., memory limits, timezone settings).
-- **Monitoring**: Includes standard Cloud Run monitoring integration for latency, request count, and container instance count.
-
-
-
-import AudioPlayer from '@site/src/components/AudioPlayer';
-
-# Cyclos on Google Cloud Platform
-
-<img src="https://storage.googleapis.com/rad-public-2b65/modules/cyclos_module.png" alt="Cyclos on Google Cloud Platform" style={{marginBottom: '20px'}} />
-
-<AudioPlayer url="https://storage.googleapis.com/rad-public-2b65/modules/cyclos_module.m4a" title="Cyclos on Google Cloud Platform Audio" />
-
-<video width="100%" controls style={{marginTop: '20px'}}>
-  <source src="https://storage.googleapis.com/rad-public-2b65/modules/cyclos_module.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
 
 This document details the implementation of the `Cyclos`  module, covering IAM, services, configurations, existing features, and potential enhancements.
 
