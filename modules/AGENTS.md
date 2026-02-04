@@ -82,19 +82,27 @@ The specific logic for the application resides in a single local `.tf` file (e.g
 - **`local.module_storage_buckets`**: List of GCS buckets to create.
 
 ### 4.3. Variables (`variables.tf`)
-The `variables.tf` file MUST mirror the structure and content of `modules/CloudRunApp/variables.tf`. It is organized into standard groups. You MUST NOT remove standard variables unless functionally impossible to support. You MAY add module-specific variables, but try to use `environment_variables` map instead where possible.
+The `variables.tf` file MUST mirror the structure and content of `modules/CloudRunApp/variables.tf`.
 
-**Standard Groups:**
-- **Group 0: Basic Configuration**: `project_id`, `region`, `service_name`, `application_version`.
-- **Group 4: CI/CD**: `github_repository_url`, `enable_cicd_trigger`.
-- **Group 6: Container Resources**: `cpu`, `memory`, `min_instances`, `max_instances`.
-- **Group 7: Storage & Data**: `nfs_server`, `gcs_volumes`, `enable_cloudsql_volume`.
-- **Group 8: Environment Variables**: `environment_variables`, `secret_environment_variables`.
-- **Group 9: Health Check**: `startup_probe_config`, `health_check_config`.
-- **Group 10: Monitoring**: `alert_policies`, `trusted_users`.
-- **Group 11: Initialization Jobs**: `initialization_jobs`.
-- **Group 12: Network & Security**: `vpc_egress_setting`, `ingress_settings`.
-- **Group 13: Database Extensions & Backup**: `backup_source`, `enable_backup_import`, `postgres_extensions`.
+**Variable Visibility & Ordering:**
+- **Visibility:** The module creator and publisher dictate which variables are visible to end users.
+- **Ordering:** Variables MUST be ordered using the `order` field within the `UIMeta` tag (e.g., `{{UIMeta order=100}}`).
+
+**Standard Order:**
+To maintain consistency across modules, utilize the following standard order sequence (in increments of 100):
+
+- **Order 100: Basic Configuration**: `project_id`, `region`, `service_name`, `application_version`.
+- **Order 200: CI/CD**: `github_repository_url`, `enable_cicd_trigger`.
+- **Order 300: Container Resources**: `cpu`, `memory`, `min_instances`, `max_instances`.
+- **Order 400: Storage & Data**: `nfs_server`, `gcs_volumes`, `enable_cloudsql_volume`.
+- **Order 500: Environment Variables**: `environment_variables`, `secret_environment_variables`.
+- **Order 600: Health Check**: `startup_probe_config`, `health_check_config`.
+- **Order 700: Monitoring**: `alert_policies`, `trusted_users`.
+- **Order 800: Initialization Jobs**: `initialization_jobs`.
+- **Order 900: Network & Security**: `vpc_egress_setting`, `ingress_settings`.
+- **Order 1000: Database Extensions & Backup**: `backup_source`, `enable_backup_import`, `postgres_extensions`.
+
+You MUST NOT remove standard variables unless functionally impossible to support. You MAY add module-specific variables, but try to use the `environment_variables` map instead where possible.
 
 ### 4.4. Build Context
 - The Docker build context is located in `scripts/<module_name_lowercase>/`.
