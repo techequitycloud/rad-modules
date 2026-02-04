@@ -22,6 +22,12 @@ variable "module_description" {
   default     = "This module configures foundational Google Cloud infrastructure services for modern application development (vibe coding), including VPC networking, Cloud SQL databases, Redis cache, and IAM service accounts. It prepares your project with the necessary infrastructure for deploying containerized applications and serverless workloads via Cloud Run and Cloud Build."
 }
 
+variable "module_documentation" {
+  description = "The URL to the module documentation. {{UIMeta group=0 order=100 }}"
+  type        = string
+  default     = "https://docs.techequity.cloud/docs/applications/gcp-services"
+}
+
 variable "module_dependency" {
   description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=1 }}"
   type        = list(string)

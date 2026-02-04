@@ -22,6 +22,12 @@ variable "module_description" {
   default     = "This module can be used to deploy Moodle"
 }
 
+variable "module_documentation" {
+  description = "The URL to the module documentation. {{UIMeta group=0 order=100 }}"
+  type        = string
+  default     = "https://docs.techequity.cloud/docs/applications/moodle"
+}
+
 variable "module_dependency" {
   description = "Specify the names of the modules this module depends on in the order in which they should be deployed. {{UIMeta group=0 order=101 }}"
   type        = list(string)
