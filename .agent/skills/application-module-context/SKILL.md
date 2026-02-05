@@ -194,19 +194,12 @@ locals {
         name            = "db-init"
         description     = "Initialize database schema and create users"
         image           = null  # null = use app image; or specify custom
-        command         = ["/bin/sh", "-c"]
-        args            = [<<-EOT
-          #!/bin/bash
-          set -e
 
-          echo "Running database migrations..."
-          python manage.py migrate
+        # ✅ NEW: Use script_path for external shell scripts
+        script_path     = "${path.module}/scripts/<appname>/db-init.sh"
 
-          echo "Creating initial data..."
-          python manage.py loaddata initial_data.json
-
-          echo "Database initialization complete"
-        EOT]
+        # NOTE: command and args are automatically handled when script_path is provided
+        # The framework will: command = ["/bin/sh"], args = ["-c", file(script_path)]
 
         # Resource limits for job
         timeout_seconds = 600
@@ -229,17 +222,37 @@ locals {
         name            = "install-extensions"
         description     = "Install required PostgreSQL extensions"
         image           = "postgres:15-alpine"
-        command         = ["/bin/sh", "-c"]
-        args            = [<<-EOT
-          psql -h $DB_HOST -U postgres -d $DB_NAME <<SQL
-            CREATE EXTENSION IF NOT EXISTS pg_trgm;
-            CREATE EXTENSION IF NOT EXISTS unaccent;
-            CREATE EXTENSION IF NOT EXISTS uuid-ossp;
-SQL
-        EOT]
+
+        # ✅ NEW: Use script_path for external shell scripts
+        script_path     = "${path.module}/scripts/<appname>/install-extensions.sh"
+
         execute_on_apply = false  # Run only on initial creation
       }
     ]
+
+    # ============================================================================
+    # External Script Files
+    # ============================================================================
+    #
+    # Create script files in: scripts/<appname>/db-init.sh
+    #
+    # Example: scripts/<appname>/db-init.sh
+    # #!/bin/bash
+    # set -e
+    # echo "Running database migrations..."
+    # python manage.py migrate
+    # echo "Creating initial data..."
+    # python manage.py loaddata initial_data.json
+    # echo "Database initialization complete"
+    #
+    # Example: scripts/<appname>/install-extensions.sh
+    # #!/bin/bash
+    # set -e
+    # psql -h $DB_HOST -U postgres -d $DB_NAME <<SQL
+    #   CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    #   CREATE EXTENSION IF NOT EXISTS unaccent;
+    #   CREATE EXTENSION IF NOT EXISTS uuid-ossp;
+    # SQL
 
     # ===== STORAGE BUCKETS =====
     storage_buckets = [
@@ -856,24 +869,35 @@ initialization_jobs = [
   {
     name    = "install-extensions"
     image   = "postgres:15-alpine"
-    args    = [<<-EOT
-      psql -h $DB_HOST -U postgres -d $DB_NAME <<SQL
-        CREATE EXTENSION IF NOT EXISTS pg_trgm;
-        CREATE EXTENSION IF NOT EXISTS unaccent;
-SQL
-    EOT]
+
+    # ✅ NEW: Use script_path for external scripts
+    script_path = "${path.module}/scripts/<appname>/install-extensions.sh"
+
     execute_on_apply = false
   },
   {
     name    = "run-migrations"
     image   = null  # Use app image
-    args    = [<<-EOT
-      python manage.py migrate
-      python manage.py createsuperuser --noinput || true
-    EOT]
+
+    # ✅ NEW: Use script_path for external scripts
+    script_path = "${path.module}/scripts/<appname>/run-migrations.sh"
+
     execute_on_apply = true
   }
 ]
+
+# External script files:
+# scripts/<appname>/install-extensions.sh:
+# #!/bin/bash
+# psql -h $DB_HOST -U postgres -d $DB_NAME <<SQL
+#   CREATE EXTENSION IF NOT EXISTS pg_trgm;
+#   CREATE EXTENSION IF NOT EXISTS unaccent;
+# SQL
+#
+# scripts/<appname>/run-migrations.sh:
+# #!/bin/bash
+# python manage.py migrate
+# python manage.py createsuperuser --noinput || true
 ```
 
 ### Multi-Volume Configuration

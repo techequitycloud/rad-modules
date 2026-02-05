@@ -107,12 +107,20 @@ locals {
       {
         name        = "init-db"
         description = "Initialize database"
-        command     = ["/bin/sh", "-c"]
-        args        = ["./init.sh"]
+
+        # ✅ NEW: Use script_path to reference external shell scripts
+        script_path = "${path.module}/scripts/mymodule/init-db.sh"
+
+        # NOTE: command and args are automatically handled when script_path is provided
+        # Do NOT specify command/args when using script_path
+
         mount_nfs   = true
         execute_on_apply = true
       }
     ]
+
+    # External script files should be placed in scripts/<module_name>/ directory
+    # Example: scripts/mymodule/init-db.sh contains the shell script logic
   }
 
   # 2. Register the module
