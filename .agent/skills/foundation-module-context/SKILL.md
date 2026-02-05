@@ -373,6 +373,37 @@ with tempfile.NamedTemporaryFile() as tmp:
 
 CloudRunApp orchestrates initialization jobs that run as Cloud Run Jobs before the service starts.
 
+### Script Path Feature (NEW)
+
+**Migration from Inline Scripts to External Files:**
+
+As of the recent migration, initialization jobs now use **external shell script files** instead of inline heredocs. This provides better:
+- **Maintainability**: Scripts are easier to edit and version control
+- **Reusability**: Scripts can be shared across modules
+- **Testability**: Scripts can be tested independently
+- **Debugging**: Clearer stack traces and error messages
+
+**How it Works:**
+
+When you specify `script_path` in a job configuration:
+```hcl
+{
+  name = "db-init"
+  script_path = "${path.module}/scripts/myapp/db-init.sh"
+}
+```
+
+The CloudRunApp framework (in `jobs.tf`) automatically:
+1. Sets `command = ["/bin/sh"]` if not explicitly provided
+2. Sets `args = ["-c", file(script_path)]` to read and execute the script
+3. This works even for images with custom entrypoints (like postgres:15-alpine, mysql:8.0)
+
+**Benefits:**
+- No need to specify `command` and `args` manually
+- Shell scripts are properly sourced using `file()` function
+- Scripts are evaluated at plan time, ensuring they exist
+- Cleaner Terraform code without nested heredoc syntax
+
 ### Job Configuration
 
 Jobs are defined in the application module's configuration:
@@ -383,20 +414,11 @@ initialization_jobs = [
     name            = "db-init"
     description     = "Initialize database schema and users"
     image           = null  # null = use app image; or specify custom image
-    command         = ["/bin/sh", "-c"]
-    args            = [<<-EOT
-      #!/bin/bash
-      set -e
 
-      echo "Creating database..."
-      psql -h $DB_HOST -U postgres -c "CREATE DATABASE IF NOT EXISTS myapp;"
+    # ✅ NEW: Use script_path for external shell scripts
+    script_path     = "${path.module}/scripts/myapp/db-init.sh"
 
-      echo "Running migrations..."
-      python manage.py migrate
-
-      echo "Creating superuser..."
-      python manage.py createsuperuser --noinput
-    EOT]
+    # NOTE: command and args are automatically handled when script_path is provided
 
     # Resource configuration
     timeout_seconds = 600
@@ -419,14 +441,31 @@ initialization_jobs = [
     name            = "install-extensions"
     description     = "Install PostgreSQL extensions"
     image           = "postgres:15-alpine"  # Custom image
-    command         = ["/bin/sh", "-c"]
-    args            = [<<-EOT
-      psql -h $DB_HOST -U postgres -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
-      psql -h $DB_HOST -U postgres -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS unaccent;"
-    EOT]
+
+    # ✅ NEW: Use script_path for external shell scripts
+    script_path     = "${path.module}/scripts/myapp/install-extensions.sh"
+
     execute_on_apply = false  # Run only on initial creation
   }
 ]
+
+# External script files should be placed in scripts/<module_name>/ directory:
+#
+# scripts/myapp/db-init.sh:
+# #!/bin/bash
+# set -e
+# echo "Creating database..."
+# psql -h $DB_HOST -U postgres -c "CREATE DATABASE IF NOT EXISTS myapp;"
+# echo "Running migrations..."
+# python manage.py migrate
+# echo "Creating superuser..."
+# python manage.py createsuperuser --noinput
+#
+# scripts/myapp/install-extensions.sh:
+# #!/bin/bash
+# set -e
+# psql -h $DB_HOST -U postgres -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+# psql -h $DB_HOST -U postgres -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS unaccent;"
 ```
 
 ### Execution Order
@@ -456,44 +495,76 @@ Jobs run **sequentially** via `run_ordered_jobs.py`:
 
 **1. Database Schema Creation**:
 ```hcl
-args = [<<-EOT
-  python manage.py migrate
-  python manage.py loaddata initial_data.json
-EOT]
+{
+  name = "db-migrations"
+  script_path = "${path.module}/scripts/myapp/db-migrations.sh"
+  execute_on_apply = true
+}
+
+# scripts/myapp/db-migrations.sh:
+# #!/bin/bash
+# python manage.py migrate
+# python manage.py loaddata initial_data.json
 ```
 
 **2. PostgreSQL Extension Installation**:
 ```hcl
-args = [<<-EOT
-  psql -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
-  psql -c "CREATE EXTENSION IF NOT EXISTS uuid-ossp;"
-EOT]
+{
+  name = "install-extensions"
+  image = "postgres:15-alpine"
+  script_path = "${path.module}/scripts/myapp/install-extensions.sh"
+  execute_on_apply = false
+}
+
+# scripts/myapp/install-extensions.sh:
+# #!/bin/bash
+# psql -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+# psql -c "CREATE EXTENSION IF NOT EXISTS uuid-ossp;"
 ```
 
 **3. MySQL Plugin Setup**:
 ```hcl
-args = [<<-EOT
-  mysql -e "INSTALL PLUGIN auth_socket SONAME 'auth_socket.so';"
-EOT]
+{
+  name = "mysql-plugins"
+  image = "mysql:8.0"
+  script_path = "${path.module}/scripts/myapp/mysql-plugins.sh"
+  execute_on_apply = false
+}
+
+# scripts/myapp/mysql-plugins.sh:
+# #!/bin/bash
+# mysql -e "INSTALL PLUGIN auth_socket SONAME 'auth_socket.so';"
 ```
 
 **4. User Account Provisioning**:
 ```hcl
-args = [<<-EOT
-  python manage.py createsuperuser \
-    --username admin \
-    --email admin@example.com \
-    --noinput
-EOT]
+{
+  name = "create-admin"
+  script_path = "${path.module}/scripts/myapp/create-admin.sh"
+  execute_on_apply = false
+}
+
+# scripts/myapp/create-admin.sh:
+# #!/bin/bash
+# python manage.py createsuperuser \
+#   --username admin \
+#   --email admin@example.com \
+#   --noinput
 ```
 
 **5. Backup Restoration**:
 ```hcl
-args = [<<-EOT
-  /scripts/core/import-gcs-backup.sh \
-    --bucket=gs://backups/myapp-db.sql \
-    --database=$DB_NAME
-EOT]
+{
+  name = "restore-backup"
+  script_path = "${path.module}/scripts/myapp/restore-backup.sh"
+  execute_on_apply = false
+}
+
+# scripts/myapp/restore-backup.sh:
+# #!/bin/bash
+# /scripts/core/import-gcs-backup.sh \
+#   --bucket=gs://backups/myapp-db.sql \
+#   --database=$DB_NAME
 ```
 
 ### Job Debugging

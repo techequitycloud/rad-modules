@@ -135,6 +135,8 @@ You are working on a specific application wrapper. These modules rely on `CloudR
     -   Update `container_build_config` in `<app_name>.tf` to enable/disable custom builds or pass build args.
 2.  **Initialization Jobs**:
     -   Define `initialization_jobs` in `<app_name>.tf` to run database migrations, create admin users, or set permissions.
+    -   **BEST PRACTICE**: Use `script_path` to reference external .sh files in `scripts/<app_name>/` instead of inline heredocs
+    -   Example: `script_path = "${path.module}/scripts/<app_name>/db-init.sh"`
     -   These jobs run `on_apply` or can be triggered manually.
 3.  **Environment Variables**:
     -   Set `module_env_vars` in `<app_name>.tf` for app-specific config.
@@ -207,7 +209,8 @@ You are assisting with diagnosing deployment failures, runtime errors, performan
 -   Job logs: Cloud Run > Jobs > Executions > Logs
 -   Build logs: Cloud Build > History
 -   Terraform state: `terraform.tfstate` (if local) or GCS backend
--   Initialization scripts: `modules/CloudRunApp/scripts/core/`
+-   Shared core scripts: `modules/CloudRunApp/scripts/core/` (reusable utilities)
+-   Application scripts: `modules/<AppName>/scripts/<appname>/` (app-specific initialization jobs)
 
 **Task**:
 Systematically diagnose the issue using the tools and patterns above. Start with evidence gathering, narrow down the root cause, and propose a fix.
