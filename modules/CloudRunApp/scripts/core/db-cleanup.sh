@@ -2,6 +2,8 @@
 # Copyright 2024 Tech Equity Ltd
 # Licensed under the Apache License, Version 2.0
 
+# Enable debug mode to see executed commands
+set -x
 set -e
 
 # Function to retry commands with exponential backoff
@@ -34,6 +36,11 @@ echo "DB Name: $DB_NAME"
 echo "DB User: $DB_USER"
 echo "=========================================="
 
+if [ -z "$DB_NAME" ]; then
+    echo "❌ ERROR: DB_NAME environment variable is empty."
+    exit 1
+fi
+
 if [ "$DB_TYPE" = "POSTGRES" ]; then
     echo "Installing PostgreSQL client..."
     # Retry apk update and add to handle transient network issues
@@ -57,7 +64,10 @@ if [ "$DB_TYPE" = "POSTGRES" ]; then
         fi
     fi
 
+    # Disable trace to hide password
+    set +x
     export PGPASSWORD=$ROOT_PASSWORD
+    set -x
     export PGCONNECT_TIMEOUT=10
 
     echo "Checking if database $DB_NAME exists..."
@@ -130,7 +140,7 @@ EOF
         sleep 2
         
         # Step 7: Drop the database
-        echo "Dropping database $DB_NAME..."
+        echo "Dropping database \"$DB_NAME\"..."
         psql -h "$DB_HOST" -p "${DB_PORT:-5432}" -U postgres -d postgres -c \
             "DROP DATABASE IF EXISTS \"$DB_NAME\";" -w || {
                 echo "❌ ERROR: Failed to drop database $DB_NAME"
@@ -230,19 +240,24 @@ elif [ "$DB_TYPE" = "MYSQL" ]; then
         echo "❌ ERROR: Cannot reach $DB_HOST:${DB_PORT:-3306}"
     fi
 
+    # Disable trace to hide password
+    set +x
     export MYSQL_PWD=$ROOT_PASSWORD
+    set -x
 
-    echo "Dropping database $DB_NAME..."
-    mysql -h "$DB_HOST" -P "${DB_PORT:-3306}" -u root -e \
-        "DROP DATABASE IF EXISTS \`$DB_NAME\`;" || {
+    echo "Dropping database \"$DB_NAME\"..."
+    # Using --batch to avoid ascii formatting
+    # Capture error to variable if possible, but redirecting stderr to stdout for visibility
+    mysql -h "$DB_HOST" -P "${DB_PORT:-3306}" -u root --batch -e \
+        "DROP DATABASE IF EXISTS \`$DB_NAME\`;" 2>&1 || {
             echo "❌ ERROR: Failed to drop database $DB_NAME"
             exit 1
         }
     echo "✅ Database dropped"
 
     echo "Dropping user $DB_USER..."
-    mysql -h "$DB_HOST" -P "${DB_PORT:-3306}" -u root -e \
-        "DROP USER IF EXISTS '$DB_USER'@'%';" || {
+    mysql -h "$DB_HOST" -P "${DB_PORT:-3306}" -u root --batch -e \
+        "DROP USER IF EXISTS '$DB_USER'@'%';" 2>&1 || {
             echo "❌ ERROR: Failed to drop user $DB_USER"
             exit 1
         }

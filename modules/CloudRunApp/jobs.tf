@@ -449,7 +449,8 @@ resource "google_cloud_run_v2_job" "postgres_extensions_job" {
   }
 
   depends_on = [
-    data.google_secret_manager_secret_version.db_password
+    data.google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret_iam_member.root_password
   ]
 }
 

@@ -30,6 +30,15 @@ resource "google_secret_manager_secret_iam_member" "db_password" {
   ]
 }
 
+# Grant Cloud Run service account access to Cloud SQL Client
+resource "google_project_iam_member" "cloudsql_client" {
+  count = local.sql_server_exists ? 1 : 0
+
+  project = local.project.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${local.cloud_run_sa_email}"
+}
+
 # Grant Cloud Run service account access to database root password secret
 resource "google_secret_manager_secret_iam_member" "root_password" {
   count = local.sql_server_exists ? 1 : 0
