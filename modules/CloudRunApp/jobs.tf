@@ -220,7 +220,12 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
         }
 
         # Command and args
-        command = length(each.value.command) > 0 ? each.value.command : null
+        # When script_path is provided without explicit command, default to /bin/sh
+        # This ensures the script runs in a shell even for images with custom entrypoints
+        # (e.g., postgres:15-alpine, mysql:8.0-debian which have docker-entrypoint.sh)
+        command = length(each.value.command) > 0 ? each.value.command : (
+          each.value.script_path != null ? ["/bin/sh"] : null
+        )
         args = length(each.value.args) > 0 ? each.value.args : (
           each.value.script_path != null ? ["-c", file(each.value.script_path)] : null
         )
