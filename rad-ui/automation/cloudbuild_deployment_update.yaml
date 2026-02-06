@@ -298,7 +298,7 @@ steps:
     
     # Create archive from parent directory to avoid "file changed" error
     cd /workspace
-    tar -czf "${_MODULE_NAME}.tar.gz" -C "modules/${_MODULE_NAME}" .
+    tar -hczf "${_MODULE_NAME}.tar.gz" -C "modules/${_MODULE_NAME}" .
     
     log "📤 Uploading deployment files..."
     

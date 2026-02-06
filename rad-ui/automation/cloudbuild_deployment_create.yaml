@@ -101,7 +101,7 @@ steps:
     log "📦 Creating initial deployment archive..."
     
     # Create archive of the module
-    tar -czf "${_MODULE_NAME}.tar.gz" -C "/workspace/modules/${_MODULE_NAME}" .
+    tar -hczf "${_MODULE_NAME}.tar.gz" -C "/workspace/modules/${_MODULE_NAME}" .
         
     log "📤 Uploading initial archive to GCS..."
     gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
@@ -306,7 +306,7 @@ steps:
     
     # Create final archive with all state files
     cd /workspace
-    tar -czf "${_MODULE_NAME}.tar.gz" -C "modules/${_MODULE_NAME}" .
+    tar -hczf "${_MODULE_NAME}.tar.gz" -C "modules/${_MODULE_NAME}" .
     
     log "📤 Uploading final deployment files..."
     
