@@ -511,25 +511,25 @@ variable "github_app_installation_id" {
 # ===========================
 
 variable "enable_custom_sql_scripts" {
-  description = "Enable execution of custom SQL scripts from GCS during initialization. Useful for seeding data, creating additional schemas, or running custom DDL. {{UIMeta group=8 order=12001 updatesafe }}"
+  description = "Enable execution of custom SQL scripts from GCS during initialization. Useful for seeding data, creating additional schemas, or running custom DDL. {{UIMeta group=0 order=12001 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "custom_sql_scripts_use_root" {
-  description = "Execute custom SQL scripts as database root user instead of application user. Enable this for scripts that require elevated privileges (e.g., creating users, installing extensions). {{UIMeta group=8 order=12002 updatesafe }}"
+  description = "Execute custom SQL scripts as database root user instead of application user. Enable this for scripts that require elevated privileges (e.g., creating users, installing extensions). {{UIMeta group=0 order=12002 updatesafe }}"
   type        = bool
   default     = false
 }
 
 variable "custom_sql_scripts_bucket" {
-  description = "GCS bucket name containing custom SQL scripts (without gs:// prefix, e.g., 'my-bucket'). Only used when enable_custom_sql_scripts is true. {{UIMeta group=8 order=12003 updatesafe }}"
+  description = "GCS bucket name containing custom SQL scripts (without gs:// prefix, e.g., 'my-bucket'). Only used when enable_custom_sql_scripts is true. {{UIMeta group=0 order=12003 updatesafe }}"
   type        = string
   default     = ""
 }
 
 variable "custom_sql_scripts_path" {
-  description = "Path prefix in GCS bucket for SQL scripts (e.g., 'scripts/init/'). Scripts will be executed in alphabetical order. Name scripts with numeric prefixes for ordering (e.g., 001_schema.sql, 002_data.sql). {{UIMeta group=8 order=12004 updatesafe }}"
+  description = "Path prefix in GCS bucket for SQL scripts (e.g., 'scripts/init/'). Scripts will be executed in alphabetical order. Name scripts with numeric prefixes for ordering (e.g., 001_schema.sql, 002_data.sql). {{UIMeta group=0 order=12004 updatesafe }}"
   type        = string
   default     = ""
 }
