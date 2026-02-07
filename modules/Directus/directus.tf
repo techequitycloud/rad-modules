@@ -12,7 +12,7 @@ locals {
 
     # Custom build configuration
     image_source           = "prebuilt"
-    enable_image_mirroring = trye
+    enable_image_mirroring = true
 
     container_build_config = {
       enabled            = true
