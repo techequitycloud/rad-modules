@@ -134,7 +134,7 @@ variable "configure_environment" {
 }
 
 variable "tenant_deployment_id" {
-  description = "Specify a unique tenant or deployment identifier. This uniquely identifies your application deployment and is used in resource naming (1-20 lowercase alphanumeric characters and hyphens). {{UIMeta 1 order=4001 updatesafe }}"
+  description = "Specify a unique tenant or deployment identifier. This uniquely identifies your application deployment and is used in resource naming (1-20 lowercase alphanumeric characters and hyphens). {{UIMeta group=1 order=4001 updatesafe }}"
   type        = string
   default     = "demo"
 
