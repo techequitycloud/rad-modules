@@ -49,7 +49,7 @@ locals {
 
     # Environment variables
     environment_variables = merge({
-      WORDPRESS_DB_HOST      = "localhost:/tmp/mysqld.sock"
+      WORDPRESS_DB_HOST      = "localhost:/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
       WORDPRESS_TABLE_PREFIX = "wp_"
       WORDPRESS_DEBUG        = "false"
     }, var.enable_redis && var.redis_host != "" ? { WP_REDIS_HOST = var.redis_host } : {},
