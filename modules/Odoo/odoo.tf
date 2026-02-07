@@ -11,8 +11,8 @@ locals {
     container_image         = "odoo"
 
     # image_source    = "build"
-    image_source    = "custom"
-    enable_image_mirroring  = false
+    image_source    = "prebuilt"
+    enable_image_mirroring  = true
 
     container_build_config = {
       enabled            = true
