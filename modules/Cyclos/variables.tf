@@ -378,13 +378,13 @@ variable "initialization_jobs" {
 # ===========================
 
 variable "backup_schedule" {
-  description = "Cron schedule for automated database and NFS backups (e.g., '0 2 * * *' for daily at 2am). Leave empty to disable scheduled backups. {{UIMeta group=4 order=9001 updatesafe }}"
+  description = "Cron schedule for automated database and NFS backups (e.g., '0 2 * * *' for daily at 2am). Leave empty to disable scheduled backups. {{UIMeta group=0 order=9001 updatesafe }}"
   type        = string
   default     = "0 2 * * *"
 }
 
 variable "backup_retention_days" {
-  description = "Number of days to retain automated backups. {{UIMeta group=4 order=9002 updatesafe }}"
+  description = "Number of days to retain automated backups. {{UIMeta group=0 order=9002 updatesafe }}"
   type        = number
   default     = 7
 }
