@@ -2,15 +2,15 @@ locals {
   wordpress_module = {
     app_name            = "wp"
     description         = "WordPress CMS - Popular content management system for websites and blogs"
-    container_image     = ""
+    container_image     = "wordpress"
     container_port      = 80
     database_type       = "MYSQL_8_0"
     db_name             = "wp"
     db_user             = "wp"
     application_version = var.application_version
 
-    image_source           = "custom"
-    enable_image_mirroring = false
+    image_source           = "prebuilt"
+    enable_image_mirroring = true
 
     # ✅ Custom build configuration
     container_build_config = {
