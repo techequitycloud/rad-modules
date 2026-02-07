@@ -80,7 +80,7 @@ variable "existing_project_id" {
 }
 
 variable "trusted_users" {
-  description = "Email addresses of users to be granted access the Google Cloud project, monitoring alerts and notifications (e.g., ['admin@example.com', 'ops@example.com']). {{UIMeta group=1 order=2002 updatesafe }}"
+  description = "Email addresses of users to be granted access the Google Cloud project, monitoring alerts and notifications (e.g., ['admin@example.com', 'ops@example.com']). {{UIMeta group=0 order=2002 updatesafe }}"
   type        = list(string)
   default     = []
 }
@@ -244,7 +244,7 @@ variable "application_module" {
 }
 
 variable "application_name" {
-  description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=2 order=802 updatesafe }}"
+  description = "Application name used in resource naming. Must start with a letter and contain only lowercase letters, numbers, and hyphens (1-20 characters). {{UIMeta group=0 order=802 updatesafe }}"
   type        = string
   default     = "cloudrunapp"
 
@@ -267,7 +267,7 @@ variable "application_description" {
 }
 
 variable "application_database_name" {
-  description = "Application database name. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-63 characters). The actual database name includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=2 order=805 updatesafe }}"
+  description = "Application database name. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-63 characters). The actual database name includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=805 updatesafe }}"
   type        = string
   default     = "cloudrunapp"
 
@@ -278,7 +278,7 @@ variable "application_database_name" {
 }
 
 variable "application_database_user" {
-  description = "Application database user. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-32 characters). The actual database user includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=2 order=806 updatesafe }}"
+  description = "Application database user. Must start with a letter and contain only lowercase letters, numbers, and underscores (1-32 characters). The actual database user includes tenant ID and deployment ID to ensure uniqueness. {{UIMeta group=0 order=806 updatesafe }}"
   type        = string
   default     = "cloudrunapp"
 
@@ -304,7 +304,7 @@ variable "container_image_source" {
 }
 
 variable "container_image" {
-  description = "Pre-built container image (e.g., 'nginx:latest', 'gcr.io/project/app:v1'). Required when container_image_source='prebuilt' unless using an application_module. {{UIMeta group=3 order=902 updatesafe }}"
+  description = "Pre-built container image (e.g., 'nginx:latest', 'gcr.io/project/app:v1'). Required when container_image_source='prebuilt' unless using an application_module. {{UIMeta group=0 order=902 updatesafe }}"
   type        = string
   default     = "us-docker.pkg.dev/cloudrun/container/hello"
 }
@@ -352,7 +352,7 @@ variable "container_resources" {
 }
 
 variable "min_instance_count" {
-  description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=3 order=907 updatesafe }}"
+  description = "Minimum number of container instances (0-1000). Set to 0 to scale to zero when idle (cost-effective). {{UIMeta group=0 order=907 updatesafe }}"
   type        = number
   default     = 0
 
@@ -363,7 +363,7 @@ variable "min_instance_count" {
 }
 
 variable "max_instance_count" {
-  description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=3 order=908 updatesafe }}"
+  description = "Maximum number of container instances (1-1000). Controls maximum scale under load. {{UIMeta group=0 order=908 updatesafe }}"
   type        = number
   default     = 3
 
@@ -427,7 +427,7 @@ variable "timeout_seconds" {
 }
 
 variable "ingress_settings" {
-  description = "Ingress settings: 'all' (public internet), 'internal' (VPC only), or 'internal-and-cloud-load-balancing'. {{UIMeta group=4 order=1005 updatesafe }}"
+  description = "Ingress settings: 'all' (public internet), 'internal' (VPC only), or 'internal-and-cloud-load-balancing'. {{UIMeta group=0 order=1005 updatesafe }}"
   type        = string
   default     = "all"
 
@@ -466,13 +466,13 @@ variable "secret_propagation_delay" {
 }
 
 variable "environment_variables" {
-  description = "Static environment variables for the application as key-value pairs (e.g., {APP_ENV='production', LOG_LEVEL='info'}). {{UIMeta group=4 order=1009 updatesafe }}"
+  description = "Static environment variables for the application as key-value pairs (e.g., {APP_ENV='production', LOG_LEVEL='info'}). {{UIMeta group=0 order=1009 updatesafe }}"
   type        = map(string)
   default     = {}
 }
 
 variable "secret_environment_variables" {
-  description = "Environment variables from Secret Manager. Map environment variable name to Secret Manager secret name (e.g., {API_KEY='my-api-key-secret'}). {{UIMeta group=4 order=1010 updatesafe }}"
+  description = "Environment variables from Secret Manager. Map environment variable name to Secret Manager secret name (e.g., {API_KEY='my-api-key-secret'}). {{UIMeta group=0 order=1010 updatesafe }}"
   type        = map(string)
   default     = {}
 }
