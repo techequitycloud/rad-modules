@@ -6,8 +6,8 @@ locals {
     application_version = var.application_version
 
     # Use custom build to avoid Docker Hub pull restrictions in Cloud Build
-    image_source = "custom"
-    enable_image_mirroring = false
+    image_source = "prebuilt"
+    enable_image_mirroring = true
 
     container_build_config = {
       enabled            = true
