@@ -49,7 +49,7 @@ variable "credit_cost" {
 variable "require_credit_purchases" {
   description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=5 }}"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_purge" {
