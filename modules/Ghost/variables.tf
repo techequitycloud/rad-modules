@@ -48,7 +48,7 @@ variable "credit_cost" {
 variable "require_credit_purchases" {
   description = "Set to true to require credit purchases to deploy this module. {{UIMeta group=0 order=106 }}"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_purge" {
@@ -78,7 +78,7 @@ variable "existing_project_id" {
 }
 
 variable "trusted_users" {
-  description = "Email addresses of users to be granted access the Google Cloud project, monitoring alerts and notifications (e.g., ['admin@example.com', 'ops@example.com']). {{UIMeta group=1 order=2002 updatesafe }}"
+  description = "Email addresses of users to be granted access the Google Cloud project, monitoring alerts and notifications (e.g., ['admin@example.com', 'ops@example.com']). {{UIMeta group=0 order=2002 updatesafe }}"
   type        = list(string)
   default     = []
 }
@@ -147,7 +147,7 @@ variable "tenant_deployment_id" {
 variable "application_version" {
   description = "Application version tag (e.g., 6.14.0, latest). {{UIMeta group=0 order=4002 updatesafe }}"
   type        = string
-  default     = "6.14.0"
+  default     = "6.17.0"
 }
 
 variable "resource_labels" {
