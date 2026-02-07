@@ -6,8 +6,8 @@ locals {
     container_image     = "n8nio/n8n"
     application_version = var.application_version
 
-    image_source    = "custom"
-    enable_image_mirroring = false
+    image_source    = "prebuilt"
+    enable_image_mirroring = true
 
     container_build_config = {
       enabled            = true
