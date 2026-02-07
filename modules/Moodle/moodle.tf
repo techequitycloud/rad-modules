@@ -9,11 +9,11 @@ locals {
     app_name            = "moodle"
     description         = "Moodle LMS - Online learning and course management platform"
     application_version = var.application_version
-    container_image     = "" # Empty for custom build
+    container_image     = "moodlehq/moodle-php-apache" # Empty for custom build
 
     # ✅ Use custom build
-    image_source           = "custom"
-    enable_image_mirroring = false
+    image_source           = "prebuilt"
+    enable_image_mirroring = true
 
     # ✅ Custom build configuration
     container_build_config = {
