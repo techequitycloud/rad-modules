@@ -148,7 +148,7 @@ variable "tenant_deployment_id" {
 variable "application_version" {
   description = "Application version tag (e.g., 11.1.0, latest). {{UIMeta group=0 order=4002 updatesafe }}"
   type        = string
-  default     = "11.1.0"
+  default     = "11.15.1"
 }
 
 variable "resource_labels" {
