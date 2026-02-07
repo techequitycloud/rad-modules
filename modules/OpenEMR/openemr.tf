@@ -4,9 +4,9 @@ locals {
     application_version = var.application_version
     display_name        = "OpenEMR"
     description         = "This module can be used to deploy OpenEMR"
-    container_image     = "openemr/openemr"
+    container_image     = "" 
 
-    image_source           = "prebuilt"
+    image_source           = "custom"
     enable_image_mirroring = true
 
     container_build_config = {
