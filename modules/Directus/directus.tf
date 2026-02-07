@@ -3,7 +3,7 @@ locals {
   directus_module = {
     app_name            = "directus"
     description         = "Directus - Open Source Headless CMS and Backend-as-a-Service"
-    application_version = "11.15.1"
+    application_version = var.application_version
     container_image     = "directus/directus"
     container_port      = 8055
     database_type       = "POSTGRES_15"
@@ -20,7 +20,7 @@ locals {
       context_path       = "directus"
       dockerfile_content = null
       build_args = {
-        DIRECTUS_VERSION = "11.1.0"
+        DIRECTUS_VERSION = var.application_version
       }
       artifact_repo_name = null
     }
