@@ -5,6 +5,7 @@ locals {
     description         = "CloudRunApp Custom Application - Flask App with Database Connection"
     container_image     = "cloudrunapp" # Empty for custom build to avoid double tagging
     application_version = "1.0.0"
+    
     image_source        = "custom"
     enable_image_mirroring = false
 

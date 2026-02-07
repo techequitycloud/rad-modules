@@ -8,6 +8,8 @@ locals {
 
     # image_source    = "build"
     image_source    = "prebuilt"
+    enable_image_mirroring = true
+
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"

@@ -7,7 +7,7 @@ locals {
     application_version = var.application_version
 
     image_source    = "custom"
-    enable_image_mirroring = true
+    enable_image_mirroring = false
 
     container_build_config = {
       enabled            = true

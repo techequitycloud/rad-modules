@@ -4,10 +4,10 @@ locals {
     description         = "Ghost - Professional publishing platform"
     container_image     = "ghost" 
     application_version = var.application_version
-    enable_image_mirroring = false
 
     # Use custom build to avoid Docker Hub pull restrictions in Cloud Build
     image_source = "custom"
+    enable_image_mirroring = false
 
     container_build_config = {
       enabled            = true

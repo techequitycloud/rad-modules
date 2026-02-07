@@ -9,10 +9,11 @@ locals {
     display_name            = "Odoo Community Edition"
     description             = "Odoo ERP System - CRM, e-commerce, billing, accounting, manufacturing, warehouse, project management"
     container_image         = "odoo"
-    enable_image_mirroring  = true
 
     # image_source    = "build"
     image_source    = "custom"
+    enable_image_mirroring  = false
+
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"

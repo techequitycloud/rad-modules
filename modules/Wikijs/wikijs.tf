@@ -7,11 +7,11 @@ locals {
     application_version     = var.application_version
 
     # Image source
-    image_source    = "custom"
-    enable_image_mirroring  = false
+    image_source    = "prebuilt"
+    enable_image_mirroring  = true
 
     container_build_config = {
-      enabled            = true
+      enabled            = false
       dockerfile_path    = "Dockerfile"
       context_path       = "wikijs"
       dockerfile_content = null
