@@ -3,7 +3,7 @@ locals {
     app_name                = "wikijs"
     display_name            = "Wiki.js"
     description             = "Wiki.js - The most powerful and extensible open source Wiki software"
-    container_image         = ""
+    container_image         = "requarks/wiki"
     application_version     = var.application_version
 
     # Image source
