@@ -99,7 +99,7 @@ variable "trusted_users" {
 }
 
 variable "resource_labels" {
-  description = "Labels to assign to resources. {{UIMeta group=1 order=103 }}"
+  description = "Labels to assign to resources. {{UIMeta group=0 order=103 }}"
   type        = map(string)
   default     = {}
 }
@@ -169,13 +169,13 @@ variable "postgres_database_availability_type" {
 }
 
 variable "postgres_database_version" {
-  description = "PostgreSQL database version to use. {{UIMeta group=3 order=402 options=POSTGRES_16,POSTGRES_15,POSTGRES_14 }}"
+  description = "PostgreSQL database version to use. {{UIMeta group=0 order=402 options=POSTGRES_16,POSTGRES_15,POSTGRES_14 }}"
   type        = string
   default     = "POSTGRES_16"
 }
 
 variable "postgres_tier" {
-  description = "The machine type to use for PostgreSQL. Supports shared-core and custom machine types such as `db-custom-2-13312`. {{UIMeta group=3 order=403 }}"
+  description = "The machine type to use for PostgreSQL. Supports shared-core and custom machine types such as `db-custom-2-13312`. {{UIMeta group=0 order=403 }}"
   type        = string
   default     = "db-custom-1-3840"
 }
@@ -207,13 +207,13 @@ variable "mysql_database_availability_type" {
 }
 
 variable "mysql_database_version" {
-  description = "MySQL database version to use. {{UIMeta group=3 order=412 options=MYSQL_8_0,MYSQL_5_7 }}"
+  description = "MySQL database version to use. {{UIMeta group=0 order=412 options=MYSQL_8_0,MYSQL_5_7 }}"
   type        = string
   default     = "MYSQL_8_0"
 }
 
 variable "mysql_tier" {
-  description = "The machine type to use for MySQL. Supports shared-core and custom machine types such as `db-custom-2-13312`. {{UIMeta group=3 order=413 }}"
+  description = "The machine type to use for MySQL. Supports shared-core and custom machine types such as `db-custom-2-13312`. {{UIMeta group=0 order=413 }}"
   type        = string
   default     = "db-custom-1-3840"
 }
@@ -248,13 +248,13 @@ variable "create_network_filesystem" {
 }
 
 variable "network_filesystem_machine" {
-  description = "NFS server machine type. {{UIMeta group=4 order=402 }}"
+  description = "NFS server machine type. {{UIMeta group=0 order=402 }}"
   type        = string
   default     = "e2-small"
 }
 
 variable "network_filesystem_capacity" {
-  description = "Size of NFS server disks in GB. {{UIMeta group=4 order=403 }}"
+  description = "Size of NFS server disks in GB. {{UIMeta group=0 order=403 }}"
   type        = number
   default     = 10
 }
@@ -264,19 +264,19 @@ variable "network_filesystem_capacity" {
 ################################################################################
 
 variable "create_redis" {
-  description = "Select to create Managed Redis instance. {{UIMeta group=5 order=520 }}"
+  description = "Select to create Managed Redis instance. {{UIMeta group=0 order=520 }}"
   type        = bool
   default     = false
 }
 
 variable "redis_tier" {
-  description = "The service tier of the Redis instance. {{UIMeta group=5 order=521 options=BASIC,STANDARD_HA }}"
+  description = "The service tier of the Redis instance. {{UIMeta group=0 order=521 options=BASIC,STANDARD_HA }}"
   type        = string
   default     = "BASIC"
 }
 
 variable "redis_memory_size_gb" {
-  description = "Memory size in GB for the Redis instance. {{UIMeta group=5 order=522 }}"
+  description = "Memory size in GB for the Redis instance. {{UIMeta group=0 order=522 }}"
   type        = number
   default     = 1
 
@@ -287,7 +287,7 @@ variable "redis_memory_size_gb" {
 }
 
 variable "redis_version" {
-  description = "Redis version to use. {{UIMeta group=5 order=523 options=REDIS_7_2,REDIS_7_0,REDIS_6_X }}"
+  description = "Redis version to use. {{UIMeta group=0 order=523 options=REDIS_7_2,REDIS_7_0,REDIS_6_X }}"
   type        = string
   default     = "REDIS_7_2"
 }
@@ -303,19 +303,19 @@ variable "redis_connect_mode" {
 ################################################################################
 
 variable "create_filestore_nfs" {
-  description = "Select to create Filestore NFS server. {{UIMeta group=6 order=611 }}"
+  description = "Select to create Filestore NFS server. {{UIMeta group=0 order=611 }}"
   type        = bool
   default     = false
 }
 
 variable "filestore_tier" {
-  description = "The service tier of the filestore instance. {{UIMeta group=6 order=612 options=BASIC_HDD,BASIC_SSD }}"
+  description = "The service tier of the filestore instance. {{UIMeta group=0 order=612 options=BASIC_HDD,BASIC_SSD }}"
   type        = string
   default     = "BASIC_HDD"
 }
 
 variable "filestore_capacity_gb" {
-  description = "Filestore capacity must be at least 1024 GB for BASIC_HDD, and 2560 GB for BASIC_SSD.{{UIMeta group=6 order=613 }}"
+  description = "Filestore capacity must be at least 1024 GB for BASIC_HDD, and 2560 GB for BASIC_SSD.{{UIMeta group=0 order=613 }}"
   type        = number
   default     = 1024
 
@@ -336,19 +336,19 @@ variable "notification_channels" {
 }
 
 variable "alert_cpu_threshold" {
-  description = "CPU utilization threshold for alerting (percentage). {{UIMeta group=7 order=701 }}"
+  description = "CPU utilization threshold for alerting (percentage). {{UIMeta group=0 order=701 }}"
   type        = number
   default     = 80
 }
 
 variable "alert_memory_threshold" {
-  description = "Memory utilization threshold for alerting (percentage). {{UIMeta group=7 order=702 }}"
+  description = "Memory utilization threshold for alerting (percentage). {{UIMeta group=0 order=702 }}"
   type        = number
   default     = 80
 }
 
 variable "alert_disk_threshold" {
-  description = "Disk utilization threshold for alerting (percentage). {{UIMeta group=7 order=703 }}"
+  description = "Disk utilization threshold for alerting (percentage). {{UIMeta group=0 order=703 }}"
   type        = number
   default     = 80
 }
