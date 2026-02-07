@@ -49,7 +49,6 @@ locals {
 
     # Environment variables
     environment_variables = merge({
-      WORDPRESS_DB_HOST      = "localhost:/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
       WORDPRESS_TABLE_PREFIX = "wp_"
       WORDPRESS_DEBUG        = "false"
     }, var.enable_redis && var.redis_host != "" ? { WP_REDIS_HOST = var.redis_host } : {},
@@ -100,6 +99,7 @@ locals {
   module_env_vars = {
     WORDPRESS_DB_NAME = local.database_name_full
     WORDPRESS_DB_USER = local.database_user_full
+    WORDPRESS_DB_HOST = "localhost:/cloudsql/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}"
   }
 
   module_secret_env_vars = {
