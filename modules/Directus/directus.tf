@@ -3,16 +3,16 @@ locals {
   directus_module = {
     app_name            = "directus"
     description         = "Directus - Open Source Headless CMS and Backend-as-a-Service"
-    application_version = "11.1.0"
-    container_image     = ""
+    application_version = "11.15.1"
+    container_image     = "directus/directus"
     container_port      = 8055
     database_type       = "POSTGRES_15"
     db_name             = "directus"
     db_user             = "directus"
 
     # Custom build configuration
-    image_source           = "custom"
-    enable_image_mirroring = false
+    image_source           = "prebuilt"
+    enable_image_mirroring = trye
 
     container_build_config = {
       enabled            = true
