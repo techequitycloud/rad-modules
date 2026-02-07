@@ -37,6 +37,8 @@ resource "google_compute_address" "static_internal_ip" {
   address_type = "INTERNAL"                              
   purpose      = "GCE_ENDPOINT"                            
 
+  labels = var.resource_labels
+
   depends_on = [
     google_service_networking_connection.psconnect,
   ]
@@ -55,6 +57,8 @@ resource "google_compute_instance_template" "nfs_server" {
   machine_type              = var.network_filesystem_machine                           
   metadata_startup_script   = file("${path.module}/scripts/create_nfs.sh") 
   tags                      = ["nfsserver", "redisserver"]
+
+  labels = var.resource_labels
 
   metadata = {
     enable-oslogin = false
@@ -77,7 +81,7 @@ resource "google_compute_instance_template" "nfs_server" {
   }
 
   network_interface {
-    subnetwork          = "https://www.googleapis.com/compute/v1/projects/${var.existing_project_id}/regions/${local.region}/subnetworks/gce-vpc-subnet-${local.region}"  # Subnet ID for private IP connectivity
+    subnetwork          = local.gce_subnet_id
     subnetwork_project  = var.existing_project_id
     network_ip          = google_compute_address.static_internal_ip[0].address  
   }

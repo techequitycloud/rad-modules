@@ -96,6 +96,21 @@ elif [ "${K8S}" = "worker" ]; then
     AUTHORITY=no
 fi
 
+# For Cloud Run: start a temporary health responder to pass startup and liveness probes
+# while the OpenEMR installation runs. Cloud Run enforces a hard 10-minute startup timeout
+# and kills containers whose port isn't open by then. The OpenEMR SQL schema installation
+# can exceed 10 minutes, so we need port open immediately.
+HEALTH_PROBE_PID=""
+if [ "${OPERATOR}" = "yes" ] && [ "${SWARM_MODE}" != "yes" ] && [ -z "${K8S}" ]; then
+    PROBE_PORT="${PORT:-80}"
+    mkdir -p /tmp/health-probe/interface/login
+    echo '<?php http_response_code(200); echo "starting";' > /tmp/health-probe/interface/login/login.php
+    echo '<?php http_response_code(200); echo "ok";' > /tmp/health-probe/index.php
+    php -S "0.0.0.0:${PROBE_PORT}" -t /tmp/health-probe >/dev/null 2>&1 &
+    HEALTH_PROBE_PID=$!
+    echo "Started temporary health responder on port ${PROBE_PORT} (PID: ${HEALTH_PROBE_PID})"
+fi
+
 if [ "${SWARM_MODE}" = "yes" ]; then
     # atomically test for leadership (using POSIX-compliant syntax)
     set -C
@@ -249,6 +264,27 @@ if [ "${AUTHORITY}" = "yes" ]; then
        [ "${MANUAL_SETUP}" != "yes" ]; then
 
         echo "Running quick setup!"
+
+        # Prepare database connection variables for the readiness check
+        prepareVariables
+
+        # Wait for MySQL to be fully ready (accepting queries, not just port open)
+        echo "Waiting for MySQL to accept connections..."
+        WAIT_ELAPSED=0
+        MAX_WAIT_SECONDS=300
+        while [ "${WAIT_ELAPSED}" -lt "${MAX_WAIT_SECONDS}" ]; do
+            if mysql -u "${CUSTOM_USER}" --password="${CUSTOM_PASSWORD}" -h "${MYSQL_HOST}" -P "${CUSTOM_PORT}" -e "SELECT 1" "${CUSTOM_DATABASE}" >/dev/null 2>&1; then
+                echo "MySQL is ready and accepting queries."
+                break
+            fi
+            WAIT_ELAPSED=$((WAIT_ELAPSED + 5))
+            echo "MySQL not ready yet, waiting... (${WAIT_ELAPSED}s/${MAX_WAIT_SECONDS}s)"
+            sleep 5
+        done
+        if [ "${WAIT_ELAPSED}" -ge "${MAX_WAIT_SECONDS}" ]; then
+            echo "WARNING: MySQL did not become ready within ${MAX_WAIT_SECONDS} seconds. Attempting setup anyway."
+        fi
+
         SETUP_ATTEMPTS=0
         MAX_SETUP_ATTEMPTS=10
         while ! auto_setup; do
@@ -270,7 +306,23 @@ if [ "${AUTHORITY}" = "yes" ]; then
                 echo "If the database was partially configured, you may need to drop and recreate it."
                 exit 1
             fi
-            sleep 1;
+            # Clean up partially-created tables before retrying to prevent "table already exists" errors
+            TABLE_COUNT=$(mysql -u "${CUSTOM_USER}" --password="${CUSTOM_PASSWORD}" -h "${MYSQL_HOST}" -P "${CUSTOM_PORT}" -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${CUSTOM_DATABASE}'" 2>/dev/null) || TABLE_COUNT="0"
+            if [ "${TABLE_COUNT}" -gt "0" ]; then
+                echo "Found ${TABLE_COUNT} tables from partial install. Dropping all tables before retry..."
+                mysqldump -u "${CUSTOM_USER}" --password="${CUSTOM_PASSWORD}" -h "${MYSQL_HOST}" -P "${CUSTOM_PORT}" --add-drop-table --no-data "${CUSTOM_DATABASE}" 2>/dev/null \
+                    | grep ^DROP \
+                    | awk 'BEGIN { print "SET FOREIGN_KEY_CHECKS=0;" } { print $0 } END { print "SET FOREIGN_KEY_CHECKS=1;" }' \
+                    | mysql -u "${CUSTOM_USER}" --password="${CUSTOM_PASSWORD}" -h "${MYSQL_HOST}" -P "${CUSTOM_PORT}" "${CUSTOM_DATABASE}" 2>/dev/null || true
+                echo "Table cleanup complete."
+            fi
+            # Exponential backoff: 5, 10, 20, 40, 60, 60, 60, ...
+            BACKOFF=$((5 * (2 ** (SETUP_ATTEMPTS - 1))))
+            if [ "${BACKOFF}" -gt 60 ]; then
+                BACKOFF=60
+            fi
+            echo "Retrying in ${BACKOFF} seconds... (attempt ${SETUP_ATTEMPTS}/${MAX_SETUP_ATTEMPTS})"
+            sleep ${BACKOFF};
         done
         echo "Setup Complete!"
         # Re-read CONFIG since auto_setup just set $config = 1 in sqlconf.php
@@ -530,6 +582,16 @@ echo " > https://opencollective.com/openemr/donate"
 echo
 
 if [ "${OPERATOR}" = yes ]; then
+    # Stop the temporary health responder before starting Apache on the same port
+    if [ -n "${HEALTH_PROBE_PID}" ] && kill -0 "${HEALTH_PROBE_PID}" 2>/dev/null; then
+        echo "Stopping temporary health responder (PID: ${HEALTH_PROBE_PID})..."
+        kill "${HEALTH_PROBE_PID}" 2>/dev/null
+        wait "${HEALTH_PROBE_PID}" 2>/dev/null || true
+        rm -rf /tmp/health-probe
+        # Brief pause to ensure the port is released
+        sleep 1
+    fi
+
     echo 'Starting PHP-FPM...'
     /usr/sbin/php-fpm83
 

@@ -66,7 +66,7 @@ locals {
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
 
-    nfs_enabled    = true
+    enable_nfs    = true
     nfs_mount_path = "/mnt"
 
     gcs_volumes = [
@@ -218,6 +218,8 @@ resource "google_secret_manager_secret" "odoo_master_pass" {
     auto {}
   }
   project = var.existing_project_id
+
+  labels = local.common_labels
 }
 
 resource "google_secret_manager_secret_version" "odoo_master_pass" {

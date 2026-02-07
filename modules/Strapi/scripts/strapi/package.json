@@ -15,6 +15,7 @@
     "@strapi/plugin-i18n": "4.24.2",
     "@strapi/plugin-cloud": "4.24.2",
     "@strapi-community/strapi-provider-upload-google-cloud-storage": "^4.0.0",
+    "strapi-plugin-redis": "1.1.0",
     "strapi-plugin-rest-cache": "4.2.8",
     "strapi-provider-rest-cache-redis": "4.2.8",
     "pg": "8.11.3",

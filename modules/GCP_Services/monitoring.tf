@@ -22,6 +22,7 @@ resource "google_monitoring_alert_policy" "cloud_sql_cpu_high" {
   combiner     = "OR"
   enabled      = true
   project      = local.project.project_id
+  user_labels  = var.resource_labels
 
   conditions {
     display_name = "Cloud SQL CPU > ${var.alert_cpu_threshold}%"
@@ -51,6 +52,7 @@ resource "google_monitoring_alert_policy" "cloud_sql_memory_high" {
   combiner     = "OR"
   enabled      = true
   project      = local.project.project_id
+  user_labels  = var.resource_labels
 
   conditions {
     display_name = "Cloud SQL Memory > ${var.alert_memory_threshold}%"
@@ -80,6 +82,7 @@ resource "google_monitoring_alert_policy" "cloud_sql_disk_high" {
   combiner     = "OR"
   enabled      = true
   project      = local.project.project_id
+  user_labels  = var.resource_labels
 
   conditions {
     display_name = "Cloud SQL Disk > ${var.alert_disk_threshold}%"
@@ -113,6 +116,7 @@ resource "google_monitoring_alert_policy" "nfs_server_cpu_high" {
   combiner     = "OR"
   enabled      = true
   project      = local.project.project_id
+  user_labels  = var.resource_labels
 
   conditions {
     display_name = "NFS Server CPU > ${var.alert_cpu_threshold}%"
@@ -142,6 +146,7 @@ resource "google_monitoring_alert_policy" "nfs_server_memory_high" {
   combiner     = "OR"
   enabled      = true
   project      = local.project.project_id
+  user_labels  = var.resource_labels
 
   conditions {
     display_name = "NFS Server Memory > ${var.alert_memory_threshold}%"
@@ -174,6 +179,7 @@ resource "google_monitoring_alert_policy" "nfs_server_health_check_failed" {
   combiner     = "OR"
   enabled      = true
   project      = local.project.project_id
+  user_labels  = var.resource_labels
 
   conditions {
     display_name = "NFS Server CPU metrics absent (instance down)"
@@ -196,4 +202,3 @@ resource "google_monitoring_alert_policy" "nfs_server_health_check_failed" {
     auto_close = "3600s"
   }
 }
-

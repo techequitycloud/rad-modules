@@ -25,6 +25,7 @@ resource "google_monitoring_notification_channel" "email" {
   labels = {
     email_address = local.trusted_users[count.index]
   }
+  user_labels  = local.common_labels
   force_delete = true
 }
 
@@ -200,6 +201,8 @@ resource "google_monitoring_slo" "latency_slo" {
   project      = local.project.project_id
   calendar_period = "DAY"
 
+  user_labels = local.common_labels
+
   request_based_sli {
     distribution_cut {
       distribution_filter = "metric.type=\"run.googleapis.com/request_latencies\" resource.type=\"cloud_run_revision\""
@@ -227,6 +230,8 @@ resource "google_monitoring_slo" "availability_slo" {
   project      = local.project.project_id
   calendar_period = "DAY"
 
+  user_labels = local.common_labels
+
   request_based_sli {
     good_total_ratio {
       good_service_filter = "metric.type=\"run.googleapis.com/request_count\" AND resource.type=\"cloud_run_revision\" AND metric.label.response_code_class=\"2xx\""
@@ -251,20 +256,28 @@ resource "google_monitoring_uptime_check_config" "https" {
   display_name = "${local.service_name}-uptime-check"
   timeout      = local.uptime_check_config.timeout
   period       = local.uptime_check_config.check_interval
+  user_labels  = local.common_labels
 
   http_check {
     path         = local.uptime_check_config.path
     port         = "443"
     use_ssl      = true
     validate_ssl = false
+    # Monitor the actual service URL instead of using monitored_resource
+    # This avoids dependency on revision existence and missing revision_name label
+    request_method = "GET"
+    accepted_response_status_codes {
+      status_class = "STATUS_CLASS_2XX"
+    }
   }
 
+  # Use monitored_resource type "uptime_url" for direct URL monitoring
+  # This is more reliable than cloud_run_revision which requires revision_name
   monitored_resource {
-    type = "cloud_run_revision"
+    type = "uptime_url"
     labels = {
-      project_id   = local.project.project_id
-      service_name = local.service_name
-      location     = local.regions[count.index]
+      project_id = local.project.project_id
+      host       = trimprefix(google_cloud_run_v2_service.app_service[0].uri, "https://")
     }
   }
 

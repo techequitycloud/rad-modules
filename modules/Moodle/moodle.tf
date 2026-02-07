@@ -44,7 +44,7 @@ locals {
     cloudsql_volume_mount_path = "/cloudsql"
 
     # NFS Configuration
-    nfs_enabled    = true
+    enable_nfs    = true
     nfs_mount_path = "/mnt"
 
     # GCS Volumes - Mount path changed to avoid conflict with NFS /mnt
@@ -215,8 +215,8 @@ locals {
     MOODLE_DB_TYPE = local.database_client_type == "POSTGRES" ? "pgsql" : "mysqli"
 
     # Redis Configuration
-    MOODLE_REDIS_ENABLED  = tostring(var.redis_enabled)
-    MOODLE_REDIS_HOST     = var.redis_enabled ? (var.redis_host != "" ? var.redis_host : (local.nfs_enabled ? local.nfs_internal_ip : "")) : ""
+    MOODLE_enable_redis  = tostring(var.enable_redis)
+    MOODLE_REDIS_HOST     = var.enable_redis ? (var.redis_host != "" ? var.redis_host : (local.nfs_enabled ? local.nfs_internal_ip : "")) : ""
     MOODLE_REDIS_PORT     = var.redis_port
     MOODLE_REDIS_PASSWORD = var.redis_auth
 
@@ -291,6 +291,8 @@ resource "google_secret_manager_secret" "moodle_cron_password" {
     auto {}
   }
   project = var.existing_project_id
+
+  labels = var.resource_labels
 }
 
 resource "google_secret_manager_secret_version" "moodle_cron_password" {
@@ -306,6 +308,8 @@ resource "google_secret_manager_secret" "moodle_smtp_password" {
     auto {}
   }
   project = var.existing_project_id
+
+  labels = var.resource_labels
 }
 
 resource "random_password" "moodle_smtp_password" {
@@ -334,4 +338,5 @@ resource "google_cloud_scheduler_job" "moodle_cron_job" {
     http_method = "GET"
     uri         = "${local.predicted_service_url}/admin/cron.php?password=${random_password.moodle_cron_password[0].result}"
   }
+
 }

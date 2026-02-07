@@ -27,12 +27,11 @@ locals {
   # Determine subnet for the region
   subnet_map = local.region_to_subnet
 
-  # ✅ NEW: Safe subnet name lookup with multiple fallbacks
+  # Subnet name lookup with fallbacks matching the configured network
   subnet_name = coalesce(
     try(local.region_to_subnet[local.region], null),
     try([for s in local.subnet_details : s.name if s.region == local.region][0], null),
     try(local.subnet_details[0].name, null),
-    "gce-vpc-subnet-${local.region}", # Match your actual subnet naming pattern
     "${local.network_name}-subnet-${local.region}"
   )
 
@@ -50,12 +49,21 @@ locals {
   backup_source = local.enable_backup_import ? var.backup_source : "gcs"
 
   # Determine backup URI/ID
-  backup_uri = local.enable_backup_import && var.backup_uri != null && var.backup_uri != "" ? var.backup_uri : ""
+  # If backup import is enabled but no URI is provided, default to the auto-created backup bucket
+  backup_uri = local.enable_backup_import ? (
+    var.backup_uri != null && var.backup_uri != "" ? var.backup_uri : "gs://${google_storage_bucket.backup_bucket.name}"
+  ) : ""
 
   # Determine backup format
-  backup_format = local.enable_backup_import && var.backup_format != null && var.backup_format != "" ? var.backup_format : "sql"
+  # If auto-discovering from backup bucket, format might be tar.gz, but script handles detection?
+  # Default to 'auto' if using backup bucket? Or keep 'sql' and let script fail if it's tar?
+  # The export script creates .tar.gz. So if we default to backup bucket, we should default format to 'tar.gz' or 'auto'.
+  # Let's keep existing logic but if using backup bucket, we assume it's one of the supported formats.
+  backup_format = local.enable_backup_import && var.backup_format != null && var.backup_format != "" ? var.backup_format : "auto"
 
   # Determine which specific backup jobs to run
+  # Enable GCS job if source is GCS AND (URI is set OR (URI is empty AND we use backup bucket))
+  # In the logic above, backup_uri is already set to bucket name if empty.
   enable_gdrive_backup_job = local.backup_import_enabled && local.backup_source == "gdrive" && local.backup_uri != ""
   enable_gcs_backup_job    = local.backup_import_enabled && local.backup_source == "gcs" && local.backup_uri != ""
 }
@@ -70,6 +78,7 @@ resource "google_cloud_run_v2_job" "nfs_setup_job" {
   name                = "${local.resource_prefix}-nfs-setup"
   location            = local.region
   deletion_protection = false
+  labels              = local.common_labels
 
   template {
     template {
@@ -174,6 +183,7 @@ resource "google_cloud_run_v2_job" "initialization_jobs" {
   name                = "${local.resource_prefix}-${each.key}"
   location            = local.region
   deletion_protection = false
+  labels              = local.common_labels
 
   template {
     template {
@@ -382,9 +392,10 @@ resource "null_resource" "execute_initialization_jobs" {
 resource "google_cloud_run_v2_job" "postgres_extensions_job" {
   count               = local.enable_postgres_extensions && local.sql_server_exists && local.database_client_type == "POSTGRES" && length(local.postgres_extensions) > 0 ? 1 : 0
   project             = local.project.project_id
-  name                = "${local.resource_prefix}-postgres-ext"
+  name                = "${local.resource_prefix}-db-extensions"
   location            = local.region
   deletion_protection = false
+  labels              = local.common_labels
 
   template {
     template {
@@ -510,6 +521,7 @@ resource "google_cloud_run_v2_job" "gdrive_backup_job" {
   name                = "${local.resource_prefix}-backup-import"
   location            = local.region
   deletion_protection = false
+  labels              = local.common_labels
 
   template {
     template {
@@ -534,6 +546,11 @@ resource "google_cloud_run_v2_job" "gdrive_backup_job" {
         env {
           name  = "DB_TYPE"
           value = local.database_client_type
+        }
+
+        env {
+          name  = "DB_VERSION"
+          value = local.database_version
         }
 
         env {
@@ -576,6 +593,12 @@ resource "google_cloud_run_v2_job" "gdrive_backup_job" {
           }
         }
 
+        # NFS configuration
+        env {
+          name  = "NFS_MOUNT_PATH"
+          value = "/mnt/nfs"
+        }
+
         command = ["/bin/bash"]
         args    = ["-c", file("${path.module}/scripts/core/import-gdrive-backup.sh")]
 
@@ -583,6 +606,25 @@ resource "google_cloud_run_v2_job" "gdrive_backup_job" {
           limits = {
             cpu    = "2000m"
             memory = "2Gi"
+          }
+        }
+
+        dynamic "volume_mounts" {
+          for_each = local.nfs_enabled && local.nfs_server_exists ? [1] : []
+          content {
+            name       = "nfs-deployment-volume"
+            mount_path = "/mnt/nfs"
+          }
+        }
+      }
+
+      dynamic "volumes" {
+        for_each = local.nfs_enabled && local.nfs_server_exists ? [1] : []
+        content {
+          name = "nfs-deployment-volume"
+          nfs {
+            server = local.nfs_internal_ip
+            path   = local.nfs_unique_path
           }
         }
       }
@@ -661,6 +703,7 @@ resource "google_cloud_run_v2_job" "gcs_backup_job" {
   name                = "${local.resource_prefix}-backup-import"
   location            = local.region
   deletion_protection = false
+  labels              = local.common_labels
 
   template {
     template {
@@ -685,6 +728,11 @@ resource "google_cloud_run_v2_job" "gcs_backup_job" {
         env {
           name  = "DB_TYPE"
           value = local.database_client_type
+        }
+
+        env {
+          name  = "DB_VERSION"
+          value = local.database_version
         }
 
         env {
@@ -727,6 +775,12 @@ resource "google_cloud_run_v2_job" "gcs_backup_job" {
           }
         }
 
+        # NFS configuration
+        env {
+          name  = "NFS_MOUNT_PATH"
+          value = "/mnt/nfs"
+        }
+
         command = ["/bin/bash"]
         args    = ["-c", file("${path.module}/scripts/core/import-gcs-backup.sh")]
 
@@ -734,6 +788,25 @@ resource "google_cloud_run_v2_job" "gcs_backup_job" {
           limits = {
             cpu    = "2000m"
             memory = "2Gi"
+          }
+        }
+
+        dynamic "volume_mounts" {
+          for_each = local.nfs_enabled && local.nfs_server_exists ? [1] : []
+          content {
+            name       = "nfs-deployment-volume"
+            mount_path = "/mnt/nfs"
+          }
+        }
+      }
+
+      dynamic "volumes" {
+        for_each = local.nfs_enabled && local.nfs_server_exists ? [1] : []
+        content {
+          name = "nfs-deployment-volume"
+          nfs {
+            server = local.nfs_internal_ip
+            path   = local.nfs_unique_path
           }
         }
       }
@@ -814,6 +887,7 @@ resource "google_cloud_run_v2_job" "mysql_plugins_job" {
   name                = "${local.resource_prefix}-mysql-plugins"
   location            = local.region
   deletion_protection = false
+  labels              = local.common_labels
 
   template {
     template {
@@ -939,6 +1013,7 @@ resource "google_cloud_run_v2_job" "custom_sql_scripts_job" {
   name                = "${local.resource_prefix}-custom-sql"
   location            = local.region
   deletion_protection = false
+  labels              = local.common_labels
 
   template {
     template {
@@ -963,6 +1038,11 @@ resource "google_cloud_run_v2_job" "custom_sql_scripts_job" {
         env {
           name  = "DB_TYPE"
           value = local.database_client_type
+        }
+
+        env {
+          name  = "DB_VERSION"
+          value = local.database_version
         }
 
         env {
@@ -1056,7 +1136,8 @@ resource "google_cloud_run_v2_job" "db_cleanup_job" {
   name                = "${local.resource_prefix}-db-cleanup"
   location            = local.region
   deletion_protection = false
-
+  labels              = local.common_labels
+  
   template {
     template {
       service_account       = local.cloud_run_sa_email
@@ -1205,6 +1286,7 @@ resource "google_cloud_run_v2_job" "nfs_cleanup_job" {
   name                = "${local.resource_prefix}-nfs-cleanup"
   location            = local.region
   deletion_protection = false
+  labels              = local.common_labels
 
   template {
     template {
@@ -1218,7 +1300,7 @@ resource "google_cloud_run_v2_job" "nfs_cleanup_job" {
 
         env {
           name  = "NFS_BASE_PATH"
-          value = "/${local.resource_prefix}"
+          value = local.nfs_unique_path
         }
 
         command = ["/bin/sh"]
@@ -1359,4 +1441,154 @@ resource "null_resource" "execute_custom_sql_scripts_job" {
     null_resource.execute_gcs_backup_job,
     null_resource.execute_gdrive_backup_job
   ]
+}
+
+# ============================================================================
+# Scheduled Backup Job
+# ============================================================================
+
+resource "google_cloud_run_v2_job" "backup_export_job" {
+  # Trigger if schedule is set OR manually created (always create if SQL exists?)
+  # The user said "can be scheduled by the end user", so if schedule is empty, we might not need the scheduler,
+  # but the job itself is useful for manual triggers.
+  # But the requirement was "scheduled job". Let's stick to creating it if schedule is set OR just always create it so it can be manually run?
+  # "In that way, a backup bucket is always available, which may or may not be used." suggests always creating bucket.
+  # Let's create the job always if DB exists, scheduler only if schedule is set.
+  count               = local.sql_server_exists ? 1 : 0
+  project             = local.project.project_id
+  name                = "${local.resource_prefix}-db-export"
+  location            = local.region
+  deletion_protection = false
+  labels              = local.common_labels
+  
+  template {
+    template {
+      service_account       = local.cloud_run_sa_email
+      max_retries           = 0
+      timeout               = "3600s" # 1 hour timeout for backups
+      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
+
+      containers {
+        image = "gcr.io/google.com/cloudsdktool/google-cloud-cli:slim" # Has gsutil pre-installed
+
+        env {
+          name  = "GCS_BACKUP_BUCKET"
+          value = google_storage_bucket.backup_bucket.name
+        }
+
+        env {
+          name  = "DB_TYPE"
+          value = local.database_client_type
+        }
+
+        env {
+          name  = "DB_VERSION"
+          value = local.database_version
+        }
+
+        env {
+          name  = "DB_HOST"
+          value = local.db_internal_ip
+        }
+
+        env {
+          name  = "DB_PORT"
+          value = tostring(local.database_port)
+        }
+
+        env {
+          name  = "DB_NAME"
+          value = local.database_name_full
+        }
+
+        env {
+          name  = "DB_USER"
+          value = local.database_user_full
+        }
+
+        env {
+          name = "DB_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret  = local.db_password_secret_name
+              version = "latest"
+            }
+          }
+        }
+
+        # NFS configuration
+        env {
+          name  = "NFS_MOUNT_PATH"
+          value = "/mnt/nfs"
+        }
+
+        command = ["/bin/bash"]
+        args    = ["-c", file("${path.module}/scripts/core/export-backup.sh")]
+
+        resources {
+          limits = {
+            cpu    = "1000m"
+            memory = "2Gi"
+          }
+        }
+
+        dynamic "volume_mounts" {
+          for_each = local.nfs_enabled && local.nfs_server_exists ? [1] : []
+          content {
+            name       = "nfs-deployment-volume"
+            mount_path = "/mnt/nfs"
+          }
+        }
+      }
+
+      dynamic "volumes" {
+        for_each = local.nfs_enabled && local.nfs_server_exists ? [1] : []
+        content {
+          name = "nfs-deployment-volume"
+          nfs {
+            server = local.nfs_internal_ip
+            path   = local.nfs_unique_path
+          }
+        }
+      }
+
+      vpc_access {
+        network_interfaces {
+          network    = "projects/${local.project.project_id}/global/networks/${local.network_name}"
+          subnetwork = "projects/${local.project.project_id}/regions/${local.region}/subnetworks/${local.subnet_name}"
+          tags       = local.network_tags
+        }
+        egress = local.vpc_egress_setting
+      }
+    }
+  }
+
+  depends_on = [
+    google_storage_bucket.backup_bucket,
+    google_secret_manager_secret.db_password,
+    google_secret_manager_secret_version.db_password,
+    google_secret_manager_secret_iam_member.db_password,
+    time_sleep.db_password
+  ]
+}
+
+resource "google_cloud_scheduler_job" "backup_schedule" {
+  count       = local.sql_server_exists && var.backup_schedule != "" ? 1 : 0
+  project     = local.project.project_id
+  name        = "${local.resource_prefix}-backup-schedule"
+  description = "Trigger backup export job"
+  schedule    = var.backup_schedule
+  # Note: Labels are not supported on google_cloud_scheduler_job in all provider versions/regions used here
+  # so skipping labels for scheduler job to be safe.
+  time_zone   = "UTC"
+  region      = local.region
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://${local.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${local.project.project_id}/jobs/${google_cloud_run_v2_job.backup_export_job[0].name}:run"
+
+    oauth_token {
+      service_account_email = local.cloud_run_sa_email
+    }
+  }
 }

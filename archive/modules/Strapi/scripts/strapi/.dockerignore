@@ -1,0 +1,11 @@
+.tmp/
+.git/
+.env
+node_modules/
+build/
+.cache/
+public/uploads/
+.strapi/
+Dockerfile
+README.md
+*.tf

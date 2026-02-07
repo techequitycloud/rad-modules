@@ -10,9 +10,9 @@ app = Flask(__name__)
 
 # Redis Session Configuration
 enable_redis = os.environ.get('ENABLE_REDIS', 'false').lower() == 'true'
+redis_host = os.environ.get('REDIS_HOST', '').strip()
 
-if enable_redis:
-    redis_host = os.environ.get('REDIS_HOST')
+if enable_redis and redis_host:
     redis_port = int(os.environ.get('REDIS_PORT', 6379))
     print(f"Redis enabled. Connecting to {redis_host}:{redis_port}")
 
@@ -24,7 +24,11 @@ if enable_redis:
 
     Session(app)
 else:
-    print("Redis disabled. Using default cookie-based sessions.")
+    if enable_redis and not redis_host:
+        print("Warning: ENABLE_REDIS is true but REDIS_HOST is empty. Falling back to cookie-based sessions.")
+        enable_redis = False
+    else:
+        print("Redis disabled. Using default cookie-based sessions.")
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_secret_key')
 
 # Database Configuration

@@ -21,6 +21,8 @@ resource "google_filestore_instance" "nfs_server" {
   location = data.google_compute_zones.available_zones.names[0]
   tier = var.filestore_tier
 
+  labels = var.resource_labels
+
   file_shares {
     capacity_gb = var.filestore_capacity_gb
     name        = "share"

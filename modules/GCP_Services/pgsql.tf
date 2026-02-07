@@ -35,6 +35,8 @@ resource "google_sql_database_instance" "postgres_instance" {
     disk_size             = 10
     disk_type             = "PD_SSD"                       
 
+    user_labels = var.resource_labels
+
     ip_configuration {
       ipv4_enabled            = false                     
       private_network         = "https://www.googleapis.com/compute/v1/projects/${var.existing_project_id}/global/networks/${var.network_name}"  
@@ -96,6 +98,8 @@ resource "google_secret_manager_secret" "pgsql_root_password" {
   count      = var.create_postgres ? 1 : 0
   project    = local.project.project_id  
   secret_id  = "${google_sql_database_instance.postgres_instance[0].name}-root-password"  
+
+  labels = var.resource_labels
 
   replication {
     auto {} 

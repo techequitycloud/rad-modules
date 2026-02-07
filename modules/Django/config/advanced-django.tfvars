@@ -5,4 +5,4 @@ deployment_region    = "us-central1"
 
 # Database Configuration
 database_password_length = 24
-nfs_enabled              = true
+enable_nfs              = true

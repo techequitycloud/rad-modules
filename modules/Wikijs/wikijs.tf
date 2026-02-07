@@ -3,12 +3,13 @@ locals {
     app_name                = "wikijs"
     display_name            = "Wiki.js"
     description             = "Wiki.js - The most powerful and extensible open source Wiki software"
-    container_image         = "requarks/wiki"
-    enable_image_mirroring  = true
+    container_image         = ""
     application_version     = var.application_version
 
     # Image source
-    image_source    = "prebuilt"
+    image_source    = "custom"
+    enable_image_mirroring  = false
+
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"

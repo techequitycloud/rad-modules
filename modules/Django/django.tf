@@ -86,7 +86,7 @@ locals {
         execute_on_apply  = true
       },
       {
-        name            = "migrate"
+        name            = "db-migrate"
         description     = "Run Django Migrations"
         image           = null
         script_path       = "${path.module}/scripts/django/migrate.sh"
@@ -157,6 +157,7 @@ resource "random_password" "django_secret_key" {
 
 resource "google_secret_manager_secret" "django_secret_key" {
   secret_id = "${local.wrapper_prefix}-secret-key"
+  labels    = local.common_labels
   replication {
     auto {}
   }

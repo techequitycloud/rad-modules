@@ -137,7 +137,7 @@ locals {
 
   # CI/CD Configuration
   enable_cicd_trigger = var.enable_cicd_trigger && var.github_repository_url != null
-  github_token_secret = var.github_token_secret_name != null ? "${var.github_token_secret_name}-${local.tenant_id}" : null
+  github_token_secret = var.github_token != null && var.github_token != "" ? "${local.resource_prefix}-github-token" : null
   enable_image_mirroring = local.final_enable_image_mirroring
 
   # Determine source image for mirroring (Prebuilt or Custom Build Artifact)
@@ -155,6 +155,8 @@ locals {
 
   # Container image logic:
   container_image = (
+    local.container_image_source == "custom" && local.container_build_config.enabled && local.enable_cicd_trigger ?
+      "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}" :
     local.container_image_source == "custom" && local.container_build_config.enabled && !local.enable_cicd_trigger ?
       (local.enable_image_mirroring ? local.mirror_target_image : "${local.region}-docker.pkg.dev/${local.project.project_id}/${local.artifact_repo_id}/${local.application_name}:${local.application_version}") :
     local.enable_image_mirroring ? local.mirror_target_image :
@@ -364,7 +366,7 @@ locals {
 # IMAGE MIRRORING RESOURCES
 # ==============================================================================
 resource "null_resource" "mirror_image" {
-  count = local.enable_image_mirroring ? 1 : 0
+  count = local.enable_image_mirroring && !local.enable_cicd_trigger ? 1 : 0
 
   triggers = {
     source_image = local.mirror_source_image

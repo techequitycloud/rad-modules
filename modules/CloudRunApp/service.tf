@@ -83,6 +83,8 @@ resource "google_cloud_run_v2_service" "app_service" {
   # Annotations
   annotations = local.service_annotations
 
+  labels = local.common_labels
+
   template {
     service_account       = local.cloud_run_sa_email
     session_affinity      = true

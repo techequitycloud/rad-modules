@@ -4,9 +4,9 @@ locals {
     display_name        = "Strapi CMS"
     description         = "Strapi - Open source Node.js Headless CMS"
     container_image     = ""
-    image_source        = "custom"
     application_version = var.application_version
 
+    image_source        = "custom"
     enable_image_mirroring = false
 
     # Custom build configuration
@@ -75,7 +75,7 @@ locals {
       initial_delay_seconds = 60
       timeout_seconds       = 5
       period_seconds        = 10
-      failure_threshold     = 3
+      failure_threshold     = 15
     }
     liveness_probe = {
       enabled               = true
@@ -103,7 +103,7 @@ locals {
     GCS_BUCKET_NAME   = try(local.storage_buckets["strapi-uploads"].name, "")
     GCS_BASE_URL      = "https://storage.googleapis.com/${try(local.storage_buckets["strapi-uploads"].name, "")}"
     },
-    var.redis_enabled && (var.redis_host != null && var.redis_host != "" || try(local.nfs_internal_ip, "") != "") ? {
+    var.enable_redis && (var.redis_host != null && var.redis_host != "" || try(local.nfs_internal_ip, "") != "") ? {
       REDIS_HOST = var.redis_host != null && var.redis_host != "" ? var.redis_host : local.nfs_internal_ip
       REDIS_PORT = var.redis_port
     } : {}
@@ -141,6 +141,7 @@ resource "random_password" "strapi_jwt_secret" {
 
 resource "google_secret_manager_secret" "strapi_jwt_secret" {
   secret_id = "${local.wrapper_prefix}-jwt-secret"
+  labels    = local.common_labels
   replication {
     auto {}
   }
@@ -159,6 +160,7 @@ resource "random_password" "strapi_admin_jwt_secret" {
 
 resource "google_secret_manager_secret" "strapi_admin_jwt_secret" {
   secret_id = "${local.wrapper_prefix}-admin-jwt-secret"
+  labels    = local.common_labels
   replication {
     auto {}
   }
@@ -177,6 +179,7 @@ resource "random_password" "strapi_api_token_salt" {
 
 resource "google_secret_manager_secret" "strapi_api_token_salt" {
   secret_id = "${local.wrapper_prefix}-api-token-salt"
+  labels    = local.common_labels
   replication {
     auto {}
   }
@@ -195,6 +198,7 @@ resource "random_password" "strapi_transfer_token_salt" {
 
 resource "google_secret_manager_secret" "strapi_transfer_token_salt" {
   secret_id = "${local.wrapper_prefix}-transfer-token-salt"
+  labels    = local.common_labels
   replication {
     auto {}
   }
@@ -225,6 +229,7 @@ resource "random_password" "strapi_app_key_4" {
 
 resource "google_secret_manager_secret" "strapi_app_keys" {
   secret_id = "${local.wrapper_prefix}-app-keys"
+  labels    = local.common_labels
   replication {
     auto {}
   }

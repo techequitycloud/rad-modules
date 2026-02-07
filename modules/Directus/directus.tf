@@ -30,7 +30,7 @@ locals {
     cloudsql_volume_mount_path = "/cloudsql"
 
     # NFS Configuration (for Redis/cache)
-    nfs_enabled    = true
+    enable_nfs    = true
     nfs_mount_path = "/mnt/nfs"
 
     # GCS volumes for uploads
@@ -58,9 +58,9 @@ locals {
       PUBLIC_URL = "https://your-directus-url.run.app"
 
       # Cache configuration
-      CACHE_ENABLED = tostring(var.redis_enabled)
-      CACHE_STORE   = var.redis_enabled ? "redis" : "memory"
-      # REDIS value is injected via module_env_vars to avoid cycle with nfs_enabled
+      CACHE_ENABLED = tostring(var.enable_redis)
+      CACHE_STORE   = var.enable_redis ? "redis" : "memory"
+      # REDIS value is injected via module_env_vars to avoid cycle with enable_nfs
       
       # Rate limiting
       RATE_LIMITER_ENABLED  = "false"
@@ -154,7 +154,7 @@ locals {
     directus = local.directus_module
   }
 
-  redis_connection_string = var.redis_enabled ? (
+  redis_connection_string = var.enable_redis ? (
     var.redis_host != "" ? "redis://${var.redis_host}:${var.redis_port}" : 
     "redis://${local.nfs_internal_ip}:${var.redis_port}"
   ) : ""
@@ -175,7 +175,7 @@ locals {
       ADMIN_PASSWORD = try(google_secret_manager_secret.directus_admin_password.secret_id, "")
       DB_PASSWORD    = try(google_secret_manager_secret.db_password[0].secret_id, "")
     },
-    var.redis_enabled ? {
+    var.enable_redis ? {
       REDIS = try(google_secret_manager_secret.directus_redis[0].secret_id, "")
     } : {}
   )
@@ -198,16 +198,17 @@ locals {
 # ==============================================================================
 
 resource "google_secret_manager_secret" "directus_redis" {
-  count     = var.redis_enabled ? 1 : 0
+  count     = var.enable_redis ? 1 : 0
   secret_id = "${local.wrapper_prefix}-redis-url"
   replication {
     auto {}
   }
   project = var.existing_project_id
+  labels  = local.common_labels
 }
 
 resource "google_secret_manager_secret_version" "directus_redis" {
-  count       = var.redis_enabled ? 1 : 0
+  count       = var.enable_redis ? 1 : 0
   secret      = google_secret_manager_secret.directus_redis[0].id
   secret_data = local.redis_connection_string
 }
@@ -262,6 +263,7 @@ resource "google_secret_manager_secret" "directus_key" {
     auto {}
   }
   project = var.existing_project_id
+  labels  = local.common_labels
 }
 
 resource "google_secret_manager_secret_version" "directus_key" {
@@ -280,6 +282,7 @@ resource "google_secret_manager_secret" "directus_secret" {
     auto {}
   }
   project = var.existing_project_id
+  labels  = local.common_labels
 }
 
 resource "google_secret_manager_secret_version" "directus_secret" {
@@ -298,6 +301,7 @@ resource "google_secret_manager_secret" "directus_admin_password" {
     auto {}
   }
   project = var.existing_project_id
+  labels  = local.common_labels
 }
 
 resource "google_secret_manager_secret_version" "directus_admin_password" {

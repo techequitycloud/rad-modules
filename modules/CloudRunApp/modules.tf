@@ -64,7 +64,7 @@ locals {
   module_cloudsql_volume_mount_path = try(local.selected_module.cloudsql_volume_mount_path, "/cloudsql")
 
   # NFS configuration
-  module_nfs_enabled    = try(local.selected_module.nfs_enabled, false)
+  module_nfs_enabled    = try(local.selected_module.enable_nfs, false)
   module_nfs_mount_path = try(local.selected_module.nfs_mount_path, "/mnt")
 
   # GCS volumes configuration
@@ -157,7 +157,7 @@ locals {
   final_cloudsql_volume_mount_path = local.module_cloudsql_volume_mount_path
 
   # NFS configuration (Retained vars)
-  final_nfs_enabled    = var.nfs_enabled != null ? var.nfs_enabled : local.module_nfs_enabled
+  final_nfs_enabled    = var.enable_nfs != null ? var.enable_nfs : local.module_nfs_enabled
   final_nfs_mount_path = var.nfs_mount_path != null ? var.nfs_mount_path : local.module_nfs_mount_path
 
   # GCS volumes (Retained vars)

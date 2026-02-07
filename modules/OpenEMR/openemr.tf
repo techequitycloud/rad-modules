@@ -25,7 +25,7 @@ locals {
     enable_cloudsql_volume     = true
     cloudsql_volume_mount_path = "/cloudsql"
 
-    nfs_enabled    = true
+    enable_nfs    = true
     nfs_mount_path = "/var/www/localhost/htdocs/openemr/sites"
 
     gcs_volumes = []
@@ -87,20 +87,20 @@ locals {
       enabled               = true
       type                  = "TCP"
       path                  = "/"
-      initial_delay_seconds = 240
-      timeout_seconds       = 60
-      period_seconds        = 240
-      failure_threshold     = 5
+      initial_delay_seconds = 0
+      timeout_seconds       = 5
+      period_seconds        = 10
+      failure_threshold     = 12
     }
 
     liveness_probe = {
       enabled               = true
       type                  = "HTTP"
       path                  = "/interface/login/login.php"
-      initial_delay_seconds = 300
-      timeout_seconds       = 60
-      period_seconds        = 60
-      failure_threshold     = 3
+      initial_delay_seconds = 0
+      timeout_seconds       = 10
+      period_seconds        = 30
+      failure_threshold     = 10
     }
   }
 
@@ -148,6 +148,7 @@ resource "google_secret_manager_secret" "openemr_admin_password" {
     auto {}
   }
   project = var.existing_project_id
+  labels  = local.common_labels
 }
 
 resource "google_secret_manager_secret_version" "openemr_admin_password" {

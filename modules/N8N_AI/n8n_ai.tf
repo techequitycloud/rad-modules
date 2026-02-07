@@ -1,13 +1,14 @@
 locals {
   n8n_module = {
-    app_name            = "n8n"
-    display_name        = "N8N AI Starter Kit"
-    description         = "n8n AI Starter Kit - Workflow automation with Qdrant and Ollama"
+    app_name            = var.application_name
+    display_name        = var.application_display_name
+    description         = "N8N AI Starter Kit - Workflow automation with Qdrant and Ollama"
     container_image     = "n8nio/n8n"
     application_version = var.application_version
 
     image_source    = "custom"
     enable_image_mirroring = true
+
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
@@ -157,6 +158,7 @@ resource "google_secret_manager_secret" "n8n_smtp_password" {
     auto {}
   }
   project = var.existing_project_id
+  labels  = local.common_labels
 }
 
 resource "google_secret_manager_secret_version" "n8n_smtp_password" {
@@ -175,6 +177,7 @@ resource "google_secret_manager_secret" "encryption_key" {
     auto {}
   }
   project = var.existing_project_id
+  labels  = local.common_labels
 }
 
 resource "google_secret_manager_secret_version" "encryption_key" {

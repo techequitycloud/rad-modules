@@ -69,7 +69,7 @@ The module implements the Principle of Least Privilege through dedicated Service
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `nfs_enabled` | `true` | Critical for OpenEMR. Enables the NFS volume mount. |
+| `enable_nfs` | `true` | Critical for OpenEMR. Enables the NFS volume mount. |
 | `database_type` | `MYSQL_8_0` | Required version for OpenEMR compatibility. |
 | `environment_variables` | Map | Includes `PHP_MEMORY_LIMIT` (512M), `SMTP_*` settings. |
 | `ingress_settings` | `all` | Controls visibility (`all`, `internal`, `internal-and-cloud-load-balancing`). |

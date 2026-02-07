@@ -82,10 +82,26 @@ data "google_secret_manager_secret_version" "db_password" {
 # GitHub Token Secret (for CI/CD)
 #########################################################################
 
-# Data source to access existing GitHub token secret
-# ✅ Fixed: Added condition to check if secret_id is not null/empty
-data "google_secret_manager_secret" "github_token" {
-  count     = local.enable_cicd_trigger && local.github_token_secret != null && local.github_token_secret != "" ? 1 : 0
+# Resource for creating a secret in Google Secret Manager to store the GitHub token
+resource "google_secret_manager_secret" "github_token" {
+  count     = local.enable_cicd_trigger && var.github_token != null && var.github_token != "" ? 1 : 0
   project   = local.project.project_id
-  secret_id = coalesce(local.github_token_secret, "unused")
+  secret_id = "${local.resource_prefix}-github-token"
+
+  replication {
+    auto {}
+  }
+
+  labels = local.common_labels
+}
+
+# Resource for adding a version of the secret with the GitHub token
+resource "google_secret_manager_secret_version" "github_token" {
+  count       = local.enable_cicd_trigger && var.github_token != null && var.github_token != "" ? 1 : 0
+  secret      = google_secret_manager_secret.github_token[0].id
+  secret_data = var.github_token
+
+  depends_on = [
+    google_secret_manager_secret.github_token,
+  ]
 }

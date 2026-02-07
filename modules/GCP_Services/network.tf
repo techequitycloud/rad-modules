@@ -46,8 +46,8 @@ resource "google_compute_subnetwork" "gce_subnetwork" {
   for_each = toset(var.availability_regions)
   
   project       = local.project.project_id 
-  name          = "gce-vpc-subnet-${each.key}"  
-  ip_cidr_range = element(var.gce_subnet_cidr_range, index(var.availability_regions, each.key))  
+  name          = "${local.network_name}-subnet-${each.key}"
+  ip_cidr_range = element(var.subnet_cidr_range, index(var.availability_regions, each.key))
   region        = each.key  
   network       = local.vpc_network_id
 
@@ -64,8 +64,8 @@ locals {
   gce_subnet_cidrs = [
     for i, region in var.availability_regions : 
     try(
-      var.gce_subnet_cidr_range[i],
-      var.gce_subnet_cidr_range[i % length(var.gce_subnet_cidr_range)]
+      var.subnet_cidr_range[i],
+      var.subnet_cidr_range[i % length(var.subnet_cidr_range)]
     )
   ]
 
@@ -181,7 +181,7 @@ locals {
 
 locals {
   validation_errors = concat(
-    length(var.gce_subnet_cidr_range) == 0 ? ["GCE subnet CIDR range cannot be empty"] : [],
+    length(var.subnet_cidr_range) == 0 ? ["GCE subnet CIDR range cannot be empty"] : [],
     length(var.availability_regions) == 0 ? ["Availability regions cannot be empty"] : []
   )
 }

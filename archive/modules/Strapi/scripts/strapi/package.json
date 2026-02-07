@@ -1,0 +1,34 @@
+{
+  "name": "strapi-app",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A Strapi application",
+  "scripts": {
+    "develop": "strapi develop",
+    "start": "strapi start",
+    "build": "strapi build",
+    "strapi": "strapi"
+  },
+  "dependencies": {
+    "@strapi/strapi": "4.24.2",
+    "@strapi/plugin-users-permissions": "4.24.2",
+    "@strapi/plugin-i18n": "4.24.2",
+    "@strapi/plugin-cloud": "4.24.2",
+    "@strapi-community/strapi-provider-upload-google-cloud-storage": "^4.0.0",
+    "strapi-plugin-rest-cache": "4.2.8",
+    "strapi-provider-rest-cache-redis": "4.2.8",
+    "pg": "8.11.3",
+    "sharp": "^0.32.6",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^5.2.0",
+    "styled-components": "^5.2.1"
+  },
+  "engines": {
+    "node": ">=18.0.0 <=20.x.x",
+    "npm": ">=6.0.0"
+  },
+  "strapi": {
+    "uuid": "uuid-placeholder"
+  }
+}

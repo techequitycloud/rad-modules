@@ -71,7 +71,7 @@ Key variables configured in `n8n.tf`:
 
 ### Optional Configurations
 *   **SMTP**: configured via `N8N_SMTP_HOST`, `N8N_SMTP_USER`, etc. (Default is empty/dummy).
-*   **NFS**: Supported via `nfs_enabled` variable (mapped to `/mnt` if enabled), useful if high-performance shared file storage is needed beyond GCS.
+*   **NFS**: Supported via `enable_nfs` variable (mapped to `/mnt` if enabled), useful if high-performance shared file storage is needed beyond GCS.
 
 ## 5. Existing Features
 

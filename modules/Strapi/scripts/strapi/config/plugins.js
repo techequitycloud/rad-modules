@@ -26,11 +26,7 @@ module.exports = ({ env }) => {
             name: 'redis',
             options: {
               max: 32767,
-              connection: {
-                host: env('REDIS_HOST'),
-                port: env.int('REDIS_PORT', 6379),
-                db: 0,
-              },
+              connection: 'default',
             },
           },
           strategy: {
@@ -48,7 +44,29 @@ module.exports = ({ env }) => {
         jwtSecret: env('JWT_SECRET'),
       },
     },
-    ...(env('REDIS_HOST') ? { 'rest-cache': redisConfig } : {}),
+    ...(env('REDIS_HOST')
+      ? {
+          redis: {
+            config: {
+              connections: {
+                default: {
+                  connection: {
+                    host: env('REDIS_HOST'),
+                    port: env.int('REDIS_PORT', 6379),
+                    db: 0,
+                    connectTimeout: 10000,
+                    maxRetriesPerRequest: 3,
+                  },
+                  settings: {
+                    debug: false,
+                  },
+                },
+              },
+            },
+          },
+          'rest-cache': redisConfig,
+        }
+      : {}),
     upload: {
       config: {
         provider: '@strapi-community/strapi-provider-upload-google-cloud-storage',

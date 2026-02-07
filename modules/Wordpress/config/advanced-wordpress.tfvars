@@ -25,4 +25,4 @@ max_instance_count = 5
 # Database Configuration
 database_type            = "MYSQL_8_0"
 database_password_length = 24
-nfs_enabled              = true
+enable_nfs              = true

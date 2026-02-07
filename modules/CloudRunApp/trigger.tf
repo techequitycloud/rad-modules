@@ -13,12 +13,81 @@
 # limitations under the License.
 
 #########################################################################
+# GitHub Provider Configuration
+#########################################################################
+
+# Configure GitHub provider to create and manage repositories
+# Only configured when CI/CD is enabled and token is provided
+provider "github" {
+  token = local.enable_cicd_trigger && var.github_token != null && var.github_token != "" ? var.github_token : null
+  owner = local.enable_cicd_trigger ? local.github_repo_owner : null
+}
+
+#########################################################################
+# GitHub Repository Creation
+#########################################################################
+
+# Create private GitHub repository if it doesn't exist
+# Repository name is extracted from github_repository_url variable
+resource "github_repository" "cicd_repo" {
+  count       = local.enable_cicd_trigger && local.github_repo_name != null ? 1 : 0
+  name        = local.github_repo_name
+  description = "Cloud Run application repository managed by Terraform"
+  visibility  = "private"
+
+  # Don't fail if repository already exists
+  lifecycle {
+    ignore_changes = [
+      description,
+      visibility,
+      archived,
+    ]
+  }
+}
+
+# Initialize repository with application code and CI/CD configuration
+# This runs after the repository is created to push initial code
+resource "null_resource" "init_cicd_repo" {
+  count = local.enable_cicd_trigger && local.github_repo_name != null ? 1 : 0
+
+  # Re-run if key parameters change
+  triggers = {
+    repo_name      = local.github_repo_name
+    service_name   = local.service_name
+    container_image = local.configure_environment ? google_cloud_run_v2_service.app_service[0].template[0].containers[0].image : ""
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = "chmod +x ${path.module}/scripts/core/init-cicd-repo.sh && ${path.module}/scripts/core/init-cicd-repo.sh"
+
+    environment = {
+      GIT_REPO         = local.github_repo_name
+      GIT_ORG          = local.github_repo_owner
+      GITHUB_TOKEN     = var.github_token
+      PROJECT_ID       = local.project.project_id
+      REGION           = local.region
+      SERVICE_NAME     = local.service_name
+      CONTAINER_IMAGE  = local.configure_environment ? google_cloud_run_v2_service.app_service[0].template[0].containers[0].image : "gcr.io/cloudrun/placeholder"
+      BRANCH_NAME      = local.cicd_trigger_config.branch_pattern != null ? replace(replace(local.cicd_trigger_config.branch_pattern, "^", ""), "$", "") : "main"
+      APP_SOURCE_DIR   = "${path.module}/scripts/${local.application_name}"
+      APPLICATION_NAME = local.application_name
+    }
+  }
+
+  depends_on = [
+    github_repository.cicd_repo,
+    google_cloud_run_v2_service.app_service
+  ]
+}
+
+#########################################################################
 # GitHub Repository Connection
 #########################################################################
 
 # Wait for IAM permissions to propagate before creating Cloud Build v2 connection
 resource "time_sleep" "wait_for_iam" {
-  count = local.enable_cicd_trigger && local.github_token_secret != null ? 1 : 0
+  count = local.enable_cicd_trigger && var.github_token != null ? 1 : 0
 
   create_duration = "30s"
 
@@ -36,12 +105,21 @@ resource "google_cloudbuildv2_connection" "github_connection" {
   name     = "${local.tenant_id}-${local.deployment_id}-${local.application_name}-github-conn"
 
   github_config {
+    # Cloud Build v2 requires BOTH app_installation_id AND PAT for immediate connection:
+    # - Setting BOTH: Uses pre-installed GitHub App, completes immediately (✅ WORKS)
+    # - PAT only: Tries to create NEW installation, requires manual approval (❌ STUCK)
+    #
+    # When you set app_installation_id, it uses your existing GitHub App installation.
+    # The PAT authorizes Cloud Build to access that installation.
+    # This avoids the "Configuration incomplete" / PENDING_INSTALL_APP state.
+
+    # Use the pre-installed Google Cloud Build app to avoid manual approval
     app_installation_id = local.github_app_installation_id != null ? tonumber(local.github_app_installation_id) : null
 
     dynamic "authorizer_credential" {
-      for_each = local.github_token_secret != null ? [1] : []
+      for_each = var.github_token != null && var.github_token != "" ? [1] : []
       content {
-        oauth_token_secret_version = "projects/${local.project.project_id}/secrets/${local.github_token_secret}/versions/latest"
+        oauth_token_secret_version = google_secret_manager_secret_version.github_token[0].id
       }
     }
   }
@@ -51,20 +129,9 @@ resource "google_cloudbuildv2_connection" "github_connection" {
   ]
 }
 
-# Wait for GitHub connection to complete installation
-# The GitHub App installation must be in COMPLETE state before creating repository
-resource "time_sleep" "wait_for_github_connection" {
-  count = local.enable_cicd_trigger ? 1 : 0
-
-  create_duration = local.github_app_installation_id != null ? "10s" : "300s"
-
-  depends_on = [
-    google_cloudbuildv2_connection.github_connection
-  ]
-}
-
 # Create repository link
 # Repository name is scoped to tenant_id and deployment_id for complete deployment isolation
+# Waits for both the GitHub repo to be created and the connection to be ready
 resource "google_cloudbuildv2_repository" "github_repository" {
   count             = local.enable_cicd_trigger ? 1 : 0
   project           = local.project.project_id
@@ -74,7 +141,8 @@ resource "google_cloudbuildv2_repository" "github_repository" {
   remote_uri        = coalesce(local.github_repo_url, "https://github.com/unused/unused")
 
   depends_on = [
-    time_sleep.wait_for_github_connection
+    google_cloudbuildv2_connection.github_connection,
+    github_repository.cicd_repo
   ]
 }
 

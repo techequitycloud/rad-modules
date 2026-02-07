@@ -211,7 +211,10 @@ main() {
     fi
     
     # Construct target directory
-    TARGET_DIR="${MOUNT_POINT}${NFS_BASE_PATH}"
+    # NFS_BASE_PATH is the full NFS server path (e.g., /share/resource_prefix)
+    # MOUNT_POINT maps to /share, so strip the /share prefix for local path
+    NFS_RELATIVE_PATH="${NFS_BASE_PATH#/share}"
+    TARGET_DIR="${MOUNT_POINT}${NFS_RELATIVE_PATH}"
     log_info "Target Directory: $TARGET_DIR"
     
     # Validate target

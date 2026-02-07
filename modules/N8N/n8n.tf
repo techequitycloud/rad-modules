@@ -8,6 +8,7 @@ locals {
 
     image_source    = "custom"
     enable_image_mirroring = true
+
     container_build_config = {
       enabled            = true
       dockerfile_path    = "Dockerfile"
@@ -155,6 +156,7 @@ resource "google_secret_manager_secret" "n8n_smtp_password" {
     auto {}
   }
   project = var.existing_project_id
+  labels  = local.common_labels
 }
 
 resource "google_secret_manager_secret_version" "n8n_smtp_password" {
@@ -173,6 +175,7 @@ resource "google_secret_manager_secret" "encryption_key" {
     auto {}
   }
   project = var.existing_project_id
+  labels  = local.common_labels
 }
 
 resource "google_secret_manager_secret_version" "encryption_key" {

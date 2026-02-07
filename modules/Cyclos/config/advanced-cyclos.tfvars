@@ -22,7 +22,7 @@ max_instance_count = 3
 # Database Configuration
 database_type            = "POSTGRES_15"
 database_password_length = 24
-nfs_enabled              = true
+enable_nfs              = true
 
 # GCS Volume mapping for Cyclos config
 gcs_volumes = [

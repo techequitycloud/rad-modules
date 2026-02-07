@@ -35,10 +35,13 @@ resource "google_redis_instance" "cache" {
   # Configuration
   display_name       = "Application Cache"
 
-  labels = {
-    environment = "production"
-    managed-by  = "terraform"
-  }
+  labels = merge(
+    var.resource_labels,
+    {
+      environment = "production"
+      managed-by  = "terraform"
+    }
+  )
 
   # Maintenance policy
   maintenance_policy {
@@ -70,6 +73,8 @@ resource "google_secret_manager_secret" "redis_host" {
   project    = local.project.project_id
   secret_id  = "redis-host-${local.random_id}"
 
+  labels = var.resource_labels
+
   replication {
     auto {}
   }
@@ -95,6 +100,8 @@ resource "google_secret_manager_secret" "redis_port" {
 
   project    = local.project.project_id
   secret_id  = "redis-port-${local.random_id}"
+
+  labels = var.resource_labels
 
   replication {
     auto {}

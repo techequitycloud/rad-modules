@@ -88,3 +88,53 @@ resource "google_storage_bucket" "buckets" {
     EOT
   }
 }
+
+# ============================================================================
+# Dedicated Backup Bucket
+# ============================================================================
+
+resource "google_storage_bucket" "backup_bucket" {
+  name                        = "${local.resource_prefix}-backups"
+  location                    = local.region
+  project                     = local.project.project_id
+  storage_class               = "STANDARD"
+  force_destroy               = true
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+  labels                      = local.common_labels
+
+  soft_delete_policy {
+    retention_duration_seconds = 0
+  }
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age = var.backup_retention_days
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = false
+  }
+
+  # Add provisioner to wait before destruction to allow GCS Fuse mounts to release
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<EOT
+      echo "Emptying bucket ${self.name} before destruction..."
+      # Try gcloud storage first (faster), fall back to gsutil
+      if command -v gcloud >/dev/null 2>&1; then
+        gcloud storage rm --recursive "gs://${self.name}/**" --quiet || true
+      elif command -v gsutil >/dev/null 2>&1; then
+        gsutil -m rm -r "gs://${self.name}/**" || true
+      fi
+      # No need to wait for GCSFuse mounts as backup bucket is rarely mounted via FUSE for apps,
+      # but if backup import job was running, it might have locks. A short sleep is safe.
+      echo "Waiting 10s before bucket destruction..."
+      sleep 10
+    EOT
+  }
+}

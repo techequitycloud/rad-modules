@@ -5,6 +5,7 @@ locals {
     description         = "Sample Custom Application - Flask App with Database Connection"
     container_image     = "sample" # Empty for custom build to avoid double tagging
     application_version = "1.0.0"
+    
     image_source        = "custom"
     enable_image_mirroring = false
 
@@ -79,7 +80,7 @@ locals {
   module_env_vars = {
     DB_HOST      = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/${local.project.project_id}:${local.db_instance_region}:${local.db_instance_name}" : local.db_internal_ip
     ENABLE_REDIS = tostring(var.enable_redis)
-    REDIS_HOST   = var.enable_redis ? (var.redis_host != null ? var.redis_host : local.nfs_internal_ip) : ""
+    REDIS_HOST   = var.enable_redis ? (var.redis_host != null && var.redis_host != "" ? var.redis_host : local.nfs_internal_ip) : ""
     REDIS_PORT   = var.enable_redis ? tostring(var.redis_port) : ""
   }
 
