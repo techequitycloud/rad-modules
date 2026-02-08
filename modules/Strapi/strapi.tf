@@ -72,7 +72,7 @@ locals {
       enabled               = true
       type                  = "TCP"
       path                  = "/"
-      initial_delay_seconds = 60
+      initial_delay_seconds = 30
       timeout_seconds       = 5
       period_seconds        = 10
       failure_threshold     = 15
@@ -103,8 +103,8 @@ locals {
     GCS_BUCKET_NAME   = try(local.storage_buckets["strapi-uploads"].name, "")
     GCS_BASE_URL      = "https://storage.googleapis.com/${try(local.storage_buckets["strapi-uploads"].name, "")}"
     },
-    var.enable_redis && (var.redis_host != null && var.redis_host != "" || try(local.nfs_internal_ip, "") != "") ? {
-      REDIS_HOST = var.redis_host != null && var.redis_host != "" ? var.redis_host : local.nfs_internal_ip
+    var.enable_redis && var.redis_host != null && var.redis_host != "" ? {
+      REDIS_HOST = var.redis_host
       REDIS_PORT = var.redis_port
     } : {}
   )
