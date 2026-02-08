@@ -162,7 +162,7 @@ variable "create_postgres" {
 }
 
 variable "postgres_database_availability_type" {
-  description = "The availability type of the PostgreSQL instance. ZONAL is cost-effective for development; REGIONAL provides high availability for production. {{UIMeta group=3 order=401 options=ZONAL,REGIONAL }}"
+  description = "The availability type of the PostgreSQL instance. ZONAL is cost-effective for development; REGIONAL provides high availability for production. {{UIMeta group=0 order=401 options=ZONAL,REGIONAL }}"
   type        = string
   default     = "ZONAL"
 }
@@ -200,7 +200,7 @@ variable "create_mysql" {
 }
 
 variable "mysql_database_availability_type" {
-  description = "The availability type of the MySQL instance. ZONAL is cost-effective for development; REGIONAL provides high availability for production. {{UIMeta group=3 order=411 options=ZONAL,REGIONAL }}"
+  description = "The availability type of the MySQL instance. ZONAL is cost-effective for development; REGIONAL provides high availability for production. {{UIMeta group=0 order=411 options=ZONAL,REGIONAL }}"
   type        = string
   default     = "ZONAL"
 }
