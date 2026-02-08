@@ -53,12 +53,18 @@ module.exports = ({ env }) => {
                   connection: {
                     host: env('REDIS_HOST'),
                     port: env.int('REDIS_PORT', 6379),
-                    db: 0,
-                    connectTimeout: 10000,
+                    db: env.int('REDIS_DB', 0),
+                    password: env('REDIS_PASSWORD', ''),
+                    connectTimeout: 5000,
                     maxRetriesPerRequest: 3,
+                    lazyConnect: true,
+                    retryStrategy(times) {
+                      if (times > 3) return null;
+                      return Math.min(times * 500, 2000);
+                    },
                   },
                   settings: {
-                    debug: false,
+                    debug: env.bool('REDIS_DEBUG', false),
                   },
                 },
               },
@@ -66,7 +72,10 @@ module.exports = ({ env }) => {
           },
           'rest-cache': redisConfig,
         }
-      : {}),
+      : {
+          redis: { enabled: false },
+          'rest-cache': { enabled: false },
+        }),
     upload: {
       config: {
         provider: '@strapi-community/strapi-provider-upload-google-cloud-storage',
