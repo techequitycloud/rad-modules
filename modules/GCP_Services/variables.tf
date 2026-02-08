@@ -134,13 +134,12 @@ variable "subnet_cidr_range" {
   description = "List of CIDR ranges for GCE subnets, one per availability region. {{UIMeta group=2 order=504 }}"
   type        = list(string)
   default     = [
-    "10.0.0.0/24",
-    "10.0.1.0/24"
+    "10.0.0.0/24"
   ]
 
   validation {
     condition     = length(var.subnet_cidr_range) > 0
-    error_message = "At least one CIDR range must be specified for GCE subnets."
+    error_message = "At least one CIDR range must be specified for subnets."
   }
 
   validation {
