@@ -87,7 +87,7 @@ variable "agent_service_account" {
 ################################################################################
 
 variable "resource_creator_identity" {
-  description = "The Service Account used by terraform to create resources in the destination project. Assign time limited conditional Basic Owner IAM role in the destination project. {{UIMeta group=1 order=101 }}"
+  description = "The Service Account used by terraform to create resources in the destination project. Assign time limited conditional Basic Owner IAM role in the destination project. {{UIMeta group=0 order=101 }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
