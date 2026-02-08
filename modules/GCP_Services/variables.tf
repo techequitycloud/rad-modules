@@ -109,7 +109,7 @@ variable "resource_labels" {
 ################################################################################
 
 variable "existing_project_id" {
-  description = "Select an existing project on the RAD platform or enter the project ID of an external GCP project. To enable RAD to create resources in your project, you must assign the basic Owner role to the rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com service account in your project. {{UIMeta group=2 order=501 }}"
+  description = "Select an existing project ID or enter the project ID of an existing Google Cloud project. To enable RAD to create resources in this project, you must assign the basic Owner role to the rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com service account in the project. {{UIMeta group=2 order=501 }}"
   type        = string
 }
 
