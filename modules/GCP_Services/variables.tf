@@ -131,7 +131,7 @@ variable "availability_regions" {
 }
 
 variable "subnet_cidr_range" {
-  description = "List of CIDR ranges for GCE subnets, one per availability region. {{UIMeta group=2 order=504 }}"
+  description = "List of CIDR ranges for GCE subnets, one per availability region. {{UIMeta group=0 order=504 }}"
   type        = list(string)
   default     = [
     "10.0.0.0/24"
