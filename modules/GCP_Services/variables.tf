@@ -139,8 +139,8 @@ variable "subnet_cidr_range" {
   ]
 
   validation {
-    condition     = length(var.subnet_cidr_range) > 0
-    error_message = "At least one CIDR range must be specified for subnets."
+    condition     = length(var.subnet_cidr_range) >= 1 && length(var.subnet_cidr_range) <= 2
+    error_message = "Between 1 and 2 CIDR ranges must be specified for subnets."
   }
 
   validation {
