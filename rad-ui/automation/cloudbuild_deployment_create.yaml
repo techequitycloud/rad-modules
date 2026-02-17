@@ -66,6 +66,17 @@ steps:
         fi
         
         log "✅ Repository cloned successfully"
+
+        # Save repository metadata for future operations (like destroy)
+        if [ -d "/workspace/.git" ]; then
+            git rev-parse HEAD > /workspace/modules/${_MODULE_NAME}/commit_hash.txt
+            echo "$$REPO_URL" > /workspace/modules/${_MODULE_NAME}/repo_url.txt
+            log "📝 Saved repository metadata:"
+            log "   Commit: $$(cat /workspace/modules/${_MODULE_NAME}/commit_hash.txt)"
+            log "   Repo: $$(cat /workspace/modules/${_MODULE_NAME}/repo_url.txt)"
+        else
+            log "⚠️  Not a git repository, cannot save commit hash"
+        fi
     else
         log "📁 Using existing workspace files"
     fi
@@ -105,6 +116,14 @@ steps:
         
     log "📤 Uploading initial archive to GCS..."
     gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
+
+    # Upload repository metadata if available
+    if [ -f "commit_hash.txt" ]; then
+        gsutil cp "commit_hash.txt" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
+    fi
+    if [ -f "repo_url.txt" ]; then
+        gsutil cp "repo_url.txt" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
+    fi
     
     # Navigate to module directory for configuration download
     cd "/workspace/modules/${_MODULE_NAME}"
