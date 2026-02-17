@@ -61,45 +61,87 @@ steps:
     gsutil cp "$$FILES_PATH/repo_url.txt" . 2>/dev/null || true
     gsutil cp "$$FILES_PATH/commit_hash.txt" . 2>/dev/null || true
 
-    # Determine Repo URL
+    # Read stored values
+    STORED_REPO_URL=""
+    COMMIT_HASH=""
     if [ -f "repo_url.txt" ] && [ -s "repo_url.txt" ]; then
-        REPO_URL=$(cat repo_url.txt)
-        log "ℹ️  Using stored repository URL: $$REPO_URL"
-    elif [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ]; then
-        REPO_URL="${_GIT_REPO_URL}"
-        log "ℹ️  Using default platform repository: $$REPO_URL"
-    else
-        REPO_URL="techequitycloud/rad-modules"
-        log "⚠️  No repository URL found, defaulting to: $$REPO_URL"
+        STORED_REPO_URL=$$(cat repo_url.txt)
+        log "ℹ️  Stored repository URL: $$STORED_REPO_URL"
     fi
-
-    # Clean workspace for clone
-    log "🧹 Cleaning workspace for clone..."
-    find /workspace -mindepth 1 -delete
-
-    # Clone repository
-    log "📥 Cloning repository from $$REPO_URL"
-    if ! git clone "https://$$GIT_TOKEN@github.com/$$REPO_URL.git" /workspace; then
-        log "❌ Failed to clone repository"
-        exit 1
-    fi
-
-    # Checkout specific commit if available
     if [ -f "commit_hash.txt" ] && [ -s "commit_hash.txt" ]; then
-        COMMIT_HASH=$(cat commit_hash.txt)
-        log "🔄 Checking out commit: $$COMMIT_HASH"
-        if cd /workspace && git checkout "$$COMMIT_HASH"; then
-            log "✅ Successfully checked out deployment commit"
-        else
-            log "⚠️  Failed to checkout commit $$COMMIT_HASH, using HEAD"
-        fi
-    else
-        log "⚠️  No commit hash found (legacy deployment?), using HEAD"
+        COMMIT_HASH=$$(cat commit_hash.txt)
+        log "ℹ️  Stored commit hash: $$COMMIT_HASH"
     fi
 
-    # Ensure module directory exists
-    if [ ! -d "/workspace/modules/${_MODULE_NAME}" ]; then
-        log "❌ Module directory not found in repository: /workspace/modules/${_MODULE_NAME}"
+    # Helper: clone a repo and optionally checkout a specific commit.
+    # Returns 0 on success (clone succeeded AND module directory exists).
+    try_clone() {
+        local repo="$$1"
+        local use_commit="$$2"   # "yes" to attempt commit checkout
+        if [ -z "$$repo" ] || [ "$$repo" = "none" ]; then return 1; fi
+        log "📥 Trying to clone: $$repo"
+        find /workspace -mindepth 1 -delete 2>/dev/null || true
+        if ! git clone "https://$$GIT_TOKEN@github.com/$$repo.git" /workspace 2>&1; then
+            log "⚠️  Clone failed for $$repo (token may lack read access)"
+            return 1
+        fi
+        if [ "$$use_commit" = "yes" ] && [ -n "$$COMMIT_HASH" ]; then
+            log "🔄 Checking out deployment commit: $$COMMIT_HASH"
+            if cd /workspace && git checkout "$$COMMIT_HASH" 2>/dev/null; then
+                log "✅ Checked out deployment commit"
+            else
+                log "⚠️  Commit $$COMMIT_HASH not found in $$repo, using HEAD"
+            fi
+        fi
+        if [ ! -d "/workspace/modules/${_MODULE_NAME}" ]; then
+            log "⚠️  Cloned $$repo but module ${_MODULE_NAME} not found — skipping"
+            return 1
+        fi
+        log "✅ Successfully cloned $$repo (module ${_MODULE_NAME} found)"
+        return 0
+    }
+
+    # Attempt clones in priority order:
+    #   1. _MODULE_GIT_REPO_URL  — module-specific repo explicitly passed to destroy
+    #   2. STORED_REPO_URL       — repo recorded at deploy time (most likely the right one)
+    #   3. _GIT_REPO_URL         — platform repo substitution
+    #   4. techequitycloud/rad-modules — final fallback default
+    CLONE_SUCCESS=false
+
+    if [ -n "${_MODULE_GIT_REPO_URL}" ] && [ "${_MODULE_GIT_REPO_URL}" != "none" ] && [ "${_MODULE_GIT_REPO_URL}" != "" ]; then
+        if try_clone "${_MODULE_GIT_REPO_URL}" "yes"; then
+            CLONE_SUCCESS=true
+        fi
+    fi
+
+    if [ "$$CLONE_SUCCESS" != "true" ] && [ -n "$$STORED_REPO_URL" ]; then
+        if try_clone "$$STORED_REPO_URL" "yes"; then
+            CLONE_SUCCESS=true
+        fi
+    fi
+
+    if [ "$$CLONE_SUCCESS" != "true" ] && [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ] && [ "${_GIT_REPO_URL}" != "" ]; then
+        if try_clone "${_GIT_REPO_URL}" "no"; then
+            CLONE_SUCCESS=true
+        fi
+    fi
+
+    if [ "$$CLONE_SUCCESS" != "true" ]; then
+        if try_clone "techequitycloud/rad-modules" "no"; then
+            CLONE_SUCCESS=true
+        fi
+    fi
+
+    if [ "$$CLONE_SUCCESS" != "true" ]; then
+        log "❌ All clone attempts failed for module ${_MODULE_NAME}"
+        log "   Repos tried (in order):"
+        log "     _MODULE_GIT_REPO_URL : ${_MODULE_GIT_REPO_URL:-<not set>}"
+        log "     Stored repo_url.txt  : $${STORED_REPO_URL:-<not found in GCS>}"
+        log "     _GIT_REPO_URL        : ${_GIT_REPO_URL:-<not set>}"
+        log "     Default              : techequitycloud/rad-modules"
+        log "   Ensure the 'git-access-token' secret has read access to a repo"
+        log "   containing modules/${_MODULE_NAME}/. For partner repos, pass"
+        log "   _MODULE_GIT_REPO_URL=<org/repo> when triggering the destroy build."
         exit 1
     fi
     
@@ -471,8 +513,8 @@ options:
 # ✅ Add default substitutions
 substitutions:
   _DEPLOYMENT_ID: "none"
-  _GIT_REPO_URL: "techequitycloud/rad-modules"  # Default platform repo (not used in destroy)
-  _MODULE_GIT_REPO_URL: ""  # Not used in destroy, but kept for consistency
+  _GIT_REPO_URL: "techequitycloud/rad-modules"  # Platform repo fallback used if stored repo_url.txt clone fails
+  _MODULE_GIT_REPO_URL: ""  # Optional: override clone source (e.g. partner repos). Tried first before stored repo_url.txt.
   _GITHUB_TOKEN_SECRET_NAME: "git-access-token"  # Not used in destroy
 
 availableSecrets:
