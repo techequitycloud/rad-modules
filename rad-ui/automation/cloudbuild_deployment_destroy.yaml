@@ -40,9 +40,9 @@ steps:
     
     log "🧹 Preparing environment..."
 
-    # Create temp directory for deployment artifacts
-    mkdir -p /workspace/deployment_files
-    cd /workspace/deployment_files
+    # Create temp directory for deployment artifacts (use /tmp so workspace can be cleared)
+    mkdir -p /tmp/deployment_files
+    cd /tmp/deployment_files
     
     log "🔍 Checking for deployment files..."
     
@@ -75,7 +75,7 @@ steps:
 
     # Clean workspace for clone
     log "🧹 Cleaning workspace for clone..."
-    find /workspace -mindepth 1 -maxdepth 1 -not -name "deployment_files" -exec rm -rf {} +
+    find /workspace -mindepth 1 -delete
 
     # Clone repository
     log "📥 Cloning repository from $$REPO_URL"
@@ -104,18 +104,18 @@ steps:
     fi
     
     log "📦 Downloading and extracting state files..."
-    cd /workspace/deployment_files
+    cd /tmp/deployment_files
 
     # Download archive
     gsutil cp "$$FILES_PATH/${_MODULE_NAME}.tar.gz" .
     
     # Extract archive to a temp location
-    mkdir -p /workspace/deployment_files/extracted
-    tar -xzf "${_MODULE_NAME}.tar.gz" -C /workspace/deployment_files/extracted
+    mkdir -p /tmp/deployment_files/extracted
+    tar -xzf "${_MODULE_NAME}.tar.gz" -C /tmp/deployment_files/extracted
     
     # Move specific files to module directory
     log "📂 Restoring state configuration to /workspace/modules/${_MODULE_NAME}..."
-    cd /workspace/deployment_files/extracted
+    cd /tmp/deployment_files/extracted
     
     TARGET_DIR="/workspace/modules/${_MODULE_NAME}"
 

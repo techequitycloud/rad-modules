@@ -117,6 +117,9 @@ steps:
     log "📤 Uploading initial archive to GCS..."
     gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
 
+    # Navigate to module directory for configuration download
+    cd "/workspace/modules/${_MODULE_NAME}"
+
     # Upload repository metadata if available
     if [ -f "commit_hash.txt" ]; then
         gsutil cp "commit_hash.txt" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
@@ -124,9 +127,6 @@ steps:
     if [ -f "repo_url.txt" ]; then
         gsutil cp "repo_url.txt" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
     fi
-    
-    # Navigate to module directory for configuration download
-    cd "/workspace/modules/${_MODULE_NAME}"
     
     log "⬇️  Downloading deployment configuration..."
     
