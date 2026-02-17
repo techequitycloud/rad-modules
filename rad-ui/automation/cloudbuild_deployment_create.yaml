@@ -66,19 +66,35 @@ steps:
         fi
         
         log "✅ Repository cloned successfully"
-
-        # Save repository metadata for future operations (like destroy)
-        if [ -d "/workspace/.git" ]; then
-            git rev-parse HEAD > /workspace/modules/${_MODULE_NAME}/commit_hash.txt
-            echo "$$REPO_URL" > /workspace/modules/${_MODULE_NAME}/repo_url.txt
-            log "📝 Saved repository metadata:"
-            log "   Commit: $$(cat /workspace/modules/${_MODULE_NAME}/commit_hash.txt)"
-            log "   Repo: $$(cat /workspace/modules/${_MODULE_NAME}/repo_url.txt)"
-        else
-            log "⚠️  Not a git repository, cannot save commit hash"
-        fi
     else
         log "📁 Using existing workspace files"
+    fi
+
+    # Save and upload repository metadata for future operations (like destroy)
+    # This is done immediately to ensure we have a record even if later steps fail
+    if [ -d "/workspace/.git" ]; then
+        METADATA_DIR="/workspace/modules/${_MODULE_NAME}"
+        FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
+
+        # Capture Commit Hash
+        git rev-parse HEAD > "$$METADATA_DIR/commit_hash.txt"
+
+        # Capture Repo URL (fallback to git remote if not set via variable)
+        if [ -n "$$REPO_URL" ]; then
+            echo "$$REPO_URL" > "$$METADATA_DIR/repo_url.txt"
+        else
+            git config --get remote.origin.url > "$$METADATA_DIR/repo_url.txt" || echo "unknown" > "$$METADATA_DIR/repo_url.txt"
+        fi
+
+        log "📝 Saved repository metadata:"
+        log "   Commit: $$(cat $$METADATA_DIR/commit_hash.txt)"
+        log "   Repo: $$(cat $$METADATA_DIR/repo_url.txt)"
+
+        log "📤 Uploading metadata to GCS immediately..."
+        gsutil cp "$$METADATA_DIR/commit_hash.txt" "$$FILES_PATH/" || log "⚠️  Failed to upload commit hash"
+        gsutil cp "$$METADATA_DIR/repo_url.txt" "$$FILES_PATH/" || log "⚠️  Failed to upload repo url"
+    else
+        log "⚠️  Not a git repository, cannot save commit hash"
     fi
     
     # Verify module directory exists
@@ -119,14 +135,6 @@ steps:
 
     # Navigate to module directory for configuration download
     cd "/workspace/modules/${_MODULE_NAME}"
-
-    # Upload repository metadata if available
-    if [ -f "commit_hash.txt" ]; then
-        gsutil cp "commit_hash.txt" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
-    fi
-    if [ -f "repo_url.txt" ]; then
-        gsutil cp "repo_url.txt" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
-    fi
     
     log "⬇️  Downloading deployment configuration..."
     
