@@ -63,7 +63,8 @@ steps:
 
     # Determine Repo URL
     if [ -f "repo_url.txt" ] && [ -s "repo_url.txt" ]; then
-        REPO_URL=$(cat repo_url.txt)
+        # Sanitize URL to remove whitespace/newlines
+        REPO_URL=$(cat repo_url.txt | tr -d '[:space:]')
         log "ℹ️  Using stored repository URL: $$REPO_URL"
     elif [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ]; then
         REPO_URL="${_GIT_REPO_URL}"
@@ -77,66 +78,90 @@ steps:
     log "🧹 Cleaning workspace for clone..."
     find /workspace -mindepth 1 -delete
 
-    # Clone repository
+    # Clone repository with fallback
+    CLONE_SUCCESS=false
     log "📥 Cloning repository from $$REPO_URL"
-    if ! git clone "https://$$GIT_TOKEN@github.com/$$REPO_URL.git" /workspace; then
-        log "❌ Failed to clone repository"
-        exit 1
-    fi
 
-    # Checkout specific commit if available
-    if [ -f "commit_hash.txt" ] && [ -s "commit_hash.txt" ]; then
-        COMMIT_HASH=$(cat commit_hash.txt)
-        log "🔄 Checking out commit: $$COMMIT_HASH"
-        if cd /workspace && git checkout "$$COMMIT_HASH"; then
-            log "✅ Successfully checked out deployment commit"
+    if git clone "https://$$GIT_TOKEN@github.com/$$REPO_URL.git" /workspace; then
+        log "✅ Repository cloned successfully"
+        CLONE_SUCCESS=true
+
+        # Checkout specific commit if available
+        if [ -f "commit_hash.txt" ] && [ -s "commit_hash.txt" ]; then
+            COMMIT_HASH=$(cat commit_hash.txt | tr -d '[:space:]')
+            log "🔄 Checking out commit: $$COMMIT_HASH"
+            if cd /workspace && git checkout "$$COMMIT_HASH"; then
+                log "✅ Successfully checked out deployment commit"
+            else
+                log "⚠️  Failed to checkout commit $$COMMIT_HASH, using HEAD"
+            fi
         else
-            log "⚠️  Failed to checkout commit $$COMMIT_HASH, using HEAD"
+            log "⚠️  No commit hash found (legacy deployment?), using HEAD"
+        fi
+
+        # Ensure module directory exists
+        if [ ! -d "/workspace/modules/${_MODULE_NAME}" ]; then
+            log "❌ Module directory not found in repository: /workspace/modules/${_MODULE_NAME}"
+            # This is critical if we claimed clone success, but maybe the repo structure changed?
+            # Fallback to archive extraction might save us here too.
+            CLONE_SUCCESS=false
         fi
     else
-        log "⚠️  No commit hash found (legacy deployment?), using HEAD"
-    fi
-
-    # Ensure module directory exists
-    if [ ! -d "/workspace/modules/${_MODULE_NAME}" ]; then
-        log "❌ Module directory not found in repository: /workspace/modules/${_MODULE_NAME}"
-        exit 1
+        log "❌ Failed to clone repository (likely authentication or permission issue)"
+        log "⚠️  Falling back to archive extraction (Symlinks may be broken)"
+        CLONE_SUCCESS=false
     fi
     
-    log "📦 Downloading and extracting state files..."
     cd /tmp/deployment_files
-
     # Download archive
     gsutil cp "$$FILES_PATH/${_MODULE_NAME}.tar.gz" .
     
-    # Extract archive to a temp location
-    mkdir -p /tmp/deployment_files/extracted
-    tar -xzf "${_MODULE_NAME}.tar.gz" -C /tmp/deployment_files/extracted
-    
-    # Move specific files to module directory
-    log "📂 Restoring state configuration to /workspace/modules/${_MODULE_NAME}..."
-    cd /tmp/deployment_files/extracted
-    
-    TARGET_DIR="/workspace/modules/${_MODULE_NAME}"
+    if [ "$$CLONE_SUCCESS" = "true" ]; then
+        log "📦 Extracting state files to overlay git clone..."
 
-    if [ -f "backend.tf" ]; then
-        cp backend.tf "$$TARGET_DIR/"
-        log "   Restored backend.tf"
-    fi
+        # Extract archive to a temp location
+        mkdir -p /tmp/deployment_files/extracted
+        tar -xzf "${_MODULE_NAME}.tar.gz" -C /tmp/deployment_files/extracted
 
-    if [ -f "terraform.tfvars.json" ]; then
-        cp terraform.tfvars.json "$$TARGET_DIR/"
-        log "   Restored terraform.tfvars.json"
-    fi
+        # Move specific files to module directory
+        log "📂 Restoring state configuration to /workspace/modules/${_MODULE_NAME}..."
+        cd /tmp/deployment_files/extracted
 
-    if [ -d ".terraform" ]; then
-        cp -r .terraform "$$TARGET_DIR/"
-        log "   Restored .terraform directory"
-    fi
+        TARGET_DIR="/workspace/modules/${_MODULE_NAME}"
 
-    if [ -f "terraform.tfstate" ]; then
-        cp terraform.tfstate "$$TARGET_DIR/"
-        log "   Restored terraform.tfstate"
+        if [ -f "backend.tf" ]; then
+            cp backend.tf "$$TARGET_DIR/"
+            log "   Restored backend.tf"
+        fi
+
+        if [ -f "terraform.tfvars.json" ]; then
+            cp terraform.tfvars.json "$$TARGET_DIR/"
+            log "   Restored terraform.tfvars.json"
+        fi
+
+        if [ -d ".terraform" ]; then
+            cp -r .terraform "$$TARGET_DIR/"
+            log "   Restored .terraform directory"
+        fi
+
+        if [ -f "terraform.tfstate" ]; then
+            cp terraform.tfstate "$$TARGET_DIR/"
+            log "   Restored terraform.tfstate"
+        fi
+    else
+        log "📦 Extracting full archive (Legacy Fallback)..."
+
+        # Clean workspace again to be safe
+        find /workspace -mindepth 1 -delete
+
+        # Create module directory structure
+        mkdir -p "/workspace/modules/${_MODULE_NAME}"
+
+        # Extract archive directly to module directory
+        tar -xzf "${_MODULE_NAME}.tar.gz" -C "/workspace/modules/${_MODULE_NAME}"
+
+        TARGET_DIR="/workspace/modules/${_MODULE_NAME}"
+        log "⚠️  Restored from archive. Symlinks to parent modules may be broken."
     fi
     
     log "📋 Workspace contents prepared:"
