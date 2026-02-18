@@ -172,7 +172,7 @@ steps:
     
     # Generate plan with detailed exit code
     set +e
-    tofu plan -out=tfplan -detailed-exitcode
+    tofu plan -input=false -out=tfplan -detailed-exitcode
     PLAN_EXIT_CODE=$$?
     set -e
     
