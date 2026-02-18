@@ -164,11 +164,25 @@ steps:
     if [ -f "backend.tf" ]; then
         cp backend.tf "$$TARGET_DIR/"
         log "   Restored backend.tf"
+    else
+        log "⚠️  backend.tf not found in archive - attempting download from GCS..."
+        if gsutil cp "$$FILES_PATH/backend.tf" "$$TARGET_DIR/" 2>/dev/null; then
+            log "✅ Downloaded backend.tf fallback"
+        else
+            log "⚠️  backend.tf not found in GCS either"
+        fi
     fi
 
     if [ -f "terraform.tfvars.json" ]; then
         cp terraform.tfvars.json "$$TARGET_DIR/"
         log "   Restored terraform.tfvars.json"
+    else
+        log "⚠️  terraform.tfvars.json not found in archive - attempting download from GCS..."
+        if gsutil cp "$$FILES_PATH/terraform.tfvars.json" "$$TARGET_DIR/" 2>/dev/null; then
+            log "✅ Downloaded terraform.tfvars.json fallback"
+        else
+            log "⚠️  terraform.tfvars.json not found in GCS either"
+        fi
     fi
 
     if [ -d ".terraform" ]; then
@@ -213,7 +227,7 @@ steps:
         
         # Show what will be destroyed
         log "📋 Planning destroy..."
-        tofu plan -destroy -out=destroy.tfplan
+        tofu plan -destroy -input=false -out=destroy.tfplan
         
         log "⚠️  Resources to be destroyed:"
         tofu show -json destroy.tfplan | jq -r '.resource_changes[]? | select(.change.actions[] == "delete") | .address' 2>/dev/null || log "Unable to parse destroy plan"
