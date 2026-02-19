@@ -37,109 +37,111 @@ steps:
     }
     
     log "🧹 Cleaning workspace..."
-    rm -rfv /workspace/modules/${_MODULE_NAME} 2>/dev/null || log "Workspace already clean"
+    # Clean workspace to ensure fresh clone
+    find /workspace -mindepth 1 -delete 2>/dev/null || true
     
-    # Create module directory structure
-    mkdir -p /workspace/modules/${_MODULE_NAME}
-    cd /workspace/modules/${_MODULE_NAME}
+    log "🔍 Checking for existing deployment metadata..."
     
-    log "🔍 Checking deployment type..."
+    FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
     
-    # Check if this is an initial deployment or update
-    if gsutil ls "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
-        log "📦 Existing deployment detected - performing update"
-        
-        # Download the archive
-        log "⬇️  Downloading module archive..."
-        gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/${_MODULE_NAME}.tar.gz" .
-        
-        # Extract the module archive
-        log "📂 Extracting module files..."
-        tar -xzf "${_MODULE_NAME}.tar.gz"
-        
-        # Clean up archive
-        rm -f "${_MODULE_NAME}.tar.gz"
-        
-        # ✅ Download updated configuration files (overwrites old ones from archive)
-        log "⬇️  Downloading updated configuration files..."
-        
-        if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/terraform.tfvars.json" ./terraform.tfvars.json; then
-            log "✅ Downloaded terraform.tfvars.json"
-            log "🔍 Verifying configuration:"
-            cat terraform.tfvars.json | jq '.' || log "Unable to parse JSON"
-        else
-            log "⚠️  terraform.tfvars.json not found"
-        fi
-        
-        if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/backend.tf" ./backend.tf; then
-            log "✅ Downloaded backend.tf"
-        else
-            log "⚠️  backend.tf not found"
-        fi
-        
-        log "✅ Update environment prepared with latest configuration"
+    # Try to download repo metadata from GCS
+    if gsutil cp "$$FILES_PATH/repo_url.txt" . >/dev/null 2>&1; then
+        log "✅ Found repo_url.txt in GCS"
     else
-        log "🆕 Initial deployment detected - fetching source code"
+        log "ℹ️  repo_url.txt not found in GCS"
+    fi
+
+    # Read stored values
+    STORED_REPO_URL=""
+    if [ -f "repo_url.txt" ] && [ -s "repo_url.txt" ]; then
+        STORED_REPO_URL=$$(cat repo_url.txt)
+        log "ℹ️  Stored repository URL: $$STORED_REPO_URL"
+    fi
+
+    # Helper: clone a repo
+    # Returns 0 on success (clone succeeded AND module directory exists).
+    try_clone() {
+        local repo="$$1"
+        if [ -z "$$repo" ] || [ "$$repo" = "none" ]; then return 1; fi
         
-        # ✅ Determine which repository to use
-        if [ -n "${_MODULE_GIT_REPO_URL}" ] && [ "${_MODULE_GIT_REPO_URL}" != "" ] && [ "${_MODULE_GIT_REPO_URL}" != "none" ]; then
-            REPO_URL="${_MODULE_GIT_REPO_URL}"
-            log "📦 Using module-specific repository: $$REPO_URL"
-        elif [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ]; then
-            REPO_URL="${_GIT_REPO_URL}"
-            log "📦 Using default platform repository: $$REPO_URL"
-        else
-            log "❌ No repository URL provided"
-            exit 1
+        log "📥 Trying to clone: $$repo"
+        
+        # Clean workspace before clone attempt
+        find /workspace -mindepth 1 -delete 2>/dev/null || true
+        
+        if ! git clone "https://$$GIT_TOKEN@github.com/$$repo.git" /workspace 2>&1; then
+            log "⚠️  Clone failed for $$repo"
+            return 1
         fi
         
-        log "📥 Cloning repository from $$REPO_URL"
-        
-        # Clone to temporary directory
-        TEMP_CLONE="/tmp/repo_clone"
-        rm -rf $$TEMP_CLONE
-        
-        if ! git clone "https://$$GIT_TOKEN@github.com/$$REPO_URL.git" $$TEMP_CLONE; then
-            log "❌ Failed to clone repository"
-            log "   Repository: $$REPO_URL"
-            exit 1
+        if [ ! -d "/workspace/modules/${_MODULE_NAME}" ]; then
+            log "⚠️  Cloned $$repo but module ${_MODULE_NAME} not found — skipping"
+            return 1
         fi
         
-        log "✅ Repository cloned successfully"
-        
-        # Copy module files to workspace
-        if [ -d "$$TEMP_CLONE/modules/${_MODULE_NAME}" ]; then
-            log "📂 Copying module files to workspace..."
-            cp -r $$TEMP_CLONE/modules/${_MODULE_NAME}/* .
-            log "✅ Module files copied"
-        else
-            log "❌ Module directory not found: $$TEMP_CLONE/modules/${_MODULE_NAME}"
-            log "📋 Available modules:"
-            ls -la $$TEMP_CLONE/modules/ || log "No modules directory"
-            exit 1
+        log "✅ Successfully cloned $$repo (module ${_MODULE_NAME} found)"
+        return 0
+    }
+
+    # Attempt clones in priority order:
+    #   1. _MODULE_GIT_REPO_URL  — explicit override
+    #   2. STORED_REPO_URL       — from previous deployment
+    #   3. _GIT_REPO_URL         — platform default
+    #   4. Default fallback
+
+    CLONE_SUCCESS=false
+
+    if [ -n "${_MODULE_GIT_REPO_URL}" ] && [ "${_MODULE_GIT_REPO_URL}" != "none" ] && [ "${_MODULE_GIT_REPO_URL}" != "" ]; then
+        if try_clone "${_MODULE_GIT_REPO_URL}"; then
+            CLONE_SUCCESS=true
         fi
-        
-        # Clean up temp clone
-        rm -rf $$TEMP_CLONE
-        
-        # Download configuration files
-        log "⬇️  Downloading configuration files..."
-        
-        if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/terraform.tfvars.json" ./terraform.tfvars.json; then
-            log "✅ Downloaded terraform.tfvars.json"
-        else
-            log "⚠️  terraform.tfvars.json not found"
+    fi
+
+    if [ "$$CLONE_SUCCESS" != "true" ] && [ -n "$$STORED_REPO_URL" ]; then
+        if try_clone "$$STORED_REPO_URL"; then
+            CLONE_SUCCESS=true
         fi
-        
-        if gsutil cp "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/backend.tf" ./backend.tf; then
-            log "✅ Downloaded backend.tf"
-        else
-            log "⚠️  backend.tf not found"
+    fi
+
+    if [ "$$CLONE_SUCCESS" != "true" ] && [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ] && [ "${_GIT_REPO_URL}" != "" ]; then
+        if try_clone "${_GIT_REPO_URL}"; then
+            CLONE_SUCCESS=true
         fi
-        
-        log "✅ Initial deployment environment prepared"
+    fi
+
+    if [ "$$CLONE_SUCCESS" != "true" ]; then
+        if try_clone "techequitycloud/rad-modules"; then
+            CLONE_SUCCESS=true
+        fi
+    fi
+
+    if [ "$$CLONE_SUCCESS" != "true" ]; then
+        log "❌ All clone attempts failed for module ${_MODULE_NAME}"
+        exit 1
+    fi
+
+    # Navigate to module directory
+    cd "/workspace/modules/${_MODULE_NAME}"
+
+    log "⬇️  Downloading configuration files..."
+
+    # Download terraform.tfvars.json
+    if gsutil cp "$$FILES_PATH/terraform.tfvars.json" ./terraform.tfvars.json; then
+        log "✅ Downloaded terraform.tfvars.json"
+        log "🔍 Verifying configuration:"
+        cat terraform.tfvars.json | jq '.' || log "Unable to parse JSON"
+    else
+        log "⚠️  terraform.tfvars.json not found"
+    fi
+
+    # Download backend.tf
+    if gsutil cp "$$FILES_PATH/backend.tf" ./backend.tf; then
+        log "✅ Downloaded backend.tf"
+    else
+        log "⚠️  backend.tf not found"
     fi
     
+    log "✅ Deployment environment prepared"
     log "📋 Module contents:"
     ls -la . || true
     
