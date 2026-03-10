@@ -31,7 +31,7 @@ resource "random_password" "database_password" {
 resource "google_secret_manager_secret" "db_password" {
   count     = local.sql_server_exists ? 1 : 0
   project   = local.project.project_id
-  secret_id = "${local.resource_prefix}-db-password"
+  secret_id = "${local.db_instance_name}-${local.resource_prefix}-db-password"
 
   replication {
     auto {}
