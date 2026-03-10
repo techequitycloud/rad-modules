@@ -1,0 +1,13 @@
+apiVersion: networking.gke.io/v1
+kind: MultiClusterIngress
+metadata:
+  name: bank-of-anthos-mci
+  namespace: bank-of-anthos
+  labels:
+    app: bank-of-anthos
+spec:
+  template:
+    spec:
+      backend:
+        serviceName:  bank-of-anthos-mcs
+        servicePort: 80
