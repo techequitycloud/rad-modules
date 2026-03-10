@@ -48,14 +48,10 @@ locals {
   # Deployment identifiers
   # Use wrapper's random ID for consistent naming across all resources in this module
   random_id     = random_id.wrapper_deployment.hex
-
-  # Remove hyphens from deployment ID to avoid naming conflicts with DBs and Mounts (e.g. 70536341-prod to 70536341prod)
-  deployment_id_raw = var.deployment_id != null && var.deployment_id != "" ? var.deployment_id : local.random_id
-  deployment_id     = replace(local.deployment_id_raw, "-", "")
-
+  deployment_id = var.deployment_id != null ? var.deployment_id : local.random_id
   tenant_id     = var.tenant_deployment_id
 
-  wrapper_prefix = "app${local.application_name}${local.tenant_id}${local.deployment_id}"
+  wrapper_prefix = "app${local.application_name}${local.tenant_id}${local.random_id}"
 
   # Primary region configuration
   region = (var.deployment_region != null && var.deployment_region != "") ? var.deployment_region : (length(keys(local.region_to_subnet)) > 0 ? keys(local.region_to_subnet)[0] : "us-central1")
@@ -73,8 +69,8 @@ locals {
   application_database_name = local.final_application_database_name
   application_database_user = local.final_application_database_user
 
-  database_name_full     = replace("${local.application_database_name}_${local.tenant_id}_${local.deployment_id}", "-", "_")
-  database_user_full     = replace("${local.application_database_user}_${local.tenant_id}_${local.deployment_id}", "-", "_")
+  database_name_full     = replace("${local.application_database_name}_${local.tenant_id}_${local.random_id}", "-", "_")
+  database_user_full     = replace("${local.application_database_user}_${local.tenant_id}_${local.random_id}", "-", "_")
 
   # ✅ UPDATED: Determine database port based on type (added POSTGRES_16)
   database_port = (
@@ -108,7 +104,7 @@ locals {
   predicted_service_url = "https://${local.service_name}-${local.project.project_number}.${local.region}.run.app"
 
   # Resource naming
-  resource_prefix = "app${local.application_name}${local.tenant_id}${local.deployment_id}"
+  resource_prefix = "app${local.application_name}${local.tenant_id}${local.random_id}"
 
   # Cloud Run service name
   service_name = local.resource_prefix
