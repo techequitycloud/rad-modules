@@ -1,0 +1,11 @@
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: bank-of-anthos
+  namespace: bank-of-anthos
+  labels:
+    app: bank-of-anthos
+spec:
+  redirectToHttps:
+    enabled: true
+    responseCodeName: "301"
