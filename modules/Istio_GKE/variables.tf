@@ -59,7 +59,7 @@ default = true
 }
 
 variable "resource_creator_identity" {
-  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=1 order=102 updatesafe }}"
+  description = "The terraform Service Account used to create resources in the destination project. This Service Account must be assigned roles/owner IAM role in the destination project. {{UIMeta group=0 order=102 updatesafe }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
