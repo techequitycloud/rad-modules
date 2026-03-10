@@ -186,6 +186,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
+      export KUBECONFIG="$(mktemp)"
 
       NAMESPACE="${self.triggers.namespace}"
       CLUSTER_NAME="${self.triggers.cluster_name}"
@@ -393,6 +394,7 @@ resource "null_resource" "app_multicluster_ingress" {
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       set -e
+      export KUBECONFIG="$(mktemp)"
       
       CLUSTER_NAME="${local.cluster_configs["cluster1"].gke_cluster_name}"
       REGION="${local.cluster_configs["cluster1"].region}"
@@ -486,6 +488,7 @@ resource "null_resource" "cleanup_multicluster_ingress" {
     on_failure  = continue  # Don't fail destroy if cleanup fails
     command = <<-EOT
       set -e
+      export KUBECONFIG="$(mktemp)"
       
       CLUSTER_NAME="${self.triggers.cluster_name}"
       REGION="${self.triggers.region}"
