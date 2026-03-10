@@ -27,6 +27,7 @@ resource "null_resource" "cleanup_mci_resources" {
     when    = destroy
     command = <<-EOF
       set -x
+      export KUBECONFIG="$(mktemp)"
       echo "======================================"
       echo "Starting MCI resource cleanup for cluster ${self.triggers.cluster}"
       echo "======================================"
