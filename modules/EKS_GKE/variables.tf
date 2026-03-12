@@ -138,13 +138,13 @@ variable "enable_public_subnets" {
 variable "platform_version" {
   description = "GKE cluster version. {{UIMeta group=0 order=308 updatesafe }}"
   type        = string
-  default     = "1.33.0-gke.2"
+  default     = "1.34.0-gke.1"
 }
 
 variable "k8s_version" {
   description = "Kubernetes version of the EKS cluster. {{UIMeta group=0 order=309 updatesafe }}"
   type        = string
-  default     = "1.33"
+  default     = "1.34"
 }
 
 variable "node_group_desired_size" {
