@@ -130,7 +130,7 @@ variable "subnet_availability_zones" {
 }
 
 variable "enable_public_subnets" {
-  description = "Enable public subnets for the EKS cluster. If false, private subnets will be created. {{UIMeta group=3 order=401 updatesafe }}"
+  description = "Enable public subnets for the EKS cluster. If false, private subnets will be created. {{UIMeta group=0 order=401 updatesafe }}"
   type        = bool
   default     = true
 }
