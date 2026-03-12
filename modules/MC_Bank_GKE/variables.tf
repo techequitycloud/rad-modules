@@ -178,7 +178,7 @@ variable "release_channel" {
 // GROUP 12: Application
 
 variable "deploy_application" {
-  description = "Deploy microservices banking application. {{UIMeta group=3 order=1201 }}"
+  description = "Deploy microservices banking application. {{UIMeta group=0 order=1201 }}"
   type        = bool
   default     = true
 }
