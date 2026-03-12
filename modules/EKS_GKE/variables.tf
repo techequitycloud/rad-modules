@@ -148,19 +148,19 @@ variable "k8s_version" {
 }
 
 variable "node_group_desired_size" {
-  description = "The desired number of nodes in the EKS node group. {{UIMeta group=3 order=402 updatesafe }}"
+  description = "The desired number of nodes in the EKS node group. {{UIMeta group=0 order=402 updatesafe }}"
   type        = number
   default     = 2
 }
 
 variable "node_group_max_size" {
-  description = "The maximum number of nodes in the EKS node group. {{UIMeta group=3 order=403 updatesafe }}"
+  description = "The maximum number of nodes in the EKS node group. {{UIMeta group=0 order=403 updatesafe }}"
   type        = number
   default     = 5
 }
 
 variable "node_group_min_size" {
-  description = "The minimum number of nodes in the EKS node group. {{UIMeta group=3 order=404 updatesafe }}"
+  description = "The minimum number of nodes in the EKS node group. {{UIMeta group=0 order=404 updatesafe }}"
   type        = number
   default     = 2
 }
