@@ -180,23 +180,19 @@ variable "aws_secret_key" {
 }
 
 variable "trusted_users" {
-  description = "Email addresses of cluster admin users (e.g. `username@abc.com`). At least one trusted user must be specified. {{UIMeta group=1 order=504 updatesafe }}"
+  description = "Email addresses of cluster admin users (e.g. `username@abc.com`). {{UIMeta group=1 order=504 updatesafe }}"
   type        = list(string)
+  default     = []
 
   validation {
-    condition     = length(var.trusted_users) > 0
-    error_message = "At least one trusted user must be specified."
-  }
-  
-  validation {
-    condition = alltrue([
+    condition = var.trusted_users == null ? true : alltrue([
       for user in var.trusted_users : trimspace(user) != ""
     ])
     error_message = "Trusted users cannot be empty strings or contain only whitespace."
   }
   
   validation {
-    condition     = length(var.trusted_users) == length(distinct(var.trusted_users))
+    condition     = var.trusted_users == null ? true : length(var.trusted_users) == length(distinct(var.trusted_users))
     error_message = "Duplicate users are not allowed in the trusted_users list."
   }
 }
