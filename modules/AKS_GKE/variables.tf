@@ -98,7 +98,7 @@ variable "azure_region" {
 }
 
 variable "node_count" {
-  description = "The number of nodes in the default node pool. {{UIMeta group=3 order=304 updatesafe }}"
+  description = "The number of nodes in the default node pool. {{UIMeta group=0 order=304 updatesafe }}"
   type        = number
   default     = 3
 }
@@ -116,7 +116,7 @@ variable "platform_version" {
 }
 
 variable "vm_size" {
-  description = "The size of the virtual machine for the AKS cluster nodes. {{UIMeta group=3 order=305 updatesafe }}"
+  description = "The size of the virtual machine for the AKS cluster nodes. {{UIMeta group=0 order=305 updatesafe }}"
   type        = string
   default     = "Standard_D2s_v3"
 }
