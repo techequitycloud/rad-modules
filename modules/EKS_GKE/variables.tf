@@ -180,7 +180,7 @@ variable "aws_secret_key" {
 }
 
 variable "trusted_users" {
-  description = "Email addresses of cluster admin users (e.g. `username@abc.com`). At least one trusted user must be specified. {{UIMeta group=1 order=504 updatesafe }}"
+  description = "Email addresses of cluster admin users (e.g. `username@abc.com`). At least one trusted user must be specified. {{UIMeta group=0 order=504 updatesafe }}"
   type        = list(string)
 
   validation {
