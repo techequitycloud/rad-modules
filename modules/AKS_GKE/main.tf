@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
+data "google_client_openid_userinfo" "me" {}
+
 locals {
+  # If trusted_users is blank/null, use the current user. Otherwise, combine them, removing duplicates.
+  trusted_users = distinct(compact(concat([data.google_client_openid_userinfo.me.email], var.trusted_users == null ? [] : var.trusted_users)))
+
   tags = {
-    "owner" = tolist(var.trusted_users)[0]
+    "owner" = local.trusted_users[0]
   }
 
   random_id = var.deployment_id != null ? var.deployment_id : random_id.default.hex
@@ -152,7 +157,7 @@ resource "google_container_attached_cluster" "primary" {
   }
 
   authorization {
-    admin_users = var.trusted_users
+    admin_users = local.trusted_users
   }
 
   depends_on = [
