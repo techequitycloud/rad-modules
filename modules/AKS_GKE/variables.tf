@@ -106,13 +106,13 @@ variable "node_count" {
 variable "k8s_version" {
   description = "Kubernetes version of the AKS cluster. {{UIMeta group=0 order=304 updatesafe }}"
   type        = string
-  default     = "1.33"
+  default     = "1.34"
 }
 
 variable "platform_version" {
   description = "Platform version of the attached cluster resource. {{UIMeta group=0 order=304 updatesafe }}"
   type        = string
-  default     = "1.33.0-gke.2"
+  default     = "1.34.0-gke.1"
 }
 
 variable "vm_size" {
