@@ -146,7 +146,7 @@ variable "create_network" {
 variable "network_name" {
   description = "Name to be assigned to the network. {{UIMeta group=0 order=602 }}"
   type        = string
-  default     = "vpc-network"
+  default     = "vpc-net"
 }
 
 variable "subnet_name" {
