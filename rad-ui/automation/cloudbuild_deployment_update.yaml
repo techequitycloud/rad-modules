@@ -140,7 +140,33 @@ steps:
     else
         log "⚠️  backend.tf not found"
     fi
-    
+
+    # Restore previous Terraform state from the deployment archive.
+    # The create pipeline stores terraform.tfstate inside the deployment
+    # archive. Without restoring it here, tofu sees empty state, regenerates
+    # random_id.wrapper_deployment with a new hex value, and every resource
+    # name changes — causing a full destroy + recreate instead of an
+    # in-place update. If a remote GCS backend is configured via backend.tf,
+    # the state file will not be present in the archive and this is a no-op.
+    log "📦 Restoring previous Terraform state..."
+    if gsutil cp "$$FILES_PATH/${_MODULE_NAME}.tar.gz" /tmp/previous.tar.gz 2>/dev/null; then
+        # Extract only the state files — skip .terraform/ (stale provider
+        # binaries) and .tf source files (come from the fresh git clone).
+        tar -xzf /tmp/previous.tar.gz \
+            --wildcards \
+            './terraform.tfstate' \
+            './terraform.tfstate.backup' \
+            2>/dev/null || true
+        rm -f /tmp/previous.tar.gz
+        if [ -f "terraform.tfstate" ]; then
+            log "✅ Previous Terraform state restored (local backend)"
+        else
+            log "ℹ️  No local state in archive — state managed by remote backend"
+        fi
+    else
+        log "ℹ️  No previous archive found in GCS — assuming remote backend or first deploy"
+    fi
+
     log "✅ Deployment environment prepared"
     log "📋 Module contents:"
     ls -la . || true
