@@ -277,16 +277,20 @@ steps:
     log "🔄 Refreshing Terraform state..."
 
     # Capture kubernetes_ready before the refresh.
-    # On the first apply of an App_GKE module with an inline GKE cluster,
-    # all Kubernetes resources are skipped because the cluster endpoint is
-    # not available at plan time (kubernetes_ready=false). The refresh-only
+    # On the first apply of an App_GKE / Cyclos_GKE module with an inline GKE
+    # cluster, all Kubernetes resources are skipped because the cluster endpoint
+    # is not available at plan time (kubernetes_ready=false). The refresh-only
     # apply below detects the cluster is now reachable and flips
     # kubernetes_ready to true. We then re-plan and re-apply to deploy the
     # pending Kubernetes resources in the same pipeline run.
-    # Defaults to "true" for modules without this output so the logic is
-    # never triggered for non-GKE deployments.
+    #
+    # NOTE: jq's '//' alternative operator returns the right-hand side for both
+    # null AND false, so '.kubernetes_ready.value // true' would incorrectly
+    # return "true" when kubernetes_ready is false. Use an explicit has() check
+    # instead so the fallback only fires when the output key is absent (i.e.
+    # for non-GKE modules that never declare this output).
     KUBERNETES_READY_BEFORE=$$(tofu output -json 2>/dev/null \
-        | jq -r '.kubernetes_ready.value // true' 2>/dev/null \
+        | jq -r 'if has("kubernetes_ready") then (.kubernetes_ready.value | tostring) else "true" end' 2>/dev/null \
         || echo "true")
     log "📊 kubernetes_ready before refresh: $$KUBERNETES_READY_BEFORE"
 
@@ -299,13 +303,14 @@ steps:
 
     # Capture kubernetes_ready after the refresh
     KUBERNETES_READY_AFTER=$$(tofu output -json 2>/dev/null \
-        | jq -r '.kubernetes_ready.value // true' 2>/dev/null \
+        | jq -r 'if has("kubernetes_ready") then (.kubernetes_ready.value | tostring) else "true" end' 2>/dev/null \
         || echo "true")
     log "📊 kubernetes_ready after refresh: $$KUBERNETES_READY_AFTER"
 
-    # If kubernetes_ready transitioned false -> true the GKE cluster was
-    # just created on the first apply but Kubernetes resources were skipped.
-    # Run a second plan+apply now that the cluster endpoint is known.
+    # If kubernetes_ready transitioned false -> true the GKE cluster was just
+    # created on the first apply but Kubernetes resources were skipped because
+    # the cluster endpoint was not yet known at plan time.
+    # Run a second plan+apply now that the endpoint is available.
     if [ "$$KUBERNETES_READY_BEFORE" = "false" ] && [ "$$KUBERNETES_READY_AFTER" = "true" ]; then
         log "🔄 GKE cluster is now ready — running second apply to deploy Kubernetes resources..."
 
@@ -452,7 +457,7 @@ options:
   logging: GCS_ONLY
   logStreamingOption: STREAM_ON
   dynamic_substitutions: true
-  substitutionOption: 'ALLOW_LOOSE'  # ✅ Allow empty substitutions
+  substitutionOption: 'ALLOW_LOOSE'
   # machineType: 'E2_HIGHCPU_8'  # Uncomment for more power on complex deployments
 
 substitutions:
@@ -460,12 +465,5 @@ substitutions:
   _MODULE_GIT_REPO_URL: ""
   _GITHUB_TOKEN_SECRET_NAME: "git-access-token"
 
-# ============================================
-# Logs Configuration
-# ============================================
 logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/create/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
-
-# ============================================
-# Timeout
-# ============================================
-timeout: 7200s  # 10 minutes should be enough for bucket cleanup
+timeout: 7200s
