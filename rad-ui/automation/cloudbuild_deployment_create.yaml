@@ -220,40 +220,75 @@ steps:
     
     log "🚀 Applying infrastructure changes..."
     
-    # Apply with retry logic for transient errors
+    # Apply with retry logic for transient errors.
+    #
+    # After each failed attempt we:
+    #   1. Sleep (with exponential back-off) to let transient GCP/K8s issues settle.
+    #   2. Run `tofu refresh` to bring the state in sync with real-world resources
+    #      that may have been partially created during the failed apply.
+    #   3. Re-plan against the refreshed state — the old tfplan is now STALE after
+    #      a refresh and cannot be re-applied (OpenTofu will error with
+    #      "Saved plan is stale"). Generating a fresh plan avoids that error.
+    #
+    # max_attempts=3 and an initial sleep of 60 s (doubling to 120 s) give enough
+    # headroom for GKE Autopilot LoadBalancer IP provisioning (which can take 10+
+    # minutes on a brand-new cluster) to complete before the final retry.
     apply_with_retry() {
-        local max_attempts=2
+        local max_attempts=3
         local attempt=1
-        
+        local sleep_seconds=60
+
         while [ $$attempt -le $$max_attempts ]; do
             log "🔄 Apply attempt $$attempt of $$max_attempts"
-            
-            if tofu apply -auto-approve tfplan; then
-                log "✅ Apply successful on attempt $$attempt"
+
+            set +e
+            tofu apply -auto-approve tfplan
+            APPLY_EXIT_CODE=$$?
+            set -e
+
+            if [ $$APPLY_EXIT_CODE -eq 0 ]; then
+                log "✅ Apply succeeded on attempt $$attempt"
                 return 0
-            else
-                local exit_code=$$?
-                log "❌ Apply failed on attempt $$attempt (exit code: $$exit_code)"
-                
-                if [ $$attempt -eq $$max_attempts ]; then
-                    log "💥 All apply attempts failed"
-                    
-                    # Show current state for debugging
-                    log "🔍 Current state summary:"
-                    tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || log "Unable to show state"
-                    
-                    return $$exit_code
-                fi
-                
-                log "⏳ Waiting 30 seconds before retry..."
-                sleep 30
-                
-                # Refresh state before retry
-                log "🔄 Refreshing state before retry..."
-                tofu refresh || log "State refresh failed, continuing with retry"
             fi
-            
-            ((attempt++))
+
+            log "❌ Apply failed on attempt $$attempt (exit code: $$APPLY_EXIT_CODE)"
+
+            if [ $$attempt -eq $$max_attempts ]; then
+                log "💥 All apply attempts failed"
+
+                # Show current state for debugging
+                log "🔍 Current state summary:"
+                tofu show -json 2>/dev/null \
+                    | jq -r '.values.root_module.resources[]?.address // empty' \
+                    | head -10 \
+                    || log "Unable to show state"
+
+                return $$APPLY_EXIT_CODE
+            fi
+
+            log "⏳ Waiting $${sleep_seconds}s before retry..."
+            sleep $$sleep_seconds
+            sleep_seconds=$$((sleep_seconds * 2))
+
+            # Bring state in sync with resources created during the failed apply.
+            log "🔄 Refreshing state before retry..."
+            tofu refresh || log "⚠️  State refresh failed, continuing with retry"
+
+            # The saved tfplan is now stale — generate a fresh one.
+            log "🔄 Re-planning with refreshed state..."
+            set +e
+            tofu plan -out=tfplan -detailed-exitcode
+            REPLAN_EXIT_CODE=$$?
+            set -e
+
+            if [ $$REPLAN_EXIT_CODE -eq 1 ]; then
+                log "❌ Re-plan failed before retry attempt $$((attempt + 1))"
+                return 1
+            fi
+
+            log "✅ Re-plan complete (exit code: $$REPLAN_EXIT_CODE — 0=no-changes, 2=changes)"
+
+            attempt=$$((attempt + 1))
         done
     }
     
@@ -311,6 +346,10 @@ steps:
     # created on the first apply but Kubernetes resources were skipped because
     # the cluster endpoint was not yet known at plan time.
     # Run a second plan+apply now that the endpoint is available.
+    #
+    # The second apply uses its own retry function with the same stale-plan
+    # protection as the first apply: after any failed attempt we refresh state
+    # and re-plan before retrying, rather than reusing a stale tfplan-k8s.
     if [ "$$KUBERNETES_READY_BEFORE" = "false" ] && [ "$$KUBERNETES_READY_AFTER" = "true" ]; then
         log "🔄 GKE cluster is now ready — running second apply to deploy Kubernetes resources..."
 
@@ -325,7 +364,58 @@ steps:
                 ;;
             2)
                 log "📊 Kubernetes resources pending — applying..."
-                if tofu apply -auto-approve tfplan-k8s; then
+
+                k8s_apply_with_retry() {
+                    local plan_file="tfplan-k8s"
+                    local max_attempts=3
+                    local attempt=1
+                    local sleep_seconds=60
+
+                    while [ $$attempt -le $$max_attempts ]; do
+                        log "🔄 K8s apply attempt $$attempt of $$max_attempts"
+
+                        set +e
+                        tofu apply -auto-approve $$plan_file
+                        K8S_APPLY_EXIT_CODE=$$?
+                        set -e
+
+                        if [ $$K8S_APPLY_EXIT_CODE -eq 0 ]; then
+                            log "✅ K8s apply succeeded on attempt $$attempt"
+                            return 0
+                        fi
+
+                        log "❌ K8s apply failed on attempt $$attempt (exit code: $$K8S_APPLY_EXIT_CODE)"
+
+                        if [ $$attempt -eq $$max_attempts ]; then
+                            log "💥 All K8s apply attempts failed"
+                            return $$K8S_APPLY_EXIT_CODE
+                        fi
+
+                        log "⏳ Waiting $${sleep_seconds}s before K8s retry..."
+                        sleep $$sleep_seconds
+                        sleep_seconds=$$((sleep_seconds * 2))
+
+                        log "🔄 Refreshing state before K8s retry..."
+                        tofu refresh || log "⚠️  State refresh failed, continuing with retry"
+
+                        log "🔄 Re-planning K8s resources with refreshed state..."
+                        set +e
+                        tofu plan -out=$$plan_file -detailed-exitcode
+                        K8S_REPLAN_EXIT_CODE=$$?
+                        set -e
+
+                        if [ $$K8S_REPLAN_EXIT_CODE -eq 1 ]; then
+                            log "❌ K8s re-plan failed before retry attempt $$((attempt + 1))"
+                            return 1
+                        fi
+
+                        log "✅ K8s re-plan complete (exit code: $$K8S_REPLAN_EXIT_CODE)"
+
+                        attempt=$$((attempt + 1))
+                    done
+                }
+
+                if k8s_apply_with_retry; then
                     log "✅ Kubernetes resources deployed successfully"
                 else
                     log "❌ Second apply failed — Kubernetes resources were not deployed"
