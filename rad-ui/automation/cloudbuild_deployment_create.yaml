@@ -1,4 +1,3 @@
-
 # Copyright 2023 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -276,14 +275,67 @@ steps:
     }
     
     log "🔄 Refreshing Terraform state..."
-    
+
+    # Capture kubernetes_ready before the refresh.
+    # On the first apply of an App_GKE module with an inline GKE cluster,
+    # all Kubernetes resources are skipped because the cluster endpoint is
+    # not available at plan time (kubernetes_ready=false). The refresh-only
+    # apply below detects the cluster is now reachable and flips
+    # kubernetes_ready to true. We then re-plan and re-apply to deploy the
+    # pending Kubernetes resources in the same pipeline run.
+    # Defaults to "true" for modules without this output so the logic is
+    # never triggered for non-GKE deployments.
+    KUBERNETES_READY_BEFORE=$$(tofu output -json 2>/dev/null \
+        | jq -r '.kubernetes_ready.value // true' 2>/dev/null \
+        || echo "true")
+    log "📊 kubernetes_ready before refresh: $$KUBERNETES_READY_BEFORE"
+
     # Refresh state to ensure accuracy
     if tofu apply -refresh-only -auto-approve; then
         log "✅ State refresh completed"
     else
         log "⚠️  State refresh failed, but continuing..."
     fi
-    
+
+    # Capture kubernetes_ready after the refresh
+    KUBERNETES_READY_AFTER=$$(tofu output -json 2>/dev/null \
+        | jq -r '.kubernetes_ready.value // true' 2>/dev/null \
+        || echo "true")
+    log "📊 kubernetes_ready after refresh: $$KUBERNETES_READY_AFTER"
+
+    # If kubernetes_ready transitioned false -> true the GKE cluster was
+    # just created on the first apply but Kubernetes resources were skipped.
+    # Run a second plan+apply now that the cluster endpoint is known.
+    if [ "$$KUBERNETES_READY_BEFORE" = "false" ] && [ "$$KUBERNETES_READY_AFTER" = "true" ]; then
+        log "🔄 GKE cluster is now ready — running second apply to deploy Kubernetes resources..."
+
+        set +e
+        tofu plan -out=tfplan-k8s -detailed-exitcode
+        PLAN_EXIT_CODE=$$?
+        set -e
+
+        case $$PLAN_EXIT_CODE in
+            0)
+                log "ℹ️  No additional Kubernetes resource changes detected"
+                ;;
+            2)
+                log "📊 Kubernetes resources pending — applying..."
+                if tofu apply -auto-approve tfplan-k8s; then
+                    log "✅ Kubernetes resources deployed successfully"
+                else
+                    log "❌ Second apply failed — Kubernetes resources were not deployed"
+                    exit 1
+                fi
+                ;;
+            *)
+                log "❌ Re-plan for Kubernetes resources failed (exit code: $$PLAN_EXIT_CODE)"
+                exit 1
+                ;;
+        esac
+    else
+        log "ℹ️  No GKE bootstrap second-apply needed (kubernetes_ready: $$KUBERNETES_READY_BEFORE -> $$KUBERNETES_READY_AFTER)"
+    fi
+
     log "📤 Generating deployment outputs..."
     
     # Generate outputs
