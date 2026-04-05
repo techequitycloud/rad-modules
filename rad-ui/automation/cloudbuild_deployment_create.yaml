@@ -350,7 +350,7 @@ steps:
     # The second apply uses its own retry function with the same stale-plan
     # protection as the first apply: after any failed attempt we refresh state
     # and re-plan before retrying, rather than reusing a stale tfplan-k8s.
-    if [ "$$KUBERNETES_READY_BEFORE" = "false" ] && [ "$$KUBERNETES_READY_AFTER" = "true" ]; then
+    if [ "$$KUBERNETES_READY_AFTER" = "true" ]; then
         log "🔄 GKE cluster is now ready — running second apply to deploy Kubernetes resources..."
 
         set +e
