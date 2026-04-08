@@ -236,11 +236,11 @@ steps:
 
     # Apply with retry logic for transient errors
     apply_with_retry() {
-        local max_attempts=2
+        local =2
         local attempt=1
 
-        while [ $$attempt -le $$max_attempts ]; do
-            log "🔄 Apply attempt $$attempt of $$max_attempts"
+        while [ $$attempt -le $$ ]; do
+            log "🔄 Apply attempt $$attempt of $$"
 
             if tofu apply -auto-approve tfplan; then
                 log "✅ Apply successful on attempt $$attempt"
@@ -249,7 +249,7 @@ steps:
                 local exit_code=$$?
                 log "❌ Apply failed on attempt $$attempt (exit code: $$exit_code)"
 
-                if [ $$attempt -eq $$max_attempts ]; then
+                if [ $$attempt -eq $$ ]; then
                     log "💥 All apply attempts failed"
                     return $$exit_code
                 fi
