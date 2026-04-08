@@ -234,35 +234,63 @@ steps:
 
     log "🚀 Applying infrastructure changes..."
 
-    # Apply with retry logic for transient errors
+    # Apply with retry logic for transient errors.
+    #
+    # After each failed attempt we:
+    #   1. Sleep (with exponential back-off) to let transient GCP/K8s issues settle.
+    #   2. Run `tofu refresh` to bring state in sync (e.g. picks up the new CA
+    #      certificate after a cluster recreation so the kubernetes provider
+    #      config is correct on the next plan).
+    #   3. Re-plan against the refreshed state — the old tfplan is stale after
+    #      a refresh and cannot be re-applied safely.
     apply_with_retry() {
         local max_attempts=2
         local attempt=1
+        local sleep_seconds=60
 
         while [ $$attempt -le $$max_attempts ]; do
             log "🔄 Apply attempt $$attempt of $$max_attempts"
 
-            if tofu apply -auto-approve tfplan; then
-                log "✅ Apply successful on attempt $$attempt"
+            set +e
+            tofu apply -auto-approve tfplan
+            APPLY_EXIT_CODE=$$?
+            set -e
+
+            if [ $$APPLY_EXIT_CODE -eq 0 ]; then
+                log "✅ Apply succeeded on attempt $$attempt"
                 return 0
-            else
-                local exit_code=$$?
-                log "❌ Apply failed on attempt $$attempt (exit code: $$exit_code)"
-
-                if [ $$attempt -eq $$max_attempts ]; then
-                    log "💥 All apply attempts failed"
-                    return $$exit_code
-                fi
-
-                log "⏳ Waiting 30 seconds before retry..."
-                sleep 30
-
-                # Regenerate plan for retry
-                log "🔄 Regenerating plan for retry..."
-                tofu plan -out=tfplan
             fi
 
-            ((attempt++))
+            log "❌ Apply failed on attempt $$attempt (exit code: $$APPLY_EXIT_CODE)"
+
+            if [ $$attempt -eq $$max_attempts ]; then
+                log "💥 All apply attempts failed"
+                return $$APPLY_EXIT_CODE
+            fi
+
+            log "⏳ Waiting $${sleep_seconds}s before retry..."
+            sleep $$sleep_seconds
+            sleep_seconds=$$((sleep_seconds * 2))
+
+            # Bring state in sync with resources created during the failed apply.
+            log "🔄 Refreshing state before retry..."
+            tofu refresh || log "⚠️  State refresh failed, continuing with retry"
+
+            # The saved tfplan is now stale — generate a fresh one.
+            log "🔄 Re-planning with refreshed state..."
+            set +e
+            tofu plan -out=tfplan -detailed-exitcode
+            REPLAN_EXIT_CODE=$$?
+            set -e
+
+            if [ $$REPLAN_EXIT_CODE -eq 1 ]; then
+                log "❌ Re-plan failed before retry attempt $$((attempt + 1))"
+                return 1
+            fi
+
+            log "✅ Re-plan complete (exit code: $$REPLAN_EXIT_CODE — 0=no-changes, 2=changes)"
+
+            attempt=$$((attempt + 1))
         done
     }
 
