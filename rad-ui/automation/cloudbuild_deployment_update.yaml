@@ -187,14 +187,7 @@ steps:
 
     log "🔧 Initializing Terraform/Tofu..."
 
-    # Check if already initialized
-    if [[ ! -d ".terraform" ]]; then
-        log "🆕 First time initialization"
-        tofu init
-    else
-        log "🔄 Re-initializing existing state"
-        tofu init -upgrade -reconfigure
-    fi
+    tofu init -reconfigure -upgrade
 
     log "📋 Generating execution plan..."
 
