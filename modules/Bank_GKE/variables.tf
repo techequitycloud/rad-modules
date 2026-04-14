@@ -81,7 +81,7 @@ variable "deployment_id" {
 variable "existing_project_id" {
   description = "Enter the project ID of the destination project. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
-  default     = "gcp-gke-cluster"
+  default     = ""
 }
 
 variable "gcp_region" {
