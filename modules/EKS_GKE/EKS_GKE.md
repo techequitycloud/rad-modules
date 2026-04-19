@@ -348,3 +348,99 @@ The Terraform executor's own Google identity is always included in the admin lis
 This authorisation model bridges two identity systems: AWS IAM (which EKS natively uses for RBAC via `aws-auth` ConfigMap) and Google Cloud IAM (which the Connect Gateway uses to authenticate `kubectl` requests). Users in `trusted_users` authenticate with Google but receive Kubernetes RBAC permissions — they never need an AWS IAM identity to access the cluster after registration.
 
 ---
+
+## Anthos Connect Agent and the Bootstrap Process
+
+Before the EKS cluster can be registered with Google Cloud, a small agent must be running inside the cluster to establish the management channel. This section explains how that agent is installed and what it does once running.
+
+### The Bootstrap Manifest
+
+Google Cloud's GKE Multi-Cloud API generates a unique **install manifest** for each cluster registration. This manifest is a set of Kubernetes resources — deployments, service accounts, cluster roles, and secrets — that together form the Connect Agent. The manifest is specific to:
+
+- The cluster name and Google Cloud project it will be registered to
+- The GCP region where the attached cluster will be managed
+- The **platform version** (default: `1.34.0-gke.1`) — a GKE-managed version string that determines which version of the Connect Agent and its dependencies will be installed
+
+The module fetches this manifest directly from the Google Cloud API and installs it onto the EKS cluster automatically. No manual steps are required.
+
+### How the Bootstrap Installation Works
+
+The manifest is packaged into a Helm chart and applied to the EKS cluster. Using Helm for this installation provides three important properties:
+
+- **Idempotency** — re-running the deployment does not create duplicate resources; Helm reconciles the desired state
+- **Ownership tracking** — Helm records which resources belong to this installation, enabling clean removal
+- **Lifecycle management** — when the module is torn down, Helm uninstalls the Connect Agent cleanly before the cluster registration is removed from Google Cloud, preventing orphaned resources
+
+The installation sequence is strictly ordered: the Connect Agent must be running and reporting healthy before Google Cloud will accept the cluster registration as complete. This ordering is enforced automatically.
+
+### Platform Version
+
+The `platform_version` configuration option (default `1.34.0-gke.1`) is a version string managed by Google Cloud that governs the Connect Agent version, the API compatibility surface, and the supported Kubernetes version range for an attached cluster. It follows the pattern `{kubernetes_minor_version}.{patch}.{gke_build}`.
+
+Google periodically releases new platform versions as Kubernetes minor versions advance. The platform version set in this module must align with the Kubernetes version running on the EKS cluster — Google Cloud validates this during registration and will reject a mismatch.
+
+To upgrade an attached cluster to a newer Kubernetes version:
+1. Update the Kubernetes version on the EKS cluster
+2. Update `platform_version` to the corresponding GKE platform version
+3. Redeploy — the module fetches a new bootstrap manifest for the new version and Helm upgrades the Connect Agent in place
+
+### The Connect Agent in Operation
+
+Once installed, the Connect Agent runs as a deployment inside the EKS cluster (in the `gke-connect` namespace). It maintains a **persistent, outbound-only HTTPS connection** to `gkeconnect.googleapis.com` on port 443. This single outbound connection is the channel through which all Google Cloud management operations flow.
+
+The outbound-only design has important security properties:
+
+- **No inbound firewall rules required** — the EKS cluster does not need to open any ports to the internet to be managed by Google Cloud
+- **No VPN or peering required** — connectivity is over the public internet using TLS, with Google Cloud's APIs as the other endpoint
+- **Works behind NAT** — because the connection is initiated from inside the cluster, NAT-traversal is not an issue; both the public and private subnet topologies supported by this module work equally well
+
+The Connect Agent handles:
+- Forwarding `kubectl` commands from the Connect Gateway to the EKS API server
+- Relaying log collection configuration from Cloud Logging to the log forwarding agent
+- Receiving Managed Prometheus scrape configuration updates from Google Cloud
+- Reporting cluster health and version status back to the GKE Multi-Cloud API
+- Accepting policy and configuration updates from Fleet services (Policy Controller, Config Management)
+
+### Connect Gateway: kubectl Without AWS Credentials
+
+The Connect Gateway is the feature that allows authorised users to run `kubectl` against the EKS cluster using only their Google identity. After registration, the cluster appears in the output of `gcloud container attached clusters list` and a kubeconfig entry can be generated with:
+
+```
+gcloud container attached clusters get-credentials CLUSTER_NAME \
+  --location GCP_REGION \
+  --project GCP_PROJECT_ID
+```
+
+Once the kubeconfig is configured, all standard `kubectl` commands work as normal. The traffic path is:
+
+```
+kubectl  →  Connect Gateway API  →  Connect Agent (EKS)  →  EKS API Server
+```
+
+**Authentication:** Your Google identity (from `gcloud auth login`) is used to authenticate with the Connect Gateway API. Google Cloud checks that your email is in the cluster's `admin_users` list. If it is, your request is forwarded through the Connect Agent to the EKS API server, which receives it as a `cluster-admin` RBAC request.
+
+**What you can do via Connect Gateway:**
+- All read operations: `kubectl get`, `kubectl describe`, `kubectl logs`
+- All write operations: `kubectl apply`, `kubectl delete`, `kubectl scale`
+- Port forwarding: `kubectl port-forward`
+- Exec into containers: `kubectl exec`
+- Manage RBAC, namespaces, workloads — full cluster-admin access
+
+**What you cannot do via Connect Gateway:**
+- Node-level SSH access (this requires direct EC2 access through AWS)
+- Operations that bypass the Kubernetes API server (direct etcd access, for example)
+
+**Comparing Connect Gateway to native GKE access:** On a native GKE cluster, `gcloud container clusters get-credentials` similarly generates a kubeconfig that uses a Google-authenticated endpoint. The user experience is identical — the difference is that for native GKE the endpoint is the cluster's own API server, whereas for attached clusters it routes through the Connect Agent. Latency may be slightly higher for attached clusters due to the additional hop.
+
+### Cluster Registration Dependencies
+
+The deployment sequence enforces a strict dependency chain that platform engineers should understand when thinking about timing and troubleshooting:
+
+1. The EKS node group must be running before the Connect Agent can be scheduled — the agent needs worker nodes to run on
+2. Routing to the internet must be established (Internet Gateway for public subnets, NAT Gateway for private) before the Connect Agent can reach `gkeconnect.googleapis.com`
+3. The Connect Agent must be healthy and connected before Google Cloud completes the cluster registration
+4. The cluster registration must be complete before Fleet features (logging agents, Managed Prometheus, Policy Controller) become active
+
+If deployment stalls, the most common causes are networking issues preventing the Connect Agent from reaching Google Cloud APIs, or IAM permission gaps on the GCP service account running the deployment.
+
+---
