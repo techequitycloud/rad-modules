@@ -542,3 +542,158 @@ Istio `AuthorizationPolicy` resources enforce which services are allowed to call
 When both the EKS attached cluster and a native GKE cluster are enrolled in the same fleet and both have ASM installed, the mesh control plane can span both clusters. Workloads on EKS and workloads on GKE can communicate with mTLS enforced across the cloud boundary, traffic can be load balanced across both clusters, and the service topology map in the Cloud Console shows the full multi-cloud service graph in a single view.
 
 ---
+
+## Configuration Reference
+
+All configuration options are set before deployment. Options marked **Required** have no default and must be provided. All others have defaults that work for a standard learning environment.
+
+### Google Cloud Settings
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `existing_project_id` | **Yes** | — | The Google Cloud project ID where the EKS cluster will be registered. The project must have billing enabled. |
+| `gcp_location` | No | `us-central1` | The GCP region used for cluster registration, Cloud Logging, and Cloud Monitoring. This does not need to be geographically close to the AWS region — it is the Google Cloud control-plane anchor for the cluster. |
+
+### AWS Settings
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `aws_access_key` | **Yes** | — | AWS Access Key ID for the IAM user or role that will create the VPC, EKS cluster, and IAM resources. Stored as a sensitive value. |
+| `aws_secret_key` | **Yes** | — | AWS Secret Access Key corresponding to the above. Stored as a sensitive value. |
+| `aws_region` | No | `us-west-2` | The AWS region where the VPC, EKS cluster, and worker nodes are provisioned. |
+
+### Cluster Identity
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `cluster_name_prefix` | No | `aws-eks-cluster` | The name used for the EKS cluster and all associated AWS resources (VPC, subnets, IAM roles, node group). Must be unique within the AWS account and region. |
+
+### Kubernetes Version
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `k8s_version` | No | `1.34` | The Kubernetes version to run on the EKS cluster. Must align with the minor version in `platform_version`. |
+| `platform_version` | No | `1.34.0-gke.1` | The GKE platform version that governs the Connect Agent version and API compatibility for the attached cluster. Must correspond to the same Kubernetes minor version as `k8s_version`. |
+
+### Networking
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `vpc_cidr_block` | No | `10.0.0.0/16` | The IP address range for the VPC. Must not overlap with other VPCs if you plan to use VPC peering. |
+| `enable_public_subnets` | No | `true` | Controls the subnet topology. `true` creates public subnets with direct internet access via an Internet Gateway. `false` creates private subnets with outbound-only internet access via a NAT Gateway. See the [Subnet Topology](#subnet-topology) section for guidance. |
+| `public_subnet_cidr_blocks` | No | `10.0.101.0/24`, `10.0.102.0/24`, `10.0.103.0/24` | CIDR blocks for the three public subnets, one per availability zone. Only used when `enable_public_subnets = true`. |
+| `private_subnet_cidr_blocks` | No | `10.0.1.0/24`, `10.0.2.0/24`, `10.0.3.0/24` | CIDR blocks for the three private subnets, one per availability zone. Only used when `enable_public_subnets = false`. |
+| `subnet_availability_zones` | No | `us-west-2a`, `us-west-2b`, `us-west-2c` | The three AWS Availability Zones in which subnets are created. Must be valid AZs within `aws_region`. |
+
+### Worker Nodes
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `node_group_desired_size` | No | `2` | The number of worker nodes to start with. The node group scales between `node_group_min_size` and `node_group_max_size`. |
+| `node_group_min_size` | No | `2` | The minimum number of worker nodes. The node group will never scale below this count. |
+| `node_group_max_size` | No | `5` | The maximum number of worker nodes. The node group will never scale above this count. |
+
+### Access Control
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `trusted_users` | No | `[]` | A list of Google identity email addresses (e.g. `engineer@example.com`) granted `cluster-admin` access to the EKS cluster via the Connect Gateway. The identity deploying the module is always included automatically. No empty strings or duplicates are permitted. |
+
+---
+
+## Default Behaviours
+
+The following behaviours are fixed within the module and cannot be changed through configuration options. Understanding them helps set expectations for what the deployed environment looks like.
+
+| Behaviour | Detail |
+|-----------|--------|
+| **Log components** | Both `SYSTEM_COMPONENTS` and `WORKLOADS` logs are always forwarded to Cloud Logging. There is no option to forward one without the other. |
+| **Managed Prometheus** | Always enabled on the attached cluster. Cloud Managed Prometheus metrics collection is always active. |
+| **Fleet project** | The cluster is enrolled in the fleet of the same Google Cloud project specified in `existing_project_id`. Cross-project fleet registration is not supported by this module. |
+| **Node group distribution** | Worker nodes are placed in all three subnets across all three availability zones. Nodes are spread across AZs for high availability by default. |
+| **API disable on teardown** | The ten GCP APIs enabled by this module are not disabled when the module is torn down. This prevents disruption to other services in the project that may depend on the same APIs. |
+| **GCP APIs propagation** | Newly enabled GCP APIs require time to propagate before dependent resources can be created. The module waits for this automatically — no manual delay is needed. |
+| **Connect Agent Helm release** | The Anthos bootstrap connector is installed using a Helm chart generated from the Google Cloud manifest API. The Helm chart is named `attached-bootstrap` with version `0.0.1` and is placed in the `default` Helm namespace on the EKS cluster. |
+| **Admin identity inclusion** | The Google identity executing the deployment is always added to the `trusted_users` list as a cluster admin, regardless of what is specified in the `trusted_users` option. |
+| **Resource naming** | All AWS resources include `cluster_name_prefix` in their names. A short random suffix is appended to the cluster name to avoid naming collisions when multiple instances are deployed to the same AWS account. |
+
+---
+
+## Prerequisites
+
+Before deploying this module, ensure the following are in place:
+
+| Prerequisite | Detail |
+|-------------|--------|
+| **Google Cloud project** | An existing GCP project with billing enabled. |
+| **GCP permissions** | The deploying identity needs sufficient permissions to enable APIs, create fleet memberships, and register attached clusters. The `roles/owner` role on the project satisfies all requirements. For least-privilege deployments, the required roles are `roles/gkemulticloud.admin`, `roles/gkehub.admin`, `roles/logging.admin`, and `roles/monitoring.admin`. |
+| **AWS account** | An AWS account with permissions to create VPCs, EKS clusters, EC2 node groups, and IAM roles and policies. |
+| **AWS credentials** | An IAM user or role with the necessary AWS permissions, with its Access Key ID and Secret Access Key available to provide as configuration options. |
+| **Network egress** | The machine running the deployment must be able to reach both AWS APIs and Google Cloud APIs over HTTPS. |
+
+---
+
+## Deployment
+
+### Deploy the Module
+
+The module deploys in a single step and takes approximately **10 minutes** to complete. The longest phases are EKS cluster creation (~7 minutes) and the Anthos Connect Agent installation (~2 minutes).
+
+Once deployment completes, connect to the cluster using your Google identity — no AWS credentials are needed:
+
+```bash
+gcloud container attached clusters get-credentials CLUSTER_NAME \
+  --location GCP_REGION \
+  --project GCP_PROJECT_ID
+```
+
+Replace `CLUSTER_NAME` with the value of `cluster_name_prefix`, `GCP_REGION` with the value of `gcp_location`, and `GCP_PROJECT_ID` with `existing_project_id`.
+
+Verify the connection and explore the cluster:
+
+```bash
+# List nodes
+kubectl get nodes
+
+# List all running pods across all namespaces
+kubectl get pods -A
+
+# Check system component logs in Cloud Logging (gcloud CLI)
+gcloud logging read \
+  'resource.type="k8s_cluster" severity>=WARNING' \
+  --project GCP_PROJECT_ID \
+  --limit 50
+```
+
+### Explore the Cluster in the Cloud Console
+
+After registration, the EKS cluster is visible in the Cloud Console under **Kubernetes Engine → Clusters**. From here you can:
+
+- View node and workload health on the **Cluster details** page
+- Browse workload metrics on the **Observability** tab — powered by Kubernetes Metadata API and Managed Prometheus
+- Query logs on the **Logs** tab — system component and workload logs in Cloud Logging
+- View fleet membership and compliance status under **Kubernetes Engine → Fleet**
+
+### Tear Down
+
+Tearing down the module removes all resources in reverse order: the Connect Agent is uninstalled from EKS, the cluster registration is removed from GCP, the EKS node group and cluster are deleted, and the VPC and IAM roles are removed. The GCP APIs enabled by the module are left in place.
+
+> The teardown requires network access to the EKS API server from the machine running the teardown. If private subnets were used, ensure the same network path that was available during deployment is available during teardown.
+
+---
+
+## Further Learning
+
+Deploying this module gives you a working environment to explore the following Google Cloud documentation topics hands-on:
+
+| Topic | What to explore in your deployed environment |
+|-------|---------------------------------------------|
+| [GKE Attached Clusters](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/attached/eks/overview) | View the registered cluster in the Cloud Console, check its status and version |
+| [GKE Fleet](https://cloud.google.com/kubernetes-engine/docs/fleets-overview) | Explore fleet membership and available features under **Kubernetes Engine → Fleet** |
+| [Connect Gateway](https://cloud.google.com/kubernetes-engine/docs/concepts/gateway-api) | Run `kubectl` commands against EKS using only `gcloud` credentials |
+| [Cloud Logging for GKE](https://cloud.google.com/stackdriver/docs/solutions/gke/managing-logs) | Query EKS system and workload logs in Log Explorer |
+| [Managed Prometheus](https://cloud.google.com/stackdriver/docs/managed-prometheus) | Deploy a sample app with a `/metrics` endpoint and create a `PodMonitoring` resource to scrape it |
+| [Anthos Service Mesh](https://cloud.google.com/service-mesh/docs/overview) | Install ASM using the `attached-install-mesh` sub-module and observe the service topology map |
+| [Policy Controller](https://cloud.google.com/anthos-config-management/docs/concepts/policy-controller) | Enable Policy Controller from the Fleet dashboard and apply a constraint to the EKS cluster |
+| [Config Management](https://cloud.google.com/anthos-config-management/docs/overview) | Enable Config Sync and point it at a Git repository to synchronise manifests to the EKS cluster |
+
