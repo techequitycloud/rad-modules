@@ -772,3 +772,277 @@ istioctl ztunnel-config connections
 **Explore in the Cloud Console:** Navigate to **Kubernetes Engine → Service & Ingress** and select a Service in the ambient-enrolled namespace. The **Traffic** tab shows inter-pod flows. For deeper inspection, use **Network Intelligence → Network Topology** to visualise east-west traffic patterns between enrolled namespaces.
 
 ---
+
+## Traffic Management
+
+Istio's traffic management capabilities give platform engineers fine-grained control over how requests flow between services — without modifying application code. All traffic management rules are expressed as Kubernetes custom resources and take effect through configuration pushed to Envoy proxies (or ztunnel/waypoints in ambient mode) via the xDS protocol.
+
+### VirtualService
+
+A `VirtualService` defines how requests addressed to a Kubernetes Service are routed. It intercepts traffic at the client sidecar (sidecar mode) or waypoint proxy (ambient mode) before the request leaves the source pod.
+
+Key capabilities:
+- **Weighted routing** — split traffic across multiple versions of a service by percentage
+- **Header-based routing** — route requests to different backends based on HTTP headers, URI prefixes, or method
+- **Retries** — automatically retry failed requests before returning an error to the caller
+- **Timeouts** — enforce a maximum duration for requests to prevent cascading failures
+- **Fault injection** — deliberately introduce delays or HTTP errors for chaos testing
+
+**Canary deployment example — route 10 % of traffic to v2:**
+
+```yaml
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: my-service
+  namespace: default
+spec:
+  hosts:
+  - my-service
+  http:
+  - route:
+    - destination:
+        host: my-service
+        subset: v1
+      weight: 90
+    - destination:
+        host: my-service
+        subset: v2
+      weight: 10
+```
+
+**Retry and timeout example:**
+
+```yaml
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: my-service
+  namespace: default
+spec:
+  hosts:
+  - my-service
+  http:
+  - timeout: 5s
+    retries:
+      attempts: 3
+      perTryTimeout: 2s
+      retryOn: gateway-error,connect-failure,retriable-4xx
+    route:
+    - destination:
+        host: my-service
+        subset: v1
+```
+
+Apply and verify:
+
+```bash
+# Apply the VirtualService
+kubectl apply -f virtualservice.yaml
+
+# Inspect what rules are active
+kubectl get virtualservice -n default
+
+# View the full spec
+kubectl describe virtualservice my-service -n default
+
+# Confirm the routing config reached the sidecar proxy
+istioctl proxy-config routes <client-pod> | grep my-service
+```
+
+### DestinationRule
+
+A `DestinationRule` defines the properties of traffic **after** routing has occurred — how Istio connects to the destination, and what subsets of the destination exist. `VirtualService` references subsets defined here.
+
+Key capabilities:
+- **Subsets** — group pod instances by label (e.g., `version: v1`, `version: v2`) to represent different versions of a service
+- **Load balancing policy** — round-robin, least connections, random, or consistent hash (session affinity)
+- **Connection pool settings** — limit the number of TCP connections or pending HTTP requests to prevent overload
+- **Outlier detection** — automatically eject unhealthy pods from the load-balancing pool (circuit breaking)
+- **TLS settings** — control how the proxy connects to upstream services (auto, ISTIO_MUTUAL, SIMPLE)
+
+**Subset and circuit breaker example:**
+
+```yaml
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: my-service
+  namespace: default
+spec:
+  host: my-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+    trafficPolicy:
+      loadBalancer:
+        simple: LEAST_CONN
+```
+
+Apply and verify:
+
+```bash
+# Apply the DestinationRule
+kubectl apply -f destinationrule.yaml
+
+# List all DestinationRules
+kubectl get destinationrule -n default
+
+# Check that outlier detection is tracking ejections
+istioctl proxy-config clusters <client-pod> | grep my-service
+```
+
+### Gateway and Ingress Traffic
+
+An Istio `Gateway` resource configures the Ingress Gateway deployment to accept inbound traffic from outside the mesh. It specifies which ports, protocols, and TLS settings to expose. A `VirtualService` is then bound to the Gateway to route inbound traffic to internal services.
+
+**TLS-terminated ingress example:**
+
+```yaml
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: my-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: my-tls-secret
+    hosts:
+    - "app.example.com"
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: my-app
+  namespace: default
+spec:
+  hosts:
+  - "app.example.com"
+  gateways:
+  - istio-system/my-gateway
+  http:
+  - route:
+    - destination:
+        host: my-service
+        port:
+          number: 80
+```
+
+Explore the ingress gateway:
+
+```bash
+# Get the external IP of the Ingress Gateway
+kubectl get service istio-ingressgateway -n istio-system
+
+# View all Gateways in the cluster
+kubectl get gateway -A
+
+# Check what routes the ingress gateway has
+istioctl proxy-config routes deployment/istio-ingressgateway -n istio-system
+
+# View access logs (if enabled)
+kubectl logs -n istio-system -l app=istio-ingressgateway --follow
+```
+
+**Explore in the Cloud Console:** Navigate to **Kubernetes Engine → Service & Ingress** and select the `istio-ingressgateway` LoadBalancer Service. The **Details** tab shows the external IP, port mappings, and associated backend pods. The **Observability** tab (if Cloud Monitoring is active) shows request rates and error percentages for ingress traffic.
+
+### AuthorizationPolicy
+
+`AuthorizationPolicy` controls which workloads are allowed to communicate with each other within the mesh. Policies are enforced by the sidecar proxy (sidecar mode) or by ztunnel and waypoints (ambient mode) and are evaluated after mTLS identity verification.
+
+**Deny all, then allow selectively (recommended baseline):**
+
+```yaml
+# Deny all traffic by default in the production namespace
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: production
+spec: {}
+---
+# Allow the frontend service to call the backend
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-frontend-to-backend
+  namespace: production
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals:
+        - "cluster.local/ns/production/sa/frontend"
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/api/*"]
+```
+
+Apply and verify:
+
+```bash
+# Apply the policies
+kubectl apply -f authpolicy.yaml
+
+# List all AuthorizationPolicies
+kubectl get authorizationpolicy -A
+
+# Test connectivity from the frontend pod
+kubectl exec -n production deploy/frontend -- curl http://backend/api/health
+
+# Check that a denied request is rejected
+kubectl exec -n production deploy/other-service -- curl http://backend/api/health
+# Expected: RBAC: access denied
+```
+
+### Kubernetes Gateway API (Istio 1.24+)
+
+Istio 1.24 promotes the Kubernetes **Gateway API** (`gateway.networking.k8s.io`) to the primary configuration surface, deprecating `Ingress` in favour of `HTTPRoute`, `TCPRoute`, and `GRPCRoute`. The Gateway API is already installed on the GKE cluster by this module.
+
+The Gateway API introduces a clean role separation:
+- **Infrastructure admin** — creates `GatewayClass` and `Gateway` (cluster-scoped)
+- **Application developer** — creates `HTTPRoute` pointing to their Service (namespace-scoped)
+
+```bash
+# View available GatewayClasses
+kubectl get gatewayclass
+
+# View Gateways
+kubectl get gateway -A
+
+# View HTTPRoutes
+kubectl get httproute -A
+
+# Describe an HTTPRoute to see traffic rules
+kubectl describe httproute my-route -n default
+```
+
+---
