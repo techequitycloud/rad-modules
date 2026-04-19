@@ -267,3 +267,202 @@ kubectl get gateway,httproute -A
 **Explore in the Console**: Navigate to **Billing → Reports** and add a grouping by **Label → k8s-namespace** to see cost attribution by workload. The per-cluster breakdown is also visible under **Kubernetes Engine → Clusters → (cluster name) → Observability → Cost**.
 
 ---
+
+## Networking
+
+### VPC Design
+
+The cluster is deployed into a **custom VPC** with GLOBAL routing mode. Using a global VPC means that even though only one region is used today, subnets in other regions can be added later without requiring VPC peering or additional routing configuration.
+
+The VPC uses `auto_create_subnetworks = false` — no default subnets are created. Every subnet is explicitly defined with CIDR ranges sized to match the cluster's requirements. Private Google Access is enabled on the subnet so pods can reach Google APIs without traversing the internet.
+
+**Explore in the Console**: Navigate to **VPC Network → VPC Networks → vpc-network** to see the subnet, its primary and secondary IP ranges, and the region.
+
+**Inspect via CLI:**
+```bash
+# View the VPC and its subnets
+gcloud compute networks describe vpc-network --project PROJECT_ID
+
+# List subnets with all IP ranges
+gcloud compute networks subnets list \
+  --network vpc-network --project PROJECT_ID \
+  --format="table(name,region,ipCidrRange,secondaryIpRanges[].rangeName,secondaryIpRanges[].ipCidrRange)"
+```
+
+### Subnet and IP Allocation
+
+The cluster subnet uses the following default IP ranges, all configurable at deployment time:
+
+| Range type | Default CIDR | Size | Purpose |
+|---|---|---|---|
+| Primary (nodes) | `10.132.0.0/16` | 65,536 IPs | Node VM addresses |
+| Pod secondary range | `10.62.128.0/17` | 32,768 IPs | Pod IP addresses (VPC-native) |
+| Service secondary range | `10.64.128.0/20` | 4,096 IPs | ClusterIP service addresses |
+
+**VPC-native clusters**: GKE uses alias IP ranges, meaning pod IP addresses are drawn directly from the subnet's secondary range and are routable within the VPC without IP masquerading. This is a prerequisite for Container-native load balancing with Network Endpoint Groups (NEGs).
+
+### Cloud Router and Cloud NAT
+
+The subnet is paired with a **Cloud Router** and **Cloud NAT gateway**, providing outbound internet connectivity for nodes and pods without requiring public IP addresses on nodes.
+
+**Cloud NAT** configuration:
+- **IP allocation**: `AUTO_ONLY` — Google manages external IPs automatically
+- **Scope**: applies to all IP ranges in the subnet (node, pod, and service ranges)
+- **Logging**: errors only — NAT translation failures are sent to Cloud Logging
+
+**Explore in the Console**: Navigate to **Network Services → Cloud NAT** to see the NAT gateway, its configuration, and connection counts.
+
+**Inspect via CLI:**
+```bash
+# Describe the Cloud NAT gateway
+gcloud compute routers nats describe nat-config \
+  --router vpc-router \
+  --region REGION --project PROJECT_ID
+
+# Check for NAT errors in Cloud Logging
+gcloud logging read \
+  'resource.type="nat_gateway" severity>=WARNING' \
+  --project PROJECT_ID --limit 20
+```
+
+### Firewall Rules
+
+The module creates five firewall rules:
+
+| Rule | Direction | Source | Ports | Purpose |
+|---|---|---|---|---|
+| `allow-lb-health-checks` | Ingress | `130.211.0.0/22`, `35.191.0.0/16` | TCP 80 | Load balancer health probes to pods |
+| `allow-nfs-health-checks` | Ingress | `130.211.0.0/22`, `35.191.0.0/16` | TCP 2049 | NFS volume health checks |
+| `allow-ssh-iap` | Ingress | `35.235.240.0/20` | TCP 22 | SSH access via Identity-Aware Proxy tunnel |
+| `allow-internal-pods` | Ingress | Pod CIDR (`10.62.128.0/17`) | All | Pod-to-pod communication across nodes |
+| `allow-http-https` | Ingress | `0.0.0.0/0` | TCP 80, 443 | External HTTP/HTTPS traffic to the load balancer |
+
+**Notable differences from MC_Bank_GKE**: This module uses **IAP-tunnelled SSH** (`35.235.240.0/20`) instead of direct SSH from `0.0.0.0/0`, and includes an explicit **NFS health check rule** for port 2049. The IAP tunnel approach is more secure — SSH access to nodes requires an authenticated GCP identity and does not expose port 22 to the internet.
+
+**Explore in the Console**: Navigate to **VPC Network → Firewall** and filter by network `vpc-network`.
+
+**Inspect via CLI:**
+```bash
+# List all firewall rules on the VPC
+gcloud compute firewall-rules list \
+  --filter="network:vpc-network" --project PROJECT_ID \
+  --format="table(name,direction,sourceRanges.list():label=SOURCES,allowed[].map().firewall_rule().list():label=ALLOW)"
+```
+
+### Static External IP
+
+One global static external IP address is reserved and named `bank-of-anthos`. This IP is referenced by the GKE `Ingress` resource annotation `kubernetes.io/ingress.global-static-ip-name`, which pins the load balancer to a known, stable address.
+
+**Inspect via CLI:**
+```bash
+# View reserved global IP addresses
+gcloud compute addresses list --global --project PROJECT_ID \
+  --format="table(name,address,status)"
+```
+
+---
+
+## GKE Fleet and Cloud Service Mesh
+
+### GKE Fleet
+
+The cluster is registered as a **Fleet Membership** immediately after creation. The fleet provides a unified control plane for enabling and managing features across clusters — even when there is only one cluster, fleet membership is required to use Cloud Service Mesh and Anthos Config Management.
+
+**Explore in the Console**: Navigate to **Kubernetes Engine → Fleets** to see the registered cluster, its membership state, and the features enabled on it.
+
+**Inspect via CLI:**
+```bash
+# View fleet membership state
+gcloud container fleet memberships list --project PROJECT_ID
+
+gcloud container fleet memberships describe gke-cluster \
+  --location global --project PROJECT_ID
+
+# List all fleet features and their per-cluster states
+gcloud container fleet features list --project PROJECT_ID
+```
+
+### Cloud Service Mesh (ASM)
+
+**Cloud Service Mesh (CSM)** is enabled by default with `MANAGEMENT_AUTOMATIC` mode. Google provisions and manages the Istio control plane entirely — no `istiod` pods appear in the cluster, and control plane upgrades happen automatically aligned with the cluster's release channel.
+
+**Data plane**: Envoy proxy sidecars are injected into every pod in the `bank-of-anthos` namespace. All pod-to-pod traffic passes through the sidecar, which enforces mTLS, collects telemetry, and applies traffic policies.
+
+**Control plane**: Google-managed, running in Google's infrastructure. You interact with the mesh only through Kubernetes custom resources (`VirtualService`, `DestinationRule`, `PeerAuthentication`, `AuthorizationPolicy`).
+
+**Explore in the Console**: Navigate to **Kubernetes Engine → Service Mesh** to see the live service topology graph, per-service golden signals (latency, traffic, errors, saturation), and control plane health.
+
+**Inspect via CLI:**
+```bash
+# Overall mesh health
+gcloud container fleet mesh describe --project PROJECT_ID
+
+# Verify ASM components are running
+kubectl get pods -n istio-system
+kubectl get pods -n asm-system
+
+# View the managed ASM revision
+kubectl get controlplanerevision -n istio-system
+
+# Confirm sidecar injection label on the namespace
+kubectl get namespace bank-of-anthos --show-labels
+
+# Confirm every pod has an istio-proxy sidecar
+kubectl get pods -n bank-of-anthos \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .spec.containers[*]}{.name}{" "}{end}{"\n"}{end}'
+```
+
+### Mutual TLS
+
+With ASM enabled, all pod-to-pod communication within the `bank-of-anthos` namespace is encrypted with **mutual TLS** by default. Each sidecar receives a short-lived X.509 certificate encoding its SPIFFE workload identity:
+
+```
+spiffe://PROJECT_ID.svc.id.goog/ns/bank-of-anthos/sa/bank-of-anthos
+```
+
+**Inspect via CLI:**
+```bash
+# List PeerAuthentication policies (controls mTLS mode)
+kubectl get peerauthentication -n bank-of-anthos
+kubectl get peerauthentication -n istio-system
+
+# Inspect the mTLS certificate from inside a running sidecar
+FRONTEND_POD=$(kubectl get pod -n bank-of-anthos \
+  -l app=frontend -o jsonpath='{.items[0].metadata.name}')
+
+kubectl exec -n bank-of-anthos $FRONTEND_POD -c istio-proxy -- \
+  openssl s_client \
+  -connect userservice.bank-of-anthos.svc.cluster.local:8080 \
+  -showcerts 2>/dev/null | openssl x509 -noout -text | \
+  grep -E "Subject:|URI:"
+```
+
+### ASM Observability
+
+ASM automatically generates the four golden signals for every service-to-service call from sidecar telemetry — no application instrumentation required.
+
+**Service metrics** in Cloud Monitoring under the `istio.io` namespace:
+
+| Metric | Description |
+|---|---|
+| `istio.io/service/server/request_count` | Inbound request volume per service |
+| `istio.io/service/server/response_latencies` | Inbound latency distribution |
+| `istio.io/service/client/request_count` | Outbound requests per source/destination |
+| `istio.io/service/client/roundtrip_latencies` | End-to-end client-side latency |
+
+**Distributed tracing** is enabled via the Stackdriver ConfigMap applied to `istio-system`. Every inbound request generates a trace spanning all microservice hops, visible in **Trace → Trace List** in the Cloud Console.
+
+**Inspect via CLI:**
+```bash
+# List Istio traffic management resources
+kubectl get virtualservice,destinationrule,serviceentry -n bank-of-anthos
+
+# View Envoy's live routing table for the frontend sidecar
+kubectl exec -n bank-of-anthos $FRONTEND_POD -c istio-proxy -- \
+  pilot-agent request GET routes | python3 -m json.tool | head -60
+
+# View AuthorizationPolicies
+kubectl get authorizationpolicy -n bank-of-anthos
+```
+
+---
