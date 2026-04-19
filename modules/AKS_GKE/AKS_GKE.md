@@ -447,3 +447,255 @@ Navigate to **Monitoring > Dashboards** and look for dashboards prefixed with **
 These dashboards are populated automatically from Managed Prometheus metrics with no additional configuration after the cluster is attached.
 
 ---
+
+## 8. GKE Connect and the Connect Agent
+
+### 8.1 How the Connect Agent Works
+
+The GKE Connect agent is a lightweight Deployment installed on the AKS cluster during the attachment process. It maintains a persistent, encrypted, outbound-only connection from AKS to Google Cloud's `gkeconnect.googleapis.com` endpoint.
+
+The significance of outbound-only cannot be overstated. It means the AKS API server does not need a public endpoint. No inbound firewall rules need to be opened in Azure. No VPN or VPC peering is required between Azure and Google Cloud. The cluster can sit behind a NAT gateway with no public IP and the Connect agent will still function. All management traffic — `kubectl` commands via Connect Gateway, log collection, metrics — is multiplexed over this single outbound gRPC stream. The agent reconnects automatically after network interruptions.
+
+### 8.2 Viewing the Connect Agent in the Console
+
+After deployment, navigate to:
+
+**Kubernetes Engine > Clusters > azure-aks-cluster**
+
+The cluster detail page shows a **Connect** status indicator. A green status confirms the agent tunnel is active and Google Cloud can reach the cluster. If the status shows a warning, the agent pod logs are the first place to investigate.
+
+Fleet membership status is also visible at:
+
+**Kubernetes Engine > Fleet > Clusters**
+
+Each cluster entry shows its connection health, last heartbeat time, and which fleet features are active.
+
+### 8.3 Verifying the Connect Agent from the Command Line
+
+```bash
+# Connect to the cluster via Connect Gateway
+gcloud container attached clusters get-credentials azure-aks-cluster \
+  --location=us-central1 --project=my-gcp-project
+
+# Confirm the Connect agent pod is running
+kubectl get pods -n gke-connect
+
+# View the Connect agent pod details
+kubectl describe pod -n gke-connect -l app=gke-connect-agent
+
+# Stream Connect agent logs to check tunnel health
+kubectl logs -n gke-connect -l app=gke-connect-agent --follow
+
+# Check all resources deployed by the bootstrap manifests
+kubectl get all -n gke-connect
+```
+
+A healthy agent shows a Running pod and log lines confirming an active connection to `gkeconnect.googleapis.com`.
+
+### 8.4 Exploring the Cluster via Connect Gateway
+
+With credentials fetched via `get-credentials`, all standard `kubectl` commands work against the AKS cluster through the Connect Gateway tunnel:
+
+```bash
+# Inspect nodes and their Azure VM details
+kubectl get nodes -o wide
+
+# View resource consumption across all nodes
+kubectl top nodes
+
+# List all namespaces
+kubectl get namespaces
+
+# Browse workloads across all namespaces
+kubectl get pods --all-namespaces
+
+# Inspect cluster-level events
+kubectl get events --all-namespaces --sort-by='.lastTimestamp'
+
+# View RBAC roles granted to connected users
+kubectl get clusterrolebindings | grep gke-connect
+```
+
+### 8.5 Understanding the Bootstrap Manifests
+
+The Kubernetes resources installed by the bootstrap process are all scoped to the `gke-connect` namespace. Exploring them reveals how Google Cloud establishes and maintains the cluster relationship:
+
+```bash
+# List all resources in the gke-connect namespace
+kubectl get all,configmap,secret,serviceaccount -n gke-connect
+
+# View the ConfigMap containing the cluster's GCP identity
+kubectl describe configmap -n gke-connect
+
+# Inspect the ClusterRoles granted to the Connect agent
+kubectl get clusterrole | grep gke-connect
+kubectl describe clusterrole gke-connect-agent-cluster-role
+```
+
+---
+
+## 9. Google Cloud APIs Enabled by This Module
+
+Deploying this module enables ten Google Cloud APIs on the destination project. Understanding what each one does gives platform engineers a clear picture of Google Cloud's multi-cloud Kubernetes management capabilities.
+
+### 9.1 Viewing Enabled APIs in the Console
+
+Navigate to:
+
+**APIs & Services > Enabled APIs & Services**
+
+Filter by `gke` or `anthos` to see the APIs activated by this module. Each API entry shows its current usage, quota limits, and a link to its documentation.
+
+### 9.2 Inspecting Enabled APIs from the Command Line
+
+```bash
+# List all APIs enabled on the project
+gcloud services list --enabled --project=my-gcp-project
+
+# Check whether a specific API is enabled
+gcloud services list --enabled \
+  --filter="name:gkemulticloud.googleapis.com" \
+  --project=my-gcp-project
+
+# View details of a specific API
+gcloud services describe gkemulticloud.googleapis.com \
+  --project=my-gcp-project
+```
+
+### 9.3 What Each API Enables
+
+| API | What It Enables |
+|---|---|
+| **GKE Multi-Cloud** (`gkemulticloud`) | Core API for managing attached clusters — registration, platform version management, and cluster lifecycle |
+| **GKE Connect** (`gkeconnect`) | Manages the Connect agent's communication channel between AKS and Google Cloud |
+| **Connect Gateway** (`connectgateway`) | Powers the `kubectl` proxy that lets engineers access the AKS cluster using Google Cloud identity |
+| **Cloud Resource Manager** (`cloudresourcemanager`) | Access to the GCP project hierarchy — required for project ID and number lookups |
+| **Anthos** (`anthos`) | Activates Anthos platform entitlements, enabling fleet features including Config Management, Policy Controller, and Service Mesh |
+| **Cloud Monitoring** (`monitoring`) | Receives Managed Prometheus metrics and powers alerting, dashboards, and PromQL queries |
+| **Cloud Logging** (`logging`) | Receives AKS system component and workload logs into Log Explorer |
+| **GKE Hub** (`gkehub`) | Manages Fleet membership registrations and fleet feature configurations |
+| **Operations Config Monitoring** (`opsconfigmonitoring`) | Monitors the health of the cluster's observability pipeline |
+| **Kubernetes Metadata** (`kubernetesmetadata`) | Collects Kubernetes metadata (namespace labels, workload annotations) to enrich log and metric records |
+
+These APIs are enabled non-destructively. Removing the module deployment does not disable them, protecting other workloads in the same project that may depend on them.
+
+---
+
+## 10. Google Cloud Service Mesh on Attached Clusters
+
+### 10.1 What Anthos Service Mesh Brings to AKS
+
+The optional `attached-install-mesh` sub-module installs **Google Cloud Service Mesh (ASM)** — Google's distribution of Istio — on the AKS cluster. This gives workloads running in Azure the full Istio service mesh feature set, managed through the same Google Cloud interfaces used for service mesh on GKE.
+
+### 10.2 Core Service Mesh Capabilities
+
+**Mutual TLS (mTLS)** encrypts all pod-to-pod communication at the Envoy sidecar layer automatically. Applications do not implement TLS themselves. mTLS applies even to applications that predate the mesh deployment.
+
+**Traffic Management** uses Istio's VirtualService and DestinationRule resources to control traffic flow between services: canary deployments by percentage, circuit breaking, retry policies, and traffic mirroring for shadow testing.
+
+**Observability** generates distributed traces, service-to-service metrics (request rate, error rate, latency), and access logs for all inter-service communication — without application code changes. Telemetry flows to Cloud Trace, Cloud Monitoring, and Cloud Logging.
+
+**Security Policies** use AuthorizationPolicy resources to define which services may communicate with which others, implementing zero-trust networking at the application layer.
+
+### 10.3 Viewing the Service Mesh in the Console
+
+After installing the service mesh, navigate to:
+
+**Anthos > Service Mesh**
+
+This page shows a topology graph of all services in the mesh, with live metrics for request rate, error rate, and p99 latency on each edge. Clicking a service shows its traffic details, health, and any active security policies.
+
+The mesh dashboard is also accessible from:
+
+**Kubernetes Engine > Clusters > azure-aks-cluster > Observability**
+
+### 10.4 Exploring the Mesh from the Command Line
+
+```bash
+# Confirm Istio control plane is running
+kubectl get pods -n istio-system
+
+# Check the Istio version installed
+kubectl get deployment istiod -n istio-system -o jsonpath='{.spec.template.spec.containers[0].image}'
+
+# List all services currently in the mesh
+kubectl get svc --all-namespaces -l istio
+
+# Check sidecar injection status across namespaces
+kubectl get namespace -L istio-injection
+
+# Enable sidecar injection for a namespace
+kubectl label namespace default istio-injection=enabled
+
+# Verify sidecar is injected in a pod
+kubectl describe pod my-pod | grep istio-proxy
+
+# View mesh-wide configuration
+kubectl get meshconfig -n istio-system -o yaml
+```
+
+### 10.5 Exploring mTLS Enforcement
+
+```bash
+# Check the current mTLS mode across the mesh
+kubectl get peerauthentication --all-namespaces
+
+# View the default mesh-wide mTLS policy
+kubectl get peerauthentication -n istio-system
+
+# Inspect a certificate issued to a pod's sidecar
+kubectl exec my-pod -c istio-proxy -- \
+  openssl s_client -connect other-service:8080 2>&1 | grep -A5 "Certificate chain"
+
+# Check Envoy's view of upstream cluster TLS settings
+kubectl exec my-pod -c istio-proxy -- \
+  pilot-agent request GET clusters | grep tls
+```
+
+### 10.6 Certificate Authority Options
+
+When installing the service mesh, the certificate authority for mTLS certificates is selected from three options:
+
+**Mesh CA** (default) is a Google-managed CA built into Anthos Service Mesh. Certificates are automatically provisioned, rotated, and revoked with no infrastructure overhead. Recommended for most deployments.
+
+**Google Certificate Authority Service (GCP CAS)** integrates the mesh with Google Cloud's enterprise CA product. Suited to regulated environments requiring a fully auditable CA, custom root certificates, and compliance reporting. Navigate to **Certificate Authority Service** in the Console to view issued certificates and CA configuration.
+
+**Citadel** (Istiod CA) uses Istio's built-in CA. Primarily useful when migrating an existing open-source Istio installation to Anthos Service Mesh.
+
+### 10.7 Exploring Traffic Management
+
+```bash
+# List all Istio traffic management resources
+kubectl get virtualservice,destinationrule,gateway --all-namespaces
+
+# Example: apply a canary split sending 10% of traffic to a new version
+kubectl apply -f - <<EOF
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: my-app
+  namespace: default
+spec:
+  hosts:
+  - my-app
+  http:
+  - route:
+    - destination:
+        host: my-app
+        subset: stable
+      weight: 90
+    - destination:
+        host: my-app
+        subset: canary
+      weight: 10
+EOF
+
+# View the traffic split taking effect
+kubectl get virtualservice my-app -o yaml
+```
+
+### 10.8 Tool Bootstrapping and Air-Gap Support
+
+The service mesh sub-module downloads `asmcli`, the Google Cloud SDK, and `jq` at installation time. All three download sources are configurable, enabling the URLs to point to an internal artifact repository. This makes the module deployable in air-gapped environments where direct internet access is restricted by security policy.
+
+---
