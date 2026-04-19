@@ -501,3 +501,124 @@ kubectl top pods -n istio-system -l app=istio-ingressgateway
 ```
 
 ---
+
+## Sidecar Mode
+
+Sidecar mode is the traditional and most widely deployed Istio architecture. It is the default when `install_ambient_mesh = false`. This section explains exactly how it works, what gets created in the cluster, and what you can observe once it is running.
+
+### How Sidecar Injection Works
+
+When sidecar mode is installed, `istiod` registers a **Mutating Webhook Admission Controller** with the Kubernetes API server. Every time a new pod is created in a namespace labelled `istio-injection=enabled`, the Kubernetes API server calls this webhook before the pod is scheduled. `istiod` responds by modifying the pod specification to add:
+
+1. **An init container (`istio-init`)** — runs before the application container and sets up `iptables` rules that redirect all inbound and outbound TCP traffic to the Envoy proxy ports. This is why the cluster requires `allow_net_admin = true` — the init container needs the `NET_ADMIN` Linux capability to modify the kernel's network table.
+
+2. **A sidecar container (`istio-proxy`)** — the Envoy proxy. It listens on two ports: `15001` for all outbound traffic and `15006` for all inbound traffic. Because `iptables` redirects all TCP traffic to these ports, neither the application nor any external client knows the proxy exists — the application binds to its normal port and the proxy intercepts transparently.
+
+The module labels the `default` namespace with `istio-injection=enabled` automatically. Any pod deployed to the `default` namespace receives the sidecar without any per-deployment configuration.
+
+```bash
+# Verify the sidecar injection webhook is registered
+kubectl get mutatingwebhookconfiguration | grep istio
+
+# Confirm the default namespace is labelled for injection
+kubectl get namespace default --show-labels
+
+# Deploy a test pod and confirm it received a sidecar
+kubectl run test-pod --image=nginx --restart=Never
+kubectl get pod test-pod -o jsonpath='{.spec.containers[*].name}'
+# Expected: nginx istio-proxy
+
+# View the iptables rules set up by istio-init inside a pod
+kubectl debug -it test-pod --image=busybox -- iptables -t nat -L
+```
+
+### What the Sidecar Intercepts
+
+Once a pod has a sidecar, every byte of network traffic it sends or receives passes through Envoy. The application never communicates directly with the network. This gives Istio complete visibility and control:
+
+- **Outbound traffic:** When the application opens a connection to another service, `iptables` redirects the SYN packet to Envoy's outbound listener (port 15001). Envoy looks up the destination in its routing table (populated by `istiod` from VirtualService and DestinationRule configurations), applies any traffic management rules, performs mTLS handshake with the destination sidecar, and forwards the request.
+
+- **Inbound traffic:** When a request arrives at the pod, `iptables` redirects it to Envoy's inbound listener (port 15006). Envoy validates the mTLS certificate of the caller, checks any AuthorizationPolicy rules, records the request in its metrics and traces, then forwards it to the application's actual port.
+
+The application sees only plain HTTP or TCP — it never handles TLS or deals with the proxy. This is the "zero code change" promise of a service mesh.
+
+### Resource Overhead of Sidecars
+
+Each sidecar consumes resources from the pod's node:
+
+| Resource | Default request | Notes |
+|----------|----------------|-------|
+| CPU | 100m (0.1 vCPU) | Scales with traffic volume — under heavy load, Envoy uses significantly more |
+| Memory | 128 Mi | Grows with the number of routes in the mesh |
+
+In a cluster with many pods, sidecar overhead accumulates quickly. A cluster with 100 pods adds approximately 10 vCPUs and 12 GB of memory just for proxy overhead. This is one of the primary motivations for ambient mode. On the `e2-standard-2` nodes in this module (2 vCPU, 8 GB each), the sidecar overhead is measurable and visible in the node resource consumption.
+
+```bash
+# See the resource requests set on the istio-proxy sidecar
+kubectl get pod test-pod \
+  -o jsonpath='{.spec.containers[?(@.name=="istio-proxy")].resources}'
+
+# View actual memory and CPU used by all proxy sidecars across the cluster
+kubectl top pods -A --containers | grep istio-proxy | sort -k4 -rh
+```
+
+### Mutual TLS in Sidecar Mode
+
+With both source and destination pods having Envoy sidecars, Istio can enforce **mutual TLS (mTLS)** automatically — both sides present certificates and verify each other's identity before any application data flows.
+
+Certificates are issued by `istiod`'s built-in CA (Citadel) and are rotated automatically every 24 hours. Each certificate contains the pod's SPIFFE identity: `spiffe://cluster.local/ns/<namespace>/sa/<service-account>`, which encodes the Kubernetes namespace and service account. This means mTLS authentication is tied to Kubernetes identity — not IP addresses or DNS names.
+
+By default, Istio operates in **permissive mode**: it accepts both mTLS and plain text connections. This allows gradual mesh adoption. Once all services in a namespace have sidecars, you can switch to **strict mode** with a `PeerAuthentication` policy:
+
+```bash
+# Check the current mTLS mode for the default namespace
+kubectl get peerauthentication -n default
+
+# Enable strict mTLS for the default namespace
+kubectl apply -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: default
+spec:
+  mtls:
+    mode: STRICT
+EOF
+
+# Verify mTLS is being used between two pods
+# (look for X-Forwarded-Client-Cert header — present only with mTLS)
+kubectl exec test-pod -c istio-proxy -- \
+  curl -s http://kubernetes.default.svc/api --header "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" | head -5
+
+# View the certificate istiod issued to a sidecar
+istioctl proxy-config secret test-pod
+```
+
+**Explore mTLS in the Cloud Console:** If Kiali is port-forwarded (see the Observability section), navigate to **Graph** and enable the **Security** display option. Padlock icons on service-to-service edges confirm mTLS is active.
+
+### Exploring the Sidecar Configuration
+
+`istioctl` provides rich commands for inspecting what configuration each sidecar proxy has received from `istiod`:
+
+```bash
+# View the complete Envoy configuration for a pod's sidecar
+istioctl proxy-config all test-pod
+
+# View routing rules (equivalent to VirtualService translations)
+istioctl proxy-config routes test-pod
+
+# View cluster definitions (upstream services and load balancing config)
+istioctl proxy-config clusters test-pod
+
+# View listeners (ports Envoy is listening on)
+istioctl proxy-config listeners test-pod
+
+# View endpoints (the actual pod IPs Envoy knows about for each service)
+istioctl proxy-config endpoints test-pod
+
+# Analyse the mesh configuration for potential issues
+istioctl analyze -n default
+```
+
+---
