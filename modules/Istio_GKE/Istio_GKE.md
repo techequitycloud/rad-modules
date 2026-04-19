@@ -382,3 +382,122 @@ gcloud container node-pools describe default-pool \
 ```
 
 ---
+
+## Istio Core Concepts
+
+Before exploring the two data plane modes, this section explains what Istio is, how it is structured, and how the module installs it — providing the conceptual foundation for everything that follows.
+
+### What Istio Is
+
+Istio is an open-source **service mesh** — an infrastructure layer that intercepts all network communication between services in a Kubernetes cluster and provides traffic management, security, and observability capabilities without requiring any changes to application code.
+
+The key insight behind Istio is that all the networking concerns that would otherwise be coded into each service — retries, timeouts, circuit breaking, TLS, access control, telemetry — can instead be handled by a proxy layer that wraps every service transparently. Applications communicate as if they are talking directly to each other. The proxy layer handles everything in between.
+
+Istio is the upstream open-source project from which Google Cloud Service Mesh, AWS App Mesh, and several other vendor offerings are derived. Learning Istio directly — as this module teaches — gives platform engineers knowledge that transfers across every managed mesh product built on it.
+
+### The Two Planes
+
+Istio has a strict separation between two planes:
+
+**The Control Plane: istiod**
+
+`istiod` is a single binary that combines three functions that were separate components in older Istio versions:
+
+| Function | What it does |
+|----------|-------------|
+| **Pilot** | Converts Istio configuration (VirtualService, DestinationRule) into Envoy xDS configuration and pushes it to every proxy in the mesh |
+| **Citadel** | Acts as a certificate authority (CA), issuing and rotating X.509 certificates for every proxy — the foundation of mTLS |
+| **Galley** | Validates and distributes Istio configuration, ensuring proxies receive consistent and correct configuration |
+
+`istiod` runs in the `istio-system` namespace and is the single point of truth for the mesh. When you apply a VirtualService, `istiod` translates it into Envoy route configuration and pushes the update to every relevant proxy within milliseconds using the **xDS** (discovery service) protocol — a gRPC streaming API that Envoy polls continuously.
+
+**The Data Plane: Envoy Proxies**
+
+The data plane is composed of Envoy proxy instances that intercept and process all network traffic. Envoy is a high-performance, C++-based proxy originally built at Lyft and now a CNCF project in its own right. It is the same proxy used by virtually every service mesh and many API gateways.
+
+Each Envoy instance maintains a live connection to `istiod` and receives continuous configuration updates. It handles:
+- HTTP/1.1, HTTP/2, gRPC, TCP, and WebSocket traffic
+- Load balancing across multiple endpoints
+- Retries, timeouts, and circuit breaking
+- mTLS termination and certificate presentation
+- Metrics collection (request count, latency, error rate per route)
+- Distributed trace span generation
+
+The control plane and data plane communicate exclusively through the xDS protocol — `istiod` never directly proxies traffic, and Envoy proxies never read Kubernetes API objects directly. This clean separation means the data plane continues to operate even if `istiod` is temporarily unavailable; proxies keep their last-known configuration.
+
+```bash
+# After deploying the cluster and installing Istio, verify istiod is running
+kubectl get pods -n istio-system -l app=istiod
+
+# View the istiod logs to see xDS configuration being pushed to proxies
+kubectl logs -n istio-system \
+  -l app=istiod \
+  --tail=50
+
+# Check the Istio version installed
+kubectl exec -n istio-system \
+  $(kubectl get pod -n istio-system -l app=istiod -o jsonpath='{.items[0].metadata.name}') \
+  -- pilot-discovery version
+```
+
+### How Istio is Installed: istioctl
+
+Unlike Google Cloud Service Mesh (which is activated through the GKE Fleet API with a single gcloud command), open-source Istio is installed using **`istioctl`** — the Istio command-line tool. This is a meaningful difference: `istioctl` gives you direct control over every aspect of the installation, making the configuration transparent and inspectable.
+
+The module downloads the Istio release directly from GitHub at the version specified by `istio_version` (default `1.24.2`) and installs it using an `IstioOperator` configuration. The `IstioOperator` is a Kubernetes custom resource that describes the desired Istio installation — which components to install, how to configure them, and what resource requests to set.
+
+The installation sets three mesh-wide identifiers that matter for multi-cluster and multi-network topologies:
+
+| Identifier | Value | Purpose |
+|------------|-------|---------|
+| Mesh ID | `mesh1` | Identifies the logical mesh — clusters with the same mesh ID can share trust |
+| Cluster name | `cluster1` | Identifies this cluster within the mesh for routing and telemetry |
+| Network name | `network1` | Identifies the network — used for east-west gateway configuration in multi-network setups |
+
+Even for a single-cluster deployment, these identifiers are set to the standard multi-cluster values so the installation is ready to extend to multi-cluster without reinstallation.
+
+```bash
+# Connect to the cluster first
+gcloud container clusters get-credentials gke-cluster \
+  --region=GCP_REGION \
+  --project=GCP_PROJECT_ID
+
+# View all Istio components installed in the cluster
+kubectl get all -n istio-system
+
+# Inspect the IstioOperator configuration that was applied
+kubectl get istiooperator -n istio-system -o yaml
+
+# Verify the Istio installation is healthy
+istioctl verify-install
+
+# Check the overall mesh status
+istioctl proxy-status
+```
+
+**Explore in the Cloud Console:** Navigate to **Kubernetes Engine → Clusters → [your cluster] → Workloads** and filter by namespace `istio-system`. You will see `istiod`, the `istio-ingressgateway`, and (in sidecar mode) any admission webhooks. The Workloads view shows resource consumption and restart counts for each component.
+
+### The Istio Ingress Gateway
+
+Both sidecar and ambient mode installations include an **Istio Ingress Gateway** — a standalone Envoy proxy deployed as a Kubernetes `Deployment` with a `Service` of type `LoadBalancer`. This creates a GCP External Load Balancer that receives external HTTP/HTTPS traffic and forwards it into the mesh.
+
+The Ingress Gateway is the mesh's entry point. Unlike the sidecar proxies (which are co-located with application pods), the Ingress Gateway runs as a separate workload that you configure independently using Istio `Gateway` and `VirtualService` resources.
+
+The gateway is configured with:
+- Minimum 1 replica, maximum 5 replicas
+- CPU-based horizontal autoscaling at 80% utilisation
+- A public external IP assigned by GCP
+
+```bash
+# Get the external IP of the Istio Ingress Gateway
+kubectl get svc istio-ingressgateway -n istio-system
+
+# Watch the external IP being assigned (takes 1-2 minutes after install)
+kubectl get svc istio-ingressgateway -n istio-system --watch
+
+# View the ingress gateway pods and their resource usage
+kubectl get pods -n istio-system -l app=istio-ingressgateway
+kubectl top pods -n istio-system -l app=istio-ingressgateway
+```
+
+---
