@@ -699,3 +699,196 @@ kubectl get virtualservice my-app -o yaml
 The service mesh sub-module downloads `asmcli`, the Google Cloud SDK, and `jq` at installation time. All three download sources are configurable, enabling the URLs to point to an internal artifact repository. This makes the module deployable in air-gapped environments where direct internet access is restricted by security policy.
 
 ---
+
+## 11. Configuration Reference
+
+### 11.1 Cluster Configuration
+
+| Option | Default | Description |
+|---|---|---|
+| Cluster name prefix | `azure-aks-cluster` | Base name for the AKS cluster and all associated Azure resources |
+| Azure region | `westus2` | Azure region where the AKS cluster and resource group are deployed |
+| Kubernetes version | `1.34` | Kubernetes minor version for the AKS control plane and nodes |
+| GKE platform version | `1.34.0-gke.1` | Version of the GKE Connect agent and attached cluster components — must be compatible with the Kubernetes version |
+| Node count | `3` | Number of worker nodes in the default node pool |
+| Node VM size | `Standard_D2s_v3` | Azure VM SKU for all nodes in the default node pool |
+| GCP region | `us-central1` | Google Cloud region where the attached cluster record and fleet membership are stored |
+
+### 11.2 Access Control
+
+| Option | Default | Description |
+|---|---|---|
+| Trusted users | *(deploying user)* | List of Google Cloud user email addresses granted cluster-admin access via Connect Gateway. The identity running the deployment is always included automatically. |
+
+### 11.3 Azure Authentication
+
+These four values are required to allow the module to create and manage resources in Azure. They are always treated as sensitive and never appear in logs or plan output.
+
+| Option | Description |
+|---|---|
+| Azure Client ID | Application ID of the Azure Service Principal used for authentication |
+| Azure Client Secret | Secret credential for the Azure Service Principal |
+| Azure Tenant ID | Azure Active Directory tenant that owns the Service Principal |
+| Azure Subscription ID | Azure subscription where resources will be created |
+
+### 11.4 GCP Project
+
+| Option | Description |
+|---|---|
+| GCP Project ID | Destination Google Cloud project where the attached cluster is registered and fleet membership is created |
+
+### 11.5 Service Mesh Options (attached-install-mesh sub-module)
+
+| Option | Default | Description |
+|---|---|---|
+| Certificate authority | `mesh_ca` | CA for mTLS certificates: `mesh_ca` (Google-managed), `gcp_cas` (Certificate Authority Service), or `citadel` (Istiod CA) |
+| Enable cluster roles | `false` | Authorises creation of ClusterRoles required by ASM components |
+| Enable cluster labels | `false` | Authorises addition of topology and mesh labels to cluster nodes |
+| Enable GCP components | `false` | Installs GCP-specific mesh components including the Stackdriver telemetry adapter |
+| Enable GCP APIs | `false` | Automatically enables additional GCP APIs required by the mesh |
+| Enable GCP IAM roles | `false` | Grants required IAM roles to the mesh service account |
+| Enable MeshConfig init | `false` | Initialises the MeshConfig resource with mesh-wide default settings |
+| Enable namespace creation | `false` | Creates the `istio-system` namespace if it does not already exist |
+| Enable registration | `false` | Re-registers the cluster with the fleet (redundant if the root module has already done this) |
+| gcloud SDK version | `491.0.0` | Version of the Google Cloud SDK downloaded during installation |
+| asmcli version | `1.22` | Version of the `asmcli` tool used for mesh installation |
+| gcloud download URL | *(Google CDN)* | Override to point to an internal mirror for air-gapped environments |
+| asmcli download URL | *(Google GCS)* | Override to point to an internal mirror for air-gapped environments |
+
+---
+
+## 12. Deployment Workflow
+
+### 12.1 Prerequisites
+
+1. A Google Cloud project with billing enabled.
+2. An Azure subscription and a Service Principal with Contributor access.
+3. The Google Cloud SDK installed and authenticated:
+
+```bash
+gcloud auth application-default login
+gcloud config set project my-gcp-project
+```
+
+4. Azure CLI installed and Service Principal credentials exported:
+
+```bash
+export ARM_CLIENT_ID="your-client-id"
+export ARM_CLIENT_SECRET="your-client-secret"
+export ARM_TENANT_ID="your-tenant-id"
+export ARM_SUBSCRIPTION_ID="your-subscription-id"
+```
+
+### 12.2 Deployment Steps
+
+```bash
+# Initialise and deploy
+terraform init
+terraform plan
+terraform apply
+```
+
+Expect approximately 12–15 minutes. The longest phase is AKS cluster provisioning in Azure (6–9 minutes).
+
+### 12.3 Expected Deployment Duration
+
+| Phase | Duration |
+|---|---|
+| Google Cloud API enablement | 1–2 min |
+| Azure resource group creation | < 1 min |
+| AKS cluster provisioning | 6–9 min |
+| Bootstrap manifest installation | 2–3 min |
+| GKE attached cluster registration | 1–2 min |
+| **Total** | **~12–15 min** |
+
+### 12.4 Verifying a Successful Deployment
+
+After `terraform apply` completes, run these commands to confirm every layer is working:
+
+```bash
+# 1. Confirm fleet membership is active
+gcloud container fleet memberships list --project=my-gcp-project
+
+# 2. Confirm the attached cluster record is healthy
+gcloud container attached clusters describe azure-aks-cluster \
+  --location=us-central1 --project=my-gcp-project
+
+# 3. Fetch credentials and connect via Connect Gateway
+gcloud container attached clusters get-credentials azure-aks-cluster \
+  --location=us-central1 --project=my-gcp-project
+
+# 4. Verify node access
+kubectl get nodes -o wide
+
+# 5. Confirm the Connect agent is running
+kubectl get pods -n gke-connect
+
+# 6. Confirm Managed Prometheus collector is running
+kubectl get pods -n gmp-system
+
+# 7. Confirm logs are flowing in Cloud Logging
+gcloud logging read \
+  'resource.labels.cluster_name="azure-aks-cluster"' \
+  --project=my-gcp-project --limit=5
+
+# 8. Confirm metrics are flowing in Cloud Monitoring
+gcloud monitoring metrics list \
+  --filter='metric.type=starts_with("kubernetes.io/node")' \
+  --project=my-gcp-project
+```
+
+Then open the Google Cloud Console and verify visually:
+
+- **Kubernetes Engine > Clusters** — AKS cluster appears with type `Attached` and a green status.
+- **Kubernetes Engine > Fleet** — Cluster is listed as a fleet member.
+- **Logging > Log Explorer** — Logs are visible with `resource.labels.cluster_name="azure-aks-cluster"`.
+- **Monitoring > Metrics Explorer** — Kubernetes metrics are queryable for the cluster.
+
+### 12.5 Teardown
+
+```bash
+terraform destroy
+```
+
+This deregisters the cluster from Google Cloud, removes the Connect agent from AKS, and deletes all Azure resources. The Google Cloud APIs enabled during deployment are intentionally left enabled to avoid disrupting other workloads sharing the same project.
+
+---
+
+## 13. Key Learning Outcomes for Platform Engineers
+
+### 13.1 Multi-Cloud Kubernetes Management
+
+This module demonstrates Google Cloud's core multi-cloud insight: **the management plane can be decoupled from the data plane**. Workloads run in Azure on AKS infrastructure. The management plane — access control, observability, policy, service mesh — runs in Google Cloud and applies uniformly to the Azure cluster. Engineers who internalise this separation are equipped to design platform strategies for organisations with heterogeneous cloud environments.
+
+### 13.2 Zero-Trust Cross-Cloud Authentication
+
+The OIDC federation pattern shown here is the foundation of zero-trust authentication across cloud environments. Understanding how OIDC issuer endpoints, JWKS, and token validation eliminate the need for shared credentials is a transferable skill that applies to GKE Workload Identity, GitHub Actions, Terraform Cloud, and any other system that uses federated identity.
+
+### 13.3 Centralised Observability Architecture
+
+Routing AKS logs and metrics to Cloud Logging and Cloud Monitoring demonstrates that Google Cloud's observability stack is not limited to GKE. It is designed to be the observability backend for any Kubernetes cluster, regardless of where it runs. The single-pane-of-glass this creates reduces the operational burden on platform teams managing mixed cloud environments.
+
+### 13.4 Service Mesh as a Platform Concern
+
+Installing Anthos Service Mesh on an AKS cluster shows that service mesh is a platform-level concern, not a per-cluster one. The same mesh management interfaces, certificate authorities, traffic policies, and observability signals apply whether workloads run on GKE or on a fleet-enrolled AKS cluster — the foundation for portable microservice architectures that span cloud providers.
+
+### 13.5 GKE Fleet as a Platform Primitive
+
+Fleet is the most important concept for platform engineers building multi-cluster environments on Google Cloud. This module's single attached cluster is the simplest possible fleet topology, but it establishes the mental model that scales to dozens of clusters across multiple clouds and on-premises environments — all governed, observed, and configured from a single GCP project.
+
+### 13.6 Console Navigation Summary
+
+| Feature | Console Location |
+|---|---|
+| Attached cluster status and details | Kubernetes Engine > Clusters |
+| Fleet membership and feature health | Kubernetes Engine > Fleet |
+| Log Explorer for AKS logs | Logging > Log Explorer |
+| Log-based metrics | Logging > Log-based Metrics |
+| Metrics Explorer and PromQL | Monitoring > Metrics Explorer |
+| Built-in Kubernetes dashboards | Monitoring > Dashboards |
+| Alerting policies | Monitoring > Alerting |
+| Service Mesh topology and metrics | Anthos > Service Mesh |
+| Workload Identity Federation pools | IAM & Admin > Workload Identity Federation |
+| Enabled APIs | APIs & Services > Enabled APIs & Services |
+| Certificate Authority (GCP CAS option) | Certificate Authority Service |
+| Fleet feature configuration | Kubernetes Engine > Fleet > Feature manager |
