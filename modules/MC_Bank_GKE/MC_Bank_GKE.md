@@ -1138,3 +1138,364 @@ Because Bank of Anthos implements the `restricted` Pod Security Standards profil
 Navigate to **Billing → Cost breakdown** and filter by **Label: goog-k8s-cluster-name** to see per-cluster cost attribution. With GKE Cost Management enabled, you can further break down costs by namespace, enabling per-team chargeback visibility.
 
 ---
+
+## Hands-On Exercises
+
+The following exercises are designed to deepen a platform engineer's understanding of the features deployed by this module. Each exercise uses only `kubectl` and `gcloud` commands against the running deployment. All exercises are non-destructive unless marked **[Destructive]**.
+
+Before running any exercise, obtain credentials for both clusters:
+
+```bash
+gcloud container clusters get-credentials gke-cluster-1 \
+  --region us-west1 --project PROJECT_ID
+
+gcloud container clusters get-credentials gke-cluster-2 \
+  --region us-east1 --project PROJECT_ID
+```
+
+Set shell variables for convenience:
+
+```bash
+CTX1="gke_PROJECT_ID_us-west1_gke-cluster-1"
+CTX2="gke_PROJECT_ID_us-east1_gke-cluster-2"
+NS="bank-of-anthos"
+```
+
+---
+
+### Exercise 1: Inspect the Service Mesh
+
+**Goal**: Verify ASM is running and understand sidecar injection.
+
+List all pods in the `bank-of-anthos` namespace and confirm each has two containers — the application container and the Envoy sidecar (`istio-proxy`):
+
+```bash
+kubectl get pods -n $NS --context $CTX1 \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .spec.containers[*]}{.name}{" "}{end}{"\n"}{end}'
+```
+
+Each pod should show two containers, for example:
+```
+frontend-7d9b8f6c4-xkp2q    frontend istio-proxy
+ledgerwriter-6c9b7d5f8-m3vt  ledgerwriter istio-proxy
+```
+
+Inspect the Envoy sidecar configuration for the frontend pod:
+
+```bash
+FRONTEND_POD=$(kubectl get pod -n $NS --context $CTX1 \
+  -l app=frontend -o jsonpath='{.items[0].metadata.name}')
+
+kubectl exec -n $NS --context $CTX1 $FRONTEND_POD \
+  -c istio-proxy -- pilot-agent request GET config_dump | \
+  python3 -m json.tool | grep -A5 '"name": "ledgerwriter"'
+```
+
+This shows the Envoy cluster configuration for `ledgerwriter` — the upstream endpoints, load balancing policy, and TLS settings that the sidecar uses when the frontend calls the ledger writer service.
+
+Check the mTLS certificate issued to the frontend pod:
+
+```bash
+kubectl exec -n $NS --context $CTX1 $FRONTEND_POD \
+  -c istio-proxy -- openssl s_client \
+  -connect ledgerwriter.$NS.svc.cluster.local:8080 \
+  -showcerts 2>/dev/null | openssl x509 -noout -text | \
+  grep -A3 "Subject Alternative Name"
+```
+
+The SAN field will show the SPIFFE identity of the `ledgerwriter` workload:
+```
+URI:spiffe://PROJECT_ID.svc.id.goog/ns/bank-of-anthos/sa/bank-of-anthos
+```
+
+---
+
+### Exercise 2: Enforce a Strict mTLS Policy
+
+**Goal**: Apply a `PeerAuthentication` policy that rejects all non-mTLS traffic to the namespace, then verify it is enforced.
+
+Apply a strict mTLS policy:
+
+```bash
+kubectl apply --context $CTX1 -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: strict-mtls
+  namespace: bank-of-anthos
+spec:
+  mtls:
+    mode: STRICT
+EOF
+```
+
+Attempt to call a service directly without mTLS from outside the mesh (this should fail):
+
+```bash
+kubectl run curl-test --image=curlimages/curl --restart=Never \
+  --context $CTX1 -- \
+  curl -s http://userservice.bank-of-anthos.svc.cluster.local:8080/ready
+```
+
+Because the `curl-test` pod is not in a mesh-injected namespace, it has no sidecar and cannot establish mTLS. The connection will be reset. Clean up:
+
+```bash
+kubectl delete pod curl-test --context $CTX1
+kubectl delete peerauthentication strict-mtls -n $NS --context $CTX1
+```
+
+**What to observe**: In Cloud Logging, look for Envoy access log entries showing connection resets from the non-mesh pod. In the ASM dashboard, the security panel will show the mTLS policy applied and any policy violations.
+
+---
+
+### Exercise 3: Apply an AuthorizationPolicy
+
+**Goal**: Restrict which services can call `ledgerwriter`, demonstrating zero-trust network policy enforcement at Layer 7.
+
+Apply a policy allowing only the `frontend` service account to reach `ledgerwriter`:
+
+```bash
+kubectl apply --context $CTX1 -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: ledgerwriter-allow-frontend
+  namespace: bank-of-anthos
+spec:
+  selector:
+    matchLabels:
+      app: ledgerwriter
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals:
+        - "cluster.local/ns/bank-of-anthos/sa/bank-of-anthos"
+EOF
+```
+
+Attempt to call `ledgerwriter` from a pod using a different service account — the call should be denied with HTTP 403:
+
+```bash
+kubectl run deny-test \
+  --image=curlimages/curl \
+  --restart=Never \
+  --overrides='{"spec":{"serviceAccountName":"default"}}' \
+  --context $CTX1 \
+  -n $NS -- \
+  curl -s -o /dev/null -w "%{http_code}" \
+  http://ledgerwriter:8080/ready
+```
+
+Expected output: `403`
+
+Clean up:
+
+```bash
+kubectl delete pod deny-test -n $NS --context $CTX1
+kubectl delete authorizationpolicy ledgerwriter-allow-frontend -n $NS --context $CTX1
+```
+
+---
+
+### Exercise 4: Traffic Splitting with VirtualService
+
+**Goal**: Simulate a canary deployment by splitting traffic between two versions of a service.
+
+Label existing frontend pods as `version: stable` and create a second Deployment labelled `version: canary`. Then apply a `VirtualService` routing 90% of traffic to stable and 10% to canary:
+
+First, create DestinationRule subsets:
+
+```bash
+kubectl apply --context $CTX1 -f - <<EOF
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: frontend-versions
+  namespace: bank-of-anthos
+spec:
+  host: frontend
+  subsets:
+  - name: stable
+    labels:
+      app: frontend
+  - name: canary
+    labels:
+      app: frontend-canary
+EOF
+```
+
+Apply traffic split:
+
+```bash
+kubectl apply --context $CTX1 -f - <<EOF
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: frontend-split
+  namespace: bank-of-anthos
+spec:
+  hosts:
+  - frontend
+  http:
+  - route:
+    - destination:
+        host: frontend
+        subset: stable
+      weight: 90
+    - destination:
+        host: frontend
+        subset: canary
+      weight: 10
+EOF
+```
+
+Observe the traffic distribution in the ASM service mesh dashboard — the topology graph will show the 90/10 split on the edge leading into the `frontend` service.
+
+Clean up:
+
+```bash
+kubectl delete virtualservice frontend-split -n $NS --context $CTX1
+kubectl delete destinationrule frontend-versions -n $NS --context $CTX1
+```
+
+---
+
+### Exercise 5: Observe Multi-Cluster Traffic Distribution
+
+**Goal**: Confirm that the global load balancer distributes traffic across both clusters and verify backend health.
+
+Check the backend health of the Multi-Cluster Ingress from the Google Cloud Console:
+
+```bash
+gcloud compute backend-services list --global --project PROJECT_ID \
+  --filter="name~bank-of-anthos" \
+  --format="table(name,backends[].group:label=BACKENDS)"
+```
+
+Describe the backend service to see health status per NEG:
+
+```bash
+BACKEND=$(gcloud compute backend-services list --global \
+  --project PROJECT_ID \
+  --filter="name~bank-of-anthos" \
+  --format="value(name)" | head -1)
+
+gcloud compute backend-services get-health $BACKEND \
+  --global --project PROJECT_ID
+```
+
+Each NEG (one per cluster) should report `HEALTHY` backends. If a cluster's pods are unhealthy, the load balancer automatically stops sending traffic to that cluster's NEG.
+
+Scale the frontend Deployment in `cluster2` to zero replicas to simulate a regional failure:
+
+```bash
+kubectl scale deployment frontend -n $NS \
+  --context $CTX2 --replicas=0
+```
+
+Wait approximately 30 seconds, then re-check backend health — `cluster2`'s NEG should show no healthy backends. Run several requests to the application URL and confirm they all succeed (all served by `cluster1`).
+
+Restore cluster2:
+
+```bash
+kubectl scale deployment frontend -n $NS \
+  --context $CTX2 --replicas=1
+```
+
+---
+
+### Exercise 6: Inspect Distributed Traces
+
+**Goal**: Trace a complete payment transaction across all microservices.
+
+Trigger a payment through the load generator or the frontend UI, then navigate to **Trace → Trace List** in the Google Cloud Console. Filter by service `frontend` and select a trace for the `/payment` endpoint.
+
+Alternatively, query traces programmatically:
+
+```bash
+gcloud trace traces list \
+  --project PROJECT_ID \
+  --filter="labels.g.co/agent=~istio" \
+  --limit=10
+```
+
+In the trace detail view, expand each span to see:
+- The HTTP method and path for each service call
+- The latency contribution of each microservice
+- Any error status codes
+- The `x-b3-traceid` header value that links all spans together
+
+The `x-b3-traceid` is propagated by the Envoy sidecar across all hops. Bank of Anthos services are also instrumented to forward the B3 trace headers (`x-b3-traceid`, `x-b3-spanid`, `x-b3-parentspanid`) in their outbound calls, ensuring the full call graph is visible in a single trace.
+
+---
+
+### Exercise 7: Horizontal Pod Autoscaling
+
+**Goal**: Apply a HorizontalPodAutoscaler to the frontend and observe GKE scaling pods in response to load.
+
+```bash
+kubectl autoscale deployment frontend \
+  -n $NS --context $CTX1 \
+  --cpu-percent=50 \
+  --min=2 --max=10
+```
+
+Watch the HPA status as the load generator drives CPU utilisation:
+
+```bash
+kubectl get hpa frontend -n $NS --context $CTX1 --watch
+```
+
+When CPU utilisation exceeds 50% of the requested `100m`, the HPA controller increases the replica count. On Autopilot clusters, GKE automatically provisions additional node capacity to accommodate the new pods — no manual node scaling is required.
+
+Clean up:
+
+```bash
+kubectl delete hpa frontend -n $NS --context $CTX1
+```
+
+---
+
+### Exercise 8: Validate Security Posture Findings
+
+**Goal**: Introduce a misconfigured pod and observe GKE Security Posture detecting it.
+
+Deploy a pod that violates the restricted security profile:
+
+```bash
+kubectl apply --context $CTX1 -f - <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: insecure-test
+  namespace: bank-of-anthos
+  labels:
+    app: insecure-test
+spec:
+  containers:
+  - name: test
+    image: nginx:latest
+    securityContext:
+      runAsUser: 0
+      allowPrivilegeEscalation: true
+EOF
+```
+
+Within 1–5 minutes, navigate to **Kubernetes Engine → Security Posture → Workload Configuration** in the Google Cloud Console. The `insecure-test` pod will appear with findings including:
+- `Container running as root`
+- `Privilege escalation allowed`
+- `Missing resource limits`
+- `No liveness or readiness probe`
+
+Clean up:
+
+```bash
+kubectl delete pod insecure-test -n $NS --context $CTX1
+```
+
+**What this demonstrates**: Security Posture catches misconfigurations that slip through CI/CD pipelines, providing a runtime safety net that complements policy enforcement tools like Policy Controller.
+
+---
+
+---
