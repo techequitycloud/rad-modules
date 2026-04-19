@@ -94,6 +94,28 @@ In **Standard mode**, this module provisions node pools with the following defau
 - **Spot instances**: enabled — nodes are preemptible, reducing cost by up to 80%, appropriate for a learning environment
 - **Node count**: 2 nodes per pool, spread across available zones in the region
 
+**Explore in the Console**: Navigate to **Kubernetes Engine → Clusters** to see all clusters, their mode (Autopilot/Standard), version, and node count. Click a cluster name and select the **Nodes** tab to see individual node status, machine type, and zone placement.
+
+**Inspect via CLI:**
+```bash
+# List all clusters with mode and version
+gcloud container clusters list --project PROJECT_ID \
+  --format="table(name,location,autopilot.enabled,currentMasterVersion,status)"
+
+# Describe a cluster to see full configuration
+gcloud container clusters describe gke-cluster-1 \
+  --region us-west1 --project PROJECT_ID
+
+# List node pools (Standard clusters only)
+gcloud container node-pools list \
+  --cluster gke-cluster-1 \
+  --region us-west1 --project PROJECT_ID \
+  --format="table(name,config.machineType,config.spot,initialNodeCount,status)"
+
+# View all nodes and their status
+kubectl get nodes --context $CTX1 -o wide
+```
+
 ### Release Channel
 
 Clusters are enrolled in the **REGULAR release channel**. GKE release channels automate cluster upgrades and ensure nodes and control planes stay on a supported, tested version.
@@ -104,6 +126,20 @@ Clusters are enrolled in the **REGULAR release channel**. GKE release channels a
 | REGULAR | 2–4 weeks after RAPID | Most production workloads |
 | STABLE | 2–4 weeks after REGULAR | Risk-averse, compliance-sensitive workloads |
 | EXTENDED | Up to 24 months support | Long-running, infrequently updated clusters |
+
+**Explore in the Console**: Navigate to **Kubernetes Engine → Clusters → (cluster name) → Details** and look for the **Release channel** field. The console also shows the current master version and the next available upgrade version.
+
+**Inspect via CLI:**
+```bash
+# Check release channel and current version for all clusters
+gcloud container clusters list --project PROJECT_ID \
+  --format="table(name,releaseChannel.channel,currentMasterVersion,currentNodeVersion)"
+
+# Check if an upgrade is available
+gcloud container get-server-config \
+  --region us-west1 --project PROJECT_ID \
+  --format="yaml(channels)"
+```
 
 ### Security Posture
 
@@ -190,6 +226,22 @@ The **Cloud Storage FUSE CSI driver** is enabled on all clusters, allowing pods 
 - Offloading large write workloads (logs, exports) directly to GCS without a separate sidecar
 
 To use the driver, annotate your service account and reference a GCS bucket in your pod's volume spec. The driver handles mounting, credential negotiation via Workload Identity, and FUSE kernel integration transparently.
+
+**Explore in the Console**: Navigate to **Kubernetes Engine → Clusters → (cluster name) → Details** and look for **GCS FUSE CSI driver** under the Storage section — it should show as **Enabled**.
+
+**Inspect via CLI:**
+```bash
+# Confirm the GCS FUSE CSI driver is enabled
+gcloud container clusters describe gke-cluster-1 \
+  --region us-west1 --project PROJECT_ID \
+  --format="value(addonsConfig.gcsFuseCsiDriverConfig.enabled)"
+
+# Verify the CSI driver pods are running in the cluster
+kubectl get pods -n kube-system --context $CTX1 \
+  -l k8s-app=gcs-fuse-csi-driver
+```
+
+See **Exercise 9** for a complete hands-on walkthrough of mounting a GCS bucket into a pod.
 
 ### Gateway API
 
@@ -813,6 +865,26 @@ Bank of Anthos implements stateless authentication using **JSON Web Tokens (JWT)
 
 **Why this matters for platform engineers**: The JWT secret is a textbook example of how to use Kubernetes Secrets for credential distribution across pods. The private key is only accessible to the one service that needs it; all other services receive only the public key. This principle of least privilege is enforced at the pod volume mount level.
 
+**Explore in the Console**: Navigate to **Kubernetes Engine → (cluster) → Config and Storage → Secrets** and find `jwt-key` in the `bank-of-anthos` namespace. The console shows which pods are consuming the secret as a volume mount.
+
+**Inspect via CLI:**
+```bash
+# Confirm the JWT secret exists and see its keys (values are base64-encoded)
+kubectl get secret jwt-key -n bank-of-anthos --context $CTX1 \
+  -o jsonpath='{.data}' | python3 -m json.tool | grep -o '"[^"]*":' 
+
+# Confirm the public key is mounted into the frontend pod
+FRONTEND_POD=$(kubectl get pod -n bank-of-anthos --context $CTX1 \
+  -l app=frontend -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n bank-of-anthos --context $CTX1 $FRONTEND_POD \
+  -c frontend -- ls -la /tmp/.ssh/
+
+# Inspect all ConfigMaps used for service discovery
+kubectl get configmap -n bank-of-anthos --context $CTX1
+kubectl describe configmap service-api-config \
+  -n bank-of-anthos --context $CTX1
+```
+
 ### Kubernetes Resource Patterns
 
 The Bank of Anthos manifests demonstrate production-grade Kubernetes resource configuration. The following patterns are worth studying in detail.
@@ -820,6 +892,22 @@ The Bank of Anthos manifests demonstrate production-grade Kubernetes resource co
 #### Resource Requests and Limits
 
 Every container defines explicit CPU and memory requests and limits. This is required for the GKE scheduler to make informed placement decisions and for the Kubernetes resource quota system to function correctly.
+
+**Explore in the Console**: Navigate to **Kubernetes Engine → Workloads** to see all Deployments and StatefulSets. Click any workload to see its pods, resource requests, limits, and current utilisation. The **Observability** tab shows CPU and memory graphs over time.
+
+**Inspect via CLI:**
+```bash
+# View resource requests and limits for all containers in the namespace
+kubectl get pods -n bank-of-anthos --context $CTX1 \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{range .spec.containers[*]}  {.name}: cpu={.resources.requests.cpu}/{.resources.limits.cpu} mem={.resources.requests.memory}/{.resources.limits.memory}{"\n"}{end}{end}'
+
+# Check actual resource consumption vs requests (requires metrics-server)
+kubectl top pods -n bank-of-anthos --context $CTX1
+
+# View QoS class assigned to each pod
+kubectl get pods -n bank-of-anthos --context $CTX1 \
+  -o custom-columns="NAME:.metadata.name,QOS:.status.qosClass"
+```
 
 Example (frontend):
 ```yaml
@@ -946,6 +1034,21 @@ The `loadgenerator` service runs **Locust**, an open-source load testing framewo
 
 This is important for observability exploration — the load generator ensures the ASM service topology dashboard, Cloud Monitoring dashboards, and Cloud Trace all show live data immediately after deployment, without requiring manual interaction with the application.
 
+**Explore in the Console**: Navigate to **Kubernetes Engine → Workloads → loadgenerator** and select the **Logs** tab to see Locust output showing active users, request rates, and failure counts in real time.
+
+**Inspect via CLI:**
+```bash
+# View load generator logs to see current traffic rates
+kubectl logs -n bank-of-anthos --context $CTX1 \
+  -l app=loadgenerator --tail=20
+
+# Check the load generator is reaching the frontend successfully
+kubectl exec -n bank-of-anthos --context $CTX1 \
+  $(kubectl get pod -n bank-of-anthos --context $CTX1 \
+    -l app=loadgenerator -o jsonpath='{.items[0].metadata.name}') \
+  -- env | grep FRONTEND_ADDR
+```
+
 ---
 
 ## Module Configuration Options
@@ -993,6 +1096,20 @@ The following options are available when deploying this module. Defaults reflect
 ## GCP APIs Enabled
 
 This module enables the following Google Cloud APIs on the destination project. These APIs are not disabled on teardown, preventing accidental disruption to other workloads that may depend on them.
+
+**Explore in the Console**: Navigate to **APIs & Services → Enabled APIs & Services** to see all enabled APIs with their request counts and error rates. This view confirms which APIs are active and shows usage trends over time.
+
+**Inspect via CLI:**
+```bash
+# List all enabled APIs on the project
+gcloud services list --enabled --project PROJECT_ID \
+  --format="table(name,config.title)"
+
+# Confirm a specific API is enabled
+gcloud services list --enabled --project PROJECT_ID \
+  --filter="name:container.googleapis.com" \
+  --format="value(name)"
+```
 
 ### Core Platform APIs
 
@@ -1069,17 +1186,44 @@ When the module is deployed, resources are created in the following sequence. Ea
 
 GKE cluster creation is the most time-consuming step. Autopilot clusters typically provision in 5–8 minutes. Standard clusters provision in 3–5 minutes but require an additional 2–4 minutes for node pool nodes to join and become Ready.
 
+**Monitor Phase 1 progress:**
+```bash
+# Watch cluster provisioning status
+watch -n 10 gcloud container clusters list --project PROJECT_ID \
+  --format="table(name,location,status,currentMasterVersion)"
+
+# Once clusters are RUNNING, confirm all nodes are Ready
+kubectl get nodes --context $CTX1
+kubectl get nodes --context $CTX2
+```
+
 **Phase 2 — Fleet Registration (≈ 5–10 minutes)**
 - GKE Hub service identity is created
 - Each cluster is registered as a Fleet membership
 - The module polls for membership state `READY` — checking every 10 seconds for up to 10 minutes per cluster
 - Memberships must reach READY before ASM can be enabled
 
+**Monitor Phase 2 progress:**
+```bash
+# Poll fleet membership state
+watch -n 15 "gcloud container fleet memberships list \
+  --project PROJECT_ID \
+  --format='table(name,state.code,updateTime)'"
+```
+
 **Phase 3 — Service Mesh (≈ 10–20 minutes)**
 - Fleet-level ASM feature is enabled
 - Per-cluster ASM membership management is set to `MANAGEMENT_AUTOMATIC`
 - The module polls for mesh configuration state — checking every 15 seconds for up to 15 minutes
 - If ASM does not reach configured state within the timeout, the module continues with a warning — ASM provisioning often completes shortly after
+
+**Monitor Phase 3 progress:**
+```bash
+# Watch ASM provisioning state per cluster
+watch -n 20 "gcloud container fleet mesh describe \
+  --project PROJECT_ID \
+  --format='table(membershipStates)'"
+```
 
 **Phase 4 — Application (≈ 5–10 minutes)**
 - Bank of Anthos v0.6.7 is downloaded from GitHub
@@ -1089,6 +1233,24 @@ GKE cluster creation is the most time-consuming step. Autopilot clusters typical
 - The module waits up to 10 minutes for all Deployments to reach `Available` condition
 - Multi-Cluster Ingress feature is enabled in the fleet
 - MCI, MCS, NodePort, BackendConfig, ManagedCertificate, FrontendConfig, and Istio ConfigMap are applied to the config cluster
+
+**Monitor Phase 4 progress:**
+```bash
+# Watch pod rollout across both clusters
+watch -n 10 "kubectl get pods -n bank-of-anthos --context $CTX1 && \
+  echo '---' && \
+  kubectl get pods -n bank-of-anthos --context $CTX2"
+
+# Watch deployment readiness
+kubectl rollout status deployment -n bank-of-anthos --context $CTX1
+kubectl rollout status deployment -n bank-of-anthos --context $CTX2
+
+# Watch managed certificate provisioning
+watch -n 30 "kubectl get managedcertificate \
+  -n bank-of-anthos --context $CTX1"
+```
+
+**Explore deployment progress in the Console**: Navigate to **Kubernetes Engine → Workloads** to see all Deployments and their readiness status in real time. Navigate to **Kubernetes Engine → Services & Ingress** to monitor the MCI and ManagedCertificate status.
 
 **Total deployment time**: approximately 25–55 minutes end-to-end, depending on region and GCP service latency.
 
