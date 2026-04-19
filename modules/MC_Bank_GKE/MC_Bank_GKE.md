@@ -605,3 +605,210 @@ The Multi-Cluster Ingress feature requires one cluster to be designated as the *
 7. The frontend calls downstream services (user-service, ledger-writer, etc.) over mTLS within the mesh
 
 ---
+
+## Bank of Anthos Application
+
+### Overview
+
+**Bank of Anthos** (v0.6.7) is an open-source, HTTP-based banking simulation developed by Google Cloud Platform. It is the reference application deployed by this module and is the vehicle through which engineers interact with all the GKE features described in earlier sections. The application simulates a retail bank — users can create accounts, deposit funds, transfer money between accounts, and view transaction history.
+
+The application is intentionally multi-language and multi-framework, reflecting the polyglot reality of real microservices platforms. This makes it a useful reference for understanding how a service mesh handles heterogeneous workloads consistently.
+
+Source code and additional documentation: [https://github.com/GoogleCloudPlatform/bank-of-anthos](https://github.com/GoogleCloudPlatform/bank-of-anthos)
+
+### Microservices Architecture
+
+The application consists of nine services, each running as an independent Kubernetes `Deployment`:
+
+| Service | Language | Type | Role |
+|---|---|---|---|
+| **frontend** | Python (Flask) | Stateless | Web UI — serves HTML, handles login/signup, proxies API calls to backend services |
+| **userservice** | Python (Flask) | Stateless | Account management — creates users, validates credentials, issues JWT tokens |
+| **contacts** | Python (Flask) | Stateless | Contact list management — stores payee account numbers for a user |
+| **ledgerwriter** | Java (Spring Boot) | Stateless | Transaction ingestion — validates and writes new transactions to the ledger database |
+| **balancereader** | Java (Spring Boot) | Stateless | Balance cache — reads account balances from the ledger database with caching |
+| **transactionhistory** | Java (Spring Boot) | Stateless | History cache — reads past transactions for a user with caching |
+| **loadgenerator** | Python (Locust) | Stateless | Synthetic traffic — simulates realistic user activity against the frontend |
+| **accounts-db** | PostgreSQL | Stateful | Stores user account records and contact data |
+| **ledger-db** | PostgreSQL | Stateful | Stores the complete transaction ledger |
+
+### Service Communication Map
+
+```
+                    ┌─────────────┐
+          ┌────────▶│  userservice│
+          │         └─────────────┘
+          │         ┌─────────────┐
+          ├────────▶│   contacts  │
+          │         └─────────────┘
+┌──────────┐        ┌─────────────┐
+│ frontend │───────▶│ledgerwriter │───▶ ledger-db
+└──────────┘        └─────────────┘
+          │         ┌─────────────┐
+          ├────────▶│balancereader│───▶ ledger-db
+          │         └─────────────┘
+          │         ┌──────────────────┐
+          └────────▶│transactionhistory│───▶ ledger-db
+                    └──────────────────┘
+
+userservice ───▶ accounts-db
+contacts    ───▶ accounts-db
+```
+
+All service-to-service calls are HTTP on port 8080. Within the mesh, these calls are transparently upgraded to mTLS by the Envoy sidecars. The frontend never calls a database directly — database access is encapsulated within the relevant backend service.
+
+### Authentication: JWT Token Flow
+
+Bank of Anthos implements stateless authentication using **JSON Web Tokens (JWT)**. Understanding this flow illustrates several important Kubernetes security patterns.
+
+**JWT key pair**: A RSA key pair is generated at deployment time and stored as a Kubernetes `Secret` named `jwt-key` in the `bank-of-anthos` namespace. The private key is mounted into `userservice` (which signs tokens). The public key is mounted into all other services (which verify tokens).
+
+**Login flow:**
+1. User submits credentials to the frontend via an HTML form
+2. Frontend forwards credentials to `userservice` over HTTP
+3. `userservice` validates credentials against `accounts-db`
+4. On success, `userservice` signs a JWT with the private key and returns it
+5. Frontend stores the token in an HTTP-only cookie
+6. All subsequent requests carry the JWT cookie
+
+**Token verification:**
+- Each service that handles authenticated requests mounts the JWT public key at `/tmp/.ssh/publickey`
+- Incoming requests are verified locally — no call to `userservice` is needed per request
+- Token expiry is set to 3600 seconds (1 hour) in `userservice`
+
+**Why this matters for platform engineers**: The JWT secret is a textbook example of how to use Kubernetes Secrets for credential distribution across pods. The private key is only accessible to the one service that needs it; all other services receive only the public key. This principle of least privilege is enforced at the pod volume mount level.
+
+### Kubernetes Resource Patterns
+
+The Bank of Anthos manifests demonstrate production-grade Kubernetes resource configuration. The following patterns are worth studying in detail.
+
+#### Resource Requests and Limits
+
+Every container defines explicit CPU and memory requests and limits. This is required for the GKE scheduler to make informed placement decisions and for the Kubernetes resource quota system to function correctly.
+
+Example (frontend):
+```yaml
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
+```
+
+Example (userservice — higher because it handles JWT cryptography):
+```yaml
+resources:
+  requests:
+    cpu: 260m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+```
+
+**Requests vs limits:**
+- **Requests** are used by the scheduler to select a node with sufficient available capacity. A pod is guaranteed at least its requested resources.
+- **Limits** cap the maximum resources a container can consume. Exceeding the memory limit triggers an OOMKill. Exceeding the CPU limit causes throttling (not termination).
+- Setting limits equal to requests creates a **Guaranteed** QoS class — the pod is the last to be evicted under memory pressure. Setting limits higher than requests creates **Burstable** QoS.
+
+#### Security Contexts
+
+Every container in Bank of Anthos runs with a strict security context:
+
+```yaml
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - all
+  privileged: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+```
+
+**What each setting does:**
+
+| Setting | Effect |
+|---|---|
+| `runAsNonRoot: true` | Pod fails to start if the container image runs as UID 0 |
+| `runAsUser: 1000` | Overrides the image's default user to UID 1000 |
+| `readOnlyRootFilesystem: true` | Container cannot write to its own filesystem — all writes must go to explicitly mounted volumes |
+| `allowPrivilegeEscalation: false` | Prevents `setuid` binaries from elevating privileges within the container |
+| `capabilities: drop: [all]` | Removes all Linux capabilities (e.g. `NET_RAW`, `SYS_CHROOT`) — the container runs with no kernel-level privileges |
+
+These settings align with the **Pod Security Standards** `restricted` profile and are enforced by GKE Security Posture's workload auditing.
+
+Because `readOnlyRootFilesystem` is set, writable directories needed at runtime are provided as `emptyDir` volumes — typically `/tmp`:
+
+```yaml
+volumeMounts:
+- name: tmp
+  mountPath: /tmp
+volumes:
+- name: tmp
+  emptyDir: {}
+```
+
+#### Health Probes
+
+Every deployment configures both liveness and readiness probes against the `/ready` endpoint:
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 5
+livenessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 60
+  periodSeconds: 15
+```
+
+**Readiness vs liveness:**
+- **Readiness probe**: determines whether the pod should receive traffic. A failing readiness probe removes the pod from Service endpoints — it stays running but gets no requests. Used to hold traffic until the application has finished initialising (e.g. loaded caches, established database connections).
+- **Liveness probe**: determines whether the pod is alive. A failing liveness probe causes kubelet to restart the container. The 60-second initial delay gives the JVM-based Java services time to complete startup before liveness checking begins.
+
+#### Stateful Services: PostgreSQL
+
+The two databases (`accounts-db`, `ledger-db`) run as Kubernetes `StatefulSets`. StatefulSets provide:
+- **Stable pod identity**: pods are named `ledger-db-0`, `ledger-db-1` etc. rather than random hashes
+- **Ordered startup and shutdown**: pods start in order (0, then 1) and terminate in reverse order
+- **Stable DNS**: each pod gets a stable DNS entry (`ledger-db-0.ledger-db.bank-of-anthos.svc.cluster.local`)
+
+For this module, each database runs as a single replica (`replicas: 1`) with storage on an `emptyDir` volume. This is appropriate for a learning environment — data does not persist across pod restarts, keeping the application stateless from a cluster lifecycle perspective.
+
+In a production deployment, the databases would use `PersistentVolumeClaims` backed by GCP Persistent Disks or Cloud SQL.
+
+#### ConfigMaps for Service Discovery
+
+Service endpoint addresses are distributed to pods via Kubernetes `ConfigMap`s rather than hard-coded environment variables. The `service-api-config` ConfigMap maps each service name to its DNS address:
+
+```yaml
+LEDGER_ADDR: "ledgerwriter:8080"
+BALANCES_ADDR: "balancereader:8080"
+HISTORY_ADDR: "transactionhistory:8080"
+CONTACTS_ADDR: "contacts:8080"
+USERSERVICE_ADDR: "userservice:8080"
+```
+
+These resolve via Kubernetes DNS (`service-name.namespace.svc.cluster.local`). The frontend reads these at startup and uses them for all backend API calls — no hardcoded IPs or external DNS lookups.
+
+### Load Generator
+
+The `loadgenerator` service runs **Locust**, an open-source load testing framework, continuously generating realistic synthetic traffic against the frontend. It simulates:
+- New user signups
+- Login and session management
+- Account balance checks
+- Peer-to-peer transfers between accounts
+
+This is important for observability exploration — the load generator ensures the ASM service topology dashboard, Cloud Monitoring dashboards, and Cloud Trace all show live data immediately after deployment, without requiring manual interaction with the application.
+
+---
