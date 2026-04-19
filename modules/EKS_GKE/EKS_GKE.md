@@ -260,6 +260,21 @@ The maximum of 5 nodes defines the ceiling for automatic scale-out, but scaling 
 
 **Comparing EKS managed nodes to GKE Autopilot:** This is a useful learning contrast. GKE Autopilot removes node management entirely — you never think about node counts, instance types, or node group configuration. EKS managed node groups are closer to GKE Standard mode, where you choose the node pool size and instance type. The EKS experience in this module helps platform engineers appreciate what GKE Autopilot abstracts away.
 
+**Explore the multi-AZ node distribution:**
+
+```bash
+# See which Availability Zone each node is placed in
+kubectl get nodes --label-columns topology.kubernetes.io/zone
+
+# Describe a node to see its full AWS metadata: instance type,
+# region, zone, capacity, and allocatable resources
+kubectl describe node NODE_NAME | grep -A 20 "Labels:"
+
+# See the actual resource capacity across all nodes
+kubectl get nodes \
+  -o custom-columns='NAME:.metadata.name,CPU:.status.capacity.cpu,MEMORY:.status.capacity.memory,ZONE:.metadata.labels.topology\.kubernetes\.io/zone'
+```
+
 ---
 
 ## GKE Attached Clusters
@@ -281,6 +296,8 @@ The cluster is registered with distribution type `eks`, which tells the GKE Mult
 - Display the correct branding and metadata in the Cloud Console
 
 Google Cloud currently supports `eks` (Amazon EKS), `aks` (Azure AKS), and `generic` (any other conformant cluster) as distribution types.
+
+**Explore in the Cloud Console:** Navigate to **Kubernetes Engine → Clusters**. The EKS cluster appears in the same list as any native GKE clusters, but its **Type** column shows **Attached** and its detail page shows the distribution as **EKS** alongside the platform version, fleet membership, and registration status. This is the clearest view of how Google Cloud represents a non-GKE cluster as a first-class member of its fleet.
 
 ### OIDC-Based Identity Federation
 
@@ -330,6 +347,65 @@ Allows Kubernetes services to be exported from one fleet cluster and consumed by
 
 **Cloud Service Mesh**
 Enables the Anthos Service Mesh management plane to govern Istio installations across all fleet clusters. With fleet-level mesh management, mTLS policies, traffic management rules, and observability configuration can be applied uniformly across both GKE and EKS workloads from the Cloud Console.
+
+**Hands-on: Enable and test Policy Controller**
+
+Policy Controller is one of the most immediately useful fleet features to explore. Once the EKS cluster is registered, enable it from the Fleet Feature Manager and deploy a constraint to see it enforcing governance:
+
+```bash
+# Enable Policy Controller for the fleet (applies to all fleet members)
+gcloud container fleet policycontroller enable \
+  --project=GCP_PROJECT_ID
+
+# Wait for Policy Controller to install on the EKS cluster (~2 minutes),
+# then verify its pods are running
+kubectl get pods -n gatekeeper-system
+
+# Check that the constraint templates are available
+kubectl get constrainttemplates
+
+# Apply a sample constraint that requires all pods to have resource limits
+kubectl apply -f - <<EOF
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredLabels
+metadata:
+  name: require-team-label
+spec:
+  match:
+    kinds:
+    - apiGroups: [""]
+      kinds: ["Pod"]
+  parameters:
+    labels:
+    - key: "team"
+EOF
+
+# Test the constraint — this pod should be blocked
+kubectl run unlabelled-pod --image=nginx --restart=Never
+
+# This pod should be allowed
+kubectl run labelled-pod --image=nginx --restart=Never \
+  --labels="team=platform"
+
+# View violations in the Cloud Console:
+# Kubernetes Engine → Fleet → Policy → Violations
+```
+
+**Hands-on: Enable Config Management**
+
+```bash
+# Enable Config Management for the fleet
+gcloud container fleet config-management enable \
+  --project=GCP_PROJECT_ID
+
+# Verify the Config Management operator is running on the cluster
+kubectl get pods -n config-management-system
+
+# View sync status (once a Git repository is configured)
+kubectl get rootsyncs -n config-management-system
+```
+
+In the Cloud Console, navigate to **Kubernetes Engine → Fleet → Feature Manager → Config Management** to configure the Git repository, branch, and sync directory for the fleet.
 
 ### System and Workload Logging
 
@@ -446,6 +522,23 @@ The Terraform executor's own Google identity is always included in the admin lis
 
 This authorisation model bridges two identity systems: AWS IAM (which EKS natively uses for RBAC via `aws-auth` ConfigMap) and Google Cloud IAM (which the Connect Gateway uses to authenticate `kubectl` requests). Users in `trusted_users` authenticate with Google but receive Kubernetes RBAC permissions — they never need an AWS IAM identity to access the cluster after registration.
 
+**Verify your RBAC access and inspect the authorisation setup:**
+
+```bash
+# Confirm you have cluster-admin access via Connect Gateway
+kubectl auth can-i '*' '*' --all-namespaces
+
+# View the ClusterRoleBinding that grants admin access to trusted users
+kubectl get clusterrolebindings \
+  -o custom-columns='NAME:.metadata.name,ROLE:.roleRef.name,SUBJECTS:.subjects[*].name' \
+  | grep cluster-admin
+
+# See all RBAC bindings in the cluster — useful for understanding
+# what the Connect Agent and GMP agents have been granted
+kubectl get clusterrolebindings -A
+kubectl get rolebindings -A
+```
+
 ---
 
 ## Anthos Connect Agent and the Bootstrap Process
@@ -498,6 +591,19 @@ To upgrade an attached cluster to a newer Kubernetes version:
 1. Update the Kubernetes version on the EKS cluster
 2. Update `platform_version` to the corresponding GKE platform version
 3. Redeploy — the module fetches a new bootstrap manifest for the new version and Helm upgrades the Connect Agent in place
+
+**List valid platform versions for a region:**
+
+```bash
+# See all currently supported platform versions for attached EKS clusters
+gcloud container attached get-server-config \
+  --location=GCP_REGION \
+  --project=GCP_PROJECT_ID
+
+# Output includes: validVersions list — the set of platform versions
+# currently supported. Use this to choose a compatible platform_version
+# value when upgrading or deploying to a new Kubernetes minor version.
+```
 
 ### The Connect Agent in Operation
 
@@ -668,13 +774,65 @@ All service-to-service traffic within the mesh is automatically encrypted and bo
 **Traffic Management**
 Istio `VirtualService` and `DestinationRule` resources give fine-grained control over how traffic flows between services: canary deployments (send 5% of traffic to a new version), header-based routing (route traffic from internal users to a staging service), connection pool limits, and automatic retries.
 
+Try a simple canary split after enabling sidecar injection on the default namespace:
+
+```bash
+# Deploy a v2 of the sample app
+kubectl create deployment hello-eks-v2 \
+  --image=gcr.io/google-samples/hello-app:2.0
+
+# Apply a VirtualService that sends 80% to v1 and 20% to v2
+kubectl apply -f - <<EOF
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: hello-eks
+  namespace: default
+spec:
+  hosts:
+  - hello-eks
+  http:
+  - route:
+    - destination:
+        host: hello-eks
+        subset: v1
+      weight: 80
+    - destination:
+        host: hello-eks
+        subset: v2
+      weight: 20
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: hello-eks
+  namespace: default
+spec:
+  host: hello-eks
+  subsets:
+  - name: v1
+    labels:
+      app: hello-eks
+  - name: v2
+    labels:
+      app: hello-eks-v2
+EOF
+
+# After a few minutes, the traffic split appears in the ASM topology view
+# in the Cloud Console under Anthos → Service Mesh → Topology
+```
+
 **Observability Without Instrumentation**
 Because all traffic passes through the Envoy sidecars, ASM automatically generates:
-- **Distributed traces** — every request across service boundaries is traced end-to-end, visible in Cloud Trace
-- **Service-to-service metrics** — request count, latency histograms, and error rates for every service pair, visible in Cloud Monitoring
-- **Traffic topology** — a live map of which services are calling which, with request rates and error rates on each edge, visible in the Cloud Console Service Mesh dashboard
+- **Distributed traces** — every request across service boundaries is traced end-to-end, visible in **Trace → Trace List** in the Cloud Console
+- **Service-to-service metrics** — request count, latency histograms, and error rates for every service pair, visible in **Monitoring → Metrics Explorer** under the `istio.io` metric prefix
+- **Traffic topology** — a live map of which services are calling which, with request rates and error rates on each edge, visible under **Anthos → Service Mesh → Topology**
 
 Applications gain full observability without adding any tracing libraries or metrics instrumentation to their code.
+
+**Explore ASM telemetry in the Cloud Console:**
+
+Navigate to **Anthos → Service Mesh** and select your EKS cluster. The **Overview** tab shows a health summary of all meshed services. Switch to **Topology** to see the live traffic graph — each edge shows RPS, error rate, and latency. Select a service and click **Metrics** to see the four golden signals (latency, traffic, errors, saturation) broken down by source and destination. Click any trace in the **Traces** tab to follow a request across all the services it touched.
 
 **Access Control**
 Istio `AuthorizationPolicy` resources enforce which services are allowed to call which, at the HTTP method and path level. Policies can require that callers present a valid JWT (for end-user authentication) in addition to the mTLS certificate (for service authentication).
