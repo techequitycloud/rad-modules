@@ -812,3 +812,186 @@ The `loadgenerator` service runs **Locust**, an open-source load testing framewo
 This is important for observability exploration — the load generator ensures the ASM service topology dashboard, Cloud Monitoring dashboards, and Cloud Trace all show live data immediately after deployment, without requiring manual interaction with the application.
 
 ---
+
+## Module Configuration Options
+
+The following options are available when deploying this module. Defaults reflect the configuration used if no override is provided.
+
+### Core Settings
+
+| Option | Default | Description |
+|---|---|---|
+| **GCP Project ID** | *(required)* | The destination GCP project where all resources are created |
+| **Deployment ID** | *(auto-generated)* | A short alphanumeric suffix appended to resource names to avoid collisions. Leave blank to generate a random 4-character hex ID |
+| **Available Regions** | `us-west1`, `us-east1` | The list of GCP regions available for cluster placement. Clusters are assigned regions round-robin from this list. Add more regions to distribute clusters further |
+
+### Cluster Settings
+
+| Option | Default | Description |
+|---|---|---|
+| **Cluster Type** | Autopilot | Choose between GKE Autopilot (fully managed nodes) and Standard (self-managed node pools with spot instances). See the GKE Cluster Features section for a full comparison |
+| **Number of Clusters** | 2 | The number of GKE clusters to create. Each cluster is placed in a region from the available regions list. Increasing this number adds more backends to the global load balancer |
+| **Release Channel** | REGULAR | The GKE release channel controlling the cadence of automatic cluster upgrades. Options: RAPID, REGULAR, STABLE, EXTENDED |
+
+### Service Mesh Settings
+
+| Option | Default | Description |
+|---|---|---|
+| **Enable Cloud Service Mesh** | Yes | When enabled, ASM is installed on all clusters with automatic management mode. Disabling this removes mTLS, the service topology dashboard, and distributed tracing |
+| **Cloud Service Mesh Version** | `1.23.4-asm.1` | The ASM version to install. This is pinned to a specific release for reproducibility. When upgrading, change this value and re-apply |
+
+### Network Settings
+
+| Option | Default | Description |
+|---|---|---|
+| **VPC Network Name** | `vpc-network` | The name assigned to the custom VPC |
+| **Subnet Name Prefix** | `vpc-subnet` | Subnets are named `vpc-subnet-cluster1`, `vpc-subnet-cluster2`, etc. |
+
+### Application Settings
+
+| Option | Default | Description |
+|---|---|---|
+| **Deploy Application** | Yes | Controls whether Bank of Anthos is downloaded and deployed. Set to No to provision only the infrastructure (clusters, networking, mesh) without the application |
+
+---
+
+## GCP APIs Enabled
+
+This module enables the following Google Cloud APIs on the destination project. These APIs are not disabled on teardown, preventing accidental disruption to other workloads that may depend on them.
+
+### Core Platform APIs
+
+| API | Purpose |
+|---|---|
+| `container.googleapis.com` | Google Kubernetes Engine — cluster creation and management |
+| `cloudresourcemanager.googleapis.com` | Project resource management — required by Terraform for IAM and project operations |
+| `iam.googleapis.com` | Identity and Access Management — service account and role management |
+| `iamcredentials.googleapis.com` | Service account impersonation — used for Workload Identity token exchange |
+| `compute.googleapis.com` | Compute Engine — VPC networks, subnets, firewall rules, static IPs, NAT |
+
+### Observability APIs
+
+| API | Purpose |
+|---|---|
+| `monitoring.googleapis.com` | Cloud Monitoring — metrics ingestion and dashboards |
+| `logging.googleapis.com` | Cloud Logging — log ingestion from clusters and workloads |
+| `cloudtrace.googleapis.com` | Cloud Trace — distributed trace collection from ASM sidecars |
+
+### Fleet and Mesh APIs
+
+| API | Purpose |
+|---|---|
+| `anthos.googleapis.com` | Anthos platform — umbrella API for fleet features |
+| `anthosgke.googleapis.com` | Anthos GKE — GKE-specific Anthos features |
+| `gkehub.googleapis.com` | GKE Hub — fleet membership and feature management |
+| `gkeconnect.googleapis.com` | GKE Connect — secure tunnel between fleet and cluster API servers |
+| `mesh.googleapis.com` | Cloud Service Mesh — ASM control plane |
+| `meshconfig.googleapis.com` | Mesh configuration — ASM configuration distribution |
+| `multiclusterservicediscovery.googleapis.com` | Multi-Cluster Services — cross-cluster service discovery |
+| `multiclusteringress.googleapis.com` | Multi-Cluster Ingress — global load balancer management |
+| `trafficdirector.googleapis.com` | Traffic Director — xDS-based traffic management underlying MCS/MCI |
+
+### Security and Compliance APIs
+
+| API | Purpose |
+|---|---|
+| `containersecurity.googleapis.com` | GKE Security Posture — workload auditing and vulnerability scanning |
+| `containerscanning.googleapis.com` | Container image vulnerability scanning in Artifact Registry |
+| `websecurityscanner.googleapis.com` | Web Security Scanner — automated web application vulnerability scanning |
+| `anthospolicycontroller.googleapis.com` | Policy Controller — OPA Gatekeeper-based policy enforcement |
+| `anthosconfigmanagement.googleapis.com` | Config Management — GitOps-based configuration distribution |
+| `iap.googleapis.com` | Identity-Aware Proxy — application-level access control |
+
+### Storage, Build, and Networking APIs
+
+| API | Purpose |
+|---|---|
+| `storage.googleapis.com` | Cloud Storage — used by GCS FUSE CSI driver and build artefacts |
+| `artifactregistry.googleapis.com` | Artifact Registry — container image storage |
+| `cloudbuild.googleapis.com` | Cloud Build — CI/CD pipeline execution |
+| `secretmanager.googleapis.com` | Secret Manager — secure storage for sensitive configuration |
+| `servicenetworking.googleapis.com` | Service Networking — private service access for Cloud SQL and other managed services |
+| `sqladmin.googleapis.com` | Cloud SQL Admin — managed relational database instances |
+| `pubsub.googleapis.com` | Cloud Pub/Sub — asynchronous messaging |
+| `dns.googleapis.com` | Cloud DNS — managed DNS zones |
+| `networkmanagement.googleapis.com` | Network Intelligence Center — network topology and connectivity analysis |
+| `billingbudgets.googleapis.com` | Billing Budgets — cost alerting and budget management |
+
+---
+
+## Deployment Lifecycle
+
+### Apply Phase
+
+When the module is deployed, resources are created in the following sequence. Each phase depends on the previous completing successfully.
+
+**Phase 1 — Infrastructure (≈ 5–15 minutes)**
+- Custom VPC and subnets are created
+- Cloud Routers and NAT gateways are provisioned
+- Static external IP addresses are reserved
+- Firewall rules are applied
+- GKE clusters are created (Autopilot or Standard)
+
+GKE cluster creation is the most time-consuming step. Autopilot clusters typically provision in 5–8 minutes. Standard clusters provision in 3–5 minutes but require an additional 2–4 minutes for node pool nodes to join and become Ready.
+
+**Phase 2 — Fleet Registration (≈ 5–10 minutes)**
+- GKE Hub service identity is created
+- Each cluster is registered as a Fleet membership
+- The module polls for membership state `READY` — checking every 10 seconds for up to 10 minutes per cluster
+- Memberships must reach READY before ASM can be enabled
+
+**Phase 3 — Service Mesh (≈ 10–20 minutes)**
+- Fleet-level ASM feature is enabled
+- Per-cluster ASM membership management is set to `MANAGEMENT_AUTOMATIC`
+- The module polls for mesh configuration state — checking every 15 seconds for up to 15 minutes
+- If ASM does not reach configured state within the timeout, the module continues with a warning — ASM provisioning often completes shortly after
+
+**Phase 4 — Application (≈ 5–10 minutes)**
+- Bank of Anthos v0.6.7 is downloaded from GitHub
+- The `bank-of-anthos` namespace is created on each cluster with the ASM injection label
+- The JWT key pair secret is applied to each cluster
+- All Kubernetes manifests are applied using server-side apply
+- The module waits up to 10 minutes for all Deployments to reach `Available` condition
+- Multi-Cluster Ingress feature is enabled in the fleet
+- MCI, MCS, NodePort, BackendConfig, ManagedCertificate, FrontendConfig, and Istio ConfigMap are applied to the config cluster
+
+**Total deployment time**: approximately 25–55 minutes end-to-end, depending on region and GCP service latency.
+
+### Idempotency
+
+All Kubernetes resources are applied using `--server-side --force-conflicts`. This means re-running the deployment:
+- Creates resources that do not exist
+- Updates resources whose configuration has changed
+- Leaves unchanged resources unmodified
+- Does not delete resources that are no longer referenced (use `kubectl delete` explicitly for removals)
+
+This makes re-applies safe and predictable — running the deployment twice produces the same result as running it once.
+
+### Destroy Phase
+
+Teardown follows the reverse dependency order and includes several explicit cleanup steps that Terraform alone cannot handle:
+
+**Step 1 — MCI resource cleanup**
+MultiClusterIngress and MultiClusterService resources are deleted first. These resources instruct Google Cloud to deprovision the global load balancer backends and NEGs. The module waits up to 3 minutes for the `MultiClusterIngress` to be fully deleted before proceeding. Skipping this step leaves orphaned load balancer components that block VPC deletion.
+
+**Step 2 — ASM membership disable**
+ASM is disabled per-cluster membership (`--management manual`) before fleet unregistration. This allows the ASM control plane to cleanly withdraw from the cluster.
+
+**Step 3 — MCI feature disable**
+The Multi-Cluster Ingress fleet feature is disabled using `gcloud alpha container hub ingress disable --force`. This removes the MCI controller and cleans up fleet-level load balancer state.
+
+**Step 4 — Fleet unregistration**
+Each cluster membership is deleted from the fleet. This severs the cluster's connection to GKE Hub and removes it from all fleet features.
+
+**Step 5 — Fleet-level ASM disable**
+After all memberships are unregistered, the fleet-level ASM feature is disabled.
+
+**Step 6 — Infrastructure teardown**
+Kubernetes namespaces are deleted (with a 15-minute timeout to allow finalizers to complete), then GKE clusters, node pools, subnets, routers, NAT gateways, and finally the VPC are deleted.
+
+**Step 7 — Network cleanup**
+Before the VPC is deleted, a cleanup script removes GKE-managed firewall rules (matching `gke-*-mcsd`) and Network Endpoint Groups (matching `gsmrsvd*`) that were created by GKE but are not managed by this module's Terraform state. Without this step, VPC deletion fails with a "resource in use" error.
+
+**Total destroy time**: approximately 15–30 minutes.
+
+---
