@@ -1522,3 +1522,208 @@ gcloud logging read \
 ```
 
 ---
+
+## Troubleshooting Guide
+
+### Pods Stuck in Pending State
+
+**Symptom**: One or more pods remain in `Pending` indefinitely after deployment.
+
+**Diagnosis**:
+```bash
+# Check pod events for scheduling failures
+kubectl describe pod <pod-name> -n bank-of-anthos | tail -20
+
+# Check node resource availability
+kubectl describe nodes | grep -A5 "Allocated resources"
+
+# For Autopilot clusters, check if the workload class is unsupported
+kubectl get pod <pod-name> -n bank-of-anthos -o yaml | \
+  grep -A5 "nodeSelector\|tolerations"
+```
+
+**Common causes**:
+- Insufficient CPU/memory quota in the region (Autopilot). Try a different region.
+- Pod security context incompatible with Autopilot restrictions (e.g. `hostPID: true`).
+- Admission webhook blocking the pod (Policy Controller constraint violation).
+
+---
+
+### ManagedCertificate Stuck in Provisioning
+
+**Symptom**: `kubectl describe managedcertificate` shows status `Provisioning` for more than 30 minutes.
+
+**Diagnosis**:
+```bash
+kubectl describe managedcertificate -n bank-of-anthos
+gcloud compute ssl-certificates list \
+  --filter="name~bank-of-anthos" \
+  --project=${PROJECT_ID}
+```
+
+**Common causes**:
+- The static IP address is not yet attached to the load balancer (wait for `kubectl get ingress` to show an `ADDRESS`).
+- The domain (`<ip>.sslip.io`) is not resolving correctly. Verify with `dig <domain>`.
+- The load balancer is not reachable on port 80 (check firewall rules: `allow-lb-health-checks` must exist).
+
+---
+
+### Config Sync Not Syncing
+
+**Symptom**: `gcloud container fleet config-management status` shows `NOT_SYNCED` or `ERROR`.
+
+**Diagnosis**:
+```bash
+kubectl describe rootsync root-sync -n config-management-system | tail -30
+kubectl get pods -n config-management-system
+kubectl logs -n config-management-system \
+  $(kubectl get pod -n config-management-system -l app=reconciler-manager \
+  -o jsonpath='{.items[0].metadata.name}') --tail=30
+```
+
+**Common causes**:
+- Git repository URL is incorrect or the branch does not exist.
+- The policy directory path is wrong (check `spec.git.dir` in the `RootSync`).
+- Authentication failure for private repositories (check `spec.git.auth` and the associated Secret).
+- An invalid manifest in the repository is failing validation.
+
+---
+
+### ASM Sidecar Not Injected
+
+**Symptom**: Pods show `1/1 READY` instead of `2/2`, indicating no sidecar proxy.
+
+**Diagnosis**:
+```bash
+# Check namespace injection label
+kubectl get namespace bank-of-anthos --show-labels | grep istio-injection
+
+# Check pod-level injection annotation
+kubectl get pod <pod-name> -n bank-of-anthos -o yaml | \
+  grep "sidecar.istio.io/inject"
+
+# Check MutatingWebhookConfiguration
+kubectl get mutatingwebhookconfigurations | grep istio
+```
+
+**Common causes**:
+- Namespace label `istio-injection=enabled` is missing. Add it and restart the affected pods.
+- A pod-level annotation explicitly disables injection: `sidecar.istio.io/inject: "false"`.
+- ASM installation is not complete. Check `kubectl get pods -n istio-system`.
+
+---
+
+### Application Returning 502 Bad Gateway
+
+**Symptom**: The application returns HTTP 502 from the load balancer.
+
+**Diagnosis**:
+```bash
+# Check backend service health
+gcloud compute backend-services get-health ${BACKEND_SERVICE_NAME} \
+  --global --project=${PROJECT_ID}
+
+# Check pod readiness
+kubectl get pods -n bank-of-anthos
+
+# Check recent pod events
+kubectl describe pod <frontend-pod> -n bank-of-anthos | grep -A10 Events
+
+# Check if the NEG endpoints are healthy
+gcloud compute network-endpoint-groups list-network-endpoints \
+  ${NEG_NAME} --zone=${ZONE} --project=${PROJECT_ID}
+```
+
+**Common causes**:
+- Frontend pods are failing their health probes (`GET /` returning non-200). Check pod logs: `kubectl logs <frontend-pod> -n bank-of-anthos -c frontend`.
+- Pods are running but Istio's sidecar is blocking traffic. Check `kubectl logs <pod> -c istio-proxy`.
+- All frontend replicas were deleted and have not yet restarted.
+
+---
+
+### SLO Not Appearing in Cloud Monitoring
+
+**Symptom**: **Monitoring → Services** shows no services or SLOs for the application.
+
+**Diagnosis**:
+```bash
+# Verify monitoring is enabled
+gcloud container clusters describe ${CLUSTER_NAME} \
+  --region=${REGION} --project=${PROJECT_ID} \
+  --format="value(monitoringConfig)"
+
+# Check that Cloud Monitoring API is enabled
+gcloud services list --enabled --filter="name:monitoring.googleapis.com" \
+  --project=${PROJECT_ID}
+```
+
+**Common causes**:
+- `enable_monitoring=false` was set at deployment time. The module must be redeployed with monitoring enabled.
+- Managed Prometheus has not yet scraped data — wait 5–10 minutes after application deployment before checking.
+- Insufficient IAM permissions on the service account writing metrics.
+
+---
+
+### Ingress Address Not Assigned
+
+**Symptom**: `kubectl get ingress -n bank-of-anthos` shows no `ADDRESS` after several minutes.
+
+**Diagnosis**:
+```bash
+kubectl describe ingress -n bank-of-anthos | tail -20
+gcloud compute addresses list \
+  --filter="name=bank-of-anthos" --global --project=${PROJECT_ID}
+```
+
+**Common causes**:
+- The global static IP address was not created or has a different name than the Ingress annotation references.
+- The `BackendConfig` references an invalid health check configuration.
+- The GKE Ingress controller has not yet reconciled. Check its logs: `kubectl logs -n kube-system -l app=glbc`.
+
+---
+
+## References
+
+### Google Cloud Documentation
+
+| Topic | URL |
+|---|---|
+| GKE Overview | https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview |
+| GKE Autopilot | https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview |
+| GKE Release Channels | https://cloud.google.com/kubernetes-engine/docs/concepts/release-channels |
+| GKE Security Posture | https://cloud.google.com/kubernetes-engine/docs/concepts/about-security-posture-dashboard |
+| Workload Identity | https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity |
+| GKE Managed Prometheus | https://cloud.google.com/stackdriver/docs/managed-prometheus |
+| GKE Ingress | https://cloud.google.com/kubernetes-engine/docs/concepts/ingress |
+| BackendConfig | https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-features#configuring_ingress_features |
+| FrontendConfig | https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-features#configuring_ingress_features_through_frontendconfig |
+| ManagedCertificate | https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs |
+| NEG-based Load Balancing | https://cloud.google.com/kubernetes-engine/docs/concepts/container-native-load-balancing |
+| GKE Fleet | https://cloud.google.com/anthos/fleet-management/docs/overview |
+| Cloud Service Mesh | https://cloud.google.com/service-mesh/docs/overview |
+| ASM Automatic Management | https://cloud.google.com/service-mesh/docs/managed/auto-control-plane-with-fleet |
+| Anthos Config Management | https://cloud.google.com/anthos-config-management/docs/overview |
+| Config Sync | https://cloud.google.com/anthos-config-management/docs/config-sync-overview |
+| Policy Controller | https://cloud.google.com/anthos-config-management/docs/concepts/policy-controller |
+| Cloud Monitoring SLOs | https://cloud.google.com/monitoring/slo-monitoring/api/create-policy |
+| Cloud Trace | https://cloud.google.com/trace/docs/overview |
+| sslip.io | https://sslip.io |
+
+### Bank of Anthos
+
+| Resource | URL |
+|---|---|
+| Source Repository | https://github.com/GoogleCloudPlatform/bank-of-anthos |
+| Architecture Diagram | https://github.com/GoogleCloudPlatform/bank-of-anthos#architecture |
+| Kubernetes Manifests | https://github.com/GoogleCloudPlatform/bank-of-anthos/tree/main/kubernetes-manifests |
+
+### Kubernetes References
+
+| Topic | URL |
+|---|---|
+| StatefulSets | https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/ |
+| Resource Management | https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
+| Security Contexts | https://kubernetes.io/docs/tasks/configure-pod-container/security-context/ |
+| Health Probes | https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/ |
+
+---
