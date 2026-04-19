@@ -968,3 +968,119 @@ kubectl get configmap istio-asm-managed -n istio-system -o yaml
 ```
 
 ---
+
+## Service Level Objectives
+
+Service Level Objectives (SLOs) express the reliability target for each service in measurable terms. This module defines SLOs for all nine Bank of Anthos microservices using Cloud Monitoring SLO capabilities. Engineers can observe each service's current error rate, availability, and latency against its declared target, and configure alerting when services breach their error budget.
+
+> **This section is unique to Bank_GKE.** The `MC_Bank_GKE` module does not configure SLOs.
+
+### What Is an SLO?
+
+An SLO is a target level of service expressed as a percentage of successful requests (availability SLO) or a fraction of requests completing within a latency threshold (latency SLO), measured over a rolling time window.
+
+Key SLO concepts:
+
+| Term | Definition |
+|---|---|
+| SLI (Service Level Indicator) | The metric being measured (e.g. proportion of successful HTTP requests) |
+| SLO | The target value for the SLI (e.g. 99.9% availability over 30 days) |
+| Error budget | The allowable amount of unreliability — what remains when SLO < 100% |
+| Burn rate | How fast the error budget is being consumed relative to the expected rate |
+
+### SLO Configuration in This Module
+
+The module configures **availability SLOs** for each of the nine Bank of Anthos microservices. Each SLO is based on the request success ratio measured by Istio telemetry (via Managed Prometheus) or Cloud Monitoring metrics.
+
+| Service | SLO Type | Target | Window |
+|---|---|---|---|
+| `frontend` | Availability | 99.5% | 30 days |
+| `userservice` | Availability | 99.5% | 30 days |
+| `contacts` | Availability | 99.5% | 30 days |
+| `ledgerwriter` | Availability | 99.5% | 30 days |
+| `balancereader` | Availability | 99.9% | 30 days |
+| `transactionhistory` | Availability | 99.9% | 30 days |
+| `loadgenerator` | Availability | 99.0% | 30 days |
+| `accounts-db` | Availability | 99.9% | 30 days |
+| `ledger-db` | Availability | 99.9% | 30 days |
+
+Read-path services (`balancereader`, `transactionhistory`) and databases carry higher targets because failures are more immediately visible to users. The `loadgenerator` has a lower target because it is a synthetic client rather than a user-facing service.
+
+### Viewing SLOs in the Console
+
+**Console navigation**: **Monitoring → Services → SLOs**
+
+From this view you can see:
+
+- The current SLI value (rolling percentage of good requests)
+- The error budget remaining (how much unreliability you can afford before burning through the budget)
+- The burn rate (faster burn = higher alert urgency)
+- Historical SLO compliance windows
+
+To navigate to a specific service's SLO:
+
+1. Open **Monitoring → Services**
+2. Select the service (e.g. `frontend`)
+3. Click **SLOs** in the left panel
+4. Review the active SLO and its compliance chart
+
+### Querying SLO Data with gcloud
+
+```bash
+# List all services registered in Cloud Monitoring for this project
+gcloud monitoring services list \
+  --project=${PROJECT_ID}
+
+# List SLOs for a specific service
+gcloud monitoring services slos list \
+  --service=${SERVICE_ID} \
+  --project=${PROJECT_ID}
+
+# Describe a specific SLO (shows target, window, and SLI definition)
+gcloud monitoring services slos describe ${SLO_ID} \
+  --service=${SERVICE_ID} \
+  --project=${PROJECT_ID}
+```
+
+### SLO Alerting
+
+Error budget alerts notify you when the error budget is burning faster than expected. Two standard alert windows are used:
+
+| Alert | Burn Rate Threshold | Significance |
+|---|---|---|
+| Fast burn | >14x for 1 hour | Error budget will be exhausted in ~2 days |
+| Slow burn | >1x for 6 hours | Error budget consumption exceeds target rate |
+
+These alerts are configured in Cloud Monitoring as **SLO alert policies**. When triggered, they appear in **Monitoring → Alerting → Incidents**.
+
+**Console navigation**: **Monitoring → Alerting** — filter by `type=slo` to see all SLO-based alert policies.
+
+```bash
+# List alert policies related to SLOs
+gcloud alpha monitoring policies list \
+  --filter="conditions.conditionThreshold.filter~slo" \
+  --project=${PROJECT_ID}
+```
+
+### Interpreting Error Budgets
+
+The error budget for a 30-day window with a 99.5% target is:
+
+```
+Error budget = (1 - 0.995) × 30 days × 24 hours × 60 minutes
+             = 0.005 × 43,200 minutes
+             = 216 minutes of allowed downtime per 30-day window
+```
+
+When the error budget drops to zero, further failures cause an SLO breach. Teams typically use a depleted error budget as a signal to pause feature work and focus on reliability improvements.
+
+```bash
+# View real-time error budget burn via Cloud Monitoring API
+# (Replace SERVICE_ID and SLO_ID with values from the list commands above)
+gcloud monitoring services slos describe ${SLO_ID} \
+  --service=${SERVICE_ID} \
+  --project=${PROJECT_ID} \
+  --format="yaml(goal,rollingPeriod,requestBasedSli)"
+```
+
+---
