@@ -784,3 +784,187 @@ gcloud compute target-https-proxies list \
 **Console navigation**: **Network Services → Load balancing** — select the load balancer named `bank-of-anthos` to see the full configuration, backend health status, and traffic metrics.
 
 ---
+
+## Bank of Anthos Application
+
+Bank of Anthos is a microservices banking simulation built by Google Cloud Platform as a reference implementation for cloud-native Kubernetes applications. It provides realistic workloads that exercise service mesh capabilities, persistent storage, inter-service authentication, and observability features.
+
+### Microservice Architecture
+
+The application consists of nine services grouped into three tiers:
+
+**Frontend tier**
+
+| Service | Language | Purpose |
+|---|---|---|
+| `frontend` | Python | Web UI, routes user requests to backend services |
+
+**Account services tier**
+
+| Service | Language | Purpose |
+|---|---|---|
+| `userservice` | Python | User registration and JWT token issuance |
+| `contacts` | Python | Manages the user's list of payment contacts |
+| `accounts-db` | PostgreSQL | Persistent storage for user accounts and contacts |
+
+**Transaction services tier**
+
+| Service | Language | Purpose |
+|---|---|---|
+| `ledgerwriter` | Java | Validates and writes new transactions to the ledger |
+| `balancereader` | Java | Returns cached account balances |
+| `transactionhistory` | Java | Returns paginated transaction history |
+| `ledger-db` | PostgreSQL | Persistent storage for the transaction ledger |
+
+**Load generation**
+
+| Service | Language | Purpose |
+|---|---|---|
+| `loadgenerator` | Python/Locust | Simulates concurrent user traffic for realistic load |
+
+### Service Communication
+
+All inter-service communication occurs over HTTP within the `bank-of-anthos` namespace. The Istio sidecar injected into each pod intercepts all traffic for mTLS encryption and telemetry. Services discover each other by Kubernetes DNS name (e.g. `http://balancereader:8080`).
+
+```bash
+# View all running services in the namespace
+kubectl get pods,services -n bank-of-anthos
+
+# Trace inter-service dependencies via Kiali (if installed)
+kubectl port-forward -n istio-system svc/kiali 20001:20001 &
+# Open http://localhost:20001 in a browser
+
+# View service-to-service traffic via Istio telemetry
+kubectl exec -n bank-of-anthos \
+  $(kubectl get pod -n bank-of-anthos -l app=frontend -o jsonpath='{.items[0].metadata.name}') \
+  -c istio-proxy -- curl -s localhost:15000/clusters | grep bank
+```
+
+### JWT Authentication
+
+The application uses RSA-signed JWT tokens to authenticate users across services. The authentication flow:
+
+1. `userservice` generates a JWT signed with an RSA private key when a user logs in.
+2. The frontend attaches the JWT as a cookie to all subsequent API requests.
+3. Backend services (`contacts`, `ledgerwriter`, `balancereader`, `transactionhistory`) validate the JWT using the corresponding RSA public key before processing requests.
+
+The RSA key pair is stored as a Kubernetes Secret. The private key is mounted only into the `userservice` pod. The public key is mounted into all backend services.
+
+```bash
+# Confirm the JWT secret exists
+kubectl get secret jwt-key -n bank-of-anthos
+
+# View which pods mount the jwt-key secret
+kubectl get pods -n bank-of-anthos -o json | \
+  python3 -c "
+import sys, json
+pods = json.load(sys.stdin)['items']
+for p in pods:
+    vols = [v.get('secret',{}).get('secretName','') for v in p['spec'].get('volumes',[])]
+    if 'jwt-key' in vols:
+        print(p['metadata']['name'])
+"
+```
+
+### Database Tier
+
+The application uses two PostgreSQL StatefulSets:
+
+**accounts-db** — stores user records and contacts
+- Seeded at startup with demo user accounts
+- Mounted on a persistent volume via a `PersistentVolumeClaim`
+- Only `userservice` and `contacts` have network access to this database
+
+**ledger-db** — stores the transaction ledger
+- Seeded with an initial set of historical transactions
+- Only `ledgerwriter`, `balancereader`, and `transactionhistory` have network access
+
+```bash
+# View the StatefulSets
+kubectl get statefulset -n bank-of-anthos
+
+# View persistent volume claims
+kubectl get pvc -n bank-of-anthos
+
+# Check database pod logs
+kubectl logs -n bank-of-anthos statefulset/accounts-db --tail=20
+kubectl logs -n bank-of-anthos statefulset/ledger-db --tail=20
+```
+
+### Resource Configuration
+
+Each microservice defines CPU and memory requests and limits. These values determine the QoS class assigned by Kubernetes and affect how pods are scheduled and evicted under pressure.
+
+Common patterns used across the application:
+
+| QoS Class | Condition | Services |
+|---|---|---|
+| Guaranteed | requests == limits | `accounts-db`, `ledger-db` |
+| Burstable | requests < limits | Most application services |
+| BestEffort | No requests/limits set | None — all services have defined resources |
+
+```bash
+# View resource requests and limits for all pods
+kubectl get pods -n bank-of-anthos -o json | \
+  python3 -c "
+import sys, json
+pods = json.load(sys.stdin)['items']
+for p in pods:
+    for c in p['spec']['containers']:
+        res = c.get('resources',{})
+        print(f\"{p['metadata']['name']}/{c['name']}: req={res.get('requests',{})}, lim={res.get('limits',{})}\")
+"
+
+# View resource usage (requires metrics-server)
+kubectl top pods -n bank-of-anthos
+```
+
+### Security Contexts
+
+All application containers run with non-root security contexts to reduce the blast radius of a container escape. Common settings across the application:
+
+- `runAsNonRoot: true` — the container process must not run as UID 0
+- `readOnlyRootFilesystem: true` — the root filesystem is mounted read-only
+- `allowPrivilegeEscalation: false` — the process cannot gain new privileges
+
+```bash
+# Verify security contexts on a pod
+kubectl get pod -n bank-of-anthos \
+  $(kubectl get pod -n bank-of-anthos -l app=frontend -o jsonpath='{.items[0].metadata.name}') \
+  -o jsonpath='{.spec.containers[*].securityContext}' | python3 -m json.tool
+```
+
+### Health Probes
+
+Each service defines liveness and readiness probes. GKE uses readiness probes to determine when to add a pod to the Service endpoint list, and liveness probes to decide when to restart a pod.
+
+```bash
+# View liveness and readiness probe configuration for frontend
+kubectl get pod -n bank-of-anthos \
+  $(kubectl get pod -n bank-of-anthos -l app=frontend -o jsonpath='{.items[0].metadata.name}') \
+  -o jsonpath='{.spec.containers[0].livenessProbe}' | python3 -m json.tool
+
+# Watch pod readiness transitions during a rolling update
+kubectl rollout status deployment/frontend -n bank-of-anthos
+```
+
+### Istio Tracing ConfigMap
+
+The module deploys an `istio-asm-managed` ConfigMap in the `istio-system` namespace that enables distributed tracing via Stackdriver (Cloud Trace):
+
+```yaml
+data:
+  mesh: |
+    defaultConfig:
+      tracing:
+        stackdriver: {}
+```
+
+This instructs all Envoy sidecars to export trace spans to Cloud Trace automatically. No application-level instrumentation is required. Traces are visible in the Google Cloud Console at **Trace → Trace List**.
+
+```bash
+# Confirm the tracing ConfigMap exists
+kubectl get configmap istio-asm-managed -n istio-system -o yaml
+```
+
+---
