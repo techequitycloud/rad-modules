@@ -100,3 +100,82 @@ Deployment sequence:
 ```
 
 ---
+
+## GCP Networking
+
+The module creates a dedicated VPC network and configures all the networking components that GKE and Istio require to operate. Understanding this layer is important both for appreciating GKE's networking model and for diagnosing connectivity issues in the mesh.
+
+### VPC Network
+
+A custom-mode VPC is created with global routing. Using **global routing** means that Cloud Routers in any region can learn routes from all subnets across all regions — a prerequisite for multi-region GKE deployments and for Cloud NAT to function correctly. A custom-mode VPC (as opposed to auto-mode) gives complete control over subnet CIDR ranges, which is necessary when GKE requires non-overlapping secondary ranges for pod and service IPs.
+
+The VPC uses `auto_create_subnetworks = false`, meaning only the explicitly configured subnet is created — no automatic subnets appear in other regions that could create unexpected IP overlap with other projects or on-premises networks.
+
+### Subnet and Secondary IP Ranges
+
+GKE's **VPC-native networking** requires a subnet with two secondary IP ranges in addition to the primary range:
+
+| Range | Default CIDR | Purpose |
+|-------|-------------|---------|
+| Primary subnet range | `10.132.0.0/16` | IP addresses for GKE cluster nodes (EC2-equivalent) |
+| Pod secondary range | `10.62.128.0/17` | One IP address per pod — 32,766 pod IPs available |
+| Service secondary range | `10.64.128.0/20` | One IP per Kubernetes Service ClusterIP — 4,094 service IPs |
+
+**Why secondary ranges matter for Istio:** In sidecar mode, every pod has both an application container and an Envoy sidecar. Both share the pod's IP address — there is no secondary IP for the sidecar. However, the sidecar intercepts traffic using `iptables` rules set up by the `istio-init` init container, which requires the `NET_ADMIN` capability. The GKE cluster is configured with `allow_net_admin = true` specifically to permit this. In ambient mode this is not required because the ztunnel — which runs as a DaemonSet on each node — handles traffic interception at the node level rather than inside pods.
+
+**Private Google Access** is enabled on the subnet, allowing nodes without external IPs to reach Google APIs (Cloud Logging, Artifact Registry, Cloud Monitoring) over internal Google network paths rather than the public internet.
+
+### Firewall Rules
+
+The module creates six firewall rules that together define the network security boundary for the cluster:
+
+| Rule | Direction | Source | Ports | Purpose |
+|------|-----------|--------|-------|---------|
+| `fw-allow-lb-hc` | INGRESS | `35.191.0.0/16`, `130.211.0.0/22` | TCP 80 | Google Cloud Load Balancer health checks — required for the Istio Ingress Gateway's external load balancer to report healthy |
+| `fw-allow-nfs-hc` | INGRESS | `35.191.0.0/16`, `130.211.0.0/22` | TCP 2049 | NFS health checks — present for compatibility with storage workloads |
+| `fw-allow-iap-ssh` | INGRESS | `35.235.240.0/20` | TCP 22 | SSH to cluster nodes via Identity-Aware Proxy — eliminates the need for a public SSH port or bastion host |
+| `fw-allow-intra-vpc` | INGRESS | Configured VPC CIDRs | All | Unrestricted traffic between all resources within the VPC — covers pod-to-pod, node-to-node, and node-to-pod communication including Istio's own control plane traffic |
+| `fw-allow-gce-nfs-tcp` | INGRESS | VPC CIDRs | TCP 2049 | NFS service traffic to instances tagged `nfs-server` |
+| `fw-allow-http-tcp` | INGRESS | All sources (`0.0.0.0/0`) | TCP 80, 443 | External HTTP and HTTPS traffic to instances tagged `http-server` — this is what makes the Istio Ingress Gateway reachable from the internet |
+
+**Why no explicit Istio-specific rules are needed:** Istio's control plane traffic (istiod to proxies on port 15012, webhook on port 15017, mTLS between proxies on port 15443) all flows within the VPC. The `fw-allow-intra-vpc` rule covers all of this without requiring individual rules per Istio component. This is a deliberate simplification for a learning environment — production deployments typically use more granular rules.
+
+**Explore firewall rules in the Cloud Console:**
+
+Navigate to **VPC Network → Firewall** in the Cloud Console. Filter by the network name to see all six rules. For each rule, you can view the matched traffic in **VPC Network → Firewall → Firewall Rules Logging** — useful for understanding which traffic Istio's data plane is actually generating.
+
+```bash
+# List all firewall rules for the module's VPC
+gcloud compute firewall-rules list \
+  --filter="network:vpc-network" \
+  --project=GCP_PROJECT_ID
+
+# View a specific rule in detail
+gcloud compute firewall-rules describe fw-allow-lb-hc \
+  --project=GCP_PROJECT_ID
+```
+
+### Cloud Router and Cloud NAT
+
+Cluster nodes use private IP addresses (from the `10.132.0.0/16` subnet) and have no external IPs. For nodes to reach the internet — to pull container images from Docker Hub, download Istio from GitHub, or reach any external endpoint — outbound traffic is routed through **Cloud NAT**.
+
+**Cloud Router** provides the BGP routing infrastructure that Cloud NAT relies on. It is configured with ASN 64514 (a private ASN in the range reserved for internal use). For this module, the router serves only the NAT function; it does not peer with on-premises networks.
+
+**Cloud NAT** is configured with `AUTO_ONLY` IP allocation, meaning Google Cloud automatically assigns external IP addresses from its pool rather than requiring a static IP reservation. This is simpler for learning environments. Logging is set to `ERRORS_ONLY` to avoid generating log noise from normal NAT operations.
+
+**Why this matters for Istio:** During installation, `istioctl` downloads Istio components from `github.com` and the Istio release bucket. The observability add-ons (Prometheus, Jaeger, Grafana, Kiali) are pulled from their respective container registries. All of this outbound traffic flows through Cloud NAT. Without it, the installation would fail silently as download commands hang waiting for connections that never complete.
+
+```bash
+# Verify Cloud NAT is healthy and view NAT allocation statistics
+gcloud compute routers get-nat-mapping-info cr-region \
+  --region=GCP_REGION \
+  --project=GCP_PROJECT_ID
+
+# View NAT gateway configuration
+gcloud compute routers nats describe nat-gw-region \
+  --router=cr-region \
+  --region=GCP_REGION \
+  --project=GCP_PROJECT_ID
+```
+
+---
