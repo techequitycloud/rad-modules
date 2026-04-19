@@ -444,3 +444,101 @@ The deployment sequence enforces a strict dependency chain that platform enginee
 If deployment stalls, the most common causes are networking issues preventing the Connect Agent from reaching Google Cloud APIs, or IAM permission gaps on the GCP service account running the deployment.
 
 ---
+
+## Anthos Service Mesh
+
+The module includes an optional **Anthos Service Mesh (ASM)** installation capability via the `attached-install-mesh` sub-module. This sub-module is not deployed by the core module automatically — it is an additional step that platform engineers can invoke after the cluster is registered to add a full Istio-based service mesh to the EKS workloads.
+
+### What is a Service Mesh?
+
+A service mesh is an infrastructure layer that handles service-to-service communication within a Kubernetes cluster. Rather than embedding networking logic (retries, timeouts, mutual TLS, circuit breaking, observability) into each application, a service mesh injects a lightweight proxy sidecar into every pod. All traffic in and out of the pod passes through this sidecar, which the mesh control plane configures centrally.
+
+Anthos Service Mesh is Google Cloud's managed distribution of **Istio** — the industry-standard service mesh. Using ASM rather than a self-managed Istio installation means:
+
+- The control plane is managed and upgraded by Google
+- Configuration is applied through the same Cloud Console used for the rest of the cluster
+- Telemetry (request traces, service-to-service metrics, traffic topology maps) flows into Cloud Trace, Cloud Monitoring, and the Cloud Console Service Mesh dashboard
+- mTLS policy, traffic management, and access control are managed consistently across both EKS and GKE clusters in the same fleet
+
+### How ASM is Installed
+
+ASM is installed using **`asmcli`** — Google's official command-line tool for Anthos Service Mesh installation and upgrades. The sub-module handles downloading `asmcli` and its dependencies automatically, so no tooling needs to be pre-installed on the machine running the deployment.
+
+The installation runs with the `--platform multicloud` flag, which selects the correct Istio configuration profile for a non-GKE cluster, and `--option attached-cluster`, which applies additional configuration appropriate for clusters registered through the Anthos Attached Clusters API.
+
+The full toolchain downloaded during installation:
+
+| Tool | Default Version | Purpose |
+|------|----------------|---------|
+| Google Cloud SDK (`gcloud`) | 491.0.0 | Authentication and GCP API calls during installation |
+| `jq` | 1.6 | JSON processing used by `asmcli` during validation steps |
+| `asmcli` | 1.22 | Anthos Service Mesh installation and configuration |
+
+All tools are downloaded to a local cache directory and discarded after installation. Custom download URLs can be configured for air-gapped or mirror environments.
+
+### Certificate Authority Options
+
+mTLS between services requires a certificate authority (CA) to issue and rotate the short-lived certificates used by each Envoy proxy sidecar. ASM supports three CA options, selected via the `asmcli_ca` configuration option:
+
+| CA | `asmcli_ca` value | Description |
+|----|-------------------|-------------|
+| **Mesh CA** | `mesh_ca` (default) | Google-managed CA built into Anthos Service Mesh. Zero operational overhead — Google handles key rotation, certificate issuance, and CA health. Recommended for most workloads. |
+| **Certificate Authority Service** | `gcp_cas` | Uses Google Cloud Certificate Authority Service as the root CA. Gives organisations control over their PKI hierarchy, supports integration with existing enterprise CA infrastructure, and provides full audit trails of certificate issuance. Required for regulated industries with custom PKI requirements. |
+| **Citadel** | `citadel` | Istio's built-in CA, operated within the cluster. All certificate operations happen inside the cluster with no dependency on Google Cloud. Suitable for disconnected environments or when bringing an existing Istio installation under ASM management. Certificate rotation is self-managed. |
+
+**Choosing a CA:** For platform engineers learning ASM, Mesh CA (the default) requires no additional configuration and removes all CA operational concerns. Certificate Authority Service is the right choice when the organisation has an existing PKI hierarchy that workload certificates must chain up to.
+
+### Installation Permissions
+
+`asmcli` requires several permissions on both the Kubernetes cluster and the Google Cloud project to complete installation. These are controlled by a set of boolean configuration options that tell `asmcli` to grant itself the permissions it needs:
+
+| Option | What it enables |
+|--------|----------------|
+| `asmcli_enable_all` | Enables all of the permissions below in a single flag — the simplest approach for a first installation |
+| `asmcli_enable_cluster_roles` | Creates the Kubernetes ClusterRole and ClusterRoleBinding resources that allow the ASM control plane to manage Istio configuration across all namespaces |
+| `asmcli_enable_cluster_labels` | Adds the required labels to the cluster resource that identify it as an ASM-managed cluster |
+| `asmcli_enable_gcp_components` | Installs the GCP-managed control plane components that integrate ASM with Cloud Monitoring and Cloud Trace |
+| `asmcli_enable_gcp_apis` | Enables additional GCP APIs required specifically for service mesh (mesh.googleapis.com and related) |
+| `asmcli_enable_gcp_iam_roles` | Grants the IAM roles that ASM components need to write telemetry to Cloud Monitoring and Cloud Trace |
+| `asmcli_enable_meshconfig_init` | Initialises the Mesh Config API, which stores the mesh-wide configuration in Google Cloud |
+| `asmcli_enable_namespace_creation` | Creates the `istio-system` namespace where the ASM control plane components are installed |
+| `asmcli_enable_registration` | Registers the cluster with GKE Hub if it is not already registered — not needed for clusters deployed by this module since registration is handled by the core module |
+
+For a first installation, setting `asmcli_enable_all = true` is the recommended approach. For environments where permissions must be granted incrementally, each flag can be enabled individually.
+
+### Authentication for Installation
+
+The sub-module supports three approaches for authenticating to Google Cloud during the `asmcli` installation, to accommodate different credential management practices:
+
+| Approach | Configuration | When to use |
+|----------|-------------|-------------|
+| Service account key file | Set `service_account_key_file` to the path of a downloaded JSON key | When a dedicated service account key is available on the deployment machine |
+| Environment variable | Set `use_tf_google_credentials_env_var = true` | When credentials are already present as the `GOOGLE_CREDENTIALS` environment variable |
+| Application Default Credentials | Set `activate_service_account = false` | When `gcloud auth application-default login` has been run and ADC is configured |
+
+### What ASM Adds to the Cluster
+
+Once installed, Anthos Service Mesh adds the following capabilities to the EKS cluster:
+
+**Mutual TLS (mTLS)**
+All service-to-service traffic within the mesh is automatically encrypted and both sides are authenticated using short-lived X.509 certificates. No application code changes are required — the Envoy sidecar proxies handle TLS termination and certificate management transparently.
+
+**Traffic Management**
+Istio `VirtualService` and `DestinationRule` resources give fine-grained control over how traffic flows between services: canary deployments (send 5% of traffic to a new version), header-based routing (route traffic from internal users to a staging service), connection pool limits, and automatic retries.
+
+**Observability Without Instrumentation**
+Because all traffic passes through the Envoy sidecars, ASM automatically generates:
+- **Distributed traces** — every request across service boundaries is traced end-to-end, visible in Cloud Trace
+- **Service-to-service metrics** — request count, latency histograms, and error rates for every service pair, visible in Cloud Monitoring
+- **Traffic topology** — a live map of which services are calling which, with request rates and error rates on each edge, visible in the Cloud Console Service Mesh dashboard
+
+Applications gain full observability without adding any tracing libraries or metrics instrumentation to their code.
+
+**Access Control**
+Istio `AuthorizationPolicy` resources enforce which services are allowed to call which, at the HTTP method and path level. Policies can require that callers present a valid JWT (for end-user authentication) in addition to the mTLS certificate (for service authentication).
+
+### ASM Across the Fleet
+
+When both the EKS attached cluster and a native GKE cluster are enrolled in the same fleet and both have ASM installed, the mesh control plane can span both clusters. Workloads on EKS and workloads on GKE can communicate with mTLS enforced across the cloud boundary, traffic can be load balanced across both clusters, and the service topology map in the Cloud Console shows the full multi-cloud service graph in a single view.
+
+---
