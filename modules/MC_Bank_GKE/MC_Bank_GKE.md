@@ -1633,6 +1633,340 @@ kubectl delete pod insecure-test -n $NS --context $CTX1
 
 ---
 
+### Exercise 9: Mount a Cloud Storage Bucket with GCS FUSE
+
+**Goal**: Use the GCS FUSE CSI driver to mount a Cloud Storage bucket as a filesystem volume inside a pod — demonstrating how workloads can read and write GCS objects without any GCS client library or custom code.
+
+**Step 1 — Create a GCS bucket:**
+```bash
+gsutil mb -p PROJECT_ID -l us-west1 gs://PROJECT_ID-fuse-demo
+echo "Hello from GCS FUSE" > /tmp/hello.txt
+gsutil cp /tmp/hello.txt gs://PROJECT_ID-fuse-demo/hello.txt
+```
+
+**Step 2 — Grant the Bank of Anthos service account access to the bucket:**
+```bash
+gsutil iam ch \
+  serviceAccount:PROJECT_ID-compute@developer.gserviceaccount.com:objectViewer \
+  gs://PROJECT_ID-fuse-demo
+```
+
+For Standard clusters using Workload Identity, grant access to the GSA instead:
+```bash
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member "serviceAccount:PROJECT_ID.svc.id.goog[bank-of-anthos/bank-of-anthos]" \
+  --role roles/storage.objectViewer
+```
+
+**Step 3 — Deploy a pod that mounts the bucket:**
+```bash
+kubectl apply --context $CTX1 -f - <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gcs-fuse-demo
+  namespace: bank-of-anthos
+  annotations:
+    gke-gcsfuse/volumes: "true"
+spec:
+  serviceAccountName: bank-of-anthos
+  containers:
+  - name: reader
+    image: busybox
+    command: ["sh", "-c", "cat /data/hello.txt && sleep 3600"]
+    volumeMounts:
+    - name: gcs-bucket
+      mountPath: /data
+      readOnly: true
+  volumes:
+  - name: gcs-bucket
+    csi:
+      driver: gcsfuse.csi.storage.gke.io
+      readOnly: true
+      volumeAttributes:
+        bucketName: PROJECT_ID-fuse-demo
+        mountOptions: "implicit-dirs"
+EOF
+```
+
+**Step 4 — Verify the mount and read the file:**
+```bash
+kubectl wait pod gcs-fuse-demo -n $NS --context $CTX1 \
+  --for=condition=Ready --timeout=60s
+
+kubectl logs gcs-fuse-demo -n $NS --context $CTX1 -c reader
+```
+
+Expected output: `Hello from GCS FUSE`
+
+**Step 5 — Inspect the sidecar injected by the CSI driver:**
+```bash
+kubectl get pod gcs-fuse-demo -n $NS --context $CTX1 \
+  -o jsonpath='{.spec.containers[*].name}'
+```
+
+The pod will have two containers: your `reader` container and the `gke-gcsfuse-sidecar` injected automatically by the driver to handle FUSE mounting.
+
+**Explore in the Console**: Navigate to **Cloud Storage → Buckets → PROJECT_ID-fuse-demo** to confirm the file is there. Navigate to **Kubernetes Engine → Workloads → gcs-fuse-demo** to inspect the pod and its volumes.
+
+**Clean up:**
+```bash
+kubectl delete pod gcs-fuse-demo -n $NS --context $CTX1
+gsutil rm -r gs://PROJECT_ID-fuse-demo
+```
+
+---
+
+### Exercise 10: Deploy a Service with Gateway API
+
+**Goal**: Use the GKE Gateway API to expose the Bank of Anthos frontend through a `Gateway` and `HTTPRoute` resource — demonstrating the role-oriented traffic model that supersedes Ingress.
+
+**Step 1 — Check available GatewayClasses:**
+```bash
+kubectl get gatewayclass --context $CTX1
+```
+
+You should see `gke-l7-global-external-managed` (global external LB) and `gke-l7-regional-external-managed` (regional LB) at minimum.
+
+**Step 2 — Create a Gateway (provisions a load balancer):**
+```bash
+kubectl apply --context $CTX1 -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: gateway-api-demo
+  namespace: bank-of-anthos
+spec:
+  gatewayClassName: gke-l7-regional-external-managed
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+EOF
+```
+
+**Step 3 — Create an HTTPRoute pointing to the frontend service:**
+```bash
+kubectl apply --context $CTX1 -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: frontend-route
+  namespace: bank-of-anthos
+spec:
+  parentRefs:
+  - name: gateway-api-demo
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: frontend
+      port: 80
+EOF
+```
+
+**Step 4 — Watch the Gateway provision its IP address:**
+```bash
+kubectl get gateway gateway-api-demo -n $NS --context $CTX1 --watch
+```
+
+When the `ADDRESS` field is populated, the load balancer is ready. This typically takes 1–3 minutes.
+
+**Step 5 — Test the route:**
+```bash
+GW_IP=$(kubectl get gateway gateway-api-demo -n $NS --context $CTX1 \
+  -o jsonpath='{.status.addresses[0].value}')
+curl -s -o /dev/null -w "%{http_code}" http://$GW_IP/
+```
+
+Expected output: `200`
+
+**Step 6 — Add a header-based routing rule** (not possible with standard Ingress):
+```bash
+kubectl apply --context $CTX1 -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: frontend-route
+  namespace: bank-of-anthos
+spec:
+  parentRefs:
+  - name: gateway-api-demo
+  rules:
+  - matches:
+    - headers:
+      - name: x-debug
+        value: "true"
+    backendRefs:
+    - name: userservice
+      port: 8080
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: frontend
+      port: 80
+EOF
+```
+
+This routes requests carrying the header `x-debug: true` to `userservice`, and all other requests to `frontend` — a routing rule that would require a custom Ingress controller annotation with legacy Ingress.
+
+**Explore in the Console**: Navigate to **Network Services → Load Balancing** to see the load balancer provisioned by the Gateway. Notice it appears alongside the MCI-managed load balancer, demonstrating how multiple ingress mechanisms can coexist.
+
+**Clean up:**
+```bash
+kubectl delete httproute frontend-route -n $NS --context $CTX1
+kubectl delete gateway gateway-api-demo -n $NS --context $CTX1
+```
+
+---
+
+### Exercise 11: Verify Workload Identity
+
+**Goal**: Confirm that pods in the mesh are using Workload Identity to authenticate to GCP APIs, and manually verify the token exchange mechanism.
+
+**Step 1 — Inspect the Kubernetes Service Account annotation:**
+```bash
+kubectl get serviceaccount bank-of-anthos \
+  -n $NS --context $CTX1 -o yaml
+```
+
+Look for the annotation:
+```yaml
+annotations:
+  iam.gke.io/gcp-service-account: gke-workload-development@PROJECT_ID.iam.gserviceaccount.com
+```
+
+This annotation links the Kubernetes Service Account to a Google Service Account.
+
+**Step 2 — Verify the IAM binding on the GSA:**
+```bash
+gcloud iam service-accounts get-iam-policy \
+  gke-workload-development@PROJECT_ID.iam.gserviceaccount.com \
+  --project PROJECT_ID \
+  --format="table(bindings.role,bindings.members)"
+```
+
+Look for a binding with role `roles/iam.workloadIdentityUser` for the member:
+`serviceAccount:PROJECT_ID.svc.id.goog[bank-of-anthos/bank-of-anthos]`
+
+**Step 3 — Request a token from inside a pod:**
+```bash
+FRONTEND_POD=$(kubectl get pod -n $NS --context $CTX1 \
+  -l app=frontend -o jsonpath='{.items[0].metadata.name}')
+
+kubectl exec -n $NS --context $CTX1 $FRONTEND_POD \
+  -c frontend -- \
+  curl -s -H "Metadata-Flavor: Google" \
+  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" \
+  | python3 -m json.tool | grep -E "token_type|expires_in"
+```
+
+The metadata server returns a short-lived OAuth2 access token. The `token_type` will be `Bearer` and `expires_in` will be approximately 3600 seconds. This token was obtained via Workload Identity — no key file is present anywhere on the pod.
+
+**Step 4 — Confirm no key file is mounted:**
+```bash
+kubectl exec -n $NS --context $CTX1 $FRONTEND_POD \
+  -c frontend -- find / -name "*.json" 2>/dev/null | grep -v proc
+```
+
+There should be no JSON credential files. All GCP authentication flows through the metadata server using the Workload Identity token.
+
+**Explore in the Console**: Navigate to **IAM & Admin → Service Accounts → gke-workload-development** and click the **Permissions** tab to see the Workload Identity binding. Navigate to **IAM & Admin → Workload Identity Pools** to see the pool created for this project's clusters.
+
+---
+
+### Exercise 12: Enable Workload Metrics with PodMonitoring
+
+**Goal**: Configure Managed Service for Prometheus to scrape a custom `/metrics` endpoint from one of the Bank of Anthos services, making workload-level Prometheus metrics available in Cloud Monitoring.
+
+The `frontend` service exposes Prometheus-compatible metrics at `/metrics` on port 8080. By default, Managed Prometheus does not scrape these — a `PodMonitoring` resource must be created to register the scrape target.
+
+**Step 1 — Verify the metrics endpoint is live:**
+```bash
+FRONTEND_POD=$(kubectl get pod -n $NS --context $CTX1 \
+  -l app=frontend -o jsonpath='{.items[0].metadata.name}')
+
+kubectl exec -n $NS --context $CTX1 $FRONTEND_POD \
+  -c frontend -- curl -s http://localhost:8080/metrics | head -20
+```
+
+You should see Prometheus exposition format output with metric names prefixed by the service name.
+
+**Step 2 — Create a PodMonitoring resource:**
+```bash
+kubectl apply --context $CTX1 -f - <<EOF
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: frontend-metrics
+  namespace: bank-of-anthos
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  endpoints:
+  - port: 8080
+    path: /metrics
+    interval: 30s
+EOF
+```
+
+**Step 3 — Confirm the PodMonitoring resource is active:**
+```bash
+kubectl get podmonitoring frontend-metrics \
+  -n $NS --context $CTX1 -o yaml | grep -A5 "status:"
+```
+
+The `status.conditions` field will show `ConfigurationCreateSuccess` when the scrape target is registered.
+
+**Step 4 — Query metrics in Cloud Monitoring:**
+
+Allow 2–3 minutes for the first scrape cycle, then navigate to **Monitoring → Metrics Explorer** in the Google Cloud Console. Set:
+- **Resource type**: `prometheus_target`
+- **Metric**: search for a metric beginning with `prometheus.googleapis.com/`
+
+Alternatively, use PromQL in the Metrics Explorer:
+```
+rate(prometheus_googleapis_com:python_gc_collections_total{namespace="bank-of-anthos"}[5m])
+```
+
+**Step 5 — Extend to all services:**
+
+To scrape all Bank of Anthos services simultaneously, use a `ClusterPodMonitoring` resource that matches across the namespace:
+```bash
+kubectl apply --context $CTX1 -f - <<EOF
+apiVersion: monitoring.googleapis.com/v1
+kind: ClusterPodMonitoring
+metadata:
+  name: bank-of-anthos-all
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: bank-of-anthos
+  namespaceSelector:
+    matchNames:
+    - bank-of-anthos
+  endpoints:
+  - port: 8080
+    path: /metrics
+    interval: 30s
+EOF
+```
+
+**Explore in the Console**: Navigate to **Monitoring → Dashboards → Prometheus Overview** to see a list of all active scrape targets. Each pod matching the `PodMonitoring` selector should appear as a target with `UP` status.
+
+**Clean up:**
+```bash
+kubectl delete podmonitoring frontend-metrics -n $NS --context $CTX1
+kubectl delete clusterpodmonitoring bank-of-anthos-all --context $CTX1
+```
+
+---
+
 ## Troubleshooting Guide
 
 ### Application Not Reachable After Deployment
