@@ -289,3 +289,147 @@ Fleet **features** are capabilities that are enabled at the fleet level and auto
 Enabling a feature at the fleet level means you do not need to configure it cluster-by-cluster. New clusters added to the fleet can inherit these features automatically.
 
 ---
+
+## Cloud Service Mesh (Anthos Service Mesh)
+
+### What is Cloud Service Mesh?
+
+**Cloud Service Mesh (CSM)**, formerly known as Anthos Service Mesh (ASM), is Google's managed distribution of Istio. It adds a network infrastructure layer — a **service mesh** — that sits between your application containers and the network, handling cross-cutting concerns such as mutual TLS encryption, traffic management, observability, and policy enforcement without requiring any changes to application code.
+
+The mesh consists of two planes:
+
+- **Data plane**: Envoy proxy sidecars injected into every pod. All inbound and outbound pod traffic passes through the sidecar. The sidecar enforces policies, collects telemetry, and performs load balancing.
+- **Control plane**: Managed by Google (`istiod` running as a Google-managed component). The control plane pushes configuration to all sidecars and issues mTLS certificates via its built-in certificate authority.
+
+### Automatic Management Mode
+
+This module enables ASM with `MANAGEMENT_AUTOMATIC` mode at both the fleet level and per-cluster membership. In this mode:
+
+- Google provisions and manages the Istio control plane entirely
+- Control plane upgrades happen automatically, aligned with the cluster's release channel
+- No `istiod` pods appear in your cluster — the control plane runs in Google's infrastructure
+- You interact with the mesh only through Kubernetes custom resources (`VirtualService`, `DestinationRule`, `PeerAuthentication`, etc.)
+
+This is distinct from **manual management mode**, where you install and upgrade `istiod` yourself using the `asmcli` tool.
+
+**Checking mesh status:**
+```bash
+gcloud container fleet mesh describe --project=PROJECT_ID
+```
+
+### Sidecar Injection
+
+Sidecar injection is controlled at the namespace level using a label. The `bank-of-anthos` namespace carries the label:
+
+```
+istio.io/rev=asm-managed
+```
+
+This tells the ASM mutating admission webhook to inject an Envoy sidecar into every new pod created in this namespace. The revision label (`asm-managed`) pins injection to the Google-managed control plane revision rather than a specific version string, ensuring injected sidecars automatically track the managed revision.
+
+**What the sidecar does:**
+- Intercepts all inbound and outbound TCP traffic using `iptables` rules set up by an init container
+- Terminates and originates mTLS connections, encrypting all pod-to-pod traffic within the mesh
+- Reports request telemetry (latency, error rate, traffic volume) to Cloud Monitoring
+- Enforces `AuthorizationPolicy` rules (which services can talk to which)
+- Participates in distributed tracing by propagating trace context headers to Cloud Trace
+
+### Mutual TLS (mTLS)
+
+With ASM enabled, all communication between pods in the mesh is encrypted with **mutual TLS** by default. Each sidecar is issued a short-lived X.509 certificate by the ASM certificate authority. The certificate encodes the workload's SPIFFE identity:
+
+```
+spiffe://PROJECT_ID.svc.id.goog/ns/NAMESPACE/sa/SERVICE_ACCOUNT
+```
+
+This identity is verifiable by any other sidecar in the mesh, enabling fine-grained `AuthorizationPolicy` rules such as:
+
+```yaml
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-frontend-only
+  namespace: bank-of-anthos
+spec:
+  selector:
+    matchLabels:
+      app: ledger-writer
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals:
+        - "cluster.local/ns/bank-of-anthos/sa/bank-of-anthos"
+```
+
+This policy permits only the `bank-of-anthos` service account (used by the frontend) to call the `ledger-writer` service — all other callers are denied, regardless of network-level access.
+
+### Traffic Management
+
+ASM provides rich traffic management through Istio custom resources. These operate at Layer 7 (HTTP/gRPC) and allow:
+
+- **VirtualService**: define routing rules — route 10% of traffic to a canary version, retry failed requests up to 3 times, inject artificial delays for chaos testing
+- **DestinationRule**: configure load balancing algorithm (round-robin, least-connections, consistent hashing), circuit breaker thresholds, and connection pool settings per destination service
+- **ServiceEntry**: register external services (outside the mesh) so sidecars can apply policies and collect telemetry for egress traffic
+
+**Example: Canary deployment with traffic splitting**
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: frontend
+  namespace: bank-of-anthos
+spec:
+  hosts:
+  - frontend
+  http:
+  - route:
+    - destination:
+        host: frontend
+        subset: stable
+      weight: 90
+    - destination:
+        host: frontend
+        subset: canary
+      weight: 10
+```
+
+### Observability with ASM
+
+ASM automatically generates the **golden signals** (latency, traffic, errors, saturation) for every service-to-service call in the mesh, with no instrumentation changes required in the application.
+
+**Service metrics** are available in Cloud Monitoring under the `istio.io` metric namespace:
+- `istio.io/service/server/request_count` — inbound request volume
+- `istio.io/service/server/response_latencies` — inbound request latency distribution
+- `istio.io/service/client/request_count` — outbound request volume per destination
+
+**Service topology** is visualised in the **Cloud Service Mesh dashboard** in the Google Cloud Console. This shows a live graph of all services, their communication paths, error rates, and latency — built automatically from sidecar telemetry without any manual configuration.
+
+**Distributed traces** are sent to Cloud Trace. Each request that enters the mesh generates a trace spanning all microservice hops, allowing engineers to pinpoint which service introduced a latency spike or error.
+
+### Istio ConfigMap for Stackdriver
+
+This module applies a ConfigMap to the `istio-system` namespace that explicitly enables **Stackdriver** (Cloud Monitoring/Trace) as the telemetry backend for ASM:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istio-asm-managed
+  namespace: istio-system
+data:
+  mesh: |
+    defaultConfig:
+      tracing:
+        stackdriver: {}
+```
+
+This ensures that trace spans from all sidecar proxies are exported to Cloud Trace using the Stackdriver exporter, making distributed traces visible in the Cloud Console without any per-pod instrumentation.
+
+### Multi-Cluster Mesh
+
+When ASM is enabled across multiple clusters in the same fleet, the mesh spans cluster boundaries. Services in `cluster1` can call services in `cluster2` using their Kubernetes DNS names, with the sidecar handling the cross-cluster routing, mTLS, and telemetry transparently.
+
+This is possible because all clusters share the same **trust domain** (`PROJECT_ID.svc.id.goog`). Certificates issued by the ASM CA in either cluster are trusted by sidecars in all clusters, enabling mutual authentication across cluster boundaries.
+
+---
