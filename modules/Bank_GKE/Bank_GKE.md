@@ -1084,3 +1084,147 @@ gcloud monitoring services slos describe ${SLO_ID} \
 ```
 
 ---
+
+## Module Configuration Options
+
+The following options are available when deploying the Bank_GKE module. Engineers who do not have access to the underlying Terraform code configure these options through the platform UI or deployment parameters.
+
+### Project and Region
+
+| Option | Default | Description |
+|---|---|---|
+| `existing_project_id` | _(empty)_ | GCP project ID for deployment. Must be provided. |
+| `gcp_region` | `us-central1` | Region for the GKE cluster, VPC, and all regional resources. |
+
+### GKE Cluster
+
+| Option | Default | Description |
+|---|---|---|
+| `gke_cluster` | `gke-cluster` | Name assigned to the GKE cluster. |
+| `create_autopilot_cluster` | `true` | `true` for Autopilot, `false` for Standard mode. |
+| `release_channel` | `REGULAR` | GKE release channel: `RAPID`, `REGULAR`, or `STABLE`. |
+
+### Networking
+
+| Option | Default | Description |
+|---|---|---|
+| `create_network` | `true` | Create a new VPC, or use an existing one. |
+| `network_name` | `vpc-network` | Name of the VPC network. |
+| `subnet_name` | `vpc-subnet` | Name of the subnet. |
+| `ip_cidr_ranges` | `10.132.0.0/16` | Primary CIDR range for the subnet. |
+| `pod_cidr_block` | `10.62.128.0/17` | Secondary IP range for pods (VPC-native). |
+| `service_cidr_block` | `10.64.128.0/20` | Secondary IP range for Kubernetes services. |
+
+### Cloud Service Mesh
+
+| Option | Default | Description |
+|---|---|---|
+| `enable_cloud_service_mesh` | `true` | Enable ASM on the cluster. |
+| `cloud_service_mesh_version` | `1.23.4-asm.1` | ASM control plane version. |
+
+### Anthos Config Management
+
+| Option | Default | Description |
+|---|---|---|
+| `enable_config_management` | `false` | Enable Config Sync. Set to `true` to activate. |
+| `config_management_version` | `1.22.0` | ACM feature version. |
+| `config_sync_repo` | _(sample repo)_ | URL of the Git repository Config Sync will track. |
+| `config_sync_policy_dir` | _(sample dir)_ | Subdirectory within the repo containing cluster manifests. |
+
+### Observability
+
+| Option | Default | Description |
+|---|---|---|
+| `enable_monitoring` | `true` | Enable Cloud Monitoring (Managed Prometheus, SLOs). |
+
+### Application
+
+| Option | Default | Description |
+|---|---|---|
+| `deploy_application` | `true` | Deploy Bank of Anthos microservices. |
+
+---
+
+## GCP APIs Enabled
+
+The module enables the following Google Cloud APIs in the destination project:
+
+| API | Purpose |
+|---|---|
+| `container.googleapis.com` | GKE cluster management |
+| `compute.googleapis.com` | VPC, firewall rules, static IPs, NEGs, load balancers |
+| `iam.googleapis.com` | Service accounts, IAM bindings |
+| `cloudresourcemanager.googleapis.com` | Project-level IAM |
+| `anthos.googleapis.com` | Anthos Fleet management |
+| `gkehub.googleapis.com` | GKE Hub / Fleet membership |
+| `mesh.googleapis.com` | Cloud Service Mesh (ASM) |
+| `anthosconfigmanagement.googleapis.com` | Anthos Config Management |
+| `monitoring.googleapis.com` | Cloud Monitoring, SLOs, alerting |
+| `logging.googleapis.com` | Cloud Logging |
+| `cloudtrace.googleapis.com` | Cloud Trace (distributed tracing) |
+| `certificatemanager.googleapis.com` | Managed TLS certificates |
+
+```bash
+# Verify which APIs are enabled in your project
+gcloud services list --enabled --project=${PROJECT_ID} | grep -E \
+  "container|compute|anthos|gkehub|mesh|monitoring|logging|trace|certificate"
+```
+
+---
+
+## Deployment Lifecycle
+
+### Initial Deployment
+
+When the module is first deployed, resources are created in the following order:
+
+1. **APIs enabled** — All required GCP APIs are activated in the project.
+2. **VPC and networking** — Custom VPC, subnet, secondary IP ranges, Cloud NAT, Cloud Router, and firewall rules are created.
+3. **Static IP** — A global static external IP address is reserved under the name `bank-of-anthos`.
+4. **GKE cluster** — The cluster is created with Workload Identity, Managed Prometheus, GCS FUSE CSI, Gateway API, and Security Posture enabled.
+5. **Fleet registration** — The cluster is registered as a Fleet member.
+6. **Cloud Service Mesh** — ASM is enabled on the Fleet and the cluster is enrolled for automatic management.
+7. **Anthos Config Management** — If `enable_config_management=true`, Config Sync is installed and pointed at the configured Git repository.
+8. **Application deployment** — If `deploy_application=true`, Bank of Anthos manifests are applied to the cluster.
+9. **Ingress resources** — `BackendConfig`, `FrontendConfig`, `ManagedCertificate`, and `Ingress` are created.
+10. **Certificate provisioning** — Google begins issuing the TLS certificate (10–30 minutes).
+11. **SLOs** — Cloud Monitoring SLOs are configured for all nine microservices.
+
+### Accessing the Application
+
+After deployment, retrieve the application URL:
+
+```bash
+# Get the static external IP
+gcloud compute addresses describe bank-of-anthos \
+  --global \
+  --project=${PROJECT_ID} \
+  --format="value(address)"
+
+# Get the Ingress address (may take a few minutes to populate)
+kubectl get ingress -n bank-of-anthos
+
+# Check ManagedCertificate status (wait for Active)
+kubectl describe managedcertificate -n bank-of-anthos
+```
+
+The application URL follows the pattern `https://<IP-ADDRESS>.sslip.io/` where `<IP-ADDRESS>` uses hyphens (e.g. `https://34-120-10-5.sslip.io/`).
+
+### Updating the Module
+
+To update configuration options (e.g. change the Config Sync repo or toggle ACM on/off), update the deployment parameters through the platform UI and re-apply. Terraform will apply only the changed resources, leaving existing cluster workloads undisturbed.
+
+### Tearing Down
+
+When the module is destroyed, resources are removed in reverse dependency order:
+
+1. Application workloads (Kubernetes manifests deleted)
+2. Ingress and load balancer resources
+3. GKE cluster (all workloads, node pools, and namespaces are deleted)
+4. Fleet membership deregistered
+5. Static IP address released
+6. VPC, subnet, firewall rules, Cloud NAT, and Cloud Router deleted
+
+> **Warning**: Destroying the module deletes all persistent volume data in `accounts-db` and `ledger-db`. Any transaction or account data created during the lab is permanently lost.
+
+---
