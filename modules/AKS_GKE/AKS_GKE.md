@@ -883,16 +883,20 @@ Fleet is the most important concept for platform engineers building multi-cluste
 | Attached cluster status and details | Kubernetes Engine > Clusters |
 | Fleet membership and feature health | Kubernetes Engine > Fleet |
 | Fleet feature enable / status | Kubernetes Engine > Fleet > Feature manager |
+| Multi-Cluster Services status | Kubernetes Engine > Fleet > Feature manager |
 | Anthos Config Management sync status | Kubernetes Engine > Config |
 | Policy Controller violations | Kubernetes Engine > Policy |
 | Log Explorer for AKS logs | Logging > Log Explorer |
 | Log-based metrics | Logging > Log-based Metrics |
 | Metrics Explorer and PromQL | Monitoring > Metrics Explorer |
 | Built-in Kubernetes dashboards | Monitoring > Dashboards |
-| Alerting policies | Monitoring > Alerting |
+| Custom dashboards | Monitoring > Dashboards > Create Dashboard |
+| Metric-based alerting policies | Monitoring > Alerting |
+| Firing alert incidents | Monitoring > Alerting > Incidents |
 | Distributed traces (service mesh) | Trace > Trace Explorer |
 | Service Mesh topology and security | Anthos > Service Mesh |
-| Workload Identity Federation pools | IAM & Admin > Workload Identity Federation |
+| Workload Identity pools and providers | IAM & Admin > Workload Identity Federation |
+| Workload Identity IAM bindings | IAM & Admin > Service Accounts > Permissions |
 | Enabled APIs | APIs & Services > Enabled APIs & Services |
 | Certificate Authority (GCP CAS option) | Certificate Authority Service |
 
@@ -1254,5 +1258,325 @@ istioctl bug-report --istio-namespace istio-system
 # It contains: proxy configs, control plane logs, Istio custom resources,
 # and cluster state — everything needed to diagnose the issue
 ```
+
+---
+
+## 18. Multi-Cluster Services
+
+### 18.1 What Multi-Cluster Services Enables
+
+**Multi-Cluster Services (MCS)** is a GKE fleet feature that allows a Kubernetes Service defined in one cluster to be discovered and consumed by workloads in other clusters in the same fleet — without VPN tunnels, manual DNS entries, or shared network configuration. Once a Service is exported from a cluster, other fleet members see it as if it were a local Service.
+
+This is particularly powerful in a mixed-cloud fleet: a workload running on the AKS cluster in Azure can consume a Service exported from a GKE cluster in Google Cloud, and vice versa, using standard Kubernetes DNS.
+
+### 18.2 Enabling Multi-Cluster Services on the Fleet
+
+```bash
+# Enable the Multi-Cluster Services fleet feature
+gcloud container fleet multi-cluster-services enable \
+  --project=my-gcp-project
+
+# Confirm it is active across fleet members
+gcloud container fleet multi-cluster-services describe \
+  --project=my-gcp-project
+
+# Grant the MCS service account permission to read fleet membership
+gcloud projects add-iam-policy-binding my-gcp-project \
+  --member="serviceAccount:my-gcp-project.svc.id.goog[gke-mcs/gke-mcs-importer]" \
+  --role="roles/compute.networkViewer"
+```
+
+### 18.3 Exporting a Service from One Cluster
+
+On the cluster that owns the Service, create a `ServiceExport` resource. This signals to the fleet that the Service should be made available to other members:
+
+```bash
+# Connect to the source cluster (e.g. a GKE cluster)
+gcloud container clusters get-credentials my-gke-cluster \
+  --region=us-central1 --project=my-gcp-project
+
+# Export an existing Service
+kubectl apply -f - <<EOF
+apiVersion: net.gke.io/v1
+kind: ServiceExport
+metadata:
+  name: my-backend
+  namespace: default
+EOF
+
+# Confirm the export was accepted
+kubectl get serviceexport -n default
+kubectl describe serviceexport my-backend -n default
+```
+
+### 18.4 Consuming the Exported Service from AKS
+
+On the AKS cluster, the exported Service is automatically imported and becomes reachable via a predictable DNS name:
+
+```bash
+# Connect to the AKS cluster
+gcloud container attached clusters get-credentials azure-aks-cluster \
+  --location=us-central1 --project=my-gcp-project
+
+# Check that the ServiceImport has been created automatically
+kubectl get serviceimport -n default
+
+# Describe it to see the imported endpoints
+kubectl describe serviceimport my-backend -n default
+
+# The service is reachable from any pod on the AKS cluster at:
+# my-backend.default.svc.clusterset.local
+kubectl exec -n default deploy/my-app -- \
+  curl -s http://my-backend.default.svc.clusterset.local/health
+```
+
+### 18.5 Viewing MCS in the Console
+
+Navigate to **Kubernetes Engine > Fleet > Feature manager** and select **Multi-Cluster Services**. This page shows which clusters have MCS enabled, which Services are exported, and the import status on each fleet member.
+
+---
+
+## 19. Metric-Based Alerting with Managed Prometheus
+
+### 19.1 Why Metric-Based Alerts Complement Log-Based Alerts
+
+Log-based alerts (covered in §6.6) fire when a specific log entry appears. Metric-based alerts fire when a numeric threshold is crossed — for example, when CPU usage exceeds 80% for five minutes, or when the container restart count on the AKS cluster increases by more than three in an hour. Both patterns are necessary for comprehensive cluster monitoring.
+
+### 19.2 Creating a Metric-Based Alert in the Console
+
+Navigate to **Monitoring > Alerting > Create Policy**.
+
+1. Click **Select a metric** and search for `kubernetes.io/container/restart_count`.
+2. Add a filter: `resource.cluster_name = azure-aks-cluster`.
+3. Set the aggregation to **Sum** across all containers, with a **1-hour** rolling window.
+4. Set the threshold condition: **is above 3**.
+5. Set the notification channel (email, PagerDuty, Slack, etc.).
+6. Name the policy: `AKS Container Restart Spike`.
+
+### 19.3 Creating a Metric-Based Alert from the Command Line
+
+```bash
+# Create a notification channel (email) first
+gcloud beta monitoring channels create \
+  --display-name="Platform Team Email" \
+  --type=email \
+  --channel-labels=email_address=platform-team@example.com \
+  --project=my-gcp-project
+
+# Capture the channel ID
+CHANNEL_ID=$(gcloud beta monitoring channels list \
+  --filter="displayName='Platform Team Email'" \
+  --format="value(name)" \
+  --project=my-gcp-project)
+
+# Create an alerting policy on container restart count for the AKS cluster
+gcloud alpha monitoring policies create \
+  --display-name="AKS Container Restart Spike" \
+  --condition-display-name="Restart count > 3 in 1 hour" \
+  --condition-filter='resource.type="k8s_container" AND resource.labels.cluster_name="azure-aks-cluster" AND metric.type="kubernetes.io/container/restart_count"' \
+  --condition-threshold-value=3 \
+  --condition-threshold-duration=3600s \
+  --condition-threshold-comparison=COMPARISON_GT \
+  --notification-channels="$CHANNEL_ID" \
+  --project=my-gcp-project
+
+# List all alerting policies to confirm it was created
+gcloud alpha monitoring policies list --project=my-gcp-project
+```
+
+### 19.4 Creating a PromQL-Based Alert
+
+For more expressive conditions, alerting policies can use PromQL directly against Managed Prometheus data:
+
+```bash
+# Alert when any node on the AKS cluster exceeds 90% CPU for 5 minutes
+# Create this via the Console: Monitoring > Alerting > Create Policy
+# Switch condition type to "Prometheus Query Language (PromQL)" and enter:
+
+# PromQL condition:
+# (
+#   rate(kubernetes_io:node_cpu_usage_seconds_total{cluster_name="azure-aks-cluster"}[5m])
+#   /
+#   kubernetes_io:node_cpu_allocatable_cores{cluster_name="azure-aks-cluster"}
+# ) > 0.9
+```
+
+In the Console, navigate to **Monitoring > Alerting > Create Policy**, set the condition type to **Prometheus Query Language (PromQL)**, and paste the expression above. PromQL-based alert conditions support any metric available in Managed Prometheus, including custom application metrics scraped via `PodMonitoring` resources.
+
+### 19.5 Listing and Managing Alert Policies
+
+```bash
+# List all alerting policies in the project
+gcloud alpha monitoring policies list --project=my-gcp-project
+
+# Describe a specific policy
+gcloud alpha monitoring policies describe POLICY_ID \
+  --project=my-gcp-project
+
+# View currently firing alerts in the Console
+# Navigate to: Monitoring > Alerting > Incidents
+```
+
+---
+
+## 20. Custom Monitoring Dashboards
+
+### 20.1 Creating a Custom Dashboard
+
+The built-in GKE dashboards (§7.6) show standard Kubernetes metrics. Custom dashboards allow engineers to combine AKS cluster metrics with GKE cluster metrics on the same chart — making cross-cloud comparisons visible at a glance.
+
+Navigate to **Monitoring > Dashboards > Create Dashboard**. Add a chart, select **Metrics Explorer** as the chart type, and filter by `cluster_name` to add series for both the AKS cluster and any GKE clusters. A single chart can show CPU or memory usage across all fleet clusters simultaneously.
+
+### 20.2 Creating a Dashboard from the Command Line
+
+```bash
+# Create a minimal custom dashboard for the AKS cluster
+gcloud monitoring dashboards create --config='{
+  "displayName": "AKS Cluster Overview",
+  "gridLayout": {
+    "widgets": [
+      {
+        "title": "Container CPU Usage - AKS",
+        "xyChart": {
+          "dataSets": [{
+            "timeSeriesQuery": {
+              "timeSeriesFilter": {
+                "filter": "metric.type=\"kubernetes.io/container/cpu/core_usage_time\" resource.labels.cluster_name=\"azure-aks-cluster\"",
+                "aggregation": {
+                  "alignmentPeriod": "60s",
+                  "perSeriesAligner": "ALIGN_RATE"
+                }
+              }
+            }
+          }]
+        }
+      }
+    ]
+  }
+}' --project=my-gcp-project
+
+# List all dashboards to find the new one
+gcloud monitoring dashboards list --project=my-gcp-project
+
+# Describe a specific dashboard
+gcloud monitoring dashboards describe DASHBOARD_ID \
+  --project=my-gcp-project
+```
+
+### 20.3 Exploring Dashboards in the Console
+
+Navigate to **Monitoring > Dashboards**. The custom dashboard appears alongside the built-in GKE dashboards. Use the **Add chart** button to add new panels, and the **Variables** feature to create a dashboard-level filter that toggles between the AKS cluster and any GKE clusters with a single dropdown.
+
+---
+
+## 21. Workload Identity: Console Exploration
+
+### 21.1 Viewing Identity Bindings in the Console
+
+Section 4.4 covers the CLI commands for setting up Workload Identity Federation for application pods. The Console provides a complementary view of the full identity chain.
+
+Navigate to **IAM & Admin > Workload Identity Federation**.
+
+The page lists all Workload Identity Pools in the project. The fleet creates a pool named `PROJECT_ID.svc.id.goog`. Clicking the pool shows:
+- All OIDC providers registered to it — one per attached cluster in the fleet.
+- The issuer URL for each provider (the AKS OIDC endpoint).
+- The attribute mappings that translate Kubernetes service account tokens into Google Cloud principal identifiers.
+
+To inspect the IAM bindings that link Kubernetes service accounts to Google Cloud service accounts, navigate to **IAM & Admin > Service Accounts**, select the Google Cloud service account, and click the **Permissions** tab. Any Workload Identity User bindings granted to fleet principals are listed here.
+
+### 21.2 Verifying Workload Identity End-to-End
+
+After completing the setup in §4.4, deploy a test pod to confirm the identity exchange is working:
+
+```bash
+# Connect to the AKS cluster
+gcloud container attached clusters get-credentials azure-aks-cluster \
+  --location=us-central1 --project=my-gcp-project
+
+# Deploy a test pod using the annotated service account
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: workload-identity-test
+  namespace: default
+spec:
+  serviceAccountName: my-app-sa
+  containers:
+  - name: test
+    image: google/cloud-sdk:slim
+    command: ["sleep", "3600"]
+EOF
+
+# Wait for the pod to start
+kubectl wait --for=condition=Ready pod/workload-identity-test --timeout=60s
+
+# Inside the pod, request a GCP access token via the OIDC exchange
+kubectl exec workload-identity-test -- \
+  curl -s -H "Metadata-Flavor: Google" \
+  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+
+# Use the token to call a GCP API (e.g. list GCS buckets)
+kubectl exec workload-identity-test -- \
+  gcloud storage buckets list --project=my-gcp-project
+
+# Clean up
+kubectl delete pod workload-identity-test
+```
+
+A successful token response confirms the full OIDC exchange is working: the pod's Kubernetes service account token was accepted by Google Cloud's Workload Identity Federation endpoint and exchanged for a short-lived GCP access token — with no credential files anywhere in the chain.
+
+---
+
+## 22. Service Mesh Observability UIs
+
+### 22.1 Opening Mesh UIs with istioctl Dashboard
+
+`istioctl` can open local browser-based UIs for mesh observability tools that are deployed as part of the Istio installation. These provide richer visualisations than the terminal and complement the Cloud Console views.
+
+```bash
+# Open Kiali — service mesh topology and health visualisation
+istioctl dashboard kiali
+
+# Open Jaeger — distributed trace explorer (open-source alternative to Cloud Trace)
+istioctl dashboard jaeger
+
+# Open Grafana — pre-built Istio dashboards (if deployed)
+istioctl dashboard grafana
+
+# Open Prometheus — raw PromQL interface for mesh metrics (if deployed)
+istioctl dashboard prometheus
+
+# Open Envoy admin interface for a specific pod's sidecar
+istioctl dashboard envoy my-pod.default
+```
+
+Each command establishes a port-forward to the relevant service in the `istio-system` namespace and opens the UI in the default browser.
+
+### 22.2 What Each UI Shows
+
+**Kiali** provides an interactive graph of all services in the mesh, with real-time traffic flow, error rates, and health indicators on each edge. It shows which services have mTLS enabled, which have VirtualService or DestinationRule resources applied, and highlights misconfigurations. This is the fastest way to get a topological view of how services are communicating.
+
+**Jaeger** provides a trace search and waterfall UI scoped to the local Istio installation. It is useful when Cloud Trace ingestion latency makes it preferable to query traces directly from the local Jaeger store for immediate debugging.
+
+**Grafana** (if deployed alongside Istio) provides pre-built dashboards for Istio control plane health, sidecar injection rates, and per-service request metrics — using data from the local Prometheus instance rather than Cloud Monitoring.
+
+### 22.3 Verifying UI Availability
+
+```bash
+# Check which observability tools are deployed in the mesh
+kubectl get deployments -n istio-system
+
+# Kiali
+kubectl get svc kiali -n istio-system
+
+# Jaeger
+kubectl get svc tracing -n istio-system
+
+# Grafana
+kubectl get svc grafana -n istio-system
+```
+
+If a service is not present, it was not included in the `asmcli` installation profile. The Anthos Service Mesh installation with `--option attached-cluster` deploys a subset of these tools; Cloud Trace and the Anthos Service Mesh Console (§10.3) serve as the primary observability surfaces for the managed mesh.
 
 ---
