@@ -433,3 +433,175 @@ When ASM is enabled across multiple clusters in the same fleet, the mesh spans c
 This is possible because all clusters share the same **trust domain** (`PROJECT_ID.svc.id.goog`). Certificates issued by the ASM CA in either cluster are trusted by sidecars in all clusters, enabling mutual authentication across cluster boundaries.
 
 ---
+
+## Multi-Cluster Ingress and Global Load Balancing
+
+### The Problem Multi-Cluster Ingress Solves
+
+In a single-cluster deployment, a standard Kubernetes `Ingress` resource provisions a regional Google Cloud Load Balancer with backends in one region. Users in other regions are served from that single region, introducing latency. If that region experiences an outage, the application becomes unavailable.
+
+**Multi-Cluster Ingress (MCI)** solves this by provisioning a single **Global External Application Load Balancer** whose backends span multiple GKE clusters across regions. Google's network routes each user's request to the nearest healthy cluster — the same anycast routing used by Google's own global services.
+
+### Architecture
+
+```
+User (Europe)          User (US East)         User (Asia)
+      │                      │                      │
+      └──────────────────────┼──────────────────────┘
+                             │
+                  Global Anycast IP (single IP)
+                             │
+                  Google Cloud Load Balancer
+                  (globally distributed POPs)
+                             │
+              ┌──────────────┴──────────────┐
+              ▼                             ▼
+   NEG (us-west1 cluster1)       NEG (us-east1 cluster2)
+   frontend pods                 frontend pods
+```
+
+A single global IP address is reserved and used across all regions. Google's Premium Tier network routes traffic to the closest point of presence, then carries it over Google's backbone to the nearest healthy cluster.
+
+### MultiClusterIngress Resource
+
+The `MultiClusterIngress` custom resource is applied to the **config cluster** (`cluster1`). The GKE Hub Multi-Cluster Ingress controller watches this resource and provisions the underlying Google Cloud load balancer infrastructure.
+
+```yaml
+apiVersion: networking.gke.io/v1
+kind: MultiClusterIngress
+metadata:
+  name: bank-of-anthos-mci
+  namespace: bank-of-anthos
+spec:
+  template:
+    spec:
+      backend:
+        serviceName: bank-of-anthos-mcs
+        servicePort: 80
+```
+
+**Key points:**
+- Applied only to the config cluster — the MCI controller propagates load balancer configuration across all fleet clusters automatically
+- References a `MultiClusterService` (not a regular Kubernetes Service) as its backend
+- The MCI controller creates and manages Network Endpoint Groups (NEGs) in every cluster where matching pods are running
+
+### MultiClusterService Resource
+
+The `MultiClusterService` (MCS) resource defines which pods across which clusters should be included as backends for the global load balancer.
+
+```yaml
+apiVersion: networking.gke.io/v1
+kind: MultiClusterService
+metadata:
+  name: bank-of-anthos-mcs
+  namespace: bank-of-anthos
+spec:
+  template:
+    spec:
+      selector:
+        app: frontend
+      ports:
+      - name: http
+        protocol: TCP
+        port: 80
+        targetPort: 8080
+  clusters:
+  - link: "us-west1/gke-cluster-1"
+  - link: "us-east1/gke-cluster-2"
+```
+
+The `clusters` list explicitly enumerates which cluster deployments contribute backends. The MCI controller creates a corresponding `NodePort` service (for load balancer health checks) and a NEG in each listed cluster.
+
+**MCS vs standard Kubernetes Service**: A standard `Service` of type `LoadBalancer` provisions a regional load balancer — one per cluster, one per region, with separate IPs. An MCS with MCI provisions one global load balancer with backends in all listed clusters. You manage one resource, not N.
+
+### NodePort Service and BackendConfig
+
+Each cluster also runs a `NodePort` service for the frontend, which the global load balancer uses to reach pods. This service is annotated to reference a `BackendConfig`:
+
+```yaml
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: bank-of-anthos
+  namespace: bank-of-anthos
+spec:
+  healthCheck:
+    checkIntervalSec: 2
+    timeoutSec: 1
+    healthyThreshold: 1
+    unhealthyThreshold: 10
+    type: HTTP
+    requestPath: /
+  iap:
+    enabled: false
+```
+
+**BackendConfig** customises the behaviour of the Google Cloud load balancer backend service. Key settings here:
+
+- **Health check interval of 2 seconds** with an unhealthy threshold of 10 — the load balancer marks a backend unhealthy only after 10 consecutive failures (20 seconds), avoiding flapping during brief pod restarts
+- **Healthy threshold of 1** — a single successful probe immediately marks a backend healthy, minimising the time new pods take to receive traffic after startup
+- **IAP disabled** — Identity-Aware Proxy is not enabled, but the `BackendConfig` structure is in place so IAP can be switched on without changing the service configuration
+
+### Managed Certificates
+
+TLS termination is handled by a **Google-managed TLS certificate** provisioned automatically by GCP. No manual certificate procurement, CSR generation, or renewal is required.
+
+```yaml
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: bank-of-anthos
+  namespace: bank-of-anthos
+spec:
+  domains:
+  - boa.GLOBAL_IP.sslip.io
+```
+
+The domain uses **sslip.io** — a public DNS service that resolves any domain of the form `ADDRESS.sslip.io` to `ADDRESS`. This allows the module to provision a valid publicly-resolvable domain and obtain a real TLS certificate without requiring a custom domain or DNS zone configuration.
+
+**Certificate lifecycle:**
+1. The `ManagedCertificate` resource is created referencing the sslip.io domain
+2. GCP provisions the certificate via Let's Encrypt (or Google's CA)
+3. The certificate is attached to the load balancer frontend automatically
+4. GCP handles renewal before expiry — typically 30 days before the certificate expires
+
+**Certificate provisioning takes 10–60 minutes** after the load balancer is created, as GCP must perform DNS validation. During this window, HTTPS requests may fail or show a certificate warning.
+
+### FrontendConfig and HTTPS Redirect
+
+A `FrontendConfig` resource enforces an HTTPS redirect, ensuring all HTTP traffic is automatically upgraded:
+
+```yaml
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: bank-of-anthos
+  namespace: bank-of-anthos
+spec:
+  redirectToHttps:
+    enabled: true
+    responseCodeName: MOVED_PERMANENTLY_DEFAULT
+```
+
+This configures the load balancer frontend to return HTTP 301 for any request arriving on port 80, redirecting the client to the HTTPS equivalent URL. This is enforced at the load balancer level — the redirect happens before traffic reaches any pod.
+
+### Config Cluster Role
+
+The Multi-Cluster Ingress feature requires one cluster to be designated as the **config cluster**. In this module, `cluster1` (us-west1) is the config cluster. The MCI controller runs in the GKE Hub control plane and watches the config cluster for `MultiClusterIngress` and `MultiClusterService` resources.
+
+**Implications of the config cluster pattern:**
+- All MCI/MCS resources must be applied to the config cluster, not to other clusters
+- If the config cluster is unavailable, the load balancer continues serving traffic using its last known configuration — existing backends remain healthy
+- The config cluster can be changed after deployment by updating the fleet feature configuration
+
+### Traffic Flow End-to-End
+
+1. A user's DNS query for `boa.GLOBAL_IP.sslip.io` resolves to the single global anycast IP
+2. The user's TCP connection is terminated at the nearest Google point of presence
+3. The load balancer selects the nearest healthy cluster backend using latency-based routing
+4. The request is forwarded to a `NodePort` on a node in the selected cluster
+5. The node routes the request to a frontend pod via the NEG
+6. The frontend pod's Envoy sidecar intercepts the inbound request, applies policies, and records telemetry
+7. The frontend calls downstream services (user-service, ledger-writer, etc.) over mTLS within the mesh
+
+---
