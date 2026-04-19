@@ -160,3 +160,86 @@ This API enables the managed observability agents that Google Cloud deploys onto
 The Kubernetes Metadata API collects Kubernetes object metadata — namespaces, deployments, pods, services, nodes — from the registered cluster and makes it available to Cloud Monitoring. This powers the Kubernetes-aware monitoring dashboards in the Cloud Console, where you can browse metrics grouped by namespace, workload, or pod rather than just by raw metric name. It is what enables the **Kubernetes Engine** section of Cloud Monitoring to show EKS workloads alongside GKE workloads in the same workload-centric views.
 
 ---
+
+## AWS Infrastructure
+
+This section describes what the module creates on AWS and the design decisions behind each component. Understanding these choices is useful both for operating the deployed environment and for appreciating how AWS networking integrates with GKE Attached Clusters.
+
+### Virtual Private Cloud (VPC)
+
+The module creates a dedicated AWS VPC with a configurable CIDR block (default `10.0.0.0/16`). Using a dedicated VPC — rather than a default or shared VPC — gives the EKS cluster network isolation and prevents IP address conflicts with other workloads in the AWS account.
+
+Both DNS hostnames and DNS resolution are enabled on the VPC. These are required for EKS: worker nodes use DNS to resolve the EKS API server endpoint, and Kubernetes service discovery relies on DNS for pod-to-pod communication within the cluster.
+
+#### Subnet Topology
+
+Subnets are spread across **three AWS Availability Zones** (default: `us-west-2a`, `us-west-2b`, `us-west-2c`). Distributing subnets across AZs is a core EKS high-availability pattern: if one AZ experiences an outage, the scheduler can still place pods on worker nodes in the remaining two zones. AWS Load Balancers created by the cluster also require multi-AZ subnets to serve traffic from multiple zones simultaneously.
+
+The module supports two subnet topologies, controlled by the `enable_public_subnets` option:
+
+**Public Subnet Topology** (default: `enable_public_subnets = true`)
+
+Three subnets (default CIDRs: `10.0.101.0/24`, `10.0.102.0/24`, `10.0.103.0/24`) are created with direct internet access via an **Internet Gateway**. Worker nodes receive public IP addresses automatically. This topology is simpler and lower cost, making it well suited for learning environments and demonstrations where security hardening is not the primary concern.
+
+**Private Subnet Topology** (`enable_public_subnets = false`)
+
+Three subnets (default CIDRs: `10.0.1.0/24`, `10.0.2.0/24`, `10.0.3.0/24`) are created without public IP assignment. Outbound internet access — needed for nodes to pull container images and for the Anthos Connect Agent to reach Google Cloud — is routed through a **NAT Gateway** deployed in a public subnet with an Elastic IP. Worker nodes are never directly reachable from the internet.
+
+| Consideration | Public Subnets | Private Subnets |
+|--------------|---------------|----------------|
+| Worker node internet exposure | Nodes have public IPs | Nodes have no public IPs |
+| Cost | Lower (no NAT Gateway) | Higher (NAT Gateway hourly + data transfer) |
+| Setup complexity | Simpler | Requires NAT Gateway and routing table |
+| Recommended for | Labs, demos, learning | Production, regulated workloads |
+
+All subnets — regardless of topology — are tagged with the EKS cluster name. This tagging convention is required by EKS so that the cluster can discover which subnets belong to it when automatically provisioning AWS Load Balancers for Kubernetes `Service` objects of type `LoadBalancer`.
+
+---
+
+### AWS Identity and Access Management (IAM)
+
+EKS requires specific AWS IAM roles to operate. The module creates two roles with the minimum permissions necessary, following the principle of least privilege.
+
+#### EKS Cluster Role
+
+This role is assumed by the EKS service itself — not by any human user or application. It grants the EKS control plane permission to manage AWS resources on behalf of the cluster: creating and configuring EC2 security groups, elastic network interfaces, and load balancers as workloads are scheduled and services are created. Without this role, the EKS control plane cannot interact with the AWS networking layer that Kubernetes relies on.
+
+#### EKS Node Group Role
+
+This role is assumed by the EC2 instances that serve as worker nodes. It carries three AWS-managed policies:
+
+| Policy | What it Enables |
+|--------|----------------|
+| **AmazonEKSWorkerNodePolicy** | Allows worker nodes to authenticate with the EKS control plane and register themselves as cluster members |
+| **AmazonEKS_CNI_Policy** | Grants the AWS VPC CNI plugin permission to create, attach, and configure elastic network interfaces on EC2 instances — this is how each pod gets its own VPC IP address |
+| **AmazonEC2ContainerRegistryReadOnly** | Allows nodes to pull container images from Amazon ECR repositories in the same account |
+
+**Understanding the AWS VPC CNI plugin:** Unlike some other Kubernetes networking plugins, the AWS VPC CNI gives each pod a real VPC IP address (not a secondary overlay address). This means pods are directly routable within the VPC and from other VPCs that are peered with it — a meaningful architectural difference from GKE's VPC-native networking, which achieves the same result using secondary IP ranges on the node's network interface.
+
+---
+
+### Amazon EKS Cluster
+
+Amazon Elastic Kubernetes Service (EKS) is AWS's managed Kubernetes control plane service. With EKS, AWS operates the Kubernetes API server, etcd, and controller manager — the components that make up the control plane — as a managed service with built-in high availability and automatic version patching. You only manage the worker nodes.
+
+#### Kubernetes Version
+
+The cluster runs Kubernetes version `1.34` by default, configurable via `k8s_version`. The GKE attached cluster platform version (`platform_version`, default `1.34.0-gke.1`) must correspond to the same Kubernetes minor version — Google Cloud validates this alignment during registration. When you update the Kubernetes version on EKS, the platform version should be updated in the same deployment to maintain compatibility.
+
+#### Worker Node Group
+
+The cluster's compute capacity comes from a **managed node group** — a set of EC2 instances that EKS provisions, registers with the cluster, and keeps in sync with the control plane version. Using a managed node group (rather than self-managed nodes) means AWS handles node bootstrapping, AMI updates during Kubernetes version upgrades, and graceful node draining during replacements.
+
+The node group is configured with auto-scaling bounds:
+
+| Parameter | Default | Configuration Option |
+|-----------|---------|---------------------|
+| Starting node count | 2 | `node_group_desired_size` |
+| Minimum node count | 2 | `node_group_min_size` |
+| Maximum node count | 5 | `node_group_max_size` |
+
+The maximum of 5 nodes defines the ceiling for automatic scale-out, but scaling beyond the desired count requires a cluster autoscaler to be deployed onto the cluster separately — this module does not install one.
+
+**Comparing EKS managed nodes to GKE Autopilot:** This is a useful learning contrast. GKE Autopilot removes node management entirely — you never think about node counts, instance types, or node group configuration. EKS managed node groups are closer to GKE Standard mode, where you choose the node pool size and instance type. The EKS experience in this module helps platform engineers appreciate what GKE Autopilot abstracts away.
+
+---
