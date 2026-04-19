@@ -1046,3 +1046,364 @@ kubectl describe httproute my-route -n default
 ```
 
 ---
+
+## Observability
+
+Istio provides first-class integrations with the open-source observability stack. The add-on components installed by this module — Prometheus, Grafana, Kiali, and Jaeger — work together to give platform engineers a complete picture of service health, traffic patterns, and distributed request traces.
+
+### Prometheus — Metrics Collection
+
+Istio's sidecar proxies (and ztunnel in ambient mode) automatically expose a Prometheus-compatible metrics endpoint. No application instrumentation is required. Prometheus scrapes the `/stats/prometheus` endpoint on every sidecar and aggregates the data.
+
+Key Istio-generated metrics:
+- `istio_requests_total` — request count labelled by source service, destination service, response code, and protocol
+- `istio_request_duration_milliseconds` — latency histogram for every service-to-service call
+- `istio_tcp_sent_bytes_total` / `istio_tcp_received_bytes_total` — byte counters for TCP flows
+- `pilot_xds_pushes` — number of configuration updates pushed from istiod to proxies
+- `envoy_cluster_upstream_cx_active` — active connections per upstream cluster
+
+Access Prometheus:
+
+```bash
+# Port-forward Prometheus to your local machine
+kubectl port-forward -n istio-system svc/prometheus 9090:9090
+
+# Open http://localhost:9090 in a browser
+
+# Query total requests to a service in the last 5 minutes
+# In the Prometheus expression bar, enter:
+# rate(istio_requests_total{destination_service_name="my-service"}[5m])
+
+# Query P99 latency for a service
+# histogram_quantile(0.99, rate(istio_request_duration_milliseconds_bucket{destination_service_name="my-service"}[5m]))
+```
+
+**Explore in the Cloud Console:** Navigate to **Monitoring → Metrics Explorer**. In the metric picker, search for `istio` to see all Istio metrics forwarded by Google Cloud Managed Service for Prometheus (if GMP integration is enabled). Set the aggregation to `sum by (destination_service_name)` to see per-service request rates.
+
+### Grafana — Dashboards
+
+Grafana is pre-configured with Istio's official dashboard set. These dashboards provide immediate operational visibility without requiring manual dashboard creation.
+
+Key dashboards:
+- **Istio Mesh Dashboard** — cluster-wide overview: global request rate, error rate, P50/P90/P99 latency
+- **Istio Service Dashboard** — per-service inbound and outbound traffic details
+- **Istio Workload Dashboard** — per-Deployment or per-Pod traffic breakdown
+- **Istio Control Plane Dashboard** — istiod health: xDS push rate, connected proxies, configuration errors
+- **Istio Performance Dashboard** — sidecar resource usage (CPU, memory) per workload
+
+Access Grafana:
+
+```bash
+# Port-forward Grafana
+kubectl port-forward -n istio-system svc/grafana 3000:3000
+
+# Open http://localhost:3000 in a browser
+# Default credentials: admin / admin (change on first login)
+
+# Navigate to Dashboards → Browse → Istio to find all pre-built dashboards
+```
+
+**Explore in the Cloud Console:** Navigate to **Monitoring → Dashboards** and look for any Istio dashboards that may have been imported if GMP is active. Alternatively, create a custom dashboard using the `istio_requests_total` metric to build a service-level request rate chart.
+
+### Kiali — Service Mesh Topology
+
+Kiali is the observability console purpose-built for Istio. It reads from Prometheus, queries the Kubernetes API, and renders an interactive graph of every service-to-service relationship in the mesh.
+
+Kiali capabilities:
+- **Traffic graph** — animated real-time visualisation of request flows with request rates, error rates, and mTLS status on each edge
+- **Health indicators** — red/yellow/green status for each node based on success rate thresholds you configure
+- **Configuration validation** — detects misconfigured `VirtualService`, `DestinationRule`, and `Gateway` resources and highlights conflicts
+- **Workload detail** — per-pod inbound/outbound traffic, health, and associated Istio configuration
+- **Tracing integration** — links from Kiali nodes directly to Jaeger traces for the selected service
+
+Access Kiali:
+
+```bash
+# Port-forward Kiali
+kubectl port-forward -n istio-system svc/kiali 20001:20001
+
+# Open http://localhost:20001 in a browser
+
+# In the Graph view, select your namespace(s) and click Display to show:
+# - Security (padlock icons confirming mTLS on each edge)
+# - Traffic animation (moving dots proportional to request rate)
+# - Response time (P50/P99 labels on edges)
+```
+
+**Security audit use case:** In the Kiali graph, enable the **Security** display layer. Any edge without a padlock icon indicates that traffic between those two services is not mTLS-encrypted. This can reveal misconfigured `PeerAuthentication` policies or workloads not yet enrolled in the mesh.
+
+### Jaeger — Distributed Tracing
+
+Jaeger implements the distributed tracing standard for the mesh. When a request enters the mesh through the Ingress Gateway, Istio automatically generates a trace span. Each hop through a sidecar or waypoint adds a child span, giving you a complete timeline of how a request travelled through your services.
+
+**Important:** Istio propagates trace context (W3C TraceContext or B3 headers) between proxies, but for in-application spans to appear, your application must forward the trace headers it receives to any outbound calls it makes. The required headers are: `x-request-id`, `x-b3-traceid`, `x-b3-spanid`, `x-b3-parentspanid`, `x-b3-sampled`, `x-b3-flags`, and `traceparent`.
+
+Access Jaeger:
+
+```bash
+# Port-forward Jaeger
+kubectl port-forward -n istio-system svc/tracing 16686:80
+
+# Open http://localhost:16686 in a browser
+
+# In the Search tab:
+# - Service: select your service name
+# - Operation: leave blank to see all
+# - Limit Results: 20
+# Click Find Traces to see recent requests
+
+# Inspect a trace to see every hop and latency at each stage
+```
+
+**Trace sampling:** By default, Istio samples 1 % of traces to limit storage costs. To increase the sampling rate for debugging:
+
+```bash
+# Check the current sampling rate
+kubectl get configmap istio -n istio-system -o jsonpath='{.data.mesh}' | grep sampling
+
+# Patch the mesh config to sample 100% (use only for debugging, not production)
+kubectl patch configmap istio -n istio-system --type=merge \
+  -p '{"data":{"mesh":"defaultConfig:\n  tracing:\n    sampling: 100.0"}}'
+```
+
+---
+
+## Configuration Reference
+
+The following table covers the key configuration parameters that affect the behaviour of the Istio_GKE module. These are the settings available when using the module.
+
+### GKE Cluster Settings
+
+| Parameter | Default | Description |
+|---|---|---|
+| GKE release channel | `REGULAR` | Determines the Kubernetes version stream. `RAPID` gets features sooner; `STABLE` is the most conservative. |
+| Node machine type | `e2-standard-2` | 2 vCPU, 8 GiB RAM per node. Suitable for demonstration workloads. Increase for production. |
+| Node count (initial) | 3 | Starting number of nodes. The cluster autoscaler adjusts this within the configured min/max range. |
+| Autoscaling min nodes | 1 | The cluster will never scale below this count. |
+| Autoscaling max nodes | 5 | The cluster will never scale above this count. |
+| Preemptible nodes | `true` | Reduces cost significantly. Not recommended for production; preemptible VMs can be reclaimed with 30 seconds notice. |
+| Workload Identity | Enabled | Binds Kubernetes service accounts to Google service accounts. Required for GKE workloads to access Google Cloud APIs. |
+| VPC-native networking | Enabled | Pods receive IPs from a secondary subnet range. Required for Istio sidecar mode and enables direct VPC routing to pods. |
+| Security Posture scanning | Enabled | Continuously scans workload configurations and container images for vulnerabilities. |
+| Gateway API | Enabled | Installs the Kubernetes Gateway API CRDs. Required for Istio 1.24+ ambient mode waypoints. |
+
+### Istio Installation Settings
+
+| Parameter | Default | Description |
+|---|---|---|
+| Data plane mode | Configurable | `sidecar` for the traditional per-pod proxy model; `ambient` for the node-level ztunnel architecture. |
+| Ingress Gateway | Enabled | Deploys an `istio-ingressgateway` LoadBalancer Service as the cluster's external entry point. |
+| Ingress Gateway replicas | 1 | Starting replica count. The HPA scales between 1 and 5 based on CPU utilisation. |
+| mTLS mode | `PERMISSIVE` | Accepts both plaintext and mTLS traffic. Change to `STRICT` to reject all unencrypted traffic. |
+| Certificate authority | `istiod` built-in | `istiod` acts as the mesh CA, issuing 24-hour SPIFFE certificates to all workloads. |
+| Trace sampling rate | 1 % | The proportion of requests for which Jaeger traces are generated. |
+
+### Observability Add-on Settings
+
+| Parameter | Default | Description |
+|---|---|---|
+| Prometheus | Enabled | Scrapes metrics from all sidecar proxies and the istiod control plane. Data retained for 15 days by default. |
+| Grafana | Enabled | Pre-loaded with the official Istio dashboard set. Connected to the local Prometheus instance. |
+| Kiali | Enabled | Service mesh topology console. Reads from Prometheus and the Kubernetes API. |
+| Jaeger | Enabled | Distributed tracing backend. Receives traces from the mesh via the Zipkin-compatible collector endpoint. |
+
+### Networking Settings
+
+| Parameter | Default | Description |
+|---|---|---|
+| VPC | Created by module | A dedicated VPC with global routing mode and a single subnet. |
+| Subnet region | Configurable | The GCP region where the subnet and GKE cluster reside. |
+| Pod IP range | `/16` secondary range | Allocates up to 65,536 pod IPs from the subnet's secondary range. |
+| Service IP range | `/20` secondary range | Allocates up to 4,096 ClusterIP addresses for Kubernetes Services. |
+| Cloud NAT | Enabled | Provides outbound internet access for nodes (required for `istioctl` and add-on image pulls). |
+
+---
+
+## Default Behaviours
+
+Understanding the module's default configuration helps avoid surprises when exploring or extending what is deployed.
+
+**mTLS is permissive, not strict.** The mesh-wide `PeerAuthentication` policy defaults to `PERMISSIVE` mode. Services not yet enrolled in the mesh can still communicate with mesh-enrolled services. This is intentional for incremental adoption, but you should switch individual namespaces to `STRICT` as workloads are onboarded.
+
+**Ingress Gateway has no TLS by default.** The `istio-ingressgateway` Service exposes port 80 (HTTP) and port 443 (HTTPS), but no TLS certificate is pre-configured. You must create a Kubernetes TLS Secret and reference it in a `Gateway` resource to serve HTTPS.
+
+**No `AuthorizationPolicy` is applied.** All service-to-service communication within the mesh is allowed by default. Apply a `deny-all` baseline policy per namespace and explicitly allow only the required paths, as shown in the Traffic Management section.
+
+**Nodes are preemptible.** The node pool uses preemptible VMs, which cost significantly less but can be terminated with 30 seconds notice. Workloads must tolerate this via `PodDisruptionBudget` and multiple replicas.
+
+**Observability add-ons use in-cluster storage.** Prometheus, Grafana, Jaeger, and Kiali store data within the cluster on PersistentVolumeClaims. Data is lost if the cluster is deleted. For production, configure remote storage (e.g., Google Cloud Managed Service for Prometheus, Google Cloud Trace, or an external Grafana instance).
+
+**istiod manages its own CA.** The built-in Citadel CA in istiod issues 24-hour SPIFFE certificates. There is no integration with Google Certificate Authority Service or external PKI by default. For compliance environments, configure an external CA.
+
+**Cluster autoscaler is enabled.** The node pool scales between 1 and 5 nodes based on pending pod resource requests. Scale-down events trigger node drains, which cause brief pod disruptions. Configure pod disruption budgets for critical workloads.
+
+---
+
+## Prerequisites
+
+Before deploying the Istio_GKE module, verify the following:
+
+### Google Cloud
+
+- A Google Cloud project with billing enabled
+- The following APIs enabled (the module enables them automatically on first run):
+  - `container.googleapis.com` — GKE API
+  - `compute.googleapis.com` — VPC, firewall, Cloud NAT
+  - `iam.googleapis.com` — IAM roles and Workload Identity
+  - `cloudresourcemanager.googleapis.com` — project metadata
+
+```bash
+# Check which APIs are enabled in your project
+gcloud services list --enabled --filter="name:container OR name:compute OR name:iam"
+```
+
+### Permissions
+
+The identity running the module (user or service account) requires:
+- `roles/container.admin` — create and manage GKE clusters
+- `roles/compute.networkAdmin` — create VPC, subnets, firewall rules, Cloud NAT
+- `roles/iam.serviceAccountAdmin` — create node service accounts
+- `roles/iam.workloadIdentityUser` — bind Kubernetes service accounts
+
+```bash
+# Check your current IAM roles
+gcloud projects get-iam-policy <PROJECT_ID> \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:user:<YOUR_EMAIL>"
+```
+
+### Local Tools
+
+The following tools must be available in the environment running the module:
+- `gcloud` CLI (authenticated with `gcloud auth login` or `gcloud auth activate-service-account`)
+- `kubectl` (available via `gcloud components install kubectl`)
+- `istioctl` (downloaded by the module during installation)
+- `helm` (required only if using the Gateway API via Helm)
+
+```bash
+# Verify gcloud authentication
+gcloud auth list
+
+# Verify kubectl is installed
+kubectl version --client
+
+# Install kubectl via gcloud if missing
+gcloud components install kubectl
+```
+
+---
+
+## Deploying the Module
+
+### Initial Deployment
+
+1. **Authenticate to Google Cloud:**
+
+```bash
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project <YOUR_PROJECT_ID>
+```
+
+2. **Confirm the target region and cluster name** in the module configuration.
+
+3. **Apply the module.** The deployment sequence is:
+   - VPC and subnets created
+   - GKE Standard cluster provisioned (~5–8 minutes)
+   - Node pool added with autoscaling configured
+   - Workload Identity configured on the cluster
+   - `istioctl` downloaded and Istio installed into the cluster (~3–5 minutes)
+   - Observability add-ons (Prometheus, Grafana, Kiali, Jaeger) deployed
+
+4. **Configure `kubectl` to connect to the cluster:**
+
+```bash
+# Get credentials for the new cluster
+gcloud container clusters get-credentials <CLUSTER_NAME> --region <REGION>
+
+# Verify the connection
+kubectl get nodes
+kubectl get pods -n istio-system
+```
+
+5. **Verify the Istio installation:**
+
+```bash
+# Confirm all Istio components are running
+istioctl verify-install
+
+# Check the overall mesh health
+istioctl analyze
+
+# Confirm the Ingress Gateway has an external IP
+kubectl get service istio-ingressgateway -n istio-system
+```
+
+### Enrol Your First Application
+
+After the cluster is running and Istio is verified:
+
+```bash
+# Label the namespace for sidecar injection (sidecar mode)
+kubectl label namespace default istio-injection=enabled
+
+# Or label for ambient mode
+kubectl label namespace default istio.io/dataplane-mode=ambient
+
+# Deploy a sample application
+kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.24/samples/bookinfo/platform/kube/bookinfo.yaml
+
+# Verify all pods are running with sidecars injected (sidecar mode: 2/2 containers per pod)
+kubectl get pods -n default
+
+# Access the application via the Ingress Gateway
+kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.24/samples/bookinfo/networking/bookinfo-gateway.yaml
+
+# Get the ingress gateway external IP
+kubectl get service istio-ingressgateway -n istio-system \
+  -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
+
+### Cleaning Up
+
+To avoid ongoing charges, delete the cluster when finished:
+
+```bash
+# Delete the GKE cluster
+gcloud container clusters delete <CLUSTER_NAME> --region <REGION>
+
+# Confirm the cluster is deleted
+gcloud container clusters list
+```
+
+---
+
+## Further Learning
+
+### Open Source Istio
+- **Istio documentation:** https://istio.io/latest/docs/
+- **Istio concepts overview:** https://istio.io/latest/docs/concepts/
+- **Ambient mode guide:** https://istio.io/latest/docs/ambient/
+- **Traffic management reference:** https://istio.io/latest/docs/reference/config/networking/
+- **Security reference:** https://istio.io/latest/docs/reference/config/security/
+- **Istio by example:** https://istiobyexample.dev/
+
+### GKE
+- **GKE documentation:** https://cloud.google.com/kubernetes-engine/docs
+- **GKE Standard clusters:** https://cloud.google.com/kubernetes-engine/docs/concepts/types-of-clusters
+- **VPC-native clusters:** https://cloud.google.com/kubernetes-engine/docs/concepts/alias-ips
+- **Workload Identity:** https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity
+- **GKE Security Posture:** https://cloud.google.com/kubernetes-engine/docs/concepts/about-security-posture-dashboard
+
+### Observability
+- **Prometheus documentation:** https://prometheus.io/docs/
+- **Grafana documentation:** https://grafana.com/docs/
+- **Kiali documentation:** https://kiali.io/docs/
+- **Jaeger documentation:** https://www.jaegertracing.io/docs/
+- **Google Cloud Managed Service for Prometheus:** https://cloud.google.com/stackdriver/docs/managed-prometheus
+
+### Service Mesh Concepts
+- **SPIFFE standard:** https://spiffe.io/docs/latest/spiffe-about/overview/
+- **Envoy proxy documentation:** https://www.envoyproxy.io/docs/envoy/latest/
+- **Kubernetes Gateway API:** https://gateway-api.sigs.k8s.io/
+- **CNCF Service Mesh Landscape:** https://landscape.cncf.io/card-mode?category=service-mesh
