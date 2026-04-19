@@ -1498,4 +1498,297 @@ kubectl delete pod insecure-test -n $NS --context $CTX1
 
 ---
 
+## Troubleshooting Guide
+
+### Application Not Reachable After Deployment
+
+**Symptom**: Navigating to the `boa.GLOBAL_IP.sslip.io` URL returns a connection error or 502.
+
+**Most likely cause**: The managed TLS certificate is still being provisioned. Certificate provisioning takes 10–60 minutes after the load balancer is created. During this window, HTTPS requests fail.
+
+**Check certificate status**:
+```bash
+kubectl get managedcertificate -n bank-of-anthos --context $CTX1
+```
+
+The `STATUS` column should progress from `Provisioning` to `Active`. Until it shows `Active`, HTTPS traffic will not work.
+
+**Also check**: load balancer backend health. Navigate to **Network Services → Load Balancing** in the Cloud Console and inspect the backend service. If backends show `Unhealthy`, the pods may not be ready yet, or the health check firewall rule (`allow-health-checks`) may be missing.
+
+---
+
+### Pods Stuck in `Pending` State
+
+**Symptom**: Pods remain in `Pending` state after the application is deployed.
+
+**On Autopilot clusters**: Autopilot provisions nodes on demand. The first pod scheduled to a new node profile can take 2–3 minutes to start while Autopilot provisions the node. This is expected behaviour. Watch pod events:
+
+```bash
+kubectl describe pod POD_NAME -n bank-of-anthos --context $CTX1 | tail -20
+```
+
+Look for `TriggeredScaleUp` events confirming Autopilot is provisioning capacity.
+
+**On Standard clusters**: Check if nodes are Ready and have sufficient allocatable resources:
+
+```bash
+kubectl get nodes --context $CTX1
+kubectl describe node NODE_NAME --context $CTX1 | grep -A10 "Allocatable"
+```
+
+If nodes are `NotReady`, check kubelet logs via **Logging → Log Explorer** filtering on `resource.type="k8s_node"`.
+
+---
+
+### Sidecar Not Injected Into Pods
+
+**Symptom**: Pods show only one container instead of two (application + `istio-proxy`). mTLS calls fail.
+
+**Check the namespace label**:
+```bash
+kubectl get namespace bank-of-anthos --context $CTX1 \
+  -o jsonpath='{.metadata.labels}'
+```
+
+The label `istio.io/rev=asm-managed` must be present. If missing, re-label the namespace:
+
+```bash
+kubectl label namespace bank-of-anthos \
+  istio.io/rev=asm-managed --context $CTX1 --overwrite
+```
+
+Note: re-labelling the namespace does not inject sidecars into existing pods. Existing pods must be restarted to receive injection:
+
+```bash
+kubectl rollout restart deployment -n bank-of-anthos --context $CTX1
+```
+
+**Check ASM is configured on the cluster**:
+```bash
+gcloud container fleet mesh describe --project PROJECT_ID
+```
+
+If the cluster does not appear in `membershipStates`, ASM provisioning may still be in progress. Allow up to 20 minutes after fleet registration.
+
+---
+
+### MultiClusterIngress Not Routing Traffic
+
+**Symptom**: The global load balancer IP is reachable but returns 502 or routes to only one cluster.
+
+**Check MCI resource status**:
+```bash
+kubectl describe multiclusteringress bank-of-anthos-mci \
+  -n bank-of-anthos --context $CTX1
+```
+
+Look for events showing backend service creation. The MCI controller logs can be found by filtering Cloud Logging for `resource.type="k8s_cluster"` and searching for `multiclusteringress`.
+
+**Verify the MultiClusterService has backends**:
+```bash
+kubectl describe multiclusterservice bank-of-anthos-mcs \
+  -n bank-of-anthos --context $CTX1
+```
+
+Each cluster listed in the `spec.clusters` field should show a corresponding NEG being created.
+
+**Check the config cluster designation**:
+```bash
+gcloud container fleet features describe multiclusteringress \
+  --project PROJECT_ID
+```
+
+The `configMembership` field must point to `cluster1`. If it is empty or points to a different cluster, MCI resources applied to `cluster1` will be ignored.
+
+---
+
+### Fleet Membership Not Reaching READY State
+
+**Symptom**: Deployment stalls waiting for fleet membership to become `READY`.
+
+**Check current membership state**:
+```bash
+gcloud container fleet memberships list --project PROJECT_ID
+```
+
+If state is `REGISTERING` for more than 10 minutes, check whether the required APIs are enabled:
+```bash
+gcloud services list --enabled --project PROJECT_ID \
+  --filter="name:(gkehub OR gkeconnect OR anthos)"
+```
+
+All three should be listed. If not, enable them:
+```bash
+gcloud services enable gkehub.googleapis.com \
+  gkeconnect.googleapis.com anthos.googleapis.com \
+  --project PROJECT_ID
+```
+
+Also verify the GKE Hub service account has the `roles/gkehub.serviceAgent` role:
+```bash
+gcloud projects get-iam-policy PROJECT_ID \
+  --flatten="bindings[].members" \
+  --filter="bindings.role=roles/gkehub.serviceAgent"
+```
+
+---
+
+### ASM Sidecar Causing Pod Startup Failures
+
+**Symptom**: Pods fail to start with errors like `connection refused` on application startup, even before the application has initialised.
+
+**Cause**: The Envoy sidecar initialises asynchronously. If the application container starts before the sidecar is ready and immediately makes an outbound network call, the call fails because iptables rules have been set but the sidecar is not yet listening.
+
+**Solution**: Add a `holdApplicationUntilProxyStarts` annotation or configure a startup delay. For Java services (which have slow JVM startup), this is less common because the JVM itself takes several seconds. For fast-starting containers, configure the sidecar to hold application traffic:
+
+```bash
+kubectl annotate pod POD_NAME \
+  proxy.istio.io/config='{"holdApplicationUntilProxyStarts": true}' \
+  -n bank-of-anthos --context $CTX1
+```
+
+For a permanent fix, apply the annotation at the Deployment level in the pod template spec.
+
+---
+
+### VPC Deletion Fails on Destroy
+
+**Symptom**: Teardown fails with `resource is in use by resource` when attempting to delete the VPC or subnets.
+
+**Cause**: GKE and the MCI controller create firewall rules and Network Endpoint Groups during cluster operation that are not managed by this module's resource tracking. These must be cleaned up before the VPC can be deleted.
+
+**Manual cleanup**:
+
+Delete GKE-managed firewall rules:
+```bash
+gcloud compute firewall-rules list \
+  --project PROJECT_ID \
+  --filter="name~^gke-.* AND name~.*-mcsd$" \
+  --format="value(name)" | \
+  xargs -I{} gcloud compute firewall-rules delete {} \
+    --project PROJECT_ID --quiet
+```
+
+Delete orphaned NEGs:
+```bash
+for ZONE in $(gcloud compute zones list --project PROJECT_ID \
+  --format="value(name)"); do
+  gcloud compute network-endpoint-groups list \
+    --project PROJECT_ID --zones=$ZONE \
+    --filter="name~^gsmrsvd.*" \
+    --format="value(name)" | \
+    xargs -I{} gcloud compute network-endpoint-groups delete {} \
+      --project PROJECT_ID --zone=$ZONE --quiet
+done
+```
+
+After completing manual cleanup, re-run the destroy operation.
+
+---
+
+### Checking Overall Cluster and Mesh Health
+
+Use these commands as a quick health check after deployment:
+
+```bash
+# All pods running in bank-of-anthos namespace on both clusters
+kubectl get pods -n bank-of-anthos --context $CTX1
+kubectl get pods -n bank-of-anthos --context $CTX2
+
+# Fleet membership status
+gcloud container fleet memberships list --project PROJECT_ID
+
+# ASM mesh status
+gcloud container fleet mesh describe --project PROJECT_ID
+
+# MCI and MCS status
+kubectl get multiclusteringress,multiclusterservice \
+  -n bank-of-anthos --context $CTX1
+
+# Managed certificate status
+kubectl get managedcertificate -n bank-of-anthos --context $CTX1
+
+# Global load balancer backend health
+gcloud compute backend-services list --global --project PROJECT_ID \
+  --filter="name~bank-of-anthos" --format="value(name)" | \
+  xargs -I{} gcloud compute backend-services get-health {} \
+    --global --project PROJECT_ID
+```
+
+---
+
+## References
+
+### Google Kubernetes Engine
+
+- [GKE Documentation](https://cloud.google.com/kubernetes-engine/docs)
+- [GKE Autopilot Overview](https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview)
+- [GKE Release Channels](https://cloud.google.com/kubernetes-engine/docs/concepts/release-channels)
+- [GKE Security Posture](https://cloud.google.com/kubernetes-engine/docs/concepts/security-posture-dashboard)
+- [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity)
+- [GKE Cost Management](https://cloud.google.com/kubernetes-engine/docs/how-to/cost-management)
+- [GCS FUSE CSI Driver](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/cloud-storage-fuse-csi-driver)
+- [Gateway API on GKE](https://cloud.google.com/kubernetes-engine/docs/concepts/gateway-api)
+- [Managed Service for Prometheus](https://cloud.google.com/stackdriver/docs/managed-prometheus)
+
+### GKE Fleet and Multi-Cluster
+
+- [Fleet Management Overview](https://cloud.google.com/anthos/fleet-management/docs/fleet-creation)
+- [Multi-Cluster Ingress](https://cloud.google.com/kubernetes-engine/docs/concepts/multi-cluster-ingress)
+- [Multi-Cluster Services](https://cloud.google.com/kubernetes-engine/docs/concepts/multi-cluster-services)
+- [GKE Hub Membership](https://cloud.google.com/anthos/fleet-management/docs/register-cluster)
+
+### Cloud Service Mesh
+
+- [Cloud Service Mesh Overview](https://cloud.google.com/service-mesh/docs/overview)
+- [Managed ASM Setup](https://cloud.google.com/service-mesh/docs/managed/provision-managed-anthos-service-mesh)
+- [ASM Security — PeerAuthentication](https://cloud.google.com/service-mesh/docs/security/configuring-mtls)
+- [ASM Security — AuthorizationPolicy](https://cloud.google.com/service-mesh/docs/security/authorization-policies)
+- [ASM Traffic Management](https://cloud.google.com/service-mesh/docs/traffic-management)
+- [ASM Observability](https://cloud.google.com/service-mesh/docs/observability)
+- [Istio Documentation](https://istio.io/latest/docs/)
+
+### Networking
+
+- [VPC Overview](https://cloud.google.com/vpc/docs/overview)
+- [VPC-Native Clusters](https://cloud.google.com/kubernetes-engine/docs/concepts/alias-ips)
+- [Cloud NAT](https://cloud.google.com/nat/docs/overview)
+- [Google Cloud Load Balancing](https://cloud.google.com/load-balancing/docs/load-balancing-overview)
+- [Google-Managed SSL Certificates](https://cloud.google.com/load-balancing/docs/ssl-certificates/google-managed-certs)
+- [BackendConfig and FrontendConfig](https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-configuration)
+
+### Security
+
+- [Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
+- [SPIFFE and SPIRE Identity](https://spiffe.io/docs/latest/spiffe-about/overview/)
+- [Kubernetes Security Contexts](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/)
+- [Container-Optimised OS](https://cloud.google.com/container-optimized-os/docs)
+
+### Observability
+
+- [Cloud Monitoring for GKE](https://cloud.google.com/stackdriver/docs/solutions/gke)
+- [Cloud Logging for GKE](https://cloud.google.com/stackdriver/docs/solutions/gke/managing-logs)
+- [Cloud Trace](https://cloud.google.com/trace/docs)
+- [Log-Based Metrics](https://cloud.google.com/logging/docs/logs-based-metrics)
+
+### Bank of Anthos Application
+
+- [Bank of Anthos GitHub Repository](https://github.com/GoogleCloudPlatform/bank-of-anthos)
+- [Bank of Anthos Architecture Documentation](https://github.com/GoogleCloudPlatform/bank-of-anthos/tree/main/docs)
+- [Bank of Anthos Workload Identity Setup](https://github.com/GoogleCloudPlatform/bank-of-anthos/blob/main/docs/workload-identity.md)
+- [Bank of Anthos CI/CD Pipeline](https://github.com/GoogleCloudPlatform/bank-of-anthos/blob/main/docs/ci-cd-pipeline.md)
+
+### Kubernetes Reference
+
+- [Kubernetes Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+- [Kubernetes StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/)
+- [Kubernetes Resource Management](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+- [Horizontal Pod Autoscaling](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)
+- [Kubernetes Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)
+- [Kubernetes ConfigMaps and Secrets](https://kubernetes.io/docs/concepts/configuration/)
+
+---
+
+*This module is maintained by TechEquity Cloud. For issues or contributions, refer to the repository at [https://github.com/techequitycloud/rad-modules](https://github.com/techequitycloud/rad-modules).*
+
 ---
