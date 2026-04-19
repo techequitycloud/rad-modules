@@ -600,3 +600,187 @@ kubectl get rootsync root-sync -n config-management-system \
 Restore sync by fixing the underlying cause (e.g. correcting the manifest in Git or resolving an RBAC conflict). Config Sync will detect the fix on the next poll cycle and resume normal operation.
 
 ---
+
+## GKE Ingress and Load Balancing
+
+Bank_GKE exposes the frontend microservice to the internet using the **GKE Ingress controller** backed by a Google Cloud External HTTP(S) Load Balancer. This is a single-cluster ingress pattern — it differs from the `MC_Bank_GKE` module which uses Multi-Cluster Ingress (MCI). The GKE Ingress approach is simpler and is appropriate when high availability across multiple clusters or regions is not required.
+
+### Architecture Overview
+
+The load balancing stack consists of five Kubernetes resources working together:
+
+```
+Internet
+   │
+   ▼
+Global External HTTP(S) Load Balancer (Google-managed)
+   │  Static external IP: "bank-of-anthos"
+   │  TLS certificate: ManagedCertificate (sslip.io domain)
+   │  HTTPS redirect: FrontendConfig (HTTP 301 → HTTPS)
+   │
+   ▼
+Backend Service (GCP) ──── BackendConfig (health check + IAP config)
+   │
+   ▼
+Network Endpoint Group (NEG)  ──── auto-created per node zone
+   │
+   ▼
+frontend pods (port 8080) in bank-of-anthos namespace
+```
+
+The GKE Ingress controller creates and manages the underlying GCP load balancer resources automatically. You do not need to create load balancer rules, forwarding rules, or backend services manually.
+
+### Kubernetes Ingress Resource
+
+The `Ingress` resource is the entry point. It uses two GKE-specific annotations:
+
+- `kubernetes.io/ingress.global-static-ip-name` — attaches the pre-allocated static external IP address named `bank-of-anthos`
+- `networking.gke.io/managed-certificates` — references the `ManagedCertificate` resource for automatic TLS provisioning
+
+Traffic routing rules:
+
+| Host | Path | Backend Service | Port |
+|---|---|---|---|
+| `<app-domain>` | `/` | `bank-of-anthos` (frontend) | 80 |
+| (default) | any | `bank-of-anthos` (frontend) | 80 |
+
+The default backend catches any request that does not match the host rule, ensuring no requests return a 404 from the load balancer itself.
+
+### Network Endpoint Groups (NEGs)
+
+The frontend `Service` carries the annotation `cloud.google.com/neg: '{"ingress": true}'`. This instructs the GKE Ingress controller to use **container-native load balancing** via Network Endpoint Groups (NEGs) instead of node-port-based routing.
+
+With NEG-based load balancing:
+
+- The load balancer sends traffic directly to individual pod IP addresses, bypassing kube-proxy
+- Each pod endpoint is registered in a zonal NEG
+- Health checks are performed directly against pod IPs, not node IPs
+- Pods are added to and removed from the NEG as they are scheduled and terminated
+
+```bash
+# List NEGs created for the frontend service
+gcloud compute network-endpoint-groups list \
+  --filter="name~bank-of-anthos" \
+  --project=${PROJECT_ID}
+
+# Describe a specific NEG
+gcloud compute network-endpoint-groups describe ${NEG_NAME} \
+  --zone=${ZONE} \
+  --project=${PROJECT_ID}
+
+# List endpoints registered in a NEG
+gcloud compute network-endpoint-groups list-network-endpoints ${NEG_NAME} \
+  --zone=${ZONE} \
+  --project=${PROJECT_ID}
+```
+
+### BackendConfig — Health Checks and IAP
+
+The `BackendConfig` resource customises the GCP backend service that the load balancer uses. It is referenced by the frontend `Service` via the annotation `cloud.google.com/backend-config`.
+
+Health check configuration:
+
+| Parameter | Value | Meaning |
+|---|---|---|
+| Check interval | 2 seconds | How often the load balancer probes each pod endpoint |
+| Timeout | 1 second | Time allowed for the probe to respond |
+| Healthy threshold | 1 | Consecutive successes before marking healthy |
+| Unhealthy threshold | 10 | Consecutive failures before removing from rotation |
+| Protocol | HTTP | Plain HTTP probe (not HTTPS) |
+| Request path | `/` | The path the load balancer probes |
+
+The aggressive unhealthy threshold (10) prevents pods from being prematurely removed during slow startup or transient errors. The frontend application responds to `GET /` with HTTP 200 when healthy.
+
+IAP (Identity-Aware Proxy) is configured in the `BackendConfig` but set to `enabled: false`. It can be enabled without redeploying by updating the `BackendConfig` and providing an OAuth client secret.
+
+```bash
+# View the BackendConfig
+kubectl get backendconfig -n bank-of-anthos -o yaml
+
+# View the GCP backend service created by the Ingress controller
+gcloud compute backend-services list \
+  --filter="name~bank-of-anthos" \
+  --global \
+  --project=${PROJECT_ID}
+
+# Describe the backend service health check
+gcloud compute backend-services describe ${BACKEND_SERVICE_NAME} \
+  --global \
+  --project=${PROJECT_ID} \
+  --format="yaml(healthChecks,backends)"
+```
+
+### FrontendConfig — HTTPS Redirect
+
+The `FrontendConfig` resource configures the frontend of the load balancer. In this module it enforces an HTTP-to-HTTPS redirect with a permanent `301` response code. Any client that connects over plain HTTP on port 80 receives a redirect to the HTTPS equivalent URL.
+
+```bash
+# View the FrontendConfig
+kubectl get frontendconfig -n bank-of-anthos -o yaml
+
+# Verify the redirect is active (HTTP should return 301)
+curl -I http://${APPLICATION_DOMAIN}/
+```
+
+The response should include `HTTP/1.1 301 Moved Permanently` and a `Location:` header pointing to `https://${APPLICATION_DOMAIN}/`.
+
+### ManagedCertificate — Automatic TLS
+
+The `ManagedCertificate` resource requests a Google-managed TLS certificate for the application domain. Google's Certificate Authority provisions the certificate automatically via the ACME protocol after verifying domain ownership through the load balancer.
+
+Domain configuration: The module uses a subdomain under `sslip.io`, which is a public wildcard DNS service that resolves any subdomain to the IP address encoded in the hostname (e.g. `34-120-10-5.sslip.io` resolves to `34.120.10.5`). This allows TLS certificate provisioning without needing to own or configure a custom DNS zone.
+
+Certificate lifecycle:
+
+| State | Meaning |
+|---|---|
+| Provisioning | Google is requesting the certificate from the CA |
+| FailedNotVisible | The load balancer IP is not yet reachable on port 80 |
+| Active | Certificate is issued and serving |
+| RenewalFailed | Automatic renewal failed — check domain reachability |
+
+```bash
+# View ManagedCertificate status
+kubectl describe managedcertificate -n bank-of-anthos
+
+# View the GCP SSL certificate resource
+gcloud compute ssl-certificates list \
+  --filter="name~bank-of-anthos" \
+  --project=${PROJECT_ID}
+
+# Describe the certificate including expiry
+gcloud compute ssl-certificates describe ${CERT_NAME} \
+  --project=${PROJECT_ID}
+```
+
+Certificate provisioning typically takes 10–30 minutes on first deployment. The load balancer will serve HTTP traffic and redirect to HTTPS before the certificate is active; HTTPS traffic will not be served until the certificate reaches `Active` state.
+
+### Viewing the Full Ingress Stack
+
+```bash
+# View the Ingress resource and its address
+kubectl get ingress -n bank-of-anthos
+
+# Describe the Ingress — shows events, backend health, and certificate status
+kubectl describe ingress -n bank-of-anthos
+
+# View the GCP forwarding rules created by the Ingress controller
+gcloud compute forwarding-rules list \
+  --filter="name~bank-of-anthos" \
+  --global \
+  --project=${PROJECT_ID}
+
+# View the URL map
+gcloud compute url-maps list \
+  --filter="name~bank-of-anthos" \
+  --project=${PROJECT_ID}
+
+# View the target HTTPS proxy
+gcloud compute target-https-proxies list \
+  --filter="name~bank-of-anthos" \
+  --project=${PROJECT_ID}
+```
+
+**Console navigation**: **Network Services → Load balancing** — select the load balancer named `bank-of-anthos` to see the full configuration, backend health status, and traffic metrics.
+
+---
