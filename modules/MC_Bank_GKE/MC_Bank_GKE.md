@@ -116,6 +116,16 @@ Each cluster has **Security Posture** enabled in `BASIC` mode with `VULNERABILIT
 
 This is distinct from Artifact Registry vulnerability scanning, which scans images at push time. Security Posture scans *running* workloads, catching drift between what was pushed and what is actually deployed.
 
+**Explore in the Console**: Navigate to **Kubernetes Engine → Security Posture** to see workload configuration findings and vulnerability scan results grouped by severity across all clusters.
+
+**Inspect via CLI:**
+```bash
+# List active Security Posture findings for a cluster
+gcloud container clusters describe gke-cluster-1 \
+  --region us-west1 --project PROJECT_ID \
+  --format="value(securityPostureConfig)"
+```
+
 ### Workload Identity
 
 For **Standard clusters**, **Workload Identity** is enabled. This is the recommended mechanism for granting Kubernetes workloads access to Google Cloud APIs without static service account keys.
@@ -130,6 +140,20 @@ For **Standard clusters**, **Workload Identity** is enabled. This is the recomme
 
 In this module, Bank of Anthos uses Workload Identity to send traces to Cloud Trace and metrics to Cloud Monitoring.
 
+**Explore in the Console**: Navigate to **Kubernetes Engine → Clusters → (cluster name) → Details** and confirm the Workload Identity field shows `PROJECT_ID.svc.id.goog`.
+
+**Inspect via CLI:**
+```bash
+# Confirm Workload Identity pool on the cluster
+gcloud container clusters describe gke-cluster-1 \
+  --region us-west1 --project PROJECT_ID \
+  --format="value(workloadIdentityConfig.workloadPool)"
+
+# View the Kubernetes Service Account annotation linking KSA to GSA
+kubectl get serviceaccount bank-of-anthos \
+  -n bank-of-anthos --context $CTX1 -o yaml | grep iam.gke.io
+```
+
 ### Managed Prometheus
 
 **Managed Service for Prometheus** is enabled on each cluster — Google's fully managed, Prometheus-compatible monitoring solution built into GKE.
@@ -142,6 +166,19 @@ In this module, Bank of Anthos uses Workload Identity to send traces to Cloud Tr
 - Out-of-the-box dashboards for cluster health, node utilisation, and workload metrics
 
 The module enables `SYSTEM_COMPONENTS` metric collection by default. Workload-level scraping of custom `/metrics` endpoints requires a `PodMonitoring` or `ClusterPodMonitoring` custom resource.
+
+**Explore in the Console**: Navigate to **Monitoring → Dashboards** and open the **GKE** dashboard group. Select **GKE Cluster Overview** to see node and pod metrics, or **Kubernetes Engine Prometheus Overview** for Prometheus metrics.
+
+**Inspect via CLI:**
+```bash
+# Confirm Managed Prometheus is enabled on the cluster
+gcloud container clusters describe gke-cluster-1 \
+  --region us-west1 --project PROJECT_ID \
+  --format="value(monitoringConfig.managedPrometheusConfig.enabled)"
+
+# List any PodMonitoring resources already deployed
+kubectl get podmonitoring -A --context $CTX1
+```
 
 ### GCS FUSE CSI Driver
 
@@ -165,9 +202,20 @@ The **Gateway API** is enabled on `CHANNEL_STANDARD`. Gateway API is the success
 | Role separation | Single resource | Separate Gateway + Route objects |
 | Protocol support | HTTP/HTTPS | HTTP, HTTPS, TCP, gRPC, TLS |
 
+**Inspect via CLI:**
+```bash
+# Confirm Gateway API is enabled and list available GatewayClasses
+kubectl get gatewayclass --context $CTX1
+
+# List any deployed Gateway and HTTPRoute resources
+kubectl get gateway,httproute -A --context $CTX1
+```
+
 ### Cost Management
 
 **GKE Cost Management** is enabled on all clusters. This feature attributes resource costs (CPU, memory, storage) to Kubernetes namespaces and labels, enabling per-team or per-workload cost visibility within a shared cluster. Cost data is available in the Google Cloud Billing console and exportable to BigQuery.
+
+**Explore in the Console**: Navigate to **Billing → Reports** and add a grouping by **Label → k8s-namespace** or **Label → k8s-cluster-name** to see cost attribution by workload. A dedicated GKE cost breakdown view is available under **Kubernetes Engine → Clusters → (cluster name) → Observability → Cost**.
 
 ---
 
@@ -230,9 +278,41 @@ The module creates five explicit firewall rules. Understanding these is importan
 
 **The health check rule** allows Google's load balancer probers to reach backend pods. These probers originate from four specific Google-owned CIDR ranges. Without this rule, all backends appear unhealthy and the load balancer returns 502 errors.
 
+**Explore in the Console**: Navigate to **VPC Network → VPC Networks → vpc-network** to see all subnets, their primary and secondary IP ranges, and the regions they are deployed in.
+
+**Inspect via CLI:**
+```bash
+# List all subnets and their IP ranges
+gcloud compute networks subnets list \
+  --network vpc-network --project PROJECT_ID \
+  --format="table(name,region,ipCidrRange,secondaryIpRanges[].rangeName,secondaryIpRanges[].ipCidrRange)"
+
+# List all firewall rules on the VPC
+gcloud compute firewall-rules list \
+  --filter="network:vpc-network" --project PROJECT_ID \
+  --format="table(name,direction,sourceRanges[].list():label=SOURCES,allowed[].map().firewall_rule().list():label=ALLOW)"
+
+# Describe a specific Cloud NAT gateway
+gcloud compute routers nats describe nat-gateway-cluster1 \
+  --router router-cluster1 \
+  --region us-west1 --project PROJECT_ID
+
+# Check Cloud NAT logs for translation errors
+gcloud logging read \
+  'resource.type="nat_gateway" severity>=WARNING' \
+  --project PROJECT_ID --limit 20 --format="table(timestamp,textPayload)"
+```
+
 ### Static External IP Addresses
 
 One static external IP address is reserved per cluster. These are used for cluster-level ingress and for identity purposes when establishing cross-cluster communication. Static IPs persist across cluster recreations, allowing DNS records and firewall allowlists to remain stable even if the cluster is rebuilt.
+
+**Inspect via CLI:**
+```bash
+# List all reserved static IPs for this deployment
+gcloud compute addresses list --project PROJECT_ID \
+  --format="table(name,region,address,status)"
+```
 
 ---
 
@@ -256,13 +336,27 @@ Each cluster is registered as a **Fleet Membership** immediately after creation.
 
 After registration, the module waits for the membership state to reach `READY` before proceeding — checking up to 60 times over 10 minutes. This wait is necessary because fleet registration involves certificate exchange and identity bootstrapping that happens asynchronously.
 
-**Checking fleet membership status manually:**
-```bash
-gcloud container fleet memberships list --project=PROJECT_ID
+**Explore in the Console**: Navigate to **Kubernetes Engine → Fleets** to see all registered clusters, their membership status, and which fleet features are enabled. The **Feature** tab shows the per-cluster state of ASM, MCI, and MCS.
 
-gcloud container fleet memberships describe CLUSTER_NAME \
-  --location=global \
-  --project=PROJECT_ID
+**Checking fleet membership and feature status:**
+```bash
+# List all cluster memberships and their states
+gcloud container fleet memberships list --project PROJECT_ID
+
+# Describe a specific membership
+gcloud container fleet memberships describe gke-cluster-1 \
+  --location global --project PROJECT_ID
+
+# List all fleet features and their states
+gcloud container fleet features list --project PROJECT_ID
+
+# View detailed feature status including per-cluster states
+gcloud container fleet features describe multiclusteringress \
+  --project PROJECT_ID
+gcloud container fleet features describe servicemesh \
+  --project PROJECT_ID
+gcloud container fleet features describe multiclusterservicediscovery \
+  --project PROJECT_ID
 ```
 
 ### Fleet IAM
@@ -312,9 +406,19 @@ This module enables ASM with `MANAGEMENT_AUTOMATIC` mode at both the fleet level
 
 This is distinct from **manual management mode**, where you install and upgrade `istiod` yourself using the `asmcli` tool.
 
+**Explore in the Console**: Navigate to **Kubernetes Engine → Service Mesh** to see the live service topology graph, per-service golden signals, and the health of the control plane across all clusters.
+
 **Checking mesh status:**
 ```bash
-gcloud container fleet mesh describe --project=PROJECT_ID
+# Overall mesh health across all clusters
+gcloud container fleet mesh describe --project PROJECT_ID
+
+# Verify ASM control plane components are running
+kubectl get pods -n istio-system --context $CTX1
+kubectl get pods -n asm-system --context $CTX1
+
+# View the managed ASM revision in use
+kubectl get controlplanerevision -n istio-system --context $CTX1
 ```
 
 ### Sidecar Injection
@@ -593,6 +697,37 @@ The Multi-Cluster Ingress feature requires one cluster to be designated as the *
 - All MCI/MCS resources must be applied to the config cluster, not to other clusters
 - If the config cluster is unavailable, the load balancer continues serving traffic using its last known configuration — existing backends remain healthy
 - The config cluster can be changed after deployment by updating the fleet feature configuration
+
+**Explore in the Console**: Navigate to **Network Services → Load Balancing** to see the global load balancer created by MCI. Click through to see the frontend (HTTPS/HTTP), the backend service, and the health status of each NEG (one per cluster). Navigate to **Network Services → Cloud Domains → Managed Certificates** or check certificate status under **Kubernetes Engine → (cluster) → Services & Ingress**.
+
+**Inspect via CLI:**
+```bash
+# List all global load balancers (MCI creates one named after the MCI resource)
+gcloud compute url-maps list --global --project PROJECT_ID
+
+# Describe the backend service to see NEGs and health
+BACKEND=$(gcloud compute backend-services list --global \
+  --project PROJECT_ID --filter="name~bank-of-anthos" \
+  --format="value(name)" | head -1)
+
+gcloud compute backend-services describe $BACKEND \
+  --global --project PROJECT_ID \
+  --format="table(name,backends[].group,backends[].balancingMode)"
+
+# Check backend health per NEG
+gcloud compute backend-services get-health $BACKEND \
+  --global --project PROJECT_ID
+
+# List all NEGs created by MCI
+gcloud compute network-endpoint-groups list \
+  --project PROJECT_ID \
+  --filter="name~bank-of-anthos" \
+  --format="table(name,zone,networkEndpointType,size)"
+
+# Check managed certificate provisioning state
+kubectl get managedcertificate -n bank-of-anthos --context $CTX1 \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.certificateStatus}{"\n"}{end}'
+```
 
 ### Traffic Flow End-to-End
 
