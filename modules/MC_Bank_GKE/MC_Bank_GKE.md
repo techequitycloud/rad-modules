@@ -422,6 +422,20 @@ The GKE Hub service identity (`gkehub.googleapis.com`) is granted two roles at t
 
 These are service-agent roles granted to Google-managed service accounts, not to end-user identities.
 
+**Inspect Fleet IAM bindings via CLI:**
+```bash
+# View all IAM bindings for the GKE Hub service agent
+gcloud projects get-iam-policy PROJECT_ID \
+  --flatten="bindings[].members" \
+  --filter="bindings.members~gkehub" \
+  --format="table(bindings.role,bindings.members)"
+
+# Confirm the Hub service identity email
+gcloud beta services identity create \
+  --service=gkehub.googleapis.com \
+  --project PROJECT_ID
+```
+
 ### Fleet Features
 
 Fleet **features** are capabilities that are enabled at the fleet level and automatically apply to all registered member clusters. This module enables the following fleet features:
@@ -490,6 +504,25 @@ This tells the ASM mutating admission webhook to inject an Envoy sidecar into ev
 - Enforces `AuthorizationPolicy` rules (which services can talk to which)
 - Participates in distributed tracing by propagating trace context headers to Cloud Trace
 
+**Explore in the Console**: Navigate to **Kubernetes Engine → Service Mesh → (cluster) → Workloads** to see all injected workloads and their sidecar proxy version.
+
+**Verify sidecar injection via CLI:**
+```bash
+# Confirm every pod in the namespace has 2 containers (app + istio-proxy)
+kubectl get pods -n bank-of-anthos --context $CTX1 \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .spec.containers[*]}{.name}{" "}{end}{"\n"}{end}'
+
+# Check the ASM sidecar proxy version injected into a pod
+FRONTEND_POD=$(kubectl get pod -n bank-of-anthos --context $CTX1 \
+  -l app=frontend -o jsonpath='{.items[0].metadata.name}')
+kubectl get pod $FRONTEND_POD -n bank-of-anthos --context $CTX1 \
+  -o jsonpath='{.metadata.annotations.sidecar\.istio\.io/status}' | python3 -m json.tool
+
+# Confirm the namespace injection label is present
+kubectl get namespace bank-of-anthos --context $CTX1 \
+  --show-labels
+```
+
 ### Mutual TLS (mTLS)
 
 With ASM enabled, all communication between pods in the mesh is encrypted with **mutual TLS** by default. Each sidecar is issued a short-lived X.509 certificate by the ASM certificate authority. The certificate encodes the workload's SPIFFE identity:
@@ -520,6 +553,24 @@ spec:
 
 This policy permits only the `bank-of-anthos` service account (used by the frontend) to call the `ledger-writer` service — all other callers are denied, regardless of network-level access.
 
+**Explore in the Console**: Navigate to **Kubernetes Engine → Service Mesh → Security** to see the mTLS status across all services — which are in STRICT mode, PERMISSIVE, or DISABLED.
+
+**Verify mTLS is active via CLI:**
+```bash
+# Check the default PeerAuthentication policy in the mesh namespace
+kubectl get peerauthentication -n istio-system --context $CTX1
+kubectl get peerauthentication -n bank-of-anthos --context $CTX1
+
+# Inspect the mTLS certificate issued to the frontend sidecar
+kubectl exec -n bank-of-anthos --context $CTX1 $FRONTEND_POD \
+  -c istio-proxy -- \
+  openssl s_client -connect userservice.bank-of-anthos.svc.cluster.local:8080 \
+  -showcerts 2>/dev/null | openssl x509 -noout -text | grep -E "Subject:|Issuer:|URI:"
+
+# List all AuthorizationPolicies in the namespace
+kubectl get authorizationpolicy -n bank-of-anthos --context $CTX1
+```
+
 ### Traffic Management
 
 ASM provides rich traffic management through Istio custom resources. These operate at Layer 7 (HTTP/gRPC) and allow:
@@ -527,6 +578,21 @@ ASM provides rich traffic management through Istio custom resources. These opera
 - **VirtualService**: define routing rules — route 10% of traffic to a canary version, retry failed requests up to 3 times, inject artificial delays for chaos testing
 - **DestinationRule**: configure load balancing algorithm (round-robin, least-connections, consistent hashing), circuit breaker thresholds, and connection pool settings per destination service
 - **ServiceEntry**: register external services (outside the mesh) so sidecars can apply policies and collect telemetry for egress traffic
+
+**Inspect existing Istio traffic resources via CLI:**
+```bash
+# List all Istio traffic management resources in the namespace
+kubectl get virtualservice,destinationrule,serviceentry,gateway \
+  -n bank-of-anthos --context $CTX1
+
+# Describe a specific VirtualService to see routing rules
+kubectl describe virtualservice RESOURCE_NAME \
+  -n bank-of-anthos --context $CTX1
+
+# View Envoy's current routing table for a sidecar (shows effect of all VirtualServices)
+kubectl exec -n bank-of-anthos --context $CTX1 $FRONTEND_POD \
+  -c istio-proxy -- pilot-agent request GET routes | python3 -m json.tool | head -80
+```
 
 **Example: Canary deployment with traffic splitting**
 ```yaml
@@ -587,6 +653,23 @@ This ensures that trace spans from all sidecar proxies are exported to Cloud Tra
 When ASM is enabled across multiple clusters in the same fleet, the mesh spans cluster boundaries. Services in `cluster1` can call services in `cluster2` using their Kubernetes DNS names, with the sidecar handling the cross-cluster routing, mTLS, and telemetry transparently.
 
 This is possible because all clusters share the same **trust domain** (`PROJECT_ID.svc.id.goog`). Certificates issued by the ASM CA in either cluster are trusted by sidecars in all clusters, enabling mutual authentication across cluster boundaries.
+
+**Verify cross-cluster mesh connectivity via CLI:**
+```bash
+# Confirm both clusters share the same trust domain
+gcloud container fleet mesh describe --project PROJECT_ID \
+  --format="json" | python3 -m json.tool | grep -A2 "trustDomain"
+
+# From cluster1, resolve a service endpoint that exists only on cluster2
+# (MCS exports services across clusters using the .cluster.local DNS)
+kubectl exec -n bank-of-anthos --context $CTX1 $FRONTEND_POD \
+  -c istio-proxy -- \
+  curl -s http://frontend.bank-of-anthos.svc.cluster.local:8080/ready
+
+# View cross-cluster endpoints registered by the MCS controller
+kubectl get serviceimport -n bank-of-anthos --context $CTX1
+kubectl get serviceexport -n bank-of-anthos --context $CTX1
+```
 
 ---
 
@@ -999,6 +1082,20 @@ livenessProbe:
 - **Readiness probe**: determines whether the pod should receive traffic. A failing readiness probe removes the pod from Service endpoints — it stays running but gets no requests. Used to hold traffic until the application has finished initialising (e.g. loaded caches, established database connections).
 - **Liveness probe**: determines whether the pod is alive. A failing liveness probe causes kubelet to restart the container. The 60-second initial delay gives the JVM-based Java services time to complete startup before liveness checking begins.
 
+**Inspect live probe status via CLI:**
+```bash
+# View probe configuration and last result for all pods
+kubectl get pods -n bank-of-anthos --context $CTX1 \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{range .spec.containers[*]}  readiness: {.readinessProbe.httpGet.path}:{.readinessProbe.httpGet.port} delay={.readinessProbe.initialDelaySeconds}s{"\n"}{end}{end}'
+
+# Check restart counts — high restarts indicate repeated liveness probe failures
+kubectl get pods -n bank-of-anthos --context $CTX1 \
+  -o custom-columns="NAME:.metadata.name,RESTARTS:.status.containerStatuses[0].restartCount,READY:.status.containerStatuses[0].ready"
+
+# View events for a pod to see probe failures
+kubectl describe pod $FRONTEND_POD -n bank-of-anthos --context $CTX1 | grep -A5 "Events:"
+```
+
 #### Stateful Services: PostgreSQL
 
 The two databases (`accounts-db`, `ledger-db`) run as Kubernetes `StatefulSets`. StatefulSets provide:
@@ -1009,6 +1106,24 @@ The two databases (`accounts-db`, `ledger-db`) run as Kubernetes `StatefulSets`.
 For this module, each database runs as a single replica (`replicas: 1`) with storage on an `emptyDir` volume. This is appropriate for a learning environment — data does not persist across pod restarts, keeping the application stateless from a cluster lifecycle perspective.
 
 In a production deployment, the databases would use `PersistentVolumeClaims` backed by GCP Persistent Disks or Cloud SQL.
+
+**Explore in the Console**: Navigate to **Kubernetes Engine → Workloads** and filter by **Type: StatefulSet** to see `accounts-db` and `ledger-db`. Click either StatefulSet to inspect its pods, volumes, and events.
+
+**Inspect StatefulSets and stable DNS via CLI:**
+```bash
+# List all StatefulSets in the namespace
+kubectl get statefulsets -n bank-of-anthos --context $CTX1
+
+# Describe a StatefulSet to see pod identity and volume configuration
+kubectl describe statefulset ledger-db -n bank-of-anthos --context $CTX1
+
+# Verify stable DNS resolution for the database pod
+kubectl run dns-test --image=busybox --restart=Never \
+  --context $CTX1 -n bank-of-anthos -- \
+  nslookup ledger-db-0.ledger-db.bank-of-anthos.svc.cluster.local
+kubectl logs dns-test -n bank-of-anthos --context $CTX1
+kubectl delete pod dns-test -n bank-of-anthos --context $CTX1
+```
 
 #### ConfigMaps for Service Discovery
 
@@ -1168,6 +1283,93 @@ gcloud services list --enabled --project PROJECT_ID \
 | `dns.googleapis.com` | Cloud DNS — managed DNS zones |
 | `networkmanagement.googleapis.com` | Network Intelligence Center — network topology and connectivity analysis |
 | `billingbudgets.googleapis.com` | Billing Budgets — cost alerting and budget management |
+
+### Additional Exploration: APIs Enabled but Not Exercised by Default
+
+Three APIs are enabled by this module that enable powerful capabilities worth exploring independently.
+
+#### Network Intelligence Center
+
+`networkmanagement.googleapis.com` enables the **Network Intelligence Center** — Google Cloud's suite of network observability and troubleshooting tools.
+
+**Explore in the Console**: Navigate to **Network Intelligence Center → Connectivity Tests** to run point-to-point reachability tests between any source and destination within the VPC (pod IP → service IP, node → internet, etc.).
+
+```bash
+# Run a connectivity test from a node in cluster1 to the ledger-db service IP
+LEDGER_IP=$(kubectl get service ledger-db -n bank-of-anthos \
+  --context $CTX1 -o jsonpath='{.spec.clusterIP}')
+
+gcloud network-management connectivity-tests create ledger-reachability \
+  --source-ip-address=10.0.0.2 \
+  --source-network=vpc-network \
+  --destination-ip-address=$LEDGER_IP \
+  --destination-port=5432 \
+  --protocol=TCP \
+  --project PROJECT_ID
+
+gcloud network-management connectivity-tests describe ledger-reachability \
+  --project PROJECT_ID
+```
+
+Navigate to **Network Intelligence Center → Network Topology** for a visual map of all VPC resources, traffic flows, and their interconnections across regions.
+
+#### Web Security Scanner
+
+`websecurityscanner.googleapis.com` enables **Web Security Scanner** — an automated DAST (Dynamic Application Security Testing) tool that crawls the frontend URL and probes for common web vulnerabilities (XSS, mixed content, outdated libraries, etc.).
+
+**Explore in the Console**: Navigate to **Security → Web Security Scanner → New Scan** and enter the `https://boa.GLOBAL_IP.sslip.io` URL. Run a scan and review findings in the results panel.
+
+```bash
+# Create a scan config targeting the frontend
+gcloud alpha web-security-scanner scan-configs create \
+  --display-name="bank-of-anthos-scan" \
+  --starting-urls="https://boa.GLOBAL_IP.sslip.io" \
+  --project PROJECT_ID
+
+# List scan configs
+gcloud alpha web-security-scanner scan-configs list --project PROJECT_ID
+```
+
+This is a useful demonstration of how a platform team can automate security testing of applications running on GKE without any changes to the application itself.
+
+#### Policy Controller (OPA Gatekeeper)
+
+`anthospolicycontroller.googleapis.com` enables **Policy Controller** — a Kubernetes admission controller based on Open Policy Agent (OPA) Gatekeeper. It enforces custom policies at the point of resource creation, preventing non-compliant Kubernetes objects from being admitted to the cluster.
+
+Policy Controller can enforce rules such as:
+- All containers must have resource limits set
+- No container may run as root (UID 0)
+- All Deployments must have at least 2 replicas
+- Images must come from approved registries only
+
+**Enable Policy Controller on the fleet:**
+```bash
+gcloud container fleet policycontroller enable \
+  --memberships=gke-cluster-1,gke-cluster-2 \
+  --project PROJECT_ID
+```
+
+**Apply a built-in constraint to require resource limits:**
+```bash
+kubectl apply --context $CTX1 -f - <<EOF
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredResources
+metadata:
+  name: require-resource-limits
+spec:
+  match:
+    kinds:
+    - apiGroups: [""]
+      kinds: ["Pod"]
+    namespaces: ["bank-of-anthos"]
+  parameters:
+    limits:
+    - cpu
+    - memory
+EOF
+```
+
+**Explore in the Console**: Navigate to **Kubernetes Engine → Policy Controller** to see constraint violations across all fleet clusters in a unified view. This dashboard shows which constraints are active, which resources violate them, and the violation history over time.
 
 ---
 
