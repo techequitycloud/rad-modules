@@ -466,3 +466,137 @@ kubectl get authorizationpolicy -n bank-of-anthos
 ```
 
 ---
+
+## Anthos Config Management
+
+Anthos Config Management (ACM) brings GitOps-style configuration synchronisation to GKE clusters. In this module, **Config Sync** watches a Git repository and automatically reconciles the desired Kubernetes state declared in that repository with the live state in the cluster. This enables repeatable, auditable, and version-controlled configuration management without manual `kubectl apply` operations.
+
+> **This section is unique to Bank_GKE.** The `MC_Bank_GKE` module does not enable Anthos Config Management.
+
+### What Is Config Sync?
+
+Config Sync is the component of ACM responsible for pulling manifests from a Git source and applying them to the cluster. It runs as a set of pods in the `config-management-system` namespace and continuously reconciles cluster state. If a resource is manually edited or deleted, Config Sync detects the drift and restores it.
+
+Key characteristics:
+
+| Property | Value |
+|---|---|
+| Source of truth | Git repository (configurable URL and branch) |
+| Policy directory | Configurable subdirectory within the repo |
+| Sync mechanism | Periodic poll + event-driven |
+| Drift detection | Continuous — restores deleted or modified resources |
+| Cluster scope | Cluster-scoped and namespace-scoped resources |
+
+### Console Navigation
+
+Navigate to the ACM dashboard in the Google Cloud Console:
+
+**Kubernetes Engine → Config → Config Management**
+
+From this view you can see:
+
+- The sync status of each registered cluster (Synced / Pending / Error)
+- The commit SHA currently applied on the cluster
+- Any errors or conflicts preventing sync
+- The configured sync source (repo URL, branch, policy directory)
+
+### Viewing Config Sync Status
+
+```bash
+# Check Config Sync installation status
+gcloud container fleet config-management status \
+  --project=${PROJECT_ID}
+
+# List Config Sync pods
+kubectl get pods -n config-management-system
+
+# List the RootSync resource that drives synchronisation
+kubectl get rootsync -n config-management-system -o yaml
+
+# View the current sync status — shows last synced commit and any errors
+kubectl describe rootsync root-sync -n config-management-system
+
+# View the RepoSync resources (namespace-scoped syncs, if any)
+kubectl get reposync -A
+```
+
+The `RootSync` resource is the primary driver. Its `status.sync.commit` field shows the last applied Git commit SHA, and `status.conditions` reports any error messages if synchronisation has failed.
+
+### How Config Sync Applies Resources
+
+Config Sync uses a pull-based model:
+
+1. The `reconciler` pod reads the configured Git repository and branch.
+2. It computes the set of Kubernetes manifests present in the policy directory.
+3. It applies any resources that are missing or differ from the live cluster state.
+4. It records the applied commit SHA in the `RootSync` status.
+
+Resources managed by Config Sync are annotated with `configmanagement.gke.io/managed: enabled` and `configsync.gke.io/resource-id`. If you try to manually edit or delete these resources, Config Sync will revert the change on its next reconciliation cycle.
+
+```bash
+# See which resources are managed by Config Sync
+kubectl get all -n bank-of-anthos -o yaml | \
+  grep -A2 "configmanagement.gke.io/managed"
+```
+
+### Exploring the Sync Repository
+
+The module configures Config Sync to point at a Git repository. To see the current repository and branch configured:
+
+```bash
+# Show the sync source configuration
+kubectl get rootsync root-sync -n config-management-system \
+  -o jsonpath='{.spec.git}' | python3 -m json.tool
+```
+
+The output will show:
+- `repo` — the Git repository URL
+- `branch` — the branch being tracked
+- `dir` — the subdirectory within the repo (policy directory)
+- `auth` — authentication method (`none` for public repos, `token` or `ssh` for private)
+
+### Policy Controller
+
+ACM also enables **Policy Controller**, which is built on OPA Gatekeeper. Policy Controller enforces custom policy rules as Kubernetes admission webhooks. Any resource that violates a constraint is rejected at admission time, before it reaches the cluster.
+
+**Console navigation**: **Kubernetes Engine → Config → Policy**
+
+Policy Controller concepts:
+
+| Concept | Description |
+|---|---|
+| ConstraintTemplate | Defines the schema and Rego logic for a policy rule |
+| Constraint | An instance of a template that enforces the rule on specific resource types |
+| Audit mode | Reports violations on existing resources without blocking them |
+| Deny mode | Rejects non-compliant resources at admission |
+
+```bash
+# List installed ConstraintTemplates
+kubectl get constrainttemplates
+
+# List all active Constraints across all templates
+kubectl get constraints -A
+
+# Check Policy Controller pods
+kubectl get pods -n gatekeeper-system
+
+# View violation counts per constraint
+kubectl get constraints -A \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.totalViolations}{"\n"}{end}'
+```
+
+### ACM Upgrade and Drift Recovery
+
+Config Sync is managed as a Fleet feature and receives updates automatically when you update the ACM feature version in the Fleet. You do not need to manually upgrade the Config Sync pods.
+
+If a sync error occurs (e.g. a network partition, invalid manifest, or RBAC conflict), Config Sync will continue retrying. Check the `RootSync` status for the error message:
+
+```bash
+# Show recent sync errors with full detail
+kubectl get rootsync root-sync -n config-management-system \
+  -o jsonpath='{.status.conditions}' | python3 -m json.tool
+```
+
+Restore sync by fixing the underlying cause (e.g. correcting the manifest in Git or resolving an RBAC conflict). Config Sync will detect the fix on the next poll cycle and resume normal operation.
+
+---
