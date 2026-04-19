@@ -151,6 +151,24 @@ GKE Hub is the backbone of the Fleet concept in Google Cloud. When the EKS clust
 
 An EKS cluster enrolled in a GKE Hub fleet can participate in all of these features alongside native GKE clusters in the same fleet.
 
+**Explore fleet membership via gcloud:**
+
+```bash
+# List all fleet members across the project
+gcloud container fleet memberships list --project=GCP_PROJECT_ID
+
+# Inspect this cluster's fleet membership in detail
+gcloud container fleet memberships describe CLUSTER_NAME \
+  --project=GCP_PROJECT_ID
+
+# View fleet feature status (Policy Controller, Config Management, etc.)
+gcloud container fleet features list --project=GCP_PROJECT_ID
+```
+
+**Explore fleet membership in the Cloud Console:**
+
+Navigate to **Kubernetes Engine → Fleet** in the Cloud Console. The **Clusters** tab shows the EKS cluster alongside any GKE clusters in the same project, with health status and feature enablement for each. The **Feature Manager** tab is where you activate and configure fleet-wide features — select any feature to see its status across all fleet members and to enable it with a single click.
+
 ### Operations Config Monitoring API (`opsconfigmonitoring.googleapis.com`)
 
 This API enables the managed observability agents that Google Cloud deploys onto attached clusters. Specifically, it governs the configuration and lifecycle of the log forwarding agent and the metrics collection agent that are installed on the EKS cluster as part of the attached cluster registration. Without this API, the `SYSTEM_COMPONENTS` and `WORKLOADS` logging components and the Managed Prometheus scraping would not function even if configured.
@@ -282,6 +300,17 @@ This is the same mechanism used by GKE Workload Identity — the difference is t
 
 **Why this matters for platform engineers:** Cross-cloud workload identity without static keys is a significant security improvement over the alternative of distributing GCP service account JSON keys into Kubernetes secrets on EKS. OIDC federation means credentials cannot be accidentally committed to source control, leaked from Kubernetes secrets, or persist beyond their short TTL.
 
+**Explore:** Inspect the OIDC issuer URL that was registered with Google Cloud:
+
+```bash
+gcloud container attached clusters describe CLUSTER_NAME \
+  --location GCP_REGION \
+  --project GCP_PROJECT_ID \
+  --format="value(oidcConfig.issuerUrl)"
+```
+
+You can also open that URL in a browser — appending `/.well-known/openid-configuration` gives you the OIDC discovery document, which contains the public keys Google Cloud uses to verify tokens from EKS workloads.
+
 ### Fleet Registration
 
 Every cluster registered through this module is automatically enrolled as a member of a **GKE Fleet** — a logical grouping of Kubernetes clusters that share a management boundary in Google Cloud.
@@ -316,6 +345,33 @@ The stdout and stderr output of every container running in the cluster, from eve
 
 The log forwarding agent is deployed onto the EKS cluster automatically as part of the attached cluster registration. There is no log agent to configure or maintain.
 
+**Explore logs via gcloud:**
+
+```bash
+# View recent WARNING and above logs from Kubernetes system components
+gcloud logging read \
+  'resource.type="k8s_cluster" severity>=WARNING' \
+  --project=GCP_PROJECT_ID \
+  --limit=20 \
+  --format="table(timestamp,severity,jsonPayload.message)"
+
+# View container logs from the default namespace
+gcloud logging read \
+  'resource.type="k8s_container" resource.labels.namespace_name="default"' \
+  --project=GCP_PROJECT_ID \
+  --limit=20
+
+# View scheduler logs to see pod placement decisions
+gcloud logging read \
+  'resource.type="k8s_cluster" logName=~"scheduler"' \
+  --project=GCP_PROJECT_ID \
+  --limit=20
+```
+
+**Explore logs in the Cloud Console:**
+
+Navigate to **Logging → Log Explorer**. In the resource dropdown, select **Kubernetes Cluster** and choose your EKS cluster. You can also reach logs directly from **Kubernetes Engine → Clusters → [your cluster] → Logs** tab, where logs are pre-filtered to the selected cluster. Try switching the resource type to **Kubernetes Container** to browse workload logs by namespace, pod, and container name.
+
 ### Google Cloud Managed Service for Prometheus
 
 The module enables **Managed Prometheus** on the attached cluster. Google Cloud Managed Service for Prometheus (GMP) is a fully managed, Prometheus-compatible metrics backend that replaces the need to operate a self-managed Prometheus stack.
@@ -338,6 +394,49 @@ Scraped metrics are stored in Cloud Monitoring's globally distributed backend wi
 | Grafana (with Prometheus data source) | Cloud Monitoring dashboards or Grafana with Cloud Monitoring data source |
 
 The GKE dashboards built into Cloud Monitoring — covering node CPU and memory, pod resource utilisation, network throughput, and persistent volume usage — work for EKS clusters with Managed Prometheus enabled, exactly as they do for native GKE clusters.
+
+**Explore Managed Prometheus in the Cloud Console:**
+
+Navigate to **Monitoring → Metrics Explorer** and select **PromQL** mode. Try querying built-in Kubernetes metrics:
+
+```promql
+# CPU utilisation across all nodes
+rate(kubernetes_io:node_cpu_core_usage_time{cluster=~"CLUSTER_NAME"}[5m])
+
+# Memory usage per pod in the default namespace
+kubernetes_io:container_memory_used_bytes{
+  cluster=~"CLUSTER_NAME",
+  namespace="default"
+}
+
+# Number of running pods per node
+count by (node) (
+  kubernetes_io:pod_running{cluster=~"CLUSTER_NAME"}
+)
+```
+
+You can also navigate to **Monitoring → Dashboards** and select the **GKE** dashboard group — these pre-built dashboards work for attached EKS clusters identically to native GKE clusters.
+
+**Scrape your own application metrics with PodMonitoring:**
+
+To collect metrics from a workload you deploy onto the cluster, create a `PodMonitoring` resource that tells the managed Prometheus agent which pods to scrape:
+
+```yaml
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: my-app-monitor
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: my-app
+  endpoints:
+  - port: metrics
+    interval: 30s
+```
+
+Apply this with `kubectl apply -f podmonitoring.yaml`. Within a few minutes, metrics from pods labelled `app: my-app` that expose a `/metrics` endpoint on the `metrics` port will appear in Cloud Monitoring under the `prometheus.googleapis.com` metric prefix.
 
 ### Admin User Authorisation
 
@@ -372,6 +471,22 @@ The manifest is packaged into a Helm chart and applied to the EKS cluster. Using
 - **Lifecycle management** — when the module is torn down, Helm uninstalls the Connect Agent cleanly before the cluster registration is removed from Google Cloud, preventing orphaned resources
 
 The installation sequence is strictly ordered: the Connect Agent must be running and reporting healthy before Google Cloud will accept the cluster registration as complete. This ordering is enforced automatically.
+
+**Verify the Connect Agent is running:**
+
+```bash
+# Check the Connect Agent pods in the gke-connect namespace
+kubectl get pods -n gke-connect
+
+# View Connect Agent logs to confirm the outbound connection is established
+kubectl logs -n gke-connect \
+  -l app=gke-connect-agent \
+  --tail=30
+
+# Expected: log lines confirming connection to gkeconnect.googleapis.com
+```
+
+You can also confirm agent health from the Cloud Console by navigating to **Kubernetes Engine → Clusters → [your cluster]**. A green status indicator confirms the Connect Agent is connected and the cluster is reachable.
 
 ### Platform Version
 
@@ -431,6 +546,33 @@ kubectl  →  Connect Gateway API  →  Connect Agent (EKS)  →  EKS API Server
 - Operations that bypass the Kubernetes API server (direct etcd access, for example)
 
 **Comparing Connect Gateway to native GKE access:** On a native GKE cluster, `gcloud container clusters get-credentials` similarly generates a kubeconfig that uses a Google-authenticated endpoint. The user experience is identical — the difference is that for native GKE the endpoint is the cluster's own API server, whereas for attached clusters it routes through the Connect Agent. Latency may be slightly higher for attached clusters due to the additional hop.
+
+**Explore the cluster via Connect Gateway:**
+
+```bash
+# List all registered attached clusters in the project
+gcloud container attached clusters list \
+  --location=- \
+  --project=GCP_PROJECT_ID
+
+# Describe the registered cluster and verify its status
+gcloud container attached clusters describe CLUSTER_NAME \
+  --location=GCP_REGION \
+  --project=GCP_PROJECT_ID
+
+# Generate kubeconfig entry (no AWS credentials needed)
+gcloud container attached clusters get-credentials CLUSTER_NAME \
+  --location=GCP_REGION \
+  --project=GCP_PROJECT_ID
+
+# Explore the cluster with kubectl
+kubectl get nodes -o wide                    # Node names, IPs, and Kubernetes version
+kubectl get pods -A                          # All pods across all namespaces
+kubectl get namespaces                       # All namespaces
+kubectl cluster-info                         # Cluster API server endpoint (via Connect Gateway)
+kubectl top nodes                            # Node resource usage (requires metrics-server)
+kubectl get events -A --sort-by='.lastTimestamp' | tail -20   # Recent cluster events
+```
 
 ### Cluster Registration Dependencies
 
@@ -536,6 +678,48 @@ Applications gain full observability without adding any tracing libraries or met
 
 **Access Control**
 Istio `AuthorizationPolicy` resources enforce which services are allowed to call which, at the HTTP method and path level. Policies can require that callers present a valid JWT (for end-user authentication) in addition to the mTLS certificate (for service authentication).
+
+### Verify and Explore ASM After Installation
+
+Once the `attached-install-mesh` sub-module has run, verify the installation and begin exploring mesh capabilities:
+
+```bash
+# Confirm ASM control plane components are running
+kubectl get pods -n istio-system
+
+# Check the ASM version installed
+kubectl -n istio-system get pods \
+  -l app=istiod \
+  -o jsonpath='{.items[0].metadata.labels.istio\.io/rev}'
+
+# Enable automatic sidecar injection for the default namespace
+kubectl label namespace default istio-injection=enabled
+
+# Restart any existing workloads to inject sidecars
+kubectl rollout restart deployment hello-eks
+
+# Verify sidecars were injected (should show 2/2 READY — app + Envoy sidecar)
+kubectl get pods -n default
+
+# Inspect the Envoy proxy configuration for a running pod
+kubectl exec -it POD_NAME -c istio-proxy -- \
+  pilot-agent request GET config_dump | head -100
+```
+
+**Explore ASM in the Cloud Console:**
+
+Navigate to **Anthos → Service Mesh** in the Cloud Console. The **Topology** view shows a live graph of all services and the traffic flowing between them. The **Services** tab lists each service with its request rate, error rate, and p50/p95/p99 latency — all without any application-level instrumentation. Select any service to drill into its metrics and trace samples.
+
+**Verify mTLS is enforced:**
+
+```bash
+# Check the peer authentication policy applied by ASM
+kubectl get peerauthentication -A
+
+# Confirm a pod-to-pod request uses mTLS (look for X-Forwarded-Client-Cert header)
+kubectl exec -it POD_NAME -c istio-proxy -- \
+  curl -s http://hello-eks/headers
+```
 
 ### ASM Across the Fleet
 
@@ -672,7 +856,68 @@ After registration, the EKS cluster is visible in the Cloud Console under **Kube
 - View node and workload health on the **Cluster details** page
 - Browse workload metrics on the **Observability** tab — powered by Kubernetes Metadata API and Managed Prometheus
 - Query logs on the **Logs** tab — system component and workload logs in Cloud Logging
-- View fleet membership and compliance status under **Kubernetes Engine → Fleet**
+- View fleet membership and compliance status under **Kubernetes Engine → Fleet → Clusters**
+
+### Deploy a Sample Workload
+
+To see logging and monitoring working end-to-end, deploy a sample application to the cluster:
+
+```bash
+# Deploy a simple web server that generates logs and exposes a /metrics endpoint
+kubectl create deployment hello-eks \
+  --image=gcr.io/google-samples/hello-app:1.0 \
+  --replicas=2
+
+# Expose it as a service
+kubectl expose deployment hello-eks \
+  --port=80 \
+  --target-port=8080 \
+  --type=ClusterIP
+
+# Confirm the pods are running
+kubectl get pods -l app=hello-eks
+
+# Generate some log output
+kubectl logs -l app=hello-eks --follow &
+
+# Port-forward to test locally
+kubectl port-forward svc/hello-eks 8080:80
+# Visit http://localhost:8080 in your browser to generate traffic
+```
+
+Within 1–2 minutes, the container logs from this workload appear in Cloud Logging. Navigate to **Logging → Log Explorer**, filter by **Resource type: Kubernetes Container** and **Namespace: default** to see them.
+
+### Verify Managed Prometheus is Collecting Metrics
+
+The managed Prometheus agent begins collecting built-in Kubernetes metrics immediately after cluster registration — no extra steps required. Verify this in the Cloud Console:
+
+```bash
+# Check the managed Prometheus collection agent is running on the cluster
+kubectl get pods -n gmp-system
+
+# View the default ClusterPodMonitoring resources deployed by GMP
+kubectl get clusterpodmonitorings -A
+```
+
+In the Cloud Console, navigate to **Monitoring → Metrics Explorer**, switch to **PromQL** mode, and run:
+
+```promql
+# Pod restart count for your workload
+rate(kubernetes_io:container_restart_count{
+  cluster=~"CLUSTER_NAME",
+  namespace="default"
+}[5m])
+```
+
+### Verify the Full Observability Stack
+
+From the Cloud Console, confirm all three observability layers are receiving data from EKS:
+
+| Layer | Where to check |
+|-------|---------------|
+| **Logs** | **Logging → Log Explorer** — filter by `resource.type="k8s_container"` |
+| **Metrics** | **Monitoring → Dashboards → GKE** — select your EKS cluster from the dropdown |
+| **Kubernetes workloads** | **Kubernetes Engine → Clusters → [your cluster] → Workloads** — lists deployments with health status |
 
 ### Tear Down
 
