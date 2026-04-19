@@ -243,3 +243,108 @@ The maximum of 5 nodes defines the ceiling for automatic scale-out, but scaling 
 **Comparing EKS managed nodes to GKE Autopilot:** This is a useful learning contrast. GKE Autopilot removes node management entirely — you never think about node counts, instance types, or node group configuration. EKS managed node groups are closer to GKE Standard mode, where you choose the node pool size and instance type. The EKS experience in this module helps platform engineers appreciate what GKE Autopilot abstracts away.
 
 ---
+
+## GKE Attached Clusters
+
+GKE Attached Clusters is the Google Cloud feature that makes this module's multi-cloud capability possible. It allows any CNCF-conformant Kubernetes cluster — running on AWS, Azure, bare metal, or any other environment — to be registered with Google Cloud and managed as if it were a native GKE cluster. This section explains each dimension of the attached cluster registration that the module configures.
+
+### What "Attached" Means
+
+When a cluster is attached, Google Cloud does not take over scheduling, does not run the Kubernetes control plane, and does not move any workloads. The EKS control plane continues to run entirely on AWS. What changes is that Google Cloud gains a management channel into the cluster through the Connect Agent, and the cluster gains access to Google Cloud's managed services for logging, monitoring, policy enforcement, and service mesh.
+
+The relationship is additive: you keep everything AWS provides (EKS managed control plane, EC2 worker nodes, AWS Load Balancers, ECR) and gain everything Google Cloud's management plane provides on top.
+
+### Distribution Type: EKS
+
+The cluster is registered with distribution type `eks`, which tells the GKE Multi-Cloud API the origin and expectations of the cluster. Google Cloud uses the distribution type to:
+
+- Apply the correct compatibility matrix for platform version support
+- Select the appropriate Connect Agent configuration for the cluster's networking model
+- Display the correct branding and metadata in the Cloud Console
+
+Google Cloud currently supports `eks` (Amazon EKS), `aks` (Azure AKS), and `generic` (any other conformant cluster) as distribution types.
+
+### OIDC-Based Identity Federation
+
+OIDC (OpenID Connect) identity federation is the mechanism that lets Google Cloud trust the EKS cluster's identity — and the identity of workloads running on it — without any static credentials crossing cloud boundaries.
+
+Every EKS cluster automatically runs an **OIDC identity provider** that issues signed JSON Web Tokens (JWTs) to Kubernetes service accounts. These tokens are cryptographically signed with a private key, and the OIDC discovery document (published at the issuer URL) contains the corresponding public key that any party can use to verify the signature.
+
+When this module registers the cluster, it provides the EKS OIDC issuer URL to Google Cloud. From that point:
+
+1. A workload on EKS requests a service account token from the Kubernetes API server
+2. The token is a signed JWT identifying the pod's namespace and service account name
+3. The workload presents this token to a Google Cloud API
+4. Google Cloud fetches the public key from the EKS OIDC discovery endpoint and verifies the token's signature
+5. If valid, Google Cloud accepts the identity and grants access according to Workload Identity Federation policies
+
+This is the same mechanism used by GKE Workload Identity — the difference is that on GKE the OIDC provider is managed by Google, while on EKS it is managed by AWS. From Google Cloud's perspective, the trust model is identical.
+
+**Why this matters for platform engineers:** Cross-cloud workload identity without static keys is a significant security improvement over the alternative of distributing GCP service account JSON keys into Kubernetes secrets on EKS. OIDC federation means credentials cannot be accidentally committed to source control, leaked from Kubernetes secrets, or persist beyond their short TTL.
+
+### Fleet Registration
+
+Every cluster registered through this module is automatically enrolled as a member of a **GKE Fleet** — a logical grouping of Kubernetes clusters that share a management boundary in Google Cloud.
+
+The fleet is scoped to the Google Cloud project. All clusters registered to the same project belong to the same fleet. This means if you later create a native GKE cluster in the same project, it joins the same fleet as the attached EKS cluster and all fleet-level features apply to both simultaneously.
+
+Fleet membership is the prerequisite for the following advanced capabilities:
+
+**Policy Controller (Anthos Policy Controller)**
+Deploys Open Policy Agent (OPA) Gatekeeper as a fleet-wide policy enforcement engine. You define constraints once — for example, requiring all pods to have resource limits, or prohibiting the use of the `default` namespace — and Policy Controller enforces them on every fleet member cluster, including EKS. Violations are reported in the Fleet dashboard in the Cloud Console.
+
+**Config Management (Anthos Config Management)**
+Enables GitOps-based configuration synchronisation across all fleet clusters. A single Git repository serves as the source of truth for Kubernetes manifests. Config Management continuously syncs the desired state from Git to every fleet member, ensuring configuration drift is automatically corrected. A change committed to the Git repository propagates to both the EKS cluster and any GKE clusters in the fleet without manual intervention.
+
+**Multi-cluster Services**
+Allows Kubernetes services to be exported from one fleet cluster and consumed by workloads on another using the DNS name `<service>.<namespace>.svc.clusterset.local`. This enables cross-cloud service discovery: a workload on a GKE cluster can call a service running on the attached EKS cluster by name, with traffic routed automatically through the Connect Agent channel.
+
+**Cloud Service Mesh**
+Enables the Anthos Service Mesh management plane to govern Istio installations across all fleet clusters. With fleet-level mesh management, mTLS policies, traffic management rules, and observability configuration can be applied uniformly across both GKE and EKS workloads from the Cloud Console.
+
+### System and Workload Logging
+
+The module configures the attached cluster to forward two categories of logs to Cloud Logging:
+
+**System Component Logs**
+Logs from the Kubernetes control plane and node-level components: the API server request logs, scheduler decisions, controller manager events, kubelet activity, and kube-proxy. On a self-managed cluster, these logs are typically scattered across node filesystems or require a dedicated log aggregation stack. On an attached cluster, they flow automatically to Cloud Logging where they can be searched, filtered, and alerted on.
+
+System logs are particularly valuable when troubleshooting cluster-level issues — for example, when a pod fails to schedule, the scheduler logs explain exactly why (insufficient CPU, no matching node selector, pod disruption budget preventing eviction). Having these in Cloud Logging alongside application logs makes root-cause analysis significantly faster.
+
+**Workload Logs**
+The stdout and stderr output of every container running in the cluster, from every namespace. These arrive in Cloud Logging structured with Kubernetes metadata — cluster name, namespace, pod name, container name — so they can be filtered by any of these dimensions. A query like "show me all ERROR-level logs from the `payments` namespace on this EKS cluster in the last hour" works exactly the same as it does for a native GKE cluster.
+
+The log forwarding agent is deployed onto the EKS cluster automatically as part of the attached cluster registration. There is no log agent to configure or maintain.
+
+### Google Cloud Managed Service for Prometheus
+
+The module enables **Managed Prometheus** on the attached cluster. Google Cloud Managed Service for Prometheus (GMP) is a fully managed, Prometheus-compatible metrics backend that replaces the need to operate a self-managed Prometheus stack.
+
+When enabled on an attached cluster, GMP deploys a managed collection agent that scrapes metrics from pods exposing Prometheus endpoints. The agent respects standard Prometheus scrape configuration via two Kubernetes custom resources:
+
+- **PodMonitoring** — scrapes metrics from pods matching a label selector within a namespace
+- **ClusterPodMonitoring** — scrapes metrics from pods across all namespaces
+
+Scraped metrics are stored in Cloud Monitoring's globally distributed backend with automatic scaling and 24-month retention. Engineers query them using standard PromQL through the Cloud Monitoring API, the built-in Prometheus Query UI in the Cloud Console, or any Grafana instance pointed at Cloud Monitoring as a data source.
+
+**What this replaces in a self-managed setup:**
+
+| Self-managed component | GMP equivalent |
+|----------------------|---------------|
+| Prometheus server | Managed collection agent (auto-deployed) |
+| Thanos / Cortex for long-term storage | Cloud Monitoring backend (automatic) |
+| Prometheus Operator | PodMonitoring / ClusterPodMonitoring CRDs |
+| Alertmanager | Cloud Monitoring alert policies |
+| Grafana (with Prometheus data source) | Cloud Monitoring dashboards or Grafana with Cloud Monitoring data source |
+
+The GKE dashboards built into Cloud Monitoring — covering node CPU and memory, pod resource utilisation, network throughput, and persistent volume usage — work for EKS clusters with Managed Prometheus enabled, exactly as they do for native GKE clusters.
+
+### Admin User Authorisation
+
+The module grants Kubernetes `cluster-admin` RBAC access to a configurable list of Google identities (`trusted_users`). These users can run `kubectl` against the EKS cluster through the Connect Gateway using their Google credentials — with full administrative access equivalent to running `kubectl` with a cluster admin kubeconfig directly against AWS.
+
+The Terraform executor's own Google identity is always included in the admin list automatically, so the person or service account that deploys the module always has access. Additional users are added via the `trusted_users` configuration option.
+
+This authorisation model bridges two identity systems: AWS IAM (which EKS natively uses for RBAC via `aws-auth` ConfigMap) and Google Cloud IAM (which the Connect Gateway uses to authenticate `kubectl` requests). Users in `trusted_users` authenticate with Google but receive Kubernetes RBAC permissions — they never need an AWS IAM identity to access the cluster after registration.
+
+---
