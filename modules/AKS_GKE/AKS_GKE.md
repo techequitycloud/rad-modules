@@ -882,13 +882,377 @@ Fleet is the most important concept for platform engineers building multi-cluste
 |---|---|
 | Attached cluster status and details | Kubernetes Engine > Clusters |
 | Fleet membership and feature health | Kubernetes Engine > Fleet |
+| Fleet feature enable / status | Kubernetes Engine > Fleet > Feature manager |
+| Anthos Config Management sync status | Kubernetes Engine > Config |
+| Policy Controller violations | Kubernetes Engine > Policy |
 | Log Explorer for AKS logs | Logging > Log Explorer |
 | Log-based metrics | Logging > Log-based Metrics |
 | Metrics Explorer and PromQL | Monitoring > Metrics Explorer |
 | Built-in Kubernetes dashboards | Monitoring > Dashboards |
 | Alerting policies | Monitoring > Alerting |
-| Service Mesh topology and metrics | Anthos > Service Mesh |
+| Distributed traces (service mesh) | Trace > Trace Explorer |
+| Service Mesh topology and security | Anthos > Service Mesh |
 | Workload Identity Federation pools | IAM & Admin > Workload Identity Federation |
 | Enabled APIs | APIs & Services > Enabled APIs & Services |
 | Certificate Authority (GCP CAS option) | Certificate Authority Service |
-| Fleet feature configuration | Kubernetes Engine > Fleet > Feature manager |
+
+## 14. Cloud Trace: Distributed Tracing via the Service Mesh
+
+### 14.1 What Cloud Trace Captures
+
+When Anthos Service Mesh is installed, the Envoy sidecar proxies automatically generate distributed traces for every request that passes through the mesh — without any instrumentation in application code. Each trace records the full path a request takes across services: which pods handled it, how long each hop took, and whether any errors occurred.
+
+These traces are forwarded to **Cloud Trace**, Google Cloud's managed distributed tracing backend. Cloud Trace stores them with sub-millisecond precision and provides a UI for exploring latency, identifying bottlenecks, and correlating slow requests with specific service versions.
+
+### 14.2 Viewing Traces in the Console
+
+After the service mesh is installed and workloads are generating traffic, navigate to:
+
+**Trace > Trace Explorer**
+
+The Trace Explorer shows a scatter plot of all recent traces plotted by latency over time. Each dot is a single request. Outliers — requests significantly slower than the median — appear visually as high dots, making latency regressions immediately apparent without writing queries.
+
+To filter traces to a specific service on the AKS cluster:
+
+1. Open **Trace > Trace Explorer**
+2. Click **Add filter** and select **Service name**
+3. Enter the Kubernetes service name to scope the view
+
+Clicking any individual trace opens a waterfall diagram showing every service hop, the time spent at each, and any errors or status codes returned.
+
+To view traces linked to a specific log entry, open a log entry in **Logging > Log Explorer** and click **View in Trace** if a trace ID is present — this jumps directly to the corresponding trace waterfall.
+
+### 14.3 Exploring Traces from the Command Line
+
+```bash
+# List recent traces for the project (last 1 hour)
+gcloud trace traces list \
+  --project=my-gcp-project \
+  --start-time=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
+
+# Describe a specific trace by ID
+gcloud trace traces get TRACE_ID \
+  --project=my-gcp-project
+
+# List traces filtered by a minimum latency (e.g. over 500ms)
+gcloud trace traces list \
+  --project=my-gcp-project \
+  --filter="latency > 0.5s" \
+  --start-time=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
+```
+
+### 14.4 Confirming Trace Collection is Active
+
+After the mesh is installed, verify the trace export is working:
+
+```bash
+# Connect to the cluster
+gcloud container attached clusters get-credentials azure-aks-cluster \
+  --location=us-central1 --project=my-gcp-project
+
+# Check that the Stackdriver trace exporter is configured in the mesh
+kubectl get meshconfig -n istio-system -o jsonpath='{.spec.defaultConfig.tracing}'
+
+# Generate a test request between two mesh-enrolled pods to produce a trace
+kubectl exec -n default deploy/my-app -- \
+  curl -s http://other-service/health
+
+# Confirm traces are appearing in Cloud Trace (allow ~30 seconds)
+gcloud trace traces list \
+  --project=my-gcp-project \
+  --start-time=$(date -u -d '2 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+```
+
+---
+
+## 15. Fleet Feature Management
+
+### 15.1 Enabling and Inspecting Fleet Features
+
+Fleet features are optional capabilities that apply to all clusters in a fleet simultaneously. They are managed independently of cluster provisioning — a feature can be enabled on an existing fleet at any time without redeploying clusters.
+
+The `gcloud container fleet features` command group provides full control over fleet feature lifecycle:
+
+```bash
+# List all available fleet features and their current state
+gcloud container fleet features list \
+  --project=my-gcp-project
+
+# Describe a specific feature and its configuration
+gcloud container fleet features describe configmanagement \
+  --project=my-gcp-project
+
+# Check which fleet features are currently enabled
+gcloud container fleet features list \
+  --filter="resourceState.state=ACTIVE" \
+  --project=my-gcp-project
+```
+
+### 15.2 Anthos Config Management
+
+Anthos Config Management (ACM) synchronises Kubernetes configuration from a Git repository to all fleet clusters. A single policy commit can update namespace definitions, RBAC bindings, resource quotas, and network policies across both GKE and the AKS cluster simultaneously.
+
+**Enabling ACM on the fleet:**
+
+```bash
+# Enable the Config Management fleet feature
+gcloud container fleet config-management enable \
+  --project=my-gcp-project
+
+# Confirm the feature is active
+gcloud container fleet config-management status \
+  --project=my-gcp-project
+```
+
+**Applying a Config Management configuration to the AKS cluster:**
+
+```bash
+# Connect to the cluster
+gcloud container attached clusters get-credentials azure-aks-cluster \
+  --location=us-central1 --project=my-gcp-project
+
+# Apply a ConfigManagement resource pointing to a Git repository
+kubectl apply -f - <<EOF
+apiVersion: configmanagement.gke.io/v1
+kind: ConfigManagement
+metadata:
+  name: config-management
+spec:
+  clusterName: azure-aks-cluster
+  git:
+    syncRepo: https://github.com/my-org/my-config-repo
+    syncBranch: main
+    secretType: none
+EOF
+
+# Check sync status on the cluster
+kubectl get configmanagement
+kubectl get rootsyncs -n config-management-system
+```
+
+**Viewing sync status in the Console:**
+
+Navigate to **Kubernetes Engine > Config**. This page shows each fleet cluster, its last sync time, and any errors encountered during reconciliation. A green status confirms the cluster's configuration matches the Git repository.
+
+```bash
+# Check ACM sync status across all fleet clusters
+gcloud container fleet config-management status \
+  --project=my-gcp-project
+
+# Describe the sync status for the AKS cluster specifically
+gcloud container fleet config-management fetch-for-apply \
+  --membership=azure-aks-cluster \
+  --project=my-gcp-project
+```
+
+### 15.3 Policy Controller
+
+Policy Controller enforces organisational policies across all fleet clusters using OPA Gatekeeper constraint templates. Policies defined once apply identically to the AKS cluster and any GKE clusters in the same fleet.
+
+**Enabling Policy Controller:**
+
+```bash
+# Enable Policy Controller on the fleet
+gcloud container fleet policycontroller enable \
+  --project=my-gcp-project
+
+# Check Policy Controller status across fleet clusters
+gcloud container fleet policycontroller status \
+  --project=my-gcp-project
+```
+
+**Exploring Policy Controller on the cluster:**
+
+```bash
+# List all constraint templates installed by Policy Controller
+kubectl get constrainttemplates
+
+# List all active constraints
+kubectl get constraints --all-namespaces
+
+# Check for policy violations across the cluster
+kubectl get constraints -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.totalViolations}{"\n"}{end}'
+```
+
+**Viewing violations in the Console:**
+
+Navigate to **Kubernetes Engine > Policy**. This page lists all active constraints and any violations detected on each fleet cluster, making cross-cluster compliance visible from a single view.
+
+---
+
+## 16. Service Mesh Security: Authorization Policies
+
+### 16.1 What AuthorizationPolicy Does
+
+An `AuthorizationPolicy` is an Istio resource that defines which workloads are permitted to communicate with which others within the mesh. Without an AuthorizationPolicy, all mTLS-authenticated traffic between mesh-enrolled pods is allowed. With one applied, only explicitly permitted traffic flows — implementing zero-trust networking at the application layer.
+
+This is the service mesh equivalent of a firewall rule, but it operates at the workload identity level rather than the IP level. Policies are evaluated by the Envoy sidecar on the receiving pod, enforced before the request reaches the application container.
+
+### 16.2 Viewing Existing Policies
+
+```bash
+# Connect to the cluster
+gcloud container attached clusters get-credentials azure-aks-cluster \
+  --location=us-central1 --project=my-gcp-project
+
+# List all authorization policies across all namespaces
+kubectl get authorizationpolicy --all-namespaces
+
+# Describe a specific policy in detail
+kubectl describe authorizationpolicy POLICY_NAME -n NAMESPACE
+```
+
+### 16.3 Creating and Testing an Authorization Policy
+
+This example creates a policy that allows only the `frontend` service account to call the `backend` service, and denies all other callers:
+
+```bash
+# Apply a deny-all policy to the backend service first
+kubectl apply -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: backend-deny-all
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  action: DENY
+  rules:
+  - {}
+EOF
+
+# Verify the policy is in place
+kubectl get authorizationpolicy -n default
+
+# Now allow only the frontend service account through
+kubectl apply -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: backend-allow-frontend
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals:
+        - "cluster.local/ns/default/sa/frontend"
+EOF
+
+# Test that the frontend can reach the backend
+kubectl exec -n default deploy/frontend -- curl -s http://backend/health
+
+# Test that another service is blocked (expect 403)
+kubectl exec -n default deploy/other-service -- curl -s http://backend/health
+```
+
+### 16.4 Viewing Policy Effects in the Console
+
+After applying authorization policies, their effects appear in the Anthos Service Mesh topology view:
+
+Navigate to **Anthos > Service Mesh**
+
+Services with active policies show a lock icon on their edges in the topology graph. Clicking a service shows its current authorization rules and any recent denied requests, identifiable by HTTP 403 responses in the service's error rate metrics.
+
+Denied requests also appear in Cloud Logging:
+
+```bash
+gcloud logging read \
+  'resource.labels.cluster_name="azure-aks-cluster" AND jsonPayload.response_code=403' \
+  --project=my-gcp-project \
+  --limit=20
+```
+
+---
+
+## 17. Mesh Diagnostics with istioctl
+
+### 17.1 Installing istioctl
+
+`istioctl` is the primary command-line tool for inspecting, diagnosing, and troubleshooting an Istio service mesh installation. It works against any cluster that `kubectl` is configured to access, including the AKS cluster connected via Connect Gateway.
+
+```bash
+# Download the istioctl binary matching the installed ASM version
+curl -sL https://istio.io/downloadIstioctl | sh -
+
+# Add to PATH
+export PATH=$HOME/.istioctl/bin:$PATH
+
+# Confirm it connects to the AKS cluster
+istioctl version
+```
+
+### 17.2 Verifying the Mesh Installation
+
+```bash
+# Run the full pre-check for mesh installation health
+istioctl verify-install
+
+# Check that all Istio components are healthy
+istioctl proxy-status
+
+# Identify any pods that are out of sync with the control plane
+istioctl proxy-status | grep -v SYNCED
+```
+
+### 17.3 Inspecting Sidecar Configuration
+
+```bash
+# Check whether a specific pod has a sidecar injected
+istioctl experimental check-inject -n default deploy/my-app
+
+# View the full Envoy configuration for a pod's sidecar
+istioctl proxy-config all my-pod -n default
+
+# View only the listener configuration (inbound/outbound ports)
+istioctl proxy-config listeners my-pod -n default
+
+# View the cluster configuration (upstream services)
+istioctl proxy-config clusters my-pod -n default
+
+# View the route configuration (HTTP routing rules)
+istioctl proxy-config routes my-pod -n default
+
+# View TLS certificates loaded into the sidecar
+istioctl proxy-config secret my-pod -n default
+```
+
+### 17.4 Diagnosing Traffic and Policy Issues
+
+```bash
+# Analyse the mesh configuration for misconfigurations
+istioctl analyze --all-namespaces
+
+# Analyse a specific namespace only
+istioctl analyze -n default
+
+# Check whether a VirtualService is correctly applied
+istioctl analyze -n default --failure-threshold WARNING
+
+# Describe what traffic policy applies to a specific service
+istioctl experimental describe service my-service -n default
+
+# Describe the mesh policy applying to a specific pod
+istioctl experimental describe pod my-pod -n default
+```
+
+### 17.5 Generating a Mesh Bug Report
+
+When escalating a mesh issue to Google Cloud Support or filing a bug, `istioctl` can collect all relevant diagnostics in one command:
+
+```bash
+# Generate a full diagnostic bundle
+istioctl bug-report --istio-namespace istio-system
+
+# The bundle is saved as a tar.gz file in the current directory
+# It contains: proxy configs, control plane logs, Istio custom resources,
+# and cluster state — everything needed to diagnose the issue
+```
+
+---
