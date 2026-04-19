@@ -1228,3 +1228,297 @@ When the module is destroyed, resources are removed in reverse dependency order:
 > **Warning**: Destroying the module deletes all persistent volume data in `accounts-db` and `ledger-db`. Any transaction or account data created during the lab is permanently lost.
 
 ---
+
+## Hands-On Exercises
+
+These exercises develop practical skills with GKE, Cloud Service Mesh, Anthos Config Management, and SLOs using the live Bank of Anthos deployment. Each exercise is self-contained and can be completed independently.
+
+---
+
+### Exercise 1: Verify the Service Mesh
+
+**Objective**: Confirm that all microservices have Istio sidecars injected and are communicating over mTLS.
+
+```bash
+# Verify sidecar injection — each pod should show 2/2 READY
+kubectl get pods -n bank-of-anthos
+
+# Check that the namespace has the injection label
+kubectl get namespace bank-of-anthos --show-labels
+
+# Confirm mTLS is enforced via PeerAuthentication
+kubectl get peerauthentication -n bank-of-anthos -o yaml
+
+# Inspect the certificate served by the frontend sidecar
+FRONTEND_POD=$(kubectl get pod -n bank-of-anthos -l app=frontend \
+  -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n bank-of-anthos $FRONTEND_POD -c istio-proxy -- \
+  openssl s_client -connect frontend:8080 -showcerts </dev/null 2>/dev/null | \
+  openssl x509 -noout -text | grep -A2 "Subject:"
+```
+
+**Expected result**: The certificate Subject contains a SPIFFE URI in the format `spiffe://<project>.svc.id.goog/ns/bank-of-anthos/sa/<service-account>`.
+
+---
+
+### Exercise 2: Explore the GKE Ingress Stack
+
+**Objective**: Trace the path from the Internet to a running pod via the load balancer.
+
+```bash
+# Find the Ingress external IP
+kubectl get ingress -n bank-of-anthos
+
+# Check the ManagedCertificate status
+kubectl describe managedcertificate -n bank-of-anthos
+
+# List NEGs created for the frontend service
+gcloud compute network-endpoint-groups list \
+  --filter="name~bank-of-anthos" \
+  --project=${PROJECT_ID}
+
+# Verify HTTPS redirect is working
+curl -I http://${APPLICATION_DOMAIN}/
+# Should return HTTP/1.1 301 Moved Permanently
+
+# Test the application over HTTPS
+curl -sk https://${APPLICATION_DOMAIN}/ | head -20
+```
+
+**Console navigation**: **Network Services → Load balancing** → select `bank-of-anthos` to inspect the URL map, backend services, and health status.
+
+---
+
+### Exercise 3: Inspect the BackendConfig Health Check
+
+**Objective**: Understand how the load balancer health-checks backend pods and observe pod registration.
+
+```bash
+# View the BackendConfig
+kubectl get backendconfig -n bank-of-anthos -o yaml
+
+# Find the GCP backend service name
+gcloud compute backend-services list \
+  --filter="name~bank-of-anthos" \
+  --global --project=${PROJECT_ID}
+
+# Describe the backend service and check health check configuration
+gcloud compute backend-services describe ${BACKEND_SERVICE_NAME} \
+  --global --project=${PROJECT_ID} --format="yaml(healthChecks,backends)"
+
+# List NEG endpoints (direct pod IPs registered in the load balancer)
+NEG_NAME=$(gcloud compute network-endpoint-groups list \
+  --filter="name~bank-of-anthos" \
+  --project=${PROJECT_ID} --format="value(name)" | head -1)
+ZONE=$(gcloud compute network-endpoint-groups list \
+  --filter="name~bank-of-anthos" \
+  --project=${PROJECT_ID} --format="value(zone)" | head -1)
+gcloud compute network-endpoint-groups list-network-endpoints \
+  ${NEG_NAME} --zone=${ZONE} --project=${PROJECT_ID}
+```
+
+**Expected result**: Each registered endpoint corresponds to a running frontend pod IP. Add or delete a frontend pod replica and re-run the last command to observe the NEG updating within ~30 seconds.
+
+---
+
+### Exercise 4: Test Drift Detection with Config Sync
+
+**Objective**: Observe Config Sync automatically restoring a resource that was manually deleted.
+
+> This exercise requires `enable_config_management=true`.
+
+```bash
+# Check current sync status
+kubectl get rootsync -n config-management-system
+kubectl describe rootsync root-sync -n config-management-system | tail -20
+
+# Identify a resource managed by Config Sync
+kubectl get all -n bank-of-anthos -o yaml | \
+  grep -B5 "configmanagement.gke.io/managed: enabled" | head -20
+
+# Record a ConfigMap name managed by Config Sync, then delete it
+MANAGED_CM=$(kubectl get configmap -n bank-of-anthos \
+  -o jsonpath='{range .items[?(@.metadata.annotations.configmanagement\.gke\.io/managed=="enabled")]}{.metadata.name}{"\n"}{end}' | head -1)
+echo "Deleting: $MANAGED_CM"
+kubectl delete configmap $MANAGED_CM -n bank-of-anthos
+
+# Watch Config Sync recreate it (within ~30 seconds)
+kubectl get rootsync root-sync -n config-management-system -w
+```
+
+**Expected result**: The ConfigMap reappears within one reconciliation cycle. The `RootSync` status transitions from `Stale` back to `Synced`.
+
+---
+
+### Exercise 5: Observe SLO Error Budgets
+
+**Objective**: Locate the SLO dashboards and understand the error budget for each microservice.
+
+**Console navigation**: **Monitoring → Services**
+
+1. Select the `frontend` service from the list.
+2. Click **SLOs** in the left sidebar.
+3. Observe the current SLI value, error budget remaining, and burn rate chart.
+
+```bash
+# List Cloud Monitoring services for this project
+gcloud monitoring services list --project=${PROJECT_ID}
+
+# Retrieve SLOs for the frontend service
+# (Replace SERVICE_ID with the value from the list command)
+gcloud monitoring services slos list \
+  --service=${SERVICE_ID} \
+  --project=${PROJECT_ID}
+
+# Describe a specific SLO
+gcloud monitoring services slos describe ${SLO_ID} \
+  --service=${SERVICE_ID} \
+  --project=${PROJECT_ID}
+```
+
+**Challenge**: Calculate the error budget in minutes for the `balancereader` service (99.9% target, 30-day window). Confirm your calculation against the console display.
+
+---
+
+### Exercise 6: Workload Identity Verification
+
+**Objective**: Confirm that the application workloads use Workload Identity to access GCP services without static credentials.
+
+```bash
+# List Kubernetes Service Accounts in the namespace
+kubectl get serviceaccounts -n bank-of-anthos
+
+# Check the Workload Identity annotation on the KSA
+kubectl get serviceaccount -n bank-of-anthos \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.metadata.annotations.iam\.gke\.io/gcp-service-account}{"\n"}{end}'
+
+# Confirm no static credential files are mounted in pods
+kubectl get pods -n bank-of-anthos -o json | python3 -c "
+import sys, json
+pods = json.load(sys.stdin)['items']
+for p in pods:
+    for c in p['spec']['containers']:
+        for vm in c.get('volumeMounts', []):
+            if 'key' in vm.get('mountPath','').lower() or 'cred' in vm.get('mountPath','').lower():
+                print(f\"{p['metadata']['name']}/{c['name']}: {vm['mountPath']}\")
+print('Scan complete')
+"
+
+# Test the metadata server token exchange from within a pod
+kubectl exec -n bank-of-anthos \
+  $(kubectl get pod -n bank-of-anthos -l app=frontend -o jsonpath='{.items[0].metadata.name}') \
+  -c frontend -- \
+  curl -sH 'Metadata-Flavor: Google' \
+  http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email
+```
+
+**Expected result**: The metadata server returns a GCP service account email (not a node default service account). The Kubernetes Service Account annotation maps to this GSA.
+
+---
+
+### Exercise 7: Distributed Tracing with Cloud Trace
+
+**Objective**: Follow a user request through the microservice call graph using distributed traces.
+
+```bash
+# Generate a test request through the application
+curl -sk https://${APPLICATION_DOMAIN}/login -d "username=testuser&password=password"
+
+# Confirm the tracing ConfigMap is present
+kubectl get configmap istio-asm-managed -n istio-system -o yaml
+```
+
+**Console navigation**: **Trace → Trace List**
+
+1. Filter by the last 1 hour.
+2. Select a trace with the highest latency (likely a login or transfer request).
+3. Expand the trace waterfall to see spans from `frontend` → `userservice` → `accounts-db`.
+4. Identify the slowest span and the service responsible.
+
+**Challenge**: Compare the latency of a `GET /` (home page) trace against a `POST /payment` (fund transfer) trace. Which service accounts for most of the latency in the transfer trace?
+
+---
+
+### Exercise 8: Simulate a Service Failure
+
+**Objective**: Observe how Istio and the load balancer handle a service disruption.
+
+```bash
+# Scale the balancereader to zero replicas
+kubectl scale deployment balancereader -n bank-of-anthos --replicas=0
+
+# Attempt to access the account balance page (will fail or show error)
+curl -sk https://${APPLICATION_DOMAIN}/home
+
+# Check the SLO impact — balancereader error rate should spike
+# Console navigation: Monitoring → Services → balancereader → SLOs
+
+# Observe the Istio traffic metrics for balancereader
+kubectl top pods -n bank-of-anthos 2>/dev/null || \
+  kubectl get pods -n bank-of-anthos | grep balancereader
+
+# Restore the service
+kubectl scale deployment balancereader -n bank-of-anthos --replicas=1
+
+# Verify the pod is running and traffic resumes
+kubectl rollout status deployment/balancereader -n bank-of-anthos
+```
+
+**Expected result**: The SLO error rate for `balancereader` increases while scaled to zero, consuming error budget. After restoring replicas, the error rate drops and the budget stops burning.
+
+---
+
+### Exercise 9: Inspect Policy Controller Constraints
+
+**Objective**: Review which OPA/Gatekeeper policies are enforced on the cluster and check for violations.
+
+```bash
+# List ConstraintTemplates
+kubectl get constrainttemplates
+
+# List active Constraints
+kubectl get constraints -A
+
+# Check violation counts per constraint
+kubectl get constraints -A \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.totalViolations}{"\n"}{end}'
+
+# View the full violation details for a specific constraint
+CONSTRAINT_KIND=$(kubectl get constraints -A -o jsonpath='{.items[0].kind}')
+CONSTRAINT_NAME=$(kubectl get constraints -A -o jsonpath='{.items[0].metadata.name}')
+kubectl describe ${CONSTRAINT_KIND} ${CONSTRAINT_NAME}
+```
+
+**Console navigation**: **Kubernetes Engine → Config → Policy** — view all constraints, their violation counts, and the affected resources.
+
+---
+
+### Exercise 10: Explore Cloud Monitoring Dashboards
+
+**Objective**: Use Cloud Monitoring to understand cluster and application health end to end.
+
+**Console navigation**: **Monitoring → Dashboards**
+
+Built-in dashboards to explore:
+
+| Dashboard | What it shows |
+|---|---|
+| GKE cluster | Node CPU, memory, and pod counts per namespace |
+| Kubernetes Workloads | Per-deployment resource usage and restart counts |
+| Anthos Service Mesh | Request rates, error rates, and P99 latency per service |
+| Cloud HTTP Load Balancing | Request count, latency, and 5xx rate at the load balancer |
+
+```bash
+# View current Managed Prometheus scrape targets
+kubectl get podmonitorings -n bank-of-anthos 2>/dev/null || \
+  kubectl get clusterpodmonitorings 2>/dev/null || \
+  echo "No custom PodMonitoring resources found — using default GKE Managed Prometheus scraping"
+
+# View recent error logs for all services
+gcloud logging read \
+  'resource.type="k8s_container" AND resource.labels.namespace_name="bank-of-anthos" AND severity>=ERROR' \
+  --limit=20 \
+  --project=${PROJECT_ID}
+```
+
+---
