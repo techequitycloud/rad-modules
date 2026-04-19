@@ -622,3 +622,153 @@ istioctl analyze -n default
 ```
 
 ---
+
+## Ambient Mode
+
+Ambient mode is Istio's next-generation data plane architecture, introduced as stable in Istio 1.22. It removes the need for per-pod sidecar proxies entirely, reducing resource overhead and operational complexity while preserving the full Istio feature set for workloads that need it.
+
+### Why Ambient Mode Exists
+
+Sidecar proxies are powerful but come with trade-offs. Each pod carries an additional container that consumes CPU and memory, adding up significantly in large clusters. The sidecar lifecycle is tied to the pod lifecycle — updating Istio requires rolling restarts of all workloads. `istio-init` requires `NET_ADMIN` privileges, which some security policies prohibit.
+
+Ambient mode resolves these constraints by moving the data plane out of the pods and into dedicated infrastructure components that run at the node and namespace level.
+
+### The Two-Layer Architecture
+
+Ambient mode separates data plane responsibilities into two distinct layers:
+
+| Layer | Component | Scope | Protocols |
+|---|---|---|---|
+| L4 (secure overlay) | ztunnel | Per node (DaemonSet) | TCP, mTLS tunnelling (HBONE) |
+| L7 (advanced policy) | Waypoint proxy | Per namespace or service account | HTTP, gRPC, WebSocket |
+
+This separation lets you opt in to L7 features only where needed, keeping baseline infrastructure costs low.
+
+### ztunnel — The Zero-Trust Tunnel
+
+`ztunnel` (zero-trust tunnel) is a lightweight Rust-based proxy deployed as a DaemonSet — one pod on every node in the cluster. It handles all L4 traffic for ambient-mode workloads on that node.
+
+What ztunnel provides:
+- **Transparent mTLS** — encrypts all pod-to-pod traffic without modifying the pod itself
+- **SPIFFE identity** — issues and validates workload certificates exactly as the sidecar does; the same `spiffe://cluster.local/ns/<ns>/sa/<sa>` format applies
+- **L4 authorisation** — enforces `AuthorizationPolicy` resources based on source workload identity and destination port
+- **No `NET_ADMIN` required** — traffic redirection uses iptables rules applied at the node level, outside the pod
+
+Inspect ztunnel on any node:
+
+```bash
+# View the ztunnel DaemonSet
+kubectl get daemonset ztunnel -n istio-system
+
+# View ztunnel pods (one per node)
+kubectl get pods -n istio-system -l app=ztunnel -o wide
+
+# Stream ztunnel logs for a specific node
+kubectl logs -n istio-system -l app=ztunnel --follow
+
+# Inspect ztunnel's workload graph (what it knows about the mesh)
+istioctl ztunnel-config workloads
+```
+
+**Explore in the Cloud Console:** Navigate to **Kubernetes Engine → Workloads**, filter by namespace `istio-system`, and select the `ztunnel` DaemonSet. The **Managed pods** tab shows one pod per node, confirming node-level coverage.
+
+### Waypoint Proxies — On-Demand L7
+
+When you need HTTP-level features — traffic splitting, retries, header manipulation, JWT authentication, or fine-grained `AuthorizationPolicy` — you deploy a waypoint proxy for a namespace or specific service account.
+
+A waypoint is a standard Envoy proxy deployed as a Kubernetes Deployment, provisioned via the `istioctl waypoint` command. All traffic entering the target namespace (or service account) is redirected through the waypoint before reaching the destination pod.
+
+```bash
+# Deploy a waypoint for the default namespace
+istioctl waypoint apply --namespace default
+
+# Verify the waypoint is running
+kubectl get gateway -n default
+
+# View the waypoint proxy deployment
+kubectl get deployment -n default -l gateway.istio.io/managed=istio.io-mesh-controller
+
+# Inspect the waypoint's configuration
+istioctl proxy-config routes -n default deployment/waypoint
+
+# Remove a waypoint
+istioctl waypoint delete --namespace default
+```
+
+Waypoints use the **Kubernetes Gateway API** (`gateway.networking.k8s.io/v1`) rather than Istio-specific resources. This makes waypoint configuration portable and consistent with the broader Kubernetes ecosystem.
+
+### Enrolling Workloads in Ambient Mode
+
+Ambient mode is opt-in at the namespace level. Label a namespace to enroll all workloads in it:
+
+```bash
+# Enroll the default namespace in ambient mode
+kubectl label namespace default istio.io/dataplane-mode=ambient
+
+# Verify the label
+kubectl get namespace default --show-labels
+
+# Check that ztunnel is tracking workloads in the namespace
+istioctl ztunnel-config workloads | grep default
+```
+
+Individual pods can be excluded from ambient mode:
+
+```bash
+# Exclude a specific pod from ambient mode
+kubectl label pod <pod-name> istio.io/dataplane-mode=none
+```
+
+Unlike sidecar mode, enrolling in ambient mode requires **no pod restart**. ztunnel begins intercepting traffic for labeled pods immediately.
+
+### Comparing Sidecar and Ambient Mode
+
+| Dimension | Sidecar Mode | Ambient Mode |
+|---|---|---|
+| Data plane location | Inside each pod | Node-level (ztunnel) + namespace-level (waypoint) |
+| Pod restart required to enroll | Yes (sidecar injection) | No |
+| Pod restart required to upgrade Istio | Yes (rolling restart) | No (DaemonSet update only) |
+| `NET_ADMIN` required | Yes (istio-init) | No |
+| L4 policy | Per-pod sidecar | ztunnel (per-node) |
+| L7 policy | Per-pod sidecar | Waypoint proxy (opt-in per namespace) |
+| Memory overhead per workload | ~128 MiB (sidecar) | Near zero (shared ztunnel) |
+| CPU overhead per workload | ~100m (sidecar) | Near zero (shared ztunnel) |
+| Latency | Adds ~0.5ms (two hops) | Lower for L4-only; similar when waypoint is used |
+| SPIFFE identity | Yes | Yes |
+| Kubernetes Gateway API | Supported | Native (waypoints use Gateway API) |
+| Maturity | Stable since Istio 1.0 | Stable since Istio 1.22 |
+
+### Ambient Mode Resource Overhead
+
+Because ztunnel is shared across all pods on a node, the per-workload overhead is negligible. The only dedicated resources are:
+
+| Component | Count | Typical resources |
+|---|---|---|
+| ztunnel pod | One per node | 100m CPU, 128Mi memory |
+| Waypoint proxy | One per namespace (optional) | 100m CPU, 128Mi memory |
+| istiod | One deployment | 200m CPU, 256Mi memory |
+
+In a 10-node cluster running 200 pods, ambient mode consumes roughly 10× less memory than the equivalent sidecar deployment.
+
+### Verifying Ambient Mode End-to-End
+
+After enrolling a namespace, verify that mTLS encryption is active between two pods:
+
+```bash
+# Deploy two test pods
+kubectl run server --image=nginx --port=80
+kubectl run client --image=curlimages/curl --restart=Never -- sleep 3600
+
+# From the client pod, curl the server — traffic is transparently encrypted by ztunnel
+kubectl exec client -- curl http://server
+
+# Check that ztunnel logged the connection
+kubectl logs -n istio-system -l app=ztunnel | grep "server"
+
+# Confirm ztunnel is tracking the connection
+istioctl ztunnel-config connections
+```
+
+**Explore in the Cloud Console:** Navigate to **Kubernetes Engine → Service & Ingress** and select a Service in the ambient-enrolled namespace. The **Traffic** tab shows inter-pod flows. For deeper inspection, use **Network Intelligence → Network Topology** to visualise east-west traffic patterns between enrolled namespaces.
+
+---
