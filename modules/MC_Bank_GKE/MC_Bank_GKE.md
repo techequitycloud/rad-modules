@@ -170,3 +170,122 @@ The **Gateway API** is enabled on `CHANNEL_STANDARD`. Gateway API is the success
 **GKE Cost Management** is enabled on all clusters. This feature attributes resource costs (CPU, memory, storage) to Kubernetes namespaces and labels, enabling per-team or per-workload cost visibility within a shared cluster. Cost data is available in the Google Cloud Billing console and exportable to BigQuery.
 
 ---
+
+## Networking
+
+### VPC Design
+
+All clusters share a single **custom VPC network** with GLOBAL routing mode. Using a global VPC means that subnets in different regions can communicate over Google's private backbone without requiring VPC peering or additional routing configuration. This simplifies multi-cluster networking — pods in us-west1 can reach services in us-east1 using internal RFC 1918 addresses.
+
+The VPC uses `auto_create_subnetworks = false`, meaning no default subnets are created. Every subnet is explicitly defined and sized to match the requirements of each cluster.
+
+**Why a custom VPC over the default VPC?**
+The default VPC uses auto-mode subnets with pre-assigned, fixed CIDR ranges. Custom VPCs give you full control over IP address planning, which matters when:
+- You need to avoid overlapping with on-premises or partner networks (VPN/Interconnect)
+- You are planning for a specific number of nodes, pods, and services per cluster
+- You want to enforce network segmentation between environments
+
+### Subnet Design and IP Allocation
+
+Each cluster receives a dedicated subnet with three IP ranges:
+
+| Range type | CIDR (cluster 1 example) | Size | Purpose |
+|---|---|---|---|
+| Primary (nodes) | 10.0.0.0/20 | 4,096 IPs | Node VM addresses |
+| Pod secondary range | 10.0.16.0/20 | 4,096 IPs | Pod IP addresses (VPC-native) |
+| Service secondary range | 10.0.32.0/20 | 4,096 IPs | ClusterIP service addresses |
+
+Subsequent clusters increment these ranges to avoid overlap (cluster 2 uses 10.0.64.0/20, 10.0.80.0/20, 10.0.96.0/20, and so on).
+
+**VPC-native clusters**: GKE is configured to use VPC-native networking (alias IP ranges). This means pod IP addresses are drawn from the subnet's secondary range and are directly routable within the VPC — no IP masquerading is required for pod-to-pod communication across nodes. This is a prerequisite for Multi-Cluster Services and for using Container-native load balancing with Network Endpoint Groups (NEGs).
+
+### Cloud Router and Cloud NAT
+
+Each cluster subnet is paired with a **Cloud Router** and a **Cloud NAT gateway**. These provide outbound internet connectivity for nodes and pods without requiring public IP addresses on the nodes themselves.
+
+**Cloud Router** establishes a BGP session used by Cloud NAT and, optionally, by Cloud Interconnect or Cloud VPN for hybrid connectivity.
+
+**Cloud NAT** translates outbound traffic from private node and pod IP addresses to ephemeral external IPs managed by Google. Configuration details:
+
+- **IP allocation**: `AUTO_ONLY` — Google automatically allocates and manages the external IPs. No static IPs need to be reserved for NAT.
+- **Subnet targeting**: `LIST_OF_SUBNETWORKS` — NAT is applied only to the specific subnet for that cluster, avoiding conflicts when multiple clusters share the same region.
+- **Log level**: `ERRORS_ONLY` — NAT translation errors are logged to Cloud Logging, helping diagnose connectivity failures without generating excessive log volume.
+
+**Why private nodes with Cloud NAT?**
+Running nodes without public IPs reduces the attack surface — nodes are not directly reachable from the internet. Outbound traffic (pulling container images, calling APIs) flows through NAT. Inbound traffic enters only through the load balancer.
+
+### Firewall Rules
+
+The module creates five explicit firewall rules. Understanding these is important for troubleshooting connectivity issues:
+
+| Rule name | Direction | Source | Ports | Purpose |
+|---|---|---|---|---|
+| `allow-ssh` | Ingress | `0.0.0.0/0` | TCP 22 | SSH access to nodes (for debugging) |
+| `allow-internal` | Ingress | All node, pod, and service CIDRs | TCP/UDP all, ICMP | Full communication between all cluster components |
+| `allow-gke-masters` | Ingress | `172.16.0.0/28` | TCP, UDP, ICMP | GKE control plane to node communication |
+| `allow-health-checks` | Ingress | Google health checker ranges | TCP | Load balancer health probes reaching pods |
+| `allow-webhooks` | Ingress | Node CIDRs | TCP 443, 8443, 9443, 15017 | Istio/ASM admission webhook calls from API server to sidecar injector |
+
+**The webhook rule** (`allow-webhooks`) is critical for ASM operation. When a pod is created in a mesh-enabled namespace, the Kubernetes API server calls the ASM sidecar injector webhook — an HTTPS call from the control plane to a pod running in the cluster. Without this rule, pod creation hangs or fails with a webhook timeout error.
+
+**The health check rule** allows Google's load balancer probers to reach backend pods. These probers originate from four specific Google-owned CIDR ranges. Without this rule, all backends appear unhealthy and the load balancer returns 502 errors.
+
+### Static External IP Addresses
+
+One static external IP address is reserved per cluster. These are used for cluster-level ingress and for identity purposes when establishing cross-cluster communication. Static IPs persist across cluster recreations, allowing DNS records and firewall allowlists to remain stable even if the cluster is rebuilt.
+
+---
+
+## GKE Fleet Management
+
+### What is a GKE Fleet?
+
+A **GKE Fleet** (formerly Anthos fleet) is a logical grouping of Kubernetes clusters that can be managed, configured, and monitored together as a single unit. Fleets are the foundation for all multi-cluster features in GKE — including Multi-Cluster Ingress, Multi-Cluster Services, and Cloud Service Mesh.
+
+Clusters in a fleet share:
+- A common **configuration namespace** for fleet-wide policy distribution
+- A unified **identity trust domain** enabling cross-cluster service authentication
+- Access to **fleet-level features** that span all registered clusters simultaneously
+
+### Fleet Registration
+
+Each cluster is registered as a **Fleet Membership** immediately after creation. The membership:
+- Links the cluster to the fleet using its GKE resource path
+- Establishes an **OIDC issuer** (`container.googleapis.com`) so the fleet can verify tokens issued by the cluster's API server
+- Assigns the cluster a membership ID matching its cluster name
+
+After registration, the module waits for the membership state to reach `READY` before proceeding — checking up to 60 times over 10 minutes. This wait is necessary because fleet registration involves certificate exchange and identity bootstrapping that happens asynchronously.
+
+**Checking fleet membership status manually:**
+```bash
+gcloud container fleet memberships list --project=PROJECT_ID
+
+gcloud container fleet memberships describe CLUSTER_NAME \
+  --location=global \
+  --project=PROJECT_ID
+```
+
+### Fleet IAM
+
+The GKE Hub service identity (`gkehub.googleapis.com`) is granted two roles at the project level:
+
+| Role | Purpose |
+|---|---|
+| `roles/gkehub.serviceAgent` | Allows the Hub service to manage fleet memberships and features |
+| `roles/container.viewer` | Allows the Hub service to read cluster state for health reporting |
+
+These are service-agent roles granted to Google-managed service accounts, not to end-user identities.
+
+### Fleet Features
+
+Fleet **features** are capabilities that are enabled at the fleet level and automatically apply to all registered member clusters. This module enables the following fleet features:
+
+| Feature | API | Scope |
+|---|---|---|
+| Cloud Service Mesh | `mesh.googleapis.com` | All clusters |
+| Multi-Cluster Ingress | `multiclusteringress.googleapis.com` | All clusters, config on cluster1 |
+| Multi-Cluster Services | `multiclusterservicediscovery.googleapis.com` | All clusters |
+
+Enabling a feature at the fleet level means you do not need to configure it cluster-by-cluster. New clusters added to the fleet can inherit these features automatically.
+
+---
