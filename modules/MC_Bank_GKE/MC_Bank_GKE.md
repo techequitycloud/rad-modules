@@ -995,3 +995,146 @@ Before the VPC is deleted, a cleanup script removes GKE-managed firewall rules (
 **Total destroy time**: approximately 15–30 minutes.
 
 ---
+
+## Observability
+
+This module enables a comprehensive, multi-layer observability stack. No additional tooling needs to be installed — everything is available immediately after deployment through the Google Cloud Console.
+
+### Cloud Monitoring
+
+Cloud Monitoring is the primary metrics platform for this deployment. GKE automatically exports metrics from multiple sources:
+
+**System component metrics** (enabled by default on all clusters):
+- `kubernetes.io/node/*` — node CPU, memory, disk, and network utilisation
+- `kubernetes.io/pod/*` — pod CPU and memory consumption
+- `kubernetes.io/container/*` — container restarts, resource requests vs actual usage
+- `kubernetes.io/node_daemon/*` — kubelet and system daemon health
+
+**Managed Prometheus metrics** (collected via the built-in Prometheus scraper):
+- All standard Prometheus exposition format metrics from pods annotated for scraping
+- Kubernetes control plane metrics (API server request rate, etcd latency, scheduler throughput)
+
+**Viewing metrics in the Cloud Console:**
+
+Navigate to **Monitoring → Metrics Explorer** and use the following resource types:
+- `k8s_cluster` — cluster-level aggregates
+- `k8s_node` — per-node metrics
+- `k8s_pod` — per-pod metrics
+- `k8s_container` — per-container metrics
+
+**Pre-built GKE dashboards** are available under **Monitoring → Dashboards → GKE**:
+- **GKE Cluster Overview**: node count, pod count, CPU/memory utilisation trends
+- **GKE Workloads**: per-Deployment resource usage, restart counts, availability
+- **Kubernetes Engine Prometheus Overview**: Prometheus metrics from all scraped targets
+
+### Cloud Service Mesh Dashboard
+
+The **Cloud Service Mesh dashboard** is the most valuable observability surface for understanding microservice behaviour. It is available under **Kubernetes Engine → Service Mesh** in the Google Cloud Console.
+
+**What the dashboard shows:**
+- **Service topology graph**: a live, auto-generated map of all services and their communication edges, built from sidecar telemetry. Each edge shows request rate, error rate, and latency.
+- **Service-level SLOs**: for each service, the dashboard displays the four golden signals — latency, traffic (requests/sec), error rate, and saturation (resource utilisation)
+- **Per-service details**: drill into any service to see inbound and outbound request breakdowns, latency percentiles (p50, p95, p99), and error code distributions
+
+Because the load generator continuously sends traffic, all services will show populated metrics immediately after deployment. This makes the topology graph an excellent starting point for understanding how the microservices interact.
+
+**ASM metrics in Cloud Monitoring** are accessible under the `istio.io` metric namespace:
+
+| Metric | Description |
+|---|---|
+| `istio.io/service/server/request_count` | Total inbound requests per service |
+| `istio.io/service/server/response_latencies` | Inbound request latency distribution |
+| `istio.io/service/client/request_count` | Outbound requests per source/destination pair |
+| `istio.io/service/client/roundtrip_latencies` | End-to-end client-side latency |
+
+### Cloud Logging
+
+All cluster logs are exported to Cloud Logging automatically. GKE collects logs from two sources:
+
+**System component logs** (control plane and node-level):
+- `kubelet` — node agent logs, pod scheduling decisions, volume mount events
+- `kube-proxy` — iptables rule updates, service endpoint changes
+- `container-runtime` — container start/stop events, image pull logs
+
+**Workload logs** (application stdout/stderr):
+- All container stdout and stderr streams are captured and indexed
+- Logs are associated with Kubernetes metadata: cluster name, namespace, pod name, container name, and labels
+
+**Querying logs in Log Explorer:**
+
+Navigate to **Logging → Log Explorer** and use these resource filters:
+
+```
+resource.type="k8s_container"
+resource.labels.cluster_name="gke-cluster-1"
+resource.labels.namespace_name="bank-of-anthos"
+resource.labels.container_name="frontend"
+```
+
+**Useful log queries for Bank of Anthos:**
+
+View all errors across the application:
+```
+resource.type="k8s_container"
+resource.labels.namespace_name="bank-of-anthos"
+severity>=ERROR
+```
+
+View transaction writes to the ledger:
+```
+resource.type="k8s_container"
+resource.labels.container_name="ledgerwriter"
+resource.labels.namespace_name="bank-of-anthos"
+```
+
+View JWT authentication events:
+```
+resource.type="k8s_container"
+resource.labels.container_name="userservice"
+resource.labels.namespace_name="bank-of-anthos"
+```
+
+**Log-based metrics**: Cloud Logging allows you to create custom metrics from log patterns. For example, a count of `severity=ERROR` log entries from `ledgerwriter` can be turned into a Cloud Monitoring metric, enabling alerting on transaction failure rates without any application code changes.
+
+### Cloud Trace
+
+**Cloud Trace** receives distributed traces from ASM sidecars via the Stackdriver exporter configured in the Istio ConfigMap. Every inbound request to the frontend generates a trace that spans all microservice hops.
+
+Navigate to **Trace → Trace List** in the Cloud Console to view traces.
+
+**What a Bank of Anthos trace looks like:**
+
+A payment transaction trace spans:
+```
+frontend (POST /payment)                     ~45ms total
+  └─ ledgerwriter (POST /transactions)       ~30ms
+       └─ ledger-db (SQL INSERT)             ~5ms
+  └─ balancereader (GET /balances/{id})      ~10ms
+       └─ ledger-db (SQL SELECT)             ~3ms
+```
+
+This trace shows the complete call graph, the latency contributed by each service, and whether any span returned an error. This is invaluable for identifying which microservice is the bottleneck in a slow request.
+
+**Trace sampling**: ASM samples 100% of traces by default in this configuration. In high-throughput production environments, sampling rates are typically reduced to 1–5% to control cost and storage volume.
+
+**Latency analysis**: The **Trace → Analysis Reports** view aggregates trace data to show latency distributions over time. This allows you to detect latency regressions after deployments — for example, confirming that a new version of `ledgerwriter` did not increase the p99 latency of `/transactions`.
+
+### GKE Security Posture Dashboard
+
+Navigate to **Kubernetes Engine → Security Posture** in the Google Cloud Console to view the security findings generated by the Security Posture feature enabled on each cluster.
+
+**Workload configuration findings**: GKE scans all running pods and reports issues such as:
+- Containers running as root
+- Missing resource limits
+- Containers with `allowPrivilegeEscalation: true`
+- Pods without liveness or readiness probes
+
+Because Bank of Anthos implements the `restricted` Pod Security Standards profile (non-root, read-only filesystem, dropped capabilities), most workload findings should be absent or informational, providing a clean baseline to compare against other workloads.
+
+**Vulnerability findings**: GKE scans the OS packages and language dependencies in every running container image and reports CVEs with CVSS scores. Findings are grouped by severity (Critical, High, Medium, Low) and include remediation guidance such as the patched package version.
+
+### Cost Breakdown
+
+Navigate to **Billing → Cost breakdown** and filter by **Label: goog-k8s-cluster-name** to see per-cluster cost attribution. With GKE Cost Management enabled, you can further break down costs by namespace, enabling per-team chargeback visibility.
+
+---
