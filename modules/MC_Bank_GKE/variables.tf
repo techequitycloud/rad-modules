@@ -40,7 +40,7 @@ locals {
   }
 }
 
-// GROUP 1: Provider
+// SECTION 1: Provider
 
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
@@ -102,20 +102,60 @@ variable "deployment_id" {
   default     = null
 }
 
-// GROUP 2: Main
+// SECTION 2: Main
 
 variable "existing_project_id" {
-  description = "GCP project ID of the destination project where the GKE clusters and banking application will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=2 order=200 updatesafe }}"
+  description = "GCP project ID of the destination project where the GKE clusters and banking application will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=101 updatesafe }}"
   type        = string
 }
 
 variable "available_regions" {
-  description = "List of GCP regions available for cluster deployment (e.g. ['us-west1', 'us-east1']). Clusters are assigned to regions in round-robin order based on their index; if fewer regions than clusters are specified, regions are cycled (e.g. 2 regions for 4 clusters: cluster1=us-west1, cluster2=us-east1, cluster3=us-west1, cluster4=us-east1). Must contain at least one entry. Defaults to ['us-west1', 'us-east1']. {{UIMeta group=2 order=201 }}"
+  description = "List of GCP regions available for cluster deployment (e.g. ['us-west1', 'us-east1']). Clusters are assigned to regions in round-robin order based on their index; if fewer regions than clusters are specified, regions are cycled (e.g. 2 regions for 4 clusters: cluster1=us-west1, cluster2=us-east1, cluster3=us-west1, cluster4=us-east1). Must contain at least one entry. Defaults to ['us-west1', 'us-east1']. {{UIMeta group=1 order=102 }}"
   type        = list(string)
   default     = ["us-west1", "us-east1"]
 }
 
-// GROUP 4: Services
+// SECTION 2: Network
+
+variable "create_network" {
+  description = "Set to true (default) to create a new shared VPC network for all GKE clusters. Set to false to use an existing network identified by network_name. Each cluster receives its own subnet automatically derived from the cluster index. {{UIMeta group=2 order=201 }}"
+  type        = bool
+  default     = true
+}
+
+variable "network_name" {
+  description = "Name of the shared VPC network used by all clusters. When create_network is true, this is the name given to the newly created network. When create_network is false, this identifies the existing network to use. Defaults to 'vpc-network'. {{UIMeta group=2 order=202 }}"
+  type        = string
+  default     = "vpc-network"
+}
+
+variable "subnet_name" {
+  description = "Base name for per-cluster subnets. Each cluster receives a subnet named '<subnet_name>-cluster<N>' (e.g. 'vpc-subnet-cluster1', 'vpc-subnet-cluster2'). Only used when create_network is true. Defaults to 'vpc-subnet'. {{UIMeta group=2 order=203 }}"
+  type        = string
+  default     = "vpc-subnet"
+}
+
+// SECTION 3: GKE
+
+variable "create_autopilot_cluster" {
+  description = "Set to true (default) to create GKE Autopilot clusters, where node provisioning and scaling are fully managed by Google. Set to false to create Standard clusters where node pools are manually configured. Applies to all clusters in this deployment. Autopilot is recommended for most workloads; Standard offers more control over node configuration. {{UIMeta group=3 order=301 }}"
+  type        = bool
+  default     = true
+}
+
+variable "release_channel" {
+  description = "GKE release channel controlling the frequency and type of automatic upgrades for all clusters. Valid values: 'RAPID' (latest features, upgraded frequently), 'REGULAR' (balanced stability and features, default), 'STABLE' (least frequent upgrades, most stable), 'NONE' (manual upgrades only). Defaults to 'REGULAR'. {{UIMeta group=3 order=302 }}"
+  type        = string
+  default     = "REGULAR"
+}
+
+variable "cluster_size" {
+  description = "Number of GKE clusters to create for the multi-cluster banking application deployment. Minimum 2 for meaningful multi-cluster demonstration; maximum is limited by the available quota in the selected regions. Regions are assigned from available_regions in round-robin order. Defaults to 2. {{UIMeta group=3 order=303 }}"
+  type        = number
+  default     = 2
+}
+
+// SECTION 4: Services
 
 variable "enable_services" {
   description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com, mesh.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=0 order=401 }}"
@@ -124,61 +164,21 @@ variable "enable_services" {
 }
 
 variable "enable_cloud_service_mesh" {
-  description = "Set to true (default) to install and configure Cloud Service Mesh (Google-managed Istio) across all clusters, enabling mTLS encryption, cross-cluster traffic management, and unified observability. Requires the mesh.googleapis.com API. Set to false to skip service mesh installation. {{UIMeta group=0 order=402 }}"
+  description = "Set to true (default) to install and configure Cloud Service Mesh (Google-managed Istio) across all clusters, enabling mTLS encryption, cross-cluster traffic management, and unified observability. Requires the mesh.googleapis.com API. Set to false to skip service mesh installation. {{UIMeta group=4 order=401 }}"
   type        = bool
   default     = true
 }
 
 variable "cloud_service_mesh_version" {
-  description = "Version of Cloud Service Mesh to install across all clusters (format: major.minor.patch-asm.N, e.g. '1.23.4-asm.1'). Only used when enable_cloud_service_mesh is true. Defaults to '1.23.4-asm.1'. Must be compatible with the GKE cluster versions and release channel. {{UIMeta group=0 order=403 }}"
+  description = "Version of Cloud Service Mesh to install across all clusters (format: major.minor.patch-asm.N, e.g. '1.23.4-asm.1'). Only used when enable_cloud_service_mesh is true. Defaults to '1.23.4-asm.1'. Must be compatible with the GKE cluster versions and release channel. {{UIMeta group=4 order=402 }}"
   type        = string
   default     = "1.23.4-asm.1"
 }
 
-// GROUP 6: Network
-
-variable "create_network" {
-  description = "Set to true (default) to create a new shared VPC network for all GKE clusters. Set to false to use an existing network identified by network_name. Each cluster receives its own subnet automatically derived from the cluster index. {{UIMeta group=6 order=601 }}"
-  type        = bool
-  default     = true
-}
-
-variable "network_name" {
-  description = "Name of the shared VPC network used by all clusters. When create_network is true, this is the name given to the newly created network. When create_network is false, this identifies the existing network to use. Defaults to 'vpc-network'. {{UIMeta group=6 order=602 }}"
-  type        = string
-  default     = "vpc-network"
-}
-
-variable "subnet_name" {
-  description = "Base name for per-cluster subnets. Each cluster receives a subnet named '<subnet_name>-cluster<N>' (e.g. 'vpc-subnet-cluster1', 'vpc-subnet-cluster2'). Only used when create_network is true. Defaults to 'vpc-subnet'. {{UIMeta group=6 order=603 }}"
-  type        = string
-  default     = "vpc-subnet"
-}
-
-// GROUP 11: GKE
-
-variable "create_autopilot_cluster" {
-  description = "Set to true (default) to create GKE Autopilot clusters, where node provisioning and scaling are fully managed by Google. Set to false to create Standard clusters where node pools are manually configured. Applies to all clusters in this deployment. Autopilot is recommended for most workloads; Standard offers more control over node configuration. {{UIMeta group=11 order=1101 }}"
-  type        = bool
-  default     = true
-}
-
-variable "cluster_size" {
-  description = "Number of GKE clusters to create for the multi-cluster banking application deployment. Minimum 2 for meaningful multi-cluster demonstration; maximum is limited by the available quota in the selected regions. Regions are assigned from available_regions in round-robin order. Defaults to 2. {{UIMeta group=11 order=1102 }}"
-  type        = number
-  default     = 2
-}
-
-variable "release_channel" {
-  description = "GKE release channel controlling the frequency and type of automatic upgrades for all clusters. Valid values: 'RAPID' (latest features, upgraded frequently), 'REGULAR' (balanced stability and features, default), 'STABLE' (least frequent upgrades, most stable), 'NONE' (manual upgrades only). Defaults to 'REGULAR'. {{UIMeta group=11 order=1103 }}"
-  type        = string
-  default     = "REGULAR"
-}
-
-// GROUP 12: Application
+// SECTION 5: Application
 
 variable "deploy_application" {
-  description = "Set to true (default) to deploy the Bank of Anthos microservices banking demo application across all GKE clusters after they are created. Set to false to provision only the cluster infrastructure without deploying the application. {{UIMeta group=12 order=1201 }}"
+  description = "Set to true (default) to deploy the Bank of Anthos microservices banking demo application across all GKE clusters after they are created. Set to false to provision only the cluster infrastructure without deploying the application. {{UIMeta group=5 order=501 }}"
   type        = bool
   default     = true
 }
