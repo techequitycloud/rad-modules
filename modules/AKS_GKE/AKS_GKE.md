@@ -29,9 +29,9 @@ An Azure Resource Group and an AKS cluster are created in Azure. The cluster is 
 
 Bootstrap manifests are fetched from Google's API and installed on the AKS cluster via Helm. These manifests deploy the GKE Connect agent, which establishes a persistent outbound connection from AKS to Google Cloud. Once the agent is running, the AKS cluster is registered as a GKE Attached Cluster, enrolled in a GKE Fleet, and configured with managed logging, Managed Prometheus, and admin user authorization.
 
-**Phase 3 — Service Mesh (Optional)**
+**Phase 3 — Service Mesh (Manual / Optional)**
 
-An optional sub-module downloads Google Cloud's `asmcli` tool and uses it to install Anthos Service Mesh on the AKS cluster, enabling mTLS, advanced traffic management, and distributed observability for workloads running in Azure.
+An `attached-install-mesh` sub-module is included in the repository but is **not invoked automatically** by this module's `main.tf`. To install Anthos Service Mesh on the AKS cluster, the sub-module must be called separately and supplied with the cluster kubeconfig and context. When invoked, it downloads Google Cloud's `asmcli` tool and uses it to install ASM, enabling mTLS, advanced traffic management, and distributed observability for workloads running in Azure. See `modules/attached-install-mesh/` for configuration variables.
 
 ---
 
@@ -585,7 +585,7 @@ These APIs are enabled non-destructively. Removing the module deployment does no
 
 ### 10.1 What Anthos Service Mesh Brings to AKS
 
-The optional `attached-install-mesh` sub-module installs **Google Cloud Service Mesh (ASM)** — Google's distribution of Istio — on the AKS cluster. This gives workloads running in Azure the full Istio service mesh feature set, managed through the same Google Cloud interfaces used for service mesh on GKE.
+The `attached-install-mesh` sub-module, located at `modules/attached-install-mesh/`, can install **Google Cloud Service Mesh (ASM)** — Google's distribution of Istio — on the AKS cluster. This sub-module is **not invoked automatically** by the root module; it must be called separately with the cluster kubeconfig and context variables. Once invoked, it gives workloads running in Azure the full Istio service mesh feature set, managed through the same Google Cloud interfaces used for service mesh on GKE.
 
 ### 10.2 Core Service Mesh Capabilities
 
