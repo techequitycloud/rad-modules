@@ -111,6 +111,7 @@ resource "kubernetes_namespace" "bank_of_anthos" {
 
   depends_on = [
     google_container_cluster.gke_cluster,
+    data.google_container_cluster.existing_cluster,
   ]
 
   lifecycle {
@@ -129,7 +130,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
   count = var.deploy_application ? 1 : 0
 
   triggers = {
-    cluster_name     = google_container_cluster.gke_cluster.name
+    cluster_name     = local.cluster.name
     version          = local.bank_of_anthos_version
     namespace        = "bank-of-anthos"  # ✅ FIXED: Direct string
     region           = var.gcp_region
