@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// GROUP 1: Provider 
+// GROUP 1: Provider
 
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
@@ -53,9 +53,9 @@ variable "enable_purge" {
 }
 
 variable "public_access" {
-description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
-type = bool
-default = true
+  description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
+  type        = bool
+  default     = true
 }
 
 variable "resource_creator_identity" {
@@ -70,7 +70,7 @@ variable "trusted_users" {
   default     = []
 }
 
-// GROUP 2: Main 
+// GROUP 2: Main
 
 variable "deployment_id" {
   description = "Unique ID suffix for resources.  Leave blank to generate random ID."
@@ -104,77 +104,83 @@ variable "gcp_region" {
 // GROUP 3: Network
 
 variable "create_network" {
-  description = "Indicate if the deployment has to use a network that already exists. {{UIMeta group=0 order=301 }}"
+  description = "Set to true to create a new VPC network and subnet. Set to false to use an existing network specified by network_name and subnet_name. {{UIMeta group=3 order=301 }}"
   type        = bool
   default     = true
 }
 
 variable "network_name" {
-  description = "Name to be assigned to the network. {{UIMeta group=0 order=302 }}"
+  description = "Name of the VPC network. Used as the name when creating, or as the lookup key when reusing an existing network (create_network = false). {{UIMeta group=3 order=302 }}"
   type        = string
   default     = "vpc-network"
 }
 
 variable "subnet_name" {
-  description = "Name to be assigned to the subnet. {{UIMeta group=0 order=303 }}"
+  description = "Name of the subnet. Used as the name when creating, or as the lookup key when reusing an existing subnet (create_network = false). {{UIMeta group=3 order=303 }}"
   type        = string
   default     = "vpc-subnet"
 }
 
 variable "ip_cidr_ranges" {
-  description = "CIDR Range for subnet (if required). {{UIMeta group=0 order=304 }}"
+  description = "CIDR range for the subnet (only used when create_network = true). {{UIMeta group=3 order=304 }}"
   type        = set(string)
-  default     = ["10.132.0.0/16","192.168.1.0/24"]
+  default     = ["10.132.0.0/16", "192.168.1.0/24"]
 }
 
 // GROUP 4: GKE
 
+variable "create_cluster" {
+  description = "Set to true to create a new GKE cluster. Set to false to use an existing cluster specified by gke_cluster. {{UIMeta group=4 order=400 }}"
+  type        = bool
+  default     = true
+}
+
 variable "gke_cluster" {
-  description = "Name that will be assigned to the GKE cluster. {{UIMeta group=0 order=401 }}"
+  description = "Name of the GKE cluster. Used as the name when creating, or as the lookup key when reusing an existing cluster (create_cluster = false). {{UIMeta group=4 order=401 }}"
   type        = string
   default     = "gke-cluster"
 }
 
 variable "release_channel" {
-  description = "Enroll the GKE cluster in this release channel. {{UIMeta group=0 order=403 }}"
+  description = "Enroll the GKE cluster in this release channel. {{UIMeta group=4 order=403 }}"
   type        = string
   default     = "REGULAR"
 }
 
 variable "pod_ip_range" {
-  description = "Range name for the pod IP addresses. {{UIMeta group=0 order=404 }}"
+  description = "Range name for the pod IP addresses. {{UIMeta group=4 order=404 }}"
   type        = string
   default     = "pod-ip-range"
 }
 
 variable "pod_cidr_block" {
-  description = "CIDR block to be assigned to pods running in the GKE cluster. {{UIMeta group=0 order=405 }}"
+  description = "CIDR block to be assigned to pods running in the GKE cluster. {{UIMeta group=4 order=405 }}"
   type        = string
   default     = "10.62.128.0/17"
 }
 
 variable "service_ip_range" {
-  description = "Name for the IP range for services. {{UIMeta group=0 order=406 }}"
+  description = "Name for the IP range for services. {{UIMeta group=4 order=406 }}"
   type        = string
   default     = "service-ip-range"
 }
 
 variable "service_cidr_block" {
-  description = "CIDR block to be assigned to services running in the GKE cluster. {{UIMeta group=0 order=407 }}"
+  description = "CIDR block to be assigned to services running in the GKE cluster. {{UIMeta group=4 order=407 }}"
   type        = string
   default     = "10.64.128.0/20"
 }
 
-// GROUP 5: GKE
+// GROUP 5: Istio
 
 variable "istio_version" {
-  description = "The version of Istio to install. {{UIMeta group=0 order=501 }}"
+  description = "The version of Istio to install. {{UIMeta group=5 order=501 }}"
   type        = string
   default     = "1.24.2"
 }
 
 variable "install_ambient_mesh" {
-  description = "Install ambient mesh. When deselected, sidecar mesh is configured. {{UIMeta group=3 order=502 }}"
+  description = "Install ambient mesh. When deselected, sidecar mesh is configured. {{UIMeta group=5 order=502 }}"
   type        = bool
   default     = false
 }

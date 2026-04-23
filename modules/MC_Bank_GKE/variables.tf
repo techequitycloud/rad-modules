@@ -19,20 +19,20 @@ locals {
   region_assignments = {
     for i in range(var.cluster_size) : i => var.available_regions[i % length(var.available_regions)]
   }
-  
+
   # Cluster configurations - references region assignments
   cluster_configs = {
     for i in range(var.cluster_size) : "cluster${i + 1}" => {
       gke_cluster_name   = "gke-cluster-${i + 1}"
       region             = local.region_assignments[i]
-      
+
       # Primary subnet: 10.X.0.0/20 (4,096 IPs for nodes)
-      ip_cidr_range      = cidrsubnet("10.0.0.0/8", 12, i * 4)
-      
+      ip_cidr_range = cidrsubnet("10.0.0.0/8", 12, i * 4)
+
       # Pod range: 10.X.16.0/20 (4,096 IPs for pods)
-      pod_ip_range       = "pod-ip-range-${i + 1}"
-      pod_cidr_block     = cidrsubnet("10.0.0.0/8", 12, i * 4 + 1)
-      
+      pod_ip_range   = "pod-ip-range-${i + 1}"
+      pod_cidr_block = cidrsubnet("10.0.0.0/8", 12, i * 4 + 1)
+
       # Service range: 10.X.32.0/20 (4,096 IPs for services)
       service_ip_range   = "service-ip-range-${i + 1}"
       service_cidr_block = cidrsubnet("10.0.0.0/8", 12, i * 4 + 2)
@@ -40,7 +40,7 @@ locals {
   }
 }
 
-// GROUP 1: Provider 
+// GROUP 1: Provider
 
 variable "module_description" {
   description = "The description of the module. {{UIMeta group=0 order=100 }}"
@@ -79,9 +79,9 @@ variable "enable_purge" {
 }
 
 variable "public_access" {
-description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
-type = bool
-default = true
+  description = "Set to true to enable the module to be available to all platform users. {{UIMeta group=0 order=106 }}"
+  type        = bool
+  default     = true
 }
 
 variable "resource_creator_identity" {
@@ -112,10 +112,10 @@ variable "existing_project_id" {
 variable "available_regions" {
   description = "Specify the available regions for cluster deployment. {{UIMeta group=2 order=201 }}"
   type        = list(string)
-  default     = ["us-west1","us-east1"]
+  default     = ["us-west1", "us-east1"]
 }
 
-// GROUP 4: Main
+// GROUP 4: Services
 
 variable "enable_services" {
   description = "Enable project APIs.  When using an existing project, this is set to false. {{UIMeta group=0 order=401 }}"
@@ -138,19 +138,19 @@ variable "cloud_service_mesh_version" {
 // GROUP 6: Network
 
 variable "create_network" {
-  description = "Indicate if the deployment has to use a network that already exists. {{UIMeta group=0 order=601 }}"
+  description = "Set to true to create a new VPC network. Set to false to use an existing network specified by network_name. {{UIMeta group=6 order=601 }}"
   type        = bool
   default     = true
 }
 
 variable "network_name" {
-  description = "Name to be assigned to the network. {{UIMeta group=0 order=602 }}"
+  description = "Name of the VPC network. Used as the name when creating, or as the lookup key when reusing an existing network (create_network = false). {{UIMeta group=6 order=602 }}"
   type        = string
   default     = "vpc-network"
 }
 
 variable "subnet_name" {
-  description = "Name to be assigned to the subnet. {{UIMeta group=0 order=603 }}"
+  description = "Base name for per-cluster subnets (suffixed with -cluster1, -cluster2, etc.). {{UIMeta group=6 order=603 }}"
   type        = string
   default     = "vpc-subnet"
 }
@@ -158,19 +158,19 @@ variable "subnet_name" {
 // GROUP 11: GKE
 
 variable "create_autopilot_cluster" {
-  description = "Indicate if a GKE autopilot cluster is requred, otherwise a standard cluster will be created. {{UIMeta group=0 order=1101 }}"
+  description = "Indicate if GKE autopilot clusters are required, otherwise standard clusters will be created. {{UIMeta group=11 order=1101 }}"
   type        = bool
   default     = true
 }
 
 variable "cluster_size" {
-  description = "The number of GKE clusters to create. {{UIMeta group=0 order=1102 }}"
+  description = "The number of GKE clusters to create. {{UIMeta group=11 order=1102 }}"
   type        = number
   default     = 2
 }
 
 variable "release_channel" {
-  description = "Enroll the GKE cluster in this release channel. {{UIMeta group=0 order=1103 }}"
+  description = "Enroll the GKE clusters in this release channel. {{UIMeta group=11 order=1103 }}"
   type        = string
   default     = "REGULAR"
 }
@@ -178,7 +178,7 @@ variable "release_channel" {
 // GROUP 12: Application
 
 variable "deploy_application" {
-  description = "Deploy microservices banking application. {{UIMeta group=0 order=1201 }}"
+  description = "Deploy microservices banking application. {{UIMeta group=12 order=1201 }}"
   type        = bool
   default     = true
 }

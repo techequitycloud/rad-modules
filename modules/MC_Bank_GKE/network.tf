@@ -15,11 +15,29 @@
  */
 
 # ============================================
-# VPC Network
+# Data source — look up existing VPC when create_network = false
 # ============================================
 
-# VPC resource - Fixed destroy provisioner
+data "google_compute_network" "existing_vpc" {
+  count   = var.create_network ? 0 : 1
+  project = local.project.project_id
+  name    = var.network_name
+}
+
+# ============================================
+# Local — unified VPC reference regardless of create_network
+# ============================================
+
+locals {
+  network = var.create_network ? google_compute_network.vpc[0] : data.google_compute_network.existing_vpc[0]
+}
+
+# ============================================
+# VPC Network (only when create_network = true)
+# ============================================
+
 resource "google_compute_network" "vpc" {
+  count                           = var.create_network ? 1 : 0
   project                         = local.project.project_id
   name                            = var.network_name
   auto_create_subnetworks         = false
@@ -28,89 +46,69 @@ resource "google_compute_network" "vpc" {
   mtu                             = 1500
 
   provisioner "local-exec" {
-    when    = destroy
-    
-    # ✅ FIX: Pass project_id as environment variable
+    when = destroy
+
     environment = {
       PROJECT_ID = self.project
     }
-    
+
     command = <<-EOT
       #!/bin/bash
       set -e
-      
-      echo "🔍 Cleaning up resources blocking network deletion..."
-      echo "📋 Project ID: $PROJECT_ID"
-      
-      # Clean up GKE firewall rules (starting with 'gke' and ending with 'mcsd')
-      echo "🔍 Searching for GKE firewall rules (gke-*-mcsd)..."
+
+      echo "Cleaning up resources blocking network deletion..."
+      echo "Project ID: $PROJECT_ID"
+
       FIREWALLS=$(gcloud compute firewall-rules list \
         --project=$PROJECT_ID \
         --filter="name~^gke-.* AND name~.*-mcsd$" \
         --format="value(name)" 2>/dev/null || echo "")
-      
+
       if [ -n "$FIREWALLS" ]; then
-        echo "🔥 Found GKE firewall rules:"
         for FW in $FIREWALLS; do
-          echo "  🗑️  Deleting firewall rule: $FW"
           gcloud compute firewall-rules delete $FW \
             --project=$PROJECT_ID \
-            --quiet 2>/dev/null || echo "  ⚠️  Failed to delete $FW (may already be deleted)"
+            --quiet 2>/dev/null || true
         done
-      else
-        echo "✅ No GKE firewall rules found"
       fi
-      
-      # Clean up NEGs starting with 'gsmrsvd'
-      echo "🔍 Searching for NEGs starting with 'gsmrsvd'..."
-      
+
       ZONES=$(gcloud compute zones list --project=$PROJECT_ID --format="value(name)" 2>/dev/null || echo "")
-      
-      if [ -z "$ZONES" ]; then
-        echo "⚠️  Could not retrieve zones, skipping NEG cleanup"
-      else
-        NEG_FOUND=false
+
+      if [ -n "$ZONES" ]; then
         for ZONE in $ZONES; do
           NEGS=$(gcloud compute network-endpoint-groups list \
             --project=$PROJECT_ID \
             --zones=$ZONE \
             --filter="name~^gsmrsvd.*" \
             --format="value(name)" 2>/dev/null || echo "")
-          
+
           if [ -n "$NEGS" ]; then
-            NEG_FOUND=true
-            echo "📍 Found NEGs in zone $ZONE:"
             for NEG in $NEGS; do
-              echo "  🗑️  Deleting NEG: $NEG"
               gcloud compute network-endpoint-groups delete $NEG \
                 --project=$PROJECT_ID \
                 --zone=$ZONE \
-                --quiet 2>/dev/null || echo "  ⚠️  Failed to delete $NEG (may already be deleted)"
+                --quiet 2>/dev/null || true
             done
           fi
         done
-        
-        if [ "$NEG_FOUND" = false ]; then
-          echo "✅ No NEGs found"
-        fi
       fi
-      
-      echo "✅ Cleanup completed, network should now be deletable"
+
+      echo "Cleanup completed."
     EOT
   }
 }
 
+# ============================================
+# Subnets (one per cluster — always managed, created within local.network)
+# ============================================
 
-# ============================================
-# Subnets (One per cluster)
-# ============================================
 resource "google_compute_subnetwork" "subnetwork" {
   for_each      = local.cluster_configs
   project       = local.project.project_id
   name          = "${var.subnet_name}-${each.key}"
   ip_cidr_range = each.value.ip_cidr_range
   region        = each.value.region
-  network       = google_compute_network.vpc.id
+  network       = local.network.id
 
   secondary_ip_range {
     range_name    = each.value.pod_ip_range
@@ -124,31 +122,35 @@ resource "google_compute_subnetwork" "subnetwork" {
 
   depends_on = [
     google_compute_network.vpc,
+    data.google_compute_network.existing_vpc,
   ]
 }
 
 # ============================================
-# Cloud Router (One per cluster/region)
+# Cloud Router (one per cluster/region)
 # ============================================
+
 resource "google_compute_router" "router" {
   for_each = local.cluster_configs
   project  = local.project.project_id
   name     = "router-${each.key}"
   region   = each.value.region
-  network  = google_compute_network.vpc.id
-  
+  network  = local.network.id
+
   bgp {
     asn = 64514
   }
 
   depends_on = [
     google_compute_network.vpc,
+    data.google_compute_network.existing_vpc,
   ]
 }
 
 # ============================================
-# Cloud NAT (One per router, targeting specific subnet)
+# Cloud NAT (one per router, targeting specific subnet)
 # ============================================
+
 resource "google_compute_router_nat" "nat_gateway" {
   for_each = local.cluster_configs
   project  = local.project.project_id
@@ -156,7 +158,6 @@ resource "google_compute_router_nat" "nat_gateway" {
   router   = google_compute_router.router[each.key].name
   region   = google_compute_router.router[each.key].region
 
-  # Use LIST_OF_SUBNETWORKS to avoid conflicts
   nat_ip_allocate_option             = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
 
@@ -177,8 +178,9 @@ resource "google_compute_router_nat" "nat_gateway" {
 }
 
 # ============================================
-# Static External IPs (One per cluster)
+# Static External IPs (one per cluster)
 # ============================================
+
 resource "google_compute_address" "static_ip" {
   for_each     = local.cluster_configs
   project      = local.project.project_id
@@ -191,11 +193,10 @@ resource "google_compute_address" "static_ip" {
 # Firewall Rules
 # ============================================
 
-# Allow SSH access
 resource "google_compute_firewall" "allow_ssh" {
   project       = local.project.project_id
   name          = "allow-ssh"
-  network       = google_compute_network.vpc.name
+  network       = local.network.name
   direction     = "INGRESS"
   priority      = 1000
   source_ranges = ["0.0.0.0/0"]
@@ -207,16 +208,16 @@ resource "google_compute_firewall" "allow_ssh" {
 
   depends_on = [
     google_compute_network.vpc,
+    data.google_compute_network.existing_vpc,
   ]
 }
 
-# Allow internal communication between subnets
 resource "google_compute_firewall" "allow_internal" {
-  project       = local.project.project_id
-  name          = "allow-internal"
-  network       = google_compute_network.vpc.name
-  direction     = "INGRESS"
-  priority      = 1000
+  project   = local.project.project_id
+  name      = "allow-internal"
+  network   = local.network.name
+  direction = "INGRESS"
+  priority  = 1000
   source_ranges = concat(
     [for config in local.cluster_configs : config.ip_cidr_range],
     [for config in local.cluster_configs : config.pod_cidr_block],
@@ -239,17 +240,17 @@ resource "google_compute_firewall" "allow_internal" {
 
   depends_on = [
     google_compute_network.vpc,
+    data.google_compute_network.existing_vpc,
   ]
 }
 
-# Allow GKE control plane to communicate with nodes
 resource "google_compute_firewall" "allow_gke_masters" {
   project       = local.project.project_id
   name          = "allow-gke-masters"
-  network       = google_compute_network.vpc.name
+  network       = local.network.name
   direction     = "INGRESS"
   priority      = 1000
-  source_ranges = ["172.16.0.0/28"] # GKE control plane default range
+  source_ranges = ["172.16.0.0/28"]
 
   allow {
     protocol = "tcp"
@@ -265,21 +266,21 @@ resource "google_compute_firewall" "allow_gke_masters" {
 
   depends_on = [
     google_compute_network.vpc,
+    data.google_compute_network.existing_vpc,
   ]
 }
 
-# Allow Google Cloud health checks
 resource "google_compute_firewall" "allow_health_checks" {
-  project       = local.project.project_id
-  name          = "allow-health-checks"
-  network       = google_compute_network.vpc.name
-  direction     = "INGRESS"
-  priority      = 1000
+  project   = local.project.project_id
+  name      = "allow-health-checks"
+  network   = local.network.name
+  direction = "INGRESS"
+  priority  = 1000
   source_ranges = [
-    "35.191.0.0/16",    # Google Cloud health checkers
-    "130.211.0.0/22",   # Google Cloud health checkers
-    "209.85.152.0/22",  # Google Cloud health checkers
-    "209.85.204.0/22"   # Google Cloud health checkers
+    "35.191.0.0/16",
+    "130.211.0.0/22",
+    "209.85.152.0/22",
+    "209.85.204.0/22",
   ]
 
   allow {
@@ -288,14 +289,14 @@ resource "google_compute_firewall" "allow_health_checks" {
 
   depends_on = [
     google_compute_network.vpc,
+    data.google_compute_network.existing_vpc,
   ]
 }
 
-# Allow webhook admission controllers (required for ASM/Istio)
 resource "google_compute_firewall" "allow_webhooks" {
   project       = local.project.project_id
   name          = "allow-webhooks"
-  network       = google_compute_network.vpc.name
+  network       = local.network.name
   direction     = "INGRESS"
   priority      = 1000
   source_ranges = [for config in local.cluster_configs : config.ip_cidr_range]
@@ -309,5 +310,6 @@ resource "google_compute_firewall" "allow_webhooks" {
 
   depends_on = [
     google_compute_network.vpc,
+    data.google_compute_network.existing_vpc,
   ]
 }

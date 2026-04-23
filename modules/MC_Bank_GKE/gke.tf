@@ -61,7 +61,7 @@ resource "google_container_cluster" "gke_cluster" {
   name                  = each.value.gke_cluster_name
   location              = each.value.region
   deletion_protection   = false
-  network               = google_compute_network.vpc.name
+  network               = local.network.name
   subnetwork            = google_compute_subnetwork.subnetwork[each.key].name
 
   # Conditional attributes based on cluster type
@@ -126,6 +126,7 @@ resource "google_container_cluster" "gke_cluster" {
 
   depends_on = [
     google_compute_network.vpc,
+    data.google_compute_network.existing_vpc,
     google_compute_subnetwork.subnetwork,
     google_project_service.enabled_services,
   ]

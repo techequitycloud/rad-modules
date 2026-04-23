@@ -14,21 +14,39 @@
  * limitations under the License.
  */
 
-locals {
-  cluster_name = google_container_cluster.gke_standard_cluster.name
-  cluster_location = google_container_cluster.gke_standard_cluster.location
+#########################################################################
+# Data source — look up existing cluster when create_cluster = false
+#########################################################################
+
+data "google_container_cluster" "existing_cluster" {
+  count    = var.create_cluster ? 0 : 1
+  project  = local.project.project_id
+  name     = var.gke_cluster
+  location = var.gcp_region
 }
 
-# Configure kubernetes provider with Oauth2 access token.
-data "google_client_config" "gke_cluster" {
+#########################################################################
+# Locals — unified cluster reference regardless of create_cluster
+#########################################################################
+
+locals {
+  cluster          = var.create_cluster ? google_container_cluster.gke_standard_cluster[0] : data.google_container_cluster.existing_cluster[0]
+  cluster_name     = local.cluster.name
+  cluster_location = local.cluster.location
 }
+
+#########################################################################
+# Kubernetes provider
+#########################################################################
+
+data "google_client_config" "gke_cluster" {}
 
 provider "kubernetes" {
   alias = "primary"
-  host  = "https://${google_container_cluster.gke_standard_cluster.endpoint}"
+  host  = "https://${local.cluster.endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
-    google_container_cluster.gke_standard_cluster.master_auth[0].cluster_ca_certificate
+    local.cluster.master_auth[0].cluster_ca_certificate
   )
 }
 
@@ -36,22 +54,26 @@ locals {
   k8s_credentials_cmd = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.gcp_region} --project ${local.project.project_id}"
 }
 
-# Module to create the GKE private cluster
+#########################################################################
+# GKE cluster (only when create_cluster = true)
+#########################################################################
+
 resource "google_container_cluster" "gke_standard_cluster" {
+  count                     = var.create_cluster ? 1 : 0
   project                   = local.project.project_id
   name                      = var.gke_cluster
   location                  = var.gcp_region
   allow_net_admin           = true
-  networking_mode           = "VPC_NATIVE" 
-  datapath_provider         = "LEGACY_DATAPATH" # disable dataplane v2
+  networking_mode           = "VPC_NATIVE"
+  datapath_provider         = "LEGACY_DATAPATH"
   remove_default_node_pool  = true
   initial_node_count        = 1
   deletion_protection       = false
-  network                   = google_compute_network.vpc.name
-  subnetwork                = google_compute_subnetwork.subnetwork.name
+  network                   = local.network.name
+  subnetwork                = local.subnet.name
 
   ip_allocation_policy {
-    cluster_secondary_range_name = var.pod_ip_range
+    cluster_secondary_range_name  = var.pod_ip_range
     services_secondary_range_name = var.service_ip_range
   }
 
@@ -59,11 +81,9 @@ resource "google_container_cluster" "gke_standard_cluster" {
     http_load_balancing {
       disabled = false
     }
-
     horizontal_pod_autoscaling {
       disabled = false
     }
-
     gcs_fuse_csi_driver_config {
       enabled = true
     }
@@ -82,7 +102,7 @@ resource "google_container_cluster" "gke_standard_cluster" {
   }
 
   security_posture_config {
-    mode = "BASIC"
+    mode               = "BASIC"
     vulnerability_mode = "VULNERABILITY_BASIC"
   }
 
@@ -101,55 +121,49 @@ resource "google_container_cluster" "gke_standard_cluster" {
     channel = var.release_channel
   }
 
-/**
-
-  fleet {
-    project = local.project.project_id
-  }
-
-**/
-
   depends_on = [
     google_compute_network.vpc,
     google_compute_subnetwork.subnetwork,
-    null_resource.wait_for_container_api
+    null_resource.wait_for_container_api,
   ]
 }
 
+#########################################################################
+# Node pool, service account, and IAM (only when create_cluster = true)
+#########################################################################
+
 resource "google_container_node_pool" "preemptible_nodes" {
-  project    = local.project.project_id
-  name       = "node-pool"
-  cluster    = google_container_cluster.gke_standard_cluster.id
-  node_count = 2
-  node_locations = data.google_compute_zones.available_zones.names  # Automatically retrieves valid zones
+  count          = var.create_cluster ? 1 : 0
+  project        = local.project.project_id
+  name           = "node-pool"
+  cluster        = google_container_cluster.gke_standard_cluster[0].id
+  node_count     = 2
+  node_locations = data.google_compute_zones.available_zones.names
 
   node_config {
     preemptible  = true
     machine_type = "e2-standard-2"
     disk_size_gb = 50
-    disk_type    = "pd-ssd" 
+    disk_type    = "pd-ssd"
 
-    service_account = google_service_account.gke_sa.email
-    oauth_scopes    = [
+    service_account = google_service_account.gke_sa[0].email
+    oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/logging.write",
-      "https://www.googleapis.com/auth/monitoring",    
+      "https://www.googleapis.com/auth/monitoring",
     ]
   }
-
 }
 
-# Service account for GCP identity within Kubernetes
 resource "google_service_account" "gke_sa" {
+  count        = var.create_cluster ? 1 : 0
   project      = local.project.project_id
-  account_id   = "gke-sa"        # Account ID for the service account
-  description  = "GKE Service Account"      # Description of the service account
-  display_name = "GKE Service Account"      # Display name for the service account
+  account_id   = "gke-sa"
+  description  = "GKE Service Account"
+  display_name = "GKE Service Account"
 }
 
-# Local values that can be used throughout the Terraform configuration
 locals {
-  # List of roles assigned to the GKE service account within the project
   gke_sa_project_roles = [
     "roles/storage.objectAdmin",
     "roles/storage.objectViewer",
@@ -164,11 +178,9 @@ locals {
   ]
 }
 
-# IAM permissions for GKE service account on the project
 resource "google_project_iam_member" "gke_sa_role" {
-  for_each = toset(local.gke_sa_project_roles) # Looping over the set of roles
-  project  = local.project.project_id          # The project ID
-  member   = "serviceAccount:${google_service_account.gke_sa.email}" # The service account to assign the role to
-  role     = each.value                        # The role from the set to be assigned
-
+  for_each = var.create_cluster ? toset(local.gke_sa_project_roles) : toset([])
+  project  = local.project.project_id
+  member   = "serviceAccount:${google_service_account.gke_sa[0].email}"
+  role     = each.value
 }
