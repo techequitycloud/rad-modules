@@ -70,6 +70,24 @@ variable "resource_creator_identity" {
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
+variable "trusted_users" {
+  description = "List of Google account email addresses granted cluster-admin privileges on the AKS cluster (e.g. ['user@example.com']). Defaults to an empty list (no additional admin users). Entries must be valid, non-blank email addresses with no duplicates. {{UIMeta group=1 order=103 updatesafe }}"
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = var.trusted_users == null ? true : alltrue([
+      for user in var.trusted_users : trimspace(user) != ""
+    ])
+    error_message = "Trusted users cannot be empty strings or contain only whitespace."
+  }
+
+  validation {
+    condition     = var.trusted_users == null ? true : length(var.trusted_users) == length(distinct(var.trusted_users))
+    error_message = "Duplicate users are not allowed in the trusted_users list."
+  }
+}
+
 # GROUP 2: Application Project
 
 variable "existing_project_id" {
@@ -97,70 +115,54 @@ variable "azure_region" {
   default     = "westus2"
 }
 
+# GROUP 4: Cluster
+
 variable "node_count" {
-  description = "Number of nodes in the AKS default node pool. A minimum of 2 is recommended for high availability. Defaults to 3. Higher node counts increase Azure compute costs proportionally. {{UIMeta group=0 order=304 updatesafe }}"
+  description = "Number of nodes in the AKS default node pool. A minimum of 2 is recommended for high availability. Defaults to 3. Higher node counts increase Azure compute costs proportionally. {{UIMeta group=4 order=401 updatesafe }}"
   type        = number
   default     = 3
 }
 
 variable "k8s_version" {
-  description = "Kubernetes version to deploy on the AKS cluster, specified as major.minor (e.g. '1.34'). Must be a version currently supported by AKS in the selected azure_region. The patch version is managed automatically by AKS. Defaults to '1.34'. {{UIMeta group=0 order=304 updatesafe }}"
+  description = "Kubernetes version to deploy on the AKS cluster, specified as major.minor (e.g. '1.34'). Must be a version currently supported by AKS in the selected azure_region. The patch version is managed automatically by AKS. Defaults to '1.34'. {{UIMeta group=4 order=402 updatesafe }}"
   type        = string
   default     = "1.34"
 }
 
 variable "platform_version" {
-  description = "GKE Hub Attached Clusters platform version for the managed components installed onto the AKS cluster (format: major.minor.patch-gke.N, e.g. '1.34.0-gke.1'). Must be compatible with the selected k8s_version. Defaults to '1.34.0-gke.1'. {{UIMeta group=0 order=304 updatesafe }}"
+  description = "GKE Hub Attached Clusters platform version for the managed components installed onto the AKS cluster (format: major.minor.patch-gke.N, e.g. '1.34.0-gke.1'). Must be compatible with the selected k8s_version. Defaults to '1.34.0-gke.1'. {{UIMeta group=4 order=403 updatesafe }}"
   type        = string
   default     = "1.34.0-gke.1"
 }
 
 variable "vm_size" {
-  description = "Azure VM SKU used for AKS node pool worker nodes (e.g. 'Standard_D2s_v3' = 2 vCPUs, 8 GB RAM; 'Standard_D4s_v3' = 4 vCPUs, 16 GB RAM). Defaults to 'Standard_D2s_v3'. Larger SKUs increase Azure compute costs; availability varies by azure_region. {{UIMeta group=0 order=305 updatesafe }}"
+  description = "Azure VM SKU used for AKS node pool worker nodes (e.g. 'Standard_D2s_v3' = 2 vCPUs, 8 GB RAM; 'Standard_D4s_v3' = 4 vCPUs, 16 GB RAM). Defaults to 'Standard_D2s_v3'. Larger SKUs increase Azure compute costs; availability varies by azure_region. {{UIMeta group=4 order=404 updatesafe }}"
   type        = string
   default     = "Standard_D2s_v3"
 }
 
-// GROUP 4: IAM
+// GROUP 5: IAM
 
 variable "client_id" {
-  description = "Azure Active Directory Application (Client) ID for the service principal used to create and manage AKS resources (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Obtain from Azure Portal > Azure Active Directory > App Registrations. Stored as sensitive and never shown in logs. {{UIMeta group=4 order=401 updatesafe }}"
+  description = "Azure Active Directory Application (Client) ID for the service principal used to create and manage AKS resources (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Obtain from Azure Portal > Azure Active Directory > App Registrations. Stored as sensitive and never shown in logs. {{UIMeta group=5 order=501 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "client_secret" {
-  description = "Client secret for the Azure AD service principal identified by client_id. Required; no default. Obtain from Azure Portal > Azure Active Directory > App Registrations > Certificates & Secrets. Stored as sensitive and never shown in logs. {{UIMeta group=4 order=402 updatesafe }}"
+  description = "Client secret for the Azure AD service principal identified by client_id. Required; no default. Obtain from Azure Portal > Azure Active Directory > App Registrations > Certificates & Secrets. Stored as sensitive and never shown in logs. {{UIMeta group=5 order=502 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "tenant_id" {
-  description = "Azure Active Directory Tenant ID for the Azure account (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Find this in Azure Portal > Azure Active Directory > Overview > Tenant ID. Stored as sensitive and never shown in logs. {{UIMeta group=4 order=403 updatesafe }}"
+  description = "Azure Active Directory Tenant ID for the Azure account (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Find this in Azure Portal > Azure Active Directory > Overview > Tenant ID. Stored as sensitive and never shown in logs. {{UIMeta group=5 order=503 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "subscription_id" {
-  description = "Azure Subscription ID where AKS resources will be provisioned (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Find this in Azure Portal > Subscriptions. Stored as sensitive and never shown in logs. {{UIMeta group=4 order=404 updatesafe }}"
+  description = "Azure Subscription ID where AKS resources will be provisioned (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Find this in Azure Portal > Subscriptions. Stored as sensitive and never shown in logs. {{UIMeta group=5 order=504 updatesafe }}"
   type        = string
   sensitive   = true
-}
-
-variable "trusted_users" {
-  description = "List of Google account email addresses granted cluster-admin privileges on the AKS cluster (e.g. ['user@example.com']). Defaults to an empty list (no additional admin users). Entries must be valid, non-blank email addresses with no duplicates. {{UIMeta group=1 order=404 updatesafe }}"
-  type        = list(string)
-  default     = []
-
-  validation {
-    condition = var.trusted_users == null ? true : alltrue([
-      for user in var.trusted_users : trimspace(user) != ""
-    ])
-    error_message = "Trusted users cannot be empty strings or contain only whitespace."
-  }
-
-  validation {
-    condition     = var.trusted_users == null ? true : length(var.trusted_users) == length(distinct(var.trusted_users))
-    error_message = "Duplicate users are not allowed in the trusted_users list."
-  }
 }
