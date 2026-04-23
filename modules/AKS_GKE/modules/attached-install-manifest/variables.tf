@@ -15,33 +15,33 @@
  */
 
 variable "temp_dir" {
-  description = "Directory name to temporarily write out the helm chart for bootstrapping the attach process"
+  description = "Local filesystem directory path used to temporarily write out the Helm chart manifests needed to bootstrap the GKE Hub cluster attach process. Defaults to an empty string, which causes the module to use a system-generated temporary directory. The directory is cleaned up automatically after the attach operation completes."
   type        = string
   default     = ""
 }
 
 variable "gcp_location" {
-  description = "GCP location to create the attached resource in"
+  description = "GCP region or zone where the attached cluster resource will be created in GKE Hub (e.g. 'us-central1'). Must match the location used when registering the cluster. Required; no default."
   type        = string
 }
 
 variable "platform_version" {
-  description = "Platform version of the attached cluster resource"
+  description = "GKE Hub Attached Clusters platform version for the managed components to install on the external cluster (format: major.minor.patch-gke.N, e.g. '1.34.0-gke.1'). Must be compatible with the Kubernetes version running on the target cluster. Required; no default."
   type        = string
 }
 
 variable "attached_cluster_fleet_project" {
-  description = "GCP fleet project ID where the cluster will be attached"
+  description = "GCP project ID of the fleet project where the external cluster will be attached and managed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). Required; no default."
   type        = string
 }
 
 variable "attached_cluster_name" {
-  description = "Name for the attached cluster resource"
+  description = "Name for the attached cluster resource as it will appear in GKE Hub (e.g. 'azure-aks-cluster-abc123'). Must be unique within the fleet project and location. Required; no default."
   type        = string
 }
 
 variable "helm_timeout" {
-  description = "(Optional) Time in seconds to wait for Helm operations to complete."
+  description = "Maximum time in seconds to wait for Helm install/upgrade operations to complete before failing. Defaults to null, which uses Helm's built-in default timeout of 300 seconds. Increase this value if cluster bootstrap operations are slow in the target environment."
   type        = number
   default     = null
 }
