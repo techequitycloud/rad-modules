@@ -1234,7 +1234,6 @@ gcloud services list --enabled --project PROJECT_ID \
 | `cloudresourcemanager.googleapis.com` | Project resource management — required by Terraform for IAM and project operations |
 | `iam.googleapis.com` | Identity and Access Management — service account and role management |
 | `iamcredentials.googleapis.com` | Service account impersonation — used for Workload Identity token exchange |
-| `compute.googleapis.com` | Compute Engine — VPC networks, subnets, firewall rules, static IPs, NAT |
 
 ### Observability APIs
 

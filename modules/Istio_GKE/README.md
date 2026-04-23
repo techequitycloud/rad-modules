@@ -1,42 +1,89 @@
-# GKE Istio
+# Istio\_GKE Module
 
-## Overview
+This module provisions a GKE Standard cluster and installs **open-source Istio** onto it using `istioctl`. Engineers choose between two Istio data plane architectures at deployment time: **sidecar mode** (an Envoy proxy injected into each pod) or **ambient mode** (a shared per-node ztunnel proxy). The full open-source observability stack — Prometheus, Jaeger, Grafana, and Kiali — is installed alongside Istio. Optionally, the Istio Bookinfo sample application is deployed to provide a live traffic source for exploring mesh features.
 
-Welcome to the **GKE Enterprise Banking Portal** blueprint, a state-of-the-art solution engineered for deploying cloud-native, microservices-based banking applications on Google Cloud's GKE Enterprise Edition. As Google continuously advances the realm of cloud-native application deployment, GKE Enterprise stands out by offering a highly scalable and secure platform designed to meet the rigorous demands of enterprise-grade financial services. This blueprint, with its integration into GKE Enterprise, presents a comprehensive management layer that streamlines the operation of banking applications across diverse environments, ensuring consistency, security, and operational excellence.
+For a detailed technical walkthrough of the full implementation, see [Istio\_GKE.md](Istio_GKE.md).
 
-This blueprint features a bespoke micro services based banking application that demonstrates the sophisticated capabilities of GKE Enterprise tailored for the financial sector. GKE Enterprise is acclaimed for its robust feature set, empowering financial institutions to achieve superior operational efficiency, heightened security, and increased productivity. By adopting GKE Enterprise, banks and financial services gain access to an array of advanced tools including Cloud Service Mesh, Config Management, Policy Controller, and more, facilitating a secure and seamless multi-cloud or hybrid strategy.
+## Usage
 
-## Advanced Capabilities with GKE Enterprise for Banking
+```hcl
+module "istio_gke" {
+  source = "./modules/Istio_GKE"
 
-Utilize the full strength of GKE Enterprise for deploying and managing complex banking platforms with enterprise-specific features:
+  existing_project_id  = "my-gcp-project"
+  gcp_region           = "us-central1"
+  istio_version        = "1.24.2"
+  install_ambient_mesh = false   # true for ambient mode
+  deploy_application   = true
+}
+```
 
-- **Cloud Service Mesh for Financial Services**: Enhance service management with a unified dashboard, optimizing traffic security and reliability between banking services for improved transaction integrity and customer trust.
-- **Financial-grade Config Management and Policy Controller**: Ensure consistent policy and configuration enforcement across your banking environments to comply with stringent financial regulatory standards and organizational policies.
-- **Hierarchy Controller for Organizational Efficiency**: Manage banking resources with hierarchical control for improved governance, enabling fine-grained access and resource allocation that aligns with organizational structure and compliance needs.
-- **Config Connector for Financial Resource Management**: Seamlessly manage Google Cloud resources as Kubernetes objects, integrating banking operations with Kubernetes workflows for streamlined DevOps practices in financial services.
-- **GKE Hub for Centralized Banking Operations**: Monitor and manage your GKE clusters across hybrid and multi-cloud environments from a single pane of glass, ensuring consistent application management and operational model across all banking services.
+## Requirements
 
-## Comprehensive Cloud Services for Scalable Banking Deployment
+| Name | Version |
+|------|---------|
+| terraform | >= 1.0 |
+| google | >= 5.0 |
+| random | >= 3.0 |
+| null | >= 3.0 |
 
-Integrate a broad spectrum of Google Cloud services with GKE Enterprise to ensure a secure, scalable, and seamless banking application deployment:
+## Providers
 
-- **Enterprise-grade Autoscaling and Auto-healing**: Dynamically adjust resources to meet demand while ensuring optimal application health and performance.
-- **Enhanced Networking Features**: Utilize Google’s premium network infrastructure, including private clusters and advanced traffic management, for superior performance and security.
-- **Automated Certificate Management**: Automate the management of SSL/TLS certificates, enhancing trust and security for your applications.
-- **VPC-native Clusters with Enhanced Security**: Create isolated and secure environments for your applications with advanced network policy configurations.
-- **Sophisticated Cost Management Tools**: Optimize expenditures with advanced budgeting and cost management features tailored for enterprise use.
+| Name | Version |
+|------|---------|
+| google | >= 5.0 |
+| random | >= 3.0 |
+| null | >= 3.0 |
 
-## Seamless Onboarding Experience for Financial Institutions
+## Resources
 
-Initiate your digital transformation journey with the GKE Enterprise Banking Portal effortlessly. Pre-loaded with a banking application demo, this blueprint allows financial institutions to quickly engage with a fully operational, enterprise-grade banking platform. This solution is designed to simplify the adoption process of advanced cloud services for financial institutions of any technical capacity. Start by selecting your project name and preferred deployment region.
+| Name | Type |
+|------|------|
+| google\_container\_cluster.primary | resource |
+| google\_container\_node\_pool.primary | resource |
+| google\_service\_account.cluster\_sa | resource |
+| google\_project\_iam\_member (×10 roles) | resource |
+| google\_compute\_network.vpc | resource |
+| google\_compute\_subnetwork.subnet | resource |
+| google\_compute\_firewall (×6 rules) | resource |
+| google\_compute\_router.router | resource |
+| google\_compute\_router\_nat.nat | resource |
+| google\_project\_service.enabled\_services | resource |
+| null\_resource.install\_istio\_sidecar | resource |
+| null\_resource.install\_istio\_ambient | resource |
+| null\_resource.install\_observability\_addons | resource |
+| random\_id.default | resource |
 
-## Unleashing Key Enterprise Features for Banking
+## Inputs
 
-- **Comprehensive Multi-Cloud and Hybrid Management**: Adopt GKE Enterprise for a harmonized management experience across various environments, ensuring seamless operation of banking services.
-- **Operational Excellence Tailored for Financial Services**: Utilize Cloud Service Mesh and Config Management to enhance observability, security, and policy enforcement across banking operations.
-- **Elevated Security and Regulatory Compliance**: Deploy comprehensive security measures tailored for the banking industry, ensuring adherence to financial regulations and safeguarding customer data.
-- **Resource and Cost Efficiency in Banking Operations**: Achieve optimal resource utilization and cost management with GKE Enterprise’s advanced monitoring and optimization tools, tailored for the financial sector’s needs.
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| existing\_project\_id | GCP project ID where the GKE cluster and Istio mesh will be deployed. | `string` | n/a | yes |
+| enable\_services | Set to `true` to automatically enable the required GCP APIs (`cloudapis.googleapis.com`, `container.googleapis.com`). | `bool` | `true` | no |
+| gcp\_region | GCP region for the GKE cluster, VPC, and all supporting resources (e.g. `"us-central1"`). | `string` | `"us-central1"` | no |
+| create\_network | Set to `true` to create a new VPC network and subnet. Set to `false` to use an existing network identified by `network_name`. | `bool` | `true` | no |
+| network\_name | Name of the VPC network to create or use. | `string` | `"vpc-network"` | no |
+| subnet\_name | Name of the subnet to create or use within the VPC. | `string` | `"vpc-subnet"` | no |
+| ip\_cidr\_ranges | IPv4 CIDR blocks for the subnet primary and secondary ranges. First CIDR is the primary node range; additional CIDRs are secondary ranges for pods and services. | `set(string)` | `["10.132.0.0/16", "192.168.1.0/24"]` | no |
+| create\_cluster | Set to `true` to create a new GKE Standard cluster. Set to `false` to install Istio onto an existing cluster identified by `gke_cluster`. | `bool` | `true` | no |
+| gke\_cluster | Name of the GKE cluster to create or use. | `string` | `"gke-cluster"` | no |
+| release\_channel | GKE release channel: `RAPID`, `REGULAR` (default), `STABLE`, or `NONE`. | `string` | `"REGULAR"` | no |
+| pod\_ip\_range | Name of the subnet secondary IP range for Pod addresses. | `string` | `"pod-ip-range"` | no |
+| pod\_cidr\_block | IPv4 CIDR block for cluster Pods. Must not overlap with node or service ranges. | `string` | `"10.62.128.0/17"` | no |
+| service\_ip\_range | Name of the subnet secondary IP range for Service addresses. | `string` | `"service-ip-range"` | no |
+| service\_cidr\_block | IPv4 CIDR block for cluster Services (ClusterIP). Must not overlap with node or pod ranges. | `string` | `"10.64.128.0/20"` | no |
+| istio\_version | Open-source Istio version to install (format: `major.minor.patch`, e.g. `"1.24.2"`). | `string` | `"1.24.2"` | no |
+| install\_ambient\_mesh | Set to `true` to install Istio in ambient mode (shared per-node ztunnel proxy + optional waypoint proxies). Set to `false` for sidecar mode (Envoy proxy injected into each pod). | `bool` | `false` | no |
+| deploy\_application | Set to `true` to deploy the Istio Bookinfo sample application, providing live traffic for exploring mesh traffic management, telemetry, and security features. | `bool` | `true` | no |
+| trusted\_users | Google account emails granted cluster-admin privileges on the GKE cluster. | `set(string)` | `[]` | no |
+| deployment\_id | Alphanumeric suffix appended to resource names for uniqueness. Leave `null` to auto-generate. | `string` | `null` | no |
+| resource\_creator\_identity | Email of the Terraform service account used to provision resources. | `string` | `"rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"` | no |
 
-## Empowering Financial Services Transformation
+## Outputs
 
-The GKE Enterprise Banking Portal is perfectly poised to assist financial institutions in revolutionizing their operations through a scalable, secure, and efficient cloud-native platform. Whether the goal is to streamline banking processes, embrace a multi-cloud or hybrid strategy, or accelerate digital transformation initiatives, this blueprint equips financial services with the necessary tools and insights to leverage the sophisticated capabilities of GKE Enterprise, driving innovation and operational excellence in the financial sector.
+| Name | Description |
+|------|-------------|
+| deployment\_id | The deployment ID suffix used in resource names |
+| project\_id | The GCP project ID where resources were deployed |
+| external\_ip | External IP address of the Istio Ingress Gateway (read from `scripts/app/external_ip.txt` after deployment) |
+| cluster\_credentials\_cmd | `gcloud container clusters get-credentials` command to configure `kubectl` for this cluster |

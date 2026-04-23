@@ -1147,27 +1147,35 @@ The following options are available when deploying the Bank_GKE module. Engineer
 
 ## GCP APIs Enabled
 
-The module enables the following Google Cloud APIs in the destination project:
+The module enables the following 20 Google Cloud APIs in the destination project:
 
 | API | Purpose |
 |---|---|
+| `iap.googleapis.com` | Identity-Aware Proxy |
 | `container.googleapis.com` | GKE cluster management |
-| `compute.googleapis.com` | VPC, firewall rules, static IPs, NEGs, load balancers |
-| `iam.googleapis.com` | Service accounts, IAM bindings |
-| `cloudresourcemanager.googleapis.com` | Project-level IAM |
-| `anthos.googleapis.com` | Anthos Fleet management |
-| `gkehub.googleapis.com` | GKE Hub / Fleet membership |
-| `mesh.googleapis.com` | Cloud Service Mesh (ASM) |
-| `anthosconfigmanagement.googleapis.com` | Anthos Config Management |
+| `compute.googleapis.com` | VPC, firewall rules, static IPs, load balancers |
 | `monitoring.googleapis.com` | Cloud Monitoring, SLOs, alerting |
 | `logging.googleapis.com` | Cloud Logging |
+| `servicenetworking.googleapis.com` | Private service networking |
+| `containersecurity.googleapis.com` | GKE Security Posture and workload scanning |
+| `iamcredentials.googleapis.com` | Workload Identity token generation |
+| `iam.googleapis.com` | Service accounts and IAM bindings |
+| `artifactregistry.googleapis.com` | Container image registry |
+| `storage.googleapis.com` | Cloud Storage (GCS FUSE CSI driver) |
 | `cloudtrace.googleapis.com` | Cloud Trace (distributed tracing) |
-| `certificatemanager.googleapis.com` | Managed TLS certificates |
+| `anthos.googleapis.com` | Anthos platform entitlements |
+| `mesh.googleapis.com` | Cloud Service Mesh (ASM) |
+| `gkeconnect.googleapis.com` | GKE Connect agent |
+| `gkehub.googleapis.com` | GKE Hub / Fleet membership |
+| `anthospolicycontroller.googleapis.com` | Anthos Policy Controller |
+| `anthosconfigmanagement.googleapis.com` | Anthos Config Management (Config Sync) |
+| `websecurityscanner.googleapis.com` | Web Security Scanner |
+| `billingbudgets.googleapis.com` | Billing budgets and alerts |
 
 ```bash
 # Verify which APIs are enabled in your project
 gcloud services list --enabled --project=${PROJECT_ID} | grep -E \
-  "container|compute|anthos|gkehub|mesh|monitoring|logging|trace|certificate"
+  "container|compute|anthos|gkehub|mesh|monitoring|logging|trace|iap|iam|storage"
 ```
 
 ---
