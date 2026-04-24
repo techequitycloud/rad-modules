@@ -154,7 +154,7 @@ data "google_service_account_access_token" "default" {
   provider               = google.impersonated
   scopes                 = ["userinfo-email", "cloud-platform"]
   target_service_account = var.resource_creator_identity
-  lifetime               = "3600s"
+  lifetime               = "3600s"  # Bank_GKE and MC_Bank_GKE; Istio_GKE uses "1800s"
 }
 
 provider "google" {

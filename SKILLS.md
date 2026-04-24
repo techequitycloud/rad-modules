@@ -54,7 +54,7 @@ Other modules introduce their own domain-specific files alongside this skeleton:
 | Module | Additional/replacement files |
 |---|---|
 | `Bank_GKE` | `asm.tf` (Cloud Service Mesh via GKE Hub), `deploy.tf` (downloads Bank of Anthos tarball and applies manifests), `hub.tf` (fleet membership), `glb.tf` (global load balancer IP), `monitoring.tf` (SLOs), `templates/*.yaml.tpl` |
-| `MC_Bank_GKE` | `asm.tf`, `deploy.tf`, `hub.tf`, `glb.tf`, `mcs.tf` (MCI/MCS features), `manifests.tf` (applies YAML from `manifests/`), `manifests/` |
+| `MC_Bank_GKE` | `asm.tf`, `deploy.tf`, `hub.tf`, `glb.tf`, `mcs.tf` (MCI/MCS destroy cleanup), `manifests.tf` (renders templates → `manifests/`), `manifests/`; `deploy.tf` uses `for_each` over all clusters and deploys DB StatefulSets to `cluster1` (primary) only — non-primary clusters omit `accounts-db.yaml` and `ledger-db.yaml` and connect to the databases via MCS |
 | `AKS_GKE` | `provider.tf` (direct provider config, no impersonation wrapper), no `versions.tf`, no `network.tf` (Azure VNet is created inline in `main.tf`), nested `modules/attached-install-manifest/` and `modules/attached-install-mesh/` (Helm-based installers) |
 | `EKS_GKE` | `provider.tf`, `vpc.tf` (AWS VPC), `iam.tf` (AWS IAM roles for EKS), same nested `modules/` as AKS_GKE |
 
@@ -226,10 +226,12 @@ python3 radlab.py
 
 The platform invokes Cloud Build with the YAML files in `rad-ui/automation/`:
 
-- `cloudbuild_deployment_create.yaml` — `tofu apply`
-- `cloudbuild_deployment_update.yaml` — re-apply with changed variables
-- `cloudbuild_deployment_destroy.yaml` — `tofu destroy`
-- `cloudbuild_deployment_purge.yaml` — destroy plus post-cleanup for any resources Terraform could not remove
+- `cloudbuild_deployment_create.yaml` — `tofu apply`; **timeout: 3600s**
+- `cloudbuild_deployment_update.yaml` — re-apply with changed variables; **timeout: 3600s**
+- `cloudbuild_deployment_destroy.yaml` — `tofu destroy`; **timeout: 3600s**
+- `cloudbuild_deployment_purge.yaml` — destroy plus post-cleanup for any resources Terraform could not remove; **timeout: 600s**
+
+**Provider caching**: The create, update, and destroy pipelines cache the downloaded Terraform provider binaries in GCS between builds. Before each `tofu init` the pipeline restores the cache from `gs://${_DEPLOYMENT_BUCKET_ID}/terraform-provider-cache/${_MODULE_NAME}/providers.tar.gz` into `/workspace/.terraform-plugin-cache/` (via `TF_PLUGIN_CACHE_DIR`) and saves it back after a successful init. A missing cache is non-fatal; providers are downloaded fresh on the first run for a given module.
 
 These are invoked by the platform, not by module developers directly.
 
