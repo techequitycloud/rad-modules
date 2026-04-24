@@ -257,7 +257,7 @@ The GKE Connect agent must be installed on the attached cluster. In `AKS_GKE` an
 
 ### Bank of Anthos pods stuck pending
 
-The `deploy.tf` `null_resource` downloads the release tarball into `.terraform/bank-of-anthos` on the machine running `apply`. If the download or extract fails, the manifests are never applied. Check the `local-exec` output; the download is forced fresh on every apply via `always_run = timestamp()` (see `modules/Bank_GKE/deploy.tf:39`).
+The `deploy.tf` `null_resource` downloads the release tarball into `.terraform/bank-of-anthos` on the machine running `apply`. If the download or extract fails, the manifests are never applied. Check the `local-exec` output; the download is forced fresh on every apply via `always_run = timestamp()` (see `modules/Bank_GKE/deploy.tf:40`).
 
 ## 9. Quick Reference
 

@@ -168,9 +168,9 @@ Multiple GKE clusters (up to four, keyed by `cluster1`–`cluster4` in `local.cl
 - `hub.tf` — `google_gke_hub_membership` for each cluster (fleet registration); connect-agent provisioners per cluster.
 - `asm.tf` — `google_gke_hub_feature "service_mesh"` once, plus per-cluster `google_gke_hub_feature_membership`; enables fleet-wide ASM.
 - `glb.tf` — reserves a global static IP for the Multi-Cluster Ingress controller.
-- `mcs.tf` — creates the MultiClusterIngress and MultiClusterService resources; contains a destroy `null_resource` that deletes MCI/MCS objects from all clusters before Terraform removes the fleet features.
-- `manifests.tf` — renders templates from `templates/` into `manifests/` using `local_file` resources, then applies them to each cluster.
-- `deploy.tf` — downloads and applies the Bank of Anthos manifests to each cluster.
+- `mcs.tf` — contains only the destroy `null_resource` (`cleanup_mci_resources`) that deletes MCI/MCS objects from all clusters before Terraform removes the fleet features.
+- `manifests.tf` — renders templates from `templates/` into `manifests/` using `local_file` resources.
+- `deploy.tf` — downloads the Bank of Anthos release tarball, creates cluster namespaces, deploys Bank of Anthos manifests, enables the `google_gke_hub_feature.multiclusteringress_feature` Hub feature, applies MCI/MCS manifests to the config cluster (`null_resource.app_multicluster_ingress`), and includes the MCI pre-destroy cleanup (`null_resource.cleanup_multicluster_ingress`).
 - `manifests/` — rendered YAML files written at apply time by `manifests.tf`.
 - `templates/` — source YAML templates for BackendConfig, FrontendConfig, Ingress, managed certificate, nodeport service, configmap, MultiClusterIngress, MultiClusterService.
 
@@ -179,7 +179,7 @@ Multiple GKE clusters (up to four, keyed by `cluster1`–`cluster4` in `local.cl
 2. **Static provider aliases**: The four `kubernetes` provider aliases in `gke.tf` are statically defined (not dynamically generated from `for_each`). Terraform requires provider configurations to be static. If you need more than four clusters, you must add a new static alias.
 3. **MCI/MCS destroy order**: The `mcs.tf` destroy provisioner deletes MCI and MCS objects (`kubectl delete mci --all`, `kubectl delete mcs --all`) from the bank-of-anthos namespace before Terraform removes the fleet features. This provisioner must tolerate missing resources (`|| true`).
 4. **manifests.tf writes to manifests/**: `local_file` resources render templates into `${path.module}/manifests/`. These files are gitignored (do not commit rendered output). If you change a template, always re-render by running `tofu apply` (or force replace the `local_file` resources).
-5. **Global LB dependency**: MCI requires the global static IP from `glb.tf` to be provisioned before MCI resources are created. Keep `depends_on = [google_compute_global_address.ingress_ip]` in `mcs.tf`.
+5. **Global LB dependency**: MCI requires the global static IP from `glb.tf` (`google_compute_global_address.glb`) to be provisioned before MCI resources are applied. The MCI Hub feature and manifest apply resources are in `deploy.tf`, not `mcs.tf`.
 
 **Common tasks:**
 - **Change cluster count or regions**: Update `local.cluster_configs` in `main.tf` (or wherever it is defined) and add/remove the corresponding `kubernetes` provider alias in `gke.tf`.

@@ -23,40 +23,46 @@ module "bank_gke" {
 
 | Name | Version |
 |------|---------|
-| terraform | >= 1.0 |
+| terraform | >= 1.3 |
 | google | >= 5.0 |
-| google-beta | >= 5.0 |
-| random | >= 3.0 |
-| null | >= 3.0 |
+| kubernetes | >= 2.23 |
+| kubectl | >= 1.14.0 |
+| time | >= 0.9 |
+| http | >= 3.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
 | google | >= 5.0 |
-| google-beta | >= 5.0 |
-| random | >= 3.0 |
-| null | >= 3.0 |
+| kubernetes | >= 2.23 |
+| kubectl | >= 1.14.0 |
+| time | >= 0.9 |
+| http | >= 3.0 |
+| random | n/a |
+| null | n/a |
 
 ## Resources
 
 | Name | Type |
 |------|------|
-| google\_container\_cluster.primary | resource |
-| google\_container\_node\_pool.primary | resource |
-| google\_service\_account.cluster\_sa | resource |
+| google\_container\_cluster.gke\_cluster | resource |
+| google\_container\_node\_pool.preemptible\_nodes | resource |
+| google\_service\_account.gke\_standard | resource |
 | google\_project\_iam\_member (×9 roles) | resource |
 | google\_compute\_network.vpc | resource |
-| google\_compute\_subnetwork.subnet | resource |
+| google\_compute\_subnetwork.subnetwork | resource |
 | google\_compute\_firewall (×6 rules) | resource |
-| google\_compute\_router.router | resource |
-| google\_compute\_router\_nat.nat | resource |
-| google\_compute\_global\_address.bank\_of\_anthos | resource |
-| google\_gke\_hub\_membership.cluster | resource |
-| google\_gke\_hub\_feature.servicemesh | resource |
-| google\_gke\_hub\_feature\_membership.cluster | resource |
-| google\_monitoring\_service (×9 services) | resource |
-| google\_monitoring\_slo (×9 SLOs) | resource |
+| google\_compute\_router.cr\_region | resource |
+| google\_compute\_router\_nat.nat\_gw\_region | resource |
+| google\_compute\_global\_address.glb | resource |
+| google\_gke\_hub\_membership.gke\_cluster | resource |
+| google\_gke\_hub\_feature.service\_mesh | resource |
+| google\_gke\_hub\_feature\_membership.service\_mesh\_feature\_member | resource |
+| google\_monitoring\_service.gke\_services | resource |
+| google\_monitoring\_slo.gke\_services\_slo\_limit\_utilization | resource |
+| kubernetes\_namespace.bank\_of\_anthos | resource |
+| null\_resource.download\_bank\_of\_anthos | resource |
 | null\_resource.deploy\_bank\_of\_anthos | resource |
 | google\_project\_service.enabled\_services | resource |
 | random\_id.default | resource |

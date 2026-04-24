@@ -109,7 +109,7 @@ resource "google_gke_hub_feature_membership" "cluster" {
 
 Both modules wrap these with `null_resource` polling blocks (`verify_gke_hub_api_activation`, `verify_mesh_api_activation`) that shell out to `gcloud services list` until the API is ready. This is deliberate — `google_project_service` returns before the API is actually usable, and downstream `google_gke_hub_feature` calls race ahead otherwise. Preserve these verification resources when refactoring.
 
-`MC_Bank_GKE` additionally creates `google_gke_hub_feature.multiclusteringress` and `google_gke_hub_feature.multiclusterservicediscovery` to enable MCI/MCS fleet-wide (see `mcs.tf`).
+`MC_Bank_GKE` additionally creates `google_gke_hub_feature.multiclusteringress_feature` to enable MCI at fleet level (see `deploy.tf`). MCS resources (MultiClusterService manifests) are applied via `null_resource.app_multicluster_ingress` in `deploy.tf`. `mcs.tf` contains only the destroy-time cleanup resource (`null_resource.cleanup_mci_resources`).
 
 ### Open-source Istio (Istio_GKE)
 

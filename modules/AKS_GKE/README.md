@@ -29,20 +29,20 @@ module "aks_gke" {
 
 | Name | Version |
 |------|---------|
-| terraform | >= 1.0 |
-| google | >= 5.0 |
-| azurerm | >= 3.0 |
-| helm | >= 2.0 |
-| random | >= 3.0 |
+| terraform | >= 0.13 |
+| google | >= 5.0.0 |
+| azurerm | >= 3.17.0 |
+| helm | ~> 2.0 |
+| random | 3.6.2 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| google | >= 5.0 |
-| azurerm | >= 3.0 |
-| helm | >= 2.0 |
-| random | >= 3.0 |
+| google | >= 5.0.0 |
+| azurerm | >= 3.17.0 |
+| helm | ~> 2.0 |
+| random | 3.6.2 |
 
 ## Modules
 
