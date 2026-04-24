@@ -21,6 +21,7 @@ locals {
 
   default_apis = [
     "vmwareengine.googleapis.com",
+    "vmmigration.googleapis.com",
     "compute.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",

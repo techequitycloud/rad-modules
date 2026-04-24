@@ -193,3 +193,49 @@ variable "internal_traffic_cidr" {
   type        = string
   default     = "10.128.0.0/9"
 }
+
+// SECTION 8: Jump Host
+
+variable "create_jump_host" {
+  description = "Set to true (default) to deploy a Windows Server 2022 jump host VM on the peer VPC for accessing vCenter, NSX-T, and HCX management consoles via RDP. {{UIMeta group=8 order=801 }}"
+  type        = bool
+  default     = true
+}
+
+variable "jump_host_name" {
+  description = "Name of the Windows jump host VM instance. {{UIMeta group=8 order=802 }}"
+  type        = string
+  default     = "jump-host"
+}
+
+variable "jump_host_machine_type" {
+  description = "Machine type for the Windows jump host (e.g. 'e2-medium'). {{UIMeta group=8 order=803 }}"
+  type        = string
+  default     = "e2-medium"
+}
+
+variable "jump_host_boot_disk_size_gb" {
+  description = "Boot disk size in GB for the Windows jump host. Minimum 50 GB recommended for Windows Server 2022. {{UIMeta group=8 order=804 }}"
+  type        = number
+  default     = 50
+}
+
+variable "jump_host_subnetwork" {
+  description = "Subnetwork self-link or name for the jump host NIC. Required for custom-mode VPCs. Leave blank to let GCP auto-select the subnet for the region. {{UIMeta group=8 order=805 }}"
+  type        = string
+  default     = ""
+}
+
+// SECTION 9: vCenter Credentials
+
+variable "reset_vcenter_credentials" {
+  description = "Set to true (default) to reset and retrieve the vCenter solution user credentials via gcloud after the private cloud is provisioned. Requires gcloud to be available in the Terraform runner (Cloud Build). {{UIMeta group=9 order=901 }}"
+  type        = bool
+  default     = true
+}
+
+variable "vcenter_solution_user" {
+  description = "vCenter solution user account whose credentials will be reset (e.g. 'solution-user-01@gve.local'). Used for Migrate to Virtual Machines connector integration. {{UIMeta group=9 order=902 }}"
+  type        = string
+  default     = "solution-user-01@gve.local"
+}

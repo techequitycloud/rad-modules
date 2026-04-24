@@ -108,3 +108,29 @@ resource "google_compute_firewall" "default_allow_icmp" {
 
   depends_on = [google_project_service.enabled_services]
 }
+
+#########################################################################
+# Jump Host Firewall Rule
+#########################################################################
+
+# Allows HTTP and HTTPS traffic from any source to instances tagged jump-host.
+# Required for the Windows bastion host to serve Cloud Shell and browser sessions.
+resource "google_compute_firewall" "default_allow_http" {
+  project = local.project.project_id
+  name    = "default-allow-http"
+  network = data.google_compute_network.peer_vpc.name
+
+  direction = "INGRESS"
+  priority  = 1000
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "443"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["jump-host"]
+  description   = "Allow HTTP and HTTPS traffic from any source to jump-host tagged instances"
+
+  depends_on = [google_project_service.enabled_services]
+}
