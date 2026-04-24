@@ -200,7 +200,32 @@ steps:
 
     log "🔧 Initializing Terraform/Tofu for destroy..."
 
+    # Restore Terraform provider cache from GCS to avoid re-downloading binaries
+    CACHE_DIR="/workspace/.terraform-plugin-cache"
+    CACHE_GCS_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/terraform-provider-cache/${_MODULE_NAME}/providers.tar.gz"
+    mkdir -p "$$CACHE_DIR"
+    export TF_PLUGIN_CACHE_DIR="$$CACHE_DIR"
+
+    log "📥 Attempting to restore Terraform provider cache..."
+    if gsutil cp "$$CACHE_GCS_PATH" /tmp/providers.tar.gz 2>/dev/null; then
+        tar -xzf /tmp/providers.tar.gz -C "$$CACHE_DIR" 2>/dev/null || true
+        rm -f /tmp/providers.tar.gz
+        log "✅ Provider cache restored from GCS"
+    else
+        log "ℹ️  No provider cache found — providers will be downloaded fresh"
+    fi
+
     tofu init -reconfigure
+
+    # Save provider cache to GCS for future builds
+    log "📤 Saving Terraform provider cache to GCS..."
+    if tar -czf /tmp/providers.tar.gz -C "$$CACHE_DIR" . 2>/dev/null && \
+       gsutil cp /tmp/providers.tar.gz "$$CACHE_GCS_PATH" 2>/dev/null; then
+        log "✅ Provider cache saved to GCS"
+    else
+        log "⚠️  Failed to save provider cache (non-critical)"
+    fi
+    rm -f /tmp/providers.tar.gz
 
     log "🔍 Validating current state..."
 
@@ -515,4 +540,4 @@ availableSecrets:
     env: 'GIT_TOKEN'
 
 logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
-timeout: 7200s
+timeout: 3600s
