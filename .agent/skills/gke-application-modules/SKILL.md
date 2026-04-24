@@ -142,12 +142,26 @@ resource "null_resource" "download_bank_of_anthos" {
   provisioner "local-exec" { /* curl | tar -xz | verify */ }
 }
 
+# Bank_GKE — single cluster, uses count
 resource "null_resource" "deploy_bank_of_anthos" {
   count      = var.deploy_application ? 1 : 0
   depends_on = [ null_resource.download_bank_of_anthos, ... ]
   provisioner "local-exec" { /* kubectl apply -f <manifests_path> */ }
 }
+
+# MC_Bank_GKE — one resource per cluster via for_each; includes primary/non-primary logic
+resource "null_resource" "deploy_bank_of_anthos" {
+  for_each   = var.deploy_application ? local.cluster_configs : {}
+  triggers   = { ..., is_primary = each.key == "cluster1" ? "true" : "false" }
+  provisioner "local-exec" {
+    # Primary cluster (cluster1): apply all manifests including accounts-db.yaml, ledger-db.yaml
+    # Non-primary clusters: skip DB manifests; delete any pre-existing DB resources so
+    # they are not duplicated. Non-primary clusters reach the DBs via Multi-Cluster Services.
+  }
+}
 ```
+
+**Primary/non-primary cluster distinction (MC_Bank_GKE only):** The `accounts-db` and `ledger-db` StatefulSets are deployed exclusively to `cluster1` (the primary cluster). Non-primary clusters apply all other manifests and rely on MCS to route to the databases on the primary. On re-apply, any pre-existing DB resources on non-primary clusters are deleted. `cluster1` is always the primary; this is hard-coded, not configurable.
 
 Templates in `templates/*.yaml.tpl` (ingress, nodeport service, managed cert, frontend/backend config) are rendered to disk with `templatefile(...)` before `kubectl apply`, so the deployed application can be tied to a module-specific global IP and managed certificate. `MC_Bank_GKE` adds two templates not present in the single-cluster variant: `multicluster_ingress.yaml.tpl` and `multicluster_service.yaml.tpl`.
 
@@ -201,6 +215,7 @@ Keep `disable_dependent_services = false` and `disable_on_destroy = false` — s
 - **Kubernetes provider alias cap (MC_Bank_GKE)**: The explicit `cluster1`..`cluster4` aliases limit the module to 4 clusters. `var.cluster_size > 4` will fail at plan time.
 - **Verification `null_resource` blocks**: `verify_gke_hub_api_activation`, `verify_mesh_api_activation`, `wait_for_container_api` exist to defeat API-readiness races. Deleting them to "simplify" the code will cause intermittent apply failures.
 - **Bank of Anthos version pin**: Hard-coded to `v0.6.7` in `deploy.tf`. Bumping it may require new fields in the rendered template files; test end-to-end.
+- **Primary cluster is always `cluster1` (MC_Bank_GKE)**: The DB StatefulSets are applied to the cluster whose `local.cluster_configs` key is `"cluster1"`. This is not driven by a variable. If you rename cluster keys, the primary cluster assignment silently changes; always keep the first/main cluster as `cluster1`.
 - **`path.module/.terraform/...` staging**: `deploy.tf` writes into `.terraform/` under each module. Do not put this path in `.gitignore` at module scope — the root-level `.gitignore` already covers it.
 - **`always_run = timestamp()`**: Used deliberately on download resources to force a re-run. Changing it to a stable trigger (e.g. a version string) will leave stale tarballs in place.
 - **Istio destroy provisioner variables**: `triggers = { ... resource_creator_identity = var.resource_creator_identity }` looks redundant, but destroy provisioners cannot reference `var.*` directly — they must go through `self.triggers.*`. Keep the duplication.

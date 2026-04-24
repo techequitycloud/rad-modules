@@ -70,12 +70,14 @@ python3 rad-launcher/radlab.py \
 
 `rad-ui/automation/` contains the Cloud Build pipelines the RAD platform UI uses to deploy modules without the launcher:
 
-| File | Trigger |
-|---|---|
-| `cloudbuild_deployment_create.yaml` | First deploy of a module |
-| `cloudbuild_deployment_update.yaml` | Re-apply with new inputs |
-| `cloudbuild_deployment_destroy.yaml` | `tofu destroy` |
-| `cloudbuild_deployment_purge.yaml` | Administrative force-cleanup |
+| File | Trigger | Timeout |
+|---|---|---|
+| `cloudbuild_deployment_create.yaml` | First deploy of a module | 3600s |
+| `cloudbuild_deployment_update.yaml` | Re-apply with new inputs | 3600s |
+| `cloudbuild_deployment_destroy.yaml` | `tofu destroy` | 3600s |
+| `cloudbuild_deployment_purge.yaml` | Administrative force-cleanup | 600s |
+
+The create, update, and destroy pipelines cache downloaded Terraform provider binaries in GCS at `gs://${_DEPLOYMENT_BUCKET_ID}/terraform-provider-cache/${_MODULE_NAME}/providers.tar.gz` using `TF_PLUGIN_CACHE_DIR`. The cache is restored before `tofu init` and saved back after a successful init; a missing cache is non-fatal.
 
 The UI reads variable metadata (grouping, ordering, whether update-safe) from the `{{UIMeta ...}}` tags in each module's `variables.tf`. These tags are load-bearing — see the `module-conventions` skill.
 
