@@ -28,20 +28,19 @@ module "eks_gke" {
 
 | Name | Version |
 |------|---------|
-| terraform | >= 1.0 |
-| google | >= 5.0 |
-| aws | >= 5.0 |
-| helm | >= 2.0 |
-| random | >= 3.0 |
+| terraform | >= 0.13 |
+| google | >= 5.0.0 |
+| aws | >= 4.5.0 |
+| helm | ~> 2.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| google | >= 5.0 |
-| aws | >= 5.0 |
-| helm | >= 2.0 |
-| random | >= 3.0 |
+| google | >= 5.0.0 |
+| aws | >= 4.5.0 |
+| helm | ~> 2.0 |
+| random | n/a |
 
 ## Modules
 
@@ -55,11 +54,11 @@ module "eks_gke" {
 
 | Name | Type |
 |------|------|
-| aws\_vpc.eks | resource |
+| aws\_vpc.this | resource |
 | aws\_subnet.public / aws\_subnet.private | resource |
 | aws\_eks\_cluster.eks | resource |
-| aws\_eks\_node\_group.eks | resource |
-| aws\_iam\_role.eks\_cluster / aws\_iam\_role.eks\_node\_group | resource |
+| aws\_eks\_node\_group.node | resource |
+| aws\_iam\_role.eks / aws\_iam\_role.node | resource |
 | google\_container\_attached\_cluster.primary | resource |
 | google\_project\_service.enabled\_services | resource |
 | random\_string.suffix | resource |

@@ -24,44 +24,47 @@ module "mc_bank_gke" {
 
 | Name | Version |
 |------|---------|
-| terraform | >= 1.0 |
-| google | >= 5.0 |
-| google-beta | >= 5.0 |
-| kubernetes | >= 2.0 |
-| random | >= 3.0 |
-| null | >= 3.0 |
+| terraform | >= 0.13 |
+| google | n/a |
+| kubernetes | n/a |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| google | >= 5.0 |
-| google-beta | >= 5.0 |
-| kubernetes (×4 cluster-specific aliases) | >= 2.0 |
-| random | >= 3.0 |
-| null | >= 3.0 |
+| google | n/a |
+| google-beta | n/a |
+| kubernetes (×4 cluster-specific aliases) | n/a |
+| random | n/a |
+| null | n/a |
+| local | n/a |
 
 ## Resources
 
 | Name | Type |
 |------|------|
-| google\_container\_cluster.clusters (for\_each) | resource |
-| google\_container\_node\_pool.clusters (for\_each, Standard only) | resource |
-| google\_service\_account.cluster\_sa | resource |
+| google\_container\_cluster.gke\_cluster (for\_each) | resource |
+| google\_container\_node\_pool.preemptible\_nodes (for\_each, Standard only) | resource |
+| google\_service\_account.gke\_standard | resource |
 | google\_project\_iam\_member (×9 roles) | resource |
 | google\_compute\_network.vpc | resource |
-| google\_compute\_subnetwork.subnets (for\_each) | resource |
+| google\_compute\_subnetwork.subnetwork (for\_each) | resource |
 | google\_compute\_firewall (×6 rules) | resource |
-| google\_compute\_router (per region) | resource |
-| google\_compute\_router\_nat (per region) | resource |
-| google\_compute\_global\_address.bank\_of\_anthos | resource |
-| google\_gke\_hub\_membership.clusters (for\_each) | resource |
-| google\_gke\_hub\_feature.servicemesh | resource |
-| google\_gke\_hub\_feature.multiclusterservicediscovery | resource |
-| google\_gke\_hub\_feature.multiclusteringress | resource |
-| google\_gke\_hub\_feature\_membership.clusters (for\_each) | resource |
+| google\_compute\_router.router (per region) | resource |
+| google\_compute\_router\_nat.nat\_gateway (per region) | resource |
+| google\_compute\_global\_address.glb | resource |
+| google\_gke\_hub\_membership.hub\_membership (for\_each) | resource |
+| google\_gke\_hub\_feature.service\_mesh\_feature | resource |
+| google\_gke\_hub\_feature.multiclusteringress\_feature | resource |
+| google\_gke\_hub\_feature\_membership.service\_mesh\_feature\_member (for\_each) | resource |
+| kubernetes\_namespace.bank\_of\_anthos\_cluster1 | resource |
+| kubernetes\_namespace.bank\_of\_anthos\_cluster2 | resource |
+| null\_resource.download\_bank\_of\_anthos | resource |
 | null\_resource.deploy\_bank\_of\_anthos | resource |
-| null\_resource.cleanup\_mci\_mcs | resource |
+| null\_resource.app\_multicluster\_ingress | resource |
+| null\_resource.cleanup\_mci\_resources | resource |
+| null\_resource.cleanup\_multicluster\_ingress | resource |
+| local\_file (×8 manifest renders) | resource |
 | google\_project\_service.enabled\_services | resource |
 | random\_id.default | resource |
 

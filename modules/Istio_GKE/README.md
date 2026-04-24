@@ -22,36 +22,38 @@ module "istio_gke" {
 
 | Name | Version |
 |------|---------|
-| terraform | >= 1.0 |
-| google | >= 5.0 |
-| random | >= 3.0 |
-| null | >= 3.0 |
+| terraform | >= 0.13 |
+| google | n/a |
+| kubernetes | n/a |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| google | >= 5.0 |
-| random | >= 3.0 |
-| null | >= 3.0 |
+| google | n/a |
+| kubernetes | n/a |
+| random | n/a |
+| null | n/a |
 
 ## Resources
 
 | Name | Type |
 |------|------|
-| google\_container\_cluster.primary | resource |
-| google\_container\_node\_pool.primary | resource |
-| google\_service\_account.cluster\_sa | resource |
+| google\_container\_cluster.gke\_standard\_cluster | resource |
+| google\_container\_node\_pool.preemptible\_nodes | resource |
+| google\_service\_account.gke\_sa | resource |
 | google\_project\_iam\_member (×10 roles) | resource |
 | google\_compute\_network.vpc | resource |
-| google\_compute\_subnetwork.subnet | resource |
+| google\_compute\_subnetwork.subnetwork | resource |
 | google\_compute\_firewall (×6 rules) | resource |
-| google\_compute\_router.router | resource |
-| google\_compute\_router\_nat.nat | resource |
+| google\_compute\_router.cr\_region | resource |
+| google\_compute\_router\_nat.nat\_gw\_region | resource |
 | google\_project\_service.enabled\_services | resource |
-| null\_resource.install\_istio\_sidecar | resource |
-| null\_resource.install\_istio\_ambient | resource |
-| null\_resource.install\_observability\_addons | resource |
+| null\_resource.wait\_for\_container\_api | resource |
+| null\_resource.install\_sidecar\_mesh | resource |
+| null\_resource.get\_sidecar\_istio\_ingress\_ip | resource |
+| null\_resource.install\_ambient\_mesh | resource |
+| null\_resource.get\_ambient\_istio\_ingress\_ip | resource |
 | random\_id.default | resource |
 
 ## Inputs
