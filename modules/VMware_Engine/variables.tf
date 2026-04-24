@@ -131,18 +131,13 @@ variable "management_cidr" {
 variable "node_type_id" {
   description = "VMware Engine node type for the management cluster (e.g. 'standard-72'). Availability is zone-dependent. {{UIMeta group=4 order=403 }}"
   type        = string
-  default     = "standard-72"
+  default     = "ve1-standard-72"
 }
 
 variable "node_count" {
   description = "Number of nodes in the management cluster. Minimum is 3 for production workloads. {{UIMeta group=4 order=404 }}"
   type        = number
-  default     = 3
-
-  validation {
-    condition     = var.node_count >= 3
-    error_message = "node_count must be at least 3."
-  }
+  default     = 1
 }
 
 // SECTION 5: Network Peering
@@ -156,7 +151,7 @@ variable "network_peering_name" {
 variable "peer_vpc_name" {
   description = "Name of the GCP VPC network to peer with the VMware Engine network (the vmaas network, e.g. 'default'). {{UIMeta group=5 order=502 }}"
   type        = string
-  default     = "default"
+  default     = "altostrat-vmware-engine-network-pso-vmaas"
 }
 
 // SECTION 6: Network Policy
