@@ -1,77 +1,157 @@
-# Istio Service Mesh Traffic Management Features on GKE Demo Script
+# gcp-istio-traffic.sh — Explore Istio traffic management on GKE
 
-## 🚦 Explore Advanced Traffic Control with Istio on Google Kubernetes Engine
+Interactive bash script that provisions a GKE cluster, installs open-source
+Istio with the Prometheus / Grafana / Jaeger / Kiali addons, deploys the
+`bookinfo` sample, and walks you through Istio's traffic-management primitives:
+request routing, weighted splits, fault injection, header-based routing,
+sidecar egress, port-level load balancing, timeouts, and retries.
 
-Welcome to the interactive demo script for exploring the powerful traffic management features of Istio Service Mesh in a Google Kubernetes Engine (GKE) environment. This demo focuses exclusively on Istio's built-in traffic routing and control capabilities, allowing you to experience firsthand how Istio enhances the flexibility and resilience of your Kubernetes-based applications.
+## Prerequisites
 
-### 🚀 What This Demo Offers
+- Google Cloud project with billing enabled and quota for a 2-node
+  `n1-standard-2` GKE cluster (Spot VMs by default).
+- `gcloud` CLI authenticated as a project Owner or Editor.
+- `kubectl` available locally (or installed via `gcloud components`).
+- Internet egress to download Istio releases from `github.com/istio/istio` and
+  pull container images from Docker Hub / `gcr.io`.
+- The script installs `pv` automatically with `sudo apt-get`. Install it
+  manually on non-Debian systems first.
 
-- **Hands-On Experience**: Step through various Istio traffic management configurations in a live GKE cluster.
-- **Pure Istio Focus**: Explore Istio's native traffic control features without additional cloud-specific tools.
-- **Real-world Scenarios**: Simulate common traffic routing challenges and see how Istio addresses them.
-- **Deep Dive into Istio Traffic Management**: Gain practical insights into Istio's traffic control architecture and components.
+## Quick start
 
-### 🔍 Key Features Explored
+```bash
+cd /path/where/you/want/working/files
+./gcp-istio-traffic.sh
+```
 
-1. **Request Routing**: Direct traffic between services based on various criteria.
-2. **Traffic Splitting**: Implement canary releases and A/B testing scenarios.
-3. **Fault Injection**: Simulate failures to test application resilience.
-4. **Circuit Breaking**: Prevent cascading failures with automatic request limiting.
-5. **Timeouts and Retries**: Configure service-specific communication policies.
-6. **Ingress and Egress**: Manage traffic entering and leaving the service mesh.
-7. **Load Balancing**: Explore different load balancing algorithms and configurations.
+A menu loops until you press `Q`. **Always start each session by pressing `0`**
+to choose an execution mode and confirm the GCP project.
 
-### 💡 Why This Matters
+## Execution modes (option `0`)
 
-In modern microservices architectures, advanced traffic management is crucial for maintaining application reliability, enabling seamless updates, and optimizing resource utilization. This demo provides hands-on experience with Istio's traffic features, essential for:
+| Reply | Mode | Behavior |
+|-------|------|----------|
+| `y` (default) | **Preview** | Prints commands without running them. |
+| `n` | **Create** | Authenticates, applies all changes against your project/cluster. |
+| `d` | **Delete** | Removes resources created by each step. |
 
-- Implementing sophisticated deployment strategies like canary releases and blue-green deployments
-- Enhancing application resilience through intelligent routing and failure handling
-- Optimizing service-to-service communication within the mesh
-- Gaining fine-grained control over traffic flow without changing application code
+In Create / Delete mode the script runs `gcloud auth login`, asks for the
+project ID, creates a service account
+`<project>@<project>.iam.gserviceaccount.com` with `roles/owner`, drops the
+key at `./gcp-istio-traffic/.<project>.json`, and creates a
+`gs://<project>` bucket for backing up `.env`. Delete the cached key file to
+switch projects later.
 
-### 🌟 Benefits of Istio's Traffic Management Features
+## Configuration (`.env`)
 
-1. **Flexible Routing**: Route requests based on headers, URL, and other criteria.
-2. **Gradual Rollouts**: Implement percentage-based traffic splitting for safe deployments.
-3. **Resilience Testing**: Inject faults to test application behavior under adverse conditions.
-4. **Load Balancing**: Apply sophisticated load balancing algorithms across services.
-5. **Traffic Control**: Implement timeouts, retries, and circuit breakers for improved reliability.
-6. **A/B Testing**: Easily set up and manage A/B or multivariate testing scenarios.
-7. **Ingress Management**: Simplify external access to services within the mesh.
-8. **Egress Control**: Manage and secure outbound traffic from the mesh.
-9. **Traffic Mirroring**: Send copies of live traffic to test new service versions.
-10. **Observability**: Gain insights into traffic patterns and service interactions.
+Created at `./gcp-istio-traffic/.env`. Edit values before running the
+numbered steps:
 
-### 🛠 Getting Started
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `GCP_PROJECT` | current `gcloud` project | Target project ID. |
+| `GCP_REGION` | `us-central1` | Region for the GKE cluster. |
+| `GCP_CLUSTER` | `gke-cluster` | GKE cluster name. |
+| `ISTIO_VERSION` | `1.24.2` | Istio release downloaded by step 1. |
+| `ISTIO_RELEASE_VERSION` | `1.24` | Branch used to fetch the addon manifests. |
 
-Ready to dive in? Follow these steps:
+The application namespace and name are hardcoded to `bookinfo`.
 
-1. Create a brand new Google Cloud Project for this demo
-2. Clone this repository using Cloud Shell
-3. Ensure you have the GCP Editor or Owner permissions and sufficient quotas
-4. Run the automated setup script
-5. Step through the demo to explore the scenarios
+## Menu walkthrough
 
-### 📚 What You'll Learn
+Run `1` → `8` once to bring up the cluster, install Istio, and deploy
+Bookinfo. Then use `9` to step through the traffic-management scenarios.
 
-By the end of this demo, you'll have practical knowledge of:
+### `(1) Install tools`
+Downloads Istio `$ISTIO_VERSION` from GitHub and extracts it to
+`$HOME/istio-${ISTIO_VERSION}` so `istioctl` and the Bookinfo sample manifests
+are available locally. Delete mode removes the directory.
 
-- Configuring advanced request routing in Istio
-- Implementing traffic splitting for canary releases and A/B testing
-- Setting up fault injection to test application resilience
-- Configuring circuit breakers to prevent system overload
-- Managing timeouts and retries for inter-service communication
-- Controlling ingress and egress traffic in the service mesh
-- Applying and customizing load balancing strategies
-- Monitoring and visualizing traffic flow in your service mesh
+### `(2) Enable APIs`
+Enables `cloudapis.googleapis.com` and `container.googleapis.com`.
 
-### 🤝 Contribution
+### `(3) Create Kubernetes cluster`
+Creates `$GCP_CLUSTER` in `$GCP_REGION` with two `n1-standard-2` Spot nodes
+and the Gateway API enabled. Fetches credentials and grants your user
+`cluster-admin`. Delete mode deletes the cluster.
 
-We welcome contributions to enhance this Istio traffic management demo! Whether it's improving documentation, adding new traffic scenarios, or refining the demo scripts, your input is valuable.
+### `(4) Install Istio`
+Runs `istioctl install --set profile=default -y`, then deploys an Istio
+`IngressGateway` into the application namespace via a generated
+`ingress.yaml` IstioOperator. Also installs four observability addons from
+`raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}`:
+**Prometheus**, **Jaeger**, **Grafana**, and **Kiali**.
 
-### 📣 Feedback
+### `(5) Configure namespace for automatic sidecar injection`
+Creates the `bookinfo` namespace and labels it
+`istio-injection=enabled`. Delete mode removes the namespace and label.
 
-Encountered any issues or have suggestions for improving our Istio traffic management demo? Please open an issue in this repository. We're committed to making this demo as informative and practical as possible for those interested in service mesh traffic control.
+### `(6) Configure service and deployment`
+Applies `samples/bookinfo/platform/kube/bookinfo.yaml`, deploying the four
+Bookinfo microservices (`productpage`, `details`, `reviews` v1/v2/v3,
+`ratings`). Waits up to 600 s for the deployments to become available. Delete
+mode removes them.
 
-Embark on your journey to mastering Istio's traffic management features in a Kubernetes environment. Optimize your microservices traffic with the power of Istio! 🚦🚀
+### `(7) Configure gateway and virtualservice`
+Applies `samples/bookinfo/networking/bookinfo-gateway.yaml`, exposing the
+Bookinfo `productpage` through the Istio ingress gateway.
+
+### `(8) Configure subsets`
+Applies `samples/bookinfo/networking/destination-rule-all.yaml`, defining
+named subsets per microservice version. Required for the routing scenarios
+in step 9.
+
+### `(9) Explore Istio traffic management`
+The interactive demo. In Create mode it generates continuous `curl` traffic
+to the ingress IP and pauses between scenarios so you can observe the
+behavior in Grafana / Kiali / Jaeger:
+
+- Route 100% to `reviews` v1.
+- Route user `jason` to v2 while everyone else stays on v1.
+- 50/50 weighted split between v1 and v3.
+- Fault injection: delay on `ratings` for `jason`, then HTTP 500 abort.
+- Header-based routing variations.
+- Sidecar egress restrictions.
+- Port-level load-balancing policy.
+- Request timeouts and retry policies.
+
+Press Enter at each pause to advance. Delete mode reverts the demo
+`VirtualService`s back to the default routing.
+
+To reach Bookinfo from outside the cluster:
+
+```bash
+export INGRESS_HOST=$(kubectl -n bookinfo get svc istio-ingressgateway \
+  -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+curl http://${INGRESS_HOST}/productpage
+```
+
+### `(R)` / `(G)` / `(Q)`
+- `R` — show maintainer credits.
+- `G` — launch the bundled Cloud Shell tutorial (Cloud Shell only).
+- `Q` — quit.
+
+## Working files
+
+```
+./gcp-istio-traffic/
+├── .env                       # current configuration
+├── .<GCP_PROJECT>.json        # service-account key
+└── ingress.yaml               # IstioOperator written by step 4
+
+$HOME/istio-<ISTIO_VERSION>/   # istioctl + samples/bookinfo manifests
+```
+
+`.env` is backed up to `gs://<GCP_PROJECT>/gcp-istio-traffic.sh.env`.
+
+## Cleanup
+
+The cluster and the addons are the cost drivers. To tear down:
+
+1. Option `0` → `d` (delete mode).
+2. Run option `9` in delete mode to revert any demo `VirtualService`s.
+3. Run options `8`, `7`, `6`, `5` to remove subsets, gateway, deployments,
+   and the namespace.
+4. Run option `4` to uninstall Istio and the addons.
+5. Run option `3` to delete the GKE cluster, then optionally `2` and `1`.
+6. Delete `./gcp-istio-traffic/` and the service-account key file.
