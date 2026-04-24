@@ -1,661 +1,287 @@
 ---
-name: terraform-module-implementation
-description: Guide for implementing Terraform Application Modules using the CloudRunApp wrapper pattern.
+name: rad-modules-implementation
+description: Guide for implementing Terraform/OpenTofu modules in the rad-modules repository. The modules are standalone GKE-based Kubernetes and multi-cloud fleet deployments (Istio_GKE, Bank_GKE, MC_Bank_GKE, AKS_GKE, EKS_GKE).
 ---
 
-# Terraform Module Implementation Skill
+# RAD Modules Implementation Skill
 
-This skill details how to implement new Application Modules in this repository. These modules act as wrappers around the foundational `CloudRunApp` module, reusing its core logic while defining application-specific configurations.
+This skill explains how the Terraform/OpenTofu modules in this repository are structured and how to add a new one. The canonical reference throughout this document is **`modules/Istio_GKE`**: read its source alongside this guide.
 
-## 1. Overview & The Wrapper Pattern
+## 1. Repository Overview
 
-The repository uses a "Wrapper Pattern" for Application Modules.
-- **Foundation**: `modules/CloudRunApp` contains the core Terraform logic (services, IAM, networking, storage, etc.).
-- **Wrapper**: Each Application Module (e.g., `modules/Odoo`, `modules/Wordpress`) symlinks to the core files in `CloudRunApp`.
-- **Configuration**: The wrapper defines its specific logic in a local `.tf` file (e.g., `odoo.tf`) by setting `local.application_modules`.
+Each top-level entry under `modules/` is an **independent, self-contained module**. There is no shared foundation module, no symlink pattern, and no cross-module Terraform dependency. A module owns every resource it provisions and produces its own state.
 
-**Benefits:**
-- Consistent infrastructure across all apps.
-- Single point of maintenance for core logic.
-- Rapid creation of new modules.
+The five modules in the repository today:
 
-## 2. Directory Structure
+| Module | What it provisions | Target audience |
+|---|---|---|
+| `Istio_GKE` | GKE Standard cluster + open-source Istio (sidecar **or** ambient mode) + Prometheus/Jaeger/Grafana/Kiali + optional Bookinfo sample | Platform engineers learning upstream Istio |
+| `Bank_GKE` | Single GKE cluster (Autopilot or Standard) + Cloud Service Mesh (managed Istio) + Bank of Anthos v0.6.7 + optional Anthos Config Management + Cloud Monitoring SLOs | Engineers exploring ASM on a single cluster |
+| `MC_Bank_GKE` | Multiple GKE clusters across multiple regions + fleet-wide Cloud Service Mesh + Multi-Cluster Ingress (MCI) + Multi-Cluster Services (MCS) + Bank of Anthos across all clusters behind a global HTTPS load balancer | Engineers exploring multi-cluster mesh and traffic |
+| `AKS_GKE` | Microsoft Azure AKS cluster registered with GCP as a **GKE Attached Cluster** via Fleet, with the GKE Connect agent installed via Helm | Engineers exploring multi-cloud fleet management |
+| `EKS_GKE` | AWS EKS cluster registered with GCP as a **GKE Attached Cluster** via Fleet, with the GKE Connect agent installed via Helm | Engineers exploring multi-cloud fleet management |
 
-A standard Application Module should look like this:
+Supporting directories:
+
+- `rad-launcher/` — `radlab.py` is a Python CLI that wraps OpenTofu/Terraform for interactive module deployment from a workstation or Cloud Shell.
+- `rad-ui/automation/` — Cloud Build YAML files (`cloudbuild_deployment_{create,destroy,purge,update}.yaml`) used by the RAD platform UI to run module deployments remotely.
+- Top-level `README.md` and `CHANGELOG.md` are upstream OpenTofu documents, not project documentation.
+
+## 2. Standard Module Layout
+
+Modules follow a common file layout. The distinguishing `.tf` files differ by what the module deploys, but the scaffolding is shared. Using `modules/Istio_GKE` as the example:
 
 ```
-modules/MyModule/
-├── main.tf -> ../CloudRunApp/main.tf
-├── variables.tf                 # Module-specific variables (Copy from template)
-├── mymodule.tf                  # MAIN CONFIGURATION FILE (Local logic)
-├── scripts/
-│   └── mymodule/
-│       ├── Dockerfile           # If building a custom image
-│       └── ...                  # Other helper scripts
-├── config/                      # Configuration templates (e.g., nginx.conf, php.ini)
-│   └── ...
-├── .gitignore
-├── README.md
-├── MYMODULE.md                  # Detailed documentation
-└── [Symlinks to CloudRunApp]    # See list below
+modules/Istio_GKE/
+├── main.tf              # Project bootstrap, API enablement, random_id, project data source
+├── provider-auth.tf     # google provider + service-account impersonation
+├── versions.tf          # required_providers + required_version
+├── variables.tf         # UIMeta-annotated inputs
+├── outputs.tf           # deployment_id, project_id, cluster_credentials_cmd, external_ip
+├── network.tf           # VPC, subnet with secondary ranges, firewall rules, Cloud Router + NAT
+├── gke.tf               # GKE cluster, node pool, cluster service account, IAM
+├── istiosidecar.tf      # null_resource installing Istio in sidecar mode (conditional)
+├── istioambient.tf      # null_resource installing Istio in ambient mode (conditional)
+├── manifests/           # Raw Kubernetes manifests applied as-is
+├── templates/           # Kubernetes manifest templates rendered by Terraform
+├── README.md            # Short overview + usage + Requirements/Providers/Resources/Inputs/Outputs tables
+└── Istio_GKE.md         # Long technical walkthrough (≈1,400 lines)
 ```
 
-**Required Symlinks:**
-Ensure these point to `../CloudRunApp/`:
-- `buildappcontainer.tf`, `iam.tf`, `jobs.tf`, `main.tf`, `modules.tf`, `monitoring.tf`, `network.tf`, `nfs.tf`, `outputs.tf`, `provider-auth.tf`, `registry.tf`, `sa.tf`, `secrets.tf`, `service.tf`, `sql.tf`, `storage.tf`, `trigger.tf`, `versions.tf`
+Other modules introduce their own domain-specific files alongside this skeleton:
 
-**Note:** `variables.tf` is **NOT** a symlink. It must be a local file.
+| Module | Additional/replacement files |
+|---|---|
+| `Bank_GKE` | `asm.tf` (Cloud Service Mesh via GKE Hub), `deploy.tf` (downloads Bank of Anthos tarball and applies manifests), `hub.tf` (fleet membership), `glb.tf` (global load balancer IP), `monitoring.tf` (SLOs), `templates/*.yaml.tpl` |
+| `MC_Bank_GKE` | `asm.tf`, `deploy.tf`, `hub.tf`, `glb.tf`, `mcs.tf` (MCI/MCS features), `manifests.tf` (applies YAML from `manifests/`), `manifests/` |
+| `AKS_GKE` | `provider.tf` (direct provider config, no impersonation wrapper), no `versions.tf`, no `network.tf` (Azure VNet is created inline in `main.tf`), nested `modules/attached-install-manifest/` and `modules/attached-install-mesh/` (Helm-based installers) |
+| `EKS_GKE` | `provider.tf`, `vpc.tf` (AWS VPC), `iam.tf` (AWS IAM roles for EKS), same nested `modules/` as AKS_GKE |
 
-## 3. Module Configuration (`<module_name>.tf`)
+### 2.1 Nested Submodules
 
-This file is the heart of the module. It must define a `locals` block with specific keys that `CloudRunApp` expects.
+`AKS_GKE/modules/` and `EKS_GKE/modules/` contain two inner Terraform modules:
 
-### Required Locals
+- `attached-install-manifest` — Renders and applies the GKE Connect agent bootstrap manifest via Helm. Called automatically by the parent module after the cluster is registered as a GKE Attached Cluster.
+- `attached-install-mesh` — Optional Anthos Service Mesh installer. **Not called automatically** by the parent; invoke it from your own root module if you want ASM on the attached cluster.
+
+## 3. Standard File Contents
+
+### 3.1 `main.tf`
+
+Every module's `main.tf` does the same three things at the top:
+
+1. Looks up the existing GCP project via `data "google_project" "existing_project"` keyed by `var.existing_project_id`.
+2. Generates a deployment suffix: `random_id "default"` is created when `var.deployment_id` is `null`; `local.random_id` resolves to either the provided value or the generated hex.
+3. Enables the project's required APIs via `google_project_service.enabled_services` with `disable_dependent_services = false` and `disable_on_destroy = false` (critical — prevents destroy from disabling APIs that other modules may be using).
+
+Modules that install workloads via `kubectl` also include a `null_resource.wait_for_container_api` that polls `gcloud services list` until `container.googleapis.com` reports as enabled before any cluster resource is created.
+
+### 3.2 `provider-auth.tf` vs `provider.tf`
+
+Two patterns exist:
+
+**Impersonation pattern (`provider-auth.tf`)** — used by `Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE`:
 
 ```hcl
-locals {
-  # 1. Define the module configuration
-  mymodule_module = {
-    app_name                = "mymodule"
-    application_version     = var.application_version
-    display_name            = "My Module Display Name"
-    description             = "Description of what this module does"
+provider "google" { alias = "impersonated" ... }
 
-    # Container Image Config
-    container_image         = "repo/image"  # Base image name
-    image_source            = "custom"      # "custom" (build local) or "prebuilt" (pull public)
-
-    # Build Config (if image_source = "custom")
-    container_build_config = {
-      enabled            = true
-      dockerfile_path    = "Dockerfile"
-      context_path       = "mymodule"       # Maps to scripts/mymodule/
-      build_args         = {
-         SOME_ARG = "value"
-      }
-    }
-
-    container_port          = 8080
-
-    # Database Config
-    database_type           = "POSTGRES_15" # NONE, MYSQL_8_0, POSTGRES_15, SQLSERVER_2019_STANDARD
-    db_name                 = "mydb"
-    db_user                 = "myuser"
-    enable_cloudsql_volume  = true          # Mount Cloud SQL via Unix socket
-    cloudsql_volume_mount_path = "/cloudsql"
-
-    # Storage Config
-    nfs_enabled             = true
-    nfs_mount_path          = "/mnt"
-
-    gcs_volumes = [
-      {
-        name          = "my-data"
-        mount_path    = "/data"
-        read_only     = false
-      }
-    ]
-
-    # Resources
-    container_resources = {
-      cpu_limit    = "1000m"
-      memory_limit = "512Mi"
-    }
-
-    # Initialization Jobs (Cloud Run Jobs)
-    initialization_jobs = [
-      {
-        name        = "init-db"
-        description = "Initialize database"
-
-        # ✅ NEW: Use script_path to reference external shell scripts
-        script_path = "${path.module}/scripts/mymodule/init-db.sh"
-
-        # NOTE: command and args are automatically handled when script_path is provided
-        # Do NOT specify command/args when using script_path
-
-        mount_nfs   = true
-        execute_on_apply = true
-      }
-    ]
-
-    # External script files should be placed in scripts/<module_name>/ directory
-    # Example: scripts/mymodule/init-db.sh contains the shell script logic
-  }
-
-  # 2. Register the module
-  application_modules = {
-    mymodule = local.mymodule_module
-  }
-
-  # 3. Define Environment Variables (Static + Secrets)
-  module_env_vars = {
-    DB_HOST = local.enable_cloudsql_volume ? "${local.cloudsql_volume_mount_path}/..." : local.db_internal_ip
-  }
-
-  module_secret_env_vars = {
-    ADMIN_PASS = try(google_secret_manager_secret.admin_pass.secret_id, "")
-  }
-
-  # 4. Define Storage Buckets
-  module_storage_buckets = []
+data "google_service_account_access_token" "default" {
+  count                  = length(var.resource_creator_identity) != 0 ? 1 : 0
+  provider               = google.impersonated
+  target_service_account = var.resource_creator_identity
+  lifetime               = "1800s"
 }
+
+provider "google"      { access_token = ... }
+provider "google-beta" { access_token = ... }
 ```
 
-## 4. Variables & UIMeta (Standard Order)
+When `resource_creator_identity` is set, the module provisions resources as that service account instead of the caller's ADC.
 
-Variables in `variables.tf` must follow the "Standard Order" and include `UIMeta` annotations for the platform UI.
+**Direct pattern (`provider.tf`)** — used by `AKS_GKE`, `EKS_GKE`. These modules configure `azurerm`/`aws`/`helm` providers directly and do not impersonate for GCP calls.
 
-| Group ID | Name | Description |
-| :--- | :--- | :--- |
-| **0** | Metadata | Module description, documentation links |
-| **100** | Basic | Enable flags, public access, basic settings |
-| **200** | Project | Project ID, Region, Tenant ID |
-| **300** | Application | Version, specific app settings |
-| **400** | CI/CD | GitHub repo, triggers |
-| **500** | Env Vars | Custom environment variables |
-| **600** | Health | Probes (startup, liveness) |
-| **700** | Monitoring | Alerts, trusted users |
-| **800** | Init Jobs | Custom job configs |
-| **900** | Network | VPC, Ingress settings |
-| **1000** | DB/Backup | Passwords, Backup config |
+### 3.3 `versions.tf`
 
-**Example:**
+Pins required providers and `required_version`. Providers commonly pinned across modules: `google`, `google-beta`, `kubernetes`, `random`, `null`. AKS_GKE adds `azurerm` and `helm`; EKS_GKE adds `aws` and `helm`.
+
+### 3.4 `variables.tf` — UIMeta Annotations
+
+All input variables carry a `{{UIMeta group=N order=M }}` annotation at the end of their `description`. The platform UI uses these to group and order inputs on the deployment form. The sectioning convention used in `Istio_GKE/variables.tf`:
+
+| Group | Section | Variables |
+|---|---|---|
+| 0 | Provider / Metadata | `module_description`, `module_dependency`, `module_services`, `credit_cost`, `require_credit_purchases`, `enable_purge`, `public_access`, `resource_creator_identity`, `trusted_users` |
+| 1 | Main | `existing_project_id`, `gcp_region` |
+| 2 | Network | `create_network`, `network_name`, `subnet_name`, `ip_cidr_ranges` |
+| 3 | GKE | `create_cluster`, `gke_cluster`, `release_channel`, `pod_ip_range`, `pod_cidr_block`, `service_ip_range`, `service_cidr_block` |
+| 4 | Features | `enable_services`, `istio_version`, `install_ambient_mesh` |
+| 6 | Application | `deploy_application` |
+
+Example variable:
+
 ```hcl
-variable "module_description" {
-  description = "The description of the module. {{UIMeta group=0 order=100 }}"
+variable "existing_project_id" {
+  description = "GCP project ID of the destination project where the GKE cluster and Istio service mesh will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=101 updatesafe }}"
   type        = string
-  default     = "This module deploys MyModule"
 }
 ```
 
-## 5. Scripts & Docker
+The `updatesafe` tag marks variables whose value can change on an in-place `terraform apply` without forcing resource replacement.
 
-- Place Dockerfiles and scripts in `scripts/<module_name>/`.
-- In `<module_name>.tf`, set `context_path = "<module_name>"` in `container_build_config`.
-- This ensures Kaniko builds relative to `scripts/<module_name>/` but can access the root if needed (though typically restricted).
+### 3.5 `outputs.tf`
 
-## 6. Creation Process
+Standard outputs present in every GKE-based module (compare `modules/Istio_GKE/outputs.tf:17-38`):
 
-**Recommended:** Use the helper script to verify prerequisites and clone a base module.
+- `deployment_id` — echoes the suffix (provided or generated) used in resource names.
+- `project_id` — the GCP project where resources were deployed.
+- `cluster_credentials_cmd` — a ready-to-paste `gcloud container clusters get-credentials ...` command for operators.
+- `external_ip` — read from a file written by a post-provisioning `null_resource` (e.g. Istio Ingress Gateway IP); falls back to `"IP not available"` via `fileexists()`.
 
-1.  Run `./scripts/create_module.sh`.
-2.  Select a similar existing module to clone (e.g., `Odoo` if you need DB + NFS).
-3.  Enter the new module name.
-4.  The script will:
-    -   Clone the directory.
-    -   Rename files (`Old.tf` -> `New.tf`).
-    -   Replace internal strings.
-    -   Setup symlinks.
-5.  Edit `modules/NewModule/newmodule.tf` to customize logic.
-6.  Edit `modules/NewModule/variables.tf` to update metadata.
+Attached-cluster modules (`AKS_GKE`, `EKS_GKE`) expose no Terraform outputs; they document the equivalent `gcloud container attached clusters get-credentials` command in their README.
 
-## 7. Troubleshooting & Debugging
+### 3.6 Post-Provisioning with `null_resource`
 
-### A. Database Connection Issues
+Anything that cannot be expressed as a Terraform resource — installing Istio via `istioctl`, applying Bank of Anthos manifests, waiting for a LoadBalancer IP — is wrapped in `null_resource` with `local-exec` provisioners. Conventions observed in `istiosidecar.tf:17-293`:
 
-**Symptom**: Application cannot connect to Cloud SQL database
+1. **Triggers** capture every variable needed by the `destroy` provisioner (e.g. `cluster_name`, `region`, `project_id`, `resource_creator_identity`), because `self.triggers.*` is the only input available at destroy time.
+2. **Create provisioner**: `set -eo pipefail`, install missing CLIs (`kubectl`, `istioctl`) into `$HOME/.local/bin`, run `gcloud container clusters get-credentials ... --impersonate-service-account=...`, then perform the actual install.
+3. **Destroy provisioner**: `set +e` to make cleanup best-effort — failures during destroy should never block Terraform from removing infrastructure. Uses `--ignore-not-found` on kubectl calls and `|| echo "Warning: ..."` on each step.
+4. **Explicit `depends_on`** against the cluster and node pool, so Terraform does not attempt the install until Kubernetes is actually ready.
 
-**Common Causes & Solutions**:
-1. **Unix Socket vs TCP**: Check `enable_cloudsql_volume` setting
-   - Unix Socket (recommended): `enable_cloudsql_volume = true`
-   - TCP Connection: `enable_cloudsql_volume = false` (Cyclos pattern)
-   - Verify `DB_HOST` environment variable matches connection type
+## 4. Documentation Pattern
 
-2. **PostgreSQL Extensions**: If using `enable_postgres_extensions = true`
-   - Check initialization job logs: `gcloud run jobs describe init-db-extensions`
-   - Verify extensions list matches app requirements
-   - Common extensions: pg_trgm, uuid-ossp, postgis, cube, earthdistance
+Each module ships two markdown files:
 
-3. **Database User Creation**: Check `create-user` job status
-   - Log location: Cloud Run Jobs > Executions > Logs
-   - Verify Secret Manager has `db_password` secret
+- **`README.md`** (≈90–100 lines): short prose intro, a copy-pastable `module "..." { source = ... }` usage block, and standard tables for Requirements, Providers, Modules (if any), Resources, Inputs, Outputs.
+- **`<Module_Name>.md`** (≈1,100–2,600 lines): long-form technical walkthrough covering the architecture diagram, every resource the module creates, the networking layout, security model, and operational guidance. These are meant as learning material — `Istio_GKE.md` explains VPC-native networking, secondary IP ranges, iptables-based traffic interception, and the sidecar-vs-ambient trade-off in enough depth to teach the technology, not just operate it.
 
-**Debugging Commands**:
+When writing these files for a new module, match the tone and depth of `modules/Istio_GKE/README.md` and `modules/Istio_GKE/Istio_GKE.md`.
+
+## 5. Creating a New Module
+
+There is no scaffolding script. Create a new module by copying the layout from the closest existing module:
+
+1. **Pick a template** based on what you are deploying:
+   - Single GKE cluster with workload → copy `Istio_GKE` or `Bank_GKE`.
+   - Multi-cluster GKE → copy `MC_Bank_GKE`.
+   - Attached cluster on AWS/Azure → copy `EKS_GKE` / `AKS_GKE`.
+2. `cp -a modules/Istio_GKE modules/MyNewModule` and rename any module-specific `.tf` files (e.g. `istiosidecar.tf` → `mynewmodule.tf`).
+3. Edit `variables.tf` — update `module_description`, `module_services`, `module_dependency`, any feature flags, and default values. Keep the UIMeta annotations; renumber `order` values if you add new variables in an existing group.
+4. Replace the provisioning logic in the domain-specific `.tf` files. If you need post-provisioning steps, follow the `null_resource` pattern in `istiosidecar.tf`.
+5. Update `outputs.tf` — always expose `deployment_id`, `project_id`, and (for GKE modules) `cluster_credentials_cmd`.
+6. Write `README.md` and `<Module_Name>.md` using the existing modules as a template for structure and depth.
+7. Validate:
+
+   ```bash
+   cd modules/MyNewModule
+   tofu init      # or: terraform init
+   tofu validate
+   tofu fmt -check
+   tofu plan -var="existing_project_id=my-test-project"
+   ```
+
+## 6. Conventions and Invariants
+
+- **File naming**: `snake_case` for `.tf` files. Module directories use `PascalCase` / `SCREAMING_SNAKE_CASE` (e.g. `Istio_GKE`, `MC_Bank_GKE`).
+- **Copyright headers**: Every `.tf` file begins with the Apache 2.0 license header.
+- **API enablement**: Always set `disable_dependent_services = false` and `disable_on_destroy = false` on `google_project_service` to avoid disabling APIs that may be in use by other modules or deployments.
+- **Destroy safety**: Any `null_resource` with a meaningful create-time effect **must** have a matching `when = destroy` provisioner that cleans up, and that provisioner must tolerate missing resources (`--ignore-not-found`, `|| true`, etc.).
+- **Impersonation**: Only fetch an impersonation access token when `length(var.resource_creator_identity) != 0`; otherwise let the provider use ADC.
+- **No secrets in variables**: Credentials like `client_secret`, `aws_secret_key` are module inputs but must never be given default values. The caller is responsible for sourcing them from a secret store.
+
+## 7. Running a Module
+
+### Local (OpenTofu/Terraform)
+
 ```bash
-# View initialization job logs
-gcloud run jobs executions list --job=<tenant>-<app>-init-db-extensions
-
-# Test database connection from Cloud Shell
-gcloud sql connect <instance-name> --user=<db_user>
-
-# Check secret exists
-gcloud secrets describe <tenant>-<app>-db-password
+cd modules/Istio_GKE
+tofu init
+tofu plan  -var="existing_project_id=my-gcp-project"
+tofu apply -var="existing_project_id=my-gcp-project"
+tofu destroy -var="existing_project_id=my-gcp-project"
 ```
 
-### B. Storage & NFS Issues
+### Via the RAD Lab launcher
 
-**Symptom**: Application cannot write to mounted volumes
-
-**Common Causes & Solutions**:
-1. **NFS Mount Permissions**:
-   - Check nfs-setup job succeeded: `gcloud run jobs describe nfs-setup`
-   - Verify mount path matches: `/mnt` (default) vs custom path
-   - NFS server must exist in same region (created by GCP_Services module)
-
-2. **GCS FUSE Configuration**:
-   - Verify bucket exists and SA has `storage.objectAdmin` role
-   - Check mount_options: `["implicit-dirs", "metadata-cache-ttl-secs=60"]`
-   - GCS FUSE limitations: No POSIX file locking, eventual consistency
-
-3. **Volume Mount Conflicts**:
-   - CloudSQL volume: `/cloudsql`
-   - NFS volume: `/mnt` (configurable)
-   - GCS volumes: User-defined paths
-   - Ensure no path overlaps
-
-**Debugging Commands**:
 ```bash
-# Check NFS server status
-gcloud filestore instances list --region=<region>
-
-# Verify bucket exists and permissions
-gsutil ls -L gs://<bucket-name>
-
-# Check Cloud Run service mounts
-gcloud run services describe <service-name> --format=json | jq '.spec.template.spec.volumes'
+cd rad-launcher
+python3 installer_prereq.py
+python3 radlab.py
 ```
 
-### C. Initialization Jobs Failures
-
-**Symptom**: Deployment succeeds but application doesn't work correctly
-
-**Common Causes & Solutions**:
-1. **Job Execution Order**: Jobs run in dependency order via `run_ordered_jobs.py`
-   - Check job dependencies in `<app>.tf` initialization_jobs
-   - View execution order: `modules/CloudRunApp/scripts/core/run_ordered_jobs.py`
-
-2. **Environment Variable Injection**:
-   - Jobs inherit `module_env_vars` and `module_secret_env_vars`
-   - Secret Manager secrets must exist before job execution
-   - Use `execute_on_apply = false` to skip automatic execution
-
-3. **Script Permissions**:
-   - Entrypoint scripts must be executable: `chmod +x script.sh`
-   - In Dockerfile: `RUN chmod +x /path/to/script.sh`
-
-**Debugging Commands**:
-```bash
-# List all job executions
-gcloud run jobs executions list --job=<job-name>
-
-# View specific execution logs
-gcloud run jobs executions logs <execution-name>
-
-# Manually trigger a job
-gcloud run jobs execute <job-name>
-```
-
-### D. Container Build Failures
-
-**Symptom**: Cloud Build fails or image doesn't work
-
-**Common Causes & Solutions**:
-1. **Context Path Issues**: Kaniko builds relative to `scripts/<module_name>/`
-   - Set `context_path = "<module_name>"` in `container_build_config`
-   - Dockerfile must be in `scripts/<module_name>/Dockerfile`
-   - Cannot access files outside context (security restriction)
-
-2. **Build Arguments**:
-   - Pass via `build_args = { KEY = "value" }`
-   - In Dockerfile: `ARG KEY` then use `$KEY`
-   - Build args are visible in logs (don't use for secrets)
-
-3. **Dockerfile CMD Issues** (Critical):
-   - Verify CMD points to production entrypoint, not debug script
-   - Example bug: Medusa Dockerfile CMD points to `start-dev.sh`
-   - Test locally: `docker run <image> /bin/sh -c 'cat /entrypoint.sh'`
-
-**Debugging Commands**:
-```bash
-# View Cloud Build logs
-gcloud builds list --limit=5
-gcloud builds log <build-id>
-
-# Test image locally
-docker pull <artifact-registry-url>/<image>:<tag>
-docker run -it <image> /bin/sh
-```
-
-### E. Networking Issues
-
-**Symptom**: Cannot access Cloud SQL, Redis, or service is not accessible
-
-**Common Causes & Solutions**:
-1. **VPC Egress Configuration**:
-   - Direct VPC Egress (recommended): Uses `network_interfaces`
-   - VPC Access Connector (legacy): Uses separate connector resource
-   - Check: `modules/CloudRunApp/network.tf` for current implementation
-
-2. **Public Access**:
-   - Default: `roles/run.invoker` granted to `allUsers`
-   - Restrict: Set `public_access = false` (if variable implemented)
-   - Verify: `gcloud run services get-iam-policy <service-name>`
-
-3. **Ingress Settings**:
-   - Default: `INGRESS_TRAFFIC_ALL`
-   - Internal only: `INGRESS_TRAFFIC_INTERNAL_ONLY`
-   - Load Balancer: `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`
-
-**Debugging Commands**:
-```bash
-# Check VPC network exists
-gcloud compute networks describe <network-name>
-
-# Verify subnet
-gcloud compute networks subnets describe <subnet-name> --region=<region>
-
-# Test connectivity from Cloud Shell
-curl https://<cloud-run-url>
-```
-
-## 8. Maintenance & Updates
-
-### A. Updating Application Version
-
-**Standard Update Process**:
-1. Update `application_version` variable in tfvars
-2. If using custom image:
-   - Update Dockerfile or application code
-   - Commit changes (triggers Cloud Build if CI/CD enabled)
-3. Run `terraform plan` to review changes
-4. Run `terraform apply`
-5. Monitor new revision deployment
-
-**Zero-Downtime Updates**:
-- Cloud Run automatically does gradual rollout
-- Keep `min_instance_count = 0` for scale-to-zero between deployments
-- Set `min_instance_count = 1` for high-availability apps (e.g., Wordpress)
-
-### B. Updating Module Configuration
-
-**Safe Update Process**:
-1. Read current state: `terraform show`
-2. Make incremental changes to `<app>.tf`
-3. Run `terraform plan` and review:
-   - Green `+` : New resources (safe)
-   - Yellow `~` : Updates (review carefully)
-   - Red `-/+` : Replacements (potential downtime)
-   - Red `-` : Deletions (data loss risk)
-4. For destructive changes, backup first (see section C)
-
-**High-Risk Changes** (require extra caution):
-- Database type change: Requires migration
-- NFS path change: May lose data
-- CloudSQL volume toggle: Changes connection method
-- Min/max instance count: Affects availability
-
-### C. Backup & Restore Procedures
-
-**Database Backup**:
-```bash
-# Export Cloud SQL database
-gcloud sql export sql <instance-name> gs://<bucket>/backup-$(date +%Y%m%d).sql \
-  --database=<db-name>
-
-# Import backup (during initialization)
-# Set in tfvars:
-# backup_import_enabled = true
-# backup_gcs_uri = "gs://<bucket>/backup-20240204.sql"
-```
-
-**NFS Backup**:
-```bash
-# From Cloud Shell with NFS mounted
-gcloud filestore instances describe <nfs-instance>
-# Manual backup: copy files from /mnt to GCS
-gsutil -m rsync -r /mnt gs://<bucket>/nfs-backup/
-```
-
-**Configuration Backup**:
-- Always commit tfvars to version control
-- Store in separate repo (not public)
-- Use terraform state remote backend (GCS recommended)
-
-### D. Module Dependency Updates
-
-**CloudRunApp Updates** (affects all application modules):
-1. Test changes in `modules/Sample` first
-2. Review changes in `modules/CloudRunApp/CHANGELOG.md` (if exists)
-3. Update one application module at a time
-4. Verify symlinks are intact: `./scripts/create_module.sh` validation mode
-
-**GCP_Services Updates** (affects all modules):
-1. **CRITICAL**: Never destroy VPC or NFS without full backup
-2. Changes here affect all deployed applications
-3. Plan in production-like environment first
-4. Consider maintenance window for networking changes
-
-### E. Monitoring & Health Checks
-
-**Key Metrics to Monitor**:
-1. **Cloud Run**:
-   - Request count, latency, error rate
-   - Instance count (check auto-scaling)
-   - Cold start times
-2. **Cloud SQL**:
-   - CPU utilization (>80% = resize needed)
-   - Connection count (check connection pooling)
-   - Storage utilization
-3. **Initialization Jobs**:
-   - Last execution status
-   - Execution duration trends
-
-**Accessing Logs**:
-```bash
-# Cloud Run service logs
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=<service>" --limit=50
-
-# Cloud SQL logs
-gcloud logging read "resource.type=cloudsql_database" --limit=50
-
-# Initialization job logs
-gcloud run jobs executions logs <execution-name>
-```
-
-### F. Cost Optimization
-
-**Resource Right-Sizing**:
-1. **CPU/Memory**: Start with defaults, monitor for 1 week
-   - Over-provisioned: Low utilization (<30%)
-   - Under-provisioned: High latency, throttling
-2. **Instance Scaling**:
-   - `min_instance_count = 0`: Maximum savings (recommended)
-   - `min_instance_count = 1`: Eliminates cold starts (+$15-30/month)
-3. **Database Sizing**:
-   - Start with `db-f1-micro` or `db-g1-small`
-   - Monitor CPU and upgrade only when needed
-4. **Storage**:
-   - Enable GCS lifecycle policies for old data
-   - Use Nearline/Coldline storage for backups
-
-**Cost Monitoring**:
-```bash
-# Estimate monthly cost (rough)
-gcloud billing accounts list
-# Use GCP Pricing Calculator: https://cloud.google.com/products/calculator
-```
-
-## 9. Testing & Validation
-
-### A. Pre-Deployment Validation
-
-**Terraform Validation**:
-```bash
-# Syntax check
-terraform validate
-
-# Check formatting
-terraform fmt -check
-
-# Security scan (optional, requires tfsec)
-tfsec .
-
-# Plan without applying
-terraform plan -out=plan-output.tfplan
-```
-
-**Module Consistency Check**:
-```bash
-# Verify symlinks
-find . -type l -exec test ! -e {} \; -print
-
-# Check for required files
-ls -la main.tf variables.tf <app>.tf README.md
-
-# Verify scripts directory
-ls -la scripts/<module_name>/
-```
-
-### B. Post-Deployment Validation
-
-**Service Health Check**:
-```bash
-# Verify service is running
-gcloud run services describe <service-name> --format=json | jq '.status.conditions'
-
-# Check URL accessibility
-curl -I https://<cloud-run-url>
-
-# View recent logs
-gcloud run services logs read <service-name> --limit=20
-```
-
-**Database Connectivity Check**:
-```bash
-# Connect to Cloud SQL
-gcloud sql connect <instance-name> --user=<db-user>
-
-# Verify database exists
-\l  # (in psql)
-SHOW DATABASES;  # (in mysql)
-```
-
-**Initialization Jobs Verification**:
-```bash
-# List all jobs
-gcloud run jobs list
-
-# Check last execution status
-gcloud run jobs executions list --job=<job-name> --limit=1
-
-# View execution logs
-gcloud run jobs executions logs <execution-name>
-```
-
-### C. Performance Testing
-
-**Load Testing** (optional):
-```bash
-# Simple load test with Apache Bench
-ab -n 1000 -c 10 https://<cloud-run-url>/
-
-# Monitor during test
-watch -n 1 'gcloud run services describe <service> --format="value(status.traffic[0].latestRevision)"'
-```
-
-**Database Performance**:
-```bash
-# Check query performance (PostgreSQL)
-psql -h <host> -U <user> -d <db> -c "SELECT * FROM pg_stat_statements ORDER BY total_time DESC LIMIT 10;"
-
-# Connection pooling status
-psql -h <host> -U <user> -d <db> -c "SELECT count(*) FROM pg_stat_activity;"
-```
-
-## 10. Quick Reference
-
-### A. Common Variable Patterns
-
-**Database Configuration**:
+`radlab.py` interactively prompts for a module, project, and variables, then drives `tofu init/apply` under the hood.
+
+### Via the RAD UI platform
+
+The platform invokes Cloud Build with the YAML files in `rad-ui/automation/`:
+
+- `cloudbuild_deployment_create.yaml` — `tofu apply`
+- `cloudbuild_deployment_update.yaml` — re-apply with changed variables
+- `cloudbuild_deployment_destroy.yaml` — `tofu destroy`
+- `cloudbuild_deployment_purge.yaml` — destroy plus post-cleanup for any resources Terraform could not remove
+
+These are invoked by the platform, not by module developers directly.
+
+## 8. Troubleshooting
+
+### Cluster credentials fail in a `null_resource`
+
+The `local-exec` runs on the machine executing `tofu apply`, not in GCP. Check that `gcloud` and `kubectl` are installed and that either ADC or `--impersonate-service-account=${var.resource_creator_identity}` can reach the cluster. The installer blocks in `istiosidecar.tf:42-58` show how to install `kubectl` on demand when missing.
+
+### `istioctl install` fails with HPA naming conflicts
+
+The sidecar-mode installer (`istiosidecar.tf:109-148`) pipes a custom `IstioOperator` YAML into `istioctl install -y -f -` specifically to set an explicit `hpaSpec.scaleTargetRef.name = istio-ingressgateway`. If you see HPA errors, confirm this block is still present and unmodified.
+
+### Destroy hangs or loops
+
+A `null_resource` destroy provisioner is failing hard. Every destroy provisioner must be idempotent and best-effort — re-check that it uses `set +e` (not `set -e`), `--ignore-not-found` on kubectl calls, and redirects errors rather than aborting.
+
+### API disabled after destroy
+
+Ensure `google_project_service.enabled_services` has `disable_on_destroy = false`. If you inherited a module where it was `true`, change it before the first destroy — once an API is disabled, dependent resources in other deployments will start failing.
+
+### Attached cluster never appears in the GCP Console
+
+The GKE Connect agent must be installed on the attached cluster. In `AKS_GKE` and `EKS_GKE` this is the job of `modules/attached-install-manifest` — verify the submodule is being invoked and its Helm release succeeded.
+
+### Bank of Anthos pods stuck pending
+
+The `deploy.tf` `null_resource` downloads the release tarball into `.terraform/bank-of-anthos` on the machine running `apply`. If the download or extract fails, the manifests are never applied. Check the `local-exec` output; the download is forced fresh on every apply via `always_run = timestamp()` (see `modules/Bank_GKE/deploy.tf:39`).
+
+## 9. Quick Reference
+
+### Standard variable set (GKE-based modules)
+
 ```hcl
-database_type = "POSTGRES_15"  # MYSQL_8_0, SQLSERVER_2019_STANDARD, NONE
-enable_cloudsql_volume = true  # Unix socket (recommended) or false for TCP
-enable_postgres_extensions = true
-postgres_extensions = ["pg_trgm", "uuid-ossp"]
+existing_project_id        # GCP project ID (required)
+gcp_region                 # e.g. "us-central1"
+resource_creator_identity  # SA email for impersonation; default points to the platform SA
+trusted_users              # Emails granted cluster-admin via RBAC/Connect Gateway
+deployment_id              # Optional suffix; auto-generated if null
+enable_services            # Toggle project_service API enablement
+create_network             # true = create VPC; false = use existing
+create_cluster             # true = create GKE; false = install onto existing
 ```
 
-**Storage Configuration**:
-```hcl
-nfs_enabled = true
-nfs_mount_path = "/mnt"
-gcs_volumes = [
-  { name = "data", mount_path = "/data", read_only = false }
-]
-```
+### Standard output set (GKE-based modules)
 
-**Resource Configuration**:
 ```hcl
-container_resources = {
-  cpu_limit = "1000m"     # 1 vCPU (250m, 500m, 1000m, 2000m, 4000m)
-  memory_limit = "512Mi"  # 512 MB (128Mi, 256Mi, 512Mi, 1Gi, 2Gi, 4Gi, 8Gi)
+output "deployment_id"          { value = var.deployment_id }
+output "project_id"             { value = local.project.project_id }
+output "cluster_credentials_cmd" {
+  value = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.gcp_region} --project ${local.project.project_id}"
 }
-min_instance_count = 0    # Scale-to-zero (cost optimization)
-max_instance_count = 3    # Max auto-scale
+output "external_ip" {
+  value = fileexists("${path.module}/scripts/app/external_ip.txt") ? file("${path.module}/scripts/app/external_ip.txt") : "IP not available"
+}
 ```
 
-### B. File Path Reference
+### Common providers
 
-**Module Structure**:
-- Configuration: `modules/<Module>/<module>.tf`
-- Variables: `modules/<Module>/variables.tf` (NOT symlinked)
-- Scripts: `modules/<Module>/scripts/<module>/`
-- Config templates: `modules/<Module>/config/`
-- Documentation: `modules/<Module>/README.md` and `<MODULE>.md`
-
-**Shared Resources**:
-- Foundation: `modules/CloudRunApp/` (all core logic)
-- Shared scripts: `modules/CloudRunApp/scripts/core/`
-- Platform: `modules/GCP_Services/` (VPC, NFS, Redis)
-
-### C. Important Command Reference
-
-```bash
-# Module creation
-./scripts/create_module.sh
-
-# Terraform workflow
-terraform init
-terraform plan -var-file="config/basic-<app>.tfvars"
-terraform apply -var-file="config/basic-<app>.tfvars"
-terraform destroy -var-file="config/basic-<app>.tfvars"
-
-# Cloud Run management
-gcloud run services list
-gcloud run services describe <service-name>
-gcloud run services logs read <service-name>
-
-# Cloud Run Jobs
-gcloud run jobs list
-gcloud run jobs execute <job-name>
-gcloud run jobs executions list --job=<job-name>
-gcloud run jobs executions logs <execution-name>
-
-# Cloud SQL management
-gcloud sql instances list
-gcloud sql connect <instance-name> --user=<user>
-gcloud sql export sql <instance-name> gs://<bucket>/backup.sql
-
-# Debugging
-gcloud logging read "resource.type=cloud_run_revision" --limit=50
-gcloud builds list --limit=5
-gcloud builds log <build-id>
-```
-
-### D. Decision Matrix
-
-**When to use Unix Socket vs TCP for Cloud SQL**:
-- ✅ Unix Socket (`enable_cloudsql_volume = true`): Default, lower latency, more secure
-- ⚠️ TCP (`enable_cloudsql_volume = false`): Required for some apps (Cyclos), connection pooling tools
-
-**When to use NFS vs GCS FUSE**:
-- ✅ NFS: Fast, POSIX-compliant, good for frequent small writes
-- ⚠️ GCS FUSE: Scalable, cost-effective, good for large files, eventual consistency
-
-**When to enable custom image building**:
-- ✅ Custom (`image_source = "custom"`): Application needs customization, proprietary code
-- ⚠️ Prebuilt (`image_source = "prebuilt"`): Using official Docker image (e.g., cyclos/cyclos:4)
-
-**When to scale to zero**:
-- ✅ `min_instance_count = 0`: Development, staging, cost-sensitive production
-- ⚠️ `min_instance_count = 1`: Production apps requiring instant response, stateful sessions
+| Module | google | google-beta | kubernetes | helm | azurerm | aws | random | null |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Istio_GKE | ✓ | | ✓ | | | | ✓ | ✓ |
+| Bank_GKE | ✓ | ✓ | ✓ | | | | ✓ | ✓ |
+| MC_Bank_GKE | ✓ | ✓ | ✓ (×N aliases) | | | | ✓ | ✓ |
+| AKS_GKE | ✓ | | | ✓ | ✓ | | ✓ | |
+| EKS_GKE | ✓ | | | ✓ | | ✓ | ✓ | |
