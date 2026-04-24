@@ -146,3 +146,107 @@ A GKE cluster (Autopilot or Standard, controlled by `create_cluster`) with Cloud
 **Task:**
 Work within `modules/Bank_GKE/`. Validate with `tofu init && tofu validate && tofu fmt -check` from the module directory.
 ```
+
+## MC_Bank_GKE Module Workflow
+
+**Trigger**: `/multicluster`
+
+**Prompt**:
+```markdown
+You are now in **MC_Bank_GKE Module Mode**, working on `modules/MC_Bank_GKE`.
+
+**What this module provisions:**
+Multiple GKE clusters (up to four, keyed by `cluster1`–`cluster4` in `local.cluster_configs`) spread across GCP regions, connected via fleet-wide Cloud Service Mesh, with Multi-Cluster Ingress (MCI) and Multi-Cluster Services (MCS) routing traffic to Bank of Anthos running on all clusters behind a single global HTTPS load balancer.
+
+**Key files and their roles:**
+- `main.tf` — project data source, `random_id`, API enablement, `null_resource.wait_for_container_api`.
+- `provider-auth.tf` — same impersonation pattern as the other GKE modules.
+- `versions.tf` — pins `google` and `kubernetes`; requires `>= 0.13`.
+- `variables.tf` — variables for cluster count, regions, network CIDRs per cluster, ASM/MCI/MCS feature flags.
+- `network.tf` — VPC shared across all clusters; one subnet with secondary ranges per cluster, iterated with `for_each`.
+- `gke.tf` — `google_container_cluster.gke_cluster` is a `for_each` resource over `local.cluster_configs`. Four `kubernetes` provider aliases (`cluster1`–`cluster4`) are statically configured, each pointing to the corresponding cluster endpoint.
+- `hub.tf` — `google_gke_hub_membership` for each cluster (fleet registration); connect-agent provisioners per cluster.
+- `asm.tf` — `google_gke_hub_feature "service_mesh"` once, plus per-cluster `google_gke_hub_feature_membership`; enables fleet-wide ASM.
+- `glb.tf` — reserves a global static IP for the Multi-Cluster Ingress controller.
+- `mcs.tf` — creates the MultiClusterIngress and MultiClusterService resources; contains a destroy `null_resource` that deletes MCI/MCS objects from all clusters before Terraform removes the fleet features.
+- `manifests.tf` — renders templates from `templates/` into `manifests/` using `local_file` resources, then applies them to each cluster.
+- `deploy.tf` — downloads and applies the Bank of Anthos manifests to each cluster.
+- `manifests/` — rendered YAML files written at apply time by `manifests.tf`.
+- `templates/` — source YAML templates for BackendConfig, FrontendConfig, Ingress, managed certificate, nodeport service, configmap, MultiClusterIngress, MultiClusterService.
+
+**Critical implementation rules:**
+1. **`for_each` cluster map**: `google_container_cluster.gke_cluster` uses `for_each = local.cluster_configs`. When adding or removing a cluster, update `local.cluster_configs` and the corresponding `kubernetes` provider alias. Changing the set of keys forces replacement of all resources keyed by cluster name.
+2. **Static provider aliases**: The four `kubernetes` provider aliases in `gke.tf` are statically defined (not dynamically generated from `for_each`). Terraform requires provider configurations to be static. If you need more than four clusters, you must add a new static alias.
+3. **MCI/MCS destroy order**: The `mcs.tf` destroy provisioner deletes MCI and MCS objects (`kubectl delete mci --all`, `kubectl delete mcs --all`) from the bank-of-anthos namespace before Terraform removes the fleet features. This provisioner must tolerate missing resources (`|| true`).
+4. **manifests.tf writes to manifests/**: `local_file` resources render templates into `${path.module}/manifests/`. These files are gitignored (do not commit rendered output). If you change a template, always re-render by running `tofu apply` (or force replace the `local_file` resources).
+5. **Global LB dependency**: MCI requires the global static IP from `glb.tf` to be provisioned before MCI resources are created. Keep `depends_on = [google_compute_global_address.ingress_ip]` in `mcs.tf`.
+
+**Common tasks:**
+- **Change cluster count or regions**: Update `local.cluster_configs` in `main.tf` (or wherever it is defined) and add/remove the corresponding `kubernetes` provider alias in `gke.tf`.
+- **Add a new template**: Add the `.yaml.tpl` to `templates/` and a corresponding `local_file` resource in `manifests.tf`. Reference the rendered file in the apply step.
+- **Update Bank of Anthos version**: Same as Bank_GKE — update the tarball URL in `deploy.tf`.
+- **Toggle MCI/MCS**: Controlled by a feature flag variable. Guard the `mcs.tf` resources with `count` or `for_each` on that flag, following the existing pattern.
+
+**Task:**
+Work within `modules/MC_Bank_GKE/`. Validate with `tofu init && tofu validate && tofu fmt -check` from the module directory.
+```
+
+## Attached Cluster Workflow (AKS_GKE / EKS_GKE)
+
+**Trigger**: `/attached`
+
+**Prompt**:
+```markdown
+You are now in **Attached Cluster Mode**, working on either `modules/AKS_GKE` (Azure AKS) or `modules/EKS_GKE` (AWS EKS). Specify which module at the start of your request.
+
+**What these modules provision:**
+A Kubernetes cluster on a non-GCP cloud (AKS on Azure or EKS on AWS) that is registered with a GCP project as a GKE Attached Cluster via GCP Fleet. The GKE Connect agent is installed on the cluster via Helm using the `attached-install-manifest` nested submodule. An optional Anthos Service Mesh can be installed via the `attached-install-mesh` nested submodule.
+
+**File structure (both modules share the same pattern):**
+```
+modules/AKS_GKE/               modules/EKS_GKE/
+├── main.tf                     ├── main.tf
+├── provider.tf                 ├── provider.tf
+├── variables.tf                ├── variables.tf
+├── (no versions.tf)            ├── (no versions.tf)
+├── (no network.tf —            ├── vpc.tf        ← AWS VPC
+│   Azure VNet is inline        ├── iam.tf        ← AWS IAM roles for EKS
+│   in main.tf)                 │
+└── modules/                    └── modules/
+    ├── attached-install-manifest/    ├── attached-install-manifest/
+    └── attached-install-mesh/        └── attached-install-mesh/
+```
+
+**Provider configuration (`provider.tf`):**
+Unlike the GKE-based modules, attached-cluster modules use a direct `provider.tf` (not `provider-auth.tf`) and do **not** impersonate a service account for GCP calls. Providers configured:
+- `AKS_GKE`: `google`, `azurerm` (Azure credentials via environment variables), `helm` (pointing at the AKS cluster), `random`.
+- `EKS_GKE`: `google`, `aws` (AWS credentials via environment variables), `helm` (pointing at the EKS cluster), `random`.
+
+There is no top-level `versions.tf`; provider version constraints live in the nested submodule `versions.tf` files.
+
+**GCP APIs enabled (in `main.tf`):**
+`gkemulticloud.googleapis.com`, `gkeconnect.googleapis.com`, `connectgateway.googleapis.com`, `cloudresourcemanager.googleapis.com`, `anthos.googleapis.com`, `monitoring.googleapis.com`, `logging.googleapis.com`, `gkehub.googleapis.com`, `opsconfigmonitoring.googleapis.com`, `kubernetesmetadata.googleapis.com`.
+
+**Nested submodules:**
+- `attached-install-manifest` — fetches the GKE Attached Cluster bootstrap manifest via `data "google_container_attached_install_manifest"`, writes it as a Helm chart (`local_file`), and applies it to the attached cluster via the `helm_release` resource. This submodule is invoked automatically by the parent module after the cluster is registered.
+- `attached-install-mesh` — optional ASM installer. **Not invoked by the parent module automatically.** Invoke it from your own root module if you want ASM on the attached cluster.
+
+**No Terraform outputs at the top level:**
+These modules expose no `output` blocks. The equivalent of `get-credentials` is documented in the module README: `gcloud container attached clusters get-credentials <cluster-name> --location=<region> --project=<project-id>`.
+
+**Critical implementation rules:**
+1. **Credentials via environment variables**: Azure credentials are set via `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID`. AWS credentials are set via `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`. Never add these as Terraform variable defaults.
+2. **AKS VNet inline**: The Azure Virtual Network and subnet are created directly in `main.tf`, not in a separate `network.tf`. Follow this pattern when adding Azure networking resources.
+3. **EKS VPC and IAM**: AWS VPC resources live in `vpc.tf` and IAM roles/policies for EKS in `iam.tf`. Keep these files separate.
+4. **Helm provider target**: The `helm` provider must point at the newly created cluster's kubeconfig, not at any GCP endpoint. Ensure the `helm` provider configuration reads the cluster's API endpoint and certificate from the cluster resource outputs.
+5. **`always_run = timestamp()` is banned on attached clusters**: The install manifest submodule must only run once on create. Do not add `always_run` to the Helm install resource.
+
+**Common tasks:**
+- **Upgrade platform version**: Change the `platform_version` variable in the parent module and in the `attached-install-manifest` submodule invocation. Platform version controls the Connect agent version.
+- **Install ASM on an attached cluster**: Invoke the `attached-install-mesh` submodule from your own root module with the required variables. Do not modify the parent module to auto-invoke it.
+- **Add a new GCP API**: Add the API to the `default_apis` local list in `main.tf`. Do not add `disable_on_destroy = true`; always keep it `false`.
+- **Change Azure/AWS region**: Update the region variable defaults and verify that the selected Kubernetes version is available in that region.
+
+**Task:**
+Specify which module (`AKS_GKE` or `EKS_GKE`) you are working on. Work within `modules/<module>/`. Validate with `tofu init && tofu validate` from the module directory (note: `tofu fmt -check` may flag the inline VNet block in AKS_GKE main.tf; fix formatting issues before committing).
+```
