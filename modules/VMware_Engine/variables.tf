@@ -125,7 +125,7 @@ variable "private_cloud_name" {
 variable "management_cidr" {
   description = "CIDR block reserved for the VMware Engine management cluster (e.g. '10.11.0.0/23'). Cannot be changed after private cloud creation. Must not overlap with the peer VPC or edge services CIDR. {{UIMeta group=4 order=402 }}"
   type        = string
-  default     = "10.11.0.0/23"
+  default     = "172.20.0.0/24"
 }
 
 variable "node_type_id" {
