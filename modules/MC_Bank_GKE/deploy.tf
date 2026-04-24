@@ -180,6 +180,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
     manifests_path   = local.manifests_path
     jwt_secret_path  = local.jwt_secret_path
     download_id      = null_resource.download_bank_of_anthos[0].id
+    is_primary       = each.key == "cluster1" ? "true" : "false"
   }
 
   provisioner "local-exec" {
@@ -194,6 +195,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
       PROJECT_ID="${self.triggers.project_id}"
       JWT_SECRET_PATH="${self.triggers.jwt_secret_path}"
       MANIFESTS_PATH="${self.triggers.manifests_path}"
+      IS_PRIMARY="${self.triggers.is_primary}"
 
       echo "=========================================="
       echo "Deploying Bank of Anthos Application to $CLUSTER_NAME"
@@ -287,13 +289,53 @@ resource "null_resource" "deploy_bank_of_anthos" {
         --server-side --force-conflicts
       echo "✓ JWT secret applied/verified"
 
-      # Apply all manifests with server-side apply (idempotent)
+      # Apply Bank of Anthos manifests.
+      # The accounts-db and ledger-db StatefulSets are deployed to the primary
+      # cluster only (cluster1); non-primary clusters connect to the databases
+      # on the primary cluster via Multi-Cluster Services.
       echo ""
-      echo "Applying Bank of Anthos manifests..."
-      kubectl apply -f "$MANIFESTS_PATH" \
-        -n "$NAMESPACE" \
-        --context="$CONTEXT_NAME" \
-        --server-side --force-conflicts
+      if [ "$IS_PRIMARY" = "true" ]; then
+        echo "Applying Bank of Anthos manifests (primary cluster: includes accounts-db, ledger-db)..."
+        kubectl apply -f "$MANIFESTS_PATH" \
+          -n "$NAMESPACE" \
+          --context="$CONTEXT_NAME" \
+          --server-side --force-conflicts
+      else
+        echo "Applying Bank of Anthos manifests (non-primary cluster: skipping accounts-db, ledger-db)..."
+        FILTERED_MANIFESTS_DIR="$(mktemp -d)"
+        trap 'rm -rf "$FILTERED_MANIFESTS_DIR"' EXIT
+
+        # Copy all manifest files, then remove the DB StatefulSet manifests so
+        # they are applied on the primary cluster only.
+        cp "$MANIFESTS_PATH"/*.yaml "$FILTERED_MANIFESTS_DIR/"
+        rm -f "$FILTERED_MANIFESTS_DIR/accounts-db.yaml" \
+              "$FILTERED_MANIFESTS_DIR/ledger-db.yaml"
+
+        echo "Manifests to apply on non-primary cluster:"
+        ls -1 "$FILTERED_MANIFESTS_DIR"
+
+        kubectl apply -f "$FILTERED_MANIFESTS_DIR" \
+          -n "$NAMESPACE" \
+          --context="$CONTEXT_NAME" \
+          --server-side --force-conflicts
+
+        # Remove any pre-existing DB StatefulSets from non-primary clusters
+        # (e.g. from deployments that predate the primary-only DB change).
+        echo ""
+        echo "Removing any pre-existing accounts-db / ledger-db resources from non-primary cluster..."
+        kubectl delete statefulset accounts-db ledger-db \
+          -n "$NAMESPACE" \
+          --context="$CONTEXT_NAME" \
+          --ignore-not-found=true --timeout=5m || true
+        kubectl delete service accounts-db ledger-db \
+          -n "$NAMESPACE" \
+          --context="$CONTEXT_NAME" \
+          --ignore-not-found=true --timeout=2m || true
+        kubectl delete configmap accounts-db-config ledger-db-config \
+          -n "$NAMESPACE" \
+          --context="$CONTEXT_NAME" \
+          --ignore-not-found=true --timeout=2m || true
+      fi
       echo "✓ Manifests applied"
 
       # Wait for deployments to be ready
