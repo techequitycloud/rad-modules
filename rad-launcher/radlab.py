@@ -381,9 +381,6 @@ def moduleperm(projid, module_name, currentusr):
     except Exception as e:
         print(e)
 
-    print("\nSET ORG POLICY: " + str(setorgpolicy))
-    print("CREATE PROJECT: " + str(create_project))
-
     # Scrape out Module specific permissions for the module
     try:
         with open(client_directory + '/modules/' + module_name + '/README.md', "r") as file:
@@ -404,7 +401,7 @@ def moduleperm(projid, module_name, currentusr):
 
                 # Identifying Roles if Reusing any Existing project
                 else:
-                    if (section == True and (line.startswith('- `') or line.startswith('- `'))):
+                    if (section == True and line.startswith('- `')):
                         projroles.append(re.search(r"\`(.*?)\`", line).group(1))
 
                 if (line.startswith('#') and not line.startswith("## IAM Permissions Prerequisites")):
@@ -502,9 +499,10 @@ def env(action, orgid, billing_acc, folderid, env_path, deployment_id, tfbucket,
     elif (action == ACTION_DELETE_DEPLOYMENT):
         return_code, stdout, stderr = tr.destroy_cmd(capture_output=False, auto_approve=True, var={'organization_id': orgid, 'billing_account_id': billing_acc, 'deployment_id': deployment_id})
 
-    # return_code - 0 Success & 1 Error
-    if (return_code == 1):
-        print(stderr)
+    # return_code - 0 Success, any non-zero indicates a failure
+    if (return_code != 0):
+        if stderr:
+            print(stderr)
         sys.exit(Fore.RED + Style.BRIGHT + "\nError Occured - Deployment failed for ID: " + deployment_id + "\n" + "Retry using above Deployment ID" + Style.RESET_ALL)
     else:
         target_path = 'radlab/' + env_path.split('/')[len(env_path.split('/')) - 1] + '/deployments'
@@ -1087,43 +1085,58 @@ if __name__ == "__main__":
     try:
         print('\n' + text2art("RADLAB", font="larry3d"))
 
-        parser = argparse.ArgumentParser()
-        parser.add_argument('-f', '--varfile', dest="file", type=argparse.FileType('r', encoding='UTF-8'), help="Input file (with complete path) for terraform.tfvars contents.", required=False)
-        
-        args = parser.parse_args()
-
-        print("Checking input file...")
-        file_path = args.file.name  # Get the path to the varfile
-        directory_path = os.path.dirname(file_path) # Get the directory path without the filename
-        client_directory = os.path.dirname(os.path.dirname(directory_path))  # Get two levels up
+        # The client/platform directory is the repository root that contains
+        # this launcher and the sibling `modules/` directory. Derive it from
+        # the script's own location so the launcher works regardless of the
+        # caller's current working directory.
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        client_directory = os.path.dirname(script_dir)
+        modules_glob = sorted([
+            os.path.basename(s) for s in glob.glob(os.path.join(client_directory, 'modules', '*'))
+        ])
         print(f"Client platform directory path: {client_directory}")
 
-        parser.add_argument('-p', '--rad-project', dest="projid", help="RAD Lab management GCP Project.", required=False)
-        parser.add_argument('-b', '--rad-bucket', dest="tfbucket", help="RAD Lab management GCS Bucket where Terraform states for the modules will be stored.", required=False)
-        parser.add_argument('-m', '--module', dest="module_name", choices=sorted([s.replace(client_directory + '/modules/', "") for s in glob.glob(client_directory + '/modules/*')]), help="RADLab Module name under ../../modules folder", required=False)
-        parser.add_argument('-a', '--action', dest="action", choices=['create', 'update', 'delete', 'list'], help="Type of action you want to perform for the selected RADLab module.", required=False)
-        parser.add_argument('-dc', '--disable-perm-check', dest="disable_perm_check", action='store_false', help="Flag to disable RAD Lab permissions pre-check.", required=False)
+        parser = argparse.ArgumentParser(
+            description="RAD Lab Launcher - guided deployment of RAD Lab modules on Google Cloud."
+        )
+        parser.add_argument('-f', '--varfile', dest="file",
+                            type=argparse.FileType('r', encoding='UTF-8'),
+                            help="Input file (with complete path) for terraform.tfvars contents.",
+                            required=False)
+        parser.add_argument('-p', '--rad-project', dest="projid",
+                            help="RAD Lab management GCP Project.", required=False)
+        parser.add_argument('-b', '--rad-bucket', dest="tfbucket",
+                            help="RAD Lab management GCS Bucket where Terraform/OpenTofu states for the modules will be stored.",
+                            required=False)
+        parser.add_argument('-m', '--module', dest="module_name", choices=modules_glob,
+                            help="RAD Lab module name under ../modules folder.", required=False)
+        parser.add_argument('-a', '--action', dest="action",
+                            choices=['create', 'update', 'delete', 'list'],
+                            help="Action to perform for the selected RAD Lab module.",
+                            required=False)
+        parser.add_argument('-dc', '--disable-perm-check', dest="disable_perm_check",
+                            action='store_false',
+                            help="Flag to disable RAD Lab permissions pre-check.",
+                            required=False)
 
         args = parser.parse_args()
 
         # File Argument
         if args.file is not None:
+            print("Checking input file...")
             filecontents = args.file.readlines()
             variables = fetchvariables(filecontents)
         else:
             variables = {}
 
         # Action Argument
-        if args.action == 'create':
-            action = ACTION_CREATE_DEPLOYMENT
-        elif args.action == 'update':
-            action = ACTION_UPDATE_DEPLOYMENT
-        elif args.action == 'delete':
-            action = ACTION_DELETE_DEPLOYMENT
-        elif args.action == 'list':
-            action = ACTION_LIST_DEPLOYMENT
-        else:
-            action = None
+        action_map = {
+            'create': ACTION_CREATE_DEPLOYMENT,
+            'update': ACTION_UPDATE_DEPLOYMENT,
+            'delete': ACTION_DELETE_DEPLOYMENT,
+            'list':   ACTION_LIST_DEPLOYMENT,
+        }
+        action = action_map.get(args.action)
 
         main(variables, args.module_name, action, args.projid, args.tfbucket, args.disable_perm_check)
 

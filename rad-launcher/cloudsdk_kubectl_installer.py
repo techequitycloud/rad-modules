@@ -18,21 +18,45 @@
 
 import os
 import platform
+import shutil
+import tempfile
+
 
 def main():
-  # CURL & Bash should already be installed on the Local OS
-  # Not requied for Cloud Shell
+    # curl & bash must already be installed on the local OS.
+    # Not required for Cloud Shell.
 
-  system = platform.system().lower()
-  node = platform.node().lower()
+    system = platform.system().lower()
+    node = platform.node().lower()
 
-  if('linux' in system and 'cs-' in node):
-    print("Detected Cloud Shell, skipping cloud sdk & kubectl installation...")
-  else:
-    os.system("curl https://sdk.cloud.google.com > install.sh")
-    os.system("bash install.sh --disable-prompts")
-    os.system("sudo gcloud components install kubectl")
+    if 'linux' in system and 'cs-' in node:
+        print("Detected Cloud Shell, skipping Cloud SDK & kubectl installation...")
+        return
+
+    # Skip re-installation if gcloud is already on PATH.
+    if shutil.which("gcloud") is not None:
+        print("gcloud already installed, skipping Cloud SDK installation...")
+    else:
+        # Download and run the Cloud SDK installer into a temp file so we don't
+        # clobber the committed install.sh shipped alongside this script.
+        with tempfile.NamedTemporaryFile(suffix=".sh", delete=False) as tmp:
+            tmp_path = tmp.name
+        try:
+            if os.system(f"curl -fsSL https://sdk.cloud.google.com > {tmp_path}") != 0:
+                print("Failed to download Cloud SDK install script.")
+                return
+            if os.system(f"bash {tmp_path} --disable-prompts") != 0:
+                print("Cloud SDK install script reported an error.")
+                return
+        finally:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+
+    # Install kubectl component (gcloud may require sudo depending on install location).
+    os.system("gcloud components install kubectl --quiet || sudo gcloud components install kubectl --quiet")
 
 
 if __name__ == "__main__":
-  main()
+    main()

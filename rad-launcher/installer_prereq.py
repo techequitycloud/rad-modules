@@ -15,31 +15,34 @@
 # limitations under the License.
 
 import os
-import subprocess
+import shutil
+import sys
 
 def main():
 
     # Install python dependencies.
     print("\nInstalling Libraries...")
-    os.system("pip3 install --no-cache-dir -r requirements.txt")
+    if os.system("pip3 install --no-cache-dir -r requirements.txt") != 0:
+        print("Failed to install Python dependencies from requirements.txt")
+        sys.exit(1)
 
-    # Set up Tofu binaries
-    tfOutput = subprocess.Popen(["tofu -version"],shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.read().strip().decode('utf-8')
-  
-    ## Check if Tofu binaries are already installed
-    if "command not found" in tfOutput:
-        print("\nTofu binaries not installed. Starting installation...\n")
-        os.system("python3 opentofu_installer.py")
+    # Check if OpenTofu is already installed by looking up the binary.
+    if shutil.which("tofu") is None:
+        print("\nOpenTofu not installed. Starting installation...\n")
+        if os.system("python3 opentofu_installer.py") != 0:
+            print("OpenTofu installation failed.")
+            sys.exit(1)
     else:
-        print("\nTofu binaries already installed. Skipping installation...\n")
-    
-    # Printing Tofu Version
+        print("\nOpenTofu already installed. Skipping installation...\n")
+
+    # Print OpenTofu version
     os.system("tofu -version")
 
-    # Set up Cloud sdk & Kubectl libraries
-    os.system("python3 cloudsdk_kubectl_installer.py")
+    # Set up Cloud SDK & kubectl
+    if os.system("python3 cloudsdk_kubectl_installer.py") != 0:
+        print("Cloud SDK / kubectl installation step reported an error.")
 
-    print("\nPRE-REQ INSTALLTION COMPLETED\n")
+    print("\nPRE-REQ INSTALLATION COMPLETED\n")
 
 if __name__ == "__main__":
     main()
