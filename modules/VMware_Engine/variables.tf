@@ -151,7 +151,7 @@ variable "network_peering_name" {
 variable "peer_vpc_name" {
   description = "Name of the GCP VPC network to peer with the VMware Engine network (the vmaas network, e.g. 'default'). {{UIMeta group=5 order=502 }}"
   type        = string
-  default     = "altostrat-gcve-network-pso-vmaas"
+  default     = "altostrat-vpc-peering-vmaas"
 }
 
 // SECTION 6: Network Policy
