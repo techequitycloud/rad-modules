@@ -1,159 +1,139 @@
 # RAD Lab Launcher
 
-The RAD Lab Launcher will guide you through the process of launching modules in your Google Cloud environment.  
+The RAD Lab Launcher is an interactive / scriptable CLI that walks you through
+deploying, updating, listing, and deleting [RAD Lab](../modules) modules in
+your Google Cloud environment. It wraps [OpenTofu](https://opentofu.org/)
+(a drop-in replacement for Terraform) and manages remote state in a Google
+Cloud Storage (GCS) bucket of your choice.
+
+## What's in this directory
+
+| File | Purpose |
+| ---- | ------- |
+| `radlab.py` | Main launcher. Guided & non-interactive deployment of RAD Lab modules. |
+| `installer_prereq.py` | One-shot installer for all launcher prerequisites (Python deps, OpenTofu, Cloud SDK, kubectl). |
+| `opentofu_installer.py` | Downloads and installs the latest OpenTofu release for your OS/arch. Invoked by `installer_prereq.py`. |
+| `cloudsdk_kubectl_installer.py` | Installs the Google Cloud SDK and the `kubectl` component (skipped when running inside Cloud Shell). |
+| `install.sh` | Optional helper that fetches and runs the official Google Cloud SDK installer. |
+| `requirements.txt` | Python dependencies pulled in by `installer_prereq.py`. |
+
+## Prerequisites
+
+* **Python 3.7.3 or later** (tested with 3.9+).
+* **`curl`** and **`bash`** — preinstalled on most Linux and macOS systems and in
+  Google Cloud Shell. Windows users should run from `Command Prompt` or
+  PowerShell *as Administrator*.
+* **`gcloud`** CLI authenticated against the Google Cloud account that will
+  deploy the modules. If `gcloud` is not present, `installer_prereq.py` will
+  install it.
+
+### IAM permissions
+
+The identity running the launcher needs the following roles in addition to the
+module-specific roles called out in each [module](../modules)'s `README.md`:
+
+| Scope | Role |
+| ----- | ---- |
+| RAD Lab management project | `roles/storage.admin` |
+| RAD Lab management project | `roles/serviceusage.serviceUsageConsumer` |
+| Parent (organization / folder) | `roles/iam.organizationRoleViewer` (skip if deploying into a project with no parent) |
+
+See [Manage access to other resources](https://cloud.google.com/iam/docs/manage-access-other-resources)
+for how to grant roles.
+
+Pass `--disable-perm-check` / `-dc` to skip the pre-flight IAM check. This
+only disables the launcher's client-side check — the underlying OpenTofu
+deployment will still fail if the required permissions are missing.
 
 ## Installation
 
-1. [Download](https://github.com/GoogleCloudPlatform/rad-lab/archive/refs/heads/main.zip) the content to your local machine. Alternatively, you can check it out directly into Google Cloud Shell by clicking the button below. NOTE: You will need to follow [these steps](https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token) to set up a GitHub Personal Access Token.
+1. Clone or download this repository onto the machine where you will run the
+   launcher (your workstation or Google Cloud Shell):
 
-[![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.svg)](https://ssh.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/GoogleCloudPlatform/rad-lab&cloudshell_git_branch=main)
-
-
-NOTE: If you are using Windows OS make sure to deploy from `Command Prompt and Run as Administrator`.
-
-2. Decompress the download:
-   ```
-   unzip rad-lab-main.zip
+   ```bash
+   git clone <your-fork-url> rad-modules
+   cd rad-modules/rad-launcher
    ```
 
-3. You will need [CURL](https://curl.se/) & [BASH](https://en.wikipedia.org/wiki/Bash_(Unix_shell)). These come pre-installed in most linux terminals.
+2. Install the launcher prerequisites:
 
-4. Navigate to the  `radlab-launcher` folder:
-    ```
-    cd ./rad-lab-main/radlab-launcher
-    ```
+   ```bash
+   python3 installer_prereq.py
+   ```
 
-5. Run a script to install the prerequisites:
-    ```
-    python3 installer_prereq.py
-    ```
-    _NOTE:_ Currently the deployment is supported for `Python 3.7.3` and above.
+   This will:
 
-    This will install:
+   * `pip3 install` the contents of `requirements.txt` (Google API client,
+     `python-terraform` wrapper, `google-cloud-storage`, `colorama`, `art`,
+     `requests`, `oauth2client`, `beautifulsoup4`).
+   * Install **OpenTofu** by downloading the latest release from GitHub
+     (Linux/macOS) or via Chocolatey (Windows). Installs to `/usr/local/bin`
+     on Linux/macOS and may prompt for your `sudo` password.
+   * Install the **Google Cloud SDK** and the **`kubectl`** component via
+     `gcloud components install kubectl`. This step is skipped automatically
+     when running inside Cloud Shell.
 
-    * _[Terraform](https://learn.hashicorp.com/tutorials/terraform/install-cli#install-terraform)_ binary by downloading a pre-compiled binary or compiling it from source.
-    * A _[Python module](https://pypi.org/project/python-terraform/)_ which provides a wrapper of terraform command line tool.
-    * [Google API Python client library](https://cloud.google.com/apis/docs/client-libraries-explained#google_api_client_libraries) for Google's discovery based APIs.
+3. Verify the OpenTofu installation:
 
-6. Verify the Terraform installation by running:
-    ```
-    terraform -help
-    ```
+   ```bash
+   tofu -version
+   ```
 
-    This should produce instructions on running `terraform`. If you get a `command not found` message, there was an error in the installation.    
+   If you see `command not found`, re-run the installer or add the install
+   location to your `PATH`.
 
-## Launch Preparation
+## Launch preparation
 
-7. GCP Project for RAD Lab management. (Example - Creating/Utilizing GCS bucket where Terraform states will be stored) 
+Before running the launcher you will want to have ready:
 
-8. The following information about your Google Cloud Platform (GCP) environment is typically needed to launch RAD Lab modules:
+* A **GCP project** designated as the "RAD Lab management project". This
+  project owns the GCS bucket that stores OpenTofu state and configs for all
+  module deployments.
+* The **Organization ID** ([how to find it](https://cloud.google.com/resource-manager/docs/creating-managing-organization#retrieving_your_organization_id))
+  of the org where you will deploy modules. This is optional if the target
+  project has no parent organization; in that case disable the org policy
+  resources in the target module (see its `orgpolicy.tf` / `variables.tf`).
+* A **Billing Account ID** ([how to find it](https://cloud.google.com/billing/docs/how-to/manage-billing-account))
+  to attach to resources the module creates.
+* *(Optional)* A **Folder ID** ([how to find it](https://cloud.google.com/resource-manager/docs/creating-managing-folders#view))
+  if you want the deployment placed under a specific folder.
+* *(Optional)* An existing **GCS bucket** for remote state. The launcher can
+  also create one for you during `create`.
 
-   * [Organization ID](https://cloud.google.com/resource-manager/docs/creating-managing-organization#retrieving_your_organization_id)
+## Running the launcher
 
-   NOTE: If you like to spin up a RAD Lab module in a GCP project without any **Organization**, make sure to disable _orgpolicy.tf_ under `modules/[MODULE-NAME]/` either by manually setting the default value of Orgpolicy variables (example: _set_shielded_vm_policy_ & _set_vpc_peering_policy_ in [app_mod_elastic module](../modules/app_mod_elastic) in _variables.tf_ under `modules/[MODULE-NAME]/` to **false**
+From this directory:
 
-   * [Billing Account](https://cloud.google.com/billing/docs/how-to/manage-billing-account) for RAD Lab deployments (projects/resources).
-   * [OPTIONAL] [Folder ID](https://cloud.google.com/resource-manager/docs/creating-managing-folders#view) to deploy the module in an existing folder.
-   * [OPTIONAL] [Cloud Storage Bucket](https://cloud.google.com/storage/docs/creating-buckets) with read/write access to save the Terraform state. This bucket is used to save state for all active deployments. The launcher can create one for you if you do not have one already.
-
-### IAM Permissions Prerequisites
-
-In addition to the [module](../modules) specific minimum [IAM](https://cloud.google.com/iam/docs/overview) permissions (listed in Each [module](../modules)'s `README.md`), entity deploying RAD Lab modules via **RAD Lab Launcher** will also need to have below permission:
-- Parent: `roles/iam.organizationRoleViewer` [OPTIONAL: This permission is not required if *no parent (organization/folder)* exists]
-- RAD Lab Management Project: `roles/storage.admin`
-- RAD Lab Management Project: `roles/serviceusage.serviceUsageConsumer`
-
-You can use the Google Cloud Console to [view](https://cloud.google.com/iam/docs/manage-access-other-resources) or [change](https://cloud.google.com/iam/docs/manage-access-other-resources#single-role) IAM permissions.
-
-## Deploy a RAD Lab Module
-**If you encounter errors during deployment, please see [Troubleshooting Common Problems](https://googlecloudplatform.github.io/rad-lab/docs/rad-lab-launcher/troubleshooting) section for a list of common problems and fixes.**  If you don't see a solution listed, please create an [Issue](https://github.com/GoogleCloudPlatform/rad-lab/issues). 
-
-
-1. Navigate to the RAD Lab Launcher folder from the main directory:
-    ```
-    cd ./radlab-launcher/
-    ```
-
-2. Start the guided setup:
-    ```
-    python3 radlab.py
-    ``` 
-
-NOTE: Save the **deployment_id** from the output for future reference. It is required to supply the deployment id for updating or deleting the RAD Lab module deployment.
-
-### Using Command Line Arguments
-
-RAD Lab launcher accepts following command line arguments: 
-
-* `--rad-project` or `-p`   : To set GCP Project ID for RAD Lab management.
-* `--rad-bucket` or `-b`    : To set GCS Bucket ID under RAD Lab management GCP Project where Terraform states & configs for the modules will be stored.
-* `--module` or `-m`        : To select the RAD Lab Module you would like to deploy.
-* `--action` or `-a`        : To select the action you would like to perform on the selected RAD Lab module.
-* `--varfile` or `-f`       : To pass a file with the key-value pairs of module variables and their default overriden values.
-* `--disable-perm-check` or `-dc`       : To disable RAD Lab permissions pre-check . NOTE: This doesn't means one will not need the required permissions. This will just disable the permission pre-checks which RAD Lab Launcher do for the module deployments. Thus deployment may still fail eventually if required permissions are not set for the identity spinning up the modules.
-
-_Usage:_
-
-```
-python3 radlab.py --module <module_name> --action <action_type> --rad-project <projectid> --rad-bucket <bucketid> --varfile <overriding_variables_file>
-```
-OR
-```
-python3 radlab.py -m <module_name> -a <action_type> -p <projectid> -b <bucketid> -f <overriding_variables_file>
+```bash
+python3 radlab.py
 ```
 
-### Overriding default variables of a RAD Lab Module
+The launcher prints the `RADLAB` banner, then asks you to:
 
-To set any module specific variables, use `--varfile` argument while running **radlab.py** and pass a file with variables content. Variables like **organization_id**, **folder_id**, **billing_account_id**, **random_id** (a.k.a. **deployment id**), which are requested as part of guided setup, can be set via --varfile argument by passing them in a file. There is a `terraform.tfvars.example` file under each [module](../modules/) as an example on how can you set/override the default variables.
+1. Confirm the active `gcloud` user (or re-authenticate with
+   `gcloud auth application-default login`).
+2. Pick the RAD Lab management GCP project.
+3. Pick the module to deploy from the list of modules under `../modules`.
+4. Choose an action:
 
-_Usage :_
-```
-python3 radlab.py --varfile /<path_to_file>/<file_with_terraform.tfvars_contents>
-```
+   ```
+   [1] Create New
+   [2] Update
+   [3] Delete
+   [4] List
+   [0] Exit
+   ```
 
-NOTE: When the above argument is not passed then the modules are deployed with module's default variable values in `variables.tf` file.
+5. Select (or create) the GCS bucket that will hold OpenTofu state and
+   configs.
+6. Provide Organization ID / Folder ID / Billing Account ID as prompted (for
+   `create`) or the existing **deployment ID** (for `update` / `delete`).
 
-## Example Launch of Data Science Module
+On a successful `create`, the launcher prints a 4-character **deployment ID**.
+**Save it** — you need it to `update` or `delete` the deployment later. You
+can also recover the list of active deployments with the `List` action.
 
-1. Select the RAD Lab modules you would like to deploy
-
-```
-List of available RAD Lab modules:
-[1] # RAD Lab Application Mordernization Module (w/ Elasticsearch) (app_mod_elastic)
-[2] # RAD Lab Data Science Module (data_science)
-[3] Exit
-Choose a number for the RAD Lab Module: 
-```
-
-2. Select the `Action` you want to perform for the corresponding RAD Lab Model:
-
-```
-Action to perform for RAD Lab Deployment ?
-[1] Create New
-[2] Update
-[3] Delete
-[4] List
-Choose a number for the RAD Lab Module Deployment Action: 1
-```
-
-NOTE: If you are selecting Update/Delete action for RAD Lab Model then you will be required to provide the **deployment id** which is provided as the output of successfully newly created a RAD Lab Module deployment.
-
-```
-Enter RAD Lab Module Deployment ID (example 'ioi9' is the id for project with id - radlab-ds-analytics-ioi9):
-```
-3. If you selected _Create New/Update_ of RAD Lab deployment, follow the guided set up and provide user inputs like - Organization ID, Billing Account, Folder ID for the RAD Lab Module which you are setting up.
-
-4. If you selected _Create New_ of RAD Lab deployment, follow the guided setup and provide the name of the **GCS bucket** and its **Project ID** where you would like to store the terraform deployment state.  Keep in mind you cannot use UPPER case characters, spaces, underscore ** _ ** or contain the word "google". See [Bucket Naming Guidelines](https://cloud.google.com/storage/docs/naming-buckets) for a full list of bucket namming guidelines.
-
-```
-Enter the GCS Bucket name where Terraform States will be stored: 
-```
-
-NOTE: There should be a Billing associated to the above selected project for the successful creation of the GCS bucket.
-
-5. This is where the Terraform RAD Lab module (example: Data Science module) will kick in and Terraform config scripts will be deployed which will spin up respective projects/services/sources, etc.
-
-6. Once the RAD Lab deployment is completed it will throw the below Outputs on the Cloud Shell Terminal for the _RAD Lab Admin_ to share with the _RAD Lab users_.
+Example output:
 
 ```
 Outputs:
@@ -164,18 +144,104 @@ project-radlab-ds-analytics-id = "radlab-ds-analytics-ioi9"
 user-scripts-bucket-uri = "https://www.googleapis.com/storage/v1/b/user-scripts-notebooks-instance-ioi9"
 
 
-GCS Bucket storing Terrafrom Configs: my-sample-bucket
+GCS Bucket storing Tofu Configs: my-sample-bucket
 
-TERRAFORM DEPLOYMENT COMPLETED!!!
+TOFU DEPLOYMENT COMPLETED!!!
 ```
 
-NOTE: Save the **deployment_id** for future reference, for making any updates or delete the RAD Lab Module created.
+### Command-line arguments
 
-NOTE: If you see any errors on your deployment run please follow the [Troubleshooting doc](https://googlecloudplatform.github.io/rad-lab/docs/rad-lab-launcher/troubleshooting) to lookup for errors and corresponding solutions.
+All prompts can be skipped by supplying the corresponding flag:
 
-## Troubleshooting Common Problems
+| Flag | Long form | Purpose |
+| ---- | --------- | ------- |
+| `-p` | `--rad-project` | GCP Project ID used for RAD Lab management. |
+| `-b` | `--rad-bucket` | GCS bucket that stores OpenTofu state & configs. |
+| `-m` | `--module` | Module name (directory under `../modules`). |
+| `-a` | `--action` | One of `create`, `update`, `delete`, `list`. |
+| `-f` | `--varfile` | Path to a file containing `terraform.tfvars`-style `key = "value"` pairs to override module defaults. |
+| `-dc` | `--disable-perm-check` | Skip the launcher's IAM pre-check. |
 
-1. [Project quota exceeded](https://googlecloudplatform.github.io/rad-lab/docs/rad-lab-launcher/troubleshooting.md#project-quota-exceeded)
-2. [Unable to modify Organization Policy Constraints](https://googlecloudplatform.github.io/rad-lab/docs//rad-lab-launcher/troubleshooting.md#google-organization-policies---unable-to-modify-constraints)
-3. [Local Terraform Deployment ID Directory Already Exists](https://googlecloudplatform.github.io/rad-lab/docs//rad-lab-launcher/troubleshooting.md#local-terraform-deployment-id-directory-already-exists)
-4. [Timeout when Destroying the deployment](https://googlecloudplatform.github.io/rad-lab/docs//rad-lab-launcher/troubleshooting.md#timeout-when-destroying-the-deployment)
+Example — fully non-interactive create:
+
+```bash
+python3 radlab.py \
+  --module AKS_GKE \
+  --action create \
+  --rad-project my-mgmt-project \
+  --rad-bucket my-mgmt-project-radlab-tfstate \
+  --varfile /path/to/my.tfvars
+```
+
+Or with short flags:
+
+```bash
+python3 radlab.py -m AKS_GKE -a create -p my-mgmt-project -b my-mgmt-project-radlab-tfstate -f /path/to/my.tfvars
+```
+
+### Overriding module defaults (`--varfile`)
+
+Any variable declared in a module's `variables.tf` can be overridden by
+passing a file with `--varfile`. Typical contents:
+
+```hcl
+organization_id    = "123456789012"
+billing_account_id = "ABCDEF-GHIJKL-MNOPQR"
+folder_id          = "987654321098"
+# deployment_id is optional; the launcher will generate a 4-char ID when absent.
+# deployment_id   = "abcd"
+
+# Module-specific overrides:
+trusted_users = ["engineer@example.com"]
+```
+
+Notes:
+
+* The launcher validates each key against the target module's `variables.tf`
+  and aborts if an unknown key is present.
+* `organization_id`, `billing_account_id`, `folder_id`, and `deployment_id`
+  supplied in the file take precedence over interactive prompts.
+* If `deployment_id` is supplied it must be exactly 4 alphanumeric characters.
+* If no `--varfile` is supplied, module defaults from `variables.tf` apply.
+
+## Cloud Shell one-click
+
+The launcher works in Google Cloud Shell. Open a Cloud Shell session in your
+fork of this repository and run:
+
+```bash
+cd rad-modules/rad-launcher
+python3 installer_prereq.py
+python3 radlab.py
+```
+
+Cloud SDK / kubectl installation is skipped automatically inside Cloud Shell
+since those tools are already present.
+
+## Concurrency & lock file
+
+`radlab.py` creates `/tmp/radlab.lock` on start and removes it on exit so only
+one launcher can run at a time. If a prior run was killed abruptly the lock
+file can be left behind — delete it manually before re-running:
+
+```bash
+rm -f /tmp/radlab.lock
+```
+
+## Troubleshooting
+
+* **`command not found: tofu`** — re-run `python3 installer_prereq.py`, or
+  install OpenTofu manually from <https://opentofu.org/docs/intro/install/>.
+* **Permission errors during pre-check** — review the [IAM table above](#iam-permissions)
+  and grant the missing roles, or re-run with `-dc` to skip the check and let
+  OpenTofu surface the real missing permission.
+* **`Another instance is already running.`** — delete `/tmp/radlab.lock`.
+* **Invalid bucket name or no access** — the supplied `--rad-bucket` must
+  exist and be readable/writable by the current `gcloud` user in the
+  management project.
+* **`Deployment ID must be exactly 4 characters`** — `deployment_id` in your
+  `--varfile` is the wrong length; it must be 4 alphanumeric characters.
+* **Org policy errors on a no-parent project** — disable the org-policy
+  toggles in the target module's `variables.tf` (e.g. set
+  `set_shielded_vm_policy` and `set_vpc_peering_policy` defaults to `false`)
+  or comment out `orgpolicy.tf`.
