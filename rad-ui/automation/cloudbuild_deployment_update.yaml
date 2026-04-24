@@ -396,7 +396,7 @@ steps:
 
                 k8s_apply_with_retry() {
                     local plan_file="tfplan-k8s"
-                    local max_attempts=3
+                    local max_attempts=2
                     local attempt=1
                     local sleep_seconds=60
 
