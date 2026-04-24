@@ -250,3 +250,238 @@ These modules expose no `output` blocks. The equivalent of `get-credentials` is 
 **Task:**
 Specify which module (`AKS_GKE` or `EKS_GKE`) you are working on. Work within `modules/<module>/`. Validate with `tofu init && tofu validate` from the module directory (note: `tofu fmt -check` may flag the inline VNet block in AKS_GKE main.tf; fix formatting issues before committing).
 ```
+
+## Troubleshooting Workflow
+
+**Trigger**: `/troubleshoot`
+
+**Prompt**:
+```markdown
+You are now in **Troubleshooting Mode**, diagnosing issues across the GKE-based modules in this repository.
+
+**Diagnostic approach — start here:**
+1. Identify which module is involved: `Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE`, `AKS_GKE`, or `EKS_GKE`.
+2. Identify the phase: initial `tofu apply`, post-provisioning workload install, steady-state operation, or `tofu destroy`.
+3. Gather the error message and the last successful step.
+
+**Common failure patterns and fixes:**
+
+### null_resource provisioner failures
+
+**Symptom**: `Error: local-exec provisioner error` during apply.
+- Check that `gcloud`, `kubectl`, and (for Istio) `istioctl` are available on the machine running `tofu apply`. The `istiosidecar.tf` provisioner installs `kubectl` and `istioctl` into `$HOME/.local/bin` on demand — verify this path is on `$PATH` after the install step.
+- Verify ADC is configured: `gcloud auth application-default login` or that `resource_creator_identity` is set and the SA holds `roles/owner` on the project.
+- Check `set -eo pipefail` — any command that exits non-zero aborts the provisioner. Review each command in the failing block.
+
+### Cluster credentials fail in a null_resource
+
+**Symptom**: `gcloud container clusters get-credentials` returns an error inside a local-exec provisioner.
+- The local-exec runs on the machine running `tofu apply`, not in GCP. Confirm `gcloud` is authenticated.
+- If using impersonation, verify `--impersonate-service-account=${var.resource_creator_identity}` is appended to the credentials command and that the SA has `container.clusters.get` on the project.
+- If the cluster is in a private network with no public endpoint, ensure the machine has VPC connectivity or the cluster has an authorized network entry for the runner's IP.
+
+### `istioctl install` fails with HPA naming conflicts
+
+**Symptom**: Error referencing HPA or `scaleTargetRef` during sidecar-mode install.
+- The custom `IstioOperator` YAML in `istiosidecar.tf` sets `hpaSpec.scaleTargetRef.name = istio-ingressgateway`. Verify this block is present and unmodified.
+- If you are reinstalling over an existing mesh, uninstall first: `istioctl uninstall --purge -y`.
+
+### Istio / ASM pods stuck in Pending
+
+**Symptom**: Mesh control-plane pods never become Ready.
+- Check node pool resources: `kubectl describe nodes` — verify CPU and memory are not exhausted.
+- For Istio_GKE, verify the node pool has enough capacity for the istiod deployment (default request: ~500m CPU, 2Gi memory).
+- For Bank_GKE/MC_Bank_GKE with ASM, the managed control plane runs in GCP; check fleet feature status: `gcloud container fleet mesh describe --project=<project>`.
+
+### Bank of Anthos pods stuck in Pending or CrashLoopBackOff
+
+**Symptom**: Bank of Anthos workloads never become Ready after `deploy.tf` runs.
+- The `deploy.tf` `null_resource` downloads the release tarball into `.terraform/bank-of-anthos/` on the apply machine. Verify the download succeeded; the path is shown in the provisioner stdout.
+- Check that the namespace `bank-of-anthos` was created before the manifests were applied: `kubectl get namespace bank-of-anthos`.
+- If ASM/Istio sidecar injection is enabled, verify the namespace label `istio-injection=enabled` is set: `kubectl get namespace bank-of-anthos --show-labels`.
+
+### Multi-Cluster Ingress never gets a VIP
+
+**Symptom**: `kubectl get mci -n bank-of-anthos` shows `ADDRESS` as empty.
+- MCI requires the Hub Ingress feature to be enabled at fleet level. Check: `gcloud container fleet ingress describe --project=<project>`.
+- The config cluster (the cluster from which MCI reads the MultiClusterIngress resource) must be set. Check: `gcloud container fleet ingress describe --format="value(spec.multiclusteringress.configMembership)"`.
+- The global static IP from `glb.tf` must be annotated on the MCI resource as `kubernetes.io/ingress.global-static-ip-name`.
+
+### AKS/EKS attached cluster never appears in GCP Console
+
+**Symptom**: The cluster is not visible under `Kubernetes Engine > Clusters` after apply.
+- The GKE Connect agent must be installed on the attached cluster. Verify the `attached-install-manifest` submodule's Helm release succeeded: check Helm release status on the AKS/EKS cluster.
+- Confirm `gkemulticloud.googleapis.com` and `gkehub.googleapis.com` are enabled: `gcloud services list --project=<project>`.
+- Check Fleet membership: `gcloud container fleet memberships list --project=<project>`.
+
+### Destroy hangs, loops, or leaves orphaned resources
+
+**Symptom**: `tofu destroy` times out or a null_resource destroy provisioner keeps retrying.
+- Every destroy provisioner must use `set +e` (not `set -e`), `--ignore-not-found` on `kubectl delete` calls, and `|| echo "Warning: ..."` to be best-effort.
+- If a destroy provisioner is hanging on a `kubectl` call, the cluster may already be deleted. Check the provisioner code for unconditional `set -e` or missing error tolerances.
+- For MC_Bank_GKE, the MCI/MCS resources must be deleted before Terraform removes the fleet features. If this step was skipped, manually run: `kubectl delete mci --all -n bank-of-anthos` and `kubectl delete mcs --all -n bank-of-anthos` on the config cluster, then re-run `tofu destroy`.
+
+### API disabled after destroy
+
+**Symptom**: After running `tofu destroy`, other deployments start failing with "API not enabled" errors.
+- Ensure every `google_project_service` resource has `disable_on_destroy = false`. If this was `true`, change it and run `tofu apply` to update the resource state before the next destroy.
+
+**Useful diagnostic commands:**
+```bash
+# GKE cluster status
+gcloud container clusters list --project=<project>
+
+# Fleet/Hub membership status
+gcloud container fleet memberships list --project=<project>
+
+# ASM/CSM fleet mesh status
+gcloud container fleet mesh describe --project=<project>
+
+# Kubernetes pod status
+kubectl get pods --all-namespaces
+kubectl describe pod <pod> -n <namespace>
+
+# Helm release status (for attached clusters)
+helm list --all-namespaces
+
+# Istio installation status
+istioctl verify-install
+istioctl proxy-status
+
+# Cloud Build logs (for RAD platform deployments)
+gcloud builds list --project=<project> --limit=10
+gcloud builds log <build-id> --project=<project>
+```
+
+**Task:**
+Systematically diagnose the issue using the patterns above. Start with the error message and the failing phase, narrow down the root cause, and propose a targeted fix.
+```
+
+## Maintenance Workflow
+
+**Trigger**: `/maintain`
+
+**Prompt**:
+```markdown
+You are now in **Maintenance Mode**, performing updates or configuration changes on existing module deployments.
+
+**Maintenance categories:**
+
+### 1. Kubernetes / GKE version upgrades
+- Update the `release_channel` variable (e.g. `REGULAR` → `STABLE`) or pin a specific `min_master_version` in `gke.tf`.
+- Check that the new GKE version supports the Istio / ASM version in use. Cross-reference GKE release notes with the Istio support matrix.
+- Apply with `tofu plan` first to preview the change. GKE control-plane upgrades are rolling and in-place for Standard clusters; Autopilot upgrades are fully managed.
+
+### 2. Istio version upgrades (Istio_GKE)
+- Update the `istio_version` variable default in `variables.tf`.
+- The `istiosidecar.tf` provisioner re-runs when any trigger value changes. To force re-install on the next apply, uncomment `always_run = timestamp()` in the triggers block, apply once, then re-comment it.
+- After upgrading, run `istioctl verify-install` to confirm the new version is healthy.
+
+### 3. Bank of Anthos version upgrades (Bank_GKE, MC_Bank_GKE)
+- Update the tarball URL and version tag in `deploy.tf`. The download is forced on every apply via `always_run = timestamp()`, so no trigger change is needed.
+- Review the Bank of Anthos release notes for breaking changes to the manifest structure.
+
+### 4. Adding or removing clusters (MC_Bank_GKE)
+- Update `local.cluster_configs` in `main.tf` to add or remove a cluster key (`cluster1`–`cluster4`).
+- Add or remove the corresponding static `kubernetes` provider alias in `gke.tf`.
+- Run `tofu plan` and review the diff carefully — changes to the cluster map may trigger replacement of dependent resources (Hub memberships, ASM feature memberships).
+- **Warning**: Removing a cluster key from `local.cluster_configs` will cause `tofu destroy` to attempt removal of that cluster's Hub membership and ASM feature membership. Ensure the cluster's workloads are drained first.
+
+### 5. Updating UIMeta variable annotations
+- Change `group=N` or `order=M` in the variable description to reorganize the RAD platform UI.
+- Order values are compared numerically within a group; gaps are allowed (e.g. order 101, 103, 105 is fine).
+- The `updatesafe` tag marks variables safe to change on an in-place apply. Do not add `updatesafe` to variables that force resource replacement (e.g. `gcp_region`, `existing_project_id`).
+
+### 6. Updating the RAD platform service account default
+- The `resource_creator_identity` variable defaults to the platform SA email. If the platform SA changes, update the default in `variables.tf` for each affected module.
+
+**Pre-maintenance checklist:**
+- [ ] `tofu plan -var="existing_project_id=<project>"` — review the diff for unexpected replacements (red `-/+`)
+- [ ] For destructive changes: confirm all cluster workloads are backed up or stateless
+- [ ] For MC_Bank_GKE cluster map changes: drain workloads from clusters being removed
+- [ ] For Istio version upgrades: verify the target version is available at `github.com/istio/istio/releases`
+
+**Post-maintenance validation:**
+- [ ] `tofu state list` — verify all expected resources are present
+- [ ] `kubectl get pods --all-namespaces` — verify all pods are Running/Completed
+- [ ] For mesh modules: `istioctl verify-install` or `gcloud container fleet mesh describe`
+- [ ] For Bank of Anthos: access the frontend URL and verify login works
+
+**Task:**
+Execute the maintenance task following the checklist above. For any change that causes resource replacement, flag it to the user before proceeding.
+```
+
+## Security Workflow
+
+**Trigger**: `/security`
+
+**Prompt**:
+```markdown
+You are now in **Security Audit Mode**, reviewing and hardening the GKE and mesh modules in this repository.
+
+**Security review checklist:**
+
+### 1. IAM and service accounts
+- [ ] `resource_creator_identity` SA holds only `roles/owner` on the destination project (the minimum the impersonation pattern requires). No broader project-level bindings.
+- [ ] `trusted_users` contains only specific email addresses, not domain-level wildcards (e.g. `allUsers` or `domain:example.com`).
+- [ ] GKE node pool SA is a dedicated SA with minimal roles (`roles/logging.logWriter`, `roles/monitoring.metricWriter`, `roles/monitoring.viewer`, `roles/stackdriver.resourceMetadata.writer`). Not the Compute Engine default SA.
+- [ ] No `roles/owner` or `roles/editor` granted to the node pool SA.
+
+### 2. Secret and credential handling
+- [ ] No secrets or private keys in `variables.tf` defaults — especially `client_secret` (AKS_GKE) and `aws_secret_key` (EKS_GKE).
+- [ ] Azure and AWS credentials are sourced from environment variables (`ARM_CLIENT_SECRET`, `AWS_SECRET_ACCESS_KEY`), not from Terraform state or `.tfvars` files committed to the repo.
+- [ ] `resource_creator_identity` is a service account email, not a key file path or private key value.
+- [ ] Impersonation token lifetime is appropriately short (`1800s` for Istio_GKE; `3600s` for Bank_GKE). Do not extend unnecessarily.
+
+### 3. Network security
+- [ ] GKE clusters use VPC-native networking (IP alias ranges). Verify `ip_allocation_policy` is set in `gke.tf`.
+- [ ] Cloud Router + NAT is configured for outbound traffic from private nodes (nodes should not have public IPs).
+- [ ] Firewall rules are additive (no `deny all` baseline — GKE manages its own rules). Avoid overly permissive `0.0.0.0/0` source ranges on custom rules.
+- [ ] For Istio_GKE: the Istio Ingress Gateway LoadBalancer is the only public entry point. Verify that `istio-ingressgateway` is of type `LoadBalancer` and that direct node access is not exposed.
+- [ ] For Bank_GKE/MC_Bank_GKE: the global HTTPS load balancer uses a Google-managed certificate. Verify the `managed_certificate.yaml.tpl` template references the correct domain.
+
+### 4. GKE cluster hardening
+- [ ] `deletion_protection = false` is acceptable for lab modules but should be `true` in production forks.
+- [ ] Verify Workload Identity is enabled if Bank_GKE or MC_Bank_GKE workloads need GCP API access (Bank of Anthos uses it for Cloud Spanner / Cloud SQL access).
+- [ ] Binary Authorization — not currently enabled in these modules. Flag as a hardening opportunity if deploying to a regulated environment.
+- [ ] Private cluster option — not currently enabled. For production use, consider enabling `private_cluster_config` in `gke.tf` and adding authorized networks.
+
+### 5. Mesh / ASM security
+- [ ] For Istio_GKE (sidecar mode): verify `PeerAuthentication` resources enforce `STRICT` mTLS across the mesh namespace.
+- [ ] For Bank_GKE/MC_Bank_GKE with ASM: the managed control plane enforces mTLS by default; verify with `gcloud container fleet mesh describe`.
+- [ ] `AuthorizationPolicy` resources — check that no policy grants `*` for principal or source; policies should be scoped to specific service accounts.
+- [ ] Bookinfo sample app (if deployed in Istio_GKE) is for demonstration only. Do not expose it permanently on a public IP in production.
+
+### 6. Terraform / OpenTofu state security
+- [ ] State files are stored in GCS with versioning and object-level encryption. Never store state locally for shared environments.
+- [ ] State bucket is not publicly readable. Verify the bucket IAM policy.
+- [ ] `.terraform/` directory is in `.gitignore` (confirmed in repo root `.gitignore`). Sensitive provider cache data is not committed.
+
+**Security commands:**
+```bash
+# GKE cluster IAM
+gcloud container clusters get-iam-policy <cluster> --region=<region> --project=<project>
+
+# Project IAM — check for overly permissive bindings
+gcloud projects get-iam-policy <project> --format=json | \
+  jq '.bindings[] | select(.role=="roles/owner" or .role=="roles/editor")'
+
+# GKE node pool SA
+gcloud container clusters describe <cluster> --region=<region> --project=<project> \
+  --format="value(nodePools[].config.serviceAccount)"
+
+# Mesh mTLS enforcement
+kubectl get peerauthentication --all-namespaces
+kubectl get authorizationpolicy --all-namespaces
+
+# Fleet mesh status
+gcloud container fleet mesh describe --project=<project>
+
+# Firewall rules
+gcloud compute firewall-rules list --project=<project> \
+  --format="table(name,direction,sourceRanges,allowed[].ports)"
+```
+
+**Task:**
+Perform a systematic security review using the checklist above for the specified module. Identify gaps and provide specific, actionable remediation steps targeting the Terraform source files in this repository.
+```
