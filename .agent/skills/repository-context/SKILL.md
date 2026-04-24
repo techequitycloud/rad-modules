@@ -1,477 +1,98 @@
 ---
 name: repository-context
-description: Understand the overall repository structure, module organization, and common patterns.
+description: Overall structure of rad-modules — the RAD Lab OpenTofu modules, the rad-launcher CLI that deploys them, and the rad-ui platform integration.
 ---
 
 # Repository Context
 
-This repository contains a collection of Terraform modules for deploying applications on Google Cloud Platform, specifically leveraging Cloud Run.
+`rad-modules` is the module catalog for **RAD Lab** — a collection of OpenTofu/Terraform modules that deploy educational Google Cloud and multi-cloud Kubernetes reference architectures. Each module is standalone and runnable through the interactive `rad-launcher` CLI or through the RAD platform's Cloud Build automation in `rad-ui/automation/`.
 
-## Directory Structure
+## Top-Level Layout
 
-The core of the repository is the `modules/` directory, which is organized into three main types of modules:
+```
+rad-modules/
+├── modules/            # Deployable OpenTofu modules (one per RAD Lab scenario)
+│   ├── AKS_GKE/        # Azure AKS registered as a GKE Attached Cluster
+│   ├── Bank_GKE/       # Bank of Anthos on a single GKE cluster
+│   ├── EKS_GKE/        # AWS EKS registered as a GKE Attached Cluster
+│   ├── Istio_GKE/      # GKE + open-source Istio (sidecar or ambient)
+│   └── MC_Bank_GKE/    # Bank of Anthos across multiple GKE clusters (MCI/MCS)
+├── rad-launcher/       # Python CLI that drives `tofu` + GCS state for modules
+└── rad-ui/
+    └── automation/     # Cloud Build YAMLs invoked by the RAD platform UI
+```
 
-1.  **Platform Module**: `modules/GCP_Services`
-    *   This module implements the foundational infrastructure shared across the project, such as VPC networks, Cloud SQL instances, Redis instances, and shared Service Accounts.
-    *   It acts as the base layer upon which other modules build.
+The root `README.md`, `CHANGELOG.md`, and `LICENSE` come from the OpenTofu project and are not module-specific.
 
-2.  **Foundation Module**: `modules/CloudRunApp`
-    *   This module is a comprehensive wrapper that standardizes the deployment of applications on Cloud Run.
-    *   It handles the complexity of Cloud Run services, IAM permissions, networking integration (Serverless VPC Access), Secret Manager, and more.
-    *   It supports both "custom" applications and "presets".
+## Module Catalog
 
-3.  **Application Modules**: (e.g., `modules/Cyclos`, `modules/Wordpress`, `modules/Moodle`, etc.)
-    *   These modules represent specific applications.
-    *   They typically rely on `modules/CloudRunApp` to perform the actual deployment.
-    *   They often symlink the Terraform files from `modules/CloudRunApp` and provide a specific configuration file (e.g., `cyclos.tf`, `wordpress.tf`) that defines the application parameters, container image, and initialization jobs.
+Each top-level `modules/<Name>/` directory is an independent OpenTofu root module. There is no shared foundation module and no symlinks between modules — everything is self-contained. Differences are in which cloud providers they target and whether they install Kubernetes workloads.
 
-## Common Patterns
+| Module | Purpose | Key Providers |
+|---|---|---|
+| `AKS_GKE` | Create AKS in Azure, attach to a GKE Fleet | `azurerm`, `google`, `helm` |
+| `EKS_GKE` | Create EKS in AWS, attach to a GKE Fleet | `aws`, `google`, `helm` |
+| `Bank_GKE` | GKE (Autopilot/Standard) + Cloud Service Mesh + Bank of Anthos | `google`, `google-beta`, `kubernetes`, `null` |
+| `MC_Bank_GKE` | Multi-cluster GKE + fleet-wide CSM + MCI/MCS + Bank of Anthos | `google`, `google-beta`, `kubernetes` (per-cluster aliases), `null` |
+| `Istio_GKE` | GKE Standard + open-source Istio (sidecar or ambient) + Bookinfo | `google`, `null` |
 
-*   **Symlinking**: Application modules avoid code duplication by symlinking core Terraform files (`main.tf`, `variables.tf`, etc.) from `modules/CloudRunApp`.
-*   **Locals Configuration**: Application specifics are defined in a `locals` block within a dedicated `.tf` file in the application module's directory.
-*   **Initialization Jobs**: Many applications require database schema creation or user setup, which are handled via `initialization_jobs` defined in the module configuration and executed as Cloud Run Jobs.
+### Shared Module Patterns
 
-## Module Development Governance
+Two broad families exist:
 
-**CRITICAL**: All module development MUST follow the rules defined in **`modules/AGENTS.md`**.
+1.  **GKE Attached Cluster modules** (`AKS_GKE`, `EKS_GKE`) — provision a Kubernetes cluster in Azure or AWS, install the GKE Connect bootstrap manifests via a `modules/attached-install-manifest` submodule, then create a `google_container_attached_cluster` to register the cluster in a GKE Fleet. See the `attached-cluster-modules` skill.
 
-### Global Rules (Apply to All Modules)
+2.  **Native GKE + workload modules** (`Bank_GKE`, `MC_Bank_GKE`, `Istio_GKE`) — provision GKE cluster(s), enable a service mesh (Cloud Service Mesh or open-source Istio), and deploy a demo application (Bank of Anthos or Bookinfo) via `null_resource` + `kubectl`/`helm` scripts. See the `gke-application-modules` skill.
 
-*   **Naming Conventions:**
-    *   File naming: `snake_case` (e.g., `service_account.tf`, `my_module`)
-    *   Module directory naming: `PascalCase` (e.g., `CloudRunApp`, `GCP_Services`, `Cyclos`)
-    *   Terraform resource names: `snake_case` (descriptive)
-*   **Documentation Requirements:**
-    *   All modules MUST have a `README.md` file following the standard format
-    *   All input variables in `variables.tf` MUST have a `description` field
-    *   Application modules MUST have both `README.md` and `<MODULE_NAME>.md`
-*   **Terraform Standards:**
-    *   Use `main.tf` for primary logic, `variables.tf` for inputs, `outputs.tf` for outputs
-    *   Pin provider versions in `versions.tf`
-    *   Format code using `terraform fmt`
+All modules share the same conventions for TF file organization, variables, provider authentication, and the UI metadata format. See the `module-conventions` skill for the binding rules.
 
-### Module-Type Specific Rules
+## rad-launcher
 
-**Platform Modules** (e.g., GCP_Services):
-*   Self-contained: No dependencies on other modules via symlinks
-*   Granular files: Separate resources logically (`network.tf`, `sql.tf`, `redis.tf`)
-*   Explicit outputs: Export all resource IDs and connection details
+`rad-launcher/` is a Python CLI (`radlab.py`) that:
 
-**Foundation Modules** (e.g., CloudRunApp):
-*   Support both custom deployments and presets
-*   Shared scripts reside in `scripts/core/`
-*   Use `modules.tf` for preset selection logic
+- Discovers modules from `../modules/` and presents a selection menu.
+- Stores OpenTofu state and `.tfvars` in a user-provided GCS bucket in a "RAD Lab management project".
+- Supports `create`, `update`, `delete`, and `list` actions, each producing or consuming a 4-character **deployment ID**.
+- Validates user-supplied `--varfile` contents against each module's `variables.tf` before invoking `tofu`.
+- Installs its own prerequisites (`installer_prereq.py` → OpenTofu + Cloud SDK + kubectl + Python deps).
 
-**Application Modules** (e.g., Wordpress, Cyclos):
-*   Require **18 specific symlinks** to CloudRunApp (see AGENTS.md section 4.1)
-*   Specific directory structure with `config/`, `scripts/core/` symlink, and `scripts/<appname>/`
-*   Build context path MUST match `scripts/<appname_lowercase>/` directory name
-*   Variables MUST mirror CloudRunApp structure with standard ordering (see AGENTS.md section 4.3)
+The launcher is the **primary** way modules are consumed outside the UI. Any new module must work when invoked this way — meaning its `variables.tf` must declare everything the launcher will pass and must not require interactive inputs beyond what the launcher provides.
 
-For complete details, see **`modules/AGENTS.md`**.
-
-## Module Creation Workflow
-
-### Automated Module Creation
-
-Use the **`scripts/create_module.sh`** script to create new application modules:
-
-**Approach**: Clone-based creation from existing modules
-
-**Key Features:**
-1.  **Source Selection**: Lists available application modules (excludes CloudRunApp, GCP_Services, GCP_Project, Sample)
-2.  **Cloning with Symlinks**: Uses `cp -a` to preserve all attributes and symlinks
-3.  **Artifact Cleanup**: Automatically removes:
-    *   `.terraform` directories
-    *   `*.lock.hcl` files
-    *   Terraform plan and state files
-    *   Log files
-4.  **Automated Renaming**:
-    *   Main TF file: `oldapp.tf` → `newapp.tf`
-    *   Documentation: `OLDAPP.md` → `NEWAPP.md`
-    *   Scripts directory: `scripts/oldapp/` → `scripts/newapp/`
-5.  **Content Replacement**: Uses `find` + `sed` to replace module names across:
-    *   `.tf`, `.tfvars` files
-    *   `.sh`, `.md` files
-    *   `.json`, `.yaml`, `Dockerfile`
-6.  **Validation**: Checks for:
-    *   Required files (main.tf, versions.tf, variables.tf)
-    *   Valid symlinks (no broken links)
-    *   Build context directory exists
-
-**Usage:**
+Non-interactive example:
 ```bash
-cd rad-modules/scripts
-./create_module.sh
-# Follow interactive prompts:
-# 1. Select source module to clone
-# 2. Enter new module name (PascalCase)
-# 3. Script handles all renaming and cleanup
+python3 rad-launcher/radlab.py \
+  -m AKS_GKE -a create \
+  -p my-mgmt-project -b my-mgmt-project-radlab-tfstate \
+  -f /path/to/my.tfvars
 ```
 
-**What Gets Excluded from Cloning:**
-*   CloudRunApp (foundation module)
-*   GCP_Services (platform module)
-*   GCP_Project (platform module)
-*   Sample (reference module)
-
-## Configuration File Organization
-
-Each application module includes configuration examples in the `config/` directory:
-
-**Configuration Tiers:**
-
-*   **`basic-<app>.tfvars`**: Minimal configuration for quick deployment
-    *   Essential variables only
-    *   Suitable for development/testing
-*   **`advanced-<app>.tfvars`**: Full-featured configuration
-    *   Demonstrates all available options
-    *   Production-ready settings
-*   **`custom-<app>.tfvars`**: Specialized configurations
-    *   Custom use cases
-    *   Advanced scenarios
-
-**Common Structure:**
-```hcl
-resource_creator_identity = ""
-existing_project_id       = "your-gcp-project-id"
-tenant_deployment_id      = "tenant-name"
-deployment_region         = "us-central1"
-
-# Module-specific variables
-application_version       = "1.0.0"
-container_resources = {
-  cpu_limit    = "2000m"
-  memory_limit = "4Gi"
-}
-# ... other configuration
-```
-
-## Documentation Structure
-
-Each application module follows a standardized documentation pattern:
-
-### Module-Level Documentation
-
-**1. `README.md`** (30-50 lines):
-*   Application overview and purpose
-*   Architecture summary (base image, services, dependencies)
-*   Key features and capabilities
-*   Basic usage instructions
-*   Dependencies notation (what it requires from GCP_Services)
-
-**2. `<MODULE_NAME>.md`** (85-120 lines):
-*   Comprehensive technical analysis
-*   Service configurations in detail
-*   IAM & security architecture
-*   Feature deep-dives and implementation details
-*   Known issues and limitations
-*   Integration points with other modules
-
-**Example:**
-```
-modules/Django/
-├── README.md           # Quick overview
-├── DJANGO.md          # Comprehensive guide
-├── config/            # Configuration examples
-└── ...
-```
-
-### Repository-Level Documentation
-
-*   **`modules/AGENTS.md`**: Module development governance (binding rules)
-*   **`SKILLS.md`**: Implementation details for skills/agents
-*   **`docs/`**: User-facing documentation (mirrors modules structure)
-*   **`CHANGELOG.md`**: Version history and changes
-*   **`README.md`**: Repository overview and getting started
-
-## Dependency Flow
-
-Understanding the deployment order and dependency relationships:
-
-```
-┌─────────────────────┐
-│   GCP_Services      │  Platform Layer
-│  (Infrastructure)   │  - VPC Network
-└──────────┬──────────┘  - Cloud SQL
-           │             - Redis
-           │             - Filestore NFS
-           ↓
-┌─────────────────────┐
-│   CloudRunApp       │  Foundation Layer
-│  (Deployment Logic) │  - Cloud Run Service
-└──────────┬──────────┘  - IAM/Security
-           │             - Build System
-           │             - Jobs
-           ↓
-┌─────────────────────┐
-│ Application Modules │  Application Layer
-│ (Cyclos, Wordpress, │  - App Configuration
-│  Django, Moodle...) │  - Custom Logic
-└─────────────────────┘  - Init Jobs
-```
-
-**Key Output Consumption:**
-```hcl
-# Application modules consume GCP_Services outputs:
-vpc_connector_id = var.vpc_connector_id  # From GCP_Services
-sql_instance     = var.sql_instance      # From GCP_Services
-redis_host       = var.redis_host        # From GCP_Services
-nfs_server       = var.nfs_server        # From GCP_Services
-```
-
-This ensures applications connect to the correct infrastructure components.
-
-## Testing New Modules
-
-### Validation Checklist
-
-**1. File Structure Validation:**
-```bash
-# Navigate to your new module
-cd modules/YourApp
-
-# Check all 18 required symlinks exist
-ls -la *.tf | grep '\->'
-# Should show: buildappcontainer.tf, iam.tf, jobs.tf, main.tf, modules.tf,
-#              monitoring.tf, network.tf, nfs.tf, outputs.tf, provider-auth.tf,
-#              registry.tf, sa.tf, secrets.tf, service.tf, sql.tf, storage.tf,
-#              trigger.tf, versions.tf
-
-# Verify scripts/core symlink
-ls -la scripts/core
-# Should point to: ../../CloudRunApp/scripts/core
-
-# Confirm build context directory exists
-ls scripts/yourapp/Dockerfile
-# Should exist if using custom build
-```
-
-**2. Terraform Validation:**
-```bash
-cd modules/YourApp
-terraform init
-terraform validate
-terraform fmt -check -recursive
-```
-
-**3. Configuration Testing:**
-```bash
-# Test with basic configuration
-terraform plan -var-file=config/basic-yourapp.tfvars
-
-# Verify no errors in plan
-```
-
-**4. Build Testing** (if custom build):
-```bash
-# Test Dockerfile builds successfully
-docker build -t test-yourapp -f scripts/yourapp/Dockerfile scripts/yourapp/
-
-# Verify image size is reasonable
-docker images test-yourapp
-```
-
-**5. Deployment Testing:**
-*   Deploy to a test GCP project
-*   Verify Cloud Run service starts successfully
-*   Test initialization jobs complete without errors
-*   Validate database connectivity
-*   Check health endpoints respond
-*   Verify environment variables and secrets are injected
-*   Test GCS volume mounts (if applicable)
-*   Verify NFS mounts (if applicable)
-
-### Common Validation Errors and Fixes
-
-**Missing UIMeta tags in variables:**
-```hcl
-# Bad - no UIMeta tag
-variable "project_id" {
-  description = "GCP project ID"
-  type        = string
-}
-
-# Good - with UIMeta tag
-# {{UIMeta group=0 order=100}}
-variable "project_id" {
-  description = "GCP project ID"
-  type        = string
-}
-```
-
-**Incorrect context_path:**
-```hcl
-# Bad - doesn't match directory name
-container_build_config = {
-  context_path = "myapp"  # But directory is scripts/my-app/
-}
-
-# Good - matches directory name
-container_build_config = {
-  context_path = "my-app"  # Matches scripts/my-app/
-}
-```
-
-**Broken symlinks:**
-```bash
-# Check for broken symlinks
-find . -type l ! -exec test -e {} \; -print
-
-# Fix by recreating symlink
-ln -sf ../CloudRunApp/main.tf main.tf
-```
-
-**Missing README or detailed .md file:**
-```bash
-# Both files are required
-ls README.md           # Must exist
-ls YOURAPP.md          # Must exist (uppercase module name)
-```
-
-**Inconsistent naming:**
-```bash
-# Bad - directory names
-modules/my_app/        # Should be PascalCase
-modules/myApp/         # Inconsistent
-
-# Good
-modules/MyApp/         # Correct PascalCase
-
-# Bad - file names
-service-account.tf     # Should be snake_case, not kebab-case
-ServiceAccount.tf      # Should be snake_case, not PascalCase
-
-# Good
-service_account.tf     # Correct snake_case
-```
-
-## Common Troubleshooting
-
-### Build Context Errors
-
-**Problem**: "Error: context_path 'myapp' does not exist"
-
-**Solution**: Ensure `container_build_config.context_path` matches the directory name in `scripts/`:
-```bash
-# Verify directory exists
-ls -la scripts/myapp/
-
-# Check context_path in <app>.tf
-grep context_path modules/MyApp/myapp.tf
-# Should output: context_path = "myapp"
-```
-
-### Symlink Issues
-
-**Problem**: "Error: Failed to read file: main.tf"
-
-**Solution**: Verify all required symlinks exist and are not broken:
-```bash
-# List all symlinks
-ls -la modules/YourApp/*.tf | grep '\->'
-
-# Check for broken symlinks
-find modules/YourApp -type l ! -exec test -e {} \; -print
-
-# Recreate broken symlinks
-cd modules/YourApp
-ln -sf ../CloudRunApp/main.tf main.tf
-```
-
-### Service Account Permissions
-
-**Problem**: "Permission denied" when accessing Cloud SQL, GCS, or Secret Manager
-
-**Solution**: Check service account IAM bindings:
-1.  Review `sa.tf` for service account creation
-2.  Check `iam.tf` for role bindings
-3.  Verify the Cloud Run service is using the correct service account
-4.  Common required roles:
-    *   `roles/secretmanager.secretAccessor` - for secrets
-    *   `roles/cloudsql.client` - for Cloud SQL
-    *   `roles/storage.objectAdmin` - for GCS buckets
-
-### Database Connection Failures
-
-**Problem**: Application cannot connect to Cloud SQL database
-
-**Solution**:
-1.  **Verify VPC connector**: Check that `vpc_connector_id` is set and service is attached
-2.  **Check connection method**: Most apps use private IP, not Cloud SQL Proxy
-    ```hcl
-    enable_cloudsql_volume = false  # Usually false
-    ```
-3.  **Validate credentials**: Ensure database user/password are in Secret Manager
-4.  **Check database exists**: Initialization jobs should create the database
-5.  **Test connection**:
-    ```bash
-    # From Cloud Run service
-    gcloud run services describe <service-name> --region <region>
-
-    # Check logs
-    gcloud run services logs read <service-name> --region <region>
-    ```
-
-### Initialization Job Failures
-
-**Problem**: Initialization jobs timeout or fail
-
-**Solution**:
-1.  **Check job logs**:
-    ```bash
-    gcloud run jobs executions list --job=<job-name> --region=<region>
-    gcloud run jobs executions logs <execution-name> --region=<region>
-    ```
-2.  **Increase timeout**:
-    ```hcl
-    initialization_jobs = [{
-      timeout_seconds = 1800  # Increase from default 600
-    }]
-    ```
-3.  **Verify environment variables and secrets** are accessible
-4.  **Ensure mount paths exist**: For NFS and GCS volumes
-5.  **Check job execution order**: Jobs run sequentially via `run_ordered_jobs.py`
-
-### GCS Fuse Mount Issues
-
-**Problem**: "Permission denied" when writing to GCS volume
-
-**Solution**: Container must run as UID 2000 for GCS Fuse compatibility:
-
-```dockerfile
-# In your Dockerfile
-FROM python:3.11-slim
-
-# GCS Fuse requires UID 2000
-RUN useradd -m -u 2000 appuser
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-RUN chown -R appuser:appuser /app
-
-USER appuser  # Critical - must run as UID 2000
-EXPOSE 8080
-CMD ["python", "app.py"]
-```
-
-**Problem**: GCS volume not mounting
-
-**Solution**:
-1.  Verify bucket exists and has correct permissions
-2.  Check `gcs_volumes` configuration in module locals
-3.  Ensure service account has `roles/storage.objectAdmin`
-4.  Verify mount path doesn't conflict with other volumes
-
-### Variable Mirroring Issues
-
-**Problem**: Terraform plan shows unexpected changes or variables missing
-
-**Solution**: Ensure `variables.tf` mirrors CloudRunApp:
-1.  Compare with `modules/CloudRunApp/variables.tf`
-2.  Do NOT remove standard variables unless functionally impossible
-3.  Maintain UIMeta tags and ordering
-4.  Add module-specific variables at the end or use `environment_variables` map
+## rad-ui Automation
+
+`rad-ui/automation/` contains the Cloud Build pipelines the RAD platform UI uses to deploy modules without the launcher:
+
+| File | Trigger |
+|---|---|
+| `cloudbuild_deployment_create.yaml` | First deploy of a module |
+| `cloudbuild_deployment_update.yaml` | Re-apply with new inputs |
+| `cloudbuild_deployment_destroy.yaml` | `tofu destroy` |
+| `cloudbuild_deployment_purge.yaml` | Administrative force-cleanup |
+
+The UI reads variable metadata (grouping, ordering, whether update-safe) from the `{{UIMeta ...}}` tags in each module's `variables.tf`. These tags are load-bearing — see the `module-conventions` skill.
+
+## Governance
+
+- **Naming**: Module directory names are `PascalCase` with underscores separating clouds/scenarios (e.g. `AKS_GKE`, `MC_Bank_GKE`). TF file names are lowercase (`gke.tf`, `network.tf`, `provider-auth.tf`).
+- **License headers**: Every `.tf` file begins with an Apache 2.0 block-comment header referencing Google LLC and the year.
+- **State**: State is never stored in the repo. The launcher and `rad-ui` automation put it in GCS.
+- **No shared code**: Modules do **not** symlink to each other. If two modules need the same behavior, each has its own copy. The `modules/<Name>/modules/` subdirectories are module-local helpers (e.g. `attached-install-manifest`, `attached-install-mesh`) and do not cross module boundaries.
+- **Documentation**: Each module has both a short `README.md` (summary, usage, inputs/outputs tables) and a long `<MODULE_NAME>.md` (educational deep dive). Both are kept in sync with `variables.tf`.
+
+## Where to Look for Specific Concerns
+
+| Concern | Skill |
+|---|---|
+| Adding a new TF file, ordering variables, UIMeta, provider auth | `module-conventions` |
+| AKS/EKS cluster creation, GKE Attached, OIDC federation | `attached-cluster-modules` |
+| GKE cluster creation, CSM/Istio, Bank of Anthos/Bookinfo deploy | `gke-application-modules` |
+| Running locally, `rad-launcher` flags, varfiles, state buckets | `rad-launcher/README.md` |
+| UI-driven deployment pipelines | `rad-ui/automation/*.yaml` |
