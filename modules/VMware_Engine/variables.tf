@@ -101,7 +101,7 @@ variable "enable_services" {
 variable "vmware_engine_network_name" {
   description = "Name of the VMware Engine Network. Must start with 'altostrat-'. Used as the logical backbone for the private cloud. {{UIMeta group=3 order=301 }}"
   type        = string
-  default     = "altostrat-vmware-engine-network"
+  default     = "altostrat-gcve-network"
 
   validation {
     condition     = startswith(var.vmware_engine_network_name, "altostrat-")
@@ -151,7 +151,7 @@ variable "network_peering_name" {
 variable "peer_vpc_name" {
   description = "Name of the GCP VPC network to peer with the VMware Engine network (the vmaas network, e.g. 'default'). {{UIMeta group=5 order=502 }}"
   type        = string
-  default     = "altostrat-vmware-engine-network-pso-vmaas"
+  default     = "altostrat-gcve-network-pso-vmaas"
 }
 
 // SECTION 6: Network Policy
