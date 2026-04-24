@@ -25,6 +25,7 @@ Supporting directories:
 
 - `rad-launcher/` — `radlab.py` is a Python CLI that wraps OpenTofu/Terraform for interactive module deployment from a workstation or Cloud Shell.
 - `rad-ui/automation/` — Cloud Build YAML files (`cloudbuild_deployment_{create,destroy,purge,update}.yaml`) used by the RAD platform UI to run module deployments remotely.
+- `scripts/` — standalone helper shell scripts grouped by topic (`gcp-istio-security/`, `gcp-istio-traffic/`, `gcp-cr-mesh/`, `gcp-m2c-vm/`). Each subdirectory contains a single `.sh` script and a `README.md`. These are not called by any Terraform module; they are hand-run by engineers for lab exercises or operational tasks.
 - Top-level `README.md` and `CHANGELOG.md` are upstream OpenTofu documents, not project documentation.
 
 ## 2. Standard Module Layout
@@ -102,7 +103,17 @@ When `resource_creator_identity` is set, the module provisions resources as that
 
 ### 3.3 `versions.tf`
 
-Pins required providers and `required_version`. Providers commonly pinned across modules: `google`, `google-beta`, `kubernetes`, `random`, `null`. AKS_GKE adds `azurerm` and `helm`; EKS_GKE adds `aws` and `helm`.
+Pins required providers and `required_version`. The set of pinned providers differs per module:
+
+| Module | Pinned providers | `required_version` |
+|---|---|---|
+| `Istio_GKE` | `google`, `kubernetes` | `>= 0.13` |
+| `Bank_GKE` | `google` (>= 5.0), `kubernetes` (>= 2.23), `kubectl` (gavinbunney/kubectl >= 1.14), `time` (>= 0.9), `http` (>= 3.0) | `>= 1.3` |
+| `MC_Bank_GKE` | `google`, `kubernetes` | `>= 0.13` |
+| `AKS_GKE` | No top-level `versions.tf`; the nested submodules have their own | — |
+| `EKS_GKE` | No top-level `versions.tf`; the nested submodules have their own | — |
+
+Providers that are used but not explicitly pinned (e.g. `random`, `null`, `google-beta`) are downloaded at the version OpenTofu/Terraform selects automatically. All three GKE-based modules configure a `google-beta` provider in `provider-auth.tf` for completeness, but none currently assign resources to it explicitly.
 
 ### 3.4 `variables.tf` — UIMeta Annotations
 
@@ -278,10 +289,12 @@ output "external_ip" {
 
 ### Common providers
 
-| Module | google | google-beta | kubernetes | helm | azurerm | aws | random | null |
-|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| Istio_GKE | ✓ | | ✓ | | | | ✓ | ✓ |
-| Bank_GKE | ✓ | ✓ | ✓ | | | | ✓ | ✓ |
-| MC_Bank_GKE | ✓ | ✓ | ✓ (×N aliases) | | | | ✓ | ✓ |
-| AKS_GKE | ✓ | | | ✓ | ✓ | | ✓ | |
-| EKS_GKE | ✓ | | | ✓ | | ✓ | ✓ | |
+The table shows which providers each module actively uses. All three GKE-based modules also configure a `google-beta` provider block in `provider-auth.tf` as a convenience (for future use), but no resources are currently assigned to it.
+
+| Module | google | kubernetes | kubectl | helm | azurerm | aws | random | null | time / http |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Istio_GKE | ✓ | ✓ | | | | | ✓ | ✓ | |
+| Bank_GKE | ✓ | ✓ | ✓ | | | | ✓ | ✓ | ✓ |
+| MC_Bank_GKE | ✓ | ✓ (×N aliases) | | | | | ✓ | ✓ | |
+| AKS_GKE | ✓ | | | ✓ | ✓ | | ✓ | | |
+| EKS_GKE | ✓ | | | ✓ | | ✓ | ✓ | | |
