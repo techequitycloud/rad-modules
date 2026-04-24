@@ -292,7 +292,7 @@ steps:
     gsutil cp /workspace/audit/destroy_metadata.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destroy/destroy_metadata.json" || log "Failed to upload metadata"
 
     destroy_with_retry() {
-        local max_attempts=3
+        local max_attempts=1
         local attempt=1
         local final_exit_code=0
 
