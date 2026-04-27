@@ -162,7 +162,6 @@ EOS
       echo "Installing $addon..."
       kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-$ISTIO_RELEASE/samples/addons/$addon.yaml || \
         echo "Warning: Failed to install $addon"
-      sleep 5
     done
 
     # Verify installation
