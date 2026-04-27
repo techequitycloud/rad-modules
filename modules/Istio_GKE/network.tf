@@ -45,12 +45,12 @@ locals {
 #########################################################################
 
 resource "google_compute_network" "vpc" {
-  count                    = var.create_network ? 1 : 0
-  project                  = local.project.project_id
-  name                     = var.network_name
-  auto_create_subnetworks  = false
-  routing_mode             = "GLOBAL"
-  depends_on               = [google_project_service.enabled_services]
+  count                   = var.create_network ? 1 : 0
+  project                 = local.project.project_id
+  name                    = var.network_name
+  auto_create_subnetworks = false
+  routing_mode            = "GLOBAL"
+  depends_on              = [google_project_service.enabled_services]
 }
 
 resource "google_compute_subnetwork" "subnetwork" {
