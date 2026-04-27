@@ -78,21 +78,24 @@ resource "null_resource" "wait_for_api_propagation" {
       set -e
       PROJECT_ID="${local.project.project_id}"
       
-      echo "Waiting for GKE Hub API to fully propagate..."
-      
-      # Wait for a fixed period to allow API propagation
-      sleep 30
-      
-      # Verify API is still enabled after wait
-      if gcloud services list --enabled --project="$PROJECT_ID" \
-         --filter="name:gkehub.googleapis.com" \
-         --format="value(name)" | grep -q "gkehub.googleapis.com"; then
-        echo "✓ GKE Hub API is fully propagated"
-        exit 0
-      else
-        echo "Error: GKE Hub API is not enabled after propagation wait"
-        exit 1
-      fi
+      echo "Waiting for GKE Hub API backend to be ready..."
+      end_time=$((SECONDS+120))
+
+      while [ $SECONDS -lt $end_time ]; do
+        # gcloud container fleet features list requires the gkehub backend to be
+        # fully operational, not just the service registration to show as enabled.
+        if gcloud container fleet features list \
+           --project="$PROJECT_ID" \
+           --format="value(name)" > /dev/null 2>&1; then
+          echo "✓ GKE Hub API is fully propagated"
+          exit 0
+        fi
+        echo "Waiting for GKE Hub API propagation..."
+        sleep 10
+      done
+
+      echo "Error: Timed out waiting for GKE Hub API propagation"
+      exit 1
     EOT
   }
 }
@@ -136,11 +139,23 @@ resource "null_resource" "wait_for_iam_propagation" {
       PROJECT_ID="${local.project.project_id}"
 
       echo "Waiting for IAM propagation..."
-      
-      # Wait for a fixed period to allow IAM propagation
-      sleep 30
-      
-      echo "✓ IAM propagation wait completed"
+      end_time=$((SECONDS+120))
+
+      while [ $SECONDS -lt $end_time ]; do
+        # Poll the project IAM policy until the hub service account binding is visible.
+        # IAM reads are eventually consistent; this exits as soon as the binding
+        # has propagated rather than waiting a fixed 30 s regardless.
+        if gcloud projects get-iam-policy "$PROJECT_ID" \
+           --format="json" 2>/dev/null | \
+           grep -q "gcp-sa-gkehub.iam.gserviceaccount.com"; then
+          echo "✓ IAM propagation complete"
+          exit 0
+        fi
+        echo "Waiting for IAM bindings to propagate..."
+        sleep 10
+      done
+
+      echo "✓ IAM propagation wait completed (proceeding after timeout)"
       exit 0
     EOT
   }
