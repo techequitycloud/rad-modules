@@ -25,12 +25,12 @@ resource "null_resource" "install_sidecar_mesh" {
     project_id                = local.project.project_id
     istio_release             = regex("^(\\d+\\.\\d+)", var.istio_version)[0]
     istio_version             = var.istio_version
-    resource_creator_identity = var.resource_creator_identity  # Added for destroy provisioner
+    resource_creator_identity = var.resource_creator_identity # Added for destroy provisioner
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOF
+    command     = <<-EOF
     set -eo pipefail
     echo "=== Installing Istio ${var.istio_version} (Sidecar Mode) ==="
     
@@ -195,14 +195,14 @@ ISTIO_CONFIG
     EOF
 
     environment = {
-      KUBECONFIG = ""  # Use default kubeconfig location
+      KUBECONFIG = "" # Use default kubeconfig location
     }
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when = destroy
-    command = <<-EOF
+    when        = destroy
+    command     = <<-EOF
       set +e  # Disable exit-on-error for the entire destroy phase
       echo "=== Uninstalling Istio Sidecar Mesh (Graceful Mode) ==="
       
@@ -266,12 +266,12 @@ ISTIO_CONFIG
 # Output Istio ingress gateway external IP for sidecar mesh
 resource "null_resource" "get_sidecar_istio_ingress_ip" {
   count = var.install_ambient_mesh ? 0 : 1
-  
+
   depends_on = [null_resource.install_sidecar_mesh]
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       echo "Waiting for Istio ingress gateway external IP..."
       export PATH=$HOME/.local/bin:$PATH
       

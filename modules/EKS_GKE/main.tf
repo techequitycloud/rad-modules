@@ -28,7 +28,7 @@ locals {
   random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
 
   # Use the existing project data source directly
-  project_id = data.google_project.existing_project.project_id
+  project_id     = data.google_project.existing_project.project_id
   project_number = data.google_project.existing_project.number
 
   cluster_name_prefix = "${var.cluster_name_prefix}-${random_string.suffix.result}"
@@ -47,13 +47,13 @@ locals {
     "kubernetesmetadata.googleapis.com"
   ]
 
-  cluster_name = "${var.cluster_name_prefix}"
+  cluster_name = var.cluster_name_prefix
 }
 
 # Generate a random ID if a deployment ID is not provided
 resource "random_id" "default" {
-  count       = var.deployment_id == null ? 1 : 0 
-  byte_length = 2 
+  count       = var.deployment_id == null ? 1 : 0
+  byte_length = 2
 }
 
 data "google_project" "existing_project" {
@@ -62,13 +62,13 @@ data "google_project" "existing_project" {
 
 # Resource to enable APIs on the selected Google Cloud project
 resource "google_project_service" "enabled_services" {
-  for_each                   = toset(local.default_apis) # Iterate over each service in the set
-  project                    = local.project_id          # Apply to the selected project
-  service                    = each.value                # The API service to enable
-  
+  for_each = toset(local.default_apis) # Iterate over each service in the set
+  project  = local.project_id          # Apply to the selected project
+  service  = each.value                # The API service to enable
+
   # These settings ensure that disabling or destroying this resource does not affect dependent services
-  disable_dependent_services = false 
-  disable_on_destroy         = false 
+  disable_dependent_services = false
+  disable_on_destroy         = false
 }
 
 resource "random_string" "suffix" {
@@ -131,7 +131,7 @@ provider "helm" {
 
 module "attached_install_manifest" {
   source                         = "./modules/attached-install-manifest"
-  attached_cluster_name          = "${var.cluster_name_prefix}"
+  attached_cluster_name          = var.cluster_name_prefix
   attached_cluster_fleet_project = local.project_id
   gcp_location                   = var.gcp_location
   platform_version               = var.platform_version
@@ -148,7 +148,7 @@ module "attached_install_manifest" {
 }
 
 resource "google_container_attached_cluster" "primary" {
-  name             = "${var.cluster_name_prefix}"
+  name             = var.cluster_name_prefix
   project          = local.project_id
   location         = var.gcp_location
   description      = "EKS attached cluster example"
@@ -175,7 +175,7 @@ resource "google_container_attached_cluster" "primary" {
 
   authorization {
     admin_users = local.trusted_users
-  #   admin_groups = var.groups
+    #   admin_groups = var.groups
   }
 
   depends_on = [
