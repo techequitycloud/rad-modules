@@ -30,8 +30,8 @@ variable "module_dependency" {
 
 variable "module_services" {
   description = "List of cloud service tags associated with this module, used for display and filtering in the platform UI. Represents the key services provisioned by this module. Defaults to the core services this module provisions. {{UIMeta group=0 order=102 }}"
-  type = list(string)
-  default = ["AWS", "EKS", "IAM", "VPC", "GCP", "GKE Hub", "Anthos"]
+  type        = list(string)
+  default     = ["AWS", "EKS", "IAM", "VPC", "GCP", "GKE Hub", "Anthos"]
 }
 
 variable "credit_cost" {
@@ -54,12 +54,12 @@ variable "enable_purge" {
 
 variable "public_access" {
   description = "Set to true (default) to make this module visible and deployable by all platform users. Set to false to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
-  type = bool
-  default = true
+  type        = bool
+  default     = true
 }
 
 variable "deployment_id" {
-  description = "Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources."
+  description = "Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources. {{UIMeta group=0 order=108 }}"
   type        = string
   default     = null
 }

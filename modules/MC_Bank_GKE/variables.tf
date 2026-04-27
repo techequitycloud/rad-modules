@@ -23,8 +23,8 @@ locals {
   # Cluster configurations - references region assignments
   cluster_configs = {
     for i in range(var.cluster_size) : "cluster${i + 1}" => {
-      gke_cluster_name   = "gke-cluster-${i + 1}"
-      region             = local.region_assignments[i]
+      gke_cluster_name = "gke-cluster-${i + 1}"
+      region           = local.region_assignments[i]
 
       # Primary subnet: 10.X.0.0/20 (4,096 IPs for nodes)
       ip_cidr_range = cidrsubnet("10.0.0.0/8", 12, i * 4)
@@ -97,7 +97,7 @@ variable "trusted_users" {
 }
 
 variable "deployment_id" {
-  description = "Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources."
+  description = "Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources. {{UIMeta group=0 order=108 }}"
   type        = string
   default     = null
 }
