@@ -540,4 +540,4 @@ availableSecrets:
     env: 'GIT_TOKEN'
 
 logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
-timeout: 3600s
+timeout: 10800s
