@@ -1,0 +1,3 @@
+## 2024-04-30 - `null_resource` `always_run` forces apply on unchanged deployments
+**Learning:** In Application modules using `null_resource` with `local-exec` to download and apply manifests (e.g., `Bank_GKE`), including `always_run = timestamp()` in the `triggers` block forces the resource to recreate on every `terraform apply`. This not only triggers the download but also cascades to dependent resources like deployment scripts, significantly slowing down the apply process (by minutes) even when nothing has changed.
+**Action:** Remove `always_run = timestamp()` from `null_resource` triggers. Use deterministic triggers like `version` or a file hash so that the provisioner only runs when the source artifact changes.

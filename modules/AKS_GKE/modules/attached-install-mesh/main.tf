@@ -77,8 +77,8 @@ resource "null_resource" "prepare_cache" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = create
-    command = self.triggers.prepare_cache_command
+    when        = create
+    command     = self.triggers.prepare_cache_command
   }
 }
 
@@ -91,8 +91,8 @@ resource "null_resource" "download_gcloud" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = create
-    command = self.triggers.download_gcloud_command
+    when        = create
+    command     = self.triggers.download_gcloud_command
   }
 
   depends_on = [null_resource.prepare_cache]
@@ -107,8 +107,8 @@ resource "null_resource" "download_jq" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = create
-    command = self.triggers.download_jq_command
+    when        = create
+    command     = self.triggers.download_jq_command
   }
 
   depends_on = [null_resource.prepare_cache]
@@ -123,8 +123,8 @@ resource "null_resource" "download_asmcli" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = create
-    command = self.triggers.download_asmcli_command
+    when        = create
+    command     = self.triggers.download_asmcli_command
   }
 
   depends_on = [null_resource.prepare_cache]
@@ -141,8 +141,8 @@ resource "null_resource" "decompress" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = create
-    command = self.triggers.decompress_command
+    when        = create
+    command     = self.triggers.decompress_command
   }
 
   depends_on = [null_resource.download_gcloud, null_resource.download_jq, null_resource.download_asmcli]
@@ -158,8 +158,8 @@ resource "null_resource" "additional_components" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = create
-    command = self.triggers.additional_components_command
+    when        = create
+    command     = self.triggers.additional_components_command
   }
 }
 
@@ -174,8 +174,8 @@ resource "null_resource" "gcloud_auth_service_account_key_file" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = create
-    command = self.triggers.gcloud_auth_service_account_key_file_command
+    when        = create
+    command     = self.triggers.gcloud_auth_service_account_key_file_command
   }
 }
 
@@ -190,8 +190,8 @@ resource "null_resource" "gcloud_auth_google_credentials" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = create
-    command = self.triggers.gcloud_auth_google_credentials_command
+    when        = create
+    command     = self.triggers.gcloud_auth_google_credentials_command
   }
 }
 
@@ -212,8 +212,8 @@ resource "null_resource" "run_command" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = create
-    command = <<-EOT
+    when        = create
+    command     = <<-EOT
     PATH=${self.triggers.gcloud_bin_abs_path}:$PATH
     ${self.triggers.cmd_entrypoint} ${self.triggers.create_cmd_body}
     EOT
@@ -231,8 +231,8 @@ resource "null_resource" "gcloud_auth_google_credentials_destroy" {
   }
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = destroy
-    command = self.triggers.gcloud_auth_google_credentials_command
+    when        = destroy
+    command     = self.triggers.gcloud_auth_google_credentials_command
   }
 }
 
@@ -244,8 +244,8 @@ resource "null_resource" "gcloud_auth_service_account_key_file_destroy" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = destroy
-    command = self.triggers.gcloud_auth_service_account_key_file_command
+    when        = destroy
+    command     = self.triggers.gcloud_auth_service_account_key_file_command
   }
 }
 
@@ -256,8 +256,8 @@ resource "null_resource" "additional_components_destroy" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = destroy
-    command = self.triggers.additional_components_command
+    when        = destroy
+    command     = self.triggers.additional_components_command
   }
 }
 
@@ -268,7 +268,7 @@ resource "null_resource" "decompress_destroy" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = destroy
-    command = self.triggers.decompress_command
+    when        = destroy
+    command     = self.triggers.decompress_command
   }
 }
