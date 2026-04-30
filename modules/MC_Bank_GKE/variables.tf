@@ -23,8 +23,8 @@ locals {
   # Cluster configurations - references region assignments
   cluster_configs = {
     for i in range(var.cluster_size) : "cluster${i + 1}" => {
-      gke_cluster_name   = "gke-cluster-${i + 1}"
-      region             = local.region_assignments[i]
+      gke_cluster_name = "gke-cluster-${i + 1}"
+      region           = local.region_assignments[i]
 
       # Primary subnet: 10.X.0.0/20 (4,096 IPs for nodes)
       ip_cidr_range = cidrsubnet("10.0.0.0/8", 12, i * 4)
@@ -158,7 +158,7 @@ variable "cluster_size" {
 // SECTION 4: Services
 
 variable "enable_services" {
-  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com, mesh.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=0 order=401 }}"
+  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com, mesh.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=4 order=401 }}"
   type        = bool
   default     = true
 }
