@@ -19,36 +19,36 @@ data "google_client_config" "gke_cluster" {
 }
 
 provider "kubernetes" {
-  alias    = "cluster1"
-  host     = "https://${google_container_cluster.gke_cluster["cluster1"].endpoint}"
-  token    = data.google_client_config.gke_cluster.access_token
+  alias = "cluster1"
+  host  = "https://${google_container_cluster.gke_cluster["cluster1"].endpoint}"
+  token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
     google_container_cluster.gke_cluster["cluster1"].master_auth[0].cluster_ca_certificate,
   )
 }
 
 provider "kubernetes" {
-  alias    = "cluster2"
-  host     = "https://${google_container_cluster.gke_cluster["cluster2"].endpoint}"
-  token    = data.google_client_config.gke_cluster.access_token
+  alias = "cluster2"
+  host  = "https://${google_container_cluster.gke_cluster["cluster2"].endpoint}"
+  token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
     google_container_cluster.gke_cluster["cluster2"].master_auth[0].cluster_ca_certificate,
   )
 }
 
 provider "kubernetes" {
-  alias    = "cluster3"
-  host     = "https://${google_container_cluster.gke_cluster["cluster3"].endpoint}"
-  token    = data.google_client_config.gke_cluster.access_token
+  alias = "cluster3"
+  host  = "https://${google_container_cluster.gke_cluster["cluster3"].endpoint}"
+  token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
     google_container_cluster.gke_cluster["cluster3"].master_auth[0].cluster_ca_certificate,
   )
 }
 
 provider "kubernetes" {
-  alias    = "cluster4"
-  host     = "https://${google_container_cluster.gke_cluster["cluster4"].endpoint}"
-  token    = data.google_client_config.gke_cluster.access_token
+  alias = "cluster4"
+  host  = "https://${google_container_cluster.gke_cluster["cluster4"].endpoint}"
+  token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
     google_container_cluster.gke_cluster["cluster4"].master_auth[0].cluster_ca_certificate,
   )
@@ -56,20 +56,20 @@ provider "kubernetes" {
 
 # Module to create the GKE private cluster
 resource "google_container_cluster" "gke_cluster" {
-  for_each              = local.cluster_configs
-  project               = local.project.project_id
-  name                  = each.value.gke_cluster_name
-  location              = each.value.region
-  deletion_protection   = false
-  network               = local.network.name
-  subnetwork            = google_compute_subnetwork.subnetwork[each.key].name
+  for_each            = local.cluster_configs
+  project             = local.project.project_id
+  name                = each.value.gke_cluster_name
+  location            = each.value.region
+  deletion_protection = false
+  network             = local.network.name
+  subnetwork          = google_compute_subnetwork.subnetwork[each.key].name
 
   # Conditional attributes based on cluster type
-  enable_autopilot             = var.create_autopilot_cluster
-  
+  enable_autopilot = var.create_autopilot_cluster
+
   # Only set these for Standard clusters (not Autopilot)
-  remove_default_node_pool     = var.create_autopilot_cluster ? null : true
-  initial_node_count           = var.create_autopilot_cluster ? null : 1
+  remove_default_node_pool = var.create_autopilot_cluster ? null : true
+  initial_node_count       = var.create_autopilot_cluster ? null : 1
 
   ip_allocation_policy {
     cluster_secondary_range_name  = each.value.pod_ip_range
@@ -91,7 +91,7 @@ resource "google_container_cluster" "gke_cluster" {
   gateway_api_config {
     channel = "CHANNEL_STANDARD"
   }
-  
+
   cost_management_config {
     enabled = true
   }
@@ -142,11 +142,11 @@ resource "google_service_account" "gke_standard" {
 
 # Node pool for Standard GKE cluster
 resource "google_container_node_pool" "preemptible_nodes" {
-  for_each   = var.create_autopilot_cluster ? {} : local.cluster_configs
-  project    = local.project.project_id
-  name       = "node-pool-${each.key}"
-  cluster    = google_container_cluster.gke_cluster[each.key].id
-  node_count = 2
+  for_each       = var.create_autopilot_cluster ? {} : local.cluster_configs
+  project        = local.project.project_id
+  name           = "node-pool-${each.key}"
+  cluster        = google_container_cluster.gke_cluster[each.key].id
+  node_count     = 2
   node_locations = data.google_compute_zones.available_zones[each.key].names
 
   node_config {
@@ -156,7 +156,7 @@ resource "google_container_node_pool" "preemptible_nodes" {
     disk_type    = "pd-ssd"
 
     service_account = google_service_account.gke_standard[0].email
-    oauth_scopes    = [
+    oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/logging.write",
       "https://www.googleapis.com/auth/monitoring",

@@ -35,14 +35,14 @@ resource "null_resource" "download_bank_of_anthos" {
   count = var.deploy_application ? 1 : 0
 
   triggers = {
-    version       = local.bank_of_anthos_version
-    download_path = local.download_path
-    always_run    = timestamp()  # ✅ FIXED: Force fresh download
+    version           = local.bank_of_anthos_version
+    download_path     = local.download_path
+    manifests_missing = fileexists(local.jwt_secret_path) ? "exists" : timestamp()
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       echo "=========================================="
       echo "Downloading Bank of Anthos ${local.bank_of_anthos_version}..."
@@ -84,9 +84,9 @@ resource "null_resource" "download_bank_of_anthos" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when       = destroy
-    command    = "rm -rf ${self.triggers.download_path}"
-    on_failure = continue
+    when        = destroy
+    command     = "rm -rf ${self.triggers.download_path}"
+    on_failure  = continue
   }
 }
 
@@ -97,14 +97,14 @@ resource "null_resource" "download_bank_of_anthos" {
 resource "kubernetes_namespace" "bank_of_anthos" {
   count    = var.deploy_application ? 1 : 0
   provider = kubernetes.primary
-  
+
   metadata {
     name = "bank-of-anthos"
     labels = {
       "istio.io/rev" = "asm-managed"
     }
   }
-  
+
   timeouts {
     delete = "15m"
   }
@@ -130,19 +130,19 @@ resource "null_resource" "deploy_bank_of_anthos" {
   count = var.deploy_application ? 1 : 0
 
   triggers = {
-    cluster_name     = local.cluster.name
-    version          = local.bank_of_anthos_version
-    namespace        = "bank-of-anthos"  # ✅ FIXED: Direct string
-    region           = var.gcp_region
-    project_id       = local.project.project_id
-    manifests_path   = local.manifests_path
-    jwt_secret_path  = local.jwt_secret_path
-    download_id      = null_resource.download_bank_of_anthos[0].id  # ✅ FIXED: Added dependency
+    cluster_name    = local.cluster.name
+    version         = local.bank_of_anthos_version
+    namespace       = "bank-of-anthos" # ✅ FIXED: Direct string
+    region          = var.gcp_region
+    project_id      = local.project.project_id
+    manifests_path  = local.manifests_path
+    jwt_secret_path = local.jwt_secret_path
+    download_id     = null_resource.download_bank_of_anthos[0].id # ✅ FIXED: Added dependency
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       
       NAMESPACE="${self.triggers.namespace}"
@@ -286,8 +286,8 @@ resource "null_resource" "deploy_bank_of_anthos" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = destroy
-    command = <<-EOT
+    when        = destroy
+    command     = <<-EOT
       set -e
       
       NAMESPACE="${self.triggers.namespace}"
@@ -342,7 +342,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
       
       echo "✓ Cleanup complete"
     EOT
-    on_failure = continue
+    on_failure  = continue
   }
 
   depends_on = [
