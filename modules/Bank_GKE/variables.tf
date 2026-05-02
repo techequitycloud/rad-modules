@@ -143,7 +143,7 @@ variable "release_channel" {
 }
 
 variable "pod_ip_range" {
-  description = "Alias name for the secondary IP range used to assign IP addresses to Pods in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'pod-ip-range'. Must be unique within the subnet. {{UIMeta group=0 order=505 }}"
+  description = "Alias name for the secondary IP range used to assign IP addresses to Pods in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'pod-ip-range'. Must be unique within the subnet. {{UIMeta group=5 order=505 }}"
   type        = string
   default     = "pod-ip-range"
 }
@@ -155,7 +155,7 @@ variable "pod_cidr_block" {
 }
 
 variable "service_ip_range" {
-  description = "Alias name for the secondary IP range used to assign IP addresses to Kubernetes Services (ClusterIP) in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'service-ip-range'. Must be unique within the subnet. {{UIMeta group=0 order=507 }}"
+  description = "Alias name for the secondary IP range used to assign IP addresses to Kubernetes Services (ClusterIP) in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'service-ip-range'. Must be unique within the subnet. {{UIMeta group=5 order=507 }}"
   type        = string
   default     = "service-ip-range"
 }
@@ -169,7 +169,7 @@ variable "service_cidr_block" {
 // SECTION 6: FEATURES
 
 variable "enable_services" {
-  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com, mesh.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=0 order=600 }}"
+  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com, mesh.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=6 order=600 }}"
   type        = bool
   default     = true
 }

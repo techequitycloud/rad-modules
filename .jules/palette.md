@@ -1,0 +1,3 @@
+## 2026-05-02 - [Fix UIMeta default group assignments]
+**Learning:** Variables that logically belong in a specific group (e.g. `group=3` for GKE, `group=4` for Features) often mistakenly default to `group=0` (Provider/Metadata) in GKE modules. This can cause variables to be grouped improperly and confuse deployers. Modifying `group=N` properly places them into their respective logical section/wizard pages as defined in `SKILLS.md`.
+**Action:** When adding variables, strictly follow the `group=N` section definitions defined in `SKILLS.md` to ensure they are presented in the correct deployment wizard page.

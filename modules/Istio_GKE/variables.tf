@@ -136,7 +136,7 @@ variable "release_channel" {
 }
 
 variable "pod_ip_range" {
-  description = "Alias name for the secondary IP range used to assign IP addresses to Pods in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'pod-ip-range'. Must be unique within the subnet. {{UIMeta group=0 order=304 }}"
+  description = "Alias name for the secondary IP range used to assign IP addresses to Pods in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'pod-ip-range'. Must be unique within the subnet. {{UIMeta group=3 order=304 }}"
   type        = string
   default     = "pod-ip-range"
 }
@@ -148,7 +148,7 @@ variable "pod_cidr_block" {
 }
 
 variable "service_ip_range" {
-  description = "Alias name for the secondary IP range used to assign IP addresses to Kubernetes Services (ClusterIP) in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'service-ip-range'. Must be unique within the subnet. {{UIMeta group=0 order=306 }}"
+  description = "Alias name for the secondary IP range used to assign IP addresses to Kubernetes Services (ClusterIP) in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'service-ip-range'. Must be unique within the subnet. {{UIMeta group=3 order=306 }}"
   type        = string
   default     = "service-ip-range"
 }
@@ -162,7 +162,7 @@ variable "service_cidr_block" {
 // SECTION 5: Features
 
 variable "enable_services" {
-  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=0 order=401 }}"
+  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=4 order=401 }}"
   type        = bool
   default     = true
 }
@@ -182,7 +182,7 @@ variable "install_ambient_mesh" {
 // SECTION 6: Application
 
 variable "deploy_application" {
-  description = "Set to true (default) to deploy the Istio Bookinfo sample application onto the GKE cluster after Istio is installed. The Bookinfo app demonstrates Istio traffic management, telemetry, and security features. Set to false to install only the Istio service mesh without a demo application. {{UIMeta group=0 order=601 }}"
+  description = "Set to true (default) to deploy the Istio Bookinfo sample application onto the GKE cluster after Istio is installed. The Bookinfo app demonstrates Istio traffic management, telemetry, and security features. Set to false to install only the Istio service mesh without a demo application. {{UIMeta group=6 order=601 }}"
   type        = bool
   default     = true
 }
