@@ -90,28 +90,33 @@ steps:
     #   4. Default fallback
 
     CLONE_SUCCESS=false
+    RESOLVED_REPO=""
 
     if [ -n "${_MODULE_GIT_REPO_URL}" ] && [ "${_MODULE_GIT_REPO_URL}" != "none" ] && [ "${_MODULE_GIT_REPO_URL}" != "" ]; then
         if try_clone "${_MODULE_GIT_REPO_URL}"; then
             CLONE_SUCCESS=true
+            RESOLVED_REPO="${_MODULE_GIT_REPO_URL}"
         fi
     fi
 
     if [ "$$CLONE_SUCCESS" != "true" ] && [ -n "$$STORED_REPO_URL" ]; then
         if try_clone "$$STORED_REPO_URL"; then
             CLONE_SUCCESS=true
+            RESOLVED_REPO="$$STORED_REPO_URL"
         fi
     fi
 
     if [ "$$CLONE_SUCCESS" != "true" ] && [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ] && [ "${_GIT_REPO_URL}" != "" ]; then
         if try_clone "${_GIT_REPO_URL}"; then
             CLONE_SUCCESS=true
+            RESOLVED_REPO="${_GIT_REPO_URL}"
         fi
     fi
 
     if [ "$$CLONE_SUCCESS" != "true" ]; then
         if try_clone "techequitycloud/rad-modules"; then
             CLONE_SUCCESS=true
+            RESOLVED_REPO="techequitycloud/rad-modules"
         fi
     fi
 
@@ -119,6 +124,8 @@ steps:
         log "❌ All clone attempts failed for module ${_MODULE_NAME}"
         exit 1
     fi
+
+    echo "$$RESOLVED_REPO" > /workspace/resolved_repo.txt
 
     # Navigate to module directory
     cd "/workspace/modules/${_MODULE_NAME}"
@@ -501,6 +508,16 @@ steps:
 
     # Upload the archive
     gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
+
+    # Update deployment metadata to reflect the commit and repo used in this update
+    git -C /workspace rev-parse HEAD > /tmp/commit_hash.txt
+    gsutil cp /tmp/commit_hash.txt "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/commit_hash.txt"
+    log "✅ Updated commit_hash.txt: $$(cat /tmp/commit_hash.txt)"
+
+    if [ -f /workspace/resolved_repo.txt ]; then
+        gsutil cp /workspace/resolved_repo.txt "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/repo_url.txt"
+        log "✅ Updated repo_url.txt: $$(cat /workspace/resolved_repo.txt)"
+    fi
 
     # Create deployment completion marker
     COMPLETION_MARKER="{\"updated_at\": \"$$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"deployment_id\": \"${_DEPLOYMENT_ID}\", \"module\": \"${_MODULE_NAME}\", \"status\": \"updated\"}"
