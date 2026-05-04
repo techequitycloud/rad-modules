@@ -33,9 +33,25 @@ output "external_ip"               # LoadBalancer IP, with fileexists() fallback
 
 `cluster_credentials_cmd` is the highest-impact one: a one-line `gcloud` command that attaches `kubectl` to the cluster.
 
+## Update and list workflows
+
+After initial deployment, the same launcher handles day-two operations:
+
+```bash
+# Re-apply with changed variables (e.g., scale node count)
+python3 radlab.py -m Istio_GKE -a update -p my-mgmt-project \
+  -b my-mgmt-project-radlab-tfstate -f /path/to/my.tfvars
+
+# List all active deployments by scanning state buckets
+python3 radlab.py -m Istio_GKE -a list -p my-mgmt-project \
+  -b my-mgmt-project-radlab-tfstate
+```
+
+The `list` action enumerates active `deployment_id` values by reading GCS state directly — no external inventory database is required. The same `update` / `delete` / `list` actions are available through the RAD platform UI.
+
 ## On-demand tooling
 
-`modules/Istio_GKE/istiosidecar.tf` installs `kubectl` and `istioctl` into `$HOME/.local/bin` if missing, so apply succeeds on a fresh workstation without a separate "set up your tools" step.
+`modules/Istio_GKE/istiosidecar.tf` installs `kubectl` and `istioctl` into `$HOME/.local/bin` if missing, so apply succeeds on a fresh workstation without a separate "set up your tools" step. This pattern is specific to `Istio_GKE`; other modules assume `kubectl` is already available (installed by `installer_prereq.py` or present in Cloud Shell).
 
 ## Documentation that explains *why*
 
@@ -45,6 +61,10 @@ Each module ships two markdown files (`SKILLS.md` §4):
 - A long `<Module_Name>.md` (~1,100–2,600 lines) covering architecture, networking, mesh trade-offs, and operational guidance — teaching material, not just reference.
 
 `AGENTS.md` adds workflow modes that prime a new engineer or AI assistant with the right context for a single module.
+
+## Troubleshooting entry point
+
+When `tofu apply` succeeds but the workload is not behaving as expected — mesh pods stuck `Pending`, MCI never receiving a VIP, cluster not appearing in the GCP Console — the `AGENTS.md` `/troubleshoot` workflow is the first place to look. Each symptom is paired with a one-command diagnostic and a file:line reference, so diagnosis begins with a single `kubectl` or `gcloud` command rather than freeform search.
 
 ## Hands-on labs
 

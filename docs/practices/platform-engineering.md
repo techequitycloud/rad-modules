@@ -37,6 +37,32 @@ The standard module layout, conventions, and invariants are documented in [infra
 
 `AGENTS.md` defines workflow modes (`/global`, `/istio`, `/bank`, `/multicluster`, `/attached`, `/troubleshoot`, `/maintain`, `/security`) that prime an AI agent or new engineer with module-specific context. This is platform engineering applied to the AI-pair-programming surface itself.
 
+## Versioning and release management
+
+The platform catalog has no separate versioning layer — consumers pin to a Git commit SHA or branch when they supply `_MODULE_GIT_REPO_URL` to a Cloud Build pipeline. The recommended practice is to tag stable catalog states (e.g., `v1.2.0`) and reference tags rather than branches in production deployments, so that an upgrade is a deliberate change rather than a silent drift. A `CHANGELOG.md` at the repo root capturing per-module changes between tags is the minimum viable release-management artifact; GitHub Releases or Cloud Artifact Registry module packages are the natural next step for teams that need a formal promotion gate.
+
+## Platform observability
+
+The platform team should observe the platform's own health separately from the workloads it deploys. Key signals:
+
+- **Cloud Build pipeline success rate and duration** — a rising `tofu apply` duration trend signals provider API latency or growing module complexity before it becomes a user-visible failure.
+- **Purge frequency** — a rising number of purge pipeline invocations is a leading indicator of destroy reliability degrading.
+- **Provider cache hit rate** — cache misses on every build indicate the GCS cache key is being invalidated more often than expected, adding avoidable build time.
+
+A Cloud Monitoring dashboard querying Cloud Build log-based metrics covers the first two; the third can be tracked by adding a log entry in the cache-restore step.
+
+## Contribution and validation guardrails
+
+Adding a new module is documented as `cp -a modules/Istio_GKE modules/MyNewModule`. The following checks are the definition-of-ready before a new module enters the catalog:
+
+1. `tofu validate` and `tofu fmt -check` pass with no warnings.
+2. All required outputs (`deployment_id`, `project_id`, `cluster_credentials_cmd`) are declared.
+3. `variables.tf` carries `credit_cost`, `require_credit_purchases`, and `enable_purge` with correct `{{UIMeta}}` annotations.
+4. A `README.md` and a long-form `<Module_Name>.md` exist.
+5. `provider-auth.tf` uses the impersonation pattern; no service account key files are referenced.
+
+These checks are currently a manual checklist in `SKILLS.md`; encoding them as a Cloud Build validation pipeline triggered on PRs that touch `modules/` would make the contract machine-enforced.
+
 ## A tiered path from learning to production
 
 - **Lab:** `scripts/gcp-istio-traffic/`, `scripts/gcp-istio-security/`, `scripts/gcp-cr-mesh/`, `scripts/gcp-m2c-vm/` for hands-on bash exercises (preview / create / delete modes).
