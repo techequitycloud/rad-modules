@@ -1178,9 +1178,7 @@ The following table covers the key configuration parameters that affect the beha
 |---|---|---|
 | GKE release channel | `REGULAR` | Determines the Kubernetes version stream. `RAPID` gets features sooner; `STABLE` is the most conservative. |
 | Node machine type | `e2-standard-2` | 2 vCPU, 8 GiB RAM per node. Suitable for demonstration workloads. Increase for production. |
-| Node count (initial) | 3 | Starting number of nodes. The cluster autoscaler adjusts this within the configured min/max range. |
-| Autoscaling min nodes | 1 | The cluster will never scale below this count. |
-| Autoscaling max nodes | 5 | The cluster will never scale above this count. |
+| Node count (initial) | 1 | Starting number of nodes. |
 | Preemptible nodes | `true` | Reduces cost significantly. Not recommended for production; preemptible VMs can be reclaimed with 30 seconds notice. |
 | Workload Identity | Enabled | Binds Kubernetes service accounts to Google service accounts. Required for GKE workloads to access Google Cloud APIs. |
 | VPC-native networking | Enabled | Pods receive IPs from a secondary subnet range. Required for Istio sidecar mode and enables direct VPC routing to pods. |
