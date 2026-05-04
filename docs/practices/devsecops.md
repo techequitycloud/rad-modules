@@ -29,3 +29,15 @@ VPC-native ranges, private nodes with Cloud NAT, additive firewall rules, single
 ## State integrity
 
 Terraform state in GCS with versioning and object-level encryption; never local for shared environments. Bucket IAM is not publicly readable. `.terraform/` is in `.gitignore` so cached provider data and credentials never reach the repo. See [infrastructure-as-code](../capabilities/infrastructure-as-code.md).
+
+## Provider supply-chain security
+
+All modules pin provider versions in `versions.tf` with `~>` constraints to prevent unexpected major-version upgrades. Running `tofu providers lock -platform=linux_amd64` generates a `.terraform.lock.hcl` file with cryptographic hashes for each provider binary; committing this file means CI can detect if a provider binary changes between runs. Periodically updating the lock file and reviewing the diff is the recommended cadence for staying current without silent supply-chain drift.
+
+## Audit logging
+
+Cloud Audit Logs (Admin Activity and Data Access) should be enabled for the APIs used by each module — Container, Compute, IAM, GCS, and GKE Hub. Admin Activity logs are on by default; Data Access logs for GCS and IAM require explicit project-level configuration. Exporting these logs to a long-term sink (a dedicated Cloud Logging bucket or BigQuery dataset in the management project) provides the forensic trail needed for compliance reviews. The `/security` checklist in `AGENTS.md` includes a `gcloud logging` command to verify audit log sinks are configured.
+
+## What is not here
+
+Policy-as-code admission control (OPA/Gatekeeper, Policy Controller) and Binary Authorization for container image verification are not currently included in any module. These provide a workload-level enforcement layer above what mTLS and IAM supply. They are natural next steps for a production-hardened cluster posture.
