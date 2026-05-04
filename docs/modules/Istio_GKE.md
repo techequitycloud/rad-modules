@@ -1178,9 +1178,7 @@ The following table covers the key configuration parameters that affect the beha
 |---|---|---|
 | GKE release channel | `REGULAR` | Determines the Kubernetes version stream. `RAPID` gets features sooner; `STABLE` is the most conservative. |
 | Node machine type | `e2-standard-2` | 2 vCPU, 8 GiB RAM per node. Suitable for demonstration workloads. Increase for production. |
-| Node count (initial) | 3 | Starting number of nodes. The cluster autoscaler adjusts this within the configured min/max range. |
-| Autoscaling min nodes | 1 | The cluster will never scale below this count. |
-| Autoscaling max nodes | 5 | The cluster will never scale above this count. |
+| Node count | 2 | Fixed number of nodes in the node pool. No cluster autoscaler is configured — the pool maintains exactly this count. |
 | Preemptible nodes | `true` | Reduces cost significantly. Not recommended for production; preemptible VMs can be reclaimed with 30 seconds notice. |
 | Workload Identity | Enabled | Binds Kubernetes service accounts to Google service accounts. Required for GKE workloads to access Google Cloud APIs. |
 | VPC-native networking | Enabled | Pods receive IPs from a secondary subnet range. Required for Istio sidecar mode and enables direct VPC routing to pods. |
@@ -1235,7 +1233,7 @@ Understanding the module's default configuration helps avoid surprises when expl
 
 **istiod manages its own CA.** The built-in Citadel CA in istiod issues 24-hour SPIFFE certificates. There is no integration with Google Certificate Authority Service or external PKI by default. For compliance environments, configure an external CA.
 
-**Cluster autoscaler is enabled.** The node pool scales between 1 and 5 nodes based on pending pod resource requests. Scale-down events trigger node drains, which cause brief pod disruptions. Configure pod disruption budgets for critical workloads.
+**Node pool has a fixed size of 2.** No cluster autoscaler is configured. The node pool maintains exactly 2 preemptible nodes. If workloads require more capacity, update the `node_count` field and re-apply, or enable the cluster autoscaler manually after deployment.
 
 ---
 

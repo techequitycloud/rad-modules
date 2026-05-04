@@ -971,40 +971,40 @@ kubectl get configmap istio-asm-managed -n istio-system -o yaml
 
 ## Service Level Objectives
 
-Service Level Objectives (SLOs) express the reliability target for each service in measurable terms. This module defines SLOs for all nine Bank of Anthos microservices using Cloud Monitoring SLO capabilities. Engineers can observe each service's current error rate, availability, and latency against its declared target, and configure alerting when services breach their error budget.
+Service Level Objectives (SLOs) express a reliability or resource-efficiency target for each service in measurable terms. This module defines SLOs for all nine Bank of Anthos microservices using Cloud Monitoring SLO capabilities. Engineers can observe each service's current SLI value against its declared target and configure alerting when services breach their error budget.
 
 > **This section is unique to Bank_GKE.** The `MC_Bank_GKE` module does not configure SLOs.
 
 ### What Is an SLO?
 
-An SLO is a target level of service expressed as a percentage of successful requests (availability SLO) or a fraction of requests completing within a latency threshold (latency SLO), measured over a rolling time window.
+An SLO is a target level of service expressed as a percentage of time a measured condition is satisfied, over a defined window.
 
 Key SLO concepts:
 
 | Term | Definition |
 |---|---|
-| SLI (Service Level Indicator) | The metric being measured (e.g. proportion of successful HTTP requests) |
-| SLO | The target value for the SLI (e.g. 99.9% availability over 30 days) |
-| Error budget | The allowable amount of unreliability — what remains when SLO < 100% |
+| SLI (Service Level Indicator) | The metric being measured (e.g. proportion of 5-minute windows where CPU usage stays within limits) |
+| SLO | The target value for the SLI (e.g. 95% of windows within limit over a calendar day) |
+| Error budget | The allowable amount of SLI misses — what remains before the SLO is breached |
 | Burn rate | How fast the error budget is being consumed relative to the expected rate |
 
 ### SLO Configuration in This Module
 
-The module configures **availability SLOs** for each of the nine Bank of Anthos microservices. Each SLO is based on the request success ratio measured by Istio telemetry (via Managed Prometheus) or Cloud Monitoring metrics.
+The module configures **CPU limit utilization SLOs** for each of the nine Bank of Anthos microservices. Each SLO uses a **windows-based SLI** that evaluates the metric `kubernetes.io/container/cpu/limit_utilization` in 5-minute (300-second) windows. A window is counted as "good" when the CPU limit utilization is at or below 1.0 (i.e. the container is not exceeding its configured CPU limit).
 
-| Service | SLO Type | Target | Window |
-|---|---|---|---|
-| `frontend` | Availability | 99.5% | 30 days |
-| `userservice` | Availability | 99.5% | 30 days |
-| `contacts` | Availability | 99.5% | 30 days |
-| `ledgerwriter` | Availability | 99.5% | 30 days |
-| `balancereader` | Availability | 99.9% | 30 days |
-| `transactionhistory` | Availability | 99.9% | 30 days |
-| `loadgenerator` | Availability | 99.0% | 30 days |
-| `accounts-db` | Availability | 99.9% | 30 days |
-| `ledger-db` | Availability | 99.9% | 30 days |
+| Service | SLO Type | Goal | Window | Calendar Period |
+|---|---|---|---|---|
+| `frontend` | CPU Limit Utilization | 95% | 5 min | Daily |
+| `userservice` | CPU Limit Utilization | 95% | 5 min | Daily |
+| `contacts` | CPU Limit Utilization | 95% | 5 min | Daily |
+| `ledgerwriter` | CPU Limit Utilization | 95% | 5 min | Daily |
+| `balancereader` | CPU Limit Utilization | 95% | 5 min | Daily |
+| `transactionhistory` | CPU Limit Utilization | 95% | 5 min | Daily |
+| `loadgenerator` | CPU Limit Utilization | 95% | 5 min | Daily |
+| `accounts-db` | CPU Limit Utilization | 95% | 5 min | Daily |
+| `ledger-db` | CPU Limit Utilization | 95% | 5 min | Daily |
 
-Read-path services (`balancereader`, `transactionhistory`) and databases carry higher targets because failures are more immediately visible to users. The `loadgenerator` has a lower target because it is a synthetic client rather than a user-facing service.
+A 95% goal on a daily calendar period means that at least 95% of the 5-minute measurement windows within each calendar day must show CPU utilization within the container's configured CPU limit. The SLO display name in Cloud Monitoring is **"95.0% - CPU Limit Utilization Metric - Calendar day"**.
 
 ### Viewing SLOs in the Console
 
@@ -1044,12 +1044,12 @@ gcloud monitoring services slos describe ${SLO_ID} \
 
 ### SLO Alerting
 
-Error budget alerts notify you when the error budget is burning faster than expected. Two standard alert windows are used:
+Error budget alerts notify you when the error budget is burning faster than expected. Because these SLOs use a **daily calendar period**, the error budget resets each day. Two standard alert windows are used:
 
 | Alert | Burn Rate Threshold | Significance |
 |---|---|---|
-| Fast burn | >14x for 1 hour | Error budget will be exhausted in ~2 days |
-| Slow burn | >1x for 6 hours | Error budget consumption exceeds target rate |
+| Fast burn | >14x for 1 hour | CPU is spiking severely — at this rate the daily budget exhausts within ~7 hours |
+| Slow burn | >1x for 6 hours | CPU is consistently over-limit — budget is being consumed faster than the daily target rate |
 
 These alerts are configured in Cloud Monitoring as **SLO alert policies**. When triggered, they appear in **Monitoring → Alerting → Incidents**.
 
@@ -1064,15 +1064,17 @@ gcloud alpha monitoring policies list \
 
 ### Interpreting Error Budgets
 
-The error budget for a 30-day window with a 99.5% target is:
+Each SLO uses a daily calendar period with 5-minute (300-second) measurement windows. In a 24-hour day there are **288 windows** (24 × 60 ÷ 5). With a 95% goal, 95% of those windows must show CPU limit utilization ≤ 1.0:
 
 ```
-Error budget = (1 - 0.995) × 30 days × 24 hours × 60 minutes
-             = 0.005 × 43,200 minutes
-             = 216 minutes of allowed downtime per 30-day window
+Total windows per day        = 288
+Good windows required (95%)  = 273 (rounded down)
+Error budget                 = 5% × 288 = 14.4 windows ≈ 72 minutes per day
 ```
 
-When the error budget drops to zero, further failures cause an SLO breach. Teams typically use a depleted error budget as a signal to pause feature work and focus on reliability improvements.
+This means each service is allowed approximately **72 minutes per calendar day** of 5-minute windows where its CPU usage exceeds the configured CPU limit before the SLO is breached. The budget resets at the start of each calendar day.
+
+When the error budget drops to zero, further violations breach the SLO. Teams typically use a depleted error budget as a signal to investigate CPU resource sizing — either increasing the container's CPU limit or optimising the workload to reduce CPU consumption.
 
 ```bash
 # View real-time error budget burn via Cloud Monitoring API
@@ -1384,7 +1386,7 @@ gcloud monitoring services slos describe ${SLO_ID} \
   --project=${PROJECT_ID}
 ```
 
-**Challenge**: Calculate the error budget in minutes for the `balancereader` service (99.9% target, 30-day window). Confirm your calculation against the console display.
+**Challenge**: Calculate the error budget in windows for the `balancereader` service (95% goal, daily calendar period, 5-minute windows). How many 5-minute windows per day may exceed the CPU limit before the SLO is breached? Confirm your calculation against the console display.
 
 ---
 
