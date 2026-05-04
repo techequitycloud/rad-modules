@@ -14,6 +14,20 @@ The script supports **preview / create / delete** modes, so the same flow tears 
 
 `rad-ui/automation/cloudbuild_deployment_{create,destroy,purge,update}.yaml` are Cloud Build pipelines — Google's serverless CI/CD platform. There are no self-hosted build runners; every module deployment runs in an ephemeral, fully managed builder. See [cicd](../practices/cicd.md).
 
-## What is not here
+## Container image registry
 
-Cloud Functions modules, Eventarc triggers, Pub/Sub processing pipelines, and Workflows orchestrations are not currently included. Natural additions to the `scripts/` catalog or as new entries under `modules/`.
+Node pool service accounts are granted `roles/artifactregistry.reader` (`gke.tf` in all three GKE modules), and `artifactregistry.googleapis.com` is enabled in `main.tf`. Artifact Registry is the intended image registry for any workloads built as part of this platform — a natural starting point for storing container images produced by Cloud Run or Cloud Build steps.
+
+## What is not here — and what to add next
+
+The following serverless primitives are not currently covered by any module or script. Each is a natural candidate for a new `scripts/` entry:
+
+| Missing primitive | Natural addition |
+|---|---|
+| Cloud Functions (gen2) | HTTP-triggered or event-driven function lab in `scripts/` |
+| Eventarc triggers | Pairing a Cloud Function or Cloud Run service to a GCS / Pub/Sub event |
+| Pub/Sub processing pipelines | Fan-out / fan-in messaging patterns between Cloud Run services |
+| Workflows orchestrations | Multi-step serverless orchestration alongside existing Cloud Run services |
+| Cloud Run Jobs | Batch / one-shot serverless compute (e.g., post-deploy validation step) |
+
+Adding any of these follows the same `scripts/<name>/<name>.sh` pattern with **preview / create / delete** modes already established by `gcp-cr-mesh` and `gcp-m2c-vm`.
