@@ -30,8 +30,8 @@ variable "module_dependency" {
 
 variable "module_services" {
   description = "List of cloud service tags associated with this module, used for display and filtering in the platform UI. Represents the key services provisioned by this module. Defaults to the core services this module provisions. {{UIMeta group=0 order=102 }}"
-  type = list(string)
-  default = ["AWS", "EKS", "IAM", "VPC", "GCP", "GKE Hub", "Anthos"]
+  type        = list(string)
+  default     = ["AWS", "EKS", "IAM", "VPC", "GCP", "GKE Hub", "Anthos"]
 }
 
 variable "credit_cost" {
@@ -54,8 +54,8 @@ variable "enable_purge" {
 
 variable "public_access" {
   description = "Set to true (default) to make this module visible and deployable by all platform users. Set to false to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
-  type = bool
-  default = true
+  type        = bool
+  default     = true
 }
 
 variable "deployment_id" {
@@ -126,7 +126,7 @@ variable "public_subnet_cidr_blocks" {
 }
 
 variable "private_subnet_cidr_blocks" {
-  description = "List of IPv4 CIDR blocks for the private subnets, one per availability zone in subnet_availability_zones (e.g. ['10.0.1.0/24', '10.0.2.0/24', '10.0.3.0/24']). Must be subsets of vpc_cidr_block. Used when enable_public_subnets is false. Defaults to three /24 subnets. {{UIMeta group=0 order=305 updatesafe }}"
+  description = "List of IPv4 CIDR blocks for the private subnets, one per availability zone in subnet_availability_zones (e.g. ['10.0.1.0/24', '10.0.2.0/24', '10.0.3.0/24']). Must be subsets of vpc_cidr_block. Used when enable_public_subnets is false. Defaults to three /24 subnets. {{UIMeta group=2 order=305 updatesafe }}"
   type        = list(string)
   default = [
     "10.0.1.0/24",

@@ -1,0 +1,3 @@
+## 2024-05-04 - UIMeta Group Assignments Accidentally Defaulting to `group=0`
+ **Learning:** In multiple modules (Istio_GKE, Bank_GKE, MC_Bank_GKE, EKS_GKE), variables belonging to specific sections (like Network, GKE, or Application) were accidentally assigned `group=0` in their UIMeta annotations instead of matching their logical section number. This causes the variables to appear on the wrong page (the first page) of the deployment wizard UI.
+ **Action:** Always verify that `group=N` matches the variable's logical section rather than defaulting to `group=0` when maintaining Terraform modules, to ensure the UI wizard correctly groups related inputs.
