@@ -25,9 +25,17 @@ No in-cluster Prometheus deployment is needed.
 
 ## SLOs
 
-`modules/Bank_GKE/monitoring.tf` defines `google_monitoring_slo` resources for the Bank of Anthos services. SLOs are versioned alongside the workload they measure. The Bank_GKE workflow in `AGENTS.md` documents how to add a new SLO.
+`modules/Bank_GKE/monitoring.tf` defines `google_monitoring_slo` resources for all nine Bank of Anthos services (`accounts-db`, `balancereader`, `contacts`, `frontend`, `ledger-db`, `ledgerwriter`, `loadgenerator`, `transactionhistory`, `userservice`). Each SLO measures CPU limit utilization over a 5-minute rolling window against a 95% goal on a daily calendar period. SLOs are versioned alongside the workload they measure and gated by `var.enable_monitoring`. The Bank_GKE workflow in `AGENTS.md` documents how to add a new SLO.
 
 The [sre](../practices/sre.md) practice page is the consumer perspective.
+
+## Alerting
+
+`monitoring.tf` defines `google_monitoring_service` and `google_monitoring_slo` resources, but does not currently define alerting policies or notification channels. Adding burn-rate alerts on the existing SLOs would be a natural next step — a `google_monitoring_alert_policy` with a `condition_threshold` on the SLO burn rate, linked to a `google_monitoring_notification_channel`, following the same `for_each = toset(local.monitoring_services)` pattern already used.
+
+## Distributed tracing context propagation
+
+Bank of Anthos services propagate trace context using the **W3C Trace Context** (`traceparent`) header, which both Jaeger (open-source Istio) and Cloud Trace (ASM) understand natively. The mesh sidecar / ztunnel does not automatically propagate headers across hops — each service must forward the incoming `traceparent` header on outbound calls. This is the most common reason traces appear broken at service boundaries when first deploying a new workload.
 
 ## Diagnostic commands
 

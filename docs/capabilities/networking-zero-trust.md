@@ -23,6 +23,10 @@ GKE manages its own firewall rules; the modules avoid `0.0.0.0/0` baseline sourc
 
 mTLS between workloads, identity-based authorization (`AuthorizationPolicy`), and JWT-based request authentication are all enforced at the mesh layer. See [service-mesh](./service-mesh.md).
 
+## Certificate lifecycle
+
+For open-source Istio, mTLS certificates are issued by Istiod's built-in CA and rotated automatically with a default validity of 24 hours. For Cloud Service Mesh, the managed control plane handles certificate issuance and rotation transparently — verify the current state with `gcloud container fleet mesh describe`. Neither deployment currently integrates Google Certificate Authority Service for custom root CAs; that is a natural production hardening step for compliance-sensitive environments.
+
 ## Connect Gateway for attached clusters
 
 `modules/AKS_GKE/` and `modules/EKS_GKE/` register the cluster with GCP Fleet, so cluster API access goes through Connect Gateway rather than exposing the AKS / EKS API endpoint publicly. See [hybrid-cloud-fleet](./hybrid-cloud-fleet.md).
@@ -30,3 +34,7 @@ mTLS between workloads, identity-based authorization (`AuthorizationPolicy`), an
 ## Multi-cluster routing
 
 `modules/MC_Bank_GKE/` uses Multi-Cluster Ingress and Multi-Cluster Services behind a single global LB. Clients hit the nearest healthy region; mesh identity follows the request across clusters.
+
+## What is not here
+
+**VPC Service Controls** (data perimeters around GCP APIs) and **Cloud Armor** (WAF / DDoS policies on the global HTTPS LB) are not currently configured by any module. VPC-SC would be a project-level addition outside the per-module `network.tf` pattern; Cloud Armor policies would attach to the `google_compute_backend_service` resources in `glb.tf`. Both are natural production hardening additions. See [security](./security.md).

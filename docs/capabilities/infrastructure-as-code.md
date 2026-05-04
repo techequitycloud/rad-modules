@@ -52,6 +52,27 @@ Every variable description ends with `{{UIMeta group=N order=M [updatesafe] }}` 
 
 Every GKE-based module exposes the same four outputs (`SKILLS.md` §3.5): `deployment_id`, `project_id`, `cluster_credentials_cmd`, `external_ip`. Downstream tools rely on this contract.
 
+## Deployment ID and random_id
+
+Every module generates a 4-character hex `deployment_id` at first apply via `random_id.default` in `main.tf`, unless the caller supplies one explicitly via `var.deployment_id`. This ID is embedded in resource names (cluster name, GCS bucket suffix, etc.) so multiple deployments can coexist in the same GCP project without name collision. The same ID is required to `update` or `destroy` the deployment later — it is the key the `radlab.py list` action uses to enumerate active deployments by reading GCS state buckets.
+
+## rad-launcher: local apply equivalent
+
+`rad-launcher/radlab.py` is the workstation / Cloud Shell equivalent of the Cloud Build pipelines. It runs the same `tofu init / apply / destroy` cycle locally and supports a non-interactive form for scripting:
+
+```bash
+python3 radlab.py -m Bank_GKE -a create \
+  -p my-mgmt-project \
+  -b my-mgmt-project-radlab-tfstate \
+  -f /path/to/my.tfvars
+```
+
+The `list` action enumerates active deployments by reading state buckets directly. See [cicd](../practices/cicd.md) for the Cloud Build pipeline counterpart.
+
+## Module versioning and pinning
+
+Cloud Build pipelines pull module source from a configurable Git URL (`_MODULE_GIT_REPO_URL` substitution in the YAML configs). Consumers pin to a specific commit SHA or release tag by setting this variable. The deployed commit is recorded in `commit_hash.txt` inside the deployment bucket for traceability across the deployment lifecycle.
+
 ## Destroy safety
 
 Every `null_resource` with a create-time effect has a matching `when = destroy` provisioner that uses:
