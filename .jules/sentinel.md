@@ -1,0 +1,4 @@
+## 2024-05-05 - Hardcoded roles/owner assignments in helper scripts
+**Vulnerability:** Helper scripts in `scripts/` (`gcp-cr-mesh.sh`, `gcp-istio-security.sh`) dynamically create service accounts and grant them project-wide `roles/owner` permissions to perform their operations.
+**Learning:** These scripts require complex sets of permissions that weren't individually identified, leading to the use of `roles/owner` as a catch-all. Fixing this requires a deep audit of the specific `gcloud` commands used in each script to build a least-privilege custom role, which is too large for a single PR.
+**Prevention:** Ensure all automated scripts use predefined or custom least-privilege roles for their operations, and implement a CI/CD check to block PRs adding `roles/owner` assignments in shell scripts.

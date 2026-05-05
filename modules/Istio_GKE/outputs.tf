@@ -16,23 +16,23 @@
 
 # Output the deployment ID used within the module.
 output "deployment_id" {
-  description = "Module Deployment ID"  # Description of what the deployment ID represents
-  value       = var.deployment_id       # The value of the deployment ID passed as a variable
+  description = "Module Deployment ID" # Description of what the deployment ID represents
+  value       = var.deployment_id      # The value of the deployment ID passed as a variable
 }
 
 # Output the project ID for the configured project.
 output "project_id" {
-  description = "Project ID"            # Description of what the project ID represents
-  value       = local.project.project_id  # The value of the project ID from local variables
+  description = "Project ID"             # Description of what the project ID represents
+  value       = local.project.project_id # The value of the project ID from local variables
 }
 
 output "external_ip" {
-  description = "External IP"            # Description of what the External IP represents
-  value = fileexists("${path.module}/scripts/app/external_ip.txt") ? file("${path.module}/scripts/app/external_ip.txt") : "IP not available"
+  description = "External IP" # Description of what the External IP represents
+  value       = fileexists("${path.module}/scripts/app/external_ip.txt") ? file("${path.module}/scripts/app/external_ip.txt") : "IP not available"
 }
 
 # Output the command to fetch Kubernetes cluster credentials.
 output "cluster_credentials_cmd" {
   description = "Kubernetes credentials"
-  value = local.k8s_credentials_cmd
+  value       = local.k8s_credentials_cmd
 }
