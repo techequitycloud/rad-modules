@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- /**
+/**
  * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 # ============================================
 # VERIFY GKE HUB API IS ENABLED
 # ============================================
@@ -41,7 +41,7 @@ resource "null_resource" "verify_gke_hub_api_activation_hub" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       
@@ -74,7 +74,7 @@ resource "null_resource" "wait_for_api_propagation" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       
@@ -134,7 +134,7 @@ resource "null_resource" "wait_for_iam_propagation" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
 
@@ -169,13 +169,13 @@ resource "google_gke_hub_membership" "gke_cluster" {
   project       = local.project.project_id
   location      = "global"
   membership_id = var.gke_cluster
-  
+
   endpoint {
     gke_cluster {
       resource_link = "//container.googleapis.com/projects/${local.project.project_id}/locations/${var.gcp_region}/clusters/${var.gke_cluster}"
     }
   }
-  
+
   authority {
     issuer = "https://container.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.gcp_region}/clusters/${var.gke_cluster}"
   }
