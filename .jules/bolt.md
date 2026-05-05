@@ -1,0 +1,3 @@
+## 2024-05-05 - Avoid `timestamp()` as a trigger in `null_resource` with `local-exec`
+**Learning:** When using `null_resource` with `local-exec` to download or generate files, using `always_run = timestamp()` forces the resource to run on every `terraform apply`. This slows down deployments unnecessarily, and can cause two-apply state issues forcing resource recreation.
+**Action:** Rely on static triggers (like version numbers) and handle idempotency with bash logic within the `local-exec` provisioner (e.g., `if [ -f "..." ]; then exit 0; fi`) to skip redundant executions instead of using `always_run = timestamp()`.
