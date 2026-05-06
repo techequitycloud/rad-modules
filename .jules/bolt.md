@@ -1,0 +1,3 @@
+## 2024-05-06 - [Reduce terraform apply time by removing redundant tarball downloads]
+**Learning:** Using `always_run = timestamp()` on null_resource tasks like downloading the bank-of-anthos release forces a re-execution on every `terraform apply`, which also cascades to other dependent apply operations like kubectl apply tasks, causing delays on subsequent runs even when no changes were made.
+**Action:** Instead of `always_run`, rely on static triggers (like version numbers) and handle idempotency with bash logic within the `local-exec` provisioner (e.g., `if [ -d "..." ] && [ -f "..." ]; then echo "Files already exist, skipping download"; exit 0; fi`) to skip redundant executions and improve idempotency.
