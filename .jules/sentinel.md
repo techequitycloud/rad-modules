@@ -1,0 +1,4 @@
+## 2025-05-24 - [Over-permissioned GKE Node Service Accounts]
+**Vulnerability:** The default GKE Node service accounts defined in `modules/Istio_GKE`, `modules/Bank_GKE`, and `modules/MC_Bank_GKE` were excessively granted `roles/storage.objectAdmin` in their respective `gke_sa_project_roles` configuration, which grants project-wide write access to Google Cloud Storage buckets.
+**Learning:** This widespread pattern within the Foundation Layer exposed the entire project's GCS objects to any workload running on the clusters. Over-permissioned IAM bindings in core Terraform layers have wide-reaching blast radiuses across all deployed App Layer environments.
+**Prevention:** Strictly enforce the principle of least privilege. In this case, `roles/storage.objectViewer` is sufficient for node pull/read operations, and write access must be delegated on a per-bucket basis using specific Workload Identities or narrowly-scoped IAM roles rather than node-level identity.
