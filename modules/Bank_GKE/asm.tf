@@ -21,10 +21,10 @@ resource "null_resource" "verify_gke_hub_api_activation" {
   depends_on = [
     google_project_service.enabled_services,
   ]
-  
+
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       
@@ -57,15 +57,15 @@ resource "null_resource" "verify_gke_hub_api_activation" {
 # ============================================
 resource "null_resource" "verify_mesh_api_activation" {
   count = var.enable_cloud_service_mesh ? 1 : 0
-  
+
   depends_on = [
     google_project_service.enabled_services,
     null_resource.verify_gke_hub_api_activation,
   ]
-  
+
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       
@@ -112,7 +112,7 @@ resource "google_gke_hub_feature" "service_mesh" {
   project  = local.project.project_id
   name     = "servicemesh"
   location = "global"
-  
+
   fleet_default_member_config {
     mesh {
       management = "MANAGEMENT_AUTOMATIC"
@@ -130,14 +130,14 @@ resource "google_gke_hub_feature" "service_mesh" {
 # ============================================
 resource "null_resource" "verify_mesh_feature_active" {
   count = var.enable_cloud_service_mesh ? 1 : 0
-  
+
   depends_on = [
     google_gke_hub_feature.service_mesh,
   ]
-  
+
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       
@@ -170,8 +170,8 @@ resource "null_resource" "verify_mesh_feature_active" {
   }
 
   triggers = {
-    project_id  = local.project.project_id
-    feature_id  = google_gke_hub_feature.service_mesh[0].name
+    project_id = local.project.project_id
+    feature_id = google_gke_hub_feature.service_mesh[0].name
   }
 }
 
@@ -201,14 +201,14 @@ resource "google_gke_hub_feature_membership" "service_mesh_feature_member" {
 # ============================================
 resource "null_resource" "verify_hub_membership" {
   count = var.enable_cloud_service_mesh ? 1 : 0
-  
+
   depends_on = [
     google_gke_hub_membership.gke_cluster,
   ]
-  
+
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       CLUSTER_NAME="${var.gke_cluster}"
@@ -246,8 +246,8 @@ resource "null_resource" "verify_hub_membership" {
   }
 
   triggers = {
-    project_id   = local.project.project_id
-    cluster_name = var.gke_cluster
+    project_id    = local.project.project_id
+    cluster_name  = var.gke_cluster
     membership_id = google_gke_hub_membership.gke_cluster.membership_id
   }
 }
@@ -257,15 +257,15 @@ resource "null_resource" "verify_hub_membership" {
 # ============================================
 resource "null_resource" "verify_mesh_status" {
   count = var.enable_cloud_service_mesh ? 1 : 0
-  
+
   depends_on = [
     google_gke_hub_feature_membership.service_mesh_feature_member,
     null_resource.verify_hub_membership,
   ]
-  
+
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       PROJECT_NUMBER="${local.project_number}"
@@ -349,7 +349,7 @@ resource "null_resource" "verify_mesh_status" {
 # ============================================
 resource "null_resource" "wait_for_service_mesh" {
   count = var.enable_cloud_service_mesh ? 1 : 0
-  
+
   depends_on = [
     null_resource.verify_mesh_status,
     kubernetes_namespace.bank_of_anthos,
@@ -357,7 +357,7 @@ resource "null_resource" "wait_for_service_mesh" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       
       PROJECT_ID="${local.project.project_id}"
