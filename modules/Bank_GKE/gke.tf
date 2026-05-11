@@ -53,13 +53,13 @@ provider "kubernetes" {
 #########################################################################
 
 resource "google_container_cluster" "gke_cluster" {
-  count                 = var.create_cluster ? 1 : 0
-  project               = local.project.project_id
-  name                  = var.gke_cluster
-  location              = var.gcp_region
-  deletion_protection   = false
-  network               = local.network.name
-  subnetwork            = local.subnet.name
+  count               = var.create_cluster ? 1 : 0
+  project             = local.project.project_id
+  name                = var.gke_cluster
+  location            = var.gcp_region
+  deletion_protection = false
+  network             = local.network.name
+  subnetwork          = local.subnet.name
 
   enable_autopilot         = var.create_autopilot_cluster
   remove_default_node_pool = var.create_autopilot_cluster ? null : true
@@ -163,7 +163,8 @@ resource "google_container_node_pool" "preemptible_nodes" {
 
 locals {
   gke_sa_project_roles = [
-    "roles/storage.objectAdmin",
+    # Sentinel Security Fix: Replaced roles/storage.objectAdmin with roles/storage.objectViewer.
+    # Impact: Prevent project-wide destructive access for default node SA, enforcing least privilege.
     "roles/storage.objectViewer",
     "roles/artifactregistry.reader",
     "roles/monitoring.metricWriter",
