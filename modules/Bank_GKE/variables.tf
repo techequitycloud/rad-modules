@@ -22,6 +22,12 @@ variable "module_description" {
   default     = "This module deploys an advanced, microservice banking demo application on Google Kubernetes Engine (GKE), utilizing Cloud Service Mesh for enhanced security and multi-cluster management. It serves as a reference implementation for highly scalable, secure, and feature-rich banking platforms. This module is for educational purposes only."
 }
 
+variable "module_documentation" {
+  description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https://docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
+  type        = string
+  default     = "https://docs.radmodules.dev/docs/modules/Bank_GKE"
+}
+
 variable "module_dependency" {
   description = "Ordered list of module names that must be fully deployed before this module can be deployed. The platform enforces this sequence. Defaults to ['GCP Project']. {{UIMeta group=0 order=102 }}"
   type        = list(string)

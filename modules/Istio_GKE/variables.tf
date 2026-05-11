@@ -22,6 +22,12 @@ variable "module_description" {
   default     = "This module configures the Open Source Istio service mesh on a Google Kubernetes Engine (GKE) cluster, providing a dedicated infrastructure layer for secure, fast, and reliable service-to-service communication. You can choose between ambient or sidecar mesh and explore advanced features like traffic management, security, and observability. This module is for educational purposes only."
 }
 
+variable "module_documentation" {
+  description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https://docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
+  type        = string
+  default     = "https://docs.radmodules.dev/docs/modules/Istio_GKE"
+}
+
 variable "module_dependency" {
   description = "Ordered list of module names that must be fully deployed before this module can be deployed. The platform enforces this sequence. Defaults to ['GCP Project']. {{UIMeta group=0 order=102 }}"
   type        = list(string)

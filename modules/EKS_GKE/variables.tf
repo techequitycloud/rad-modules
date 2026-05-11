@@ -22,6 +22,12 @@ variable "module_description" {
   default     = "This module enables you to create and manage an Amazon Elastic Kubernetes Service (EKS) cluster from your Google Cloud console, providing a unified way for organizations using both AWS and Google Cloud to manage their applications. This module is for demonstration purposes only."
 }
 
+variable "module_documentation" {
+  description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https://docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
+  type        = string
+  default     = "https://docs.radmodules.dev/docs/modules/EKS_GKE"
+}
+
 variable "module_dependency" {
   description = "Ordered list of module names that must be fully deployed before this module can be deployed. The platform enforces this sequence. Defaults to ['AWS Account', 'GCP Project']. {{UIMeta group=0 order=101 }}"
   type        = list(string)
