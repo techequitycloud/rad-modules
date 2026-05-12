@@ -34,7 +34,7 @@ locals {
 
 resource "google_monitoring_service" "gke_services" {
   for_each = var.enable_monitoring ? toset(local.monitoring_services) : []
-  
+
   service_id   = each.key
   display_name = each.key
   project      = local.project.project_id
@@ -54,10 +54,10 @@ resource "google_monitoring_service" "gke_services" {
 resource "google_monitoring_slo" "gke_services_slo_limit_utilization" {
   for_each = var.enable_monitoring ? toset(local.monitoring_services) : []
 
-  project       = local.project.project_id
-  service       = google_monitoring_service.gke_services[each.key].service_id
-  display_name  = "95.0% - CPU Limit Utilization Metric - Calendar day"
-  goal          = 0.95
+  project         = local.project.project_id
+  service         = google_monitoring_service.gke_services[each.key].service_id
+  display_name    = "95.0% - CPU Limit Utilization Metric - Calendar day"
+  goal            = 0.95
   calendar_period = "DAY"
 
   windows_based_sli {
