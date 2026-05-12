@@ -59,18 +59,18 @@ locals {
 #########################################################################
 
 resource "google_container_cluster" "gke_standard_cluster" {
-  count                     = var.create_cluster ? 1 : 0
-  project                   = local.project.project_id
-  name                      = var.gke_cluster
-  location                  = var.gcp_region
-  allow_net_admin           = true
-  networking_mode           = "VPC_NATIVE"
-  datapath_provider         = "LEGACY_DATAPATH"
-  remove_default_node_pool  = true
-  initial_node_count        = 1
-  deletion_protection       = false
-  network                   = local.network.name
-  subnetwork                = local.subnet.name
+  count                    = var.create_cluster ? 1 : 0
+  project                  = local.project.project_id
+  name                     = var.gke_cluster
+  location                 = var.gcp_region
+  allow_net_admin          = true
+  networking_mode          = "VPC_NATIVE"
+  datapath_provider        = "LEGACY_DATAPATH"
+  remove_default_node_pool = true
+  initial_node_count       = 1
+  deletion_protection      = false
+  network                  = local.network.name
+  subnetwork               = local.subnet.name
 
   ip_allocation_policy {
     cluster_secondary_range_name  = var.pod_ip_range
