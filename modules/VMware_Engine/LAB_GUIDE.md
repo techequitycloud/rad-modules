@@ -301,7 +301,37 @@ management network and your peer VPC are now exchanged. If it still shows
 > requires the NSX-T Manager UI or the VMware NSX-T Terraform provider with
 > separate API credentials.
 
-### Step 4.1 — Create the NSX-T Workload Segment
+### Step 4.1 — Create a DHCP Server on the NSX-T Tier-1 Gateway
+
+A DHCP Server must be configured on the Tier-1 Gateway before creating the
+workload segment so that VMs deployed to the segment can receive IP addresses
+automatically.
+
+1. On the jump host, switch to the **NSX-T Manager** browser tab.
+2. On the NSX-T Manager home page, click **Networking > Tier-1 Gateways**.
+3. Next to the deployed Tier-1 Gateway, click the **three ellipsis dots (⋮)**
+   and select **Edit**.
+4. In the **DHCP Config** row, click **Set**.
+5. Under **Type**, select **DHCP Server** from the dropdown.
+6. Click the **three ellipsis dots (⋮)** next to **DHCP Server Profile** and
+   select **Create New**.
+7. Enter the following values for the new DHCP profile:
+
+| Field | Value |
+|---|---|
+| DHCP Profile Name | `DHCP-Class` |
+| Server IP Address | `172.21.0.5/24` |
+| Edge Cluster | `edge-cluster` (select from dropdown) |
+
+8. Click **Save** to save the DHCP profile.
+9. Click **Apply** and then **Save** to apply the DHCP config to the gateway.
+10. Click **Close Editing** to exit the Tier-1 Gateway configuration.
+
+**Expected result:** The Tier-1 Gateway shows the DHCP Server profile
+`DHCP-Class` configured with server IP `172.21.0.5/24`. The gateway is now
+ready to serve DHCP leases to VMs on segments connected to it.
+
+### Step 4.2 — Create the NSX-T Workload Segment
 
 1. On the jump host, switch to the **NSX-T Manager** browser tab.
 2. On the NSX-T Manager home page, click **Networking > Segments**.
@@ -315,14 +345,25 @@ management network and your peer VPC are now exchanged. If it still shows
 | Transport Zone | `TZ-OVERLAY \| Overlay` (select from dropdown) |
 | Subnets — Gateway IP/Prefix Length | `192.168.142.1/24` |
 
-5. Click **Save**.
-6. When prompted to continue editing, click **No**.
+5. Click **Set DHCP Config**.
+6. Configure the DHCP settings for this segment:
+
+| Field | Value |
+|---|---|
+| DHCP Type | `Gateway DHCP Server` |
+| DHCP Range | `192.168.142.10-192.168.142.50` (press Enter to confirm) |
+| DNS Servers | `10.11.0.234` |
+
+7. Click **Apply**.
+8. Click **Save** to save the segment.
+9. When prompted to continue editing, click **No**.
 
 **Expected result:** The segment `my-nsx-network` appears in the Segments list
 with a status of **Success**. The route `192.168.142.0/24` is automatically
-exported to the peered VPC via the active network peering.
+exported to the peered VPC via the active network peering. VMs deployed to
+this segment will receive addresses in the range `192.168.142.10–50` via DHCP.
 
-### Step 4.2 — Verify the Route is Exported to the VPC
+### Step 4.3 — Verify the Route is Exported to the VPC
 
 1. Switch back to the Google Cloud console on your local machine.
 2. Navigate to **VMware Engine > VPC Network Peerings**.
@@ -334,7 +375,7 @@ exported to the peered VPC via the active network peering.
 confirming end-to-end connectivity between the GCVE workload network and
 the peer VPC.
 
-### Step 4.3 — Confirm Internet Access is Active
+### Step 4.4 — Confirm Internet Access is Active
 
 Terraform created the network policy with internet access enabled, but
 activation can take up to 15 minutes.
@@ -345,9 +386,9 @@ activation can take up to 15 minutes.
 
 **Expected result:** Internet access and external IP services show as
 **Enabled**. If they still show as pending, wait and refresh before proceeding
-to Step 4.5.
+to Step 4.6.
 
-### Step 4.4 — Confirm the HTTP Firewall Rule Exists
+### Step 4.5 — Confirm the HTTP Firewall Rule Exists
 
 Terraform created the `default-allow-http` rule automatically. Verify it is
 in place before deploying workload VMs.
@@ -363,7 +404,7 @@ in place before deploying workload VMs.
 **Expected result:** Rule is present. No manual action needed — this was
 created by Terraform.
 
-### Step 4.5 — Deploy the Bank of Anthos OVF Template
+### Step 4.6 — Deploy the Bank of Anthos OVF Template
 
 1. On the jump host, switch to the **vSphere Client** browser tab.
 2. Click **Menu > Inventory**, then click the **VMs and Templates** icon.
@@ -389,7 +430,7 @@ created by Terraform.
 **Expected result:** The `bank-of-anthos` VM template appears under
 **Datacenter > Workload VMs** in the vSphere inventory.
 
-### Step 4.6 — Power On the Workload VMs
+### Step 4.7 — Power On the Workload VMs
 
 1. In the vSphere Client, click **Menu > VMs and Templates**.
 2. Navigate to **Datacenter > Workload VMs**.
@@ -404,7 +445,7 @@ created by Terraform.
 **Expected result:** All three VMs are running and have been assigned IP
 addresses on the `192.168.142.0/24` network.
 
-### Step 4.7 — Verify Workload Connectivity
+### Step 4.8 — Verify Workload Connectivity
 
 1. On the jump host, open the **Cloud Shell** window.
 2. Ping the front-end VM to confirm network reachability:
@@ -1379,7 +1420,8 @@ automated by the `VMware_Engine` Terraform module or performed manually.
 | Open vCenter in browser | 3 | No — jump host browser session |
 | Open NSX-T Manager in browser | 3 | No — jump host browser session |
 | Confirm peering is Active | 3 | No — console verification |
-| Create NSX-T workload segment | 4 | No — NSX-T Manager UI |
+| Create DHCP Server on NSX-T T1-Gateway | 4 | No — NSX-T Manager UI |
+| Create NSX-T workload segment with DHCP config | 4 | No — NSX-T Manager UI |
 | Verify exported routes | 4 | No — console verification |
 | Confirm Network Policy internet activation | 4 | No — console verification |
 | Deploy bank-of-anthos OVF to vCenter | 4 | No — vSphere Client UI |
