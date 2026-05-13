@@ -251,7 +251,7 @@ from your local machine will not work without GCVE-specific DNS configuration.
 4. Click **Launch vSphere Client (HTML5)**.
 5. Log in using:
    - **Username:** `solution-user-01@gve.local`
-   - **Password:** the credential printed in the `tofu apply` log (saved in Step 1.3)
+   - **Password:** the credential saved in Step 1.3
 
 **Expected result:** The vSphere Client dashboard loads showing the
 `lab-private-cloud` management cluster.
