@@ -7,7 +7,7 @@ This guide walks through the full Migrate to Virtual Machines v5 lab using the
 infrastructure setup. Everything inside vSphere and NSX-T, and all Migrate to
 Virtual Machines console operations, are performed manually.
 
-**Estimated time:** 2–3 hours (includes ~90 minutes of background provisioning)
+**Estimated time:** 2–3 hours (includes ~150 minutes of background provisioning)
 
 ### What Terraform Automates
 
