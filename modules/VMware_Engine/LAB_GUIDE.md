@@ -1151,7 +1151,7 @@ successfully and the web service is running on Compute Engine.
 Engine instances — `front-end` as a test clone and `back-end` and `db-server`
 as permanent cut-over instances.
 
-### Step 12.7 — Finalise Migrations (Optional)
+### Step 12.5 — Finalise Migrations (Optional)
 
 Finalisation permanently removes all migration management resources for a
 completed cut-over, freeing up quota and cleaning up the migration state.
@@ -1174,7 +1174,7 @@ migration service.
 > done
 > ```
 
-### Step 12.8 — View the Adaptation Report
+### Step 12.6 — View the Adaptation Report
 
 The service automatically adapts each migrated OS to run on Compute Engine —
 installing virtio drivers, Compute Engine guest agents, and configuring the
@@ -1192,7 +1192,7 @@ serial console. The adaptation report shows exactly what was changed.
 automatically during the clone or cut-over, confirming the VM is prepared for
 Compute Engine without manual guest OS changes.
 
-### Step 12.9 — Cancel a Cut-Over (Awareness)
+### Step 12.7 — Cancel a Cut-Over (Awareness)
 
 If a cut-over is initiated at the wrong time or against the wrong VM, it can
 be cancelled while in progress.
