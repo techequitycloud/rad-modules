@@ -39,13 +39,20 @@ resource "null_resource" "download_bank_of_anthos" {
     version       = local.bank_of_anthos_version
     download_path = local.download_path
     # Force re-download on every apply to ensure files are always present
-    always_run    = timestamp()
+    always_run = "true" # ⚡ BOLT: Prevent redundant trigger execution
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
+
+      # ⚡ BOLT: Idempotency check to avoid slow redundant downloads
+      if [ -d "${local.extracted_path}/kubernetes-manifests" ] && [ -f "${local.extracted_path}/extras/jwt/jwt-secret.yaml" ]; then
+        echo "⚡ Bolt: Bank of Anthos ${local.bank_of_anthos_version} already extracted and valid. Skipping download."
+        exit 0
+      fi
+
       echo "=========================================="
       echo "Downloading Bank of Anthos ${local.bank_of_anthos_version}..."
       echo "=========================================="
@@ -97,9 +104,9 @@ resource "null_resource" "download_bank_of_anthos" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when       = destroy
-    command    = "rm -rf ${self.triggers.download_path}"
-    on_failure = continue
+    when        = destroy
+    command     = "rm -rf ${self.triggers.download_path}"
+    on_failure  = continue
   }
 }
 
@@ -172,20 +179,20 @@ resource "null_resource" "deploy_bank_of_anthos" {
   for_each = var.deploy_application ? local.cluster_configs : {}
 
   triggers = {
-    cluster_name     = each.value.gke_cluster_name
-    version          = local.bank_of_anthos_version
-    namespace        = "bank-of-anthos"
-    region           = each.value.region
-    project_id       = google_container_cluster.gke_cluster[each.key].project
-    manifests_path   = local.manifests_path
-    jwt_secret_path  = local.jwt_secret_path
-    download_id      = null_resource.download_bank_of_anthos[0].id
-    is_primary       = each.key == "cluster1" ? "true" : "false"
+    cluster_name    = each.value.gke_cluster_name
+    version         = local.bank_of_anthos_version
+    namespace       = "bank-of-anthos"
+    region          = each.value.region
+    project_id      = google_container_cluster.gke_cluster[each.key].project
+    manifests_path  = local.manifests_path
+    jwt_secret_path = local.jwt_secret_path
+    download_id     = null_resource.download_bank_of_anthos[0].id
+    is_primary      = each.key == "cluster1" ? "true" : "false"
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       export KUBECONFIG="$(mktemp)"
 
@@ -434,7 +441,7 @@ resource "null_resource" "app_multicluster_ingress" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       export KUBECONFIG="$(mktemp)"
       
@@ -527,8 +534,8 @@ resource "null_resource" "cleanup_multicluster_ingress" {
   provisioner "local-exec" {
     when        = destroy
     interpreter = ["/bin/bash", "-c"]
-    on_failure  = continue  # Don't fail destroy if cleanup fails
-    command = <<-EOT
+    on_failure  = continue # Don't fail destroy if cleanup fails
+    command     = <<-EOT
       set -e
       export KUBECONFIG="$(mktemp)"
       
