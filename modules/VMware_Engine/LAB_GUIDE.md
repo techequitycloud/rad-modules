@@ -161,7 +161,14 @@ tofu output
 The vCenter solution user credentials are printed to the apply log by the
 `null_resource.vcenter_credentials_reset` provisioner. Scroll back through
 the output and save both the username (`solution-user-01@gve.local`) and the
-generated password — you will need them in Phase 3.
+generated password — you will need them in Phase 3. You can retrieve the credentials using the command
+`gcloud vmware private-clouds vcenter credentials describe \
+  --private-cloud=<altostrat-<id>-private-cloud> \
+  --location=us-west1-a \
+  --project=<existing_project_id> \
+  --username=solution-user-01@gve.local`
+
+  Optionally add `--impersonate-service-account=<terraform_resource_creator_identity_SA>` if required.
 
 ---
 
