@@ -1,24 +1,79 @@
 # MC\_Bank\_GKE Module
 
-This module deploys the **Bank of Anthos** microservices banking demo application (v0.6.7) across multiple GKE clusters in multiple GCP regions. It provisions all clusters from a single Terraform configuration, configures Cloud Service Mesh fleet-wide, enables Multi-Cluster Ingress (MCI) and Multi-Cluster Services (MCS) for cross-cluster traffic, and exposes the application via a global HTTPS load balancer.
+This module deploys the **Bank of Anthos** microservices banking demo (v0.6.7)
+across two or more GKE clusters in separate GCP regions. A single `tofu apply`
+provisions the shared VPC and per-cluster subnets, creates the clusters
+(Autopilot or Standard), registers them to a GKE Fleet, installs
+Google-managed Cloud Service Mesh (mTLS, distributed tracing, topology view),
+deploys all ten Bank of Anthos microservices, and wires up a Multi-Cluster
+Ingress global load balancer so traffic is routed to the nearest healthy
+cluster. The databases run on the primary cluster only; all other clusters
+reach them transparently via Multi-Cluster Services.
 
-For a detailed technical walkthrough of the full implementation, see [MC\_Bank\_GKE.md](MC_Bank_GKE.md).
+For the full hands-on lab — covering Fleet exploration, ASM topology, MCI
+failover testing, observability, and advanced features — see
+**[LAB\_GUIDE.md](LAB_GUIDE.md)**.
 
-## Usage
+## Prerequisites
 
-```hcl
-module "mc_bank_gke" {
-  source = "./modules/MC_Bank_GKE"
+| Requirement | Detail |
+|---|---|
+| OpenTofu / Terraform | >= 1.3 |
+| Google Cloud SDK | Authenticated; `kubectl` component installed (`gcloud components install kubectl`) |
+| GCP project | Must exist with billing enabled |
+| Provisioning service account | Must hold `roles/owner` on the target project |
+| Caller permissions | Must hold `roles/iam.serviceAccountTokenCreator` on the provisioning service account |
+| GCP quota | 2× GKE clusters, 1 global static IP, sufficient regional CPU for node pools |
 
-  existing_project_id = "my-gcp-project"
-  available_regions   = ["us-west1", "us-east1"]
-  cluster_size        = 2
+## Quick Start
 
-  create_autopilot_cluster  = true
-  enable_cloud_service_mesh = true
-  deploy_application        = true
-}
-```
+1. **Create a `terraform.tfvars` file** in this directory with at minimum:
+
+   ```hcl
+   existing_project_id = "your-project-id"
+   ```
+
+2. **Deploy:**
+
+   ```bash
+   tofu init
+   tofu apply
+   ```
+
+   Provisioning takes approximately 45–60 minutes. The global load balancer
+   may take an additional 10–15 minutes to become healthy after apply completes.
+
+3. **Get the application URL:**
+
+   ```bash
+   gcloud compute addresses describe bank-of-anthos \
+     --global --project=$(tofu output -raw project_id) \
+     --format='value(address)'
+   ```
+
+   Open `http://<address>` in a browser to reach the Bank of Anthos UI.
+
+4. **Tear down:**
+
+   ```bash
+   tofu destroy
+   ```
+
+See [LAB\_GUIDE.md](LAB_GUIDE.md) for a complete walkthrough of all features.
+
+## Key Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `existing_project_id` | *(required)* | Target GCP project ID |
+| `available_regions` | `["us-west1", "us-east1"]` | Regions for clusters, assigned round-robin |
+| `cluster_size` | `2` | Number of GKE clusters (2–4) |
+| `create_autopilot_cluster` | `true` | `true` = Autopilot; `false` = Standard |
+| `release_channel` | `REGULAR` | GKE upgrade channel |
+| `enable_cloud_service_mesh` | `true` | Install Google-managed Istio across all clusters |
+| `deploy_application` | `true` | Deploy Bank of Anthos after clusters are ready |
+
+---
 
 <!-- BEGIN_TF_DOCS -->
 Copyright 2023 Google LLC
