@@ -37,12 +37,12 @@ provisioning)
 
 ---
 
-## REST API Overview
+## CLI and REST API Overview
 
-Every action in this lab can be performed via the GKE Multi-Cloud REST API
-(`gkemulticloud.googleapis.com/v1`) and GKE Hub API (`gkehub.googleapis.com/v1`)
-as an alternative to the Cloud Console UI. API equivalents are shown after each
-relevant step.
+Every action in this lab can be performed via the `gcloud` CLI or the GKE
+Multi-Cloud REST API (`gkemulticloud.googleapis.com/v1`) and GKE Hub API
+(`gkehub.googleapis.com/v1`) as alternatives to the Cloud Console UI. Both
+`gcloud` and REST API equivalents are shown after each relevant step.
 
 **Base URLs:**
 
@@ -201,6 +201,14 @@ tofu show | grep -E "cluster_id|resource_group|oidc_issuer"
 any native GKE clusters in the project. The **Type: Attached** indicator
 confirms it is an externally-managed cluster registered via GKE Hub.
 
+> **gcloud equivalent — describe the attached cluster:**
+> ```bash
+> gcloud container attached clusters describe ${CLUSTER} \
+>   --location=${REGION} \
+>   --project=${PROJECT} \
+>   --format='yaml(name,state,kubernetesVersion,platformVersion)'
+> ```
+>
 > **REST API equivalent — describe the attached cluster:**
 > ```bash
 > curl -s \
@@ -222,6 +230,13 @@ fleet in your GCP project. Fleet membership enables centralized management,
 logging, and access control across all clusters — both native GKE and
 Attached — in the fleet.
 
+> **gcloud equivalent — list fleet memberships:**
+> ```bash
+> gcloud container fleet memberships list \
+>   --project=${PROJECT} \
+>   --format='table(name,state.code,endpoint)'
+> ```
+>
 > **REST API equivalent — list fleet memberships:**
 > ```bash
 > curl -s \
@@ -334,6 +349,13 @@ control plane.
 consistent with the `logging_config` and `monitoring_config` blocks in
 the Terraform resource.
 
+> **gcloud equivalent — list fleet features:**
+> ```bash
+> gcloud container fleet features list \
+>   --project=${PROJECT} \
+>   --format='table(name,resourceState.state)'
+> ```
+>
 > **REST API equivalent — list fleet features:**
 > ```bash
 > curl -s \
@@ -454,6 +476,15 @@ Clean up:
 kubectl delete pod log-test
 ```
 
+> **gcloud equivalent — query logs via the CLI:**
+> ```bash
+> gcloud logging read \
+>   "resource.type=k8s_container AND resource.labels.cluster_name=${CLUSTER} AND resource.labels.pod_name=log-test" \
+>   --project=${PROJECT} \
+>   --limit=5 \
+>   --format='table(timestamp,textPayload)'
+> ```
+>
 > **REST API equivalent — query logs via the Logging API:**
 > ```bash
 > curl -s -X POST \
@@ -522,6 +553,16 @@ kubectl top pods --all-namespaces
 **Expected result:** Per-pod resource utilization is visible, consistent
 with the metrics shown in Cloud Monitoring.
 
+> **gcloud equivalent — list available metric descriptors for the cluster:**
+> ```bash
+> gcloud monitoring metrics list \
+>   --filter="metric.type:kubernetes.io/node" \
+>   --project=${PROJECT} \
+>   --format='table(metric.type)'
+> ```
+> Note: Reading time-series data points is not supported by the `gcloud` CLI;
+> use the REST API or Metrics Explorer in the console for that purpose.
+>
 > **REST API equivalent — query metrics via the Monitoring API:**
 > ```bash
 > START=$(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || \
@@ -697,6 +738,13 @@ things are needed: a GCP IAM binding and a Kubernetes RBAC binding.
    (`roles/gkehub.gatewayEditor`).
 5. Click **Save**.
 
+**gcloud equivalent:**
+```bash
+gcloud projects add-iam-policy-binding ${PROJECT} \
+  --member="user:team-member@example.com" \
+  --role="roles/gkehub.gatewayEditor"
+```
+
 **Step B — Grant Kubernetes RBAC access:**
 
 ```bash
@@ -731,6 +779,13 @@ kubectl auth can-i get secret --all-namespaces
 **Expected result:** All three commands return `yes`, confirming that your
 identity has cluster-admin access granted by the `trusted_users` binding.
 
+> **gcloud equivalent — check fleet membership IAM policy:**
+> ```bash
+> gcloud container fleet memberships get-iam-policy ${CLUSTER} \
+>   --project=${PROJECT} \
+>   --format='yaml(bindings)'
+> ```
+>
 > **REST API equivalent — check fleet membership IAM policy:**
 > ```bash
 > curl -s -X POST \
@@ -753,6 +808,13 @@ from the AKS OIDC endpoint.
 **View the configured OIDC issuer URL:**
 
 ```bash
+# gcloud
+gcloud container attached clusters describe ${CLUSTER} \
+  --location=${REGION} \
+  --project=${PROJECT} \
+  --format='yaml(oidcConfig)'
+
+# REST API
 curl -s \
   "${MULTICLOUD_BASE}/projects/${PROJECT}/locations/${REGION}/attachedClusters/${CLUSTER}" \
   -H "Authorization: Bearer $TOKEN" \
@@ -770,6 +832,13 @@ Before upgrading the cluster, check which platform versions are available
 for the target Kubernetes version:
 
 ```bash
+# gcloud
+gcloud container attached get-server-config \
+  --location=${REGION} \
+  --project=${PROJECT} \
+  --format='yaml(validVersions)'
+
+# REST API
 curl -s \
   "${MULTICLOUD_BASE}/projects/${PROJECT}/locations/${REGION}:getServerConfig" \
   -H "Authorization: Bearer $TOKEN" \
@@ -804,6 +873,17 @@ purpose-built roles:
 4. Add the roles **GKE Multi-Cloud Viewer** and **GKE Hub Viewer**.
 5. Click **Save**.
 
+**gcloud equivalent:**
+```bash
+gcloud projects add-iam-policy-binding ${PROJECT} \
+  --member="user:USER_EMAIL" \
+  --role="roles/gkemulticloud.viewer"
+
+gcloud projects add-iam-policy-binding ${PROJECT} \
+  --member="user:USER_EMAIL" \
+  --role="roles/gkehub.viewer"
+```
+
 **Expected result:** The user can view the attached cluster in the console
 and via API but cannot modify the registration, trigger upgrades, or
 access the cluster via Connect Gateway.
@@ -821,6 +901,16 @@ protoPayload.serviceName=("gkemulticloud.googleapis.com" OR "gkehub.googleapis.c
 ```
 
 3. Click **Run Query**.
+
+**gcloud equivalent:**
+```bash
+gcloud logging read \
+  'protoPayload.serviceName=("gkemulticloud.googleapis.com" OR "gkehub.googleapis.com")' \
+  --project=${PROJECT} \
+  --limit=10 \
+  --format='table(timestamp,protoPayload.methodName,protoPayload.authenticationInfo.principalEmail,protoPayload.status.code)'
+```
+
 4. Expand individual entries and review:
    - `protoPayload.methodName` — the API method called (e.g.
      `google.cloud.gkemulticloud.v1.AttachedClusters.CreateAttachedCluster`)
