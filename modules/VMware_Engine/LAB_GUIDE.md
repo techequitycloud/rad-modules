@@ -459,7 +459,7 @@ The Migrate Connector OVF requires an SSH public key at deploy time to allow
 admin access to the appliance.
 
 1. On the jump host, click the Windows **Start** button and search for
-   **PuTTYgen**. Open the application.
+   **PuTTYgen**. If not found, download from https://puttygen.com/ and install. Open the application.
 2. Click **Generate** and move your mouse over the blank area to generate
    randomness until the progress bar completes.
 3. Click **Save private key**. When prompted about saving without a passphrase,
