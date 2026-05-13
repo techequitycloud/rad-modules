@@ -530,7 +530,7 @@ https://storage.googleapis.com/vmmigration-public-artifacts/migrate-connector-2-
 | Select a compute resource | Navigate to **Datacenter > Workload**, click Next |
 | Review details | Click Next |
 | Select storage | Select **vsanDatastore**, click Next |
-| Select networks — VM Network | Select networks — Destination Network | Click the dropdown, select **Browse**, choose **my-nsx-network**, click OK, then Next  |
+| Select networks — Destination Network | Click the dropdown, select **Browse**, choose **my-nsx-network**, click OK, then Next  |
 
 7. On the **Customize Template** screen, locate the **SSH Public Key** field.
 8. Switch to PuTTYgen, select the entire public key text starting with
