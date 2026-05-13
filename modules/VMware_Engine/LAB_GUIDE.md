@@ -479,7 +479,7 @@ Desktop. The public key is displayed in the PuTTYgen window.
    **Next**:
 
 ```
-https://storage.googleapis.com/vmmigration-public-artifacts/migrate-connector-2-7-2874.ova
+https://storage.googleapis.com/vmmigration-public-artifacts/migrate-connector-2-8-2977.ova
 ```
 
 4. If prompted to accept an SSL certificate, click **Yes**.
