@@ -109,7 +109,16 @@ directory.
 
 ### `(2)` Enable APIs
 
-Enables `cloudapis.googleapis.com` and `container.googleapis.com`.
+**What it does:**
+- **Create:** Enables `cloudapis.googleapis.com` and
+  `container.googleapis.com` on your project.
+- **Delete:** No-op — API enablement is not reversed.
+
+**Expected result:** Running
+`gcloud services list --enabled --filter="name:container.googleapis.com"`
+returns the GKE API as `ENABLED`.
+
+---
 
 **Expected result:** Both APIs show as enabled in the Google Cloud console
 under **APIs & Services > Enabled APIs**. No action needed if they are already
