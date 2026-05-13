@@ -472,45 +472,43 @@ Desktop. The public key is displayed in the PuTTYgen window.
 
 ### Step 6.2 — Deploy the Migrate Connector OVF
 
-1. On the jump host, switch to the **vSphere Client** browser tab.
-2. Right-click the **Workload** in the left-hand resource tree and select
-   **Deploy OVF Template**.
-3. On the **Select an OVF template** page, enter the following URL and click
-   **Next**:
-
+1. Paste the URL below to download the Migrate Connector OVA file.
 ```
 https://storage.googleapis.com/vmmigration-public-artifacts/migrate-connector-2-8-2977.ova
 ```
-
-4. If prompted to accept an SSL certificate, click **Yes**.
-5. Step through the wizard using the values below:
+2. On the jump host, switch to the **vSphere Client** browser tab.
+3. Right-click the **Workload** in the left-hand resource tree and select
+   **Deploy OVF Template**.
+4. On the **Select an OVF template** page, Select **Local file** and click the **UPLOAD FILES** button and select the downloaded migrate-connector-2-8-2977.ova file. Click **Next**.
+5. If prompted to accept an SSL certificate, click **Yes**.
+6. Step through the wizard using the values below:
 
 | Wizard Step | Value |
 |---|---|
-| Select a name and folder | Leave defaults, click Next |
-| Select a compute resource | Leave defaults, click Next |
+| Select a name and folder | Leave default name, select **HCX Management VMs** folder, click Next |
+| Select a compute resource | Select **HCX Management** folder, click Next |
 | Review details | Click Next |
 | Select storage | Select **vsanDatastore**, click Next |
 | Select networks — VM Network | Select networks — Destination Network | Click the dropdown, select **Browse**, choose **my-nsx-network**, click OK, then Next  |
 
-6. On the **Customize Template** screen, locate the **SSH Public Key** field.
-7. Switch to PuTTYgen, select the entire public key text starting with
+7. On the **Customize Template** screen, locate the **SSH Public Key** field.
+8. Switch to PuTTYgen, select the entire public key text starting with
    `ssh-rsa` through to the end, and copy it.
-8. Paste the public key into the **SSH Public Key** field in the vSphere wizard.
-9. Click **Next**, then click **Finish**.
-10. Monitor the **Recent Tasks** pane and wait for the deployment to complete.
+9. Paste the public key into the **SSH Public Key** field in the vSphere wizard.
+10. Click **Next**, then click **Finish**.
+11. Monitor the **Recent Tasks** pane and wait for the deployment to complete.
 
 > If you encounter an error during deployment, start the wizard again from
 > Step 2.
 
-**Expected result:** The `migrate-connector` VM appears in the vSphere
+**Expected result:** The `M4C` VM appears in the vSphere
 inventory and the Recent Tasks pane shows the deployment as completed
 successfully.
 
 ### Step 6.3 — Power On the Migrate Connector
 
 1. In the vSphere Client left-hand navigation, select the
-   **migrate-connector** instance.
+   **M4C** instance.
 2. Click the **Power on** button.
 3. Wait until the VM details pane shows an IP address assigned
    (format: `172.16.10.xx`). Note this IP address — you will SSH to it
@@ -529,12 +527,12 @@ Terraform reset and retrieved the vCenter solution user credentials at the end
 of Phase 1. Retrieve them now if you did not save them earlier.
 
 1. On your local machine, open Cloud Shell in the Google Cloud console.
-2. Run the following command (replace `us-west2-a` and `altostrat-private-cloud`
+2. Run the following command (replace `us-west2-a` and `altostrat-ID-private-cloud`
    if you used different values):
 
 ```bash
 gcloud vmware private-clouds vcenter credentials describe \
-  --private-cloud=altostrat-private-cloud \
+  --private-cloud=altostrat-ID-private-cloud \
   --username=solution-user-01@gve.local \
   --location=us-west2-a
 ```
