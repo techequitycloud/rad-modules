@@ -527,7 +527,7 @@ https://storage.googleapis.com/vmmigration-public-artifacts/migrate-connector-2-
 | Wizard Step | Value |
 |---|---|
 | Select a name and folder | Navigate to **Datacenter > Workload VMs**, click Next |
-| Select a compute resource | Select **lab-cluster**, click Next |
+| Select a compute resource | Navigate to **Datacenter > Workload VMs**, click Next |
 | Review details | Click Next |
 | Select storage | Select **vsanDatastore**, click Next |
 | Select networks — VM Network | Select networks — Destination Network | Click the dropdown, select **Browse**, choose **my-nsx-network**, click OK, then Next  |
