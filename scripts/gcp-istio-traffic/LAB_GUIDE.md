@@ -266,8 +266,6 @@ open during the demo to observe each scenario from multiple angles.
 | Request timeouts | `timeout` field on `VirtualService` | Productpage returns a timeout error when the upstream exceeds the configured limit |
 | Retry policies | `retries` field on `VirtualService` | Istio transparently retries failed requests; Jaeger traces show retry spans |
 
----
-
 ## Working files
 
 ```
@@ -279,7 +277,7 @@ open during the demo to observe each scenario from multiple angles.
 $HOME/istio-<ISTIO_VERSION>/   # istioctl + samples/bookinfo manifests
 ```
 
----
+`.env` is backed up to `gs://<GCP_PROJECT>/gcp-istio-traffic.sh.env`.
 
 ## Cleanup
 
