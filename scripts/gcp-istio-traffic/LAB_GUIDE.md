@@ -2,32 +2,23 @@
 
 ## Execution modes (option `0`)
 
-When you select `0` the script asks how it should behave:
-
 | Reply | Mode | Behavior |
 |-------|------|----------|
-| `y` (default) | **Preview** | Prints every command without running it. Safe for review. |
-| `n` | **Create** | Authenticates, sets the project, and executes commands. |
-| `d` | **Delete** | Tears down the resources created by each step. |
+| `y` (default) | **Preview** | Prints commands without running them. |
+| `n` | **Create** | Authenticates, applies all changes against your project/cluster. |
+| `d` | **Delete** | Removes resources created by each step. |
 
-In Create or Delete mode the script will:
-
-1. Run `gcloud auth login` if no service-account key is cached.
-2. Prompt for the Google Cloud project ID to operate against.
-3. Create a service account `<project>@<project>.iam.gserviceaccount.com`,
-   grant it `roles/owner`, save its key to
-   `./gcp-istio-traffic/.<project>.json`, and create a `gs://<project>` bucket
-   for backing up `.env`.
-4. Re-export the configuration to `./gcp-istio-traffic/.env`.
-
-To change projects later, delete the cached key file and run option `0` again.
-
----
+In Create / Delete mode the script runs `gcloud auth login`, asks for the
+project ID, creates a service account
+`<project>@<project>.iam.gserviceaccount.com` with `roles/owner`, drops the
+key at `./gcp-istio-traffic/.<project>.json`, and creates a
+`gs://<project>` bucket for backing up `.env`. Delete the cached key file to
+switch projects later.
 
 ## Configuration (`.env`)
 
-The script creates `./gcp-istio-traffic/.env` on first run. Edit values before
-running the numbered steps:
+Created at `./gcp-istio-traffic/.env`. Edit values before running the
+numbered steps:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -39,34 +30,25 @@ running the numbered steps:
 
 The application namespace and name are hardcoded to `bookinfo`.
 
-`.env` is backed up to `gs://<GCP_PROJECT>/gcp-istio-traffic.sh.env` so it can
-be restored across Cloud Shell sessions.
-
----
-
 ## Menu walkthrough
 
-Run `1` → `8` once to bring up the cluster, install Istio, and deploy Bookinfo.
-Then use `9` to step through the traffic-management scenarios.
+Run `1` → `8` once to bring up the cluster, install Istio, and deploy
+Bookinfo. Then use `9` to step through the traffic-management scenarios.
 
 ### `(1) Install tools`
-
 Downloads Istio `$ISTIO_VERSION` from GitHub and extracts it to
 `$HOME/istio-${ISTIO_VERSION}` so `istioctl` and the Bookinfo sample manifests
 are available locally. Delete mode removes the directory.
 
 ### `(2) Enable APIs`
-
 Enables `cloudapis.googleapis.com` and `container.googleapis.com`.
 
 ### `(3) Create Kubernetes cluster`
-
 Creates `$GCP_CLUSTER` in `$GCP_REGION` with two `n1-standard-2` Spot nodes
 and the Gateway API enabled. Fetches credentials and grants your user
 `cluster-admin`. Delete mode deletes the cluster.
 
 ### `(4) Install Istio`
-
 Runs `istioctl install --set profile=default -y`, then deploys an Istio
 `IngressGateway` into the application namespace via a generated
 `ingress.yaml` IstioOperator. Also installs four observability addons from
@@ -74,32 +56,28 @@ Runs `istioctl install --set profile=default -y`, then deploys an Istio
 **Prometheus**, **Jaeger**, **Grafana**, and **Kiali**.
 
 ### `(5) Configure namespace for automatic sidecar injection`
-
-Creates the `bookinfo` namespace and labels it `istio-injection=enabled`.
-Delete mode removes the namespace and label.
+Creates the `bookinfo` namespace and labels it
+`istio-injection=enabled`. Delete mode removes the namespace and label.
 
 ### `(6) Configure service and deployment`
-
 Applies `samples/bookinfo/platform/kube/bookinfo.yaml`, deploying the four
 Bookinfo microservices (`productpage`, `details`, `reviews` v1/v2/v3,
 `ratings`). Waits up to 600 s for the deployments to become available. Delete
 mode removes them.
 
 ### `(7) Configure gateway and virtualservice`
-
 Applies `samples/bookinfo/networking/bookinfo-gateway.yaml`, exposing the
 Bookinfo `productpage` through the Istio ingress gateway.
 
 ### `(8) Configure subsets`
-
-Applies `samples/bookinfo/networking/destination-rule-all.yaml`, defining named
-subsets per microservice version. Required for the routing scenarios in step 9.
+Applies `samples/bookinfo/networking/destination-rule-all.yaml`, defining
+named subsets per microservice version. Required for the routing scenarios
+in step 9.
 
 ### `(9) Explore Istio traffic management`
-
-The interactive demo. In Create mode it generates continuous `curl` traffic to
-the ingress IP and pauses between scenarios so you can observe behavior in
-Grafana / Kiali / Jaeger:
+The interactive demo. In Create mode it generates continuous `curl` traffic
+to the ingress IP and pauses between scenarios so you can observe the
+behavior in Grafana / Kiali / Jaeger:
 
 - Route 100% to `reviews` v1.
 - Route user `jason` to v2 while everyone else stays on v1.
@@ -122,31 +100,26 @@ curl http://${INGRESS_HOST}/productpage
 ```
 
 ### `(R)` / `(G)` / `(Q)`
-
 - `R` — show maintainer credits.
 - `G` — launch the bundled Cloud Shell tutorial (Cloud Shell only).
 - `Q` — quit.
 
----
-
 ## Working files
-
-After running option `0` you'll have:
 
 ```
 ./gcp-istio-traffic/
-├── .env                       # current configuration (edit to customise)
-├── .<GCP_PROJECT>.json        # service-account key (delete to switch projects)
+├── .env                       # current configuration
+├── .<GCP_PROJECT>.json        # service-account key
 └── ingress.yaml               # IstioOperator written by step 4
 
 $HOME/istio-<ISTIO_VERSION>/   # istioctl + samples/bookinfo manifests
 ```
 
----
+`.env` is backed up to `gs://<GCP_PROJECT>/gcp-istio-traffic.sh.env`.
 
 ## Cleanup
 
-The cluster and addons are the cost drivers. To tear down:
+The cluster and the addons are the cost drivers. To tear down:
 
 1. Option `0` → `d` (delete mode).
 2. Run option `9` in delete mode to revert any demo `VirtualService`s.

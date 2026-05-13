@@ -12,9 +12,9 @@ sidecar egress, port-level load balancing, timeouts, and retries.
 |---|---|
 | GCP project | Billing enabled; quota for a 2-node `n1-standard-2` GKE cluster (Spot VMs by default) |
 | `gcloud` CLI | Authenticated as a project Owner or Editor |
-| `kubectl` | Available locally or installed via `gcloud components` |
-| Internet egress | Required to download Istio from `github.com/istio/istio` and pull images from Docker Hub / `gcr.io` |
-| `pv` | Installed automatically via `sudo apt-get`; install manually on non-Debian systems |
+| `kubectl` | Available locally, or install via `gcloud components install kubectl` |
+| Internet egress | Required to download Istio releases from `github.com/istio/istio` and pull images from Docker Hub / `gcr.io` |
+| `pv` | Installed automatically on Debian/Ubuntu via `sudo apt-get`; install manually on other systems |
 
 ## Quick start
 
@@ -26,4 +26,5 @@ cd /path/where/you/want/working/files
 A menu loops until you press `Q`. **Always start each session by pressing `0`**
 to choose an execution mode and confirm the GCP project.
 
-For the full walkthrough — execution modes, configuration variables, step-by-step menu guide, and cleanup — see [LAB_GUIDE.md](LAB_GUIDE.md).
+See [LAB_GUIDE.md](LAB_GUIDE.md) for the full walkthrough: execution modes,
+configuration variables, step-by-step menu guide, and cleanup instructions.
