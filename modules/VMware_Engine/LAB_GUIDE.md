@@ -417,7 +417,7 @@ created by Terraform.
 
 | Wizard Step | Value |
 |---|---|
-| Select a name and folder | Navigate to **Datacenter > Workload VMs**, click Next |
+| Select a name and folder | Navigate to **Datacenter > Workload**, click Next |
 | Select a compute resource | Select **Workload**, click Next |
 | Review details | Click Next |
 | Select storage | Select **vsanDatastore**, click Next |
@@ -428,12 +428,12 @@ created by Terraform.
    complete before proceeding.
 
 **Expected result:** The `bank-of-anthos` VM template appears under
-**Datacenter > Workload VMs** in the vSphere inventory.
+**Datacenter > Workload** in the vSphere inventory.
 
 ### Step 4.7 — Power On the Workload VMs
 
 1. In the vSphere Client, click **Menu > VMs and Templates**.
-2. Navigate to **Datacenter > Workload VMs**.
+2. Navigate to **Datacenter > Workload**.
 3. Select **bank-of-anthos**.
 4. Click **Actions > Power > Power On**.
 5. In the bank-of-anthos details pane, click **VMs**.
@@ -526,8 +526,8 @@ https://storage.googleapis.com/vmmigration-public-artifacts/migrate-connector-2-
 
 | Wizard Step | Value |
 |---|---|
-| Select a name and folder | Navigate to **Datacenter > Workload VMs**, click Next |
-| Select a compute resource | Navigate to **Datacenter > Workload VMs**, click Next |
+| Select a name and folder | Navigate to **Datacenter > Workload**, click Next |
+| Select a compute resource | Navigate to **Datacenter > Workload**, click Next |
 | Review details | Click Next |
 | Select storage | Select **vsanDatastore**, click Next |
 | Select networks — VM Network | Select networks — Destination Network | Click the dropdown, select **Browse**, choose **my-nsx-network**, click OK, then Next  |
