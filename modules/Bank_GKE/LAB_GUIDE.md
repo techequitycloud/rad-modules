@@ -40,11 +40,11 @@ tasks are performed manually after deployment.
 
 ---
 
-## REST API / kubectl Overview
+## gcloud / kubectl / REST API Overview
 
-Every action in this lab can be performed via `kubectl`, the GKE REST API, or
-the Fleet Hub API as an alternative to the Cloud Console UI. API equivalents
-are shown after each relevant step.
+Every action in this lab can be performed via `gcloud`, `kubectl`, the GKE
+REST API, or the Fleet Hub API as an alternative to the Cloud Console UI.
+Equivalent commands are shown after each relevant step.
 
 **Set these shell variables once before running any command:**
 
@@ -219,7 +219,15 @@ userservice-xxx-yyy                    2/2     Running   0          10m
 > `bank-of-anthos` namespace was labelled `istio.io/rev=asm-managed` by
 > Terraform, which triggers automatic injection for all new pods.
 
-> **REST API equivalent — list pods:**
+> **gcloud equivalent — check cluster status and node count:**
+> ```bash
+> gcloud container clusters describe $CLUSTER_NAME \
+>   --region=$REGION \
+>   --project=$PROJECT_ID \
+>   --format="table(name,status,currentNodeCount,autopilot.enabled)"
+> ```
+>
+> **kubectl JSON equivalent — list pods with readiness detail:**
 > ```bash
 > kubectl get pods -n bank-of-anthos -o json | \
 >   jq '.items[] | {name: .metadata.name, ready: (.status.containerStatuses | map(.ready) | all), phase: .status.phase}'
@@ -344,7 +352,14 @@ Note the service types:
 services use `ClusterIP`, meaning they are not directly exposed to the internet.
 The service mesh enforces mTLS on all ClusterIP-to-ClusterIP communication.
 
-> **REST API equivalent — list services and their types:**
+> **gcloud equivalent — list load balancer forwarding rules (shows the frontend external IP):**
+> ```bash
+> gcloud compute forwarding-rules list \
+>   --project=$PROJECT_ID \
+>   --format="table(name,IPAddress,IPProtocol,target)"
+> ```
+>
+> **kubectl JSON equivalent — list services with type and IP:**
 > ```bash
 > kubectl get services -n bank-of-anthos -o json | \
 >   jq '.items[] | {name: .metadata.name, type: .spec.type, clusterIP: .spec.clusterIP}'
@@ -365,6 +380,14 @@ The service mesh enforces mTLS on all ClusterIP-to-ClusterIP communication.
 
 **Expected result:** All workloads are in a `Running` state. The cluster
 overview confirms security features and Workload Identity are active.
+
+> **gcloud equivalent — describe cluster summary:**
+> ```bash
+> gcloud container clusters describe $CLUSTER_NAME \
+>   --region=$REGION \
+>   --project=$PROJECT_ID \
+>   --format="table(name,status,currentNodeCount,currentMasterVersion,releaseChannel.channel,autopilot.enabled)"
+> ```
 
 ---
 
@@ -508,11 +531,18 @@ correct service communication pattern for the banking application.
 `loadgenerator` synthetic traffic, showing healthy request rates with
 near-zero error rates and low latency.
 
-> **REST API equivalent — list available ASM metrics:**
+> **gcloud equivalent — list available ASM metrics:**
 > ```bash
 > gcloud monitoring metrics list \
 >   --filter="metric.type:istio.io" \
 >   --project=$PROJECT_ID | head -30
+> ```
+>
+> **REST API equivalent:**
+> ```bash
+> curl -s \
+>   "https://monitoring.googleapis.com/v3/projects/$PROJECT_ID/metricDescriptors?filter=metric.type%3Dstarts_with(%22istio.io%22)" \
+>   -H "Authorization: Bearer $TOKEN" | jq '.metricDescriptors[].type' | head -30
 > ```
 
 ---
@@ -712,11 +742,18 @@ Bank of Anthos microservices. View them in the console:
 per calendar day where the container CPU limit utilisation stays at or below
 100%.
 
-> **REST API equivalent — list monitoring services:**
+> **gcloud equivalent — list monitoring services:**
 > ```bash
 > gcloud monitoring services list \
 >   --project=$PROJECT_ID \
 >   --filter="basic_service.service_type=GKE_SERVICE"
+> ```
+>
+> **REST API equivalent:**
+> ```bash
+> curl -s \
+>   "https://monitoring.googleapis.com/v3/projects/$PROJECT_ID/services?filter=basic_service.service_type%3DGKE_SERVICE" \
+>   -H "Authorization: Bearer $TOKEN" | jq '.services[] | {name, displayName}'
 > ```
 
 ### Step 6.2 — Explore the SLO Dashboard
@@ -735,6 +772,26 @@ per calendar day where the container CPU limit utilisation stays at or below
 `loadgenerator` keeps all services under sustained load, making this a
 meaningful real-time indicator.
 
+> **gcloud equivalent — list SLOs for a monitoring service:**
+> ```bash
+> gcloud monitoring services list \
+>   --project=$PROJECT_ID \
+>   --filter="basic_service.service_type=GKE_SERVICE" \
+>   --format="value(name)" | while read SVC; do
+>     echo "=== $SVC ==="; \
+>     gcloud monitoring services service-level-objectives list "$SVC" \
+>       --project=$PROJECT_ID \
+>       --format="table(name,displayName,goal)"; \
+>   done
+> ```
+>
+> **REST API equivalent — list SLOs for the frontend service:**
+> ```bash
+> curl -s \
+>   "https://monitoring.googleapis.com/v3/projects/$PROJECT_ID/services/frontend/serviceLevelObjectives" \
+>   -H "Authorization: Bearer $TOKEN" | jq '.serviceLevelObjectives[] | {name, displayName, goal}'
+> ```
+
 ### Step 6.3 — Query CPU Metrics in Metrics Explorer
 
 1. Navigate to **Monitoring > Metrics Explorer**.
@@ -748,11 +805,18 @@ meaningful real-time indicator.
 container. The `loadgenerator` drives sustained utilisation across
 `frontend`, `ledgerwriter`, and the balance reader services.
 
-> **REST API equivalent — list available Kubernetes CPU metrics:**
+> **gcloud equivalent — list available Kubernetes CPU metrics:**
 > ```bash
 > gcloud monitoring metrics list \
 >   --filter="metric.type:kubernetes.io/container/cpu" \
 >   --project=$PROJECT_ID
+> ```
+>
+> **REST API equivalent:**
+> ```bash
+> curl -s \
+>   "https://monitoring.googleapis.com/v3/projects/$PROJECT_ID/metricDescriptors?filter=metric.type%3Dstarts_with(%22kubernetes.io%2Fcontainer%2Fcpu%22)" \
+>   -H "Authorization: Bearer $TOKEN" | jq '.metricDescriptors[] | {type, description}'
 > ```
 
 ### Step 6.4 — View the Managed Prometheus Endpoint
@@ -798,6 +862,20 @@ errors at a rate above a defined threshold:
 under normal load. The policy will fire if a fault injection or real failure
 causes sustained write errors.
 
+> **gcloud equivalent — list existing alert policies:**
+> ```bash
+> gcloud alpha monitoring policies list \
+>   --project=$PROJECT_ID \
+>   --format="table(name,displayName,enabled)"
+> ```
+>
+> **REST API equivalent — list alert policies:**
+> ```bash
+> curl -s \
+>   "https://monitoring.googleapis.com/v3/projects/$PROJECT_ID/alertPolicies" \
+>   -H "Authorization: Bearer $TOKEN" | jq '.alertPolicies[] | {name, displayName, enabled}'
+> ```
+
 ---
 
 ## Phase 7 — GKE Security Features [MANUAL]
@@ -828,6 +906,21 @@ the deployed workloads. For this demo application, findings are informational.
 In a production environment these findings would drive a container image
 update or policy enforcement process.
 
+> **gcloud equivalent — check security posture configuration on the cluster:**
+> ```bash
+> gcloud container clusters describe $CLUSTER_NAME \
+>   --region=$REGION \
+>   --project=$PROJECT_ID \
+>   --format="yaml(securityPostureConfig)"
+> ```
+>
+> **REST API equivalent — retrieve cluster security posture settings:**
+> ```bash
+> curl -s \
+>   "https://container.googleapis.com/v1/projects/$PROJECT_ID/locations/$REGION/clusters/$CLUSTER_NAME" \
+>   -H "Authorization: Bearer $TOKEN" | jq '.securityPostureConfig'
+> ```
+
 ### Step 7.2 — Verify Workload Identity Is Active
 
 Workload Identity allows Kubernetes service accounts to impersonate GCP
@@ -857,6 +950,13 @@ gcloud container node-pools list \
   --region=$REGION \
   --project=$PROJECT_ID
 ```
+
+> **REST API equivalent — get cluster workload identity config:**
+> ```bash
+> curl -s \
+>   "https://container.googleapis.com/v1/projects/$PROJECT_ID/locations/$REGION/clusters/$CLUSTER_NAME" \
+>   -H "Authorization: Bearer $TOKEN" | jq '.workloadIdentityConfig'
+> ```
 
 ### Step 7.3 — Inspect Sidecar Injection and Namespace Configuration
 
@@ -896,6 +996,13 @@ Review each section:
 - `monitoringConfig.managedPrometheus.enabled: true` — Managed Prometheus active
 
 **Expected result:** All security and observability features are confirmed active.
+
+> **REST API equivalent — get full cluster configuration:**
+> ```bash
+> curl -s \
+>   "https://container.googleapis.com/v1/projects/$PROJECT_ID/locations/$REGION/clusters/$CLUSTER_NAME" \
+>   -H "Authorization: Bearer $TOKEN" | jq '{securityPostureConfig, workloadIdentityConfig, addonsConfig, gatewayApiConfig, monitoringConfig}'
+> ```
 
 ---
 
@@ -939,6 +1046,8 @@ Look for:
 **Expected result:** The membership is healthy and its authority issuer matches
 the GKE cluster.
 
+> **gcloud equivalent — shown in the main step above.**
+>
 > **REST API equivalent — describe fleet membership:**
 > ```bash
 > curl -s \
@@ -961,7 +1070,9 @@ consistently across all enrolled clusters — this is the mechanism that allows
 a single `gcloud container hub features` command to control ASM across dozens
 of clusters simultaneously.
 
-> **REST API equivalent:**
+> **gcloud equivalent — shown in the main step above.**
+>
+> **REST API equivalent — list fleet features:**
 > ```bash
 > curl -s \
 >   "https://gkehub.googleapis.com/v1/projects/$PROJECT_ID/locations/global/features" \
@@ -991,6 +1102,13 @@ gcloud container hub config-management status \
 **Expected result:** The output shows the cluster as `SYNCED`, meaning Config
 Sync has successfully pulled configuration from the Git repository specified
 by `config_sync_repo` and applied it to the cluster.
+
+> **REST API equivalent — get ACM feature status:**
+> ```bash
+> curl -s \
+>   "https://gkehub.googleapis.com/v1/projects/$PROJECT_ID/locations/global/features/configmanagement" \
+>   -H "Authorization: Bearer $TOKEN" | jq '.membershipStates | to_entries[] | {cluster: .key, syncState: .value.configSync.syncState}'
+> ```
 
 ### Step 9.2 — View Config Sync Reconciler Pods
 
@@ -1067,10 +1185,19 @@ Scale back to a single replica:
 kubectl scale deployment frontend --replicas=1 -n bank-of-anthos
 ```
 
-> **REST API equivalent — patch replicas:**
+> **kubectl alternative — patch replicas directly:**
 > ```bash
 > kubectl patch deployment frontend -n bank-of-anthos \
 >   -p '{"spec":{"replicas":3}}'
+> ```
+>
+> **REST API equivalent — patch deployment via Kubernetes API:**
+> ```bash
+> curl -s -X PATCH \
+>   "https://$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')/apis/apps/v1/namespaces/bank-of-anthos/deployments/frontend" \
+>   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+>   -H "Content-Type: application/merge-patch+json" \
+>   -d '{"spec":{"replicas":3}}' | jq '.spec.replicas'
 > ```
 
 ### Step 10.2 — Trigger a Rolling Update
@@ -1179,13 +1306,26 @@ protoPayload.authenticationInfo.principalEmail!=""
 `kubectl apply`, and `kubectl rollout restart` operations performed during
 this lab.
 
-> **REST API equivalent — query audit logs:**
+> **gcloud equivalent — query audit logs:**
 > ```bash
 > gcloud logging read \
 >   'resource.type="k8s_cluster" AND protoPayload.methodName=~"(create|delete|patch)"' \
 >   --project=$PROJECT_ID \
 >   --limit=10 \
 >   --format="json" | jq '.[].protoPayload | {method: .methodName, caller: .authenticationInfo.principalEmail}'
+> ```
+>
+> **REST API equivalent:**
+> ```bash
+> curl -s -X POST \
+>   "https://logging.googleapis.com/v2/entries:list" \
+>   -H "Authorization: Bearer $TOKEN" \
+>   -H "Content-Type: application/json" \
+>   -d "{
+>     \"resourceNames\": [\"projects/$PROJECT_ID\"],
+>     \"filter\": \"resource.type=k8s_cluster AND protoPayload.methodName=~\\\"(create|delete|patch)\\\"\",
+>     \"pageSize\": 10
+>   }" | jq '.entries[] | .protoPayload | {method: .methodName, caller: .authenticationInfo.principalEmail}'
 > ```
 
 ---
@@ -1205,6 +1345,29 @@ this lab.
 are visible, showing HTTP requests, gRPC calls, and database connection events.
 All logs are automatically collected because the cluster has `WORKLOADS`
 component logging enabled in `logging_config`.
+
+> **gcloud equivalent — tail application logs from Cloud Logging:**
+> ```bash
+> gcloud logging read \
+>   'resource.type="k8s_container" AND resource.labels.cluster_name="gke-cluster" AND resource.labels.namespace_name="bank-of-anthos"' \
+>   --project=$PROJECT_ID \
+>   --limit=20 \
+>   --format="json" | jq '.[] | {timestamp: .timestamp, container: .resource.labels.container_name, message: (.textPayload // (.jsonPayload | tostring))}'
+> ```
+>
+> **REST API equivalent:**
+> ```bash
+> curl -s -X POST \
+>   "https://logging.googleapis.com/v2/entries:list" \
+>   -H "Authorization: Bearer $TOKEN" \
+>   -H "Content-Type: application/json" \
+>   -d "{
+>     \"resourceNames\": [\"projects/$PROJECT_ID\"],
+>     \"filter\": \"resource.type=k8s_container AND resource.labels.cluster_name=gke-cluster AND resource.labels.namespace_name=bank-of-anthos\",
+>     \"pageSize\": 20,
+>     \"orderBy\": \"timestamp desc\"
+>   }" | jq '.entries[] | {timestamp: .timestamp, container: .resource.labels.container_name, message: (.textPayload // (.jsonPayload | tostring))}'
+> ```
 
 ### Step 11.2 — View Workload Logs from GKE Console
 
@@ -1233,6 +1396,36 @@ access service logs without navigating to the Logs Explorer separately.
 **Expected result:** The VPC is correctly configured with non-overlapping CIDR
 ranges and the minimum firewall rules required for GKE and load balancing.
 
+> **gcloud equivalent — list subnets and secondary ranges:**
+> ```bash
+> gcloud compute networks subnets list \
+>   --filter="network~vpc-network" \
+>   --project=$PROJECT_ID \
+>   --format="table(name,region,ipCidrRange,secondaryIpRanges.rangeName,secondaryIpRanges.ipCidrRange)"
+> ```
+>
+> **gcloud equivalent — list firewall rules for the VPC:**
+> ```bash
+> gcloud compute firewall-rules list \
+>   --filter="network~vpc-network" \
+>   --project=$PROJECT_ID \
+>   --format="table(name,direction,allowed[].map().firewall_rule().list():label=ALLOW,sourceRanges.list():label=SRC_RANGES)"
+> ```
+>
+> **REST API equivalent — list subnets:**
+> ```bash
+> curl -s \
+>   "https://compute.googleapis.com/compute/v1/projects/$PROJECT_ID/regions/$REGION/subnetworks?filter=network+eq+.*vpc-network" \
+>   -H "Authorization: Bearer $TOKEN" | jq '.items[] | {name, ipCidrRange, secondaryIpRanges}'
+> ```
+>
+> **REST API equivalent — list firewall rules:**
+> ```bash
+> curl -s \
+>   "https://compute.googleapis.com/compute/v1/projects/$PROJECT_ID/global/firewalls?filter=network+eq+.*vpc-network" \
+>   -H "Authorization: Bearer $TOKEN" | jq '.items[] | {name, direction, allowed, sourceRanges}'
+> ```
+
 ### Step 11.4 — Explore Cloud Trace
 
 The cluster has `cloudtrace.googleapis.com` enabled in the project APIs. ASM
@@ -1247,6 +1440,13 @@ automatically generates distributed traces for all mesh-enrolled services.
 **Expected result:** Distributed trace spans are visible showing the complete
 call chain for a single end-user request, including the latency contribution
 of each microservice.
+
+> **REST API equivalent — list recent traces:**
+> ```bash
+> curl -s \
+>   "https://cloudtrace.googleapis.com/v1/projects/$PROJECT_ID/traces?pageSize=5&orderBy=start+desc" \
+>   -H "Authorization: Bearer $TOKEN" | jq '.traces[] | {traceId, spans: [.spans[] | {name, startTime, endTime}]}'
+> ```
 
 ---
 
