@@ -352,7 +352,7 @@ ready to serve DHCP leases to VMs on segments connected to it.
 |---|---|
 | DHCP Type | `Gateway DHCP Server` |
 | DHCP Range | `192.168.142.10-192.168.142.50` (press Enter to confirm) |
-| DNS Servers | `10.11.0.234` |
+| DNS Servers | `172.20.1.234` |
 
 7. Click **Apply**.
 8. Click **Save** to save the segment.
