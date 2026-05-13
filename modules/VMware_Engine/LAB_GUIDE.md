@@ -267,7 +267,7 @@ from your local machine will not work without GCVE-specific DNS configuration.
 3. Click **Advanced**, then **Continue to nsx-XXX... (unsafe)**.
 4. Log in using the NSX-T credentials from the VMware Engine console:
    - In the Google Cloud console, navigate to **VMware Engine > Private Clouds**.
-   - Click **altostrat-private-cloud**.
+   - Click **altostrat-ID-private-cloud**.
    - In the **Management Appliances** section, click **NSX Manager** to view
      the NSX-T credentials.
 
@@ -284,7 +284,7 @@ active.
 
 1. In the Google Cloud console, navigate to
    **VMware Engine > VPC Network Peerings**.
-2. Confirm the peering named **altostrat-vpc-ven** shows a state of
+2. Confirm the peering named **altostrat-ID-vpc-ven** shows a state of
    **Active**.
 
 **Expected result:** Peering state is **Active**. Routes between the GCVE
@@ -326,7 +326,7 @@ exported to the peered VPC via the active network peering.
 
 1. Switch back to the Google Cloud console on your local machine.
 2. Navigate to **VMware Engine > VPC Network Peerings**.
-3. Click the peering name **altostrat-vpc-ven**.
+3. Click the peering name **altostrat-ID-vpc-ven**.
 4. Click the **Exported Routes** tab.
 5. Confirm a route with destination `192.168.142.0/24` is listed.
 
@@ -340,7 +340,7 @@ Terraform created the network policy with internet access enabled, but
 activation can take up to 15 minutes.
 
 1. In the Google Cloud console, navigate to **VMware Engine > Network Policies**.
-2. Confirm the policy **altostrat-<id>-edge-policy** shows **Internet access: Enabled**
+2. Confirm the policy **altostrat-ID-edge-policy** shows **Internet access: Enabled**
    for region `us-west2`.
 
 **Expected result:** Internet access and external IP services show as
