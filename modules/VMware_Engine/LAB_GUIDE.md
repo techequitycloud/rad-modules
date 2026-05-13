@@ -133,7 +133,7 @@ tofu apply plan.tfplan
 | API enablement | 1–2 minutes |
 | VMware Engine Network | 1–2 minutes |
 | Jump host + firewall rules | 2–3 minutes |
-| Private Cloud | 30–90 minutes |
+| Private Cloud | 120–180 minutes |
 | Network Peering (activation) | Up to 5 minutes after private cloud is ready |
 | Network Policy (internet activation) | Up to 15 minutes after private cloud is ready |
 | vCenter credential reset | 1–2 minutes after private cloud is ready |
