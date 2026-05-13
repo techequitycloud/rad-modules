@@ -340,7 +340,7 @@ Terraform created the network policy with internet access enabled, but
 activation can take up to 15 minutes.
 
 1. In the Google Cloud console, navigate to **VMware Engine > Network Policies**.
-2. Confirm the policy **altostrat-edge-policy** shows **Internet access: Enabled**
+2. Confirm the policy **altostrat-<id>-edge-policy** shows **Internet access: Enabled**
    for region `us-west2`.
 
 **Expected result:** Internet access and external IP services show as
