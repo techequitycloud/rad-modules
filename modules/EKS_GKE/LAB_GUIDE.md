@@ -47,9 +47,10 @@ provisioning)
 
 ## REST API Overview
 
-Every action in this lab can be performed via the GKE Multi-Cloud REST API
-(`gkemulticloud.googleapis.com/v1`) as an alternative to the Cloud Console UI
-or `gcloud` CLI. API equivalents are shown after each relevant step.
+Every action in this lab can be performed via the `gcloud` CLI or the GKE
+Multi-Cloud REST API (`gkemulticloud.googleapis.com/v1`) as an alternative to
+the Cloud Console UI. Both `gcloud` and REST API equivalents are shown after
+each relevant step.
 
 **Base URL:** `https://gkemulticloud.googleapis.com/v1`
 
@@ -72,6 +73,16 @@ curl -s "$BASE/projects/$PROJECT/locations/$LOCATION/operations/OPERATION_ID" \
 ```
 
 `done: true` with no `error` means the operation succeeded.
+
+> **gcloud note:** `gcloud container attached clusters` commands are
+> synchronous by default — they wait for the operation to finish before
+> returning. Pass `--async` to return immediately with an operation name, then
+> poll it with:
+> ```bash
+> gcloud container attached operations describe OPERATION_ID \
+>   --location=$LOCATION \
+>   --project=$PROJECT
+> ```
 
 ---
 
@@ -181,6 +192,14 @@ aws eks describe-cluster \
 **Expected result:** The GCP command returns cluster details including
 `state: RUNNING`. The AWS command returns `"ACTIVE"`.
 
+> **gcloud equivalent — get the attached cluster (short summary):**
+> ```bash
+> gcloud container attached clusters describe aws-eks-cluster \
+>   --location=us-central1 \
+>   --project=your-project-id \
+>   --format="table(name,state,distribution,platformVersion)"
+> ```
+>
 > **REST API equivalent — get the attached cluster:**
 > ```bash
 > curl -s "$BASE/projects/$PROJECT/locations/$LOCATION/attachedClusters/$CLUSTER" \
@@ -204,6 +223,13 @@ aws eks describe-cluster \
 **Expected result:** The cluster detail page loads showing the EKS cluster
 registered as an Attached Cluster. The **Status** field shows **Running**.
 
+> **gcloud equivalent — list all attached clusters:**
+> ```bash
+> gcloud container attached clusters list \
+>   --location=us-central1 \
+>   --project=your-project-id
+> ```
+>
 > **REST API equivalent — list all attached clusters:**
 > ```bash
 > curl -s "$BASE/projects/$PROJECT/locations/$LOCATION/attachedClusters" \
@@ -248,6 +274,14 @@ specified in `trusted_users` at deploy time. These accounts can connect to
 the cluster via the Connect Gateway without any additional RBAC configuration
 in the cluster itself.
 
+> **gcloud equivalent — view authorization config:**
+> ```bash
+> gcloud container attached clusters describe aws-eks-cluster \
+>   --location=us-central1 \
+>   --project=your-project-id \
+>   --format="json(authorization)"
+> ```
+>
 > **REST API equivalent — view authorization config:**
 > ```bash
 > curl -s "$BASE/projects/$PROJECT/locations/$LOCATION/attachedClusters/$CLUSTER" \
@@ -803,14 +837,22 @@ Terraform destroys resources in the correct dependency order:
 | EKS cluster deletion | 10–15 minutes |
 | VPC and networking cleanup | 1–2 minutes |
 
+> **gcloud equivalent — delete the attached cluster registration:**
+> ```bash
+> gcloud container attached clusters delete aws-eks-cluster \
+>   --location=us-central1 \
+>   --project=your-project-id
+> ```
+>
 > **REST API equivalent — delete the attached cluster registration:**
 > ```bash
 > curl -s -X DELETE \
 >   "$BASE/projects/$PROJECT/locations/$LOCATION/attachedClusters/$CLUSTER" \
 >   -H "Authorization: Bearer $TOKEN" | jq '{operation: .name}'
 > ```
-> Note: This only removes the GKE Hub registration. The EKS cluster itself
-> must be deleted separately via AWS.
+>
+> Note: Both commands only remove the GKE Hub registration. The EKS cluster
+> itself must be deleted separately via AWS.
 
 ---
 
