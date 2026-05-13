@@ -115,7 +115,6 @@ Minimum `terraform.tfvars` example:
 
 ```hcl
 existing_project_id = "your-project-id"
-peer_vpc_name       = "default"
 ```
 
 ### Step 1.2 — Initialise and Deploy
