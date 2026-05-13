@@ -64,7 +64,7 @@ curl -s "$BASE/projects/$PROJECT/locations/$REGION/operations/OPERATION_ID" \
 | OpenTofu / Terraform | >= 1.3 |
 | Google Cloud SDK (`gcloud`) | Authenticated and configured |
 | GCP Project | Must already exist with billing enabled |
-| Terraform resource creator Service Account | Must hold `roles/owner` on the target project. |
+| Terraform resource provisioning Service Account | Must hold `roles/owner` on the target project. |
 | Caller permissions | The identity running `tofu apply` must hold `roles/iam.serviceAccountTokenCreator` on the service account above |
 | RDP client | Windows built-in Remote Desktop, or any third-party RDP client |
 | PuTTY + PuTTYgen | Required for Migrate Connector SSH key setup — pre-installed on the Windows jump host |
@@ -109,7 +109,7 @@ the module defaults — override only what differs in your environment.
 | `jump_host_boot_disk_size_gb` | `50` | Minimum 50 GB for Windows Server 2022 |
 | `reset_vcenter_credentials` | `true` | Resets and retrieves vCenter solution user credentials after provisioning |
 | `vcenter_solution_user` | `solution-user-01@gve.local` | vCenter solution user used for Migrate Connector integration |
-| `resource_creator_identity` | `rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com` | Service account used to provision resources |
+| `resource_creator_identity` | *(not required if using cloud shell)* | Service account used by terraform to provision resources |
 
 Minimum `terraform.tfvars` example:
 
