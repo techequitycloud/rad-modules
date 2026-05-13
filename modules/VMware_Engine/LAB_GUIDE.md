@@ -64,7 +64,7 @@ curl -s "$BASE/projects/$PROJECT/locations/$REGION/operations/OPERATION_ID" \
 | OpenTofu / Terraform | >= 1.3 |
 | Google Cloud SDK (`gcloud`) | Authenticated and configured |
 | GCP Project | Must already exist with billing enabled |
-| Service Account | Must hold `roles/owner` on the target project. Default: `rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com` |
+| Terraform resource creator Service Account | Must hold `roles/owner` on the target project. |
 | Caller permissions | The identity running `tofu apply` must hold `roles/iam.serviceAccountTokenCreator` on the service account above |
 | RDP client | Windows built-in Remote Desktop, or any third-party RDP client |
 | PuTTY + PuTTYgen | Required for Migrate Connector SSH key setup — pre-installed on the Windows jump host |
