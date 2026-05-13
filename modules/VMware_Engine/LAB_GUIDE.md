@@ -845,7 +845,7 @@ the **VM Migrations** tab to see them listed.
 > done
 > ```
 
-### Step 10.2 — Create the 3-Tier Migration Group
+### Step 10.2 — Create the Bank-of-Anthos Migration Group
 
 Groups allow you to manage related VMs together and apply shared target
 settings in a single operation — ideal for multi-tier applications where
@@ -854,24 +854,24 @@ all components should move together.
 1. Click the **Sources** tab.
 2. Select the checkboxes for `front-end`, `back-end`, and `db-server`.
 3. Click **Add to Group**.
-4. Type `3-tier` as the new group name and click **Add to Group**.
+4. Type `bank-of-anthos` as the new group name and click **Add to Group**.
 
-**Expected result:** The three VMs are added to the `3-tier` group and the
+**Expected result:** The three VMs are added to the `bank-of-anthos` group and the
 group is visible on the **Groups** tab.
 
 > **REST API equivalent — create group and add members:**
 > ```bash
 > # Create the group
 > curl -s -X POST \
->   "$BASE/projects/$PROJECT/locations/$REGION/groups?groupId=3-tier" \
+>   "$BASE/projects/$PROJECT/locations/$REGION/groups?groupId=bank-of-anthos" \
 >   -H "Authorization: Bearer $TOKEN" \
 >   -H "Content-Type: application/json" \
->   -d '{"displayName": "3-tier", "migrationTargetType": "MIGRATION_TARGET_TYPE_GCE"}' | jq '.name'
+>   -d '{"displayName": "bank-of-anthos", "migrationTargetType": "MIGRATION_TARGET_TYPE_GCE"}' | jq '.name'
 >
 > # Add each VM to the group
 > for VM in front-end back-end db-server; do
 >   curl -s -X POST \
->     "$BASE/projects/$PROJECT/locations/$REGION/groups/3-tier:addGroupMigration" \
+>     "$BASE/projects/$PROJECT/locations/$REGION/groups/bank-of-anthos:addGroupMigration" \
 >     -H "Authorization: Bearer $TOKEN" \
 >     -H "Content-Type: application/json" \
 >     -d "{\"migratingVm\": \"projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/migratingVms/$VM\"}" \
@@ -879,10 +879,10 @@ group is visible on the **Groups** tab.
 > done
 > ```
 
-### Step 10.3 — Start Replication for the 3-Tier Group
+### Step 10.3 — Start Replication for the Bank-of-Anthos Group
 
 1. Click the **Groups** tab.
-2. Click the group name **3-tier** (click the name itself, not the checkbox).
+2. Click the group name **bank-of-anthos** (click the name itself, not the checkbox).
 3. Select the checkboxes for `front-end`, `back-end`, and `db-server`.
 4. Click **Migration > Start Replication**.
 5. Click the back arrow (top left) to return to the groups list.
@@ -976,7 +976,7 @@ will be created when a test clone or cut-over is triggered.
 
 1. In the Google Cloud console, navigate to
    **Compute Engine > Migrate to Virtual Machines**.
-2. Click the **Groups** tab and click the group name **3-tier**.
+2. Click the **Groups** tab and click the group name **bank-of-anthos**.
 3. Select the checkbox for **front-end**.
 4. Click **Edit Target Details**.
 5. Enter the following values:
@@ -1080,7 +1080,7 @@ committing to a full cut-over.
 
 1. In the Google Cloud console, navigate to
    **Compute Engine > Migrate to Virtual Machines**.
-2. Click the **Groups** tab and click the group name **3-tier**.
+2. Click the **Groups** tab and click the group name **bank-of-anthos**.
 3. Confirm the replication status for **front-end** is **Active**.
 4. Select the checkbox for **front-end**.
 5. Click **Cut-Over and Test-Clone > Test-Clone**.
@@ -1105,7 +1105,7 @@ Cut-over stops the source VM, performs a final incremental sync, and creates
 the permanent Compute Engine instance. It is an irreversible operation and
 should be scheduled during a maintenance window.
 
-1. In the **3-tier** group, confirm the replication status for **back-end**
+1. In the **bank-of-anthos** group, confirm the replication status for **back-end**
    and **db-server** is **Active**.
 2. Select the checkboxes for **back-end** and **db-server**.
 3. Click **Cut-Over and Test-Clone > Cut-Over**.
@@ -1113,7 +1113,7 @@ should be scheduled during a maintenance window.
 
 **Expected result:** Cut-over jobs are initiated for `back-end` and
 `db-server`. VM creation takes approximately 15 minutes. Progress can be
-monitored in the **Groups > 3-tier** view — both VMs will show **Cut Over**
+monitored in the **Groups > bank-of-anthos** view — both VMs will show **Cut Over**
 in the status column when complete.
 
 > **REST API equivalent — create cutover jobs:**
@@ -1443,7 +1443,7 @@ automated by the `VMware_Engine` Terraform module or performed manually.
 | Delete leftover VMs and disks from prior runs | 8 | No — console cleanup |
 | Create Weekly, Monthly, and Yearly utilization reports for front-end, back-end, db-server | 9 | No — Migrate to VMs console |
 | Create VM migrations for front-end, back-end, db-server | 10 | No — Migrate to VMs console |
-| Create 3-tier migration group | 10 | No — Migrate to VMs console |
+| Create bank-of-anthos migration group | 10 | No — Migrate to VMs console |
 | Start replication via group | 10 | No — Migrate to VMs console |
 | Monitor replication progress | 10 | No — Migrate to VMs console |
 | View replication cycle history | 10 | No — Migrate to VMs console |
