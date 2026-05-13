@@ -552,11 +552,11 @@ successfully.
    **M4C** instance.
 2. Click the **Power on** button.
 3. Wait until the VM details pane shows an IP address assigned
-   (format: `172.16.10.xx`). Note this IP address — you will SSH to it
+   (format: `192.168.142.xx`). Note this IP address — you will SSH to it
    in Phase 7.
 
 **Expected result:** The Migrate Connector VM is running and has an IP address
-on the internal management network.
+on the `my-nsx-network` workload segment.
 
 ---
 
@@ -596,7 +596,7 @@ vCenter.
 5. In the **Host Name** field, enter:
 
 ```
-admin@172.16.10.xx
+admin@192.168.142.xx
 ```
 
    Replace `xx` with the IP address noted in Step 6.3.
