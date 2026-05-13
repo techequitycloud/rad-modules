@@ -377,7 +377,7 @@ created by Terraform.
 | Wizard Step | Value |
 |---|---|
 | Select a name and folder | Navigate to **Datacenter > Workload VMs**, click Next |
-| Select a compute resource | Select **lab-cluster**, click Next |
+| Select a compute resource | Select **Workload**, click Next |
 | Review details | Click Next |
 | Select storage | Select **vsanDatastore**, click Next |
 | Select networks — Destination Network | Click the dropdown, select **Browse**, choose **my-nsx-network**, click OK, then Next |
@@ -473,7 +473,7 @@ Desktop. The public key is displayed in the PuTTYgen window.
 ### Step 6.2 — Deploy the Migrate Connector OVF
 
 1. On the jump host, switch to the **vSphere Client** browser tab.
-2. Right-click the **lab-cluster** in the left-hand resource tree and select
+2. Right-click the **Workload** in the left-hand resource tree and select
    **Deploy OVF Template**.
 3. On the **Select an OVF template** page, enter the following URL and click
    **Next**:
