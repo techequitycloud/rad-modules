@@ -43,7 +43,7 @@ variable "module_services" {
 variable "credit_cost" {
   description = "Number of platform credits consumed when this module is deployed. {{UIMeta group=0 order=103 }}"
   type        = number
-  default     = 500
+  default     = 100
 }
 
 variable "require_credit_purchases" {
@@ -67,7 +67,7 @@ variable "public_access" {
 variable "resource_creator_identity" {
   description = "Email of the Terraform service account used to provision resources (format: name@project-id.iam.gserviceaccount.com). Must hold roles/owner in the destination project. {{UIMeta group=0 order=107 updatesafe }}"
   type        = string
-  default     = ""
+  default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
 variable "deployment_id" {
