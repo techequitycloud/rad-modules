@@ -53,13 +53,13 @@ provider "kubernetes" {
 #########################################################################
 
 resource "google_container_cluster" "gke_cluster" {
-  count                 = var.create_cluster ? 1 : 0
-  project               = local.project.project_id
-  name                  = var.gke_cluster
-  location              = var.gcp_region
-  deletion_protection   = false
-  network               = local.network.name
-  subnetwork            = local.subnet.name
+  count               = var.create_cluster ? 1 : 0
+  project             = local.project.project_id
+  name                = var.gke_cluster
+  location            = var.gcp_region
+  deletion_protection = false
+  network             = local.network.name
+  subnetwork          = local.subnet.name
 
   enable_autopilot         = var.create_autopilot_cluster
   remove_default_node_pool = var.create_autopilot_cluster ? null : true
@@ -163,7 +163,13 @@ resource "google_container_node_pool" "preemptible_nodes" {
 
 locals {
   gke_sa_project_roles = [
-    "roles/storage.objectAdmin",
+    # SECURITY CONCERN: The node service account originally requested `roles/storage.objectAdmin`, granting
+    # destructive, project-wide write access to all GCS buckets.
+    # IMPACT: An exploit in a pod running under this service account could allow an attacker to delete or modify
+    # critical bucket data beyond the scope of this cluster's operations.
+    # FIX: Removed `roles/storage.objectAdmin` in favor of least-privilege `roles/storage.objectViewer` (which
+    # was already in the list) to ensure the service account only has read access. If applications need write
+    # access to specific buckets, Workload Identity should be used instead.
     "roles/storage.objectViewer",
     "roles/artifactregistry.reader",
     "roles/monitoring.metricWriter",
