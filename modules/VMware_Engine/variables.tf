@@ -22,6 +22,12 @@ variable "module_description" {
   default     = "This module deploys Google Cloud VMware Engine infrastructure, including a private cloud, VMware Engine network, VPC peering, network policy, and default VPC firewall rules. It is designed to support VM migration workflows and GCVE lab environments."
 }
 
+variable "module_documentation" {
+  description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https://docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
+  type        = string
+  default     = "https://github.com/techequitycloud/rad-modules/blob/main/modules/VMware_Engine/LAB_GUIDE.md"
+}
+
 variable "module_dependency" {
   description = "Ordered list of module names that must be fully deployed before this module can be deployed. {{UIMeta group=0 order=101 }}"
   type        = list(string)
