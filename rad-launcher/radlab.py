@@ -64,7 +64,7 @@ def main(varcontents={}, module_name=None, action=None, projid=None, tfbucket=No
     
         setup_path = os.getcwd()
     
-        # Setting "gcloud auth application-default" to deploy RAD Lab Modules
+        # Setting "gcloud auth application-default" to deploy RAD Modules
         currentusr = radlabauth(currentusr)
     
         # Setting up Project-ID
@@ -74,7 +74,7 @@ def main(varcontents={}, module_name=None, action=None, projid=None, tfbucket=No
         if check == True:
             launcherperm(projid, currentusr)
     
-        # Listing / Selecting from available RAD Lab modules
+        # Listing / Selecting from available RAD Modules modules
         if module_name is None:
             module_name = list_modules()
     
@@ -89,7 +89,7 @@ def main(varcontents={}, module_name=None, action=None, projid=None, tfbucket=No
         if action is None or action == "":
             action = select_action().strip()
     
-        # Setting up required attributes for any RAD Lab module deployment
+        # Setting up required attributes for any RAD Modules module deployment
         env_path, tfbucket, orgid, billing_acc, folderid, randomid = module_deploy_common_settings(action, module_name, setup_path, varcontents, projid, tfbucket)
     
         # Utilizing Tofu Wrapper for init / apply / destroy
@@ -121,11 +121,11 @@ def radlabauth(currentusr):
             except:
                 pass
 
-            x = input("\nWould you like to proceed the RAD Lab deployment with user - " + Fore.YELLOW + currentusr + Style.RESET_ALL + ' ?\n[1] Yes\n[2] No\n' + Fore.YELLOW + Style.BRIGHT + 'Choose a number : ' + Style.RESET_ALL).strip()
+            x = input("\nWould you like to proceed the RAD Modules deployment with user - " + Fore.YELLOW + currentusr + Style.RESET_ALL + ' ?\n[1] Yes\n[2] No\n' + Fore.YELLOW + Style.BRIGHT + 'Choose a number : ' + Style.RESET_ALL).strip()
             if (x == '1'):
                 pass
             elif (x == '2'):
-                print("\nLogin with User account with which you would like to deploy RAD Lab Modules...\n")
+                print("\nLogin with User account with which you would like to deploy RAD Modules...\n")
                 os.system("gcloud auth application-default login")
             else:
                 currentusr = '0'
@@ -137,7 +137,7 @@ def radlabauth(currentusr):
                 del os.environ['GOOGLE_APPLICATION_CREDENTIALS']
             except:
                 pass
-        print("\nLogin with User account with which you would like to deploy RAD Lab Modules...\n")
+        print("\nLogin with User account with which you would like to deploy RAD Modules...\n")
         os.system("gcloud auth application-default login")
 
     finally:
@@ -149,7 +149,7 @@ def radlabauth(currentusr):
             currentusr = r.json()["email"]
             os.system("gcloud config set account " + currentusr)
             print(
-                "\nUser to deploy RAD Lab Modules (Selected) : " + Fore.GREEN + Style.BRIGHT + currentusr + Style.RESET_ALL)
+                "\nUser to deploy RAD Modules (Selected) : " + Fore.GREEN + Style.BRIGHT + currentusr + Style.RESET_ALL)
             return currentusr
 
 
@@ -159,11 +159,11 @@ def set_proj(projid):
             projid = os.popen("gcloud config list --format 'value(core.project)' 2>/dev/null").read().strip()
             if projid != "":
                 while True:  # Start of the loop for user input
-                    select_proj = input("\nWhich Project would you like to use for RAD Lab management ? :" +
+                    select_proj = input("\nWhich Project would you like to use for RAD Modules management ? :" +
                                         "\n[1] Currently set project - " + Fore.GREEN + projid + Style.RESET_ALL +
                                         "\n[2] Enter a different Project ID" +
                                         "\n[0] Exit" + Fore.YELLOW + Style.BRIGHT +
-                                        "\n\nChoose a number for the RAD Lab management Project, or '0' to exit" + Style.RESET_ALL + ': ').strip()
+                                        "\n\nChoose a number for the RAD Modules management Project, or '0' to exit" + Style.RESET_ALL + ': ').strip()
                     if select_proj == '1':
                         break  # If the user selects the current project, break the loop
                     elif select_proj == '2':
@@ -176,7 +176,7 @@ def set_proj(projid):
                         print(Fore.RED + "\nINVALID choice. Please try again, or enter '0' to exit." + Style.RESET_ALL)
             else:
                 while True:  # Loop for entering a new project ID
-                    projid = input(Fore.YELLOW + Style.BRIGHT + "\nEnter the Project ID for RAD Lab management or '0' to exit" + Style.RESET_ALL + ': ').strip()
+                    projid = input(Fore.YELLOW + Style.BRIGHT + "\nEnter the Project ID for RAD Modules management or '0' to exit" + Style.RESET_ALL + ': ').strip()
                     if projid == '0':
                         sys.exit(Fore.YELLOW + "\nExiting script as per user request.\n" + Style.RESET_ALL)
                     elif projid:
@@ -193,9 +193,9 @@ def set_proj(projid):
 
 
 def launcherperm(projid, currentusr):
-    # Hardcoded Project level required RAD Lab Launcher roles
+    # Hardcoded Project level required RAD Modules Launcher roles
     launcherprojroles = ['roles/storage.admin', 'roles/serviceusage.serviceUsageConsumer']
-    # Hardcoded Org level required RAD Lab Launcher roles
+    # Hardcoded Org level required RAD Modules Launcher roles
     launcherorgroles = ['roles/iam.organizationRoleViewer']
 
     credentials = GoogleCredentials.get_application_default()
@@ -214,31 +214,31 @@ def launcherperm(projid, currentusr):
             # print("MEMBERS --->")
             # print(response0['bindings'][y]['members'])
 
-            # Check for Owner role on RAD Lab Management Project
+            # Check for Owner role on RAD Modules Management Project
             if (response0['bindings'][y]['role'] == 'roles/owner' and 'user:' + currentusr in response0['bindings'][y]['members']):
                 rolefound = True
                 ownerrole = True
-                print("\n" + currentusr + " has roles/owner role for RAD Lab Management Project: " + projid)
+                print("\n" + currentusr + " has roles/owner role for RAD Modules Management Project: " + projid)
                 break
-            # Check for Required roles on RAD Lab Management Project
+            # Check for Required roles on RAD Modules Management Project
             elif (response0['bindings'][y]['role'] == role):
                 rolefound = True
                 if ('user:' + currentusr not in response0['bindings'][y]['members']):
                     projiam = False
                     sys.exit(
-                        Fore.RED + "\nError Occured - RADLAB LAUNCHER PERMISSION ISSUE | " + role + " permission missing...\n(Review https://github.com/GoogleCloudPlatform/rad-lab/tree/main/radlab-launcher#iam-permissions-prerequisites for more details)\n" + Style.RESET_ALL)
+                        Fore.RED + "\nError Occured - RAD MODULES LAUNCHER PERMISSION ISSUE | " + role + " permission missing...\n(Review https://github.com/GoogleCloudPlatform/rad-lab/tree/main/radlab-launcher#iam-permissions-prerequisites for more details)\n" + Style.RESET_ALL)
                 else:
                     pass
 
         if rolefound == False:
             sys.exit(
-                Fore.RED + "\nError Occured - RADLAB LAUNCHER PERMISSION ISSUE | " + role + " permission missing...\n(Review https://github.com/GoogleCloudPlatform/rad-lab/tree/main/radlab-launcher#iam-permissions-prerequisites for more details)\n" + Style.RESET_ALL)
+                Fore.RED + "\nError Occured - RAD MODULES LAUNCHER PERMISSION ISSUE | " + role + " permission missing...\n(Review https://github.com/GoogleCloudPlatform/rad-lab/tree/main/radlab-launcher#iam-permissions-prerequisites for more details)\n" + Style.RESET_ALL)
 
         if (ownerrole == True):
             break
 
     if projiam == True:
-        print(Fore.GREEN + '\nRADLAB LAUNCHER - Project Permission check passed' + Style.RESET_ALL)
+        print(Fore.GREEN + '\nRAD MODULES LAUNCHER - Project Permission check passed' + Style.RESET_ALL)
 
     service1 = discovery.build('cloudresourcemanager', 'v3', credentials=credentials)
     request1 = service1.projects().get(name='projects/' + projid)
@@ -262,17 +262,17 @@ def launcherperm(projid, currentusr):
                     rolefound = True
                     if ('user:' + currentusr not in response2['bindings'][x]['members']):
                         orgiam = False
-                        sys.exit(Fore.RED + "\nError Occured - RADLAB LAUNCHER PERMISSION ISSUE | " + role + " permission missing...\n(Review https://github.com/GoogleCloudPlatform/rad-lab/tree/main/radlab-launcher#iam-permissions-prerequisites for more details)\n" + Style.RESET_ALL)
+                        sys.exit(Fore.RED + "\nError Occured - RAD MODULES LAUNCHER PERMISSION ISSUE | " + role + " permission missing...\n(Review https://github.com/GoogleCloudPlatform/rad-lab/tree/main/radlab-launcher#iam-permissions-prerequisites for more details)\n" + Style.RESET_ALL)
                     else:
                         pass
 
             if rolefound == False:
-                sys.exit(Fore.RED + "\nError Occured - RADLAB LAUNCHER PERMISSION ISSUE | " + role + " permission missing...\n(Review https://github.com/GoogleCloudPlatform/rad-lab/tree/main/radlab-launcher#iam-permissions-prerequisites for more details)\n" + Style.RESET_ALL)
+                sys.exit(Fore.RED + "\nError Occured - RAD MODULES LAUNCHER PERMISSION ISSUE | " + role + " permission missing...\n(Review https://github.com/GoogleCloudPlatform/rad-lab/tree/main/radlab-launcher#iam-permissions-prerequisites for more details)\n" + Style.RESET_ALL)
 
         if orgiam == True:
-            print(Fore.GREEN + '\nRADLAB LAUNCHER - Organization Permission check passed' + Style.RESET_ALL)
+            print(Fore.GREEN + '\nRAD MODULES LAUNCHER - Organization Permission check passed' + Style.RESET_ALL)
     else:
-        print(Fore.YELLOW + '\nRADLAB LAUNCHER - Skipping Organization Permission check. No Organization associated with the project: ' + projid + Style.RESET_ALL)
+        print(Fore.YELLOW + '\nRAD MODULES LAUNCHER - Skipping Organization Permission check. No Organization associated with the project: ' + projid + Style.RESET_ALL)
 
 
 def findorg(parent):
@@ -484,7 +484,7 @@ def moduleperm(projid, module_name, currentusr):
             if orgiam == True:
                 print(Fore.GREEN + '\nRADLAB MODULE (' + module_name + ') - Organization Permission check passed' + Style.RESET_ALL)
         else:
-            print(Fore.YELLOW + '\nRADLAB LAUNCHER - Skipping Organization Permission check. No Organization associated with the project: ' + projid + Style.RESET_ALL)
+            print(Fore.YELLOW + '\nRAD MODULES LAUNCHER - Skipping Organization Permission check. No Organization associated with the project: ' + projid + Style.RESET_ALL)
 
 
 def env(action, orgid, billing_acc, folderid, env_path, deployment_id, tfbucket, projid):
@@ -543,7 +543,7 @@ def upload_from_directory(projid, directory_path: str, content: str, dest_bucket
 def select_action():
     while True:  # Start an infinite loop to keep asking for input until a valid action is provided.
         action = input(
-            "\nAction to perform for RAD Lab Deployment ?\n[1] Create New\n[2] Update\n[3] Delete\n[4] List\n[0] Exit\n" + Fore.YELLOW + Style.BRIGHT + "\nChoose a number for the RAD Lab Module Deployment Action, or '0' to exit" + Style.RESET_ALL + ': ').strip()
+            "\nAction to perform for RAD Modules Deployment ?\n[1] Create New\n[2] Update\n[3] Delete\n[4] List\n[0] Exit\n" + Fore.YELLOW + Style.BRIGHT + "\nChoose a number for the RAD Modules module Deployment Action, or '0' to exit" + Style.RESET_ALL + ': ').strip()
         
         if action == ACTION_EXIT:
             sys.exit(Fore.YELLOW + "\nExiting script as per user request.\n" + Style.RESET_ALL)
@@ -895,13 +895,13 @@ def list_modules():
     # Loop for selecting Module
     while True:
         try:
-            selected_module = input(f"\nList of available modules:\n{print_list}[{c}] Exit\n" + Fore.YELLOW + Style.BRIGHT + "\nChoose a number for the RAD Lab Module" + Style.RESET_ALL + ': ').strip()
+            selected_module = input(f"\nList of available modules:\n{print_list}[{c}] Exit\n" + Fore.YELLOW + Style.BRIGHT + "\nChoose a number for the RAD Modules module" + Style.RESET_ALL + ': ').strip()
             selected_module = int(selected_module)
 
             # Validating User Module selection
             if 0 < selected_module < c:
                 module_name = modules[selected_module - 1]
-                print("\nRAD Lab Module (selected) : " + Fore.GREEN + Style.BRIGHT + module_name + Style.RESET_ALL)
+                print("\nRAD Modules module (selected) : " + Fore.GREEN + Style.BRIGHT + module_name + Style.RESET_ALL)
                 return module_name
             elif selected_module == c:
                 sys.exit(Fore.GREEN + "\nExiting installer as per user request")
@@ -956,7 +956,7 @@ def module_deploy_common_settings(action, module_name, setup_path, varcontents, 
         list_radlab_deployments(tfbucket, module_name, projid)
 
         # Get Deployment ID
-        randomid = input(Fore.YELLOW + Style.BRIGHT + "\nEnter RAD Lab Module Deployment ID (example 'l8b3' is the id for module deployment with name - data_science_l8b3)" + Style.RESET_ALL + ': ')
+        randomid = input(Fore.YELLOW + Style.BRIGHT + "\nEnter RAD Modules module Deployment ID (example 'l8b3' is the id for module deployment with name - data_science_l8b3)" + Style.RESET_ALL + ': ')
         randomid = randomid.strip()
 
         # Validating Deployment ID
@@ -996,7 +996,7 @@ def module_deploy_common_settings(action, module_name, setup_path, varcontents, 
         sys.exit()
 
     else:
-        sys.exit(Fore.RED + "\nInvalid RAD Lab Module Action selected")
+        sys.exit(Fore.RED + "\nInvalid RAD Modules module Action selected")
 
 
 def validate_tfvars(varcontents, module_name):
@@ -1097,26 +1097,26 @@ if __name__ == "__main__":
         print(f"Client platform directory path: {client_directory}")
 
         parser = argparse.ArgumentParser(
-            description="RAD Lab Launcher - guided deployment of RAD Lab modules on Google Cloud."
+            description="RAD Modules Launcher - guided deployment of RAD Modules on Google Cloud."
         )
         parser.add_argument('-f', '--varfile', dest="file",
                             type=argparse.FileType('r', encoding='UTF-8'),
                             help="Input file (with complete path) for terraform.tfvars contents.",
                             required=False)
         parser.add_argument('-p', '--rad-project', dest="projid",
-                            help="RAD Lab management GCP Project.", required=False)
+                            help="RAD Modules management GCP Project.", required=False)
         parser.add_argument('-b', '--rad-bucket', dest="tfbucket",
-                            help="RAD Lab management GCS Bucket where Terraform/OpenTofu states for the modules will be stored.",
+                            help="RAD Modules management GCS Bucket where Terraform/OpenTofu states for the modules will be stored.",
                             required=False)
         parser.add_argument('-m', '--module', dest="module_name", choices=modules_glob,
-                            help="RAD Lab module name under ../modules folder.", required=False)
+                            help="RAD Modules module name under ../modules folder.", required=False)
         parser.add_argument('-a', '--action', dest="action",
                             choices=['create', 'update', 'delete', 'list'],
-                            help="Action to perform for the selected RAD Lab module.",
+                            help="Action to perform for the selected RAD Modules module.",
                             required=False)
         parser.add_argument('-dc', '--disable-perm-check', dest="disable_perm_check",
                             action='store_false',
-                            help="Flag to disable RAD Lab permissions pre-check.",
+                            help="Flag to disable RAD Modules permissions pre-check.",
                             required=False)
 
         args = parser.parse_args()
