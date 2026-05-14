@@ -681,6 +681,9 @@ spec:
           - containerPort: 80
 EOF
     echo
+    echo "$ gcloud storage buckets create gs://${GCP_PROJECT}_cloudbuild --project=$GCP_PROJECT # to pre-create Cloud Build bucket" | pv -qL 100
+    gcloud storage buckets create gs://${GCP_PROJECT}_cloudbuild --project=$GCP_PROJECT > /dev/null 2>&1 || true
+    echo
     echo "$ skaffold run -f $PROJDIR/artifacts/skaffold_cloudrun.yaml -d eu.gcr.io/$GCP_PROJECT --cloud-run-location=$GCP_REGION --cloud-run-project=$GCP_PROJECT # to deploy the workload to Cloud Run" | pv -qL 100
     skaffold run -f $PROJDIR/artifacts/skaffold_cloudrun.yaml -d eu.gcr.io/$GCP_PROJECT --cloud-run-location=$GCP_REGION --cloud-run-project=$GCP_PROJECT
     echo
