@@ -81,7 +81,7 @@ variable "deployment_id" {
 variable "existing_project_id" {
   description = "GCP project ID where VMware Engine resources will be deployed. Must already exist and the service account must hold roles/owner. {{UIMeta group=1 order=101 updatesafe }}"
   type        = string
-  default     = "pso-vmaas-2"
+  default     = ""
 }
 
 variable "region" {
