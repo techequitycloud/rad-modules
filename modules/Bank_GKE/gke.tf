@@ -22,7 +22,7 @@ data "google_container_cluster" "existing_cluster" {
   count    = var.create_cluster ? 0 : 1
   project  = local.project.project_id
   name     = var.gke_cluster
-  location = var.gcp_region
+  location = var.region
 }
 
 #########################################################################
@@ -56,7 +56,7 @@ resource "google_container_cluster" "gke_cluster" {
   count                 = var.create_cluster ? 1 : 0
   project               = local.project.project_id
   name                  = var.gke_cluster
-  location              = var.gcp_region
+  location              = var.region
   deletion_protection   = false
   network               = local.network.name
   subnetwork            = local.subnet.name
