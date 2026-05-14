@@ -59,18 +59,18 @@ locals {
 #########################################################################
 
 resource "google_container_cluster" "gke_standard_cluster" {
-  count                     = var.create_cluster ? 1 : 0
-  project                   = local.project.project_id
-  name                      = var.gke_cluster
-  location                  = var.gcp_region
-  allow_net_admin           = true
-  networking_mode           = "VPC_NATIVE"
-  datapath_provider         = "LEGACY_DATAPATH"
-  remove_default_node_pool  = true
-  initial_node_count        = 1
-  deletion_protection       = false
-  network                   = local.network.name
-  subnetwork                = local.subnet.name
+  count                    = var.create_cluster ? 1 : 0
+  project                  = local.project.project_id
+  name                     = var.gke_cluster
+  location                 = var.gcp_region
+  allow_net_admin          = true
+  networking_mode          = "VPC_NATIVE"
+  datapath_provider        = "LEGACY_DATAPATH"
+  remove_default_node_pool = true
+  initial_node_count       = 1
+  deletion_protection      = false
+  network                  = local.network.name
+  subnetwork               = local.subnet.name
 
   ip_allocation_policy {
     cluster_secondary_range_name  = var.pod_ip_range
@@ -165,7 +165,14 @@ resource "google_service_account" "gke_sa" {
 
 locals {
   gke_sa_project_roles = [
-    "roles/storage.objectAdmin",
+    # SECURITY CONCERN: The node service account originally requested `roles/storage.objectAdmin`, granting
+    # destructive, project-wide write access to all GCS buckets.
+    # IMPACT: An exploit in a pod running under this service account could allow an attacker to delete or modify
+    # critical bucket data beyond the scope of this cluster's operations.
+    # FIX: Removed `roles/storage.objectAdmin` in favor of least-privilege `roles/storage.objectViewer` to
+    # ensure the service account only has read access. If applications need write access to specific buckets,
+    # Workload Identity should be used instead.
+    "roles/storage.objectViewer",
     "roles/artifactregistry.reader",
     "roles/monitoring.metricWriter",
     "roles/monitoring.viewer",
