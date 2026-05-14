@@ -6,9 +6,9 @@ For a detailed technical walkthrough of the full implementation, see [Bank\_GKE.
 
 ## Deployment Options
 
-This module can be deployed using the **RAD Modules web UI** or the **RAD Lab command-line launcher**. Choose the option that best fits your workflow.
+This module can be deployed using the **RAD Modules web UI** or the **RAD Modules Launcher (CLI)**. Choose the option that best fits your workflow.
 
-| | [RAD Modules UI](https://radmodules.dev) | RAD Lab Launcher (CLI) |
+| | [RAD Modules UI](https://radmodules.dev) | RAD Modules Launcher (CLI) |
 |---|---|---|
 | **Setup required** | None — runs in your browser | Python 3.7+, OpenTofu, and `gcloud` CLI |
 | **Best for** | Quick starts, demos, and guided deployments | Automation, scripting, and full variable control |
@@ -21,9 +21,9 @@ Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in with your Go
 
 Choose this option if you want a fast, no-setup path to explore this module or run a guided demo.
 
-### Option 2: RAD Lab Launcher (CLI)
+### Option 2: RAD Modules Launcher (CLI)
 
-Use the [RAD Lab Launcher](../../rad-launcher/README.md) to deploy from your workstation or Google Cloud Shell. This option gives you full control over all module variables, supports non-interactive scripted deployments, and lets you manage Terraform state in a GCS bucket you own.
+Use the [RAD Modules Launcher](../../rad-launcher/README.md) to deploy from your workstation or Google Cloud Shell. This option gives you full control over all module variables, supports non-interactive scripted deployments, and lets you manage Terraform state in a GCS bucket you own.
 
 Choose this option if you need custom variable overrides, automated pipelines, or deeper integration with your own GCP environment.
 

@@ -1,6 +1,6 @@
-# RAD Lab Launcher
+# RAD Modules Launcher
 
-The RAD Lab Launcher is an interactive / scriptable CLI that walks you through
+The RAD Modules Launcher is an interactive / scriptable CLI that walks you through
 deploying, updating, listing, and deleting [RAD Lab](../modules) modules in
 your Google Cloud environment. It wraps [OpenTofu](https://opentofu.org/)
 (a drop-in replacement for Terraform) and manages remote state in a Google
@@ -10,7 +10,7 @@ Cloud Storage (GCS) bucket of your choice.
 
 RAD Lab modules can be deployed in two ways. Choose the approach that suits your needs:
 
-| | [RAD Modules UI](https://radmodules.dev) | RAD Lab Launcher (this tool) |
+| | [RAD Modules UI](https://radmodules.dev) | RAD Modules Launcher (this tool) |
 |---|---|---|
 | **Setup required** | None — runs in your browser | Python 3.7+, OpenTofu, and `gcloud` CLI |
 | **Best for** | Quick starts, demos, and guided deployments | Automation, scripting, and full variable control |
@@ -19,7 +19,7 @@ RAD Lab modules can be deployed in two ways. Choose the approach that suits your
 
 **RAD Modules UI** — Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in with your Google account, and select a module from the catalog. The platform handles all infrastructure provisioning on your behalf with no local toolchain required. Choose this if you want a fast, guided path with minimal setup.
 
-**RAD Lab Launcher (this tool)** — Gives you full control: override any module variable via a `--varfile`, run deployments non-interactively in CI/CD pipelines, and manage Terraform state in your own GCS bucket. Choose this if you need scripting, custom variable overrides, or deeper integration with your GCP environment.
+**RAD Modules Launcher (this tool)** — Gives you full control: override any module variable via a `--varfile`, run deployments non-interactively in CI/CD pipelines, and manage Terraform state in your own GCS bucket. Choose this if you need scripting, custom variable overrides, or deeper integration with your GCP environment.
 
 ## What's in this directory
 
