@@ -133,7 +133,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
     cluster_name     = local.cluster.name
     version          = local.bank_of_anthos_version
     namespace        = "bank-of-anthos"  # ✅ FIXED: Direct string
-    region           = var.gcp_region
+    region           = var.region
     project_id       = local.project.project_id
     manifests_path   = local.manifests_path
     jwt_secret_path  = local.jwt_secret_path

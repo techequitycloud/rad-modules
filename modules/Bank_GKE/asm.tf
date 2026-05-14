@@ -362,7 +362,7 @@ resource "null_resource" "wait_for_service_mesh" {
       
       PROJECT_ID="${local.project.project_id}"
       PROJECT_NUMBER="${local.project_number}"
-      REGION="${var.gcp_region}"
+      REGION="${var.region}"
       CLUSTER_NAME="${var.gke_cluster}"
       
       # Construct the full membership path
@@ -435,7 +435,7 @@ resource "null_resource" "wait_for_service_mesh" {
   triggers = {
     project_id     = local.project.project_id
     project_number = local.project_number
-    region         = var.gcp_region
+    region         = var.region
     cluster_name   = var.gke_cluster
     namespace      = kubernetes_namespace.bank_of_anthos[0].metadata[0].name
   }

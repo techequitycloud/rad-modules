@@ -22,7 +22,7 @@ data "google_container_cluster" "existing_cluster" {
   count    = var.create_cluster ? 0 : 1
   project  = local.project.project_id
   name     = var.gke_cluster
-  location = var.gcp_region
+  location = var.region
 }
 
 #########################################################################
@@ -51,7 +51,7 @@ provider "kubernetes" {
 }
 
 locals {
-  k8s_credentials_cmd = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.gcp_region} --project ${local.project.project_id}"
+  k8s_credentials_cmd = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.region} --project ${local.project.project_id}"
 }
 
 #########################################################################
@@ -62,7 +62,7 @@ resource "google_container_cluster" "gke_standard_cluster" {
   count                     = var.create_cluster ? 1 : 0
   project                   = local.project.project_id
   name                      = var.gke_cluster
-  location                  = var.gcp_region
+  location                  = var.region
   allow_net_admin           = true
   networking_mode           = "VPC_NATIVE"
   datapath_provider         = "LEGACY_DATAPATH"

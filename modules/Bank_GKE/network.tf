@@ -28,7 +28,7 @@ data "google_compute_subnetwork" "existing_subnet" {
   count   = var.create_network ? 0 : 1
   project = local.project.project_id
   name    = var.subnet_name
-  region  = var.gcp_region
+  region  = var.region
 }
 
 #########################################################################
@@ -111,7 +111,7 @@ resource "google_compute_subnetwork" "subnetwork" {
   project                  = local.project.project_id
   name                     = var.subnet_name
   ip_cidr_range            = tolist(var.ip_cidr_ranges)[0]
-  region                   = var.gcp_region
+  region                   = var.region
   network                  = google_compute_network.vpc[0].name
   private_ip_google_access = true
 
@@ -233,7 +233,7 @@ resource "google_compute_firewall" "fw_allow_http_tcp" {
 resource "google_compute_router" "cr_region" {
   count   = var.create_network ? 1 : 0
   project = local.project.project_id
-  name    = "cr1-${var.gcp_region}"
+  name    = "cr1-${var.region}"
   region  = google_compute_subnetwork.subnetwork[0].region
   network = google_compute_network.vpc[0].id
 
@@ -247,7 +247,7 @@ resource "google_compute_router" "cr_region" {
 resource "google_compute_router_nat" "nat_gw_region" {
   count                              = var.create_network ? 1 : 0
   project                            = local.project.project_id
-  name                               = "nat-gw1-${var.gcp_region}"
+  name                               = "nat-gw1-${var.region}"
   router                             = google_compute_router.cr_region[0].name
   region                             = google_compute_router.cr_region[0].region
   nat_ip_allocate_option             = "AUTO_ONLY"
