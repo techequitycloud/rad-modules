@@ -4,6 +4,29 @@ This module provisions a GKE Standard cluster and installs **open-source Istio**
 
 For a detailed technical walkthrough of the full implementation, see [Istio\_GKE.md](Istio_GKE.md).
 
+## Deployment Options
+
+This module can be deployed using the **RAD Modules web UI** or the **RAD Modules Launcher (CLI)**. Choose the option that best fits your workflow.
+
+| | [RAD Modules UI](https://radmodules.dev) | RAD Modules Launcher (CLI) |
+|---|---|---|
+| **Setup required** | None — runs in your browser | Python 3.7+, OpenTofu, and `gcloud` CLI |
+| **Best for** | Quick starts, demos, and guided deployments | Automation, scripting, and full variable control |
+| **Configuration** | Point-and-click form with sensible defaults | `--varfile` with `key = "value"` overrides |
+| **State management** | Managed by the platform | GCS bucket you own and manage |
+
+### Option 1: RAD Modules UI (no setup required)
+
+Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in with your Google account, and select this module from the catalog. The platform guides you through providing the required inputs and launches the deployment on your behalf — no local toolchain installation needed.
+
+Choose this option if you want a fast, no-setup path to explore this module or run a guided demo.
+
+### Option 2: RAD Modules Launcher (CLI)
+
+Use the [RAD Modules Launcher](../../rad-launcher/README.md) to deploy from your workstation or Google Cloud Shell. This option gives you full control over all module variables, supports non-interactive scripted deployments, and lets you manage Terraform state in a GCS bucket you own.
+
+Choose this option if you need custom variable overrides, automated pipelines, or deeper integration with your own GCP environment.
+
 ## Usage
 
 ```hcl
