@@ -65,57 +65,49 @@ steps:
     fi
     if [ -f "commit_hash.txt" ] && [ -s "commit_hash.txt" ]; then
         COMMIT_HASH=$$(cat commit_hash.txt)
-        log "ℹ️  Stored commit hash: $$COMMIT_HASH"
+        log "ℹ️  Deployment commit hash (audit only): $$COMMIT_HASH"
+        log "ℹ️  Destroy always uses HEAD to pick up the latest cleanup logic"
     fi
 
     try_clone() {
         local repo="$$1"
-        local use_commit="$$2"
         if [ -z "$$repo" ] || [ "$$repo" = "none" ]; then return 1; fi
-        log "📥 Trying to clone: $$repo"
+        log "📥 Trying to clone: $$repo (HEAD)"
         find /workspace -mindepth 1 -delete 2>/dev/null || true
         if ! git clone "https://$$GIT_TOKEN@github.com/$$repo.git" /workspace 2>&1; then
             log "⚠️  Clone failed for $$repo (token may lack read access)"
             return 1
         fi
-        if [ "$$use_commit" = "yes" ] && [ -n "$$COMMIT_HASH" ]; then
-            log "🔄 Checking out deployment commit: $$COMMIT_HASH"
-            if cd /workspace && git checkout "$$COMMIT_HASH" 2>/dev/null; then
-                log "✅ Checked out deployment commit"
-            else
-                log "⚠️  Commit $$COMMIT_HASH not found in $$repo, using HEAD"
-            fi
-        fi
         if [ ! -d "/workspace/modules/${_MODULE_NAME}" ]; then
             log "⚠️  Cloned $$repo but module ${_MODULE_NAME} not found — skipping"
             return 1
         fi
-        log "✅ Successfully cloned $$repo (module ${_MODULE_NAME} found)"
+        log "✅ Successfully cloned $$repo at HEAD (module ${_MODULE_NAME} found)"
         return 0
     }
 
     CLONE_SUCCESS=false
 
     if [ -n "${_MODULE_GIT_REPO_URL}" ] && [ "${_MODULE_GIT_REPO_URL}" != "none" ] && [ "${_MODULE_GIT_REPO_URL}" != "" ]; then
-        if try_clone "${_MODULE_GIT_REPO_URL}" "yes"; then
+        if try_clone "${_MODULE_GIT_REPO_URL}"; then
             CLONE_SUCCESS=true
         fi
     fi
 
     if [ "$$CLONE_SUCCESS" != "true" ] && [ -n "$$STORED_REPO_URL" ]; then
-        if try_clone "$$STORED_REPO_URL" "yes"; then
+        if try_clone "$$STORED_REPO_URL"; then
             CLONE_SUCCESS=true
         fi
     fi
 
     if [ "$$CLONE_SUCCESS" != "true" ] && [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ] && [ "${_GIT_REPO_URL}" != "" ]; then
-        if try_clone "${_GIT_REPO_URL}" "no"; then
+        if try_clone "${_GIT_REPO_URL}"; then
             CLONE_SUCCESS=true
         fi
     fi
 
     if [ "$$CLONE_SUCCESS" != "true" ]; then
-        if try_clone "techequitycloud/rad-modules" "no"; then
+        if try_clone "techequitycloud/rad-modules"; then
             CLONE_SUCCESS=true
         fi
     fi
