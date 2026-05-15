@@ -1,0 +1,3 @@
+## 2024-05-15 - [Avoid timestamp triggers for local-exec downloads]
+**Learning:** Using `always_run = timestamp()` for `null_resource` to download files (like Bank of Anthos tarballs) forces the resource to be recreated on *every* `terraform apply`. This significantly slows down deployments and causes a two-apply state issue if other resources depend on it.
+**Action:** Instead, rely on static triggers (like version numbers) or check for file existence using Bash logic within the `local-exec` provisioner (e.g., `if [ -d "..." ]; then exit 0; fi`) to skip redundant downloads without forcing state replacements.
