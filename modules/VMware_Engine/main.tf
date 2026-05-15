@@ -54,3 +54,13 @@ resource "google_project_service" "enabled_services" {
   disable_dependent_services = false
   disable_on_destroy         = false
 }
+
+# Grant roles/iam.serviceAccountUser to the VM Migration service agent so it
+# can act as any SA in the project (required for Migrate to Virtual Machines).
+resource "google_project_iam_member" "vmmigration_sa_user" {
+  project = local.project.project_id
+  role    = "roles/iam.serviceAccountUser"
+  member  = "serviceAccount:service-${local.project.number}@gcp-sa-vmmigration.iam.gserviceaccount.com"
+
+  depends_on = [google_project_service.enabled_services]
+}
