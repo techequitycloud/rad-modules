@@ -63,4 +63,8 @@ resource "google_project_iam_member" "vmmigration_sa_user" {
   member  = "serviceAccount:service-${local.project.number}@gcp-sa-vmmigration.iam.gserviceaccount.com"
 
   depends_on = [google_project_service.enabled_services]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
