@@ -4,6 +4,8 @@ This module deploys **Google Cloud VMware Engine (GCVE)** infrastructure, includ
 
 For a detailed technical walkthrough of the full lab, see [LAB_GUIDE.md](LAB_GUIDE.md).
 
+Last tested on Fri May 15, 2026
+
 ## Deployment Options
 
 This module can be deployed using the **RAD Modules web UI** or the **RAD Modules Launcher (CLI)**. Choose the option that best fits your workflow.
