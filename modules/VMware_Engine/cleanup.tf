@@ -14,13 +14,53 @@
  * limitations under the License.
  */
 
-# Cleanup on destroy is handled by the managed resources themselves:
-#   - google_vmwareengine_private_cloud  (timeouts.delete = 180m)
-#   - google_vmwareengine_network_policy (deleted before the VEN via depends_on)
+# On destroy, the VMware Engine private cloud enters a 7-day grace period before
+# GCP physically removes it. During this window the VEN deletion is blocked
+# ("resource is being used by other resources"). This null_resource runs its
+# destroy provisioner BEFORE Terraform deletes the private cloud resource,
+# requesting immediate deletion (--delay-hours=0) and polling until the cloud
+# is fully gone. Terraform's subsequent native delete sees a 404 and treats it
+# as already removed, allowing the VEN to be deleted cleanly.
 #
-# The null_resource destroy provisioners that previously lived here were removed
-# because they created race conditions: Terraform and the gcloud script both
-# attempted deletion concurrently, causing the destroy run to error on
-# "resource not found". Importing pre-existing resources into state via
-# `tofu import` is the correct approach when untracked resources need lifecycle
-# management.
+# Values are captured in triggers at apply time so they are available from
+# state during destroy even after the source resources are gone.
+resource "null_resource" "private_cloud_cleanup" {
+  triggers = {
+    private_cloud_name = local.private_cloud_name
+    project_id         = local.project.project_id
+    zone               = var.zone
+    service_account    = var.resource_creator_identity
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      echo "Requesting immediate private cloud deletion (--delay-hours=0)..."
+      gcloud vmware private-clouds delete "${self.triggers.private_cloud_name}" \
+        --project="${self.triggers.project_id}" \
+        --location="${self.triggers.zone}" \
+        --impersonate-service-account="${self.triggers.service_account}" \
+        --delay-hours=0 \
+        --quiet 2>/dev/null || true
+
+      echo "Polling until private cloud is fully deleted (max 30 min)..."
+      for i in $(seq 1 60); do
+        STATE=$(gcloud vmware private-clouds describe "${self.triggers.private_cloud_name}" \
+          --project="${self.triggers.project_id}" \
+          --location="${self.triggers.zone}" \
+          --impersonate-service-account="${self.triggers.service_account}" \
+          --format="value(state)" \
+          --quiet 2>/dev/null || echo "GONE")
+        echo "[$i/60] private cloud state: $STATE"
+        if [ "$STATE" = "GONE" ] || [ -z "$STATE" ]; then
+          echo "Private cloud fully deleted — proceeding."
+          exit 0
+        fi
+        sleep 30
+      done
+      echo "WARNING: Timed out waiting for private cloud deletion; continuing destroy anyway."
+    EOT
+  }
+
+  depends_on = [google_vmwareengine_private_cloud.private_cloud]
+}

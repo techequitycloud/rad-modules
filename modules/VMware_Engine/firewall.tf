@@ -47,7 +47,7 @@ resource "google_compute_firewall" "default_allow_internal" {
   source_ranges = [var.internal_traffic_cidr]
   description   = "Allow all internal traffic between VM instances within the VPC network"
 
-  depends_on = [google_project_service.enabled_services]
+  depends_on = [google_project_service.enabled_services, google_compute_network.peer_vpc]
 }
 
 # Allows SSH access from any source to all instances.
@@ -68,7 +68,7 @@ resource "google_compute_firewall" "default_allow_ssh" {
   source_ranges = ["0.0.0.0/0"]
   description   = "Allow SSH connections from any source to all instances"
 
-  depends_on = [google_project_service.enabled_services]
+  depends_on = [google_project_service.enabled_services, google_compute_network.peer_vpc]
 }
 
 # Allows RDP access from any source to all Windows instances.
@@ -89,7 +89,7 @@ resource "google_compute_firewall" "default_allow_rdp" {
   source_ranges = ["0.0.0.0/0"]
   description   = "Allow RDP connections from any source to all Windows instances"
 
-  depends_on = [google_project_service.enabled_services]
+  depends_on = [google_project_service.enabled_services, google_compute_network.peer_vpc]
 }
 
 # Allows ICMP (ping) traffic from any source to all instances.
@@ -109,7 +109,7 @@ resource "google_compute_firewall" "default_allow_icmp" {
   source_ranges = ["0.0.0.0/0"]
   description   = "Allow ICMP traffic from any source to all instances"
 
-  depends_on = [google_project_service.enabled_services]
+  depends_on = [google_project_service.enabled_services, google_compute_network.peer_vpc]
 }
 
 #########################################################################
@@ -135,5 +135,5 @@ resource "google_compute_firewall" "default_allow_http" {
   target_tags   = ["jump-host"]
   description   = "Allow HTTP and HTTPS traffic from any source to jump-host tagged instances"
 
-  depends_on = [google_project_service.enabled_services]
+  depends_on = [google_project_service.enabled_services, google_compute_network.peer_vpc]
 }
