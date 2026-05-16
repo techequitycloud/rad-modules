@@ -1085,6 +1085,13 @@ Tearing down the module removes all resources in reverse order: the Connect Agen
 
 ---
 
+## Deletion Notes
+
+> [!WARNING]
+> When destroying this module, the Terraform destroy operation may fail with an error indicating that GCP is holding serverless IPv4 address(es) on the subnet. This is expected behavior — GCP releases these addresses asynchronously, typically 20–30 minutes after the Cloud Run service is deleted. If you encounter this error, wait 20–30 minutes and then re-run the destroy action to complete deletion of all remaining resources.
+
+---
+
 ## Further Learning
 
 Deploying this module gives you a working environment to explore the following Google Cloud documentation topics hands-on:
