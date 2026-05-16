@@ -1,0 +1,3 @@
+## 2024-05-16 - Speed up `null_resource` downloads in GKE deployments
+**Learning:** Using `always_run = timestamp()` on a `null_resource` to force file downloads slows down subsequent `terraform apply` operations, especially for large manifests like Bank of Anthos. It also triggers cascading state replacement issues during execution.
+**Action:** Replace `always_run = timestamp()` with `always_run = "true"` and rely on static triggers or idempotency bash logic (`if [ -f "..." ] && [ -d "..." ]; then exit 0; fi`) within the `local-exec` provisioner to skip redundant executions. Update inline comments to reflect that it skips when files are already present.
