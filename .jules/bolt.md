@@ -1,0 +1,3 @@
+## 2024-05-17 - [Optimizing local-exec file downloads by replacing timestamp() trigger]
+ **Learning:** Using `always_run = timestamp()` on a `null_resource` executing a `local-exec` provisioner forces the resource to be replaced on every `terraform apply`, slowing down deployments unnecessarily.
+ **Action:** To optimize `terraform apply` performance, use `always_run = "true"` instead of `timestamp()` to avoid marking the resource as replaced in the state, and implement idempotency logic inside the `local-exec` bash script (e.g., `if [ -f "..." ]; then exit 0; fi`) to safely skip redundant execution.
