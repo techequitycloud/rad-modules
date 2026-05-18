@@ -301,15 +301,24 @@ resource "null_resource" "deploy_bank_of_anthos" {
           --context="$CONTEXT_NAME" \
           --server-side --force-conflicts
       else
-        echo "Applying Bank of Anthos manifests (non-primary cluster: skipping accounts-db, ledger-db)..."
+        echo "Applying Bank of Anthos manifests (non-primary cluster: accounts-db and ledger-db StatefulSets excluded)..."
         FILTERED_MANIFESTS_DIR="$(mktemp -d)"
         trap 'rm -rf "$FILTERED_MANIFESTS_DIR"' EXIT
 
-        # Copy all manifest files, then remove the DB StatefulSet manifests so
-        # they are applied on the primary cluster only.
+        # Copy all manifest files, then strip only the StatefulSet documents
+        # from the DB manifests. The ConfigMaps (accounts-db-config,
+        # ledger-db-config) and Services in those files must be deployed on
+        # every cluster because other pods reference them via envFrom/env.
         cp "$MANIFESTS_PATH"/*.yaml "$FILTERED_MANIFESTS_DIR/"
-        rm -f "$FILTERED_MANIFESTS_DIR/accounts-db.yaml" \
-              "$FILTERED_MANIFESTS_DIR/ledger-db.yaml"
+        python3 -c "
+import sys, yaml
+for filepath in sys.argv[1:]:
+    with open(filepath) as f:
+        docs = list(yaml.safe_load_all(f))
+    filtered = [d for d in docs if d and d.get('kind') != 'StatefulSet']
+    with open(filepath, 'w') as f:
+        yaml.dump_all(filtered, f, default_flow_style=False)
+" "$FILTERED_MANIFESTS_DIR/accounts-db.yaml" "$FILTERED_MANIFESTS_DIR/ledger-db.yaml"
 
         echo "Manifests to apply on non-primary cluster:"
         ls -1 "$FILTERED_MANIFESTS_DIR"
@@ -321,20 +330,13 @@ resource "null_resource" "deploy_bank_of_anthos" {
 
         # Remove any pre-existing DB StatefulSets from non-primary clusters
         # (e.g. from deployments that predate the primary-only DB change).
+        # Services and ConfigMaps are intentionally kept on all clusters.
         echo ""
-        echo "Removing any pre-existing accounts-db / ledger-db resources from non-primary cluster..."
+        echo "Removing any pre-existing accounts-db / ledger-db StatefulSets from non-primary cluster..."
         kubectl delete statefulset accounts-db ledger-db \
           -n "$NAMESPACE" \
           --context="$CONTEXT_NAME" \
           --ignore-not-found=true --timeout=5m || true
-        kubectl delete service accounts-db ledger-db \
-          -n "$NAMESPACE" \
-          --context="$CONTEXT_NAME" \
-          --ignore-not-found=true --timeout=2m || true
-        kubectl delete configmap accounts-db-config ledger-db-config \
-          -n "$NAMESPACE" \
-          --context="$CONTEXT_NAME" \
-          --ignore-not-found=true --timeout=2m || true
       fi
       echo "✓ Manifests applied"
 
