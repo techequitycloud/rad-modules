@@ -42,7 +42,7 @@ In Create or Delete mode the script will:
 1. Run `gcloud auth login` if no service-account key is cached.
 2. Prompt for the Google Cloud project ID to operate against.
 3. Create a service account `<project>@<project>.iam.gserviceaccount.com`,
-   grant it `roles/owner`, save its key to
+   grant it least-privilege roles (e.g., `roles/run.admin`, `roles/compute.networkAdmin`, etc.), save its key to
    `./gcp-cr-mesh/.<project>.json`, and create a `gs://<project>` bucket for
    backing up `.env`.
 4. Re-export the configuration to `./gcp-cr-mesh/.env`.
