@@ -1,0 +1,3 @@
+## 2024-05-19 - Avoid using timestamp() for triggers in null_resource
+**Learning:** Using `timestamp()` as a trigger for `null_resource` slows down `terraform apply` because the resource will run on *every* apply, regardless of whether changes are needed. The prompt also notes this causes idempotency issues in `null_resource` downloads.
+**Action:** Instead, rely on static triggers (like version numbers) or `always_run = "true"` (which avoids marking the resource as replaced in the state) and handle idempotency with bash logic within the `local-exec` provisioner (e.g., `if [ -f "..." ]; then exit 0; fi`) to skip redundant executions.
