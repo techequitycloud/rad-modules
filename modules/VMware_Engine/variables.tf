@@ -97,7 +97,7 @@ variable "zone" {
 }
 
 variable "enable_services" {
-  description = "Set to true (default) to automatically enable required GCP project APIs. Set to false when APIs are already enabled. {{UIMeta group=1 order=105 }}"
+  description = "Set to true (default) to automatically enable required GCP project APIs. Set to false when APIs are already enabled. {{UIMeta group=0 order=109 }}"
   type        = bool
   default     = true
 }
