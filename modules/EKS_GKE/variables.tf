@@ -111,14 +111,16 @@ variable "aws_region" {
   default     = "us-west-2"
 }
 
+# SECTION 3: Network
+
 variable "vpc_cidr_block" {
-  description = "IPv4 CIDR block for the AWS VPC created for the EKS cluster (e.g. '10.0.0.0/16'). Must not overlap with other VPCs in the same AWS account if VPC peering is planned. Defaults to '10.0.0.0/16'. Only used when deploying the cluster. {{UIMeta group=1 order=104 updatesafe }}"
+  description = "IPv4 CIDR block for the AWS VPC created for the EKS cluster (e.g. '10.0.0.0/16'). Must not overlap with other VPCs in the same AWS account if VPC peering is planned. Defaults to '10.0.0.0/16'. Only used when deploying the cluster. {{UIMeta group=2 order=303 updatesafe }}"
   type        = string
   default     = "10.0.0.0/16"
 }
 
 variable "public_subnet_cidr_blocks" {
-  description = "List of IPv4 CIDR blocks for the public subnets, one per availability zone in subnet_availability_zones (e.g. ['10.0.101.0/24', '10.0.102.0/24', '10.0.103.0/24']). Must be subsets of vpc_cidr_block. Only used when enable_public_subnets is true. Defaults to three /24 subnets. {{UIMeta group=1 order=105 updatesafe }}"
+  description = "List of IPv4 CIDR blocks for the public subnets, one per availability zone in subnet_availability_zones (e.g. ['10.0.101.0/24', '10.0.102.0/24', '10.0.103.0/24']). Must be subsets of vpc_cidr_block. Only used when enable_public_subnets is true. Defaults to three /24 subnets. {{UIMeta group=2 order=304 updatesafe }}"
   type        = list(string)
   default = [
     "10.0.101.0/24",
@@ -138,13 +140,13 @@ variable "private_subnet_cidr_blocks" {
 }
 
 variable "subnet_availability_zones" {
-  description = "List of AWS availability zones in which to create subnets (e.g. ['us-west-2a', 'us-west-2b', 'us-west-2c']). Must be valid AZs within the selected aws_region. The number of entries must match the number of entries in public_subnet_cidr_blocks and private_subnet_cidr_blocks. Defaults to three AZs in us-west-2. {{UIMeta group=1 order=106 updatesafe }}"
+  description = "List of AWS availability zones in which to create subnets (e.g. ['us-west-2a', 'us-west-2b', 'us-west-2c']). Must be valid AZs within the selected aws_region. The number of entries must match the number of entries in public_subnet_cidr_blocks and private_subnet_cidr_blocks. Defaults to three AZs in us-west-2. {{UIMeta group=2 order=306 updatesafe }}"
   type        = list(string)
   default     = ["us-west-2a", "us-west-2b", "us-west-2c"]
 }
 
 variable "enable_public_subnets" {
-  description = "Set to true (default) to place EKS worker nodes in public subnets with direct internet access. Set to false to place nodes in private subnets with internet access via NAT Gateway (recommended for production workloads for improved security). {{UIMeta group=1 order=107 updatesafe }}"
+  description = "Set to true (default) to place EKS worker nodes in public subnets with direct internet access. Set to false to place nodes in private subnets with internet access via NAT Gateway (recommended for production workloads for improved security). {{UIMeta group=2 order=307 updatesafe }}"
   type        = bool
   default     = true
 }
@@ -188,13 +190,13 @@ variable "node_group_min_size" {
 }
 
 variable "aws_access_key" {
-  description = "AWS Access Key ID for the IAM user or role used to provision EKS resources (format: 20-character alphanumeric string beginning with 'AKIA' or 'ASIA', e.g. 'AKIAIOSFODNN7EXAMPLE'). Required; no default. Obtain from AWS IAM Console > Security credentials. Stored as sensitive and never shown in logs. {{UIMeta group=1 order=108 updatesafe }}"
+  description = "AWS Access Key ID for the IAM user or role used to provision EKS resources (format: 20-character alphanumeric string beginning with 'AKIA' or 'ASIA', e.g. 'AKIAIOSFODNN7EXAMPLE'). Required; no default. Obtain from AWS IAM Console > Security credentials. Stored as sensitive and never shown in logs. {{UIMeta group=1 order=104 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "aws_secret_key" {
-  description = "AWS Secret Access Key corresponding to aws_access_key (40-character base64-encoded string). Required; no default. Obtain from AWS IAM Console > Security credentials at the time the access key is created (not retrievable afterwards). Stored as sensitive and never shown in logs. {{UIMeta group=1 order=109 updatesafe }}"
+  description = "AWS Secret Access Key corresponding to aws_access_key (40-character base64-encoded string). Required; no default. Obtain from AWS IAM Console > Security credentials at the time the access key is created (not retrievable afterwards). Stored as sensitive and never shown in logs. {{UIMeta group=1 order=105 updatesafe }}"
   type        = string
   sensitive   = true
 }

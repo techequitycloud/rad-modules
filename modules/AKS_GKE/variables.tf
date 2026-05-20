@@ -111,58 +111,58 @@ variable "azure_region" {
   default     = "westus2"
 }
 
+# SECTION 4: Cluster
+
 variable "cluster_name_prefix" {
-  description = "Prefix prepended to all generated cluster and resource names (e.g. 'azure-aks-cluster' produces names like 'azure-aks-cluster-<deployment_id>'). Use lowercase letters, digits, and hyphens only. Defaults to 'azure-aks-cluster'. {{UIMeta group=1 order=104 updatesafe }}"
+  description = "Prefix prepended to all generated cluster and resource names (e.g. 'azure-aks-cluster' produces names like 'azure-aks-cluster-<deployment_id>'). Use lowercase letters, digits, and hyphens only. Defaults to 'azure-aks-cluster'. {{UIMeta group=4 order=401 updatesafe }}"
   type        = string
   default     = "azure-aks-cluster"
 }
 
 variable "node_count" {
-  description = "Number of nodes in the AKS default node pool. A minimum of 2 is recommended for high availability. Defaults to 3. Higher node counts increase Azure compute costs proportionally. {{UIMeta group=1 order=105 updatesafe }}"
+  description = "Number of nodes in the AKS default node pool. A minimum of 2 is recommended for high availability. Defaults to 3. Higher node counts increase Azure compute costs proportionally. {{UIMeta group=4 order=402 updatesafe }}"
   type        = number
   default     = 3
 }
 
 variable "k8s_version" {
-  description = "Kubernetes version to deploy on the AKS cluster, specified as major.minor (e.g. '1.34'). Must be a version currently supported by AKS in the selected azure_region. The patch version is managed automatically by AKS. Defaults to '1.34'. {{UIMeta group=1 order=106 updatesafe }}"
+  description = "Kubernetes version to deploy on the AKS cluster, specified as major.minor (e.g. '1.34'). Must be a version currently supported by AKS in the selected azure_region. The patch version is managed automatically by AKS. Defaults to '1.34'. {{UIMeta group=4 order=403 updatesafe }}"
   type        = string
   default     = "1.34"
 }
 
 variable "platform_version" {
-  description = "GKE Hub Attached Clusters platform version for the managed components installed onto the AKS cluster (format: major.minor.patch-gke.N, e.g. '1.34.0-gke.1'). Must be compatible with the selected k8s_version. Defaults to '1.34.0-gke.1'. {{UIMeta group=1 order=107 updatesafe }}"
+  description = "GKE Hub Attached Clusters platform version for the managed components installed onto the AKS cluster (format: major.minor.patch-gke.N, e.g. '1.34.0-gke.1'). Must be compatible with the selected k8s_version. Defaults to '1.34.0-gke.1'. {{UIMeta group=4 order=404 updatesafe }}"
   type        = string
   default     = "1.34.0-gke.1"
 }
 
 variable "vm_size" {
-  description = "Azure VM SKU used for AKS node pool worker nodes (e.g. 'Standard_D2s_v3' = 2 vCPUs, 8 GB RAM; 'Standard_D4s_v3' = 4 vCPUs, 16 GB RAM). Defaults to 'Standard_D2s_v3'. Larger SKUs increase Azure compute costs; availability varies by azure_region. {{UIMeta group=1 order=108 updatesafe }}"
+  description = "Azure VM SKU used for AKS node pool worker nodes (e.g. 'Standard_D2s_v3' = 2 vCPUs, 8 GB RAM; 'Standard_D4s_v3' = 4 vCPUs, 16 GB RAM). Defaults to 'Standard_D2s_v3'. Larger SKUs increase Azure compute costs; availability varies by azure_region. {{UIMeta group=4 order=405 updatesafe }}"
   type        = string
   default     = "Standard_D2s_v3"
 }
 
-// SECTION 5: IAM
-
 variable "client_id" {
-  description = "Azure Active Directory Application (Client) ID for the service principal used to create and manage AKS resources (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Obtain from Azure Portal > Azure Active Directory > App Registrations. Stored as sensitive and never shown in logs. {{UIMeta group=5 order=501 updatesafe }}"
+  description = "Azure Active Directory Application (Client) ID for the service principal used to create and manage AKS resources (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Obtain from Azure Portal > Azure Active Directory > App Registrations. Stored as sensitive and never shown in logs. {{UIMeta group=1 order=104 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "client_secret" {
-  description = "Client secret for the Azure AD service principal identified by client_id. Required; no default. Obtain from Azure Portal > Azure Active Directory > App Registrations > Certificates & Secrets. Stored as sensitive and never shown in logs. {{UIMeta group=5 order=502 updatesafe }}"
+  description = "Client secret for the Azure AD service principal identified by client_id. Required; no default. Obtain from Azure Portal > Azure Active Directory > App Registrations > Certificates & Secrets. Stored as sensitive and never shown in logs. {{UIMeta group=1 order=105 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "tenant_id" {
-  description = "Azure Active Directory Tenant ID for the Azure account (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Find this in Azure Portal > Azure Active Directory > Overview > Tenant ID. Stored as sensitive and never shown in logs. {{UIMeta group=5 order=503 updatesafe }}"
+  description = "Azure Active Directory Tenant ID for the Azure account (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Find this in Azure Portal > Azure Active Directory > Overview > Tenant ID. Stored as sensitive and never shown in logs. {{UIMeta group=1 order=106 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "subscription_id" {
-  description = "Azure Subscription ID where AKS resources will be provisioned (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Find this in Azure Portal > Subscriptions. Stored as sensitive and never shown in logs. {{UIMeta group=5 order=504 updatesafe }}"
+  description = "Azure Subscription ID where AKS resources will be provisioned (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Find this in Azure Portal > Subscriptions. Stored as sensitive and never shown in logs. {{UIMeta group=1 order=107 updatesafe }}"
   type        = string
   sensitive   = true
 }
