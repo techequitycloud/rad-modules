@@ -79,7 +79,6 @@ variable "resource_creator_identity" {
 variable "trusted_users" {
   description = "List of Google account email addresses granted cluster-admin privileges on the EKS cluster (e.g. ['user@example.com']). Defaults to an empty list (no additional admin users). Entries must be valid, non-blank email addresses with no duplicates. {{UIMeta group=1 order=101 updatesafe }}"
   type        = list(string)
-  default     = null
 
   validation {
     condition = var.trusted_users == null ? true : alltrue([
