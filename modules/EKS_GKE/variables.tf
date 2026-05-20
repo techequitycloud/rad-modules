@@ -77,7 +77,7 @@ variable "resource_creator_identity" {
 }
 
 variable "trusted_users" {
-  description = "List of Google account email addresses granted cluster-admin privileges on the EKS cluster (e.g. ['user@example.com']). Defaults to an empty list (no additional admin users). Entries must be valid, non-blank email addresses with no duplicates. {{UIMeta group=1 order=108 updatesafe }}"
+  description = "List of Google account email addresses granted cluster-admin privileges on the EKS cluster (e.g. ['user@example.com']). Defaults to an empty list (no additional admin users). Entries must be valid, non-blank email addresses with no duplicates. {{UIMeta group=1 order=101 updatesafe }}"
   type        = list(string)
   default     = null
 
@@ -94,26 +94,24 @@ variable "trusted_users" {
   }
 }
 
-# SECTION 2: Application Project
-
 variable "project_id" {
-  description = "GCP project ID of the destination project where the EKS cluster will be registered via GKE Hub (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=2 order=200 updatesafe }}"
+  description = "GCP project ID of the destination project where the EKS cluster will be registered via GKE Hub (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=100 updatesafe }}"
   type        = string
 }
 
-# SECTION 3: Network
-
 variable "gcp_location" {
-  description = "GCP region where the EKS cluster will be registered in GKE Hub and appear in the Google Cloud console (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Must be a region that supports GKE Hub Attached Clusters. {{UIMeta group=2 order=301 updatesafe }}"
+  description = "GCP region where the EKS cluster will be registered in GKE Hub and appear in the Google Cloud console (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Must be a region that supports GKE Hub Attached Clusters. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
   default     = "us-central1"
 }
 
 variable "aws_region" {
-  description = "AWS region where the EKS cluster, VPC, and supporting resources will be created (e.g. 'us-west-2', 'us-east-1', 'eu-west-1'). Defaults to 'us-west-2'. The subnet_availability_zones must be valid AZs within this region. {{UIMeta group=2 order=302 updatesafe }}"
+  description = "AWS region where the EKS cluster, VPC, and supporting resources will be created (e.g. 'us-west-2', 'us-east-1', 'eu-west-1'). Defaults to 'us-west-2'. The subnet_availability_zones must be valid AZs within this region. {{UIMeta group=1 order=103 updatesafe }}"
   type        = string
   default     = "us-west-2"
 }
+
+# SECTION 3: Network
 
 variable "vpc_cidr_block" {
   description = "IPv4 CIDR block for the AWS VPC created for the EKS cluster (e.g. '10.0.0.0/16'). Must not overlap with other VPCs in the same AWS account if VPC peering is planned. Defaults to '10.0.0.0/16'. Only used when deploying the cluster. {{UIMeta group=2 order=303 updatesafe }}"
@@ -191,16 +189,14 @@ variable "node_group_min_size" {
   default     = 2
 }
 
-// SECTION 5: IAM
-
 variable "aws_access_key" {
-  description = "AWS Access Key ID for the IAM user or role used to provision EKS resources (format: 20-character alphanumeric string beginning with 'AKIA' or 'ASIA', e.g. 'AKIAIOSFODNN7EXAMPLE'). Required; no default. Obtain from AWS IAM Console > Security credentials. Stored as sensitive and never shown in logs. {{UIMeta group=4 order=501 updatesafe }}"
+  description = "AWS Access Key ID for the IAM user or role used to provision EKS resources (format: 20-character alphanumeric string beginning with 'AKIA' or 'ASIA', e.g. 'AKIAIOSFODNN7EXAMPLE'). Required; no default. Obtain from AWS IAM Console > Security credentials. Stored as sensitive and never shown in logs. {{UIMeta group=1 order=104 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "aws_secret_key" {
-  description = "AWS Secret Access Key corresponding to aws_access_key (40-character base64-encoded string). Required; no default. Obtain from AWS IAM Console > Security credentials at the time the access key is created (not retrievable afterwards). Stored as sensitive and never shown in logs. {{UIMeta group=4 order=502 updatesafe }}"
+  description = "AWS Secret Access Key corresponding to aws_access_key (40-character base64-encoded string). Required; no default. Obtain from AWS IAM Console > Security credentials at the time the access key is created (not retrievable afterwards). Stored as sensitive and never shown in logs. {{UIMeta group=1 order=105 updatesafe }}"
   type        = string
   sensitive   = true
 }

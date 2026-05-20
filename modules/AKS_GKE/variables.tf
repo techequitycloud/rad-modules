@@ -77,7 +77,7 @@ variable "resource_creator_identity" {
 }
 
 variable "trusted_users" {
-  description = "List of Google account email addresses granted cluster-admin privileges on the AKS cluster (e.g. ['user@example.com']). Defaults to an empty list (no additional admin users). Entries must be valid, non-blank email addresses with no duplicates. {{UIMeta group=1 order=103 updatesafe }}"
+  description = "List of Google account email addresses granted cluster-admin privileges on the AKS cluster (e.g. ['user@example.com']). Defaults to an empty list (no additional admin users). Entries must be valid, non-blank email addresses with no duplicates. {{UIMeta group=1 order=101 updatesafe }}"
   type        = list(string)
   default     = null
 
@@ -94,23 +94,19 @@ variable "trusted_users" {
   }
 }
 
-# SECTION 2: Application Project
-
 variable "project_id" {
-  description = "GCP project ID of the destination project where the AKS cluster will be registered via GKE Hub (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=2 order=200 updatesafe }}"
+  description = "GCP project ID of the destination project where the AKS cluster will be registered via GKE Hub (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=100 updatesafe }}"
   type        = string
 }
 
-# SECTION 3: Network
-
 variable "gcp_location" {
-  description = "GCP region where the AKS cluster will be registered in GKE Hub and appear in the Google Cloud console (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Must be a region that supports GKE Hub Attached Clusters. {{UIMeta group=2 order=302 updatesafe }}"
+  description = "GCP region where the AKS cluster will be registered in GKE Hub and appear in the Google Cloud console (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Must be a region that supports GKE Hub Attached Clusters. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
   default     = "us-central1"
 }
 
 variable "azure_region" {
-  description = "Azure region where the AKS cluster and its supporting resources (Resource Group, Virtual Network) will be created (e.g. 'westus2', 'eastus', 'westeurope'). Defaults to 'westus2'. Availability of AKS features and VM SKUs varies by region. {{UIMeta group=2 order=303 updatesafe }}"
+  description = "Azure region where the AKS cluster and its supporting resources (Resource Group, Virtual Network) will be created (e.g. 'westus2', 'eastus', 'westeurope'). Defaults to 'westus2'. Availability of AKS features and VM SKUs varies by region. {{UIMeta group=1 order=103 updatesafe }}"
   type        = string
   default     = "westus2"
 }
@@ -147,28 +143,26 @@ variable "vm_size" {
   default     = "Standard_D2s_v3"
 }
 
-// SECTION 5: IAM
-
 variable "client_id" {
-  description = "Azure Active Directory Application (Client) ID for the service principal used to create and manage AKS resources (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Obtain from Azure Portal > Azure Active Directory > App Registrations. Stored as sensitive and never shown in logs. {{UIMeta group=5 order=501 updatesafe }}"
+  description = "Azure Active Directory Application (Client) ID for the service principal used to create and manage AKS resources (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Obtain from Azure Portal > Azure Active Directory > App Registrations. Stored as sensitive and never shown in logs. {{UIMeta group=1 order=104 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "client_secret" {
-  description = "Client secret for the Azure AD service principal identified by client_id. Required; no default. Obtain from Azure Portal > Azure Active Directory > App Registrations > Certificates & Secrets. Stored as sensitive and never shown in logs. {{UIMeta group=5 order=502 updatesafe }}"
+  description = "Client secret for the Azure AD service principal identified by client_id. Required; no default. Obtain from Azure Portal > Azure Active Directory > App Registrations > Certificates & Secrets. Stored as sensitive and never shown in logs. {{UIMeta group=1 order=105 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "tenant_id" {
-  description = "Azure Active Directory Tenant ID for the Azure account (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Find this in Azure Portal > Azure Active Directory > Overview > Tenant ID. Stored as sensitive and never shown in logs. {{UIMeta group=5 order=503 updatesafe }}"
+  description = "Azure Active Directory Tenant ID for the Azure account (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Find this in Azure Portal > Azure Active Directory > Overview > Tenant ID. Stored as sensitive and never shown in logs. {{UIMeta group=1 order=106 updatesafe }}"
   type        = string
   sensitive   = true
 }
 
 variable "subscription_id" {
-  description = "Azure Subscription ID where AKS resources will be provisioned (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Find this in Azure Portal > Subscriptions. Stored as sensitive and never shown in logs. {{UIMeta group=5 order=504 updatesafe }}"
+  description = "Azure Subscription ID where AKS resources will be provisioned (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Find this in Azure Portal > Subscriptions. Stored as sensitive and never shown in logs. {{UIMeta group=1 order=107 updatesafe }}"
   type        = string
   sensitive   = true
 }
