@@ -77,7 +77,7 @@ variable "resource_creator_identity" {
 }
 
 variable "trusted_users" {
-  description = "List of Google account email addresses granted cluster-admin privileges on the AKS cluster (e.g. ['user@example.com']). Defaults to an empty list (no additional admin users). Entries must be valid, non-blank email addresses with no duplicates. {{UIMeta group=1 order=103 updatesafe }}"
+  description = "List of Google account email addresses granted cluster-admin privileges on the AKS cluster (e.g. ['user@example.com']). Defaults to an empty list (no additional admin users). Entries must be valid, non-blank email addresses with no duplicates. {{UIMeta group=1 order=101 updatesafe }}"
   type        = list(string)
   default     = null
 
@@ -94,55 +94,49 @@ variable "trusted_users" {
   }
 }
 
-# SECTION 2: Application Project
-
 variable "project_id" {
-  description = "GCP project ID of the destination project where the AKS cluster will be registered via GKE Hub (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=2 order=200 updatesafe }}"
+  description = "GCP project ID of the destination project where the AKS cluster will be registered via GKE Hub (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=100 updatesafe }}"
   type        = string
 }
 
-# SECTION 3: Network
-
 variable "gcp_location" {
-  description = "GCP region where the AKS cluster will be registered in GKE Hub and appear in the Google Cloud console (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Must be a region that supports GKE Hub Attached Clusters. {{UIMeta group=2 order=302 updatesafe }}"
+  description = "GCP region where the AKS cluster will be registered in GKE Hub and appear in the Google Cloud console (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Must be a region that supports GKE Hub Attached Clusters. {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
   default     = "us-central1"
 }
 
 variable "azure_region" {
-  description = "Azure region where the AKS cluster and its supporting resources (Resource Group, Virtual Network) will be created (e.g. 'westus2', 'eastus', 'westeurope'). Defaults to 'westus2'. Availability of AKS features and VM SKUs varies by region. {{UIMeta group=2 order=303 updatesafe }}"
+  description = "Azure region where the AKS cluster and its supporting resources (Resource Group, Virtual Network) will be created (e.g. 'westus2', 'eastus', 'westeurope'). Defaults to 'westus2'. Availability of AKS features and VM SKUs varies by region. {{UIMeta group=1 order=103 updatesafe }}"
   type        = string
   default     = "westus2"
 }
 
-# SECTION 4: Cluster
-
 variable "cluster_name_prefix" {
-  description = "Prefix prepended to all generated cluster and resource names (e.g. 'azure-aks-cluster' produces names like 'azure-aks-cluster-<deployment_id>'). Use lowercase letters, digits, and hyphens only. Defaults to 'azure-aks-cluster'. {{UIMeta group=4 order=401 updatesafe }}"
+  description = "Prefix prepended to all generated cluster and resource names (e.g. 'azure-aks-cluster' produces names like 'azure-aks-cluster-<deployment_id>'). Use lowercase letters, digits, and hyphens only. Defaults to 'azure-aks-cluster'. {{UIMeta group=1 order=104 updatesafe }}"
   type        = string
   default     = "azure-aks-cluster"
 }
 
 variable "node_count" {
-  description = "Number of nodes in the AKS default node pool. A minimum of 2 is recommended for high availability. Defaults to 3. Higher node counts increase Azure compute costs proportionally. {{UIMeta group=4 order=402 updatesafe }}"
+  description = "Number of nodes in the AKS default node pool. A minimum of 2 is recommended for high availability. Defaults to 3. Higher node counts increase Azure compute costs proportionally. {{UIMeta group=1 order=105 updatesafe }}"
   type        = number
   default     = 3
 }
 
 variable "k8s_version" {
-  description = "Kubernetes version to deploy on the AKS cluster, specified as major.minor (e.g. '1.34'). Must be a version currently supported by AKS in the selected azure_region. The patch version is managed automatically by AKS. Defaults to '1.34'. {{UIMeta group=4 order=403 updatesafe }}"
+  description = "Kubernetes version to deploy on the AKS cluster, specified as major.minor (e.g. '1.34'). Must be a version currently supported by AKS in the selected azure_region. The patch version is managed automatically by AKS. Defaults to '1.34'. {{UIMeta group=1 order=106 updatesafe }}"
   type        = string
   default     = "1.34"
 }
 
 variable "platform_version" {
-  description = "GKE Hub Attached Clusters platform version for the managed components installed onto the AKS cluster (format: major.minor.patch-gke.N, e.g. '1.34.0-gke.1'). Must be compatible with the selected k8s_version. Defaults to '1.34.0-gke.1'. {{UIMeta group=4 order=404 updatesafe }}"
+  description = "GKE Hub Attached Clusters platform version for the managed components installed onto the AKS cluster (format: major.minor.patch-gke.N, e.g. '1.34.0-gke.1'). Must be compatible with the selected k8s_version. Defaults to '1.34.0-gke.1'. {{UIMeta group=1 order=107 updatesafe }}"
   type        = string
   default     = "1.34.0-gke.1"
 }
 
 variable "vm_size" {
-  description = "Azure VM SKU used for AKS node pool worker nodes (e.g. 'Standard_D2s_v3' = 2 vCPUs, 8 GB RAM; 'Standard_D4s_v3' = 4 vCPUs, 16 GB RAM). Defaults to 'Standard_D2s_v3'. Larger SKUs increase Azure compute costs; availability varies by azure_region. {{UIMeta group=4 order=405 updatesafe }}"
+  description = "Azure VM SKU used for AKS node pool worker nodes (e.g. 'Standard_D2s_v3' = 2 vCPUs, 8 GB RAM; 'Standard_D4s_v3' = 4 vCPUs, 16 GB RAM). Defaults to 'Standard_D2s_v3'. Larger SKUs increase Azure compute costs; availability varies by azure_region. {{UIMeta group=1 order=108 updatesafe }}"
   type        = string
   default     = "Standard_D2s_v3"
 }
