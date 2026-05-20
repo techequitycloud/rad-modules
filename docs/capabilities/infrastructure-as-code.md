@@ -106,7 +106,7 @@ Inputs like `client_secret` (AKS_GKE) and `aws_secret_key` (EKS_GKE) have no def
 tofu init
 tofu validate
 tofu fmt -check
-tofu plan -var="existing_project_id=my-test-project"
+tofu plan -var="project_id=my-test-project"
 ```
 
 These are the definition of "ready to merge" for any module change.

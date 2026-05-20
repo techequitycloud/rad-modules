@@ -33,7 +33,7 @@ Choose this option if you need custom variable overrides, automated pipelines, o
 module "eks_gke" {
   source = "./modules/EKS_GKE"
 
-  existing_project_id = "my-gcp-project"
+  project_id = "my-gcp-project"
   aws_region          = "us-west-2"
   gcp_location        = "us-central1"
   k8s_version         = "1.34"
@@ -134,7 +134,7 @@ limitations under the License.
 | <a name="input_deployment_id"></a> [deployment\_id](#input\_deployment\_id) | Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources. | `string` | `null` | no |
 | <a name="input_enable_public_subnets"></a> [enable\_public\_subnets](#input\_enable\_public\_subnets) | Set to true (default) to place EKS worker nodes in public subnets with direct internet access. Set to false to place nodes in private subnets with internet access via NAT Gateway (recommended for production workloads for improved security). | `bool` | `true` | no |
 | <a name="input_enable_purge"></a> [enable\_purge](#input\_enable\_purge) | Set to true (default) to allow platform administrators to permanently delete all resources created by this module via the platform purge operation. Set to false to prevent purge operations on this deployment. | `bool` | `true` | no |
-| <a name="input_existing_project_id"></a> [existing\_project\_id](#input\_existing\_project\_id) | GCP project ID of the destination project where the EKS cluster will be registered via GKE Hub (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource\_creator\_identity service account must hold roles/owner in it. Required; no default. | `string` | n/a | yes |
+| <a name="input_project_id"></a> [existing\_project\_id](#input\_existing\_project\_id) | GCP project ID of the destination project where the EKS cluster will be registered via GKE Hub (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource\_creator\_identity service account must hold roles/owner in it. Required; no default. | `string` | n/a | yes |
 | <a name="input_gcp_location"></a> [gcp\_location](#input\_gcp\_location) | GCP region where the EKS cluster will be registered in GKE Hub and appear in the Google Cloud console (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Must be a region that supports GKE Hub Attached Clusters. | `string` | `"us-central1"` | no |
 | <a name="input_k8s_version"></a> [k8s\_version](#input\_k8s\_version) | Kubernetes version to deploy on the EKS cluster, specified as major.minor (e.g. '1.34'). Must be a version currently supported by EKS in the selected aws\_region. The patch version is managed automatically by EKS. Defaults to '1.34'. | `string` | `"1.34"` | no |
 | <a name="input_module_dependency"></a> [module\_dependency](#input\_module\_dependency) | Ordered list of module names that must be fully deployed before this module can be deployed. The platform enforces this sequence. Defaults to ['AWS Account', 'GCP Project']. | `list(string)` | <pre>[<br>  "AWS Account",<br>  "GCP Project"<br>]</pre> | no |

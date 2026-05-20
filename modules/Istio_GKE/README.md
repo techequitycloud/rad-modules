@@ -33,7 +33,7 @@ Choose this option if you need custom variable overrides, automated pipelines, o
 module "istio_gke" {
   source = "./modules/Istio_GKE"
 
-  existing_project_id  = "my-gcp-project"
+  project_id  = "my-gcp-project"
   gcp_region           = "us-central1"
   istio_version        = "1.24.2"
   install_ambient_mesh = false   # true for ambient mode
@@ -119,7 +119,7 @@ No modules.
 | <a name="input_deployment_id"></a> [deployment\_id](#input\_deployment\_id) | Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources. | `string` | `null` | no |
 | <a name="input_enable_purge"></a> [enable\_purge](#input\_enable\_purge) | Set to true (default) to allow platform administrators to permanently delete all resources created by this module via the platform purge operation. Set to false to prevent purge operations on this deployment. | `bool` | `true` | no |
 | <a name="input_enable_services"></a> [enable\_services](#input\_enable\_services) | Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. | `bool` | `true` | no |
-| <a name="input_existing_project_id"></a> [existing\_project\_id](#input\_existing\_project\_id) | GCP project ID of the destination project where the GKE cluster and Istio service mesh will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource\_creator\_identity service account must hold roles/owner in it. Required; no default. | `string` | n/a | yes |
+| <a name="input_project_id"></a> [existing\_project\_id](#input\_existing\_project\_id) | GCP project ID of the destination project where the GKE cluster and Istio service mesh will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource\_creator\_identity service account must hold roles/owner in it. Required; no default. | `string` | n/a | yes |
 | <a name="input_gcp_region"></a> [gcp\_region](#input\_gcp\_region) | GCP region where the GKE cluster, VPC, and all supporting resources will be deployed (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Deployment may fail if sufficient resource quota is not available in the selected region. | `string` | `"us-central1"` | no |
 | <a name="input_gke_cluster"></a> [gke\_cluster](#input\_gke\_cluster) | Name of the GKE cluster. When create\_cluster is true, this is the name given to the newly created cluster. When create\_cluster is false, this identifies the existing cluster onto which Istio will be installed. Defaults to 'gke-cluster'. | `string` | `"gke-cluster"` | no |
 | <a name="input_install_ambient_mesh"></a> [install\_ambient\_mesh](#input\_install\_ambient\_mesh) | Set to true to install Istio in ambient mode, which uses node-level ztunnel proxies instead of per-pod sidecars — reducing resource overhead and simplifying pod configuration. Set to false (default) to install in sidecar mode, where an Envoy proxy is injected into each pod for full per-pod traffic control. | `bool` | `false` | no |

@@ -104,7 +104,7 @@ override only what differs in your environment.
 
 | Variable | Default | Description |
 |---|---|---|
-| `existing_project_id` | *(required — no default)* | GCP project ID where all resources are created |
+| `project_id` | *(required — no default)* | GCP project ID where all resources are created |
 | `gcp_region` | `us-central1` | Region for the GKE cluster, VPC, and all resources |
 | `create_autopilot_cluster` | `true` | `true` = GKE Autopilot (fully managed nodes); `false` = Standard cluster with manually configured node pool |
 | `gke_cluster` | `gke-cluster` | Name given to the GKE cluster |
@@ -124,7 +124,7 @@ override only what differs in your environment.
 Minimum `terraform.tfvars` example:
 
 ```hcl
-existing_project_id = "your-project-id"
+project_id = "your-project-id"
 ```
 
 ### Step 1.2 — Initialise and Deploy

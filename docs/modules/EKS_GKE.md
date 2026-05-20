@@ -893,7 +893,7 @@ All configuration options are set before deployment. Options marked **Required**
 
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
-| `existing_project_id` | **Yes** | — | The Google Cloud project ID where the EKS cluster will be registered. The project must have billing enabled. |
+| `project_id` | **Yes** | — | The Google Cloud project ID where the EKS cluster will be registered. The project must have billing enabled. |
 | `gcp_location` | No | `us-central1` | The GCP region used for cluster registration, Cloud Logging, and Cloud Monitoring. This does not need to be geographically close to the AWS region — it is the Google Cloud control-plane anchor for the cluster. |
 
 ### AWS Settings
@@ -951,7 +951,7 @@ The following behaviours are fixed within the module and cannot be changed throu
 |-----------|--------|
 | **Log components** | Both `SYSTEM_COMPONENTS` and `WORKLOADS` logs are always forwarded to Cloud Logging. There is no option to forward one without the other. |
 | **Managed Prometheus** | Always enabled on the attached cluster. Cloud Managed Prometheus metrics collection is always active. |
-| **Fleet project** | The cluster is enrolled in the fleet of the same Google Cloud project specified in `existing_project_id`. Cross-project fleet registration is not supported by this module. |
+| **Fleet project** | The cluster is enrolled in the fleet of the same Google Cloud project specified in `project_id`. Cross-project fleet registration is not supported by this module. |
 | **Node group distribution** | Worker nodes are placed in all three subnets across all three availability zones. Nodes are spread across AZs for high availability by default. |
 | **API disable on teardown** | The ten GCP APIs enabled by this module are not disabled when the module is torn down. This prevents disruption to other services in the project that may depend on the same APIs. |
 | **GCP APIs propagation** | Newly enabled GCP APIs require time to propagate before dependent resources can be created. The module waits for this automatically — no manual delay is needed. |
@@ -989,7 +989,7 @@ gcloud container attached clusters get-credentials CLUSTER_NAME \
   --project GCP_PROJECT_ID
 ```
 
-Replace `CLUSTER_NAME` with the value of `cluster_name_prefix`, `GCP_REGION` with the value of `gcp_location`, and `GCP_PROJECT_ID` with `existing_project_id`.
+Replace `CLUSTER_NAME` with the value of `cluster_name_prefix`, `GCP_REGION` with the value of `gcp_location`, and `GCP_PROJECT_ID` with `project_id`.
 
 Verify the connection and explore the cluster:
 

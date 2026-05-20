@@ -39,5 +39,5 @@ provider "aws" {
 }
 
 provider "google" {
-  project = var.existing_project_id
+  project = var.project_id
 }

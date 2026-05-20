@@ -391,13 +391,13 @@ You are now in **Maintenance Mode**, performing updates or configuration changes
 ### 5. Updating UIMeta variable annotations
 - Change `group=N` or `order=M` in the variable description to reorganize the RAD platform UI.
 - Order values are compared numerically within a group; gaps are allowed (e.g. order 101, 103, 105 is fine).
-- The `updatesafe` tag marks variables safe to change on an in-place apply. Do not add `updatesafe` to variables that force resource replacement (e.g. `gcp_region`, `existing_project_id`).
+- The `updatesafe` tag marks variables safe to change on an in-place apply. Do not add `updatesafe` to variables that force resource replacement (e.g. `gcp_region`, `project_id`).
 
 ### 6. Updating the RAD platform service account default
 - The `resource_creator_identity` variable defaults to the platform SA email. If the platform SA changes, update the default in `variables.tf` for each affected module.
 
 **Pre-maintenance checklist:**
-- [ ] `tofu plan -var="existing_project_id=<project>"` — review the diff for unexpected replacements (red `-/+`)
+- [ ] `tofu plan -var="project_id=<project>"` — review the diff for unexpected replacements (red `-/+`)
 - [ ] For destructive changes: confirm all cluster workloads are backed up or stateless
 - [ ] For MC_Bank_GKE cluster map changes: drain workloads from clusters being removed
 - [ ] For Istio version upgrades: verify the target version is available at `github.com/istio/istio/releases`

@@ -117,7 +117,7 @@ are the module defaults — override only what differs in your environment.
 
 | Variable | Default | Description |
 |---|---|---|
-| `existing_project_id` | *(required — no default)* | GCP project ID where the EKS cluster will be registered |
+| `project_id` | *(required — no default)* | GCP project ID where the EKS cluster will be registered |
 | `aws_access_key` | *(required — no default)* | AWS Access Key ID (sensitive) |
 | `aws_secret_key` | *(required — no default)* | AWS Secret Access Key (sensitive) |
 | `aws_region` | `us-west-2` | AWS region for EKS cluster and VPC |
@@ -138,7 +138,7 @@ are the module defaults — override only what differs in your environment.
 Minimum `terraform.tfvars` example:
 
 ```hcl
-existing_project_id = "your-project-id"
+project_id = "your-project-id"
 aws_access_key      = "AKIAIOSFODNN7EXAMPLE"
 aws_secret_key      = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 trusted_users       = ["you@example.com"]

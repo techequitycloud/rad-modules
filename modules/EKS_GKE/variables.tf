@@ -79,7 +79,7 @@ variable "resource_creator_identity" {
 variable "trusted_users" {
   description = "List of Google account email addresses granted cluster-admin privileges on the EKS cluster (e.g. ['user@example.com']). Defaults to an empty list (no additional admin users). Entries must be valid, non-blank email addresses with no duplicates. {{UIMeta group=1 order=108 updatesafe }}"
   type        = list(string)
-  default     = []
+  default     = null
 
   validation {
     condition = var.trusted_users == null ? true : alltrue([
@@ -96,7 +96,7 @@ variable "trusted_users" {
 
 # SECTION 2: Application Project
 
-variable "existing_project_id" {
+variable "project_id" {
   description = "GCP project ID of the destination project where the EKS cluster will be registered via GKE Hub (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=2 order=200 updatesafe }}"
   type        = string
 }
