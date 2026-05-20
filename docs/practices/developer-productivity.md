@@ -7,7 +7,7 @@ The repository pulls a developer from "I want to learn Istio" or "I need a multi
 ```bash
 cd modules/Istio_GKE
 tofu init
-tofu apply -var="existing_project_id=my-gcp-project"
+tofu apply -var="project_id=my-gcp-project"
 ```
 
 That single apply provisions a GKE cluster, VPC with private nodes, Cloud NAT, an Istio control plane, the full observability stack, and optionally the Bookinfo sample. There is no separate "now configure the mesh" step. See [service-mesh](../capabilities/service-mesh.md) and [observability](../capabilities/observability.md).

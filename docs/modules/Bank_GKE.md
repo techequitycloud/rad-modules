@@ -1095,7 +1095,7 @@ The following options are available when deploying the Bank_GKE module. Engineer
 
 | Option | Default | Description |
 |---|---|---|
-| `existing_project_id` | _(empty)_ | GCP project ID for deployment. Must be provided. |
+| `project_id` | _(empty)_ | GCP project ID for deployment. Must be provided. |
 | `gcp_region` | `us-central1` | Region for the GKE cluster, VPC, and all regional resources. |
 
 ### GKE Cluster

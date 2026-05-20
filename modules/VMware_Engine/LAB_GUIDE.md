@@ -86,7 +86,7 @@ the module defaults — override only what differs in your environment.
 
 | Variable | Default | Description |
 |---|---|---|
-| `existing_project_id` | *(required — no default)* | GCP project ID where all resources are created |
+| `project_id` | *(required — no default)* | GCP project ID where all resources are created |
 | `region` | `us-west2` | Region for the private cloud and network policy |
 | `zone` | `us-west2-a` | Zone for the private cloud and jump host |
 | `vmware_engine_network_name` | `altostrat-<id>-ven` | Auto-scoped to deployment ID. Must start with `altostrat-` if overridden |
@@ -114,7 +114,7 @@ the module defaults — override only what differs in your environment.
 Minimum `terraform.tfvars` example:
 
 ```hcl
-existing_project_id = "your-project-id"
+project_id = "your-project-id"
 ```
 
 ### Step 1.2 — Initialise and Deploy
@@ -165,7 +165,7 @@ generated password — you will need them in Phase 3. You can retrieve the crede
 `gcloud vmware private-clouds vcenter credentials describe \
   --private-cloud=<altostrat-<id>-private-cloud> \
   --location=us-west1-a \
-  --project=<existing_project_id> \
+  --project=<project_id> \
   --username=solution-user-01@gve.local`
 
   Optionally add `--impersonate-service-account=<terraform_resource_creator_identity_SA>` if required.

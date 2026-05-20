@@ -78,10 +78,10 @@ variable "deployment_id" {
 
 // SECTION 2: Main
 
-variable "existing_project_id" {
+variable "project_id" {
   description = "GCP project ID where VMware Engine resources will be deployed. Must already exist and the service account must hold roles/owner. {{UIMeta group=1 order=101 updatesafe }}"
   type        = string
-  default     = ""
+  default     = null
 }
 
 variable "region" {

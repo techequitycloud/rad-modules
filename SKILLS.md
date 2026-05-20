@@ -71,7 +71,7 @@ Other modules introduce their own domain-specific files alongside this skeleton:
 
 Every module's `main.tf` does the same three things at the top:
 
-1. Looks up the existing GCP project via `data "google_project" "existing_project"` keyed by `var.existing_project_id`.
+1. Looks up the existing GCP project via `data "google_project" "existing_project"` keyed by `var.project_id`.
 2. Generates a deployment suffix: `random_id "default"` is created when `var.deployment_id` is `null`; `local.random_id` resolves to either the provided value or the generated hex.
 3. Enables the project's required APIs via `google_project_service.enabled_services` with `disable_dependent_services = false` and `disable_on_destroy = false` (critical — prevents destroy from disabling APIs that other modules may be using).
 
@@ -122,7 +122,7 @@ All input variables carry a `{{UIMeta group=N order=M }}` annotation at the end 
 | Group | Section | Variables |
 |---|---|---|
 | 0 | Provider / Metadata | `module_description`, `module_dependency`, `module_services`, `credit_cost`, `require_credit_purchases`, `enable_purge`, `public_access`, `resource_creator_identity`, `trusted_users` |
-| 1 | Main | `existing_project_id`, `gcp_region` |
+| 1 | Main | `project_id`, `gcp_region` |
 | 2 | Network | `create_network`, `network_name`, `subnet_name`, `ip_cidr_ranges` |
 | 3 | GKE | `create_cluster`, `gke_cluster`, `release_channel`, `pod_ip_range`, `pod_cidr_block`, `service_ip_range`, `service_cidr_block` |
 | 4 | Features | `enable_services`, `istio_version`, `install_ambient_mesh` |
@@ -131,7 +131,7 @@ All input variables carry a `{{UIMeta group=N order=M }}` annotation at the end 
 Example variable:
 
 ```hcl
-variable "existing_project_id" {
+variable "project_id" {
   description = "GCP project ID of the destination project where the GKE cluster and Istio service mesh will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=101 updatesafe }}"
   type        = string
 }
@@ -188,7 +188,7 @@ There is no scaffolding script. Create a new module by copying the layout from t
    tofu init      # or: terraform init
    tofu validate
    tofu fmt -check
-   tofu plan -var="existing_project_id=my-test-project"
+   tofu plan -var="project_id=my-test-project"
    ```
 
 ## 6. Conventions and Invariants
@@ -207,9 +207,9 @@ There is no scaffolding script. Create a new module by copying the layout from t
 ```bash
 cd modules/Istio_GKE
 tofu init
-tofu plan  -var="existing_project_id=my-gcp-project"
-tofu apply -var="existing_project_id=my-gcp-project"
-tofu destroy -var="existing_project_id=my-gcp-project"
+tofu plan  -var="project_id=my-gcp-project"
+tofu apply -var="project_id=my-gcp-project"
+tofu destroy -var="project_id=my-gcp-project"
 ```
 
 ### Via the RAD Lab launcher
@@ -266,7 +266,7 @@ The `deploy.tf` `null_resource` downloads the release tarball into `.terraform/b
 ### Standard variable set (GKE-based modules)
 
 ```hcl
-existing_project_id        # GCP project ID (required)
+project_id        # GCP project ID (required)
 gcp_region                 # e.g. "us-central1"
 resource_creator_identity  # SA email for impersonation; default points to the platform SA
 trusted_users              # Emails granted cluster-admin via RBAC/Connect Gateway

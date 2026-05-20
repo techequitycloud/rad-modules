@@ -52,7 +52,7 @@ resource "random_id" "default" {
 
 # Data source to fetch information about an existing Google Cloud project, if not creating a new one
 data "google_project" "existing_project" {
-  project_id = trimspace(var.existing_project_id)
+  project_id = trimspace(var.project_id)
 }
 
 # Resource to enable APIs on the selected Google Cloud project

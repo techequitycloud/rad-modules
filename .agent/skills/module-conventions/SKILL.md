@@ -47,7 +47,7 @@ Variables are organized into numbered sections using `// SECTION N:` or `# SECTI
 #                           credit_cost, require_credit_purchases, enable_purge,
 #                           public_access, deployment_id, resource_creator_identity,
 #                           trusted_users
-# SECTION 2: Project      → existing_project_id, enable_services
+# SECTION 2: Project      → project_id, enable_services
 # SECTION 3: Network      → create_network, network_name, subnet_name, ip_cidr_ranges, ...
 # SECTION 4: Cluster      → create_cluster, cluster_name_prefix, k8s_version, release_channel, ...
 # SECTION 5: IAM / Creds  → client_id/tenant_id/subscription_id/client_secret (Azure),
@@ -125,7 +125,7 @@ terraform {
   required_version = ">= 0.13"
 }
 
-provider "google" { project = var.existing_project_id }
+provider "google" { project = var.project_id }
 provider "azurerm" {
   features {}
   tenant_id = var.tenant_id
@@ -188,7 +188,7 @@ resource "random_id" "default" {
 }
 
 data "google_project" "existing_project" {
-  project_id = trimspace(var.existing_project_id)
+  project_id = trimspace(var.project_id)
 }
 
 resource "google_project_service" "enabled_services" {

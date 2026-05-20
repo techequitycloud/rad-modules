@@ -21,7 +21,7 @@
 # data "external" "private_cloud_exists" {
 #   program = [
 #     "bash", "-c",
-#     "DEPLOY_ID='${coalesce(var.deployment_id, "")}'; if [ -n \"$DEPLOY_ID\" ]; then STATUS=$(gcloud vmware private-clouds describe \"altostrat-$DEPLOY_ID-private-cloud\" --project='${var.existing_project_id}' --location='${var.zone}' --impersonate-service-account='${var.resource_creator_identity}' --format='value(name)' --quiet 2>/dev/null); [ -n \"$STATUS\" ] && echo '{\"exists\":\"true\"}' || echo '{\"exists\":\"false\"}'; else COUNT=$(gcloud vmware private-clouds list --project='${var.existing_project_id}' --location='${var.zone}' --impersonate-service-account='${var.resource_creator_identity}' --format='value(name)' --quiet 2>/dev/null | grep -c . || echo 0); [ \"$COUNT\" -gt 0 ] && echo '{\"exists\":\"true\"}' || echo '{\"exists\":\"false\"}'; fi"
+#     "DEPLOY_ID='${coalesce(var.deployment_id, "")}'; if [ -n \"$DEPLOY_ID\" ]; then STATUS=$(gcloud vmware private-clouds describe \"altostrat-$DEPLOY_ID-private-cloud\" --project='${var.project_id}' --location='${var.zone}' --impersonate-service-account='${var.resource_creator_identity}' --format='value(name)' --quiet 2>/dev/null); [ -n \"$STATUS\" ] && echo '{\"exists\":\"true\"}' || echo '{\"exists\":\"false\"}'; else COUNT=$(gcloud vmware private-clouds list --project='${var.project_id}' --location='${var.zone}' --impersonate-service-account='${var.resource_creator_identity}' --format='value(name)' --quiet 2>/dev/null | grep -c . || echo 0); [ \"$COUNT\" -gt 0 ] && echo '{\"exists\":\"true\"}' || echo '{\"exists\":\"false\"}'; fi"
 #   ]
 # }
 

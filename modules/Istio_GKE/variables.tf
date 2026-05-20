@@ -84,7 +84,7 @@ variable "deployment_id" {
   default     = null
 }
 
-variable "existing_project_id" {
+variable "project_id" {
   description = "GCP project ID of the destination project where the GKE cluster and Istio service mesh will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=101 updatesafe }}"
   type        = string
 }

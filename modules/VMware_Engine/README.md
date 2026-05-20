@@ -35,7 +35,7 @@ Choose this option if you need custom variable overrides, automated pipelines, o
 module "vmware_engine" {
   source = "./modules/VMware_Engine"
 
-  existing_project_id  = "my-gcp-project"
+  project_id  = "my-gcp-project"
   private_cloud_type   = "TIME_LIMITED"   # or "STANDARD" for production
   node_count           = 1
   create_jump_host     = true
@@ -112,7 +112,7 @@ No modules.
 | <a name="input_enable_internet_access"></a> [enable\_internet\_access](#input\_enable\_internet\_access) | Set to true (default) to enable internet access from VMware Engine workload VMs via the edge services CIDR. | `bool` | `true` | no |
 | <a name="input_enable_purge"></a> [enable\_purge](#input\_enable\_purge) | Set to true (default) to allow platform administrators to permanently delete all resources created by this module via the platform purge operation. Set to false to prevent purge operations on this deployment. | `bool` | `true` | no |
 | <a name="input_enable_services"></a> [enable\_services](#input\_enable\_services) | Set to true (default) to automatically enable required GCP project APIs. Set to false when APIs are already enabled. | `bool` | `true` | no |
-| <a name="input_existing_project_id"></a> [existing\_project\_id](#input\_existing\_project\_id) | GCP project ID where VMware Engine resources will be deployed. Must already exist and the service account must hold roles/owner. | `string` | n/a | yes |
+| <a name="input_project_id"></a> [existing\_project\_id](#input\_existing\_project\_id) | GCP project ID where VMware Engine resources will be deployed. Must already exist and the service account must hold roles/owner. | `string` | n/a | yes |
 | <a name="input_internal_traffic_cidr"></a> [internal\_traffic\_cidr](#input\_internal\_traffic\_cidr) | CIDR block used as the source range for the allow-internal firewall rule. Matches the default VPC auto-mode subnet range. Override if using a custom-mode VPC. | `string` | `"10.128.0.0/9"` | no |
 | <a name="input_jump_host_boot_disk_size_gb"></a> [jump\_host\_boot\_disk\_size\_gb](#input\_jump\_host\_boot\_disk\_size\_gb) | Boot disk size in GB for the Windows jump host. Minimum 50 GB recommended for Windows Server 2022. | `number` | `50` | no |
 | <a name="input_jump_host_machine_type"></a> [jump\_host\_machine\_type](#input\_jump\_host\_machine\_type) | Machine type for the Windows jump host (e.g. 'e2-medium'). | `string` | `"e2-medium"` | no |

@@ -134,7 +134,7 @@ only what differs in your environment.
 
 | Variable | Default | Description |
 |---|---|---|
-| `existing_project_id` | *(required — no default)* | GCP project ID where all resources are created |
+| `project_id` | *(required — no default)* | GCP project ID where all resources are created |
 | `available_regions` | `["us-west1", "us-east1"]` | Regions for cluster assignment, cycled round-robin |
 | `cluster_size` | `2` | Number of GKE clusters (2–4). Minimum 2 for meaningful multi-cluster demo |
 | `create_autopilot_cluster` | `true` | `true` = Autopilot (fully managed nodes); `false` = Standard (manual node pools) |
@@ -153,13 +153,13 @@ only what differs in your environment.
 Minimum `terraform.tfvars` example:
 
 ```hcl
-existing_project_id = "your-project-id"
+project_id = "your-project-id"
 ```
 
 Full example with two clusters in separate regions:
 
 ```hcl
-existing_project_id       = "your-project-id"
+project_id       = "your-project-id"
 available_regions         = ["us-west1", "us-east1"]
 cluster_size              = 2
 create_autopilot_cluster  = true

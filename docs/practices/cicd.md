@@ -42,7 +42,7 @@ Every module has a 4-character `deployment_id` generated via `random_id` (or sup
 
 ```bash
 tofu init && tofu validate && tofu fmt -check
-tofu plan -var="existing_project_id=my-test-project"
+tofu plan -var="project_id=my-test-project"
 ```
 
 These are the definition-of-ready for any module change. See [infrastructure-as-code](../capabilities/infrastructure-as-code.md) for the conventions they enforce.

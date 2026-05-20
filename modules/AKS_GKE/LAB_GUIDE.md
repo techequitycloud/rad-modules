@@ -119,7 +119,7 @@ the module defaults — override only what differs in your environment.
 
 | Variable | Default | Description |
 |---|---|---|
-| `existing_project_id` | *(required — no default)* | GCP project ID where the cluster is registered |
+| `project_id` | *(required — no default)* | GCP project ID where the cluster is registered |
 | `azure_region` | `westus2` | Azure region for the AKS cluster and Resource Group |
 | `gcp_location` | `us-central1` | GCP region where the attached cluster resource is created |
 | `cluster_name_prefix` | `azure-aks-cluster` | Prefix for all generated resource names |
@@ -136,7 +136,7 @@ the module defaults — override only what differs in your environment.
 Minimum `terraform.tfvars` example:
 
 ```hcl
-existing_project_id = "your-project-id"
+project_id = "your-project-id"
 trusted_users       = ["your-email@example.com"]
 
 client_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
@@ -181,7 +181,7 @@ tofu show | grep -E "cluster_id|resource_group|oidc_issuer"
 | Cluster name | `var.cluster_name_prefix` + deployment ID suffix | All `kubectl` and API commands |
 | Resource Group name | Azure portal or `tofu state show azurerm_resource_group.aks` | Azure console verification |
 | OIDC Issuer URL | `tofu state show azurerm_kubernetes_cluster.aks` | Phase 2 verification |
-| GCP Project ID | Your `existing_project_id` variable | All GCP console and API steps |
+| GCP Project ID | Your `project_id` variable | All GCP console and API steps |
 
 ---
 

@@ -84,10 +84,10 @@ variable "deployment_id" {
 
 // SECTION 2: Main
 
-variable "existing_project_id" {
+variable "project_id" {
   description = "GCP project ID of the destination project where the GKE cluster and banking application will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Leave blank to use the default project. {{UIMeta group=1 order=101 updatesafe }}"
   type        = string
-  default     = ""
+  default     = null
 }
 
 variable "region" {

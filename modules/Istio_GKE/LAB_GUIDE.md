@@ -90,7 +90,7 @@ override only what differs in your environment.
 
 | Variable | Default | Description |
 |---|---|---|
-| `existing_project_id` | *(required — no default)* | GCP project ID where all resources are created |
+| `project_id` | *(required — no default)* | GCP project ID where all resources are created |
 | `gcp_region` | `us-central1` | Region for the GKE cluster and VPC |
 | `istio_version` | `1.24.2` | Open-source Istio version to install |
 | `install_ambient_mesh` | `false` | Set to `true` for ambient mode; `false` for sidecar mode |
@@ -101,7 +101,7 @@ override only what differs in your environment.
 Minimum `terraform.tfvars` example:
 
 ```hcl
-existing_project_id = "your-project-id"
+project_id = "your-project-id"
 ```
 
 ### Step 1.2 — Initialise and Deploy
