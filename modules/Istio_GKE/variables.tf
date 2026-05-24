@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module configures the Open Source Istio service mesh on a Google Kubernetes Engine (GKE) cluster, providing a dedicated infrastructure layer for secure, fast, and reliable service-to-service communication. You can choose between ambient or sidecar mesh and explore advanced features like traffic management, security, and observability. This module is for educational purposes only."
+  default     = "This module installs open-source Istio — the industry's most widely adopted service mesh, used by enterprises across financial services, healthcare, and technology to enforce zero-trust networking and meet compliance requirements including PCI-DSS and HIPAA — on GKE. Choose between sidecar mode for fine-grained per-pod traffic control or the newer ambient mode for lower resource overhead, and immediately explore a production-representative observability stack including Prometheus, Grafana, Jaeger, and Kiali via the Bookinfo sample application. This module is for educational purposes only."
 }
 
 variable "module_documentation" {

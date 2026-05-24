@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module enables you to create and manage an Amazon Elastic Kubernetes Service (EKS) cluster from your Google Cloud console, providing a unified way for organizations using both AWS and Google Cloud to manage their applications. This module is for demonstration purposes only."
+  default     = "This module enables you to manage Amazon EKS clusters directly from your Google Cloud console using GKE Fleet — the architecture of choice for enterprises running workloads across the world's two largest clouds. Teams in financial services, healthcare, and retail use GKE Attached Clusters to unify security policies, centralize logging and access controls, and apply consistent configuration across AWS and GCP deployments without disrupting existing EKS workloads. This module is for demonstration purposes only."
 }
 
 variable "module_documentation" {
