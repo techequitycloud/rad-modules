@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys an advanced, microservice banking demo application on Google Kubernetes Engine (GKE), utilizing Cloud Service Mesh for enhanced security and multi-cluster management. It serves as a reference implementation for highly scalable, secure, and feature-rich banking platforms. This module is for educational purposes only."
+  default     = "This module deploys the Bank of Anthos reference banking application on GKE with Cloud Service Mesh — the same microservices architecture pattern used by financial institutions modernizing legacy payment and core banking platforms on Google Cloud. It demonstrates PCI-DSS relevant capabilities including mTLS-encrypted service communication, GitOps-driven configuration management, Cloud Monitoring SLOs, and GKE Autopilot's serverless compute model, making it the go-to reference for architects evaluating cloud-native financial services infrastructure. This module is for educational purposes only."
 }
 
 variable "module_documentation" {
