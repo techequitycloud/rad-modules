@@ -45,7 +45,7 @@ locals {
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys an advanced, microservice banking demo application on Google Kubernetes Engine (GKE) across multiple clusters, utilizing Cloud Service Mesh for enhanced security and multi-cluster management. It serves as a reference implementation for highly scalable, secure, and feature-rich banking platforms. This module is for educational purposes only."
+  default     = "This module deploys the Bank of Anthos banking application across multiple GKE clusters in multiple GCP regions — demonstrating the active-active, geo-redundant architecture that regulated financial institutions and global payment processors require for 99.99%+ availability SLAs. By combining Multi-Cluster Ingress, fleet-wide Cloud Service Mesh, and GKE Fleet management, it shows engineering teams how to eliminate single-region failure risk and satisfy data residency requirements simultaneously — a pattern directly applicable to core banking, payments, and insurance platforms. This module is for educational purposes only."
 }
 
 variable "module_documentation" {
