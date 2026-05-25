@@ -59,18 +59,18 @@ locals {
 #########################################################################
 
 resource "google_container_cluster" "gke_standard_cluster" {
-  count                     = var.create_cluster ? 1 : 0
-  project                   = local.project.project_id
-  name                      = var.gke_cluster
-  location                  = var.region
-  allow_net_admin           = true
-  networking_mode           = "VPC_NATIVE"
-  datapath_provider         = "LEGACY_DATAPATH"
-  remove_default_node_pool  = true
-  initial_node_count        = 1
-  deletion_protection       = false
-  network                   = local.network.name
-  subnetwork                = local.subnet.name
+  count                    = var.create_cluster ? 1 : 0
+  project                  = local.project.project_id
+  name                     = var.gke_cluster
+  location                 = var.region
+  allow_net_admin          = true
+  networking_mode          = "VPC_NATIVE"
+  datapath_provider        = "LEGACY_DATAPATH"
+  remove_default_node_pool = true
+  initial_node_count       = 1
+  deletion_protection      = false
+  network                  = local.network.name
+  subnetwork               = local.subnet.name
 
   ip_allocation_policy {
     cluster_secondary_range_name  = var.pod_ip_range
@@ -164,8 +164,9 @@ resource "google_service_account" "gke_sa" {
 }
 
 locals {
+  # Sentinel Security Fix: Replaced project-wide storage.objectAdmin with storage.objectViewer to enforce least privilege. Project-wide admin access poses a severe risk of data loss or unauthorized access. Workload Identity should be used if write access to specific buckets is required.
   gke_sa_project_roles = [
-    "roles/storage.objectAdmin",
+    "roles/storage.objectViewer",
     "roles/artifactregistry.reader",
     "roles/monitoring.metricWriter",
     "roles/monitoring.viewer",

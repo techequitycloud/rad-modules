@@ -53,13 +53,13 @@ provider "kubernetes" {
 #########################################################################
 
 resource "google_container_cluster" "gke_cluster" {
-  count                 = var.create_cluster ? 1 : 0
-  project               = local.project.project_id
-  name                  = var.gke_cluster
-  location              = var.region
-  deletion_protection   = false
-  network               = local.network.name
-  subnetwork            = local.subnet.name
+  count               = var.create_cluster ? 1 : 0
+  project             = local.project.project_id
+  name                = var.gke_cluster
+  location            = var.region
+  deletion_protection = false
+  network             = local.network.name
+  subnetwork          = local.subnet.name
 
   enable_autopilot         = var.create_autopilot_cluster
   remove_default_node_pool = var.create_autopilot_cluster ? null : true
@@ -162,8 +162,8 @@ resource "google_container_node_pool" "preemptible_nodes" {
 }
 
 locals {
+  # Sentinel Security Fix: Replaced project-wide storage.objectAdmin with storage.objectViewer to enforce least privilege. Project-wide admin access poses a severe risk of data loss or unauthorized access. Workload Identity should be used if write access to specific buckets is required.
   gke_sa_project_roles = [
-    "roles/storage.objectAdmin",
     "roles/storage.objectViewer",
     "roles/artifactregistry.reader",
     "roles/monitoring.metricWriter",
