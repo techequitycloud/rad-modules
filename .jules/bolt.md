@@ -1,0 +1,3 @@
+## 2024-05-25 - Prevent Redundant Init Jobs without Breaking Ephemeral Environments
+**Learning:** Setting `always_run = "true"` on a `null_resource` prevents the provisioner from running altogether because the triggers never change, breaking ephemeral CI/CD environments where local disk files might be missing.
+**Action:** Keep `always_run = timestamp()` on the `null_resource` to ensure execution, but use bash idempotency (like `if [ -d "$dir" ]; then exit 0; fi`) within the `local-exec` script to exit early when files exist. Break the replacement chain downstream by removing dynamic upstream triggers (like `download_id`), relying only on `depends_on` for sequencing.
