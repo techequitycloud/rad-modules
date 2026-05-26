@@ -14,9 +14,32 @@
  * limitations under the License.
  */
 
+resource "random_password" "windows_vm_password" {
+  count            = var.create_windows_vm ? 1 : 0
+  length           = 32
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "google_secret_manager_secret" "windows_vm_password" {
+  count     = var.create_windows_vm ? 1 : 0
+  project   = local.project.project_id
+  secret_id = "windows-vm-password-${local.random_id}"
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "windows_vm_password" {
+  count       = var.create_windows_vm ? 1 : 0
+  secret      = google_secret_manager_secret.windows_vm_password[0].id
+  secret_data = random_password.windows_vm_password[0].result
+}
+
 # Windows Server 2022 VM that hosts the MC Discovery Client (MCDCv6).
 # The sysprep startup script runs on first boot and:
-#   1. Creates the migrationcenter local user with the lab RDP password
+#   1. Creates the migrationcenter local user with a randomly generated RDP password
 #   2. Enables RDP and adds the user to Remote Desktop Users
 #   3. Silently downloads and installs MCDCv6
 #   4. Pre-downloads the AWS sample import zip to the Downloads folder
@@ -47,7 +70,7 @@ resource "google_compute_instance" "windows_vm" {
     windows-startup-script-ps1 = <<-PS1
       # ── 1. Create lab user ──────────────────────────────────────────────────
       $labUser     = "migrationcenter"
-      $labPassword = "m1grat10nc#nt#r"
+      $labPassword = '${random_password.windows_vm_password[0].result}'
       $securePass  = ConvertTo-SecureString $labPassword -AsPlainText -Force
 
       if (-not (Get-LocalUser -Name $labUser -ErrorAction SilentlyContinue)) {

@@ -117,7 +117,7 @@ Open your RDP client and connect to the external IP from the Terraform output:
 |---|---|
 | Host | `windows_vm_external_ip` (from output) |
 | Username | `migrationcenter` |
-| Password | `m1grat10nc#nt#r` |
+| Password | Fetch from Secret Manager (`windows_vm_password_secret_id`) |
 
 > **Note:** The startup script runs on first boot. If MCDCv6 is not yet on
 > the desktop, wait 2–3 minutes and reconnect.
@@ -168,7 +168,7 @@ script completes.
    | Name for the credentials | `Lab` |
    | Credential type | `Username and Password` |
    | Username | `migrationcenter` |
-   | Password | `m1grat10nc#nt#r` |
+   | Password | Fetch from Secret Manager (`windows_vm_password_secret_id`) |
 
 3. Click **Save**.
 
