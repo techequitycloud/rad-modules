@@ -40,34 +40,44 @@ console once the asset inventory is fully populated — ensuring the report refl
 
 **Google Cloud Migration Center** is Google Cloud's free, unified platform for discovering,
 assessing, and planning the migration of workloads from on-premises data centres or other cloud
-environments. It aggregates data from multiple discovery sources — agent-based scans, agentless
-network discovery, and manual CSV imports — and produces inventory reports, dependency maps,
-and total cost of ownership (TCO) projections.
+environments. It aggregates data from multiple discovery sources — agent-based scans (via the
+MC Discovery Client), agentless network discovery, VMware vCenter integration, and manual CSV
+imports from AWS, Azure, or on-premises tools — and produces inventory reports, dependency
+maps, and total cost of ownership (TCO) projections.
+
+> **Regional commitment:** When Migration Center is first initialised for a project (via the
+> `initializeConfig` API call or from the Cloud Console), you select a GCP region where all
+> assessment data will be stored. This choice is permanent — you cannot change the region
+> without creating a new project. The module locks in the region specified in the `region`
+> variable (default `us-central1`).
 
 ### Use Cases
 
 | Use Case | Description |
 |---|---|
-| **Data centre inventory** | Automatically discover and catalogue all VMs across heterogeneous environments |
-| **Cloud cost modelling** | Generate TCO projections comparing on-premises costs against GCP machine types and commitment plans |
-| **Right-sizing** | Identify over-provisioned VMs and recommend appropriately sized GCP machine types |
-| **Multi-cloud assessment** | Import AWS, Azure, or on-premises data into a single unified inventory |
-| **Migration wave planning** | Group assets into logical waves based on dependency analysis and business criticality |
+| **Data centre inventory** | Automatically discover and catalogue all VMs across heterogeneous environments using agent-based scanning, agentless methods, VMware vCenter integration, or CSV import |
+| **Cloud cost modelling** | Generate TCO projections comparing current infrastructure costs against GCP machine types, commitment plans, and licensing models |
+| **Right-sizing** | Identify over-provisioned VMs and recommend appropriately sized GCP machine types based on actual utilisation data collected over time |
+| **Multi-cloud assessment** | Import AWS (EC2), Azure, or on-premises inventory (RVTools, manual CSV) into a single unified inventory alongside live-scanned data |
+| **Dependency analysis** | Map network connections between VMs to identify inter-VM dependencies, enabling informed migration wave sequencing |
+| **Migration wave planning** | Group assets into logical waves based on dependency analysis, OS type, business unit, or criticality, then model cost scenarios per wave |
+| **Fitness assessment** | Evaluate workloads for GCP compatibility and identify any re-platforming considerations before committing to migration |
 
 ### What This Lab Automates
 
 | Step | Automated by Terraform | Manual Step Required |
 |---|---|---|
-| Initialise Migration Center service | Yes — auto-initialises on first API call (v1 does not expose `initializeConfig`) | None |
+| Initialise Migration Center service | Yes — `initializeConfig` REST API call | None |
 | Register MCDCv6 discovery source | Yes — REST API `sources` | None |
-| Import AWS sample data | Yes — downloads zip, uploads CSV files, runs job | None |
+| Import AWS EC2 inventory | **Conditional** — runs only when `aws_access_key_id` is provided; queries real EC2 instances | If no credentials: manually import the pre-staged sample CSV zip in Exercise 5 |
 | Create asset groups | **No** | **You create these in Exercise 6** |
 | Create preference sets | **No** | **You create these in Exercise 7** |
 | Generate TCO report | **No — requires fully populated inventory** | **You generate this in Exercise 8** |
 | Install MCDCv6 on Windows VM | Yes — PowerShell startup script | None |
-| Google OAuth login in MCDCv6 | **No — requires browser-based login** | **You complete this** |
-| Configure SSH credential in MCDCv6 | **No** | **You complete this** |
-| Configure IP scan range | **No** | **You complete this** |
+| Pre-stage AWS sample CSV zip | Yes — startup script downloads to `Downloads\vm-aws-import-files\` | None |
+| Google OAuth login in MCDCv6 | **No — requires browser-based login** | **You complete this in Exercise 2** |
+| Configure SSH credential in MCDCv6 | **No** | **You complete this in Exercise 3** |
+| Configure IP scan range | **No** | **You complete this in Exercise 4** |
 
 ---
 
@@ -104,11 +114,12 @@ and total cost of ownership (TCO) projections.
 │  ┌────────────────────────────────────────────────────────────────────────┐  │
 │  │  Migration Center (migrationcenter.googleapis.com)                     │  │
 │  │                                                                        │  │
-│  │  Discovery Source: migcenter-{id}-mc-source  (SOURCE_TYPE_DISCOVERY_CLIENT) │  │
-│  │                    ↓ live scan results + AWS CSV import                │  │
-│  │  Asset Inventory:  Debian Linux VMs + simulated AWS VMs                │  │
+│  │  Discovery Source: migcenter-{id}-mc-source (SOURCE_TYPE_DISCOVERY_CLIENT)  │  │
+│  │                    ↓ MCDCv6 scan results (after manual OAuth + scan)   │  │
+│  │                    ↓ EC2 import (real AWS data, if credentials given)  │  │
+│  │  Asset Inventory:  Debian Linux VMs + AWS VMs (real or sample data)   │  │
 │  │                                                                        │  │
-│  │  Groups, Preferences, Reports: created as hands-on lab exercises       │  │
+│  │  Groups, Preferences, Reports: ← created as hands-on lab exercises    │  │
 │  └────────────────────────────────────────────────────────────────────────┘  │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -120,10 +131,9 @@ Module variable wiring:
     zone                        = "us-central1-a"        →  Compute Engine zone
     linux_vm_count              = 3                      →  3 Debian Linux scan targets
     create_windows_vm           = true                   →  Windows MCDCv6 host
-    initialize_migration_center = true                   →  Auto-initialise MC service, create source
-    aws_access_key_id           = "<key>"                →  Bootstrap creds → scoped IAM user + EC2 import
-    generate_reports            = true                   →  Pre-create groups + preference sets
-    mc_discovery_client_name    = "mc-discovery-client"  →  Source name entered in MCDCv6
+    initialize_migration_center = true                   →  Initialise MC service + register discovery source
+    aws_access_key_id           = "<key>"                →  (Optional) bootstrap creds → scoped IAM user + EC2 import
+    mc_discovery_client_name    = "mc-discovery-client"  →  Source name entered in MCDCv6 during login
 ```
 
 ---
@@ -544,25 +554,48 @@ curl -s \
 ```
 
 Click on one Linux VM to explore its full detail profile — OS version, kernel, CPU/memory
-capacity, installed packages, and running processes collected by MCDCv6.
+capacity, installed packages, running processes, and open network ports collected by MCDCv6.
+
+> **Performance data and right-sizing accuracy:** The single scan you just ran captures a
+> point-in-time snapshot of CPU and memory utilisation. In a real assessment engagement,
+> MCDCv6 is typically left running for **2–4 weeks** with scheduled recurring scans to build
+> a utilisation history. Migration Center uses this history to produce statistically-grounded
+> right-sizing recommendations — peak utilisation from a single scan often understates actual
+> workload demand, leading to under-provisioned GCP machine type suggestions. For the purposes
+> of this lab, a single scan is sufficient to populate the inventory and generate a TCO report.
+
+### Step 4.6 — Explore Network Connections (Dependency Mapping)
+
+MCDCv6 also records the active network connections on each scanned VM — which ports are
+listening and which remote IPs have established connections. This data underpins Migration
+Center's **dependency analysis** capability, which identifies inter-VM communication patterns
+for migration wave planning.
+
+In the asset detail view, click the **Open ports** tab to see the listening TCP/UDP ports and
+the process bound to each. In a multi-tier application environment, this view reveals which
+VMs are fronting web traffic, which are database servers, and which VMs depend on each other
+— critical information for grouping assets into coherent migration waves rather than migrating
+them one by one and breaking application connectivity.
 
 ---
 
-## Exercise 5 — Review AWS Sample Data and All Assets
+## Exercise 5 — Review AWS Data and All Assets
 
 ### Objective
 
-Explore the AWS sample data that Terraform automatically imported, understand the combined
-asset inventory, and compare the live Linux VM data with the simulated AWS environment.
+Understand the AWS inventory data in Migration Center alongside the live Linux VM scan results.
+Depending on whether AWS credentials were provided at deployment time, this data arrives via
+automatic import or manual upload.
 
-### Step 5.1 — Verify the AWS Import Job Completed
+### Step 5.1 — Check Whether the AWS Import Job Ran Automatically
 
-Terraform submitted an import job with four CSV files of simulated AWS VM inventory data.
+If `aws_access_key_id` was provided during deployment, Terraform queried your AWS EC2 inventory
+and submitted an import job to Migration Center.
 
 **Cloud Console:**
-Navigate to **Migration Center → Data Sources** and look for the AWS import job. The status
-should show **Completed** (or **Completed with warnings** if any optional fields were absent
-from the CSV).
+Navigate to **Migration Center → Data Sources** and look for an import job. The status should
+show **Completed** (or **Completed with warnings** if any optional fields were absent from the
+generated CSV).
 
 **REST API — list import jobs:**
 ```bash
@@ -572,17 +605,76 @@ curl -s \
   | jq '.importJobs[] | {displayName, state, createTime}'
 ```
 
+If no import jobs appear, proceed to Step 5.1a to manually import the pre-staged sample data.
+
+### Step 5.1a — Manually Import Sample CSV Data (if no AWS credentials were provided)
+
+The Windows VM startup script pre-staged a sample AWS CSV export to
+`C:\Users\migrationcenter\Downloads\vm-aws-import-files\`. This folder contains four CSV files
+(`vmInfo.csv`, `diskInfo.csv`, `tagInfo.csv`, `perfInfo.csv`) representing a simulated AWS VM
+inventory that you can import manually.
+
+**From the Windows VM — Cloud Console:**
+
+1. Open Chrome and navigate to the Migration Center console for your project
+2. Click **Data Sources → Add source**
+3. Select **Uploads**
+4. Give the source a name (e.g. `aws-sample-import`)
+5. Under **File format**, select **AWS VM export**
+6. Click **Upload files** and select all CSV files from
+   `C:\Users\migrationcenter\Downloads\vm-aws-import-files\`
+7. Click **Import** and wait for the job to complete
+
+**REST API — alternative approach via the Windows VM PowerShell or your local machine:**
+```bash
+TOKEN=$(gcloud auth print-access-token)
+
+# Create a new import job
+IMPORT_JOB_ID="manual-aws-import-$(date +%s)"
+curl -s -X POST \
+  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/importJobs?importJobId=${IMPORT_JOB_ID}" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "{\"displayName\": \"aws-sample-import\", \"assetSource\": \"projects/${PROJECT_ID}/locations/${REGION}/sources/${MC_SOURCE_ID}\"}" \
+  | jq '{name, state}'
+
+# Upload each CSV file
+for FILE in vmInfo diskInfo tagInfo perfInfo; do
+  curl -s -X POST \
+    "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/importJobs/${IMPORT_JOB_ID}/importDataFiles?importDataFileId=${FILE}" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: text/csv" \
+    --data-binary "@${FILE}.csv" \
+    | jq '{name, state}'
+done
+
+# Validate and run
+curl -s -X POST \
+  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/importJobs/${IMPORT_JOB_ID}:validate" \
+  -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -d '{}'
+sleep 30
+curl -s -X POST \
+  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/importJobs/${IMPORT_JOB_ID}:run" \
+  -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -d '{}'
+```
+
 ### Step 5.2 — Explore the Full Asset Inventory
 
 In Migration Center → **Assets** → **Virtual Machines**. You should now see:
 
-- **3 Debian Linux VMs** — discovered by MCDCv6 scan (your lab VMs)
-- **Multiple simulated AWS VMs** — from the CSV import (a mix of Windows and Linux)
+- **3 Debian Linux VMs** — discovered by MCDCv6 scan (your lab VMs, rich with OS and process data)
+- **AWS VMs** — from the CSV import (real EC2 instances or the sample dataset), with hardware
+  profile and tag data but no guest-OS-level detail (no package lists, no running processes)
+
+This contrast illustrates a key Migration Center concept: **depth of inventory data varies by
+discovery method**. Agent-based scanning (MCDCv6) provides comprehensive guest OS data
+including installed software and open ports; CSV import provides hardware inventory and tags
+but no live OS insight.
 
 Use the search and filter controls to explore:
 
-- **Filter by OS type:** Compare the Windows AWS VMs against the Debian scan targets
-- **Filter by source:** Distinguish MCDCv6 scan results from the AWS import
+- **Filter by OS type:** Compare the Windows/Linux AWS VMs against the Debian scan targets
+- **Filter by source:** Distinguish MCDCv6 scan results from the CSV import source
 - **Sort by CPU or memory:** Identify the highest-resource VMs in the inventory
 
 ### Step 5.3 — View an Individual Asset's Detail
@@ -698,14 +790,21 @@ preference sets are paired with asset groups when generating the TCO report in E
 
 ### Step 7.1 — Understand the Two Strategies
 
-| Preference Set | Machine Series | Sizing | Commitment | Best For |
+| Preference Set | Machine Series | Sizing Strategy | Commitment | Best For |
 |---|---|---|---|---|
-| **aggressive-optimization-3-year-commit** | N2, N2D | Aggressive | 3-year CUD | Stable workloads, maximum savings |
-| **moderate-optimization-1-year-commit** | C2, C2D + SSD | Moderate | 1-year CUD | Variable workloads, more flexibility |
+| **aggressive-optimization-3-year-commit** | N2, N2D | Aggressive — shrinks to actual observed peak utilisation | 3-year CUD (~57% discount on N2) | Stable, predictable workloads where right-sizing risk is low |
+| **moderate-optimization-1-year-commit** | C2, C2D + SSD | Moderate — keeps 20–30% headroom above observed peak | 1-year CUD | Variable or spiky workloads where over-sizing avoidance is critical |
 
-> **Why two?** Different business units have different risk tolerances for right-sizing and
-> budget planning cycles. Generating the report with both scenarios gives architects a cost
-> range to present in migration business cases.
+> **Why two strategies?** Right-sizing based on a short observation window risks under-provisioning
+> production workloads. Presenting both an aggressive and a moderate estimate in a business case
+> gives stakeholders a cost range: the aggressive figure shows the theoretical minimum if all VMs
+> are perfectly right-sized; the moderate figure is a safer planning number. In practice, most
+> migrations land somewhere between the two as teams gain confidence in workload characterisation.
+>
+> **Machine series choice:** N2/N2D are cost-optimised general-purpose machines suited to most
+> workloads. C2/C2D are compute-optimised with higher per-core performance but at a higher base
+> price — they are more appropriate for CPU-intensive workloads. The SSD disk type in the
+> moderate preset adds cost but is realistic for database and I/O-sensitive workloads.
 
 ### Step 7.2 — Create Preference Sets via REST API
 
@@ -876,10 +975,21 @@ Click **View report** to open the detailed breakdown:
 
 | Tab | What You'll See |
 |---|---|
-| **Assets** | Per-VM cost estimates with recommended machine types |
-| **Machines** | Recommended GCP machine type and vCPU/RAM for each VM |
-| **Storage** | Estimated persistent disk costs based on discovered disk profiles |
-| **Licenses** | Windows licence cost modelling (BYOL vs. Google-provided) |
+| **Assets** | Per-VM cost estimates with recommended machine types, grouped by the asset group each VM belongs to |
+| **Machines** | Recommended GCP machine type and vCPU/RAM for each VM based on the preference set's sizing strategy |
+| **Storage** | Estimated persistent disk costs based on discovered disk capacity and the preference set's disk type |
+| **Licenses** | Windows licence cost modelling — compares Google-provided licences against BYOL (Bring Your Own Licence) |
+
+**Key observations to make:**
+
+- Compare the per-VM machine type recommendations between the aggressive and moderate scenarios.
+  Notice how the aggressive strategy maps VMs to smaller machine types (lower vCPU/RAM) based
+  on observed peak utilisation, while the moderate strategy suggests larger types with headroom.
+- Look at the **Licenses** tab for any Windows VMs. Migration Center distinguishes between
+  Google-provided Windows licences (included in the VM price) and BYOL — for enterprises with
+  existing Microsoft volume agreements, BYOL can significantly reduce the per-VM cost estimate.
+- Notice that VMs from the CSV import have less precise recommendations than MCDCv6-scanned VMs,
+  because the import data includes disk and hardware specs but no utilisation history.
 
 ### Step 8.5 — Generate a Second Report Variation (Optional)
 

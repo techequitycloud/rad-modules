@@ -63,14 +63,12 @@ startup script (MCDCv6 installation) runs in parallel and is ready within 10–1
 | Resource | ID Pattern | Purpose |
 |---|---|---|
 | Discovery source | `migcenter-{id}-mc-source` | Named source for MCDCv6 scan results |
-| Import job | `migcenter-{id}-aws-import` | Bulk import of sample AWS CSV data |
-| Asset group | `migcenter-{id}-all-assets` | All Assets group for report configuration |
-| Asset group | `migcenter-{id}-windows-only` | Windows-only filter group |
-| Asset group | `migcenter-{id}-linux-only` | Linux-only filter group |
-| Preference set | `migcenter-{id}-aggressive-3yr` | N2/N2D, aggressive sizing, 3-year CUD |
-| Preference set | `migcenter-{id}-moderate-1yr` | C2/C2D + SSD, moderate sizing, 1-year CUD |
-| Report config | `migcenter-{id}-report-config` | Group-to-preference mapping for the report |
-| TCO report | `migcenter-{id}-tco` | Generated TOTAL_COST_OF_OWNERSHIP report |
+| Import job | `migcenter-{id}-aws-import` | Live EC2 inventory import (only when AWS credentials are provided) |
+
+> **Lab exercises:** Asset groups, migration preference sets, and TCO reports are **not** created
+> by Terraform. They are created by students during the hands-on lab exercises using the Cloud
+> Console or REST API. This ensures the report reflects real MCDCv6 discovery data rather than
+> a pre-populated snapshot.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -97,13 +95,11 @@ startup script (MCDCv6 installation) runs in parallel and is ready within 10–1
 │   └─ lab-ssh-key.pem  (RSA 4096 private key)                                 │
 │                                                                              │
 │   Migration Center (regional service)                                        │
-│   ├─ Discovery Source  (GUEST_OS_SCAN)                                       │
-│   │   ├─ MCDCv6 scan results  (Linux VMs)                                    │
-│   │   └─ CSV import job  (simulated AWS data)                                │
-│   ├─ Asset Inventory  (all discovered + imported VMs)                        │
-│   ├─ Groups: all-assets · windows-only · linux-only                          │
-│   ├─ Preferences: aggressive-3yr · moderate-1yr                              │
-│   └─ TCO Report: lab-tco-report                                              │
+│   ├─ Discovery Source  (SOURCE_TYPE_DISCOVERY_CLIENT)                        │
+│   │   ├─ MCDCv6 scan results  (Linux VMs, added after manual OAuth + scan)  │
+│   │   └─ EC2 import job  (real AWS data, only if credentials provided)       │
+│   ├─ Asset Inventory  (discovered + imported VMs)                            │
+│   ├─ Groups, Preferences, Reports  ← created as hands-on lab exercises      │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 
@@ -113,14 +109,14 @@ Deployment sequence:
   3. Create 5 firewall rules (RDP, SSH, ICMP, internal, HTTP)
   4. Generate RSA 4096-bit SSH keypair (tls_private_key)
   5. Create Cloud Storage bucket and upload SSH private key as lab-ssh-key.pem
-  6. Deploy Windows Server 2022 VM; startup script installs MCDCv6, Chrome, and pre-stages data
+  6. Deploy Windows Server 2022 VM; startup script installs Chrome, MCDCv6, and pre-stages
+     the AWS sample CSV zip at C:\Users\migrationcenter\Downloads\vm-aws-import-files\
   7. Deploy 3 Debian 12 Linux VMs; startup script creates migrationcenter SSH user
   8. POST initializeConfig — initialises Migration Center for the project/region
-  9. POST sources — registers the MCDCv6 discovery source
-  10. Download AWS sample zip, upload CSV files, validate and run the import job
-  11. POST groups — creates all-assets, windows-only, linux-only groups
-  12. POST preferencesSets — creates aggressive-3yr and moderate-1yr preference sets
-  13. POST reportConfigs + reports — creates report config and triggers TCO report generation
+  9. POST sources — registers the MCDCv6 discovery source (SOURCE_TYPE_DISCOVERY_CLIENT)
+  10. If aws_access_key_id is set: create scoped IAM user, query EC2 instances, generate
+      CSV files (vmInfo, diskInfo, tagInfo, perfInfo), upload and run the import job
+  11. Asset groups, preference sets, and TCO reports are created as hands-on lab exercises
 ```
 
 ---
@@ -384,9 +380,9 @@ the region after initialisation without creating a new project.
 A **source** is a named collection point for asset data. MCDCv6 agents and CSV imports both
 write data to a source. Multiple agents can share a single source if they share the source name.
 
-The module creates a `GUEST_OS_SCAN` source — the type used by MCDCv6 agents. The source ID
-(`migcenter-{id}-mc-source`) must be entered verbatim in the MCDCv6 UI during login; this is
-what links live scan results to the pre-configured source in Migration Center.
+The module creates a `SOURCE_TYPE_DISCOVERY_CLIENT` source — the type used by MCDCv6 agents.
+The source ID (`migcenter-{id}-mc-source`) must be entered verbatim in the MCDCv6 UI during
+login; this is what links live scan results to the pre-configured source in Migration Center.
 
 ```bash
 # List all sources
@@ -402,19 +398,26 @@ curl -s \
   | jq '{name, displayName, type, managedObjectType, createTime}'
 ```
 
-### Step 3 — Import AWS Sample Data
+### Step 3 — Import AWS EC2 Inventory (conditional)
 
-The AWS import pipeline is the most complex step. It:
+This step only runs when `aws_access_key_id` is set. When AWS credentials are provided, the
+module first provisions a scoped read-only IAM user (see `aws_iam.tf`) and uses its generated
+access key to query real EC2 inventory for the configured AWS region. It then:
 
-1. Downloads `vm-aws-import-files.zip` from a public GCS bucket
-2. Extracts four CSV files that simulate an AWS account inventory export
-3. Creates an import job referencing the discovery source
-4. Uploads each CSV file as an `importDataFile` within the job
-5. Calls `:validate` to check for format errors
-6. Calls `:run` to process the files and write assets to the inventory
+1. Calls `ec2:DescribeInstances` to get all instances in the region
+2. Calls `ec2:DescribeInstanceTypes` to resolve vCPU and memory specs per instance type
+3. Calls `ec2:DescribeVolumes` to get EBS disk attachments
+4. Generates four Migration Center-format CSV files: `vmInfo.csv`, `diskInfo.csv`,
+   `tagInfo.csv`, and `perfInfo.csv` (perfInfo is intentionally empty — utilisation data
+   is not available from the EC2 Describe APIs)
+5. Creates an import job referencing the discovery source
+6. Uploads each CSV file as an `importDataFile` within the job
+7. Calls `:validate` to check for format errors, then `:run` to write assets to inventory
 
-This pipeline mirrors exactly what a real AWS customer would do after exporting their inventory
-from AWS Migration Hub or generating a custom CSV export.
+**When no AWS credentials are provided:** The import step is skipped entirely. The Windows VM
+startup script pre-stages a sample AWS CSV zip at
+`C:\Users\migrationcenter\Downloads\vm-aws-import-files\` so students can optionally upload
+it manually through the Migration Center console (Data Sources → Import data) during the lab.
 
 ```bash
 # Check the status of an import job
@@ -430,113 +433,24 @@ curl -s \
   | jq '.importDataFiles[] | {displayName, state, createTime}'
 ```
 
-### Step 4 — Create Asset Groups
+### Steps 4–6 — Asset Groups, Preference Sets, and Reports (Lab Exercises)
 
-Three groups are created:
+Asset groups, migration preference sets, report configurations, and TCO reports are **not
+created by Terraform**. Creating them in advance would both skip the primary learning
+objectives of the lab and produce an incomplete TCO report — MCDCv6 discovery data only
+arrives after the student completes the manual OAuth login and scan (Exercises 2–4). Instead,
+students create these resources themselves during the lab using the Cloud Console or REST API.
 
-| Group | Display Name | Purpose |
-|---|---|---|
-| `migcenter-{id}-all-assets` | All Assets | Catch-all group for the aggressive TCO scenario |
-| `migcenter-{id}-windows-only` | windows-only | Windows VMs under the moderate cost scenario |
-| `migcenter-{id}-linux-only` | linux-only | Linux VMs under the moderate cost scenario |
+The detailed steps, REST API commands, and JSON payloads for creating each resource are in the
+lab guide:
 
-Groups are created empty — assets are not assigned at creation time. In the lab, users explore
-the groups and can manually add assets via the Cloud Console or REST API.
+- **Exercise 6** — Create asset groups (`all-assets`, `windows-only`, `linux-only`)
+- **Exercise 7** — Create preference sets (`aggressive-3yr`, `moderate-1yr`)
+- **Exercise 8** — Create a report configuration and generate a TCO report
 
-```bash
-# List groups with asset counts
-curl -s \
-  "https://migrationcenter.googleapis.com/v1/projects/PROJECT_ID/locations/REGION/groups" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  | jq '.groups[] | {displayName, name: (.name | split("/") | last)}'
-```
-
-### Step 5 — Create Migration Preference Sets
-
-Preference sets define how Migration Center maps each discovered VM to a GCP machine type
-when generating cost projections.
-
-**aggressive-3yr preference set:**
-```json
-{
-  "virtualMachinePreferences": {
-    "targetProduct": "COMPUTE_MIGRATION_TARGET_PRODUCT_COMPUTE_ENGINE",
-    "computeEnginePreferences": {
-      "machinePreferences": {
-        "allowedMachineSeries": [{"code": "n2"}, {"code": "n2d"}]
-      },
-      "licenseType": "LICENSE_TYPE_DEFAULT"
-    },
-    "sizingOptimizationStrategy": "SIZING_OPTIMIZATION_STRATEGY_AGGRESSIVE",
-    "commitmentPlan": "COMMITMENT_PLAN_THREE_YEAR"
-  }
-}
-```
-
-**moderate-1yr preference set:**
-```json
-{
-  "virtualMachinePreferences": {
-    "targetProduct": "COMPUTE_MIGRATION_TARGET_PRODUCT_COMPUTE_ENGINE",
-    "computeEnginePreferences": {
-      "machinePreferences": {
-        "allowedMachineSeries": [{"code": "c2"}, {"code": "c2d"}]
-      },
-      "licenseType": "LICENSE_TYPE_DEFAULT",
-      "persistentDiskType": "PERSISTENT_DISK_TYPE_SSD"
-    },
-    "sizingOptimizationStrategy": "SIZING_OPTIMIZATION_STRATEGY_MODERATE",
-    "commitmentPlan": "COMMITMENT_PLAN_ONE_YEAR"
-  }
-}
-```
-
-| Parameter | Aggressive | Moderate | Effect |
-|---|---|---|---|
-| Machine series | N2, N2D | C2, C2D | N2/N2D are cost-efficient; C2/C2D are compute-optimised |
-| Disk type | Default (HDD) | SSD | SSD adds cost but improves I/O-bound workload performance |
-| Sizing strategy | Aggressive | Moderate | Aggressive right-sizes to actual peak; moderate keeps more headroom |
-| Commitment plan | 3-year | 1-year | 3-year CUDs offer the deepest discount (~57% on N2) |
-
-```bash
-# View preference set details
-curl -s \
-  "https://migrationcenter.googleapis.com/v1/projects/PROJECT_ID/locations/REGION/preferencesSets/PREF_SET_ID" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  | jq '.virtualMachinePreferences'
-```
-
-### Step 6 — Create Report Config and Trigger Report
-
-A **report config** defines which groups are evaluated and which preference set applies to each.
-The module creates one config with three group-to-preference assignments:
-
-| Group | Preference Set |
-|---|---|
-| All Assets | aggressive-3yr |
-| windows-only | moderate-1yr |
-| linux-only | moderate-1yr |
-
-The report config is persistent — you can generate multiple reports from it over time as the
-asset inventory grows or preferences change.
-
-After the config is created, the module immediately triggers a `TOTAL_COST_OF_OWNERSHIP`
-report. Report generation takes 1–5 minutes and runs asynchronously; Terraform does not wait
-for the report to complete.
-
-```bash
-# List report configs
-curl -s \
-  "https://migrationcenter.googleapis.com/v1/projects/PROJECT_ID/locations/REGION/reportConfigs" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  | jq '.reportConfigs[] | {name: (.name | split("/") | last), displayName}'
-
-# List reports for a config
-curl -s \
-  "https://migrationcenter.googleapis.com/v1/projects/PROJECT_ID/locations/REGION/reportConfigs/REPORT_CONFIG_ID/reports" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  | jq '.reports[] | {displayName, type, state, createTime}'
-```
+The REST API snippets in those exercises illustrate the full request/response cycle for each
+resource type, including the group-to-preference mapping structure in the report config and the
+two contrasting sizing + commitment strategies used in the preference sets.
 
 ---
 
@@ -624,11 +538,11 @@ data import, group creation, preference sets, report generation — is automated
 
 | Variable | Default | Description |
 |---|---|---|
-| `initialize_migration_center` | `true` | Run all MC setup steps (init, source, import, groups, prefs, report) |
-| `mc_discovery_client_name` | `mc-discovery-client` | Source name — must be entered verbatim in MCDCv6 |
-| `import_aws_sample_data` | `true` | Download and import AWS CSV sample data |
-| `generate_reports` | `true` | Create groups, preference sets, and trigger TCO report |
-| `mc_report_name` | `lab-tco-report` | Display name for the generated report |
+| `initialize_migration_center` | `true` | Run the MC init and source creation steps. When `aws_access_key_id` is also set, the EC2 import job runs automatically. Asset groups, preference sets, and reports are always created as lab exercises. |
+| `mc_discovery_client_name` | `mc-discovery-client` | Source name — must be entered verbatim in MCDCv6 during login |
+| `aws_access_key_id` | `""` | Bootstrap AWS credentials — module creates scoped IAM user and imports live EC2 inventory |
+| `aws_secret_access_key` | `""` | AWS Secret Key corresponding to the Access Key ID |
+| `aws_region` | `us-east-1` | AWS region to discover EC2 instances from |
 
 ### Platform Metadata
 
@@ -645,14 +559,19 @@ data import, group creation, preference sets, report generation — is automated
 Understanding the module's default configuration helps avoid surprises when deploying or
 modifying the environment.
 
-**All Migration Center steps run by default.** When `initialize_migration_center = true`
-(the default), the module runs all six REST API steps: initialise, create source, import AWS
-data, create groups, create preference sets, and trigger the report. Setting this to `false`
-skips all Migration Center automation and deploys only the Compute and Storage infrastructure.
+**Migration Center init and source creation run by default.** When
+`initialize_migration_center = true` (the default), the module runs two REST API steps:
+`initializeConfig` and source creation. Setting this to `false` skips all Migration Center
+automation and deploys only the Compute and Storage infrastructure.
 
-**Import and reports are gated on `initialize_migration_center`.** The variables
-`import_aws_sample_data` and `generate_reports` are only evaluated when
-`initialize_migration_center = true`. Both default to `true` and are rarely changed independently.
+**AWS EC2 import is conditional.** The import job only runs when `aws_access_key_id` is
+non-empty and `initialize_migration_center = true`. When AWS credentials are absent the
+import step is skipped, but the Windows VM startup script pre-stages a sample AWS CSV zip
+at `C:\Users\migrationcenter\Downloads\vm-aws-import-files\` for manual import during the lab.
+
+**Asset groups, preference sets, and reports are always lab exercises.** These resources are
+never created by Terraform, regardless of variable values. This is intentional — generating
+a TCO report before MCDCv6 has scanned any VMs would produce an empty or misleading result.
 
 **MCDCv6 OAuth cannot be skipped.** The Google OAuth login step requires interactive user
 input. The module does not and cannot automate this step. Students should plan for this
@@ -663,22 +582,18 @@ resource stores the private key in the Terraform state file. Ensure your state b
 appropriate access controls. The GCS bucket containing the key is not publicly accessible
 by default (uniform bucket-level access is enforced).
 
-**Migration Center resources survive Terraform destroy.** Discovery sources, import jobs,
-groups, preference sets, and reports are created via REST API `null_resource` provisioners
-and are not tracked in Terraform state. Running `terraform destroy` removes Compute and
-Storage resources but leaves Migration Center objects intact. These must be deleted manually
-via the Cloud Console or REST API. See the Cleanup section in the Lab Guide.
+**Migration Center resources survive Terraform destroy.** The discovery source and (if
+applicable) the EC2 import job are created via REST API `null_resource` provisioners and are
+not tracked in Terraform state. Asset groups, preference sets, and reports created during the
+lab are similarly untracked. Running `terraform destroy` removes Compute and Storage resources
+but leaves all Migration Center objects intact. These must be deleted manually via the Cloud
+Console or REST API. See the Cleanup section in the Lab Guide.
 
 **GCP APIs are protected from accidental deletion.** The `google_project_service` resources
 have `lifecycle { prevent_destroy = true }`. Running `terraform destroy` against a deployed
 module does not disable the enabled APIs. This is intentional — disabling APIs like
 `migrationcenter.googleapis.com` in a shared project can break other users. To disable APIs,
 remove the lifecycle block and re-run `tofu plan` before `tofu destroy`.
-
-**The TCO report is generated asynchronously.** The module triggers report generation via
-REST API but does not wait for completion. Reports typically appear in the Migration Center
-console within 1–5 minutes of Terraform completing. If the report is not visible immediately,
-refresh the console after a few minutes.
 
 ---
 
