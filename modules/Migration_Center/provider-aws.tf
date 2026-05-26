@@ -20,8 +20,12 @@
 # gated with count = var.aws_access_key_id != "" ? 1 : 0 and are never
 # created in that case.
 provider "aws" {
-  access_key = var.aws_access_key_id != "" ? var.aws_access_key_id : null
-  secret_key = var.aws_secret_access_key != "" ? var.aws_secret_access_key : null
+  # When no real credentials are supplied, use placeholder values so the provider
+  # does not fall through to the credential chain (env vars, IMDS, etc.).
+  # The skip_* flags combined with count-gated resources ensure no AWS API calls
+  # are made when aws_access_key_id is empty.
+  access_key = var.aws_access_key_id != "" ? var.aws_access_key_id : "placeholder"
+  secret_key = var.aws_secret_access_key != "" ? var.aws_secret_access_key : "placeholder"
   region     = var.aws_region
 
   skip_credentials_validation = var.aws_access_key_id == ""
