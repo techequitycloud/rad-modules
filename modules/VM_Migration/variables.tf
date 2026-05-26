@@ -96,12 +96,6 @@ variable "zone" {
   default     = "us-central1-a"
 }
 
-variable "enable_services" {
-  description = "Set to true (default) to automatically enable required GCP project APIs. Set to false when APIs are already enabled. {{UIMeta group=1 order=105 }}"
-  type        = bool
-  default     = true
-}
-
 // SECTION 3: Networking
 
 variable "create_vpc" {
