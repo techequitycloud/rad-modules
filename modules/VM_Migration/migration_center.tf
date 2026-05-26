@@ -34,7 +34,7 @@ resource "null_resource" "mc_init" {
         --impersonate-service-account='${var.resource_creator_identity}' \
         --quiet 2>/dev/null)
 
-      STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+      STATUS=$(curl -s -o /dev/null -w "%%{http_code}" \
         -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
@@ -72,7 +72,7 @@ resource "null_resource" "mc_source" {
         --impersonate-service-account='${var.resource_creator_identity}' \
         --quiet 2>/dev/null)
 
-      RESPONSE=$(curl -s -w "\n%{http_code}" \
+      RESPONSE=$(curl -s -w "\n%%{http_code}" \
         -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
@@ -123,7 +123,7 @@ resource "null_resource" "mc_aws_import" {
         --quiet 2>/dev/null)
 
       echo "Creating AWS import job '${local.aws_import_name}'..."
-      CREATE_RESP=$(curl -s -w "\n%{http_code}" \
+      CREATE_RESP=$(curl -s -w "\n%%{http_code}" \
         -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
