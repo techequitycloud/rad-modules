@@ -134,13 +134,15 @@ The only manual steps are:
 
 | Name | Description | Type | Default |
 |------|-------------|------|---------|
+| aws_access_key_id | AWS Access Key ID for EC2 discovery; leave empty to skip AWS import | `string` | `""` |
+| aws_region | AWS region for EC2 discovery (e.g. `us-east-1`) | `string` | `"us-east-1"` |
+| aws_secret_access_key | AWS Secret Access Key for EC2 discovery | `string` | `""` |
 | create_default_firewall_rules | Create allow-internal, allow-ssh, allow-rdp, allow-icmp firewall rules | `bool` | `true` |
 | create_ssh_key_bucket | Create a GCS bucket and store the generated SSH private key | `bool` | `true` |
 | create_vpc | Create the lab VPC network | `bool` | `true` |
 | create_windows_vm | Deploy the Windows Server 2022 VM with MCDCv6 pre-installed | `bool` | `true` |
 | deployment_id | Short alphanumeric suffix for resource name uniqueness | `string` | `null` |
 | generate_reports | Create groups, preferences, and trigger TCO report generation | `bool` | `true` |
-| import_aws_sample_data | Download and import sample AWS CSV data into Migration Center | `bool` | `true` |
 | initialize_migration_center | Initialize Migration Center and create a discovery source | `bool` | `true` |
 | internal_traffic_cidr | CIDR for allow-internal firewall rule | `string` | `"10.128.0.0/9"` |
 | linux_vm_boot_disk_size_gb | Boot disk size in GB for each Linux VM | `number` | `20` |

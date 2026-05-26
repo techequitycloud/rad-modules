@@ -110,18 +110,16 @@ variable "create_vpc" {
   default     = true
 }
 
-variable "internal_traffic_cidr" {
-  description = "CIDR block used as the source range for the allow-internal firewall rule. Matches the default VPC auto-mode subnet range. {{UIMeta group=3 order=302 }}"
-  type        = string
-  default     = "10.128.0.0/9"
-}
-
-// SECTION 4: Firewall Rules
-
 variable "create_default_firewall_rules" {
-  description = "Set to true (default) to create the four Google-default firewall rules (allow-internal, allow-ssh, allow-rdp, allow-icmp) on the VPC. Set to false if these rules already exist on the target network. {{UIMeta group=4 order=401 }}"
+  description = "Set to true (default) to create the four Google-default firewall rules (allow-internal, allow-ssh, allow-rdp, allow-icmp) on the VPC. Set to false if these rules already exist on the target network. {{UIMeta group=3 order=302 }}"
   type        = bool
   default     = true
+}
+
+variable "internal_traffic_cidr" {
+  description = "CIDR block used as the source range for the allow-internal firewall rule. Matches the default VPC auto-mode subnet range. {{UIMeta group=3 order=303 }}"
+  type        = string
+  default     = "10.128.0.0/9"
 }
 
 // SECTION 5: Windows VM
@@ -186,10 +184,24 @@ variable "mc_discovery_client_name" {
   default     = "mc-discovery-client"
 }
 
-variable "import_aws_sample_data" {
-  description = "Set to true (default) to automatically download and import the sample AWS CSV export data into Migration Center. This populates the asset inventory with simulated AWS VM data alongside the live scan results. {{UIMeta group=8 order=803 }}"
-  type        = bool
-  default     = true
+variable "aws_access_key_id" {
+  description = "AWS Access Key ID used to discover EC2 instances and import inventory into Migration Center. Leave empty to skip AWS discovery. {{UIMeta group=8 order=803 updatesafe }}"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "aws_secret_access_key" {
+  description = "AWS Secret Access Key corresponding to the Access Key ID above. {{UIMeta group=8 order=804 updatesafe }}"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "aws_region" {
+  description = "AWS region to discover EC2 instances from (e.g. 'us-east-1'). {{UIMeta group=8 order=805 updatesafe }}"
+  type        = string
+  default     = "us-east-1"
 }
 
 // SECTION 9: Reports

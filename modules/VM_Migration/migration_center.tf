@@ -123,27 +123,157 @@ resource "null_resource" "mc_source" {
   depends_on = [null_resource.mc_init]
 }
 
-# ─── Step 3: Import AWS Sample Data ──────────────────────────────────────────
-# Downloads the four AWS CSV export files from the public lab bucket and imports
-# them into Migration Center. This populates the asset inventory with simulated
-# AWS VM data that users can explore alongside their live scan results.
+# ─── Step 3: Discover and Import AWS EC2 Inventory ───────────────────────────
+# Uses the provided AWS credentials to query EC2 instances via the AWS CLI,
+# generates Migration Center-format CSV files (vmInfo, diskInfo, tagInfo,
+# perfInfo), and imports them as an MC import job. Skipped when
+# var.aws_access_key_id is empty.
 resource "null_resource" "mc_aws_import" {
-  count = (var.initialize_migration_center && var.import_aws_sample_data) ? 1 : 0
+  count = (var.initialize_migration_center && var.aws_access_key_id != "") ? 1 : 0
 
   triggers = {
     import_name = local.aws_import_name
     project     = local.project.project_id
     region      = var.region
+    aws_region  = var.aws_region
+    aws_key_id  = var.aws_access_key_id
   }
 
   provisioner "local-exec" {
     command = <<-EOT
       set -e
-      echo "Downloading AWS sample import files..."
-      TMPDIR=$(mktemp -d)
-      curl -sL "https://storage.googleapis.com/spls/gsp1095/vm-aws-import-files.zip" \
-        -o "$TMPDIR/aws-import.zip"
-      unzip -q "$TMPDIR/aws-import.zip" -d "$TMPDIR/aws-files"
+      echo "Starting AWS EC2 discovery for region ${var.aws_region}..."
+
+      WORKDIR=$(mktemp -d)
+
+      export AWS_ACCESS_KEY_ID="${var.aws_access_key_id}"
+      export AWS_SECRET_ACCESS_KEY="${var.aws_secret_access_key}"
+      export AWS_DEFAULT_REGION="${var.aws_region}"
+
+      if ! command -v aws &>/dev/null; then
+        echo "ERROR: AWS CLI not found in build environment."
+        exit 1
+      fi
+
+      echo "Querying EC2 instances..."
+      if ! aws ec2 describe-instances \
+        --query 'Reservations[].Instances[]' \
+        --output json > "$WORKDIR/instances.json"; then
+        echo "ERROR: Failed to query EC2 instances. Verify AWS credentials and ec2:DescribeInstances permission."
+        exit 1
+      fi
+
+      INSTANCE_COUNT=$(python3 -c "import json; print(len(json.load(open('$WORKDIR/instances.json'))))")
+      echo "Found $INSTANCE_COUNT EC2 instances."
+
+      if [ "$INSTANCE_COUNT" = "0" ]; then
+        echo "No EC2 instances found in ${var.aws_region} — skipping import."
+        rm -rf "$WORKDIR"
+        exit 0
+      fi
+
+      echo "Fetching instance type specifications..."
+      INSTANCE_TYPES=$(python3 -c "
+import json
+instances = json.load(open('$WORKDIR/instances.json'))
+types = list(set(i['InstanceType'] for i in instances if i.get('InstanceType')))
+print(' '.join(types))
+")
+      if [ -n "$INSTANCE_TYPES" ]; then
+        aws ec2 describe-instance-types \
+          --instance-types $INSTANCE_TYPES \
+          --query 'InstanceTypes[]' \
+          --output json > "$WORKDIR/instance_types.json" 2>/dev/null \
+          || echo '[]' > "$WORKDIR/instance_types.json"
+      else
+        echo '[]' > "$WORKDIR/instance_types.json"
+      fi
+
+      echo "Fetching EBS volume information..."
+      INSTANCE_IDS=$(python3 -c "
+import json
+instances = json.load(open('$WORKDIR/instances.json'))
+print(','.join(i['InstanceId'] for i in instances))
+")
+      aws ec2 describe-volumes \
+        --filters "Name=attachment.instance-id,Values=$INSTANCE_IDS" \
+        --query 'Volumes[]' \
+        --output json > "$WORKDIR/volumes.json" 2>/dev/null \
+        || echo '[]' > "$WORKDIR/volumes.json"
+
+      echo "Generating Migration Center CSV files..."
+      python3 - "$WORKDIR" <<'PYEOF'
+import json, csv, sys
+
+workdir = sys.argv[1]
+
+instances  = json.load(open(f'{workdir}/instances.json'))
+type_list  = json.load(open(f'{workdir}/instance_types.json'))
+volumes    = json.load(open(f'{workdir}/volumes.json'))
+
+type_specs = {
+    t['InstanceType']: {
+        'vcpu':      t.get('VCpuInfo',   {}).get('DefaultVCpus', ''),
+        'memory_mb': t.get('MemoryInfo', {}).get('SizeInMiB',    ''),
+    }
+    for t in type_list
+}
+
+vol_by_instance = {}
+for v in volumes:
+    for att in v.get('Attachments', []):
+        iid = att.get('InstanceId', '')
+        vol_by_instance.setdefault(iid, []).append({
+            'device':   att.get('Device', ''),
+            'size_gb':  v.get('Size', ''),
+        })
+
+with open(f'{workdir}/vmInfo.csv', 'w', newline='') as f:
+    w = csv.writer(f)
+    w.writerow(['MachineId','MachineName','CPUCount','MemoryMb',
+                'OSName','Architecture','State','InstanceType'])
+    for inst in instances:
+        itype = inst.get('InstanceType', '')
+        specs = type_specs.get(itype, {})
+        name  = next((t['Value'] for t in inst.get('Tags', [])
+                      if t['Key'] == 'Name'), inst.get('InstanceId', ''))
+        w.writerow([
+            inst.get('InstanceId', ''),
+            name,
+            specs.get('vcpu', ''),
+            specs.get('memory_mb', ''),
+            inst.get('PlatformDetails', 'Linux/UNIX'),
+            inst.get('Architecture', ''),
+            inst.get('State', {}).get('Name', ''),
+            itype,
+        ])
+
+with open(f'{workdir}/diskInfo.csv', 'w', newline='') as f:
+    w = csv.writer(f)
+    w.writerow(['MachineId','DiskLabel','SizeInGb'])
+    for inst in instances:
+        iid  = inst.get('InstanceId', '')
+        vols = vol_by_instance.get(iid, [])
+        if vols:
+            for v in vols:
+                w.writerow([iid, v['device'], v['size_gb']])
+        else:
+            for bdm in inst.get('BlockDeviceMappings', []):
+                w.writerow([iid, bdm.get('DeviceName', ''), ''])
+
+with open(f'{workdir}/tagInfo.csv', 'w', newline='') as f:
+    w = csv.writer(f)
+    w.writerow(['MachineId','TagKey','TagValue'])
+    for inst in instances:
+        for tag in inst.get('Tags', []):
+            w.writerow([inst.get('InstanceId', ''), tag['Key'], tag['Value']])
+
+with open(f'{workdir}/perfInfo.csv', 'w', newline='') as f:
+    w = csv.writer(f)
+    w.writerow(['MachineId','Timestamp','CpuUtilizationPercentage','MemoryUtilizationPercentage'])
+
+print(f'CSV files generated for {len(instances)} instances.')
+PYEOF
 
       TOKEN=$(gcloud auth print-access-token \
         --impersonate-service-account='${var.resource_creator_identity}' \
@@ -155,29 +285,34 @@ resource "null_resource" "mc_aws_import" {
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
         -d '{
-          "displayName": "aws-account-import",
+          "displayName": "aws-ec2-import",
           "assetSource": "projects/${local.project.project_id}/locations/${var.region}/sources/${local.mc_source_name}"
         }' \
         "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs?importJobId=${local.aws_import_name}")
 
       HTTP_CODE=$(echo "$CREATE_RESP" | tail -1)
       if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "409" ]; then
-        echo "WARNING: Import job creation returned HTTP $HTTP_CODE — skipping file upload."
-        echo "$CREATE_RESP" | head -1
-        exit 0
+        echo "ERROR: Import job creation returned HTTP $HTTP_CODE."
+        echo "$CREATE_RESP" | head -n -1
+        exit 1
       fi
 
       echo "Uploading CSV files..."
-      for CSV_FILE in "$TMPDIR/aws-files"/*.csv; do
+      for CSV_FILE in "$WORKDIR"/*.csv; do
         FILENAME=$(basename "$CSV_FILE")
         echo "  Uploading $FILENAME..."
-        curl -s -o /dev/null \
+        RESP=$(curl -s -w "\n%%{http_code}" \
           -X POST \
           -H "Authorization: Bearer $TOKEN" \
           -H "Content-Type: text/csv" \
           --data-binary "@$CSV_FILE" \
-          "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}/importDataFiles?importDataFileId=$(echo "$FILENAME" | tr '.' '-' | tr ' ' '-')" \
-          || echo "  WARNING: Upload of $FILENAME returned an error — continuing."
+          "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}/importDataFiles?importDataFileId=$(echo "$FILENAME" | tr '.' '-')")
+        CODE=$(echo "$RESP" | tail -1)
+        if [ "$CODE" = "200" ] || [ "$CODE" = "409" ]; then
+          echo "  Uploaded $FILENAME (HTTP $CODE)."
+        else
+          echo "  WARNING: Upload of $FILENAME returned HTTP $CODE — continuing."
+        fi
       done
 
       echo "Validating import job..."
@@ -189,12 +324,12 @@ resource "null_resource" "mc_aws_import" {
         "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}:validate")
       VAL_CODE=$(echo "$VAL_RESP" | tail -1)
       if [ "$VAL_CODE" = "200" ]; then
-        echo "Validation started (HTTP $VAL_CODE) — waiting 30s for validation to complete..."
+        echo "Validation started — waiting 30s for validation to complete..."
         sleep 30
       else
         echo "WARNING: Validate returned HTTP $VAL_CODE — skipping run."
         echo "$VAL_RESP" | head -n -1
-        rm -rf "$TMPDIR"
+        rm -rf "$WORKDIR"
         exit 0
       fi
 
@@ -213,8 +348,8 @@ resource "null_resource" "mc_aws_import" {
         echo "$RUN_RESP" | head -n -1
       fi
 
-      echo "AWS data import job submitted. Check Migration Center console for status."
-      rm -rf "$TMPDIR"
+      rm -rf "$WORKDIR"
+      echo "AWS EC2 import submitted."
     EOT
   }
 
