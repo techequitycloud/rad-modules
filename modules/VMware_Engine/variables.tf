@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys Google Cloud VMware Engine infrastructure, including a private cloud, VMware Engine network, VPC peering, network policy, and default VPC firewall rules. It is designed to support VM migration workflows and GCVE lab environments."
+  default     = "This module deploys Google Cloud VMware Engine (GCVE) infrastructure — the enterprise-proven path for lifting and shifting existing VMware workloads to Google Cloud without refactoring. Adopted by large enterprises across financial services, healthcare, and manufacturing to accelerate data center exits, disaster recovery modernization, and VDI migrations, GCVE preserves familiar VMware operational tooling (vCenter, NSX-T, HCX) while unlocking access to native GCP services; one documented enterprise case study shows infrastructure provisioning time shrinking from 6 months to 6 days. This module provisions the complete GCVE stack and a Windows Server 2022 jump host, providing a production-representative environment to validate VM migration workflows."
 }
 
 variable "module_documentation" {
@@ -62,6 +62,12 @@ variable "public_access" {
   description = "Set to true (default) to make this module visible and deployable by all platform users. {{UIMeta group=0 order=106 }}"
   type        = bool
   default     = true
+}
+
+variable "shared_users" {
+  description = "List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }}"
+  type        = list(string)
+  default     = []
 }
 
 variable "resource_creator_identity" {

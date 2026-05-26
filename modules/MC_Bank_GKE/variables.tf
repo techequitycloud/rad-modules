@@ -45,7 +45,7 @@ locals {
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys an advanced, microservice banking demo application on Google Kubernetes Engine (GKE) across multiple clusters, utilizing Cloud Service Mesh for enhanced security and multi-cluster management. It serves as a reference implementation for highly scalable, secure, and feature-rich banking platforms. This module is for educational purposes only."
+  default     = "This module deploys the Bank of Anthos banking application across multiple GKE clusters in multiple GCP regions — demonstrating the active-active, geo-redundant architecture that regulated financial institutions and global payment processors require for 99.99%+ availability SLAs. By combining Multi-Cluster Ingress, fleet-wide Cloud Service Mesh, and GKE Fleet management, it shows engineering teams how to eliminate single-region failure risk and satisfy data residency requirements simultaneously — a pattern directly applicable to core banking, payments, and insurance platforms. This module is for educational purposes only."
 }
 
 variable "module_documentation" {
@@ -88,6 +88,12 @@ variable "public_access" {
   description = "Set to true (default) to make this module visible and deployable by all platform users. Set to false to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
   type        = bool
   default     = true
+}
+
+variable "shared_users" {
+  description = "List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }}"
+  type        = list(string)
+  default     = []
 }
 
 variable "resource_creator_identity" {

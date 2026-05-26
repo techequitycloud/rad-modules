@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys an advanced, microservice banking demo application on Google Kubernetes Engine (GKE), utilizing Cloud Service Mesh for enhanced security and multi-cluster management. It serves as a reference implementation for highly scalable, secure, and feature-rich banking platforms. This module is for educational purposes only."
+  default     = "This module deploys the Bank of Anthos reference banking application on GKE with Cloud Service Mesh — the same microservices architecture pattern used by financial institutions modernizing legacy payment and core banking platforms on Google Cloud. It demonstrates PCI-DSS relevant capabilities including mTLS-encrypted service communication, GitOps-driven configuration management, Cloud Monitoring SLOs, and GKE Autopilot's serverless compute model, making it the go-to reference for architects evaluating cloud-native financial services infrastructure. This module is for educational purposes only."
 }
 
 variable "module_documentation" {
@@ -62,6 +62,12 @@ variable "public_access" {
   description = "Set to true (default) to make this module visible and deployable by all platform users. Set to false to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
   type        = bool
   default     = true
+}
+
+variable "shared_users" {
+  description = "List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }}"
+  type        = list(string)
+  default     = []
 }
 
 variable "resource_creator_identity" {

@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module enables you to create and manage an Amazon Elastic Kubernetes Service (EKS) cluster from your Google Cloud console, providing a unified way for organizations using both AWS and Google Cloud to manage their applications. This module is for demonstration purposes only."
+  default     = "This module enables you to manage Amazon EKS clusters directly from your Google Cloud console using GKE Fleet — the architecture of choice for enterprises running workloads across the world's two largest clouds. Teams in financial services, healthcare, and retail use GKE Attached Clusters to unify security policies, centralize logging and access controls, and apply consistent configuration across AWS and GCP deployments without disrupting existing EKS workloads. This module is for demonstration purposes only."
 }
 
 variable "module_documentation" {
@@ -62,6 +62,12 @@ variable "public_access" {
   description = "Set to true (default) to make this module visible and deployable by all platform users. Set to false to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
   type = bool
   default = true
+}
+
+variable "shared_users" {
+  description = "List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }}"
+  type        = list(string)
+  default     = []
 }
 
 variable "deployment_id" {
