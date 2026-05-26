@@ -1,5 +1,8 @@
 ee https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Claude Code runtime artifacts
+.claude/
+
 # dependencies
 node_modules/
 sa-key.json
