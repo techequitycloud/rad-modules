@@ -867,66 +867,540 @@ curl -s -X POST \
 
 ### Step 6.3 — Deploy the Migrate Connector
 
-The Migrate Connector is an OVA deployed to the source vCenter environment:
+The Migrate Connector is an OVA deployed to the source vCenter environment. First, generate an SSH key pair, then deploy the OVA.
 
-1. From the jump host, open vCenter
-2. Right-click the datacenter → **Deploy OVF Template**
-3. Use the OVA URL provided in the Cloud Console:
+#### Step 6.3a — Generate an SSH Key Pair with PuTTYgen
 
-```bash
-echo "https://console.cloud.google.com/migrate/virtual-machines?project=${PROJECT_ID}"
+The Migrate Connector OVF requires an SSH public key at deploy time to allow admin access to the appliance.
+
+1. On the jump host, click the Windows **Start** button and search for **PuTTYgen**. If not found, download from https://puttygen.com/ and install. Open the application.
+2. Click **Generate** and move your mouse over the blank area to generate randomness until the progress bar completes.
+3. Click **Save private key**. When prompted about saving without a passphrase, click **Yes**.
+4. Enter `m2vm_key` as the filename and click **Save**.
+5. Leave PuTTYgen open — you will copy the public key from it in the next step.
+
+**Expected result:** The private key file `m2vm_key.ppk` is saved to the Desktop. The public key is displayed in the PuTTYgen window.
+
+#### Step 6.3b — Deploy the Migrate Connector OVF
+
+1. Paste the URL below to download the Migrate Connector OVA file:
+
+```
+https://storage.googleapis.com/vmmigration-public-artifacts/migrate-connector-2-8-2977.ova
 ```
 
-4. Configure the connector with the service account key and source registration token
-5. Verify the connector appears as `Connected` in the Cloud Console
+2. On the jump host, switch to the **vSphere Client** browser tab.
+3. Right-click the **Workload** in the left-hand resource tree and select **Deploy OVF Template**.
+4. On the **Select an OVF template** page, select **Local file** and click the **UPLOAD FILES** button and select the downloaded `migrate-connector-2-8-2977.ova` file. Click **Next**.
+5. If prompted to accept an SSL certificate, click **Yes**.
+6. Step through the wizard using the values below:
 
-### Step 6.4 — Create a Migration Group
+| Wizard Step | Value |
+|---|---|
+| Select a name and folder | Navigate to **Datacenter > Workload**, click Next |
+| Select a compute resource | Navigate to **Datacenter > Workload**, click Next |
+| Review details | Click Next |
+| Select storage | Select **vsanDatastore**, click Next |
+| Select networks — Destination Network | Click the dropdown, select **Browse**, choose **my-nsx-network**, click OK, then Next |
 
-```bash
-gcloud migration vms groups create "migration-group-1" \
-  --project="${PROJECT_ID}" \
-  --location="${REGION}"
-```
+7. On the **Customize Template** screen, locate the **SSH Public Key** field.
+8. Switch to PuTTYgen, select the entire public key text starting with `ssh-rsa` through to the end, and copy it.
+9. Paste the public key into the **SSH Public Key** field in the vSphere wizard.
+10. Click **Next**, then click **Finish**.
+11. Monitor the **Recent Tasks** pane and wait for the deployment to complete.
 
-### Step 6.5 — Add a VM to the Group and Start Replication
+> If you encounter an error during deployment, start the wizard again from Step 2.
 
-```bash
-# List discovered VMs from the source
-gcloud migration vms sources list \
-  --project="${PROJECT_ID}" \
-  --location="${REGION}"
+**Expected result:** The `M4C` VM appears in the vSphere inventory and the Recent Tasks pane shows the deployment as completed successfully.
 
-# Create a migrating VM (replication job)
-gcloud migration vms create "web-server-migration" \
-  --source="on-prem-vcenter" \
-  --vm="<source-vm-name>" \
-  --project="${PROJECT_ID}" \
-  --location="${REGION}"
-```
+#### Step 6.3c — Power On the Migrate Connector
 
-**REST API:**
-```bash
-curl -s -X POST \
-  "https://vmmigration.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/sources/on-prem-vcenter/migratingVms?migratingVmId=web-server-migration" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sourceVmId": "<source-vm-id>",
-    "description": "Web server migration to GCVE"
-  }'
-```
+1. In the vSphere Client left-hand navigation, select the **M4C** instance.
+2. Click the **Power on** button.
+3. Wait until the VM details pane shows an IP address assigned (format: `192.168.142.xx`). Note this IP address — you will SSH to it in the next step.
 
-### Step 6.6 — Perform a Test Clone
+**Expected result:** The Migrate Connector VM is running and has an IP address on the `my-nsx-network` workload segment.
 
-A test clone creates a non-production copy of the VM in GCVE without affecting the source:
+### Step 6.4 — Register the Migrate Connector
+
+#### Step 6.4a — Retrieve the vCenter Solution User Credentials
+
+Terraform reset and retrieved the vCenter solution user credentials at the end of deployment. Retrieve them now if you did not save them earlier.
+
+1. On your local machine, open Cloud Shell in the Google Cloud console.
+2. Run the following command (replace values as needed):
 
 ```bash
-gcloud migration vms cutover-jobs create \
-  --migrating-vm="web-server-migration" \
-  --source="on-prem-vcenter" \
-  --project="${PROJECT_ID}" \
-  --location="${REGION}"
+gcloud vmware private-clouds vcenter credentials describe \
+  --private-cloud=altostrat-ID-private-cloud \
+  --username=solution-user-01@gve.local \
+  --location=us-west2-a
 ```
+
+3. Save the returned username and password.
+
+**Expected result:** The credentials for `solution-user-01@gve.local` are displayed. These are used by the Migrate Connector to authenticate with vCenter.
+
+#### Step 6.4b — SSH into the Migrate Connector
+
+1. On the jump host, click the Windows **Start** button and search for **PuTTY**. Open the application.
+2. In the PuTTY window, expand **Connection > SSH > Auth** in the left-hand tree.
+3. Click **Browse** and select the `m2vm_key.ppk` private key saved in Step 6.3a.
+4. Scroll to the top of the left-hand tree and click **Session**.
+5. In the **Host Name** field, enter:
+
+```
+admin@192.168.142.xx
+```
+
+   Replace `xx` with the IP address noted in Step 6.3c.
+
+6. Click **Open**.
+7. If prompted with a server host key warning, click **Accept**.
+
+**Expected result:** You are logged in to the Migrate Connector appliance shell as `admin`.
+
+#### Step 6.4c — Verify Connector Status
+
+In the PuTTY SSH window, run:
+
+```bash
+m2vm status
+```
+
+**Expected result:** Output shows the connector is **not registered**.
+
+#### Step 6.4d — Obtain a Google Cloud Access Token
+
+The `m2vm register` command requires a short-lived OAuth token to authenticate with Google Cloud.
+
+1. Switch to the Google Cloud console on your local machine.
+2. Open Cloud Shell and run:
+
+```bash
+gcloud auth print-access-token
+```
+
+3. Click **Authorize** if prompted.
+4. Select and copy the entire token returned.
+
+**Expected result:** A long alphanumeric token string is copied to your clipboard.
+
+#### Step 6.4e — Register the Migrate Connector
+
+1. In the PuTTY SSH window, run:
+
+```bash
+m2vm register
+```
+
+2. When prompted for an **access token**, right-click in the PuTTY window to paste the token copied in Step 6.4d, then press **Enter**.
+3. When prompted for each value, enter the following:
+
+| Prompt | Value |
+|---|---|
+| Project | Select your `migrate-training-xx-1234` project (option 2) |
+| Region | `us-west2` (type exactly) |
+| Source name | `migrate-vsphere` (type exactly) |
+| KMS Key | Leave blank, press Enter |
+
+4. When prompted to select a service account, choose the default option.
+5. Wait approximately 5 minutes for the source to be created and the connector to become active.
+
+> **If you see:** `Read access to project '...' was denied` — navigate to **Compute Engine > Migrate to Virtual Machines** in the console, confirm the API is enabled, and retry.
+>
+> **If registration fails and you need to retry:** delete all VM Migrations, Disk Migrations, and Utilization Reports in the Migrate to VMs console before running `m2vm register` again.
+
+**Expected result:** Registration completes with a message confirming the connector is active and the source `migrate-vsphere` has been created.
+
+#### Step 6.4f — Confirm Registration and Set Bandwidth Limit
+
+1. In the PuTTY SSH window, confirm the connector is registered:
+
+```bash
+m2vm status
+```
+
+2. Set the maximum upload bandwidth to 100 MiBps:
+
+```bash
+m2vm upload-max-rate set 100
+```
+
+3. Confirm the setting:
+
+```bash
+m2vm upload-max-rate show
+```
+
+**Expected result:** Status shows the connector as **registered and active**. Upload rate shows **100 MiBps**.
+
+#### Step 6.4g — Verify the Source in the Migrate to VMs Console
+
+1. In the Google Cloud console, navigate to **Compute Engine > Migrate to Virtual Machines**.
+2. Click the **Sources** tab.
+3. Select **migrate-vsphere** from the source dropdown.
+4. A list of VMware VMs discovered from the GCVE environment is displayed. If the list is empty, wait 1–2 minutes and refresh.
+5. Click **Source Details** (top right) to confirm the source configuration.
+
+**Expected result:** The source `migrate-vsphere` is active and the VM inventory is populated with the VMs running in GCVE.
+
+> **REST API equivalent — fetch VM inventory:**
+> ```bash
+> curl -s "$BASE/projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID:fetchInventory?forceRefresh=true" \
+>   -H "Authorization: Bearer $TOKEN" | jq '.vmwareVms.details[] | {vmId, displayName}'
+> ```
+> Note the `vmId` value for each VM (e.g. `vm-12345`) — you need it as `sourceVmId` when creating migration jobs via the API.
+
+### Step 6.5 — Clean Up Any Previous Lab Resources
+
+Before starting migration operations, confirm no leftover VMs or disks from a previous lab run exist in the project. Orphaned resources will conflict with migration target names.
+
+1. In the Google Cloud console, navigate to **Compute Engine > VM instances**.
+2. If any migrated VMs from a previous run are present (e.g. `front-end`, `back-end`, `db-server`), select them and click **Delete**.
+3. Navigate to **Compute Engine > Disks**.
+4. If any migrated disks from a previous run are present, select them and click **Delete**.
+
+**Expected result:** No migrated VMs or disks remain. Only the jump host VM created by Terraform should be present.
+
+### Step 6.6 — Create Utilization Reports
+
+Utilization reports confirm connectivity between the Migrate Connector and Google Cloud, and provide rightsizing data for migration planning.
+
+1. In the Google Cloud console, navigate to **Compute Engine > Migrate to Virtual Machines**.
+2. Click the **Sources** tab and select **migrate-vsphere**.
+3. In the VM list, select the checkboxes for the following VMs:
+   - `front-end`
+   - `back-end`
+   - `db-server`
+4. Click **Create Report**.
+5. Create the following three reports in sequence. For each report, click **Create Report**, enter the values below, and click **Create**:
+
+| Name | Time period |
+|---|---|
+| `weekly-utilization` | `Weekly` |
+| `monthly-utilization` | `Monthly` |
+| `yearly-utilization` | `Yearly` |
+
+**Expected result:** All three reports are queued. Successfully generated reports confirm that the Migrate Connector has active connectivity to Google Cloud and can read VM metrics from the vCenter source.
+
+> **REST API equivalent — create utilization reports:**
+> Replace `VM_ID_*` with the `vmId` values returned by `fetchInventory`.
+> ```bash
+> for PERIOD in WEEK MONTH YEAR; do
+>   ID="${PERIOD,,}-utilization"
+>   curl -s -X POST \
+>     "$BASE/projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/utilizationReports?utilizationReportId=$ID" \
+>     -H "Authorization: Bearer $TOKEN" \
+>     -H "Content-Type: application/json" \
+>     -d "{
+>       \"displayName\": \"$ID\",
+>       \"timeFrame\": \"$PERIOD\",
+>       \"vms\": [
+>         {\"vmId\": \"VM_ID_FRONTEND\"},
+>         {\"vmId\": \"VM_ID_BACKEND\"},
+>         {\"vmId\": \"VM_ID_DBSERVER\"}
+>       ]
+>     }" | jq '.name'
+> done
+> ```
+
+To view a report, click the **Sources** tab, then click **View Reports** (top right), then click a report name to open it.
+
+### Step 6.7 — Create VM Migrations and Start Replication
+
+#### Step 6.7a — Create VM Migrations for the Bank of Anthos VMs
+
+1. In the Google Cloud console, navigate to **Compute Engine > Migrate to Virtual Machines**.
+2. Click the **Sources** tab and select **migrate-vsphere**.
+3. In the VM list, select the checkboxes for all three Bank of Anthos VMs:
+   - `front-end`
+   - `back-end`
+   - `db-server`
+4. Click **Add Migrations > VM Migration**.
+5. Click **Confirm** when prompted.
+
+**Expected result:** VM migration jobs are created for all three VMs. Click the **VM Migrations** tab to see them listed.
+
+> **REST API equivalent — create migrating VMs (repeat for each VM):**
+> ```bash
+> for VM in front-end back-end db-server; do
+>   curl -s -X POST \
+>     "$BASE/projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/migratingVms?migratingVmId=$VM" \
+>     -H "Authorization: Bearer $TOKEN" \
+>     -H "Content-Type: application/json" \
+>     -d "{
+>       \"sourceVmId\": \"VM_ID_FOR_${VM}\",
+>       \"computeEngineTargetDefaults\": {
+>         \"vmName\": \"$VM\",
+>         \"zone\": \"${REGION}-a\",
+>         \"machineTypeSeries\": \"e2\",
+>         \"machineType\": \"e2-medium\",
+>         \"networkInterfaces\": [{
+>           \"network\": \"projects/$PROJECT/global/networks/default\",
+>           \"subnetwork\": \"projects/$PROJECT/regions/$REGION/subnetworks/default\"
+>         }]
+>       }
+>     }" | jq '.name'
+> done
+> ```
+
+#### Step 6.7b — Create the Bank-of-Anthos Migration Group
+
+Groups allow you to manage related VMs together and apply shared target settings in a single operation.
+
+1. Click the **Sources** tab.
+2. Select the checkboxes for `front-end`, `back-end`, and `db-server`.
+3. Click **Add to Group**.
+4. Type `bank-of-anthos` as the new group name and click **Add to Group**.
+
+**Expected result:** The three VMs are added to the `bank-of-anthos` group and the group is visible on the **Groups** tab.
+
+> **REST API equivalent — create group and add members:**
+> ```bash
+> # Create the group
+> curl -s -X POST \
+>   "$BASE/projects/$PROJECT/locations/$REGION/groups?groupId=bank-of-anthos" \
+>   -H "Authorization: Bearer $TOKEN" \
+>   -H "Content-Type: application/json" \
+>   -d '{"displayName": "bank-of-anthos", "migrationTargetType": "MIGRATION_TARGET_TYPE_GCE"}' | jq '.name'
+>
+> # Add each VM to the group
+> for VM in front-end back-end db-server; do
+>   curl -s -X POST \
+>     "$BASE/projects/$PROJECT/locations/$REGION/groups/bank-of-anthos:addGroupMigration" \
+>     -H "Authorization: Bearer $TOKEN" \
+>     -H "Content-Type: application/json" \
+>     -d "{\"migratingVm\": \"projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/migratingVms/$VM\"}" \
+>     | jq '.name'
+> done
+> ```
+
+#### Step 6.7c — Start Replication for the Bank-of-Anthos Group
+
+1. Click the **Groups** tab.
+2. Click the group name **bank-of-anthos** (click the name itself, not the checkbox).
+3. Select the checkboxes for `front-end`, `back-end`, and `db-server`.
+4. Click **Migration > Start Replication**.
+5. Click the back arrow (top left) to return to the groups list.
+
+**Expected result:** Replication starts for all three VMs. Their status changes to **Replicating**. The first sync will take approximately 15 minutes.
+
+> **REST API equivalent — start replication for each VM:**
+> ```bash
+> for VM in front-end back-end db-server; do
+>   curl -s -X POST \
+>     "$BASE/projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/migratingVms/$VM:startMigration" \
+>     -H "Authorization: Bearer $TOKEN" \
+>     -H "Content-Type: application/json" \
+>     -d '{}' | jq '.name'
+> done
+> ```
+
+#### Step 6.7d — Monitor Replication Progress and View Cycle History
+
+1. Click the **VM Migrations** tab to monitor sync progress for all three VMs.
+2. Wait until the replication status for all three VMs changes to **Active** before proceeding.
+3. Click the name **front-end** to open its details page, then click the **Replication Cycles** tab to review completed cycles — each row shows start time, duration, data transferred, and status.
+
+**Expected result:** All three VMs show **Active** replication. At least one completed replication cycle is listed for `front-end`, confirming that incremental CBT replication is working.
+
+> **REST API equivalent — list replication cycles:**
+> ```bash
+> curl -s \
+>   "$BASE/projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/migratingVms/front-end/replicationCycles" \
+>   -H "Authorization: Bearer $TOKEN" \
+>   | jq '.replicationCycles[] | {cycleNumber, state, startTime, endTime, progressPercent}'
+> ```
+
+#### Step 6.7e — Pause and Resume Replication
+
+Pausing halts the incremental replication cycle without deleting any replicated data. This is useful during planned maintenance windows on the source environment.
+
+1. On the **VM Migrations** tab, select the checkbox for **front-end**.
+2. Click **Migration > Pause Replication**.
+3. Observe the status change to **Paused**.
+4. Click **Migration > Resume Replication**.
+5. Observe the status return to **Active**.
+
+**Expected result:** Replication pauses and resumes cleanly. No data is lost during the pause — the next cycle after resuming picks up only the blocks changed since the last completed cycle.
+
+> **Note:** Replication cannot be paused while a cut-over is in progress.
+
+> **REST API equivalent — pause and resume:**
+> ```bash
+> # Pause
+> curl -s -X POST \
+>   "$BASE/projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/migratingVms/front-end:pauseMigration" \
+>   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{}' | jq '.name'
+>
+> # Resume
+> curl -s -X POST \
+>   "$BASE/projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/migratingVms/front-end:resumeMigration" \
+>   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{}' | jq '.name'
+> ```
+
+### Step 6.7f — Configure Migration Target Details
+
+Target details define the Compute Engine instance configuration that will be created when a test clone or cut-over is triggered.
+
+**front-end:**
+
+1. In **Migrate to Virtual Machines**, click the **Groups** tab and click the group name **bank-of-anthos**.
+2. Select the checkbox for **front-end** and click **Edit Target Details**.
+3. Enter the following values:
+
+| Section | Field | Value |
+|---|---|---|
+| General | Instance name | `front-end` |
+| General | Zone | `us-west2-a` |
+| Machine Configuration | Machine type | `e2-medium` |
+| Networking | Network | `default` |
+| Networking | Subnetwork | `default` |
+| Networking | Network tags | `http-server` (click Add Network Tag) |
+
+4. Click **Save**.
+
+**back-end and db-server:** Repeat for each VM with the same settings (no network tag needed for `back-end` and `db-server`).
+
+> **REST API equivalent — configure target details:**
+> ```bash
+> for VM in front-end back-end db-server; do
+>   TAGS=""
+>   [[ "$VM" == "front-end" ]] && TAGS='"networkTags": ["http-server"],'
+>   curl -s -X PATCH \
+>     "$BASE/projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/migratingVms/$VM?updateMask=computeEngineTargetDefaults" \
+>     -H "Authorization: Bearer $TOKEN" \
+>     -H "Content-Type: application/json" \
+>     -d "{
+>       \"computeEngineTargetDefaults\": {
+>         \"vmName\": \"$VM\",
+>         \"zone\": \"${REGION}-a\",
+>         \"machineTypeSeries\": \"e2\",
+>         \"machineType\": \"e2-medium\",
+>         $TAGS
+>         \"networkInterfaces\": [{
+>           \"network\": \"projects/$PROJECT/global/networks/default\",
+>           \"subnetwork\": \"projects/$PROJECT/regions/$REGION/subnetworks/default\"
+>         }]
+>       }
+>     }" | jq '.name'
+> done
+> ```
+
+### Step 6.8 — Perform a Test Clone and Cut-Over
+
+A **test clone** creates a copy of the VM in Google Cloud without stopping the source VM — useful for validating the migrated workload before committing. A **cut-over** stops the source VM, performs a final sync, and creates the permanent Compute Engine instance.
+
+#### Step 6.8a — Test Clone front-end
+
+1. In the **bank-of-anthos** group, confirm the replication status for **front-end** is **Active**.
+2. Select the checkbox for **front-end**.
+3. Click **Cut-Over and Test-Clone > Test-Clone**.
+4. Click **Confirm**.
+
+**Expected result:** A test clone job is initiated for `front-end`. The cloned VM will appear in **Compute Engine > VM Instances** within approximately 15 minutes.
+
+> **REST API equivalent — create clone job:**
+> ```bash
+> curl -s -X POST \
+>   "$BASE/projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/migratingVms/front-end/cloneJobs?cloneJobId=clone-$(date +%s)" \
+>   -H "Authorization: Bearer $TOKEN" \
+>   -H "Content-Type: application/json" \
+>   -d '{}' | jq '{operation: .name}'
+> ```
+
+#### Step 6.8b — Cut-Over back-end and db-server
+
+Cut-over stops the source VM, performs a final incremental sync, and creates the permanent Compute Engine instance. It is an irreversible operation and should be scheduled during a maintenance window.
+
+1. In the **bank-of-anthos** group, confirm the replication status for **back-end** and **db-server** is **Active**.
+2. Select the checkboxes for **back-end** and **db-server**.
+3. Click **Cut-Over and Test-Clone > Cut-Over**.
+4. Click **Confirm** when prompted.
+
+**Expected result:** Cut-over jobs are initiated for `back-end` and `db-server`. VM creation takes approximately 15 minutes.
+
+> **REST API equivalent — create cutover jobs:**
+> ```bash
+> for VM in back-end db-server; do
+>   curl -s -X POST \
+>     "$BASE/projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/migratingVms/$VM/cutoverJobs?cutoverJobId=cutover-$(date +%s)" \
+>     -H "Authorization: Bearer $TOKEN" \
+>     -H "Content-Type: application/json" \
+>     -d '{}' | jq '{vm: "'$VM'", operation: .name}'
+> done
+> ```
+
+#### Step 6.8c — Verify the front-end Test Clone
+
+In Cloud Shell on your local machine, run:
+
+```bash
+gcloud compute ssh front-end --zone=us-west2-a --tunnel-through-iap -- -NL "8080:localhost:80"
+```
+
+When Cloud Shell offers a port preview, select **Preview on port 8080**.
+
+**Expected result:** The Bank of Anthos front-end application loads in your browser via the Cloud Shell port preview, confirming the VM migrated successfully.
+
+#### Step 6.8d — Cancel a Cut-Over (Awareness)
+
+If a cut-over is initiated at the wrong time or against the wrong VM, it can be cancelled while in progress.
+
+1. In **Migrate to Virtual Machines**, click the **VM Migrations** tab.
+2. Select a VM that is in **Cutting Over** state.
+3. Click **Migration > Cancel Cut-Over**.
+
+**Expected result:** The cut-over is cancelled and the VM returns to **Active** replication state.
+
+> **Note:** Cancellation is only available while the cut-over job is still running. Once the Compute Engine instance has been created the operation cannot be reversed via cancel.
+
+> **REST API equivalent — cancel a cutover job:**
+> ```bash
+> # First get the cutover job ID
+> curl -s \
+>   "$BASE/projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/migratingVms/back-end/cutoverJobs" \
+>   -H "Authorization: Bearer $TOKEN" | jq '.cutoverJobs[] | select(.state=="ACTIVE") | .name'
+>
+> # Then cancel it
+> curl -s -X POST \
+>   "$BASE/projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/migratingVms/back-end/cutoverJobs/JOB_ID:cancel" \
+>   -H "Authorization: Bearer $TOKEN" \
+>   -H "Content-Type: application/json" \
+>   -d '{}' | jq '.name'
+> ```
+
+#### Step 6.8e — Finalise Migrations (Optional)
+
+Finalisation permanently removes all migration management resources for a completed cut-over, freeing up quota and cleaning up the migration state.
+
+1. In **Migrate to Virtual Machines**, select any cut-over migration.
+2. Click **Migration > Finalize**.
+
+**Expected result:** The migration management resources are deleted. The Compute Engine VM remains running and is now fully independent of the migration service.
+
+> **REST API equivalent — finalize migration:**
+> ```bash
+> for VM in front-end back-end db-server; do
+>   curl -s -X POST \
+>     "$BASE/projects/$PROJECT/locations/$REGION/sources/$SOURCE_ID/migratingVms/$VM:finalizeMigration" \
+>     -H "Authorization: Bearer $TOKEN" \
+>     -H "Content-Type: application/json" \
+>     -d '{}' | jq '{vm: "'$VM'", operation: .name}'
+> done
+> ```
+
+#### Step 6.8f — View the Adaptation Report
+
+The service automatically adapts each migrated OS to run on Compute Engine — installing virtio drivers, Compute Engine guest agents, and configuring the serial console.
+
+1. In **Migrate to Virtual Machines**, click the **VM Migrations** tab.
+2. Click the name **front-end** (or any cut-over VM) to open its details page.
+3. Click the **Adaptation Report** tab.
+4. Review the list of adaptations applied.
+
+**Expected result:** The adaptation report lists the OS-level changes applied automatically during the clone or cut-over, confirming the VM is prepared for Compute Engine without manual guest OS changes.
 
 ---
 
@@ -1109,6 +1583,111 @@ curl -s -X POST \
 
 > **Note:** TIME_LIMITED private clouds cannot be extended. For longer evaluations, provision
 > a STANDARD private cloud with `private_cloud_type = "STANDARD"` and `node_count = 3`.
+
+### Step 8.5 — Bulk Migration Configuration via CSV Export and Import
+
+For large migrations with many VMs, configuring target details individually in the console is impractical. The service supports exporting the current VM list to CSV, editing it externally, and re-importing to bulk-create or update migrations. Up to 100 migrations can be processed per import file.
+
+**Export:**
+
+1. In **Migrate to Virtual Machines**, click the **VM Migrations** tab.
+2. Click the **Export** button (top right).
+3. Select **CSV** as the format and click **Export**.
+4. Open the downloaded file in a spreadsheet editor.
+5. Review the columns — each row represents one migrating VM with fields for instance name, project, zone, machine type, network, subnetwork, network tags, disk type, and boot mode.
+
+**Edit and re-import:**
+
+6. Modify target detail columns for one or more VMs (e.g. change machine type or add a network tag).
+7. Save the file as CSV.
+8. In the console, click **Import**.
+9. Upload the edited CSV file and click **Import**.
+
+**Expected result:** The import updates target details for all rows in the file. Any validation errors are reported before the import is committed.
+
+> **Tip:** The import can also create new migrations and assign VMs to groups by populating the `group` column. This makes it the fastest way to onboard and configure a large VM fleet in one operation.
+
+### Step 8.6 — Configure IAM Access for Migration Operations
+
+In production, migration operations should be delegated using least-privilege IAM roles rather than granting broad project access.
+
+| Role | Purpose |
+|---|---|
+| `roles/vmmigration.admin` | Full control — create sources, manage migrations, execute cut-overs |
+| `roles/vmmigration.viewer` | Read-only — view migration status and reports without making changes |
+
+**Grant viewer access to a team member:**
+
+1. In the Google Cloud console, navigate to **IAM & Admin > IAM**.
+2. Click **Grant Access**.
+3. Enter the team member's email address.
+4. Search for and select **Migrate to Virtual Machines Viewer**.
+5. Click **Save**.
+
+**Expected result:** The team member can view all migration status and reports in the Migrate to Virtual Machines console but cannot start replication, trigger cut-overs, or modify target details.
+
+### Step 8.7 — Review Audit Logs for Migration Operations
+
+Every migration operation (start replication, cut-over, finalize) generates an entry in Cloud Audit Logs, providing a complete compliance trail.
+
+1. In the Google Cloud console, navigate to **Logging > Logs Explorer**.
+2. In the query editor, enter:
+
+```
+resource.type="audited_resource"
+protoPayload.serviceName="vmmigration.googleapis.com"
+```
+
+3. Press **Run Query**.
+4. Expand individual log entries to see:
+   - The method called (e.g. `StartMigration`, `CreateCutoverJob`)
+   - The caller identity (service account or user)
+   - The resource affected (source name, migrating VM name)
+   - Timestamp and result status
+
+**Expected result:** Audit log entries are visible for all migration operations performed during the lab, confirming that `vmmigration.googleapis.com` Admin Activity logs are captured automatically with no additional configuration.
+
+### Step 8.8 — Understand VM Migration Lifespan and Expiry
+
+Be aware of the following lifecycle limits when planning long-running migrations:
+
+| Milestone | Timing |
+|---|---|
+| Initial active lifespan | 100 days from onboarding |
+| Expiry warning window | Days 86–100 (14 days before expiry) |
+| Extension available | +100 days (once only, available days 86–130) |
+| Maximum total lifespan | 200 days |
+| Post-expiry resource retention | 30 days in EXPIRED state, then removed |
+
+**To extend a migration's lifespan:**
+
+1. In **Migrate to Virtual Machines**, click the **VM Migrations** tab.
+2. Identify any VM showing an expiry warning in its status column.
+3. Select the VM and click **Migration > Extend Lifespan**.
+
+**Expected result:** The migration lifespan is extended by 100 days. This option is available only once — plan cut-overs well within the 200-day window to avoid losing replication state.
+
+### Step 8.9 — Register an Additional Target Project
+
+By default the host project (where the Migrate Connector source is registered) is also the target project where Compute Engine instances are created. You can register additional GCP projects as migration targets — useful when migrating workloads into a separate production project from the migration management project.
+
+1. In **Migrate to Virtual Machines**, click the **Settings** tab.
+2. Click **Target Projects**.
+3. Click **Add Target Project**.
+4. Enter the project ID of the target project.
+5. Follow the prompts to grant the required Compute Engine IAM permissions to the migration service account in that project.
+
+**Expected result:** The additional project appears in the target project list and becomes available in the **Project** dropdown when configuring target details for any migrating VM.
+
+> **REST API equivalent — register a target project:**
+> ```bash
+> curl -s -X POST \
+>   "$BASE/projects/$PROJECT/locations/global/targetProjects?targetProjectId=my-target-project" \
+>   -H "Authorization: Bearer $TOKEN" \
+>   -H "Content-Type: application/json" \
+>   -d '{"project": "destination-project-id", "description": "Production landing zone"}' \
+>   | jq '.name'
+> ```
 
 ---
 
