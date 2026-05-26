@@ -102,58 +102,60 @@ variable "zone" {
   default     = "us-central1-a"
 }
 
-// SECTION 3: Compute Engine
+// SECTION 2: Networking
 
 variable "create_vpc" {
-  description = "Set to true (default) to create a dedicated VPC network for this lab. Set to false to use an existing VPC. {{UIMeta group=3 order=301 }}"
+  description = "Set to true (default) to create a dedicated VPC network for this lab. Set to false to use an existing VPC. {{UIMeta group=2 order=201 }}"
   type        = bool
   default     = true
 }
 
 variable "create_default_firewall_rules" {
-  description = "Set to true (default) to create the four Google-default firewall rules (allow-internal, allow-ssh, allow-rdp, allow-icmp) on the VPC. Set to false if these rules already exist on the target network. {{UIMeta group=3 order=302 }}"
+  description = "Set to true (default) to create the four Google-default firewall rules (allow-internal, allow-ssh, allow-rdp, allow-icmp) on the VPC. Set to false if these rules already exist on the target network. {{UIMeta group=2 order=202 }}"
   type        = bool
   default     = true
 }
 
 variable "internal_traffic_cidr" {
-  description = "CIDR block used as the source range for the allow-internal firewall rule. Matches the default VPC auto-mode subnet range. {{UIMeta group=3 order=303 }}"
+  description = "CIDR block used as the source range for the allow-internal firewall rule. Matches the default VPC auto-mode subnet range. {{UIMeta group=2 order=203 }}"
   type        = string
   default     = "10.128.0.0/9"
 }
 
+// SECTION 3: Compute Engine
+
 variable "create_windows_vm" {
-  description = "Set to true (default) to deploy the Windows Server 2022 VM that hosts the MC Discovery Client. The startup script automatically installs MCDCv6. {{UIMeta group=3 order=304 }}"
+  description = "Set to true (default) to deploy the Windows Server 2022 VM that hosts the MC Discovery Client. The startup script automatically installs MCDCv6. {{UIMeta group=3 order=301 }}"
   type        = bool
   default     = true
 }
 
 variable "windows_vm_machine_type" {
-  description = "Machine type for the Windows MCDCv6 host VM. e2-medium provides sufficient resources for running the discovery client. {{UIMeta group=3 order=305 }}"
+  description = "Machine type for the Windows MCDCv6 host VM. e2-medium provides sufficient resources for running the discovery client. {{UIMeta group=3 order=302 }}"
   type        = string
   default     = "e2-medium"
 }
 
 variable "windows_vm_boot_disk_size_gb" {
-  description = "Boot disk size in GB for the Windows VM. Minimum 50 GB recommended for Windows Server 2022 plus MCDCv6. {{UIMeta group=3 order=306 }}"
+  description = "Boot disk size in GB for the Windows VM. Minimum 50 GB recommended for Windows Server 2022 plus MCDCv6. {{UIMeta group=3 order=303 }}"
   type        = number
   default     = 50
 }
 
 variable "linux_vm_count" {
-  description = "Number of Debian Linux VMs to deploy as discovery scan targets. The MCDCv6 scanner will discover and inventory these VMs. {{UIMeta group=3 order=307 }}"
+  description = "Number of Debian Linux VMs to deploy as discovery scan targets. The MCDCv6 scanner will discover and inventory these VMs. {{UIMeta group=3 order=304 }}"
   type        = number
   default     = 3
 }
 
 variable "linux_vm_machine_type" {
-  description = "Machine type for each Linux discovery target VM. e2-medium is sufficient for lab purposes. {{UIMeta group=3 order=308 }}"
+  description = "Machine type for each Linux discovery target VM. e2-medium is sufficient for lab purposes. {{UIMeta group=3 order=305 }}"
   type        = string
   default     = "e2-medium"
 }
 
 variable "linux_vm_boot_disk_size_gb" {
-  description = "Boot disk size in GB for each Linux target VM. {{UIMeta group=3 order=309 }}"
+  description = "Boot disk size in GB for each Linux target VM. {{UIMeta group=3 order=306 }}"
   type        = number
   default     = 20
 }
