@@ -34,18 +34,37 @@ resource "null_resource" "mc_init" {
         --impersonate-service-account='${var.resource_creator_identity}' \
         --quiet 2>/dev/null)
 
-      STATUS=$(curl -s -o /dev/null -w "%%{http_code}" \
-        -X POST \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{}' \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}:initializeConfig")
+      MAX_ATTEMPTS=6
+      ATTEMPT=0
+      WAIT=10
+      STATUS=""
 
-      if [ "$STATUS" = "200" ] || [ "$STATUS" = "409" ]; then
-        echo "Migration Center initialized (HTTP $STATUS)."
-      else
-        echo "WARNING: initializeConfig returned HTTP $STATUS — check that the API is enabled and the SA has owner."
-      fi
+      while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+        ATTEMPT=$((ATTEMPT + 1))
+        echo "Attempt $ATTEMPT/$MAX_ATTEMPTS..."
+        STATUS=$(curl -s -o /dev/null -w "%%{http_code}" \
+          -X POST \
+          -H "Authorization: Bearer $TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{}' \
+          "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}:initializeConfig")
+
+        if [ "$STATUS" = "200" ] || [ "$STATUS" = "409" ]; then
+          echo "Migration Center initialized (HTTP $STATUS)."
+          exit 0
+        fi
+
+        echo "initializeConfig returned HTTP $STATUS — waiting $${WAIT}s before retry..."
+        sleep $WAIT
+        WAIT=$((WAIT * 2))
+        TOKEN=$(gcloud auth print-access-token \
+          --impersonate-service-account='${var.resource_creator_identity}' \
+          --quiet 2>/dev/null)
+      done
+
+      echo "ERROR: initializeConfig failed after $MAX_ATTEMPTS attempts (last HTTP $STATUS)."
+      echo "Check that migrationcenter.googleapis.com is enabled and the SA has the Owner role."
+      exit 1
     EOT
   }
 
@@ -87,8 +106,9 @@ resource "null_resource" "mc_source" {
       if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "409" ]; then
         echo "Discovery source created or already exists (HTTP $HTTP_CODE)."
       else
-        echo "WARNING: Source creation returned HTTP $HTTP_CODE."
+        echo "ERROR: Source creation returned HTTP $HTTP_CODE."
         echo "$RESPONSE" | head -1
+        exit 1
       fi
     EOT
   }
@@ -263,7 +283,7 @@ resource "null_resource" "mc_preferences" {
             "commitmentPlan": "COMMITMENT_PLAN_THREE_YEAR"
           }
         }' \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/preferencesSets?preferencesSetId=${local.pref_agg_name}" \
+        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/preferenceSets?preferenceSetId=${local.pref_agg_name}" \
         || echo "WARNING: Aggressive preference creation failed (may already exist)."
 
       echo "Creating moderate-1yr migration preferences..."
@@ -289,7 +309,7 @@ resource "null_resource" "mc_preferences" {
             "commitmentPlan": "COMMITMENT_PLAN_ONE_YEAR"
           }
         }' \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/preferencesSets?preferencesSetId=${local.pref_mod_name}" \
+        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/preferenceSets?preferenceSetId=${local.pref_mod_name}" \
         || echo "WARNING: Moderate preference creation failed (may already exist)."
 
       echo "Migration preferences created."
@@ -330,15 +350,15 @@ resource "null_resource" "mc_report" {
           \"groupPreferencesetAssignments\": [
             {
               \"group\": \"projects/${local.project.project_id}/locations/${var.region}/groups/${local.group_all_name}\",
-              \"preferenceSet\": \"projects/${local.project.project_id}/locations/${var.region}/preferencesSets/${local.pref_agg_name}\"
+              \"preferenceSet\": \"projects/${local.project.project_id}/locations/${var.region}/preferenceSets/${local.pref_agg_name}\"
             },
             {
               \"group\": \"projects/${local.project.project_id}/locations/${var.region}/groups/${local.group_win_name}\",
-              \"preferenceSet\": \"projects/${local.project.project_id}/locations/${var.region}/preferencesSets/${local.pref_mod_name}\"
+              \"preferenceSet\": \"projects/${local.project.project_id}/locations/${var.region}/preferenceSets/${local.pref_mod_name}\"
             },
             {
               \"group\": \"projects/${local.project.project_id}/locations/${var.region}/groups/${local.group_lin_name}\",
-              \"preferenceSet\": \"projects/${local.project.project_id}/locations/${var.region}/preferencesSets/${local.pref_mod_name}\"
+              \"preferenceSet\": \"projects/${local.project.project_id}/locations/${var.region}/preferenceSets/${local.pref_mod_name}\"
             }
           ]
         }" \
