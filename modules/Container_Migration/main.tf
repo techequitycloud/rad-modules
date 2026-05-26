@@ -34,11 +34,11 @@ locals {
 
   project_services = var.enable_services ? local.default_apis : []
 
-  vpc_name         = "altostrat-${local.random_id}-vpc"
-  gke_cluster_name = "altostrat-${local.random_id}-m2c-guide"
-  postgres_vm_name = "altostrat-${local.random_id}-petclinic-postgres"
-  tomcat_vm_name   = "altostrat-${local.random_id}-tomcat-petclinic"
-  m2c_cli_vm_name  = "altostrat-${local.random_id}-m2c-cli"
+  vpc_name         = "mig-${local.random_id}-vpc"
+  gke_cluster_name = "mig-${local.random_id}-gke-cluster"
+  postgres_vm_name = "mig-${local.random_id}-postgres"
+  tomcat_vm_name   = "mig-${local.random_id}-tomcat"
+  m2c_cli_vm_name  = "mig-${local.random_id}-m2c"
 }
 
 resource "random_id" "default" {

@@ -4,6 +4,8 @@ This module deploys **Google Cloud Migrate to Containers (M2C)** infrastructure 
 
 The module provisions two Ubuntu source VMs (PostgreSQL 14 and Apache Tomcat 10 running the Spring PetClinic application), a Migrate to Containers CLI workstation pre-installed with the `m2c` toolchain, Docker, `kubectl`, and Skaffold, and a three-node GKE cluster ready to receive migrated workloads.
 
+All resources are named with the prefix `mig-{deployment_id}-` (e.g. `mig-8b56-postgres`, `mig-8b56-tomcat`, `mig-8b56-m2c`, `mig-8b56-gke-cluster`, `mig-8b56-vpc`).
+
 ## Industry Value & Use Cases
 
 Migrate to Containers is the Google-recommended path for engineering teams modernising VM fleets to Kubernetes without application-level refactoring. It is commonly adopted by organisations with large Java, Python, and Node.js VM estates that need to reduce operational overhead, improve density, and unlock CI/CD workflows — without a full application rewrite.
@@ -15,7 +17,7 @@ Migrate to Containers is the Google-recommended path for engineering teams moder
 - **Horizontal pod autoscaling** — configure GKE HPA on migrated Tomcat deployments to scale on CPU demand
 - **Rolling update strategy** — configure zero-downtime rolling updates for migrated deployments
 
-For a detailed technical walkthrough of the full lab, see [LAB_GUIDE.md](LAB_GUIDE.md).
+For a detailed technical walkthrough of the full lab, see [Container_Migration.md](../../docs/labs/Container_Migration.md).
 
 Last tested on Mon May 26, 2026
 
