@@ -134,7 +134,20 @@ subscription. Collect these four values before deploying:
 - **Client ID** (`client_id`) — Azure AD Application (client) ID
 - **Client Secret** (`client_secret`) — Azure AD client secret value
 - **Tenant ID** (`tenant_id`) — Azure AD Directory (tenant) ID
-- **Subscription ID** (`subscription_id`) — Azure subscription ID
+- **Subscription ID** (`subscription_id`) — Azure Subscription ID
+
+If you do not already have a service principal, create one with the Azure CLI:
+
+```bash
+az ad sp create-for-rbac \
+  --name "aks-gke-lab-sp" \
+  --role Contributor \
+  --scopes /subscriptions/YOUR_SUBSCRIPTION_ID \
+  --output json
+```
+
+This returns the `appId` (client_id), `password` (client_secret), and `tenant` (tenant_id)
+values required by the module.
 
 ### GCP Permissions
 
@@ -156,6 +169,27 @@ export CLUSTER_NAME="azure-aks-cluster"   # adjust if deployment_id was set
 gcloud config set project "${PROJECT_ID}"
 gcloud config set compute/region "${GCP_REGION}"
 ```
+
+### REST API Shell Variables
+
+If you plan to use the REST API equivalents throughout this lab, set these additional variables
+once before running any API command:
+
+```bash
+export TOKEN=$(gcloud auth print-access-token)
+export PROJECT_NUMBER=$(gcloud projects describe ${PROJECT_ID} --format='value(projectNumber)')
+export MULTICLOUD_BASE="https://${GCP_REGION}-gkemulticloud.googleapis.com/v1"
+export HUB_BASE="https://gkehub.googleapis.com/v1"
+```
+
+All mutating REST API operations return a long-running Operation. Poll for completion:
+
+```bash
+curl -s "${MULTICLOUD_BASE}/projects/${PROJECT_ID}/locations/${GCP_REGION}/operations/OPERATION_ID" \
+  -H "Authorization: Bearer $TOKEN" | jq '.done, .error'
+```
+
+`done: true` with no `error` means the operation succeeded.
 
 ---
 
@@ -184,7 +218,35 @@ Click **Deploy** and wait for provisioning to complete (approximately 15–20 mi
 > GKE Attached Cluster registration in Fleet Hub with OIDC trust, Cloud Logging for system
 > and workload logs, and Managed Prometheus for metrics collection.
 
-### 4.2 Configure Azure CLI (Optional)
+### 4.2 Deploy via Terraform CLI (Alternative)
+
+If you prefer to deploy directly with the Terraform CLI instead of the RAD UI:
+
+```bash
+cd modules/AKS_GKE
+tofu init
+tofu validate
+tofu plan -out=plan.tfplan
+tofu apply plan.tfplan
+```
+
+**Expected provisioning duration:**
+
+| Resource | Typical time |
+|---|---|
+| API enablement | 1–2 minutes |
+| Azure Resource Group creation | < 1 minute |
+| AKS cluster provisioning | 5–10 minutes |
+| Bootstrap Helm chart install | 1–2 minutes |
+| GKE Hub cluster registration | 1–2 minutes |
+
+> The `tofu apply` command will not return until all resources are fully provisioned, including
+> the fleet registration. When complete, record the cluster name, resource group name, and OIDC
+> issuer URL from the outputs — these are referenced throughout the rest of the lab.
+
+### 4.3 Configure Azure CLI (Optional)
+
+Optionally verify your Azure credentials are working:
 
 ```bash
 az login --service-principal \
@@ -257,7 +319,18 @@ Or directly:
 echo "https://console.cloud.google.com/kubernetes/list/overview?project=${PROJECT_ID}"
 ```
 
-### Step 1.4 — Verify GKE Connect Agent
+### Step 1.4 — Verify Platform Version and Managed Features
+
+1. In the Google Cloud console, navigate to **Kubernetes Engine > Clusters**.
+2. Click the cluster name to open its details page, then click the **Details** tab.
+3. Review the **Platform version** field — it should match the `platform_version` variable.
+4. Review the **Logging** and **Monitoring** sections — both should show as **Enabled**.
+
+**Expected result:** The platform version, logging, and monitoring settings match the Terraform
+configuration. The bootstrap Helm chart installed by Terraform placed the GKE Hub agent onto
+the AKS cluster, enabling these managed features.
+
+### Step 1.5 — Verify GKE Connect Agent
 
 ```bash
 # Configure kubectl (done in Exercise 2 Step 2.1 below)
@@ -519,7 +592,41 @@ curl -s -X POST \
   }" | jq '.entries[].jsonPayload'
 ```
 
-### Step 4.4 — Log-Based Metrics
+### Step 4.4 — Verify Log Ingestion with a Test Pod
+
+Deploy a temporary pod to confirm that workload log forwarding is active:
+
+```bash
+kubectl run log-test --image=busybox --restart=Never \
+  -- sh -c 'echo "AKS-GKE lab log entry $(date)" && sleep 5'
+```
+
+Wait 60 seconds, then check the log locally:
+
+```bash
+kubectl logs log-test
+```
+
+Then query Cloud Logging to confirm the entry was forwarded:
+
+**gcloud:**
+```bash
+gcloud logging read \
+  "resource.type=k8s_container AND resource.labels.cluster_name=${CLUSTER_NAME} AND resource.labels.pod_name=log-test" \
+  --project="${PROJECT_ID}" \
+  --limit=5 \
+  --format='table(timestamp,textPayload)'
+```
+
+**Expected result:** The `AKS-GKE lab log entry` message appears in Cloud Logging, confirming
+that workload log forwarding is active for the cluster.
+
+```bash
+# Clean up the test pod
+kubectl delete pod log-test
+```
+
+### Step 4.5 — Log-Based Metrics
 
 Create a log-based metric to count nginx requests:
 
@@ -810,15 +917,77 @@ To upgrade the Connect Agent to a newer platform version:
 The Terraform run updates only the attached cluster resource — the AKS cluster itself is not
 affected.
 
+### Step 8.4 — Import an Existing Cluster (Reference)
+
+If you already have an AKS cluster and want to register it without recreating it, GKE Attached
+Clusters supports an import flow. The import manifest installs the bootstrap components onto
+the existing cluster:
+
+```bash
+# Generate an import manifest for an existing cluster
+gcloud container attached clusters generate-install-manifest \
+  --location="${GCP_REGION}" \
+  --platform-version="1.34.0-gke.1" \
+  --cluster=existing-aks-cluster \
+  --format=json \
+  --project="${PROJECT_ID}" \
+  | jq -r '.manifest' > install-manifest.yaml
+
+# Apply the manifest to the existing cluster (using its own kubeconfig)
+kubectl apply --kubeconfig=existing-cluster.kubeconfig -f install-manifest.yaml
+```
+
+After the manifest is applied, register the cluster:
+
+```bash
+gcloud container attached clusters register existing-aks-cluster \
+  --location="${GCP_REGION}" \
+  --platform-version="1.34.0-gke.1" \
+  --distribution=aks \
+  --oidc-issuer-url="https://oidc.prod-aks.azure.com/TENANT_ID/CLUSTER_ID/" \
+  --project="${PROJECT_ID}" \
+  --fleet-project="${PROJECT_ID}"
+```
+
+**Expected result:** The existing cluster appears in the GKE Clusters view with **Type: Attached**
+without any disruption to workloads running on it.
+
 ---
 
 ## 13. Cleanup
 
-When you are finished, return to the RAD UI and click **Undeploy** on the `AKS_GKE` deployment.
-This removes:
+First, remove the sample workload namespace if you deployed one:
+
+```bash
+kubectl delete namespace sample-workload
+```
+
+### Cleanup via RAD UI
+
+Return to the RAD UI and click **Undeploy** on the `AKS_GKE` deployment. This removes:
 - The GKE Fleet membership
 - The Azure AKS cluster
 - The Azure Resource Group and all contained resources
+
+### Cleanup via Terraform CLI (if deployed manually)
+
+```bash
+cd modules/AKS_GKE
+tofu destroy
+```
+
+**Expected destruction order:**
+
+| Resource | Typical time |
+|---|---|
+| GKE Hub fleet registration | 1–2 minutes |
+| Bootstrap Helm chart uninstall | 1–2 minutes |
+| AKS cluster deletion | 5–10 minutes |
+| Azure Resource Group deletion | 1–2 minutes |
+
+> `tofu destroy` will prompt for confirmation before deleting resources. Type `yes` to proceed.
+> All Azure and GCP resources created by the module are removed; your GCP project and Azure
+> subscription themselves are not affected.
 
 ### Manual Cleanup (if needed)
 
@@ -872,7 +1041,7 @@ kubectl config delete-context \
 | `tenant_id` | string | — | Azure AD Tenant ID (required) |
 | `subscription_id` | string | — | Azure Subscription ID (required) |
 
-### IAM Roles Required for Connect Gateway Access
+### IAM Roles for Connect Gateway and Attached Cluster Operations
 
 | Role | Purpose |
 |---|---|
@@ -880,6 +1049,10 @@ kubectl config delete-context \
 | `roles/gkehub.gatewayEditor` | Read-write kubectl access via Connect Gateway |
 | `roles/gkehub.gatewayAdmin` | Full kubectl access via Connect Gateway |
 | `roles/gkehub.viewer` | View Fleet membership details |
+| `roles/gkehub.editor` | Manage Fleet memberships |
+| `roles/gkemulticloud.viewer` | Read-only view of attached cluster resources |
+| `roles/gkemulticloud.editor` | Create and update attached clusters |
+| `roles/gkemulticloud.admin` | Full control including delete of attached clusters |
 
 ### GCP APIs Enabled by the Module
 

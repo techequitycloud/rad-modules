@@ -29,6 +29,35 @@ Virtual Machines.
 
 ---
 
+## REST API Overview
+
+Every action in this lab can be performed via the VM Migration REST API
+(`vmmigration.googleapis.com/v1`) as an alternative to the Cloud Console UI.
+API equivalents are shown throughout the exercises.
+
+**Base URL:** `https://vmmigration.googleapis.com/v1`
+
+**Set these shell variables once before running any API command:**
+
+```bash
+export TOKEN=$(gcloud auth print-access-token)
+export BASE="https://vmmigration.googleapis.com/v1"
+export PROJECT="your-project-id"
+export REGION="us-west2"
+export SOURCE_ID="migrate-vsphere"
+```
+
+**All mutating operations return a long-running Operation. Poll for completion:**
+
+```bash
+curl -s "$BASE/projects/$PROJECT/locations/$REGION/operations/OPERATION_ID" \
+  -H "Authorization: Bearer $TOKEN" | jq '.done, .error'
+```
+
+`done: true` with no `error` means the operation succeeded.
+
+---
+
 ## 1. Overview
 
 ### What Is Google Cloud VMware Engine?
@@ -179,6 +208,86 @@ Click **Deploy** and wait for provisioning to complete.
 > VPC network peered to the VMware Engine Network, Windows Server 2022 jump host with RDP
 > access, firewall rules, and optional network policies for internet and external IP access.
 
+### 4.2 Deploy via Terraform (Alternative)
+
+If deploying directly with Terraform/OpenTofu rather than the RAD UI:
+
+```bash
+cd modules/VMware_Engine
+```
+
+Create a `terraform.tfvars` file. The full list of configurable variables is:
+
+| Variable | Default | Description |
+|---|---|---|
+| `project_id` | *(required)* | GCP project ID where all resources are created |
+| `region` | `us-west2` | Region for the private cloud and network policy |
+| `zone` | `us-west2-a` | Zone for the private cloud and jump host |
+| `vmware_engine_network_name` | `altostrat-<id>-ven` | Must start with `altostrat-` if overridden |
+| `private_cloud_name` | `altostrat-<id>-private-cloud` | Must start with `altostrat-` if overridden |
+| `management_cidr` | `172.20.0.0/24` | Immutable after creation — must not overlap with peer VPC or edge services CIDR |
+| `private_cloud_type` | `TIME_LIMITED` | `TIME_LIMITED` = single-node evaluation; `STANDARD` = production (minimum 3 nodes) |
+| `node_type_id` | `standard-72` | API identifier. The GCP console displays `ve1-standard-72` but Terraform requires `standard-72` |
+| `node_count` | `1` | Set to 1 for `TIME_LIMITED`; minimum 3 for `STANDARD` |
+| `network_peering_name` | `altostrat-<id>-vpc-ven` | Auto-scoped to deployment ID |
+| `peer_vpc_name` | `altostrat-<id>-vpc` | Auto-scoped to deployment ID |
+| `network_policy_name` | `altostrat-<id>-edge-policy` | Auto-scoped to deployment ID |
+| `edge_services_cidr` | `10.11.2.0/26` | Must not overlap with `management_cidr` or peer VPC subnets |
+| `enable_internet_access` | `true` | Enables internet egress from workload VMs |
+| `enable_external_ip` | `true` | Enables external IP allocation for workload VMs |
+| `create_default_firewall_rules` | `true` | Set to `false` if the four default rules already exist on the peer VPC |
+| `internal_traffic_cidr` | `10.128.0.0/9` | Source range for the allow-internal rule; matches auto-mode VPC default |
+| `create_jump_host` | `true` | Deploys the Windows Server 2022 jump host |
+| `jump_host_name` | `jump-host` | Name of the jump host VM instance |
+| `jump_host_machine_type` | `e2-medium` | Machine type for the jump host |
+| `jump_host_boot_disk_size_gb` | `50` | Minimum 50 GB for Windows Server 2022 |
+| `reset_vcenter_credentials` | `true` | Resets and retrieves vCenter solution user credentials after provisioning |
+| `vcenter_solution_user` | `solution-user-01@gve.local` | vCenter solution user used for Migrate Connector integration |
+| `resource_creator_identity` | *(not required if using Cloud Shell)* | Service account used by Terraform to provision resources |
+
+Minimum `terraform.tfvars` example:
+
+```hcl
+project_id = "your-project-id"
+```
+
+Then initialise and deploy:
+
+```bash
+tofu init
+tofu validate
+tofu plan -out=plan.tfplan
+tofu apply plan.tfplan
+```
+
+**Expected provisioning times:**
+
+| Resource | Typical time |
+|---|---|
+| API enablement | 1–2 minutes |
+| VMware Engine Network | 1–2 minutes |
+| Jump host + firewall rules | 2–3 minutes |
+| Private Cloud | 120–180 minutes |
+| Network Peering (activation) | Up to 5 minutes after private cloud is ready |
+| Network Policy (internet activation) | Up to 15 minutes after private cloud is ready |
+| vCenter credential reset | 1–2 minutes after private cloud is ready |
+
+> The `tofu apply` command will not return until the private cloud is fully provisioned.
+> Allow up to 90 minutes.
+
+The vCenter solution user credentials are printed to the apply log by the
+`null_resource.vcenter_credentials_reset` provisioner. Scroll back through the output and
+save both the username (`solution-user-01@gve.local`) and the generated password — you will
+need them when accessing vCenter. You can also retrieve them at any time with:
+
+```bash
+gcloud vmware private-clouds vcenter credentials describe \
+  --private-cloud=<private-cloud-name> \
+  --location=<zone> \
+  --project=<project_id> \
+  --username=solution-user-01@gve.local
+```
+
 ### 4.2 Retrieve Deployment Outputs
 
 After deployment, note the Terraform outputs:
@@ -271,6 +380,29 @@ Password: <password-from-gcloud-output>
 > xfreerdp /u:<username> /p:<password> /v:<jump-host-ip>:3389 /dynamic-resolution
 > ```
 
+If the password reset fails, check the serial port output for
+`Instance setup finished. jump-host is ready to use.` before retrying. The jump host takes
+approximately 2 minutes to finish Windows startup after Terraform creates it.
+
+Once logged in, minimize Server Manager to reveal the desktop. If a Network dialog appears
+on the right side of the screen, click **Yes**.
+
+### Step 1.3a — Start the OVA Download (if doing the VM Migration exercises)
+
+The Bank of Anthos OVA is large — start the download now so it is ready when you reach
+Exercise 6.
+
+1. Double-click the **Google Cloud Shell** icon on the jump host desktop.
+2. Run the following command:
+
+```cmd
+gsutil cp gs://gcve-lab-bank-of-anthos-ova/bank-of-anthos.ova %HOMEPATH%\Downloads\
+```
+
+3. Leave the download running in the background and continue with the next step.
+
+**Expected result:** The OVA begins downloading to `C:\Users\<username>\Downloads\`.
+
 ### Step 1.4 — Retrieve vCenter and NSX-T Credentials
 
 **gcloud (vCenter credentials):**
@@ -327,10 +459,31 @@ curl -s \
 
 From inside the jump host RDP session:
 
-1. Open Chrome or Edge
-2. Navigate to `https://<vcenter-fqdn>`
-3. Accept the self-signed certificate warning
-4. Log in with the credentials from Step 1.4 (username: `cloudowner@gve.local`)
+1. Open Edge (click the icon in the taskbar; skip personalisation prompts)
+2. Navigate to `https://<vcenter-fqdn>` — the FQDN is in the format
+   `https://vcsa-XXX.XXXXXX.<region>.gve.goog`
+3. Click **Advanced**, then click **Continue to vcsa-XXX... (unsafe)** to bypass the
+   self-signed certificate warning
+4. Click **Launch vSphere Client (HTML5)**
+5. Log in with the credentials from Step 1.4 (username: `solution-user-01@gve.local`)
+
+> **Alternative:** If the FQDN does not resolve, use the direct IP address `https://10.11.0.2`
+> (only reachable from the jump host after peering is Active).
+
+**Expected result:** The vSphere Client dashboard loads showing the private cloud management
+cluster.
+
+### Step 1.7 — Log In to NSX-T Manager
+
+1. Open a new Edge browser tab and navigate to `https://<nsx-fqdn>` — the FQDN is in the
+   format `https://nsx-XXX.XXXXXX.<region>.gve.goog`
+2. Click **Advanced**, then **Continue to nsx-XXX... (unsafe)**
+3. Log in using the NSX-T credentials from Step 1.4
+
+> **Alternative:** Use the direct IP address `https://10.11.0.18` if the FQDN does not
+> resolve.
+
+**Expected result:** The NSX-T Manager dashboard loads.
 
 ---
 
@@ -423,49 +576,63 @@ From the jump host:
 2. Log in with NSX-T credentials (from Exercise 1 Step 1.4)
 3. Username typically: `admin`
 
-### Step 3.2 — Create a DHCP Server
+### Step 3.2 — Create a DHCP Server on the NSX-T Tier-1 Gateway
 
-In NSX-T Manager:
+A DHCP Server must be configured on the Tier-1 Gateway before creating the workload segment
+so that VMs deployed to the segment can receive IP addresses automatically.
 
-1. Navigate to **Networking** → **DHCP**
-2. Click **ADD SERVER**
-3. Configure:
-   - **Name**: `workload-dhcp`
-   - **DHCP Profile**: Gateway DHCP Server
-   - **Server IP Address**: `192.168.100.1/24`
-   - **DHCP Range**: `192.168.100.100 - 192.168.100.200`
+1. On the NSX-T Manager home page, click **Networking > Tier-1 Gateways**
+2. Next to the deployed Tier-1 Gateway, click the **three ellipsis dots (⋮)** and select
+   **Edit**
+3. In the **DHCP Config** row, click **Set**
+4. Under **Type**, select **DHCP Server** from the dropdown
+5. Click the **three ellipsis dots (⋮)** next to **DHCP Server Profile** and select
+   **Create New**
+6. Enter the following values:
 
-**REST API (NSX-T via local endpoint from jump host):**
-```bash
-NSX_FQDN="<your-nsx-fqdn>"
-NSX_USER="admin"
-NSX_PASS="<nsx-password>"
+| Field | Value |
+|---|---|
+| DHCP Profile Name | `DHCP-Class` |
+| Server IP Address | `172.21.0.5/24` |
+| Edge Cluster | `edge-cluster` (select from dropdown) |
 
-curl -s -k -X POST \
-  "https://${NSX_FQDN}/api/v1/dhcp/servers" \
-  -u "${NSX_USER}:${NSX_PASS}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "display_name": "workload-dhcp",
-    "dhcp_profile_id": "<dhcp-profile-id>",
-    "server_ip": "192.168.100.1/24",
-    "ipv6_profile_id": "<ipv6-profile-id>"
-  }'
-```
+7. Click **Save** to save the DHCP profile
+8. Click **Apply** and then **Save** to apply the DHCP config to the gateway
+9. Click **Close Editing** to exit the Tier-1 Gateway configuration
+
+**Expected result:** The Tier-1 Gateway shows the DHCP Server profile `DHCP-Class` configured
+with server IP `172.21.0.5/24`. The gateway is now ready to serve DHCP leases to VMs on
+segments connected to it.
 
 ### Step 3.3 — Create a Workload Segment
 
 In NSX-T Manager:
 
-1. Navigate to **Networking** → **Segments**
-2. Click **ADD SEGMENT**
+1. Navigate to **Networking > Segments**
+2. Click **Add Segment**
 3. Configure:
-   - **Segment Name**: `workload-segment`
-   - **Connected Gateway**: `<Tier-1 Gateway>`
-   - **Transport Zone**: `<overlay transport zone>`
-   - **Subnets**: `192.168.100.1/24`
-   - **DHCP**: Set DHCP Server `workload-dhcp`
-4. Click **SAVE**
+
+| Field | Value |
+|---|---|
+| Segment Name | `my-nsx-network` |
+| Connected Gateway | `Tier1` |
+| Transport Zone | `TZ-OVERLAY \| Overlay` (select from dropdown) |
+| Subnets — Gateway IP/Prefix Length | `192.168.142.1/24` |
+
+4. Click **Set DHCP Config** and configure:
+
+| Field | Value |
+|---|---|
+| DHCP Type | `Gateway DHCP Server` |
+| DHCP Range | `192.168.142.10-192.168.142.50` (press Enter to confirm) |
+| DNS Servers | `172.20.1.234` |
+
+5. Click **Apply**, then **Save**
+6. When prompted to continue editing, click **No**
+
+**Expected result:** The segment `my-nsx-network` appears in the Segments list with a status
+of **Success**. The route `192.168.142.0/24` is automatically exported to the peered VPC via
+the active network peering.
 
 ### Step 3.4 — Verify Route Export to Peer VPC
 

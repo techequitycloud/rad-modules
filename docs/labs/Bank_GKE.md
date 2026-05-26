@@ -25,8 +25,9 @@ management, observability, and GitOps-driven configuration management.
 11. [Exercise 7 — GKE Fleet Management](#exercise-7--gke-fleet-management)
 12. [Exercise 8 — Anthos Config Management (Optional)](#exercise-8--anthos-config-management-optional)
 13. [Exercise 9 — Advanced Operations](#exercise-9--advanced-operations)
-14. [Cleanup](#14-cleanup)
-15. [Reference](#15-reference)
+14. [Lab Summary](#lab-summary)
+15. [Cleanup](#14-cleanup)
+16. [Reference](#15-reference)
 
 ---
 
@@ -514,11 +515,52 @@ spec:
 kubectl apply -f dr-ledgerwriter-circuit-breaker.yaml
 ```
 
-### Step 4.4 — Remove Traffic Rules
+### Step 4.4 — Inject an Abort Fault to Simulate a Service Failure
+
+Test what happens when the `contacts` service returns errors for all requests:
+
+```yaml
+# vs-contacts-abort.yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: contacts
+  namespace: bank-of-anthos
+spec:
+  hosts:
+  - contacts
+  http:
+  - fault:
+      abort:
+        percentage:
+          value: 100
+        httpStatus: 503
+    route:
+    - destination:
+        host: contacts
+```
 
 ```bash
-kubectl delete virtualservice userservice balancereader -n "${APP_NAMESPACE}"
-kubectl delete destinationrule ledgerwriter -n "${APP_NAMESPACE}"
+kubectl apply -f vs-contacts-abort.yaml
+```
+
+Navigate to the **Pay a Contact** section in the Bank of Anthos UI — the contact list will fail
+to load because `contacts` is returning 503 for every call. All other application features
+(balance display, transaction history, payments) continue to work because `contacts` is only
+used for the contact list feature.
+
+Observe the error rate spike on the `contacts` service node in the Service Mesh topology graph,
+then remove the fault:
+
+```bash
+kubectl delete virtualservice contacts -n "${APP_NAMESPACE}"
+```
+
+### Step 4.5 — Remove Traffic Rules
+
+```bash
+kubectl delete virtualservice userservice balancereader -n "${APP_NAMESPACE}" --ignore-not-found
+kubectl delete destinationrule ledgerwriter -n "${APP_NAMESPACE}" --ignore-not-found
 ```
 
 ---
@@ -826,7 +868,27 @@ kubectl rollout status deployment/frontend -n "${APP_NAMESPACE}"
 kubectl rollout undo deployment/frontend -n "${APP_NAMESPACE}"
 ```
 
-### Step 9.3 — Cost Allocation Labels
+### Step 9.3 — Explore Gateway API CRDs
+
+The cluster is created with `gateway_api_config.channel = CHANNEL_STANDARD`, which installs the
+Kubernetes Gateway API Custom Resource Definitions:
+
+```bash
+kubectl get crd | grep gateway.networking.k8s.io
+```
+
+Expected CRDs:
+- `gateways.gateway.networking.k8s.io`
+- `httproutes.gateway.networking.k8s.io`
+- `grpcroutes.gateway.networking.k8s.io`
+- `gatewayclasses.gateway.networking.k8s.io`
+
+Bank of Anthos currently uses a classic Kubernetes `LoadBalancer` service for the frontend. The
+Gateway API CRDs are available for advanced use cases such as path-based routing, header-based
+routing, traffic splitting by percentage, and HTTPS termination — all managed declaratively as
+Kubernetes objects.
+
+### Step 9.4 — Cost Allocation Labels
 
 GKE Autopilot reports per-namespace costs via the `goog-k8s-cluster-name` and
 `goog-k8s-namespace` labels. View cost allocation:
@@ -837,7 +899,7 @@ echo "https://console.cloud.google.com/billing?project=${PROJECT_ID}"
 
 Navigate to **Billing** → **Reports** → filter by label `goog-k8s-namespace=bank-of-anthos`.
 
-### Step 9.4 — Distributed Tracing with Cloud Trace
+### Step 9.5 — Distributed Tracing with Cloud Trace
 
 CSM auto-instruments traces via the W3C `traceparent` header:
 
@@ -862,6 +924,135 @@ Navigate to:
 ```bash
 echo "https://console.cloud.google.com/traces/list?project=${PROJECT_ID}"
 ```
+
+### Step 9.6 — View Application Logs in Cloud Logging
+
+**Logs Explorer:**
+
+1. Navigate to **Logging > Logs Explorer**.
+2. Set the resource filter to **Kubernetes Container**.
+3. Under **Cluster**, select **gke-cluster**, and under **Namespace**, select **bank-of-anthos**.
+4. Filter by a specific container: `resource.labels.container_name="frontend"` to see HTTP access logs.
+
+**gcloud:**
+```bash
+gcloud logging read \
+  'resource.type="k8s_container" AND resource.labels.cluster_name="gke-cluster" AND resource.labels.namespace_name="bank-of-anthos"' \
+  --project="${PROJECT_ID}" \
+  --limit=20 \
+  --format=json \
+  | jq '.[] | {
+      timestamp: .timestamp,
+      container: .resource.labels.container_name,
+      message: (.textPayload // (.jsonPayload | tostring))
+    }'
+```
+
+All logs are automatically collected because the cluster has `WORKLOADS` component logging
+enabled. Structured JSON logs from all Bank of Anthos services show HTTP requests, gRPC calls,
+and database connection events.
+
+**View workload logs inline in GKE console:**
+
+1. Navigate to **Kubernetes Engine > Workloads**.
+2. Click on **ledgerwriter**.
+3. Click the **Logs** tab on the workload details page to see gRPC transaction write events.
+
+### Step 9.7 — Review VPC Network and Firewall Rules
+
+1. Navigate to **VPC Network > VPC Networks** and click **vpc-network**.
+2. Review the subnet CIDR assignments:
+   - **Node subnet:** `10.132.0.0/16`
+   - **Pod secondary range:** `10.62.128.0/17`
+   - **Service secondary range:** `10.64.128.0/20`
+3. Navigate to **VPC Network > Firewall** and review the rules created by the module:
+   - `fw-allow-lb-hc` — allows Google load balancer health check probes (TCP 80)
+   - `fw-allow-iap-ssh` — allows IAP tunnel SSH access (TCP 22, source `35.235.240.0/20`)
+   - `fw-allow-intra-vpc` — allows all pod-to-pod traffic within the pod CIDR
+   - `fw-allow-http-tcp` — allows HTTP/HTTPS access (TCP 80, 443) for tagged instances
+
+**gcloud:**
+```bash
+# List subnets and secondary ranges
+gcloud compute networks subnets list \
+  --filter="network~vpc-network" \
+  --project="${PROJECT_ID}" \
+  --format="table(name,region,ipCidrRange,secondaryIpRanges.rangeName,secondaryIpRanges.ipCidrRange)"
+
+# List firewall rules
+gcloud compute firewall-rules list \
+  --filter="network~vpc-network" \
+  --project="${PROJECT_ID}" \
+  --format="table(name,direction,allowed[].map().firewall_rule().list():label=ALLOW,sourceRanges.list():label=SRC_RANGES)"
+```
+
+**REST API:**
+```bash
+# List subnets
+curl -s \
+  "https://compute.googleapis.com/compute/v1/projects/${PROJECT_ID}/regions/${REGION}/subnetworks?filter=network+eq+.*vpc-network" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  | jq '.items[] | {name, ipCidrRange, secondaryIpRanges}'
+
+# List firewall rules
+curl -s \
+  "https://compute.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/firewalls?filter=network+eq+.*vpc-network" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  | jq '.items[] | {name, direction, allowed, sourceRanges}'
+```
+
+---
+
+## Lab Summary
+
+The table below recaps every exercise in this lab and whether the underlying infrastructure is
+automated by the `Bank_GKE` module or performed manually.
+
+| Action | Exercise | Automated |
+|---|---|---|
+| Enable GCP APIs (GKE, Mesh, Anthos, IAM, Trace, etc.) | Setup | Yes — `main.tf` |
+| Create VPC network and subnet with secondary ranges | Setup | Yes — `network.tf` |
+| Configure Cloud Router and NAT gateway | Setup | Yes — `network.tf` |
+| Create VPC firewall rules | Setup | Yes — `network.tf` |
+| Provision GKE Autopilot or Standard cluster | Setup | Yes — `gke.tf` |
+| Register cluster with GKE Fleet | Setup | Yes — `hub.tf` |
+| Enable Service Mesh fleet feature | Setup | Yes — `asm.tf` |
+| Create Cloud Monitoring services and SLOs | Setup | Yes — `monitoring.tf` |
+| Deploy Bank of Anthos v0.6.7 with ASM injection label | Setup | Yes — `deploy.tf` |
+| Fetch GKE cluster credentials | Setup | No — `gcloud container clusters get-credentials` |
+| Retrieve frontend external IP | Exercise 1 | No — `kubectl get service` |
+| Log in and explore Bank of Anthos in browser | Exercise 1 | No — browser session |
+| Verify pod readiness and sidecar injection | Exercise 1 | No — `kubectl get pods` |
+| Review service types and cluster-internal DNS | Exercise 2 | No — `kubectl get services` |
+| Inspect deployment configuration and environment variables | Exercise 2 | No — `kubectl describe deployment` |
+| Inspect Workload Identity service account annotations | Exercise 2 | No — `kubectl get serviceaccounts` |
+| Examine Envoy sidecar containers in pods | Exercise 2 | No — `kubectl get pod` |
+| Verify ASM control plane state via Fleet API | Exercise 3 | No — `gcloud container fleet mesh describe` |
+| Inspect Envoy proxy config and SPIFFE identity | Exercise 3 | No — `istioctl proxy-config` |
+| Apply STRICT mTLS PeerAuthentication policy | Exercise 3 | No — `kubectl apply` |
+| View Service Mesh topology graph and golden signals | Exercise 3 | No — Cloud Console |
+| Apply VirtualService with timeout and retry | Exercise 4 | No — `kubectl apply` |
+| Inject latency fault into `balancereader` | Exercise 4 | No — `kubectl apply` |
+| Inject abort fault into `contacts` | Exercise 4 | No — `kubectl apply` |
+| Apply circuit breaker DestinationRule to `ledgerwriter` | Exercise 4 | No — `kubectl apply` |
+| View pre-configured Cloud Monitoring services | Exercise 5 | No — Monitoring console |
+| Explore SLO compliance and error budget dashboard | Exercise 5 | No — Monitoring console |
+| Query CPU utilisation and request metrics | Exercise 5 | No — Monitoring console |
+| Create alert policy for error rate | Exercise 5 | No — Monitoring console |
+| Review security posture workload and vulnerability findings | Exercise 6 | No — Security Posture console |
+| Verify Workload Identity configuration | Exercise 6 | No — `kubectl` / `gcloud` |
+| Review Kubernetes audit logs | Exercise 6 | No — Cloud Logging |
+| View fleet membership and feature status | Exercise 7 | No — Fleet console / `gcloud` |
+| Inspect servicemesh Fleet feature details | Exercise 7 | No — `gcloud container fleet mesh describe` |
+| Verify ACM Config Sync status | Exercise 8 | No — optional (`enable_config_management = true`) |
+| Explore GitOps drift prevention behaviour | Exercise 8 | No — optional |
+| Scale a deployment and observe new pods | Exercise 9 | No — `kubectl scale` |
+| Trigger rolling update and verify zero-downtime | Exercise 9 | No — `kubectl rollout restart` |
+| Explore Gateway API CRD availability | Exercise 9 | No — `kubectl get crd` |
+| View namespace-level cost allocation | Exercise 9 | No — Billing console |
+| Explore distributed traces in Cloud Trace | Exercise 9 | No — Cloud Trace console |
+| Browse application logs by container in Logs Explorer | Exercise 9 | No — Cloud Logging |
+| Review VPC subnet CIDRs and firewall rules | Exercise 9 | No — VPC console / `gcloud` |
 
 ---
 

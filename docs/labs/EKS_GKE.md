@@ -24,8 +24,9 @@ Observability, and fleet-wide access control — all from a single Google Cloud 
 10. [Exercise 6 — Fleet Access Control](#exercise-6--fleet-access-control)
 11. [Exercise 7 — OIDC Federation Deep Dive](#exercise-7--oidc-federation-deep-dive)
 12. [Exercise 8 — Network Topology and Private Subnets](#exercise-8--network-topology-and-private-subnets)
-13. [Cleanup](#13-cleanup)
-14. [Reference](#14-reference)
+13. [Exercise 9 — Platform Version Management](#exercise-9--platform-version-management)
+14. [Cleanup](#14-cleanup)
+15. [Reference](#15-reference)
 
 ---
 
@@ -160,6 +161,38 @@ export CLUSTER_NAME="eks-cluster"   # adjust if cluster_name_prefix was changed
 
 gcloud config set project "${PROJECT_ID}"
 ```
+
+### REST API Shell Variables
+
+If you plan to use the REST API equivalents shown throughout this lab, set the following
+variables once before running any API command:
+
+```bash
+export TOKEN=$(gcloud auth print-access-token)
+export BASE="https://gkemulticloud.googleapis.com/v1"
+export PROJECT="${PROJECT_ID}"
+export LOCATION="${GCP_REGION}"
+export CLUSTER="${CLUSTER_NAME}"
+```
+
+All mutating GKE Multi-Cloud API operations return a long-running Operation. Poll for
+completion with:
+
+```bash
+curl -s "$BASE/projects/$PROJECT/locations/$LOCATION/operations/OPERATION_ID" \
+  -H "Authorization: Bearer $TOKEN" | jq '.done, .error'
+```
+
+`done: true` with no `error` means the operation succeeded.
+
+> **gcloud note:** `gcloud container attached clusters` commands are synchronous by default —
+> they wait for the operation to finish before returning. Pass `--async` to return immediately
+> with an operation name, then poll it with:
+> ```bash
+> gcloud container attached operations describe OPERATION_ID \
+>   --location=$LOCATION \
+>   --project=$PROJECT
+> ```
 
 ---
 
@@ -777,6 +810,30 @@ When you run `kubectl` via Connect Gateway, the following happens:
 5. EKS validates the token via its OIDC provider configuration
 6. Kubernetes RBAC evaluates the identity against ClusterRoleBindings
 
+### Step 7.5 — Verify OIDC Issuer Registration
+
+Confirm that the OIDC issuer URL recorded in GKE Hub matches the one published by the EKS
+cluster — this URL is the trust anchor for the entire authentication chain:
+
+```bash
+# OIDC issuer as reported by AWS
+aws eks describe-cluster \
+  --name "${CLUSTER_NAME}" \
+  --region "${AWS_REGION}" \
+  --query "cluster.identity.oidc.issuer" \
+  --output text
+
+# OIDC issuer as registered in GKE Hub
+gcloud container fleet memberships describe "${CLUSTER_NAME}" \
+  --project="${PROJECT_ID}" \
+  --format="value(authority.issuer)"
+```
+
+Both commands should return the same URL (e.g.
+`https://oidc.eks.us-west-2.amazonaws.com/id/XXXXXXXXXX`). GKE Hub validates tokens signed
+by this issuer to authenticate Connect Agent connections and `kubectl` requests through the
+Connect Gateway.
+
 ---
 
 ## Exercise 8 — Network Topology and Private Subnets
@@ -844,11 +901,113 @@ aws ec2 describe-security-groups \
 Note: The Connect Agent only requires outbound port 443 egress. No inbound rules are needed
 for Connect Gateway access.
 
+### Step 8.5 — Inspect IAM Roles Created by the Module
+
+Review the AWS IAM roles that Terraform created for the cluster and its node group:
+
+```bash
+# Trust policy for the EKS cluster role
+aws iam get-role \
+  --role-name "${CLUSTER_NAME}-eks-role" \
+  --query "Role.AssumeRolePolicyDocument"
+
+# Policies attached to the node group role
+aws iam list-attached-role-policies \
+  --role-name "${CLUSTER_NAME}-node-group-role" \
+  --query "AttachedPolicies[].PolicyName"
+```
+
+The EKS cluster role has a trust relationship with `eks.amazonaws.com` and the
+`AmazonEKSClusterPolicy` managed policy. The node group role has
+`AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, and
+`AmazonEC2ContainerRegistryReadOnly` — the minimum permissions required for worker nodes to
+join the cluster and pull container images.
+
 ---
 
-## 13. Cleanup
+## Exercise 9 — Platform Version Management
 
-Return to the RAD UI and click **Undeploy** on the `EKS_GKE` deployment. This removes:
+### Objective
+
+Understand how the GKE Attached Clusters platform version controls the managed components
+installed on the EKS cluster, and how to upgrade them.
+
+### Step 9.1 — List Available Platform Versions
+
+The `platform_version` module variable controls which version of the managed components is
+installed. Run the following to see all currently supported versions:
+
+```bash
+gcloud container attached get-server-config \
+  --location="${GCP_REGION}" \
+  --project="${PROJECT_ID}"
+```
+
+Each listed version is compatible with a range of Kubernetes minor versions. Choose a
+platform version whose `validVersions` range includes your EKS cluster's Kubernetes version.
+
+**REST API equivalent:**
+```bash
+curl -s "$BASE/projects/$PROJECT/locations/$LOCATION/attachedServerConfig" \
+  -H "Authorization: Bearer $TOKEN" \
+  | jq '.validVersions[] | {version, kubernetesVersions}'
+```
+
+### Step 9.2 — Verify the Current Platform Version
+
+Confirm which platform version is currently active on the cluster:
+
+```bash
+gcloud container attached clusters describe "${CLUSTER_NAME}" \
+  --location="${GCP_REGION}" \
+  --project="${PROJECT_ID}" \
+  --format="value(platformVersion)"
+```
+
+**REST API equivalent:**
+```bash
+curl -s "$BASE/projects/$PROJECT/locations/$LOCATION/attachedClusters/$CLUSTER" \
+  -H "Authorization: Bearer $TOKEN" | jq -r '.platformVersion'
+```
+
+The returned version string (e.g. `1.34.0-gke.1`) should match the `platform_version` value
+set at deploy time.
+
+### Step 9.3 — Understand the Upgrade Process
+
+To upgrade the platform version (the managed components on the EKS cluster), update the
+`platform_version` variable and redeploy via the RAD UI. Terraform will:
+
+1. Fetch a new install manifest from the Attached Clusters service.
+2. Use Helm to upgrade the `attached-bootstrap` chart on the EKS cluster.
+3. Update the `google_container_attached_cluster` resource with the new platform version.
+
+> **Note:** Platform version upgrades do not affect the EKS control plane or worker node
+> Kubernetes version. EKS Kubernetes version upgrades are managed separately through AWS by
+> updating `k8s_version` and redeploying.
+
+---
+
+## 14. Cleanup
+
+Return to the RAD UI and click **Undeploy** on the `EKS_GKE` deployment. This removes all
+provisioned resources in the correct dependency order (GKE Hub detach, EKS node group
+termination, EKS cluster deletion, VPC and networking cleanup). Allow approximately 20–25
+minutes for full teardown.
+
+| Resource | Typical time |
+|---|---|
+| GKE Hub detach | 1–2 minutes |
+| EKS node group termination | 3–5 minutes |
+| EKS cluster deletion | 10–15 minutes |
+| VPC and networking cleanup | 1–2 minutes |
+
+> **Important:** Always use the RAD UI Undeploy (or `tofu destroy`) rather than deleting
+> resources individually through the AWS or GCP consoles. The bootstrap cleanup hook must run
+> before the node group is removed, and destroying resources out of order may cause the destroy
+> to fail.
+
+This removes:
 - The GKE Fleet membership
 - The AWS EKS cluster and node group
 - The AWS VPC, subnets, NAT Gateway, internet gateway, and all associated resources
@@ -898,7 +1057,7 @@ kubectl config delete-context \
 
 ---
 
-## 14. Reference
+## 15. Reference
 
 ### Key Module Variables
 

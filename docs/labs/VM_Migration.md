@@ -587,7 +587,21 @@ Use the search and filter controls to explore:
 - **Filter by source:** Distinguish MCDCv6 scan results from the AWS import
 - **Sort by CPU or memory:** Identify the highest-resource VMs in the inventory
 
-### Step 5.3 — View an Individual Asset's Detail
+### Step 5.3 — Mark Assets Out of Scope
+
+Migration Center lets you flag assets that should be excluded from migration planning without
+deleting them from the inventory.
+
+1. In **Migration Center → Assets**, select one or more assets by checking their checkboxes
+2. Click **Out of scope** in the actions bar
+3. Enter a reason (for example, `Old Servers` or `Not migrating`) and click **Confirm**
+4. Switch to the **Out of Scope** tab to see the flagged assets
+5. To restore them, select the assets in the Out of Scope tab and click **Put back in scope**
+
+> Assets marked out of scope are excluded from TCO report cost projections but remain visible
+> in the inventory for reference.
+
+### Step 5.4 — View an Individual Asset's Detail
 
 Click on any asset to open its detail view and explore the available tabs:
 
@@ -785,7 +799,40 @@ curl -s \
   | jq '.reports[] | {displayName, type, state, createTime}'
 ```
 
-### Step 8.5 — Generate a New Report (Optional)
+### Step 8.5 — Export Inventory and Performance Data
+
+Migration Center can export the discovered asset inventory and performance metrics to CSV or
+Google Sheets for offline analysis.
+
+**Asset inventory export:**
+
+1. Navigate to **Migration Center → Create Reports**
+2. Select the **Assets Details Export** tile
+3. Click the **Servers** tab, select all servers, then click **Export to CSV/Google Sheets**
+4. In the popup, click **Export to Google Sheets** and wait for the export to complete
+5. Click **Open spreadsheet** to view the exported inventory
+
+**Performance data export:**
+
+1. Navigate to **Migration Center → Create Reports**
+2. Select the **Performance data export** tile
+3. Select all servers and click **Export to CSV/Google Sheets**
+
+> Performance data is available for live-scanned VMs (discovered by MCDCv6) only, not for
+> AWS-imported assets.
+
+### Step 8.6 — Export Network Dependencies (Optional)
+
+If network dependency data was collected during the scan, you can export it as a CSV for
+dependency mapping and migration wave planning.
+
+1. Navigate to **Migration Center → Create Reports**
+2. Select the **Network Dependencies Export** tile
+3. Select the groups to include (All Assets, windows-only, linux-only)
+4. Click **Export to CSV** → **Export** and wait for the file to be generated
+5. Click **Download** to retrieve the CSV
+
+### Step 8.7 — Generate a New Report (Optional)
 
 To create a second report variation, trigger another generation run:
 

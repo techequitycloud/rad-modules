@@ -15,7 +15,7 @@ both **sidecar mode** (Envoy per-pod) and **ambient mode** (ztunnel per-node).
 1. [Overview](#1-overview)
 2. [Architecture](#2-architecture)
 3. [Prerequisites](#3-prerequisites)
-4. [Lab Setup](#4-lab-setup)
+4. [Lab Setup](#4-lab-setup) (includes [Terraform CLI deployment](#42-alternative-deploy-via-terraform-cli))
 5. [Exercise 1 — Verify the Istio Installation](#exercise-1--verify-the-istio-installation)
 6. [Exercise 2 — Explore the Bookinfo Application](#exercise-2--explore-the-bookinfo-application)
 7. [Exercise 3 — Traffic Management (Canary and Weighted Routing)](#exercise-3--traffic-management-canary-and-weighted-routing)
@@ -25,7 +25,8 @@ both **sidecar mode** (Envoy per-pod) and **ambient mode** (ztunnel per-node).
 11. [Exercise 7 — Observability: Kiali, Grafana, Jaeger, and Prometheus](#exercise-7--observability-kiali-grafana-jaeger-and-prometheus)
 12. [Exercise 8 — Ambient Mode (ztunnel and Waypoint Proxies)](#exercise-8--ambient-mode-ztunnel-and-waypoint-proxies)
 13. [Cleanup](#13-cleanup)
-14. [Reference](#14-reference)
+14. [Lab Action Summary](#lab-action-summary)
+15. [Reference](#14-reference)
 
 ---
 
@@ -158,6 +159,20 @@ gcloud config set project "${PROJECT_ID}"
 gcloud config set compute/region "${REGION}"
 ```
 
+### Terraform CLI Variables Reference
+
+When deploying directly via the Terraform CLI (see [Lab Setup — Terraform CLI](#42-alternative-deploy-via-terraform-cli)), the following variables are available:
+
+| Variable | Default | Description |
+|---|---|---|
+| `project_id` | *(required — no default)* | GCP project ID where all resources are created |
+| `gcp_region` | `us-central1` | Region for the GKE cluster and VPC |
+| `istio_version` | `1.24.2` | Open-source Istio version to install |
+| `install_ambient_mesh` | `false` | Set to `true` for ambient mode; `false` for sidecar mode |
+| `deploy_application` | `true` | Set to `true` to deploy the Bookinfo sample application |
+| `gke_cluster` | `gke-cluster` | Name for the GKE cluster |
+| `release_channel` | `REGULAR` | GKE release channel |
+
 ---
 
 ## 4. Lab Setup
@@ -183,7 +198,53 @@ Click **Deploy** and wait for provisioning to complete (approximately 15–20 mi
 > sample application in the `default` namespace, and the full observability stack (Prometheus,
 > Grafana, Jaeger, Kiali) in `istio-system`.
 
-### 4.2 Configure kubectl
+### 4.2 Alternative: Deploy via Terraform CLI
+
+If you prefer to deploy directly using the Terraform CLI instead of the RAD UI:
+
+```bash
+cd modules/Istio_GKE
+```
+
+Create a `terraform.tfvars` file (minimum required content):
+
+```hcl
+project_id = "your-project-id"
+```
+
+Then initialise and apply:
+
+```bash
+tofu init
+tofu validate
+tofu plan -out=plan.tfplan
+tofu apply plan.tfplan
+```
+
+**Expected provisioning duration:**
+
+| Resource | Typical time |
+|---|---|
+| API enablement | 1–2 minutes |
+| VPC and firewall rules | 1–2 minutes |
+| GKE cluster | 8–12 minutes |
+| Istio installation | 3–5 minutes |
+| Bookinfo deployment (if enabled) | 1–2 minutes |
+
+When `apply` completes, record the outputs:
+
+```bash
+tofu output
+```
+
+| Output | Used in |
+|---|---|
+| `cluster_credentials_cmd` | Configure kubectl (use this command directly) |
+| `external_ip` | Access the Bookinfo application |
+| `project_id` | Reference throughout |
+| `deployment_id` | Reference throughout |
+
+### 4.3 Configure kubectl
 
 ```bash
 gcloud container clusters get-credentials "${CLUSTER_NAME}" \
@@ -1080,6 +1141,53 @@ Kill port-forward processes:
 ```bash
 pkill -f "kubectl port-forward"
 ```
+
+---
+
+## Lab Action Summary
+
+The table below maps every action in this lab to its phase, whether it is automated by the
+`Istio_GKE` module or performed manually, and the relevant Terraform file where applicable.
+
+| Action | Exercise / Phase | Automated |
+|---|---|---|
+| Enable GCP APIs | Setup | Yes — `main.tf` |
+| Create VPC, subnet, Cloud Router, NAT gateway | Setup | Yes — `network.tf` |
+| Create firewall rules | Setup | Yes — `network.tf` |
+| Provision GKE Standard cluster and node pool | Setup | Yes — `gke.tf` |
+| Create GKE service account with IAM roles | Setup | Yes — `gke.tf` |
+| Install Istio via istioctl (sidecar mode) | Setup | Yes — `istiosidecar.tf` |
+| Install Istio via istioctl (ambient mode) | Setup | Yes — `istioambient.tf` |
+| Install Prometheus, Grafana, Jaeger, Kiali | Setup | Yes — Istio addons |
+| Deploy Bookinfo sample application | Setup | Yes — `istiosidecar.tf` / `istioambient.tf` |
+| Configure kubectl credentials | Setup | No — run `cluster_credentials_cmd` output |
+| Verify cluster nodes and Istio pods | Exercise 1 | No — `kubectl` / `istioctl` commands |
+| Verify sidecar injection webhook | Exercise 1 | No — `kubectl` commands |
+| Analyse mesh configuration | Exercise 1 | No — `istioctl analyze` |
+| Access Bookinfo via ingress gateway | Exercise 2 | No — browser / `curl` |
+| Inspect Bookinfo pods and Istio resources | Exercise 2 | No — `kubectl` commands |
+| Inspect Envoy sidecar and proxy config | Exercise 2 | No — `istioctl proxy-config` |
+| Create DestinationRules for all services | Exercise 3 | No — `kubectl apply` |
+| Pin traffic to reviews v1 with VirtualService | Exercise 3 | No — `kubectl apply` |
+| Traffic shifting / canary (80/20) | Exercise 3 | No — `kubectl apply` |
+| Header-based routing (test user) | Exercise 3 | No — `kubectl apply` |
+| Fault injection — delay (7 s) | Exercise 4 | No — `kubectl apply` |
+| Fault injection — HTTP abort (500) | Exercise 4 | No — `kubectl apply` |
+| Retry policy configuration | Exercise 4 | No — `kubectl apply` |
+| Apply strict PeerAuthentication (mTLS) | Exercise 5 | No — `kubectl apply` |
+| Verify mTLS enforcement and certificates | Exercise 5 | No — `istioctl` / `kubectl exec` |
+| Deny-all AuthorizationPolicy baseline | Exercise 6 | No — `kubectl apply` |
+| Allow ingress → productpage → services | Exercise 6 | No — `kubectl apply` |
+| Allow reviews → ratings only | Exercise 6 | No — `kubectl apply` |
+| Explore Kiali service graph | Exercise 7 | No — browser via port-forward |
+| Explore Grafana RED metrics dashboards | Exercise 7 | No — browser via port-forward |
+| Explore Jaeger distributed traces | Exercise 7 | No — browser via port-forward |
+| Query Prometheus metrics (PromQL) | Exercise 7 | No — browser via port-forward |
+| Verify ambient mode ztunnel DaemonSet | Exercise 8 | No — `kubectl` commands |
+| Confirm no sidecars in ambient mode pods | Exercise 8 | No — `kubectl describe` |
+| Enrol namespace in ambient mesh | Exercise 8 | No — `kubectl label` |
+| Deploy waypoint proxy for L7 features | Exercise 8 | No — `istioctl waypoint apply` |
+| Tear down all resources | Cleanup | No — RAD UI Undeploy or `tofu destroy` |
 
 ---
 

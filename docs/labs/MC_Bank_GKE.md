@@ -46,6 +46,51 @@ Google Cloud regions, eliminating the single cluster as a single point of failur
 | **Multi-Cluster Services (MCS)** | DNS-based cross-cluster service discovery without manual configuration |
 | **SLA target** | Architecture supports 99.99%+ availability |
 
+### Application: Bank of Anthos
+
+Bank of Anthos is a sample multi-tier banking application demonstrating how to build, deploy,
+and operate microservices on Google Kubernetes Engine. It consists of ten loosely-coupled
+services communicating via gRPC and REST, backed by two PostgreSQL databases:
+
+| Service | Language | Role |
+|---|---|---|
+| `frontend` | Python | Single-page web UI; serves HTTP on port 8080 |
+| `userservice` | Python | Handles user creation and JWT authentication |
+| `contacts` | Python | Manages the user's contact list |
+| `transactionhistory` | Java | Returns paginated transaction history |
+| `balancereader` | Java | Returns current account balance |
+| `ledgerwriter` | Java | Records new transactions in the ledger |
+| `loadgenerator` | Python/Locust | Simulates user traffic against the frontend |
+| `accounts-db` | PostgreSQL | Stores user accounts and contacts (**primary cluster only**) |
+| `ledger-db` | PostgreSQL | Stores transaction ledger entries (**primary cluster only**) |
+
+The databases are deployed exclusively to the **primary cluster** (cluster 1). All other
+clusters connect to those databases via **Multi-Cluster Services (MCS)**, allowing every
+cluster to serve live, consistent data without a replicated database per cluster.
+
+### What Terraform Automates
+
+- Enabling ~30 required GCP APIs
+- Creating the shared VPC, per-cluster subnets, Cloud Routers, and Cloud NAT gateways
+- Reserving a global static IP for the load balancer
+- Creating firewall rules (SSH, internal, GKE masters, health checks, webhooks)
+- Creating GKE clusters (Autopilot or Standard) in up to four regions
+- Registering all clusters to a GKE Fleet (Hub memberships)
+- Enabling and configuring Cloud Service Mesh (Google-managed Istio) on every cluster
+- Deploying Bank of Anthos v0.6.7 to all clusters
+- Enabling the Multi-Cluster Ingress Fleet feature
+- Applying the `MultiClusterIngress` and `MultiClusterService` CRDs to the config cluster
+
+### What You Do Manually
+
+- Retrieving cluster credentials and verifying the deployment
+- Exploring the GKE Fleet dashboard and membership details
+- Exploring Cloud Service Mesh topology, traffic metrics, and mTLS policies
+- Accessing the Bank of Anthos web application
+- Inspecting Multi-Cluster Ingress routing and the global load balancer
+- Testing cross-cluster traffic and resilience
+- Exploring Cloud Monitoring, Logging, and GKE Security Posture
+
 ### Supported Configurations
 
 The module supports 2–4 clusters across configurable regions:
@@ -108,6 +153,7 @@ Module variable wiring:
 
 | Tool | Minimum Version | Install |
 |---|---|---|
+| OpenTofu / Terraform | >= 1.3 | [OpenTofu install](https://opentofu.org/docs/intro/install/) |
 | `gcloud` CLI | 480.0.0 | [Install guide](https://cloud.google.com/sdk/docs/install) |
 | `kubectl` | 1.29+ | `gcloud components install kubectl` |
 | `istioctl` | 1.20+ | `curl -L https://istio.io/downloadIstio \| sh -` |
@@ -125,6 +171,15 @@ roles/monitoring.admin
 roles/logging.admin
 ```
 
+Additional requirements:
+
+| Requirement | Detail |
+|---|---|
+| GCP Project | Must already exist with billing enabled |
+| Terraform provisioning service account | Must hold `roles/owner` on the target project |
+| Caller permissions | The identity running `tofu apply` must hold `roles/iam.serviceAccountTokenCreator` on the provisioning service account |
+| Available quota | 2× GKE clusters (Autopilot or Standard), 1 global static IP, regional CPU quota for node pools |
+
 ### Environment Variables
 
 ```bash
@@ -138,6 +193,39 @@ export APP_NAMESPACE="bank-of-anthos"
 gcloud config set project "${PROJECT_ID}"
 ```
 
+### REST API Shell Variables
+
+If you plan to use the REST API equivalents shown throughout this guide, set these variables
+once before running any API command:
+
+```bash
+export TOKEN=$(gcloud auth print-access-token)
+export PROJECT="your-project-id"
+export REGION1="us-west1"
+export REGION2="us-east1"
+export CLUSTER1="gke-cluster-1"
+export CLUSTER2="gke-cluster-2"
+export NAMESPACE="bank-of-anthos"
+export FLEET_BASE="https://gkehub.googleapis.com/v1/projects/${PROJECT}/locations/global"
+export GKE_BASE="https://container.googleapis.com/v1/projects/${PROJECT}/locations"
+export COMPUTE_BASE="https://compute.googleapis.com/compute/v1/projects/${PROJECT}"
+```
+
+Refresh the token when it expires (tokens are valid for ~1 hour):
+
+```bash
+export TOKEN=$(gcloud auth print-access-token)
+```
+
+All mutating GCP operations return a long-running Operation. Poll for completion:
+
+```bash
+curl -s "https://container.googleapis.com/v1/projects/${PROJECT}/locations/${REGION1}/operations/OPERATION_ID" \
+  -H "Authorization: Bearer $TOKEN" | jq '.status, .error'
+```
+
+`status: "DONE"` with no `error` means the operation succeeded.
+
 ---
 
 ## 4. Lab Setup
@@ -150,8 +238,9 @@ Deploy the `MC_Bank_GKE` module via the RAD UI. In the variable form, set:
 |---|---|---|
 | `project_id` | `your-gcp-project-id` | Required |
 | `available_regions` | `["us-west1", "us-east1"]` | Regions for clusters |
-| `cluster_size` | `2` | Number of clusters |
+| `cluster_size` | `2` | Number of clusters (2–4) |
 | `create_autopilot_cluster` | `true` | Autopilot (recommended) |
+| `release_channel` | `REGULAR` | GKE upgrade channel: `RAPID`, `REGULAR`, `STABLE`, or `NONE` |
 | `enable_cloud_service_mesh` | `true` | Fleet-wide managed Istio |
 | `deploy_application` | `true` | Deploy Bank of Anthos |
 
@@ -161,6 +250,73 @@ Click **Deploy** and wait for provisioning to complete (approximately 40–60 mi
 > Cloud Service Mesh Fleet feature (MANAGEMENT_AUTOMATIC) on all clusters, Multi-Cluster
 > Ingress and Multi-Cluster Services Fleet features, Bank of Anthos deployed to all clusters,
 > and a global L7 load balancer with a single public IP.
+
+**Expected provisioning times:**
+
+| Resource | Typical time |
+|---|---|
+| API enablement | 2–3 minutes |
+| VPC, subnets, Cloud Router, NAT | 2–3 minutes |
+| GKE Autopilot clusters (×2) | 5–10 minutes |
+| Fleet membership registration | 3–5 minutes per cluster |
+| Cloud Service Mesh enablement | 10–15 minutes |
+| Bank of Anthos deployment | 10–15 minutes |
+| Multi-Cluster Ingress provisioning | 10–15 minutes (GLB setup continues after apply) |
+| **Total** | **45–60 minutes** |
+
+> The Global Load Balancer provisioned by Multi-Cluster Ingress may take an additional
+> 10–15 minutes to become healthy after provisioning completes.
+
+### 4.1a Deploy via Terraform (Alternative)
+
+If deploying directly with Terraform/OpenTofu instead of the RAD UI, navigate to the module
+directory and create a `terraform.tfvars` file:
+
+```bash
+cd modules/MC_Bank_GKE
+```
+
+Minimum configuration:
+
+```hcl
+project_id = "your-project-id"
+```
+
+Full example with two clusters in separate regions:
+
+```hcl
+project_id                = "your-project-id"
+available_regions         = ["us-west1", "us-east1"]
+cluster_size              = 2
+create_autopilot_cluster  = true
+release_channel           = "REGULAR"
+enable_cloud_service_mesh = true
+deploy_application        = true
+```
+
+```bash
+tofu init
+tofu validate
+tofu plan -out=plan.tfplan
+tofu apply plan.tfplan
+```
+
+### 4.1b Record Terraform Outputs
+
+When `apply` completes, note the key outputs:
+
+```bash
+tofu output
+```
+
+The cluster names, regions, and namespace are fixed by the module:
+
+| Resource | Name |
+|---|---|
+| Primary cluster | `gke-cluster-1` in `us-west1` (default) |
+| Secondary cluster | `gke-cluster-2` in `us-east1` (default) |
+| Application namespace | `bank-of-anthos` |
+| Global IP address name | `bank-of-anthos` |
 
 ### 4.2 Configure kubectl for Both Clusters
 
@@ -244,6 +400,43 @@ kubectl --context=cluster-west \
 kubectl --context=cluster-east \
   get namespace "${APP_NAMESPACE}" --show-labels
 ```
+
+The `istio.io/rev=asm-managed` label triggers injection of the Envoy sidecar proxy into
+every pod scheduled in the namespace.
+
+### Step 1.4 — Verify Services
+
+```bash
+kubectl --context=cluster-west get services -n "${APP_NAMESPACE}"
+```
+
+**Expected result:** Services including `frontend`, `userservice`, `contacts`,
+`transactionhistory`, `balancereader`, `ledgerwriter`, `accounts-db`, and `ledger-db`.
+The `frontend` service is of type `ClusterIP` — external access is through the
+Multi-Cluster Ingress global load balancer.
+
+### Step 1.5 — Confirm Database Isolation
+
+```bash
+# Confirm no database StatefulSets on cluster 2
+kubectl --context=cluster-east get statefulsets -n "${APP_NAMESPACE}"
+```
+
+**Expected result:** `No resources found in bank-of-anthos namespace.` Cluster 2 connects
+to the databases on cluster 1 via Multi-Cluster Services.
+
+### Step 1.6 — Verify Sidecar Injection Per Pod
+
+Confirm that application pods have two containers — the application container plus the
+injected Envoy sidecar (`istio-proxy`):
+
+```bash
+kubectl --context=cluster-west get pods -n "${APP_NAMESPACE}" \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .spec.containers[*]}{.name}{","}{end}{"\n"}{end}'
+```
+
+**Expected result:** Each pod row lists two containers — the application container
+(e.g. `frontend`) and `istio-proxy`.
 
 ---
 
@@ -395,6 +588,46 @@ echo "https://console.cloud.google.com/anthos/meshes?project=${PROJECT_ID}"
 The CSM dashboard shows the combined service topology across all clusters, with per-cluster
 and aggregate traffic metrics.
 
+### Step 3.5 — View Distributed Traces
+
+1. In the Google Cloud console, navigate to **Trace > Trace List**.
+2. In the **Service** filter, select `frontend`.
+3. Click on any trace to view the full end-to-end request chain through the microservices.
+
+```bash
+# List recent traces for the frontend service
+gcloud trace traces list \
+  --project="${PROJECT_ID}" \
+  --filter="rootSpans.name:frontend" \
+  --limit=5
+```
+
+**Expected result:** A distributed trace shows a single user request flowing from `frontend`
+through `balancereader`, `transactionhistory`, and other downstream services, with latency
+attributed to each hop.
+
+### Step 3.6 — Confirm Managed Control Plane
+
+With Google-managed ASM, the Istiod control plane runs in Google's infrastructure — not as
+pods in your cluster. Verify this:
+
+```bash
+# There is no istiod deployment in the cluster (it's managed externally)
+kubectl --context=cluster-west get deployment -n istio-system
+
+# The ASM ConfigMap configures the managed channel
+kubectl --context=cluster-west get configmap -n istio-system
+```
+
+```bash
+# gcloud equivalent — view ASM management configuration
+gcloud container fleet mesh describe --project="${PROJECT_ID}" \
+  --format='json' | jq '.membershipStates[].servicemesh'
+```
+
+**Expected result:** No `istiod` Deployment exists. The `asm-options` ConfigMap configures
+the managed channel. The control plane SLA, upgrades, and scaling are handled by Google.
+
 ---
 
 ## Exercise 4 — Access the Application
@@ -440,7 +673,25 @@ curl -s "http://${FRONTEND_IP}" | grep "<title>"
 
 Navigate to `http://${FRONTEND_IP}` and log in with `testuser` / `password`.
 
-### Step 4.3 — Identify Which Cluster Is Serving Traffic
+### Step 4.3 — Create a User Account and Explore Features
+
+1. Click **Sign Up** on the login page.
+2. Fill in the registration form with any test credentials and click **Create Account**.
+3. Once logged in, explore the application:
+   - **View transaction history:** Click on the account balance to see the paginated
+     transaction list served by the `transactionhistory` service.
+   - **Send a payment:** Click **Send Payment**, enter account number `1011226111` in
+     the **To Account** field, enter an amount (e.g. `10.00`), and click **Send Payment**.
+     The updated balance reflects immediately — demonstrating `ledgerwriter` writing a new
+     transaction and `balancereader` returning the updated balance.
+   - **View contacts:** Click **Contacts** to see the pre-seeded contact list, served by
+     the `contacts` service.
+
+**Expected result:** All application features work end-to-end, with data persisted in the
+`accounts-db` and `ledger-db` databases on the primary cluster and read by services running
+on either cluster.
+
+### Step 4.4 — Identify Which Cluster Is Serving Traffic
 
 Add a `server-id` header to trace which cluster serves each request:
 
@@ -451,8 +702,21 @@ for i in $(seq 1 10); do
 done
 ```
 
-Alternatively, the Global Load Balancer directs traffic based on the origin's geographic
-proximity — users near `us-west1` land on cluster-west, users near `us-east1` on cluster-east.
+Alternatively, monitor the frontend logs on both clusters to see which one is serving your
+browser traffic:
+
+```bash
+# Watch frontend logs on cluster 1
+kubectl logs -n "${APP_NAMESPACE}" --context=cluster-west \
+  -l app=frontend --tail=10 -f &
+
+# Watch frontend logs on cluster 2
+kubectl logs -n "${APP_NAMESPACE}" --context=cluster-east \
+  -l app=frontend --tail=10 -f
+```
+
+The Global Load Balancer directs traffic based on the origin's geographic proximity — users
+near `us-west1` land on cluster-west, users near `us-east1` on cluster-east.
 
 ---
 
@@ -765,6 +1029,85 @@ echo "https://console.cloud.google.com/billing?project=${PROJECT_ID}"
 Navigate to **Billing** → **Reports** → group by `goog-k8s-cluster-name` label to see
 per-cluster cost breakdown.
 
+### Step 8.5 — Explore Workload Identity IAM Roles
+
+The Standard cluster node pool service account (`gke-standard-sa`) is granted minimum
+required IAM roles. Review the assigned roles:
+
+```bash
+gcloud projects get-iam-policy "${PROJECT_ID}" \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:serviceAccount:gke-standard-sa@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --format="table(bindings.role)"
+```
+
+**REST API:**
+```bash
+curl -s -X POST \
+  "https://cloudresourcemanager.googleapis.com/v1/projects/${PROJECT_ID}:getIamPolicy" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  -d '{}' | jq '.bindings[] | select(.members[] | contains("gke-standard-sa")) | .role'
+```
+
+**Expected result (Standard cluster):** Roles including `roles/monitoring.metricWriter`,
+`roles/logging.logWriter`, `roles/artifactregistry.reader`, and
+`roles/container.defaultNodeServiceAccount` — the minimum required set for GKE node
+operation.
+
+### Step 8.6 — Add a Trusted User (cluster-admin)
+
+Additional users can be granted `cluster-admin` access by updating the `trusted_users`
+variable and re-running `tofu apply` (or redeploying via the RAD UI):
+
+```hcl
+trusted_users = ["colleague@example.com"]
+```
+
+```bash
+tofu apply
+```
+
+```bash
+# Verify the ClusterRoleBinding was created
+kubectl get clusterrolebindings --context=cluster-west | grep trusted
+```
+
+**Expected result:** The specified user can run `kubectl` commands against all clusters.
+A `ClusterRoleBinding` is created binding them to `cluster-admin`.
+
+### Step 8.7 — Deploy a Third Cluster
+
+Increase the cluster count to 3 and add a third region to see round-robin cluster
+assignment in action:
+
+```hcl
+cluster_size      = 3
+available_regions = ["us-west1", "us-east1", "us-central1"]
+```
+
+```bash
+tofu apply
+```
+
+```bash
+# Verify the third cluster is Fleet-registered
+gcloud container fleet memberships list --project="${PROJECT_ID}"
+```
+
+**REST API:**
+```bash
+curl -s \
+  "https://gkehub.googleapis.com/v1/projects/${PROJECT_ID}/locations/global/memberships/gke-cluster-2" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  | jq '{name, state: .state.code}'
+```
+
+**Expected result:** A third cluster (`gke-cluster-2`) is created in `us-central1`,
+registered with the Fleet, ASM-enabled, and the Bank of Anthos application deployed
+to it. The `MultiClusterService` is updated to include the new cluster as a backend,
+and the global load balancer gains a third regional backend pool.
+
 ---
 
 ## 13. Cleanup
@@ -774,6 +1117,19 @@ all clusters, VPC, Multi-Cluster Ingress, and Multi-Cluster Services resources.
 
 > **Important:** The module's `mcs.tf` runs a cleanup provisioner to gracefully remove MCI
 > and MCS resources before the load balancer deletion — this prevents orphaned Cloud resources.
+
+The destroy sequence:
+
+1. Removes MultiClusterIngress and MultiClusterService resources from all clusters
+2. Disables the Multi-Cluster Ingress Fleet feature
+3. Disables ASM on each cluster membership and at the Fleet level
+4. Deletes GKE Hub memberships for all clusters
+5. Deletes GKE clusters (including all node pools and workloads)
+6. Deletes subnets, Cloud Routers, NAT gateways, and firewall rules
+7. Deletes the VPC network
+8. Releases the global static IP address
+
+> **Note:** The destroy may take 10–20 minutes.
 
 ### Manual Cleanup (if needed)
 
@@ -820,6 +1176,61 @@ done
 kubectl config delete-context cluster-west
 kubectl config delete-context cluster-east
 ```
+
+---
+
+## Lab Summary
+
+The table below recaps every major action in the lab and whether it is automated by the
+`MC_Bank_GKE` Terraform module or performed manually.
+
+| Action | Exercise | Automated |
+|---|---|---|
+| Enable ~30 GCP APIs | Setup | Yes |
+| Create shared VPC network | Setup | Yes |
+| Create per-cluster subnets, Cloud Routers, NAT gateways | Setup | Yes |
+| Reserve global static IP | Setup | Yes |
+| Create GKE clusters (Autopilot or Standard) | Setup | Yes |
+| Register clusters to GKE Fleet | Setup | Yes |
+| Enable Cloud Service Mesh Fleet feature | Setup | Yes |
+| Deploy Bank of Anthos to all clusters | Setup | Yes |
+| Enable Multi-Cluster Ingress Fleet feature | Setup | Yes |
+| Apply MultiClusterIngress and MultiClusterService CRDs | Setup | Yes |
+| Get cluster credentials | Ex. 1 | No — `gcloud container clusters get-credentials` |
+| Verify nodes and pods | Ex. 1 | No — `kubectl get nodes/pods` |
+| Confirm ASM sidecar injection label on namespace | Ex. 1 | No — `kubectl get namespace` |
+| Verify sidecar (istio-proxy) injected into pods | Ex. 1 | No — `kubectl get pods` |
+| List Fleet memberships | Ex. 2 | No — `gcloud container fleet memberships list` |
+| View Fleet features (ASM, MCI, MCS) | Ex. 2 | No — `gcloud container fleet features list` |
+| Inspect Service Mesh feature state | Ex. 3 | No — `gcloud container fleet mesh describe` |
+| Verify mTLS certificates (SPIFFE identity) | Ex. 3 | No — `kubectl exec` |
+| Confirm managed control plane (no istiod pod) | Ex. 3 | No — `kubectl get deployment` |
+| View distributed traces | Ex. 3 | No — Cloud Trace console / `gcloud trace` |
+| Get application VIP | Ex. 4 | No — `gcloud compute addresses list` |
+| Access Bank of Anthos in browser | Ex. 4 | No — browser |
+| Create user account and send payment | Ex. 4 | No — browser interaction |
+| Identify which cluster serves requests | Ex. 4 | No — `kubectl logs` |
+| Inspect MultiClusterIngress resource | Ex. 5 | No — `kubectl get multiclusteringress` |
+| Inspect global backend services | Ex. 5 | No — `gcloud compute backend-services list` |
+| Check backend health | Ex. 5 | No — `gcloud compute backend-services get-health` |
+| Inspect MultiClusterService resources | Ex. 5 | No — `kubectl get multiclusterservice` |
+| Scale down all deployments in a cluster (simulate failure) | Ex. 6 | No — `kubectl scale` |
+| Verify traffic continues serving from healthy cluster | Ex. 6 | No — `curl` / browser |
+| Monitor failover in Cloud Logging | Ex. 6 | No — `gcloud logging read` |
+| Restore cluster deployments | Ex. 6 | No — `kubectl scale` |
+| Aggregate logs across clusters | Ex. 7 | No — `gcloud logging read` |
+| Cross-cluster metrics in Cloud Monitoring | Ex. 7 | No — Cloud Monitoring API |
+| Distributed tracing across clusters | Ex. 7 | No — Cloud Trace console |
+| Compare pod resource usage across clusters | Ex. 7 | No — `kubectl top pods` |
+| Fleet-level security dashboard | Ex. 7 | No — console navigation |
+| Cross-cluster VirtualService configuration | Ex. 8 | No — `kubectl apply` |
+| Managed Prometheus cross-cluster query | Ex. 8 | No — Monitoring API |
+| Inspect Gateway API CRDs | Ex. 8 | No — `kubectl get crds` |
+| View cost allocation by cluster | Ex. 8 | No — Cloud Billing console |
+| Review node pool IAM roles | Ex. 8 | No — `gcloud projects get-iam-policy` |
+| Add trusted user via `trusted_users` variable | Ex. 8 | No — `tofu apply` |
+| Deploy third cluster via `cluster_size = 3` | Ex. 8 | No — `tofu apply` |
+| Destroy all resources | Cleanup | Yes — RAD UI Undeploy / `tofu destroy` |
 
 ---
 
