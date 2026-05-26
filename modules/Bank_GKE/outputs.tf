@@ -16,12 +16,22 @@
 
 # Output the deployment ID used within the module.
 output "deployment_id" {
-  description = "Module Deployment ID"  # Description of what the deployment ID represents
-  value       = var.deployment_id       # The value of the deployment ID passed as a variable
+  description = "Module Deployment ID" # Description of what the deployment ID represents
+  value       = var.deployment_id      # The value of the deployment ID passed as a variable
 }
 
 # Output the project ID for the configured project.
 output "project_id" {
-  description = "Project ID"            # Description of what the project ID represents
-  value       = local.project.project_id  # The value of the project ID from local variables
+  description = "Project ID"             # Description of what the project ID represents
+  value       = local.project.project_id # The value of the project ID from local variables
+}
+
+output "cluster_credentials_cmd" {
+  description = "Kubernetes cluster get-credentials command"
+  value       = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.region} --project ${local.project.project_id}"
+}
+
+output "external_ip" {
+  description = "External IP address of the Bank of Anthos load balancer"
+  value       = google_compute_global_address.glb.address
 }
