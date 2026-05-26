@@ -1,0 +1,178 @@
+# VM Migration — Migration Center Assessment Lab
+
+## Overview
+
+This module deploys a fully configured **Google Cloud Migration Center**
+assessment environment. Migration Center is Google Cloud's free tool for
+discovering, analyzing, and planning migrations from on-premises or other
+cloud environments.
+
+**Industry use cases:** Data center exit planning, cloud-to-cloud migration
+assessment, infrastructure rightsizing analysis, TCO comparison for
+FinOps teams.
+
+The module provisions the complete lab environment and runs all Migration
+Center setup steps automatically, so users spend their time exploring
+assets and reports — not configuring infrastructure.
+
+## What Gets Deployed
+
+| Resource | Description |
+|---|---|
+| Windows Server 2022 VM | MCDCv6 pre-installed; RDP-ready with lab credentials |
+| 3× Debian 12 Linux VMs | Discovery scan targets with `migrationcenter` SSH user |
+| VPC + Firewall Rules | Auto-mode VPC with SSH, RDP, ICMP, and internal rules |
+| Cloud Storage Bucket | Holds the generated SSH private key (lab-ssh-key.pem) |
+| Migration Center Source | Discovery client registration |
+| AWS Sample Data Import | 4-file AWS CSV export imported into the asset inventory |
+| Asset Groups | All Assets · windows-only · linux-only |
+| Migration Preferences | Aggressive 3-year · Moderate 1-year CUD |
+| TCO Report | Pre-generated, visible within ~5 minutes of deployment |
+
+## Deployment Options
+
+### RAD UI
+
+Select **VM Migration** from the module catalog and click **Deploy**.
+All defaults are production-ready for the lab.
+
+### Launcher CLI
+
+```bash
+cd modules/VM_Migration
+cat > terraform.tfvars <<EOF
+project_id = "your-project-id"
+region     = "us-central1"
+zone       = "us-central1-a"
+EOF
+tofu init && tofu apply
+```
+
+## Usage (as a Terraform module)
+
+```hcl
+module "vm_migration" {
+  source = "github.com/techequitycloud/rad-modules//modules/VM_Migration"
+
+  project_id = "my-gcp-project"
+  region     = "us-central1"
+  zone       = "us-central1-a"
+
+  # Optional overrides
+  linux_vm_count           = 3
+  mc_discovery_client_name = "mc-discovery-client"
+  mc_report_name           = "lab-tco-report"
+}
+```
+
+## Key Outputs
+
+| Output | Description |
+|---|---|
+| `windows_vm_external_ip` | RDP target IP — Username: `migrationcenter` / Password: `m1grat10nc#nt#r` |
+| `linux_vm_internal_ips` | Internal IPs for configuring the MCDCv6 IP scan range |
+| `ssh_key_bucket_name` | GCS bucket holding `lab-ssh-key.pem` for MCDCv6 SSH credential |
+| `ssh_key_user` | SSH username (`migrationcenter`) for the Lab-key credential |
+| `mc_discovery_client_name` | Name to enter in MCDCv6 during the login flow |
+| `migration_center_url` | Direct link to the Migration Center console |
+
+## Lab Guide
+
+Full step-by-step instructions: [LAB_GUIDE.md](./LAB_GUIDE.md)
+
+The only manual steps are:
+1. RDP into the Windows VM (credentials in outputs)
+2. Complete the Google OAuth login in MCDCv6 (browser-based)
+3. Add OS credentials and SSH key in MCDCv6 UI
+4. Run the IP scan and explore the populated console
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+|------|---------|
+| terraform | >= 1.3 |
+| google | >= 5.0, < 6.0 |
+| null | >= 3.0 |
+| random | >= 3.0 |
+| tls | >= 4.0 |
+
+## Providers
+
+| Name | Version |
+|------|---------|
+| google | >= 5.0, < 6.0 |
+| null | >= 3.0 |
+| random | >= 3.0 |
+| tls | >= 4.0 |
+
+## Resources
+
+| Name | Type |
+|------|------|
+| google_compute_firewall.default_allow_http | resource |
+| google_compute_firewall.default_allow_icmp | resource |
+| google_compute_firewall.default_allow_internal | resource |
+| google_compute_firewall.default_allow_rdp | resource |
+| google_compute_firewall.default_allow_ssh | resource |
+| google_compute_instance.linux_vm | resource |
+| google_compute_instance.windows_vm | resource |
+| google_compute_network.lab_vpc | resource |
+| google_project_iam_member.migrationcenter_sa_user | resource |
+| google_project_service.enabled_services | resource |
+| google_storage_bucket.ssh_key_bucket | resource |
+| google_storage_bucket_object.ssh_private_key | resource |
+| null_resource.mc_aws_import | resource |
+| null_resource.mc_groups | resource |
+| null_resource.mc_init | resource |
+| null_resource.mc_preferences | resource |
+| null_resource.mc_report | resource |
+| null_resource.mc_source | resource |
+| random_id.default | resource |
+| tls_private_key.ssh_key | resource |
+
+## Inputs
+
+| Name | Description | Type | Default |
+|------|-------------|------|---------|
+| create_default_firewall_rules | Create allow-internal, allow-ssh, allow-rdp, allow-icmp firewall rules | `bool` | `true` |
+| create_ssh_key_bucket | Create a GCS bucket and store the generated SSH private key | `bool` | `true` |
+| create_vpc | Create the lab VPC network | `bool` | `true` |
+| create_windows_vm | Deploy the Windows Server 2022 VM with MCDCv6 pre-installed | `bool` | `true` |
+| deployment_id | Short alphanumeric suffix for resource name uniqueness | `string` | `null` |
+| enable_services | Automatically enable required GCP APIs | `bool` | `true` |
+| generate_reports | Create groups, preferences, and trigger TCO report generation | `bool` | `true` |
+| import_aws_sample_data | Download and import sample AWS CSV data into Migration Center | `bool` | `true` |
+| initialize_migration_center | Initialize Migration Center and create a discovery source | `bool` | `true` |
+| internal_traffic_cidr | CIDR for allow-internal firewall rule | `string` | `"10.128.0.0/9"` |
+| linux_vm_boot_disk_size_gb | Boot disk size in GB for each Linux VM | `number` | `20` |
+| linux_vm_count | Number of Linux discovery target VMs | `number` | `3` |
+| linux_vm_machine_type | Machine type for Linux VMs | `string` | `"e2-medium"` |
+| mc_discovery_client_name | MCDCv6 discovery client name (must match what you enter in the UI) | `string` | `"mc-discovery-client"` |
+| mc_report_name | Name for the generated TCO report | `string` | `"lab-tco-report"` |
+| project_id | GCP project ID | `string` | `null` |
+| region | GCP region | `string` | `"us-central1"` |
+| resource_creator_identity | Terraform service account email | `string` | `"rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"` |
+| windows_vm_boot_disk_size_gb | Boot disk size in GB for the Windows VM | `number` | `50` |
+| windows_vm_machine_type | Machine type for the Windows VM | `string` | `"e2-medium"` |
+| zone | GCP zone | `string` | `"us-central1-a"` |
+
+## Outputs
+
+| Name | Description |
+|------|-------------|
+| deployment_id | Module Deployment ID |
+| linux_vm_internal_ips | Internal IPs of Linux target VMs for MCDCv6 scan range |
+| linux_vm_names | Names of the Linux discovery target VMs |
+| mc_discovery_client_name | Discovery client name to enter in MCDCv6 |
+| mc_source_id | Migration Center discovery source ID |
+| migration_center_url | Direct URL to the Migration Center console |
+| project_id | GCP Project ID |
+| ssh_key_bucket_name | GCS bucket containing the SSH private key |
+| ssh_key_user | SSH username for the Lab-key credential in MCDCv6 |
+| vpc_name | Name of the lab VPC network |
+| windows_vm_external_ip | Windows VM external IP for RDP access |
+| windows_vm_name | Windows VM instance name |
+<!-- END_TF_DOCS -->
+
+*Last tested: Tue May 27, 2026*
