@@ -28,8 +28,6 @@ locals {
     "iamcredentials.googleapis.com",
   ]
 
-  project_services = var.enable_services ? local.default_apis : []
-
   peer_vpc_name    = "altostrat-${local.random_id}-vpc"
   windows_vm_name  = "altostrat-${local.random_id}-winvm01"
   linux_vm_prefix  = "altostrat-${local.random_id}-linvm"
@@ -53,11 +51,15 @@ data "google_project" "existing_project" {
 }
 
 resource "google_project_service" "enabled_services" {
-  for_each                   = toset(local.project_services)
+  for_each                   = toset(local.default_apis)
   project                    = local.project.project_id
   service                    = each.value
   disable_dependent_services = false
   disable_on_destroy         = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Grant the Migration Center service agent the serviceAccountUser role so it
