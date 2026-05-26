@@ -16,8 +16,7 @@
 
 locals {
   random_id      = (var.deployment_id != null && var.deployment_id != "") ? var.deployment_id : random_id.default[0].hex
-  project        = try(data.google_project.existing_project, null)
-  project_number = try(local.project.number, null)
+  project      = try(data.google_project.existing_project, null)
 
   default_apis = [
     "migrationcenter.googleapis.com",
@@ -56,20 +55,6 @@ resource "google_project_service" "enabled_services" {
   service                    = each.value
   disable_dependent_services = false
   disable_on_destroy         = false
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-# Grant the Migration Center service agent the serviceAccountUser role so it
-# can impersonate service accounts in the project during discovery operations.
-resource "google_project_iam_member" "migrationcenter_sa_user" {
-  project = local.project.project_id
-  role    = "roles/iam.serviceAccountUser"
-  member  = "serviceAccount:service-${local.project.number}@gcp-sa-migrationcenter.iam.gserviceaccount.com"
-
-  depends_on = [google_project_service.enabled_services]
 
   lifecycle {
     prevent_destroy = true
