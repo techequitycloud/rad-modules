@@ -46,14 +46,16 @@ Variables are organized into numbered sections using `// SECTION N:` or `# SECTI
 # SECTION 1: Deployment   → module_description, module_dependency, module_services,
 #                           credit_cost, require_credit_purchases, enable_purge,
 #                           public_access, deployment_id, resource_creator_identity,
-#                           trusted_users
-# SECTION 2: Project      → project_id, enable_services
+#                           trusted_users, enable_services
+# SECTION 2: Project      → project_id
 # SECTION 3: Network      → create_network, network_name, subnet_name, ip_cidr_ranges, ...
 # SECTION 4: Cluster      → create_cluster, cluster_name_prefix, k8s_version, release_channel, ...
 # SECTION 5: IAM / Creds  → client_id/tenant_id/subscription_id/client_secret (Azure),
 #                           aws_access_key/aws_secret_key (AWS)
 # SECTION 6+: Feature-specific (e.g. service mesh, config management, application)
 ```
+
+> **`enable_services` belongs in group 0 (SECTION 1: Deployment).** Place it at the end of the Deployment section (order=109) so the API-enabling toggle is grouped with other platform-level deployment controls rather than with project-specific inputs. Use `{{UIMeta group=0 order=109 }}`.
 
 Not every module needs every section — `AKS_GKE` has no dedicated network section because AKS manages its own VNet, and `Istio_GKE` merges IAM into cluster setup. The numbering should still follow this order wherever the section is present.
 
