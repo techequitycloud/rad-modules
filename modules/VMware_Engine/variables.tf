@@ -25,7 +25,7 @@ variable "module_description" {
 variable "module_documentation" {
   description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https://docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
   type        = string
-  default     = "https://github.com/techequitycloud/rad-modules/blob/main/modules/VMware_Engine/LAB_GUIDE.md"
+  default     = "https://github.com/techequitycloud/rad-modules/blob/main/docs/labs/VMware_Engine.md"
 }
 
 variable "module_dependency" {

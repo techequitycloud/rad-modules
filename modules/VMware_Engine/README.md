@@ -13,7 +13,7 @@ Google Cloud VMware Engine is the enterprise standard for data center exit and V
 - **Hybrid cloud bridge to GCP-native services** — GCVE clusters connect directly to GCP VPC networks, enabling VMware workloads to consume BigQuery, Cloud SQL, Vertex AI, and other GCP services without traversing the internet
 - **Validated migration lab environment** — the TIME\_LIMITED single-node private cloud option lets teams validate GCVE connectivity, HCX workflows, and vCenter access before committing to STANDARD production deployments
 
-For a detailed technical walkthrough of the full lab, see [LAB_GUIDE.md](LAB_GUIDE.md).
+For a detailed technical walkthrough of the full lab, see [VMware_Engine.md](../../docs/labs/VMware_Engine.md).
 
 Last tested on Fri May 15, 2026
 

@@ -27,7 +27,7 @@ Supporting directories:
 - `rad-launcher/` — `radlab.py` is a Python CLI that wraps OpenTofu/Terraform for interactive module deployment from a workstation or Cloud Shell.
 - `rad-ui/automation/` — Cloud Build YAML files (`cloudbuild_deployment_{create,destroy,purge,update}.yaml`) used by the RAD platform UI to run module deployments remotely.
 - `scripts/` — standalone helper shell scripts grouped by topic (`gcp-istio-security/`, `gcp-istio-traffic/`, `gcp-cr-mesh/`, `gcp-m2c-vm/`). Each subdirectory contains a single `.sh` script and a `README.md`. These are not called by any Terraform module; they are hand-run by engineers for lab exercises or operational tasks.
-- `docs/labs/` — centralized lab guides for all six modules (e.g. `docs/labs/Istio_GKE.md`). These mirror the `LAB_GUIDE.md` files shipped inside each module directory.
+- `docs/labs/` — centralized lab guides for all modules (e.g. `docs/labs/Istio_GKE.md`). This is the canonical location for all step-by-step lab guides; there are no `LAB_GUIDE.md` files inside module directories.
 - `docs/modules/` — reference documentation for GKE-based modules.
 - `docs/capabilities/`, `docs/practices/` — cross-cutting capability and practice guides.
 - Top-level `README.md` and `CHANGELOG.md` are upstream OpenTofu documents, not project documentation.
@@ -50,8 +50,8 @@ modules/Istio_GKE/
 ├── manifests/           # Raw Kubernetes manifests applied as-is
 ├── templates/           # Kubernetes manifest templates rendered by Terraform
 ├── README.md            # Short overview + usage + Requirements/Providers/Resources/Inputs/Outputs tables
-├── LAB_GUIDE.md         # Step-by-step hands-on lab guide for engineers
 └── Istio_GKE.md         # Long technical walkthrough (≈1,400 lines)
+# Lab guide lives at: docs/labs/Istio_GKE.md
 ```
 
 Other modules introduce their own domain-specific files alongside this skeleton:
@@ -210,13 +210,13 @@ Anything that cannot be expressed as a Terraform resource — installing Istio v
 
 ## 4. Documentation Pattern
 
-Each module ships three markdown files:
+Each module ships two markdown files inside the module directory, plus one in `docs/labs/`:
 
 - **`README.md`** (≈90–100 lines): short prose intro, a copy-pastable `module "..." { source = ... }` usage block, and standard tables for Requirements, Providers, Modules (if any), Resources, Inputs, Outputs.
-- **`LAB_GUIDE.md`**: step-by-step hands-on lab guide for engineers walking through the module's use cases. Covers prerequisites, deployment steps, lab exercises, and cleanup. This file is also mirrored under `docs/labs/<Module_Name>.md`.
 - **`<Module_Name>.md`** (≈1,100–2,600 lines): long-form technical walkthrough covering the architecture diagram, every resource the module creates, the networking layout, security model, and operational guidance. These are meant as learning material — `Istio_GKE.md` explains VPC-native networking, secondary IP ranges, iptables-based traffic interception, and the sidecar-vs-ambient trade-off in enough depth to teach the technology, not just operate it.
+- **`docs/labs/<Module_Name>.md`**: step-by-step hands-on lab guide for engineers walking through the module's use cases. Covers prerequisites, deployment steps, lab exercises, and cleanup. This file is referenced from `README.md` and is the target of the `module_documentation` URL in `variables.tf`. **Do not create a `LAB_GUIDE.md` inside the module directory.**
 
-When writing these files for a new module, match the tone and depth of `modules/Istio_GKE/README.md`, `modules/Istio_GKE/LAB_GUIDE.md`, and `modules/Istio_GKE/Istio_GKE.md`.
+When writing these files for a new module, match the tone and depth of `modules/Istio_GKE/README.md`, `modules/Istio_GKE/Istio_GKE.md`, and `docs/labs/Istio_GKE.md`.
 
 ## 5. Creating a New Module
 
@@ -231,7 +231,7 @@ There is no scaffolding script. Create a new module by copying the layout from t
 3. Edit `variables.tf` — update `module_description`, `module_documentation`, `module_services`, `module_dependency`, any feature flags, and default values. Keep the UIMeta annotations; renumber `order` values if you add new variables in an existing group.
 4. Replace the provisioning logic in the domain-specific `.tf` files. If you need post-provisioning steps, follow the `null_resource` pattern in `istiosidecar.tf`.
 5. Update `outputs.tf` — always expose `deployment_id`, `project_id`, and (for GKE modules) `cluster_credentials_cmd`.
-6. Write `README.md`, `LAB_GUIDE.md`, and `<Module_Name>.md` using the existing modules as a template for structure and depth. Also add the lab guide to `docs/labs/<Module_Name>.md`.
+6. Write `README.md` and `<Module_Name>.md` inside the module directory. Write the step-by-step lab guide as `docs/labs/<Module_Name>.md`. Set the `module_documentation` variable default in `variables.tf` to the GitHub URL of the `docs/labs/<Module_Name>.md` file.
 7. Validate:
 
    ```bash
