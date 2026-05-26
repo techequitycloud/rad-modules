@@ -1,13 +1,13 @@
 ---
-title: "VM_Migration Module Documentation"
-sidebar_label: "VM_Migration"
+title: "Migration Center Module Documentation"
+sidebar_label: "Migration Center"
 ---
 
-# VM_Migration Module
+# Migration Center Module
 
 ## Overview
 
-The VM_Migration module provisions a complete **Google Cloud Migration Center** assessment
+The Migration Center module provisions a complete **Google Cloud Migration Center** assessment
 environment. Migration Center is Google Cloud's free, unified platform for discovering,
 analysing, and planning the migration of workloads from on-premises data centres or other cloud
 environments (including AWS and Azure). Unlike migration execution tools, Migration Center
@@ -74,7 +74,7 @@ startup script (MCDCv6 installation) runs in parallel and is ready within 10–1
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                          VM_Migration Module                                 │
+│                          Migration Center Module                                 │
 │                                                                              │
 │   Google Cloud Project                                                       │
 │   ──────────────────────────────────────────────────────────────────────     │
@@ -730,7 +730,7 @@ No local tool installation is required for the RAD UI deployment path. For manua
 
 ### Via RAD UI
 
-1. Navigate to the RAD UI and select the `VM_Migration` module
+1. Navigate to the RAD UI and select the `Migration Center` module
 2. Fill in the required variable form:
    - `project_id` — your GCP project ID
    - `region` — GCP region (default `us-central1`)

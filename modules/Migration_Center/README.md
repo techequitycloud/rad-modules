@@ -1,4 +1,4 @@
-# VM Migration — Migration Center Assessment Lab
+# Migration Center Assessment Lab
 
 ## Overview
 
@@ -34,13 +34,13 @@ asset data.
 
 ### RAD UI
 
-Select **VM Migration** from the module catalog and click **Deploy**.
+Select **Migration Center** from the module catalog and click **Deploy**.
 All defaults are production-ready for the lab.
 
 ### Launcher CLI
 
 ```bash
-cd modules/VM_Migration
+cd modules/Migration_Center
 cat > terraform.tfvars <<EOF
 project_id = "your-project-id"
 region     = "us-central1"
@@ -52,8 +52,8 @@ tofu init && tofu apply
 ## Usage (as a Terraform module)
 
 ```hcl
-module "vm_migration" {
-  source = "github.com/techequitycloud/rad-modules//modules/VM_Migration"
+module "migration_center" {
+  source = "github.com/techequitycloud/rad-modules//modules/Migration_Center"
 
   project_id = "my-gcp-project"
   region     = "us-central1"
@@ -78,7 +78,7 @@ module "vm_migration" {
 
 ## Lab Guide
 
-Full step-by-step instructions: [VM_Migration Lab Guide](../../docs/labs/VM_Migration.md)
+Full step-by-step instructions: [Migration Center Lab Guide](../../docs/labs/Migration_Center.md)
 
 The only manual steps are:
 1. RDP into the Windows VM (credentials in outputs)

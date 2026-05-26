@@ -1,9 +1,9 @@
 # Google Cloud Migration Center — Lab Guide
 
-📖 **[Configuration Guide](https://docs.radmodules.dev/docs/modules/VM_Migration)**
+📖 **[Configuration Guide](https://docs.radmodules.dev/docs/modules/Migration_Center)**
 
 This lab guide walks you through discovering, analysing, and planning a cloud migration using
-**Google Cloud Migration Center** and the **VM_Migration** module. You will connect to a
+**Google Cloud Migration Center** and the **Migration Center** module. You will connect to a
 pre-configured Windows VM running the MC Discovery Client (MCDCv6), register it against the
 Migration Center project that Terraform has already initialised, configure SSH-based discovery
 of Debian Linux target VMs, review the discovered inventory alongside AWS EC2 data, and
@@ -115,7 +115,7 @@ and total cost of ownership (TCO) projections.
 
 Module variable wiring:
 
-  VM_Migration
+  Migration_Center
     region                      = "us-central1"         →  All resources in this region
     zone                        = "us-central1-a"        →  Compute Engine zone
     linux_vm_count              = 3                      →  3 Debian Linux scan targets
@@ -196,7 +196,7 @@ export SSH_KEY_BUCKET=$(gcloud storage buckets list \
 
 ### 4.1 Deploy via RAD UI
 
-Deploy the `VM_Migration` module via the RAD UI. In the variable form, set:
+Deploy the `Migration Center` module via the RAD UI. In the variable form, set:
 
 | Variable | Value | Notes |
 |---|---|---|
@@ -903,7 +903,7 @@ The new report appears in **Migration Center → Reports** within 5 minutes.
 
 ## 13. Cleanup
 
-Return to the RAD UI and click **Undeploy** on the `VM_Migration` deployment. This removes
+Return to the RAD UI and click **Undeploy** on the `Migration Center` deployment. This removes
 the VPC network, Windows VM, Linux VMs, Cloud Storage bucket, and associated firewall rules.
 
 > **Note:** Migration Center resources — discovery sources, import jobs, asset groups,

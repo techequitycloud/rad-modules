@@ -19,7 +19,7 @@ resource "google_compute_network" "lab_vpc" {
   project                 = local.project.project_id
   name                    = local.peer_vpc_name
   auto_create_subnetworks = true
-  description             = "VPC network for VM Migration lab — hosts the Windows MCDCv6 VM and Linux discovery targets"
+  description             = "VPC network for Migration Center lab — hosts the Windows MCDCv6 VM and Linux discovery targets"
 
   depends_on = [google_project_service.enabled_services]
 }

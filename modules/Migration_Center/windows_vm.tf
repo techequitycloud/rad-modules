@@ -90,7 +90,7 @@ resource "google_compute_instance" "windows_vm" {
       Invoke-WebRequest -Uri $awsZipUrl -OutFile $awsZipPath -UseBasicParsing
       Expand-Archive -Path $awsZipPath -DestinationPath "$downloadsDir\vm-aws-import-files" -Force
 
-      Write-Output "VM Migration lab setup complete."
+      Write-Output "Migration Center lab setup complete."
     PS1
   }
 

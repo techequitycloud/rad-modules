@@ -25,7 +25,7 @@ variable "module_description" {
 variable "module_documentation" {
   description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. {{UIMeta group=0 order=1 }}"
   type        = string
-  default     = "https://github.com/techequitycloud/rad-modules/blob/main/docs/labs/VM_Migration.md"
+  default     = "https://github.com/techequitycloud/rad-modules/blob/main/docs/labs/Migration_Center.md"
 }
 
 variable "module_dependency" {
