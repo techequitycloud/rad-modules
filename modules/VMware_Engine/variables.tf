@@ -64,6 +64,12 @@ variable "public_access" {
   default     = true
 }
 
+variable "shared_users" {
+  description = "List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }}"
+  type        = list(string)
+  default     = []
+}
+
 variable "resource_creator_identity" {
   description = "Email of the Terraform service account used to provision resources (format: name@project-id.iam.gserviceaccount.com). Must hold roles/owner in the destination project. {{UIMeta group=0 order=107 updatesafe }}"
   type        = string
