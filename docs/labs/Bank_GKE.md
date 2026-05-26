@@ -25,9 +25,8 @@ management, observability, and GitOps-driven configuration management.
 11. [Exercise 7 — GKE Fleet Management](#exercise-7--gke-fleet-management)
 12. [Exercise 8 — Anthos Config Management (Optional)](#exercise-8--anthos-config-management-optional)
 13. [Exercise 9 — Advanced Operations](#exercise-9--advanced-operations)
-14. [Lab Summary](#lab-summary)
-15. [Cleanup](#14-cleanup)
-16. [Reference](#15-reference)
+14. [Cleanup](#14-cleanup)
+15. [Reference](#15-reference)
 
 ---
 
@@ -50,6 +49,34 @@ version **v0.6.7** on GKE with Cloud Service Mesh enabled.
 | **Service Mesh** | Cloud Service Mesh (managed Istio) with Envoy sidecars, mTLS, traffic topology |
 | **Observability** | Managed Prometheus, distributed tracing, structured logging |
 | **Autopilot** | GKE Autopilot cluster with automatic node provisioning and security hardening |
+
+### What the Module Automates
+
+- Enabling required GCP APIs (GKE, Mesh, Anthos, IAM, Artifact Registry, etc.)
+- Creating the VPC network, subnet, and secondary IP ranges (pods and services)
+- Configuring Cloud Router and NAT gateway for egress
+- Creating VPC firewall rules (load balancer health checks, IAP SSH, intra-VPC, HTTP/HTTPS)
+- Provisioning the GKE cluster (Autopilot or Standard) with Workload Identity,
+  Managed Prometheus, Gateway API, and security posture scanning
+- Creating a node pool and service account (Standard clusters only)
+- Registering the cluster with GKE Fleet
+- Installing and verifying Cloud Service Mesh (Google-managed Istio control plane)
+- Creating Cloud Monitoring services and CPU-utilisation SLOs for all nine microservices
+- Reserving a global static IP for the load balancer
+- Deploying Bank of Anthos v0.6.7 (JWT secret + all Kubernetes manifests)
+
+### What You Do Manually
+
+- Fetching cluster credentials and verifying pod readiness
+- Accessing the Bank of Anthos application in a browser
+- Exploring the microservices topology in the Cloud Console
+- Inspecting Cloud Service Mesh traffic flows and mTLS security
+- Applying traffic management policies (VirtualServices, fault injection)
+- Exploring Cloud Monitoring dashboards, Managed Prometheus, and SLOs
+- Reviewing GKE security posture and vulnerability findings
+- Exploring GKE Fleet membership and fleet-level feature status
+- (Optional) Verifying Anthos Config Management GitOps sync behaviour
+- Scaling workloads, triggering rolling updates, and reviewing audit logs
 
 ---
 
@@ -152,6 +179,20 @@ gcloud config set project "${PROJECT_ID}"
 gcloud config set compute/region "${REGION}"
 ```
 
+### REST API Authentication
+
+Every action in this lab can also be performed via the GKE REST API or Fleet Hub API as an
+alternative to the Cloud Console UI. Equivalent REST API commands are shown after each relevant
+step. All REST API calls require a bearer token:
+
+```bash
+export TOKEN=$(gcloud auth print-access-token)
+```
+
+**GKE REST API base URL:** `https://container.googleapis.com/v1`
+
+**Fleet Hub API base URL:** `https://gkehub.googleapis.com/v1`
+
 ---
 
 ## 4. Lab Setup
@@ -236,7 +277,24 @@ Explore the application:
 4. Transfer funds between accounts
 5. View the updated transaction history and balance
 
-### Step 1.3 — Verify All Pods Are Running
+> If the login fails, wait 1–2 minutes and retry — the `userservice` may still be completing
+> its initial database connection to `accounts-db`.
+
+### Step 1.3 — Create Accounts and Transactions
+
+1. Click **+ New Account** to create a savings account.
+2. In the **Send Payment** section, enter an amount and send a payment to a default contact.
+3. Click **Deposit Funds** and deposit funds into the new account.
+4. Click **Transaction History** to view all transactions for the account.
+
+Transactions are recorded and balances update in real time, confirming end-to-end connectivity
+across all eight application microservices.
+
+> **Background:** The `loadgenerator` service runs continuously inside the cluster, generating
+> synthetic transactions to simulate production-level traffic. This ensures the service mesh
+> topology is always populated with live call graph data.
+
+### Step 1.4 — Verify All Pods Are Running
 
 ```bash
 kubectl get pods -n "${APP_NAMESPACE}"
@@ -306,8 +364,8 @@ fine-grained IAM access to GCP resources (Cloud SQL, Secret Manager, etc.) witho
 
 ### Step 2.4 — Explore the Load Generator
 
-The `loadgenerator` service continuously sends synthetic transactions to exercise all code
-paths and generate telemetry:
+The `loadgenerator` service uses Locust to simulate a continuous stream of user transactions
+against the `frontend`, exercising all code paths and generating telemetry:
 
 ```bash
 kubectl logs -n "${APP_NAMESPACE}" \
@@ -315,6 +373,10 @@ kubectl logs -n "${APP_NAMESPACE}" \
      -o jsonpath='{.items[0].metadata.name}')" \
   --tail=20
 ```
+
+Logs show Locust generating a steady stream of requests including GET requests (account summary,
+transaction history) and POST requests (deposits, payments). This traffic keeps the Service Mesh
+topology graph populated with live call graph data.
 
 ### Step 2.5 — Examine a Java Service Pod
 
@@ -328,6 +390,28 @@ kubectl get pod "${LEDGER_POD}" -n "${APP_NAMESPACE}" \
 
 # View JVM startup logs
 kubectl logs "${LEDGER_POD}" -n "${APP_NAMESPACE}" -c ledgerwriter --tail=30
+```
+
+### Step 2.6 — Explore the GKE Cluster in the Console
+
+1. In the Google Cloud console, navigate to **Kubernetes Engine > Clusters**.
+2. Click the cluster name **gke-cluster**.
+3. Review the cluster overview, noting:
+   - **Type:** Autopilot (or Standard if overridden)
+   - **Release channel:** REGULAR
+   - **Security posture:** BASIC
+   - **Workload vulnerability scanning:** BASIC
+4. Click the **Workloads** tab — all nine Bank of Anthos workloads are visible.
+5. Click the **Services & Ingress** tab — the frontend LoadBalancer and all ClusterIP services
+   are listed. Only `frontend` has an `EXTERNAL-IP`; all backend services use `ClusterIP`,
+   meaning they are not directly exposed to the internet.
+
+```bash
+# gcloud equivalent — describe cluster summary
+gcloud container clusters describe "${CLUSTER_NAME}" \
+  --region="${REGION}" \
+  --project="${PROJECT_ID}" \
+  --format="table(name,status,currentNodeCount,currentMasterVersion,releaseChannel.channel,autopilot.enabled)"
 ```
 
 ---
@@ -407,7 +491,90 @@ kubectl exec "${POD}" -n "${APP_NAMESPACE}" -c istio-proxy -- \
   | grep -E "ssl\.(handshake|connection_error)"
 ```
 
-### Step 3.5 — Open the Cloud Service Mesh Dashboard
+Check existing PeerAuthentication policies:
+
+```bash
+# Check for PeerAuthentication policies in the namespace
+kubectl get peerauthentication -n "${APP_NAMESPACE}"
+
+# Check for mesh-wide policy in istio-system
+kubectl get peerauthentication -n istio-system
+```
+
+If no explicit policy exists, the fleet default is `PERMISSIVE` (accepts both plaintext and
+mTLS), transitioning automatically to `STRICT` once all services in the namespace have sidecars
+injected.
+
+Apply a `STRICT` mTLS policy to prevent any plaintext traffic in the namespace:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: bank-of-anthos
+spec:
+  mtls:
+    mode: STRICT
+EOF
+```
+
+All service-to-service calls in `bank-of-anthos` now require valid mTLS certificates. Any
+attempt to call a service without a sidecar (i.e. from outside the mesh) will be rejected.
+
+Verify the policy was applied:
+
+```bash
+kubectl get peerauthentication -n "${APP_NAMESPACE}"
+```
+
+### Step 3.5 — View Service Mesh Topology in the Console
+
+1. In the Google Cloud console, navigate to **Kubernetes Engine > Service Mesh**.
+2. Select the cluster **gke-cluster**.
+3. Click the **Service Topology** tab.
+4. The topology graph shows each Bank of Anthos service as a node, with directed edges
+   representing live traffic flows between services.
+
+Explore the topology:
+- Click on **frontend** — observe inbound traffic from `loadgenerator` and outbound calls to
+  `userservice`, `contacts`, `balancereader`, `transactionhistory`, and `ledgerwriter`.
+- Click on **ledgerwriter** — observe it receiving writes from `frontend` and forwarding reads
+  to `ledger-db`.
+- Click on **balancereader** — observe it receiving read requests from `frontend` and reading
+  from `ledger-db`.
+
+The full call graph is continuously updated by the synthetic traffic from `loadgenerator`,
+confirming the correct service communication pattern for the banking application.
+
+### Step 3.6 — Explore Service Mesh Golden Signal Metrics
+
+1. In the Service Mesh console, click on the **frontend** service node.
+2. Select the **Metrics** tab.
+3. Review the four golden signals:
+   - **Request rate (RPS):** Requests per second hitting the frontend
+   - **Error rate:** Percentage of requests returning HTTP 5xx
+   - **Latency (p50 / p95 / p99):** Response time percentiles
+   - **Saturation:** Resource utilisation relative to capacity
+4. Click on **ledgerwriter** and compare its gRPC metrics with the frontend's HTTP metrics.
+
+```bash
+# gcloud equivalent — list available ASM metrics
+gcloud monitoring metrics list \
+  --filter="metric.type:istio.io" \
+  --project="${PROJECT_ID}" | head -30
+```
+
+```bash
+# REST API equivalent
+curl -s \
+  "https://monitoring.googleapis.com/v3/projects/${PROJECT_ID}/metricDescriptors?filter=metric.type%3Dstarts_with(%22istio.io%22)" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  | jq '.metricDescriptors[].type' | head -30
+```
+
+### Step 3.7 — Open the Cloud Service Mesh Dashboard
 
 ```bash
 echo "https://console.cloud.google.com/anthos/meshes?project=${PROJECT_ID}"
@@ -515,52 +682,11 @@ spec:
 kubectl apply -f dr-ledgerwriter-circuit-breaker.yaml
 ```
 
-### Step 4.4 — Inject an Abort Fault to Simulate a Service Failure
-
-Test what happens when the `contacts` service returns errors for all requests:
-
-```yaml
-# vs-contacts-abort.yaml
-apiVersion: networking.istio.io/v1beta1
-kind: VirtualService
-metadata:
-  name: contacts
-  namespace: bank-of-anthos
-spec:
-  hosts:
-  - contacts
-  http:
-  - fault:
-      abort:
-        percentage:
-          value: 100
-        httpStatus: 503
-    route:
-    - destination:
-        host: contacts
-```
+### Step 4.4 — Remove Traffic Rules
 
 ```bash
-kubectl apply -f vs-contacts-abort.yaml
-```
-
-Navigate to the **Pay a Contact** section in the Bank of Anthos UI — the contact list will fail
-to load because `contacts` is returning 503 for every call. All other application features
-(balance display, transaction history, payments) continue to work because `contacts` is only
-used for the contact list feature.
-
-Observe the error rate spike on the `contacts` service node in the Service Mesh topology graph,
-then remove the fault:
-
-```bash
-kubectl delete virtualservice contacts -n "${APP_NAMESPACE}"
-```
-
-### Step 4.5 — Remove Traffic Rules
-
-```bash
-kubectl delete virtualservice userservice balancereader -n "${APP_NAMESPACE}" --ignore-not-found
-kubectl delete destinationrule ledgerwriter -n "${APP_NAMESPACE}" --ignore-not-found
+kubectl delete virtualservice userservice balancereader -n "${APP_NAMESPACE}"
+kubectl delete destinationrule ledgerwriter -n "${APP_NAMESPACE}"
 ```
 
 ---
@@ -622,14 +748,60 @@ curl -s -X POST \
   }' | jq '.timeSeriesData[].pointData[-1].values'
 ```
 
-### Step 5.4 — Managed Prometheus Query
+### Step 5.4 — Explore the SLO Dashboard
+
+1. Navigate to **Monitoring > Services** and click the **frontend** monitoring service.
+2. Click the SLO named **95.0% - CPU Limit Utilization Metric - Calendar day**.
+3. Review:
+   - **SLO target:** 95% — the goal is that CPU utilisation stays within limits for 95% of
+     measurement windows each day
+   - **Current compliance:** The percentage of windows meeting the target today
+   - **Error budget remaining:** The remaining headroom before breaching the SLO
+   - **Error budget burn rate:** How quickly the error budget is being consumed
+4. Click **View SLO history** to see compliance over recent days.
 
 ```bash
-# Port-forward Prometheus UI (if deployed)
-kubectl port-forward svc/prometheus-server \
-  9090:80 -n monitoring 2>/dev/null &
+# gcloud equivalent — list SLOs for a monitoring service
+gcloud monitoring services list \
+  --project="${PROJECT_ID}" \
+  --filter="basic_service.service_type=GKE_SERVICE" \
+  --format="value(name)" | while read SVC; do
+    echo "=== $SVC ==="; \
+    gcloud monitoring services service-level-objectives list "$SVC" \
+      --project="${PROJECT_ID}" \
+      --format="table(name,displayName,goal)"; \
+  done
+```
 
-# Or query via Cloud Monitoring
+```bash
+# REST API equivalent — list SLOs for the frontend service
+curl -s \
+  "https://monitoring.googleapis.com/v3/projects/${PROJECT_ID}/services/frontend/serviceLevelObjectives" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  | jq '.serviceLevelObjectives[] | {name, displayName, goal}'
+```
+
+### Step 5.5 — View the Managed Prometheus Endpoint
+
+GKE Managed Service for Prometheus was enabled on the cluster (`monitoring_config.managed_prometheus.enabled = true`).
+This scrapes all Kubernetes and Istio metrics automatically.
+
+Verify the Prometheus operator is running:
+
+```bash
+kubectl get pods -n gmp-system
+```
+
+Pods in the `gmp-system` namespace manage the scraping and forwarding of metrics to Google Cloud
+Managed Service for Prometheus.
+
+In the console:
+1. Navigate to **Monitoring > Managed Prometheus**.
+2. The **Target status** page shows all active scrape targets.
+3. Click on **kube-state-metrics** or **node-exporter** to see scrape health.
+
+```bash
+# Query CPU utilisation via Cloud Monitoring REST API
 curl -s -X POST \
   "https://monitoring.googleapis.com/v3/projects/${PROJECT_ID}/timeSeries:query" \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
@@ -639,7 +811,7 @@ curl -s -X POST \
   }' | jq '.timeSeriesData[] | {container: .labelValues[0].stringValue, utilisation: .pointData[-1].values[0].doubleValue}'
 ```
 
-### Step 5.5 — Create an Alert Policy
+### Step 5.6 — Create an Alert Policy
 
 **gcloud:**
 ```bash
@@ -695,6 +867,18 @@ curl -s \
 
 ### Step 6.3 — Verify Workload Identity
 
+Workload Identity allows Kubernetes service accounts to impersonate GCP service accounts without
+key files. It is configured via `workload_pool` in the cluster.
+
+```bash
+# Confirm the Workload Identity Pool is active
+gcloud container clusters describe "${CLUSTER_NAME}" \
+  --region="${REGION}" \
+  --project="${PROJECT_ID}" \
+  --format="value(workloadIdentityConfig.workloadPool)"
+# Expected: <PROJECT_ID>.svc.id.goog
+```
+
 ```bash
 # List service accounts in bank-of-anthos namespace
 kubectl get serviceaccounts -n "${APP_NAMESPACE}"
@@ -709,9 +893,68 @@ gcloud iam service-accounts list \
   --project="${PROJECT_ID}"
 ```
 
-### Step 6.4 — Review Audit Logs
+> **Why this matters:** In a production Bank of Anthos deployment, services that access Google
+> Cloud APIs (Cloud SQL, Secret Manager, Pub/Sub) bind a Kubernetes service account to a GCP
+> service account via Workload Identity, eliminating the need for service account key files
+> mounted in pods.
 
 ```bash
+# REST API equivalent — get cluster workload identity config
+curl -s \
+  "https://container.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/clusters/${CLUSTER_NAME}" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  | jq '.workloadIdentityConfig'
+```
+
+### Step 6.4 — Review All GKE Security Settings
+
+```bash
+gcloud container clusters describe "${CLUSTER_NAME}" \
+  --region="${REGION}" \
+  --project="${PROJECT_ID}" \
+  --format="yaml(securityPostureConfig,workloadIdentityConfig,addonsConfig,gatewayApiConfig,monitoringConfig)"
+```
+
+Review each section:
+- `securityPostureConfig.mode: BASIC` — basic workload misconfiguration scanning
+- `securityPostureConfig.vulnerabilityMode: VULNERABILITY_BASIC` — basic image CVE scanning
+- `workloadIdentityConfig.workloadPool` — Workload Identity active
+- `addonsConfig.httpLoadBalancing.disabled: false` — HTTP load balancing enabled
+- `addonsConfig.horizontalPodAutoscaling.disabled: false` — HPA available
+- `addonsConfig.gcsFuseCsiDriverConfig.enabled: true` — GCS FUSE CSI driver active
+- `gatewayApiConfig.channel: CHANNEL_STANDARD` — Kubernetes Gateway API CRDs installed
+- `monitoringConfig.managedPrometheus.enabled: true` — Managed Prometheus active
+
+```bash
+# REST API equivalent — get full cluster configuration
+curl -s \
+  "https://container.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/clusters/${CLUSTER_NAME}" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  | jq '{securityPostureConfig, workloadIdentityConfig, addonsConfig, gatewayApiConfig, monitoringConfig}'
+```
+
+### Step 6.5 — Review Audit Logs
+
+Every `kubectl` command and API operation generates an entry in Cloud Audit Logs, providing
+a complete compliance trail.
+
+In the console, navigate to **Logging > Logs Explorer** and run this query:
+
+```
+resource.type="k8s_cluster"
+resource.labels.cluster_name="gke-cluster"
+protoPayload.methodName=~"(create|delete|patch|update)"
+protoPayload.authenticationInfo.principalEmail!=""
+```
+
+Expand individual entries to see:
+- The Kubernetes resource type and name modified
+- The caller identity (service account email or user)
+- The operation method (`apps.deployments.patch`, `core.pods.create`, etc.)
+- Timestamp and response status code
+
+```bash
+# gcloud equivalent
 gcloud logging read \
   "protoPayload.serviceName=container.googleapis.com \
    AND protoPayload.methodName=~\"google.container\" \
@@ -726,6 +969,19 @@ gcloud logging read \
   }'
 ```
 
+```bash
+# REST API equivalent
+curl -s -X POST \
+  "https://logging.googleapis.com/v2/entries:list" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"resourceNames\": [\"projects/${PROJECT_ID}\"],
+    \"filter\": \"resource.type=k8s_cluster AND protoPayload.methodName=~\\\"(create|delete|patch)\\\"\",
+    \"pageSize\": 10
+  }" | jq '.entries[] | .protoPayload | {method: .methodName, caller: .authenticationInfo.principalEmail}'
+```
+
 ---
 
 ## Exercise 7 — GKE Fleet Management
@@ -735,12 +991,32 @@ gcloud logging read \
 Explore GKE Fleet Hub membership and the Cloud Service Mesh Fleet feature that coordinates
 the managed Istio control plane.
 
-### Step 7.1 — List Fleet Memberships
+### Step 7.1 — View the Fleet in the Console
+
+1. Navigate to **Kubernetes Engine > Fleets**.
+2. The fleet overview shows all registered clusters.
+3. Click the cluster **gke-cluster** to view its membership details.
+
+Review:
+- **Membership ID:** `gke-cluster`
+- **Location:** global
+- **Features:** servicemesh (and configmanagement if enabled)
+- **State:** READY
+
+### Step 7.2 — List Fleet Memberships
 
 **gcloud:**
 ```bash
 gcloud container fleet memberships list --project="${PROJECT_ID}"
+
+gcloud container fleet memberships describe "${CLUSTER_NAME}" \
+  --project="${PROJECT_ID}"
 ```
+
+Look for:
+- `state.code: READY`
+- `authority.issuer` — points to the GKE cluster's OIDC issuer
+- `endpoint.gkeCluster.resourceLink` — the full resource path of the cluster
 
 **REST API:**
 ```bash
@@ -750,7 +1026,15 @@ curl -s \
   | jq '.resources[] | {name, state: .state.code}'
 ```
 
-### Step 7.2 — Fleet Features
+```bash
+# REST API — describe individual membership
+curl -s \
+  "https://gkehub.googleapis.com/v1/projects/${PROJECT_ID}/locations/global/memberships/${CLUSTER_NAME}" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  | jq '{name, state: .state.code, authority: .authority.issuer}'
+```
+
+### Step 7.3 — Fleet Features
 
 ```bash
 gcloud container fleet features list --project="${PROJECT_ID}"
@@ -760,7 +1044,19 @@ The `Bank_GKE` module activates the `servicemesh` Fleet feature with `MANAGEMENT
 This instructs Google to manage the Istio control plane lifecycle (installation, upgrades,
 certificate rotation).
 
-### Step 7.3 — Inspect the Servicemesh Feature
+Fleet features are managed at the project level and apply configuration consistently across all
+enrolled clusters — this is the mechanism that allows a single `gcloud container fleet features`
+command to control ASM across dozens of clusters simultaneously.
+
+```bash
+# REST API equivalent — list fleet features
+curl -s \
+  "https://gkehub.googleapis.com/v1/projects/${PROJECT_ID}/locations/global/features" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  | jq '.resources[] | {name, state: .resourceState.state}'
+```
+
+### Step 7.4 — Inspect the Servicemesh Feature
 
 **gcloud:**
 ```bash
@@ -868,27 +1164,7 @@ kubectl rollout status deployment/frontend -n "${APP_NAMESPACE}"
 kubectl rollout undo deployment/frontend -n "${APP_NAMESPACE}"
 ```
 
-### Step 9.3 — Explore Gateway API CRDs
-
-The cluster is created with `gateway_api_config.channel = CHANNEL_STANDARD`, which installs the
-Kubernetes Gateway API Custom Resource Definitions:
-
-```bash
-kubectl get crd | grep gateway.networking.k8s.io
-```
-
-Expected CRDs:
-- `gateways.gateway.networking.k8s.io`
-- `httproutes.gateway.networking.k8s.io`
-- `grpcroutes.gateway.networking.k8s.io`
-- `gatewayclasses.gateway.networking.k8s.io`
-
-Bank of Anthos currently uses a classic Kubernetes `LoadBalancer` service for the frontend. The
-Gateway API CRDs are available for advanced use cases such as path-based routing, header-based
-routing, traffic splitting by percentage, and HTTPS termination — all managed declaratively as
-Kubernetes objects.
-
-### Step 9.4 — Cost Allocation Labels
+### Step 9.3 — Cost Allocation Labels
 
 GKE Autopilot reports per-namespace costs via the `goog-k8s-cluster-name` and
 `goog-k8s-namespace` labels. View cost allocation:
@@ -899,9 +1175,28 @@ echo "https://console.cloud.google.com/billing?project=${PROJECT_ID}"
 
 Navigate to **Billing** → **Reports** → filter by label `goog-k8s-namespace=bank-of-anthos`.
 
+### Step 9.4 — Inspect the Load Generator
+
+```bash
+kubectl describe deployment loadgenerator -n "${APP_NAMESPACE}"
+kubectl logs deployment/loadgenerator -n "${APP_NAMESPACE}" --tail=30
+```
+
+Logs show Locust generating a steady stream of requests including GET requests (account summary,
+transaction history) and POST requests (deposits, payments). This traffic keeps the Service Mesh
+topology graph populated with live call graph data and the SLO compliance dashboard current.
+
 ### Step 9.5 — Distributed Tracing with Cloud Trace
 
 CSM auto-instruments traces via the W3C `traceparent` header:
+
+1. Navigate to **Trace > Trace Explorer** in the Google Cloud console.
+2. Select a time range and click **Find Traces**.
+3. Click on a trace for a `frontend` request to see the distributed trace waterfall across
+   `frontend`, `balancereader`, `userservice`, and `transactionhistory`.
+
+Distributed trace spans show the complete call chain for a single end-user request, including
+the latency contribution of each microservice.
 
 **gcloud:**
 ```bash
@@ -917,46 +1212,13 @@ START=$(date -d '1 hour ago' --utc +%Y-%m-%dT%H:%M:%SZ)
 curl -s \
   "https://cloudtrace.googleapis.com/v1/projects/${PROJECT_ID}/traces?startTime=${START}&pageSize=5" \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  | jq '.traces[] | {traceId, spans: (.spans | length)}'
+  | jq '.traces[] | {traceId, spans: [.spans[] | {name, startTime, endTime}]}'
 ```
 
 Navigate to:
 ```bash
 echo "https://console.cloud.google.com/traces/list?project=${PROJECT_ID}"
 ```
-
-### Step 9.6 — View Application Logs in Cloud Logging
-
-**Logs Explorer:**
-
-1. Navigate to **Logging > Logs Explorer**.
-2. Set the resource filter to **Kubernetes Container**.
-3. Under **Cluster**, select **gke-cluster**, and under **Namespace**, select **bank-of-anthos**.
-4. Filter by a specific container: `resource.labels.container_name="frontend"` to see HTTP access logs.
-
-**gcloud:**
-```bash
-gcloud logging read \
-  'resource.type="k8s_container" AND resource.labels.cluster_name="gke-cluster" AND resource.labels.namespace_name="bank-of-anthos"' \
-  --project="${PROJECT_ID}" \
-  --limit=20 \
-  --format=json \
-  | jq '.[] | {
-      timestamp: .timestamp,
-      container: .resource.labels.container_name,
-      message: (.textPayload // (.jsonPayload | tostring))
-    }'
-```
-
-All logs are automatically collected because the cluster has `WORKLOADS` component logging
-enabled. Structured JSON logs from all Bank of Anthos services show HTTP requests, gRPC calls,
-and database connection events.
-
-**View workload logs inline in GKE console:**
-
-1. Navigate to **Kubernetes Engine > Workloads**.
-2. Click on **ledgerwriter**.
-3. Click the **Logs** tab on the workload details page to see gRPC transaction write events.
 
 ### Step 9.7 — Review VPC Network and Firewall Rules
 
@@ -967,11 +1229,11 @@ and database connection events.
    - **Service secondary range:** `10.64.128.0/20`
 3. Navigate to **VPC Network > Firewall** and review the rules created by the module:
    - `fw-allow-lb-hc` — allows Google load balancer health check probes (TCP 80)
+   - `fw-allow-nfs-hc` — allows NFS health check probes (TCP 2049)
    - `fw-allow-iap-ssh` — allows IAP tunnel SSH access (TCP 22, source `35.235.240.0/20`)
    - `fw-allow-intra-vpc` — allows all pod-to-pod traffic within the pod CIDR
    - `fw-allow-http-tcp` — allows HTTP/HTTPS access (TCP 80, 443) for tagged instances
 
-**gcloud:**
 ```bash
 # List subnets and secondary ranges
 gcloud compute networks subnets list \
@@ -986,73 +1248,65 @@ gcloud compute firewall-rules list \
   --format="table(name,direction,allowed[].map().firewall_rule().list():label=ALLOW,sourceRanges.list():label=SRC_RANGES)"
 ```
 
-**REST API:**
 ```bash
-# List subnets
+# REST API — list subnets
 curl -s \
   "https://compute.googleapis.com/compute/v1/projects/${PROJECT_ID}/regions/${REGION}/subnetworks?filter=network+eq+.*vpc-network" \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
   | jq '.items[] | {name, ipCidrRange, secondaryIpRanges}'
 
-# List firewall rules
+# REST API — list firewall rules
 curl -s \
   "https://compute.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/firewalls?filter=network+eq+.*vpc-network" \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
   | jq '.items[] | {name, direction, allowed, sourceRanges}'
 ```
 
----
+### Step 9.8 — View Workload Logs in the GKE Console
 
-## Lab Summary
+1. Navigate to **Kubernetes Engine > Workloads**.
+2. Click on **ledgerwriter**.
+3. Click the **Logs** tab on the workload details page.
 
-The table below recaps every exercise in this lab and whether the underlying infrastructure is
-automated by the `Bank_GKE` module or performed manually.
+The `ledgerwriter` application logs are displayed inline, showing gRPC transaction write events.
+The logs tab provides a quick way to access service logs without navigating to the Logs Explorer
+separately.
 
-| Action | Exercise | Automated |
-|---|---|---|
-| Enable GCP APIs (GKE, Mesh, Anthos, IAM, Trace, etc.) | Setup | Yes — `main.tf` |
-| Create VPC network and subnet with secondary ranges | Setup | Yes — `network.tf` |
-| Configure Cloud Router and NAT gateway | Setup | Yes — `network.tf` |
-| Create VPC firewall rules | Setup | Yes — `network.tf` |
-| Provision GKE Autopilot or Standard cluster | Setup | Yes — `gke.tf` |
-| Register cluster with GKE Fleet | Setup | Yes — `hub.tf` |
-| Enable Service Mesh fleet feature | Setup | Yes — `asm.tf` |
-| Create Cloud Monitoring services and SLOs | Setup | Yes — `monitoring.tf` |
-| Deploy Bank of Anthos v0.6.7 with ASM injection label | Setup | Yes — `deploy.tf` |
-| Fetch GKE cluster credentials | Setup | No — `gcloud container clusters get-credentials` |
-| Retrieve frontend external IP | Exercise 1 | No — `kubectl get service` |
-| Log in and explore Bank of Anthos in browser | Exercise 1 | No — browser session |
-| Verify pod readiness and sidecar injection | Exercise 1 | No — `kubectl get pods` |
-| Review service types and cluster-internal DNS | Exercise 2 | No — `kubectl get services` |
-| Inspect deployment configuration and environment variables | Exercise 2 | No — `kubectl describe deployment` |
-| Inspect Workload Identity service account annotations | Exercise 2 | No — `kubectl get serviceaccounts` |
-| Examine Envoy sidecar containers in pods | Exercise 2 | No — `kubectl get pod` |
-| Verify ASM control plane state via Fleet API | Exercise 3 | No — `gcloud container fleet mesh describe` |
-| Inspect Envoy proxy config and SPIFFE identity | Exercise 3 | No — `istioctl proxy-config` |
-| Apply STRICT mTLS PeerAuthentication policy | Exercise 3 | No — `kubectl apply` |
-| View Service Mesh topology graph and golden signals | Exercise 3 | No — Cloud Console |
-| Apply VirtualService with timeout and retry | Exercise 4 | No — `kubectl apply` |
-| Inject latency fault into `balancereader` | Exercise 4 | No — `kubectl apply` |
-| Inject abort fault into `contacts` | Exercise 4 | No — `kubectl apply` |
-| Apply circuit breaker DestinationRule to `ledgerwriter` | Exercise 4 | No — `kubectl apply` |
-| View pre-configured Cloud Monitoring services | Exercise 5 | No — Monitoring console |
-| Explore SLO compliance and error budget dashboard | Exercise 5 | No — Monitoring console |
-| Query CPU utilisation and request metrics | Exercise 5 | No — Monitoring console |
-| Create alert policy for error rate | Exercise 5 | No — Monitoring console |
-| Review security posture workload and vulnerability findings | Exercise 6 | No — Security Posture console |
-| Verify Workload Identity configuration | Exercise 6 | No — `kubectl` / `gcloud` |
-| Review Kubernetes audit logs | Exercise 6 | No — Cloud Logging |
-| View fleet membership and feature status | Exercise 7 | No — Fleet console / `gcloud` |
-| Inspect servicemesh Fleet feature details | Exercise 7 | No — `gcloud container fleet mesh describe` |
-| Verify ACM Config Sync status | Exercise 8 | No — optional (`enable_config_management = true`) |
-| Explore GitOps drift prevention behaviour | Exercise 8 | No — optional |
-| Scale a deployment and observe new pods | Exercise 9 | No — `kubectl scale` |
-| Trigger rolling update and verify zero-downtime | Exercise 9 | No — `kubectl rollout restart` |
-| Explore Gateway API CRD availability | Exercise 9 | No — `kubectl get crd` |
-| View namespace-level cost allocation | Exercise 9 | No — Billing console |
-| Explore distributed traces in Cloud Trace | Exercise 9 | No — Cloud Trace console |
-| Browse application logs by container in Logs Explorer | Exercise 9 | No — Cloud Logging |
-| Review VPC subnet CIDRs and firewall rules | Exercise 9 | No — VPC console / `gcloud` |
+You can also query logs for any container via Logs Explorer:
+
+1. Navigate to **Logging > Logs Explorer**.
+2. Set the resource filter to **Kubernetes Container**.
+3. Under **Cluster**, select **gke-cluster**, and under **Namespace**, select **bank-of-anthos**.
+4. Filter by a specific container: `resource.labels.container_name="frontend"` to see HTTP
+   access logs.
+
+```bash
+# gcloud equivalent — tail application logs
+gcloud logging read \
+  'resource.type="k8s_container" AND resource.labels.cluster_name="gke-cluster" AND resource.labels.namespace_name="bank-of-anthos"' \
+  --project="${PROJECT_ID}" \
+  --limit=20 \
+  --format=json \
+  | jq '.[] | {
+      timestamp: .timestamp,
+      container: .resource.labels.container_name,
+      message: (.textPayload // (.jsonPayload | tostring))
+    }'
+```
+
+```bash
+# REST API equivalent
+curl -s -X POST \
+  "https://logging.googleapis.com/v2/entries:list" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"resourceNames\": [\"projects/${PROJECT_ID}\"],
+    \"filter\": \"resource.type=k8s_container AND resource.labels.cluster_name=gke-cluster AND resource.labels.namespace_name=bank-of-anthos\",
+    \"pageSize\": 20,
+    \"orderBy\": \"timestamp desc\"
+  }" | jq '.entries[] | {timestamp: .timestamp, container: .resource.labels.container_name, message: (.textPayload // (.jsonPayload | tostring))}'
+```
 
 ---
 

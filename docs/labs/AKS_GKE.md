@@ -8,6 +8,8 @@ You will then explore unified multi-cloud operations: accessing the AKS cluster 
 Connect Gateway, centralised logging and monitoring through Google Cloud Observability, and fleet-
 wide access control — all without leaving Google Cloud.
 
+**Estimated time:** 45–60 minutes (includes ~15 minutes of background provisioning)
+
 ---
 
 ## Table of Contents
@@ -65,6 +67,30 @@ Azure Cloud                          Google Cloud
 │  └───────────────┘  │              │  Cloud Monitoring             │
 └─────────────────────┘              └──────────────────────────────┘
 ```
+
+### What the Module Automates
+
+The `AKS_GKE` Terraform module handles all infrastructure provisioning automatically:
+
+- Enabling required GCP APIs
+- Creating the Azure Resource Group
+- Deploying the AKS cluster with OIDC issuer enabled
+- Assigning the Network Contributor role to the AKS cluster identity
+- Fetching the GKE Attached Clusters install manifest from Google Cloud
+- Installing the bootstrap Helm chart onto the AKS cluster
+- Registering the AKS cluster as a `google_container_attached_cluster` in GKE Hub with Cloud Logging and Managed Prometheus enabled
+- Granting cluster-admin access to the listed trusted users
+
+### What You Do Manually
+
+- Verifying the attached cluster appears in the Google Cloud console
+- Configuring `kubectl` to access the cluster via Connect Gateway
+- Exploring fleet membership and cluster status
+- Exploring Cloud Logging for system and workload logs
+- Exploring Cloud Monitoring and Managed Prometheus metrics
+- Deploying a sample workload to the AKS cluster
+- Exploring Connect Gateway-based access control
+- Reviewing advanced features: IAM roles, audit logs, cluster upgrades
 
 ---
 
@@ -125,6 +151,7 @@ Module variable wiring:
 | `gke-gcloud-auth-plugin` | Any | `gcloud components install gke-gcloud-auth-plugin` |
 | `az` CLI | Any | [Azure CLI install](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) |
 | `curl` / `jq` | Any | System package manager |
+| OpenTofu / Terraform | >= 1.3 | [OpenTofu install](https://opentofu.org/docs/intro/install/) |
 
 ### Azure Requirements
 
@@ -158,6 +185,9 @@ roles/iam.serviceAccountAdmin
 roles/logging.admin
 roles/monitoring.admin
 ```
+
+> The identity running `tofu apply` must hold `roles/iam.serviceAccountTokenCreator` on the
+> Terraform provisioning service account, which must hold `roles/owner` on the target GCP project.
 
 ### Environment Variables
 
@@ -230,6 +260,18 @@ tofu plan -out=plan.tfplan
 tofu apply plan.tfplan
 ```
 
+A minimum `terraform.tfvars` example:
+
+```hcl
+project_id      = "your-project-id"
+trusted_users   = ["your-email@example.com"]
+
+client_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+client_secret   = "your-client-secret"
+tenant_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+```
+
 **Expected provisioning duration:**
 
 | Resource | Typical time |
@@ -243,6 +285,18 @@ tofu apply plan.tfplan
 > The `tofu apply` command will not return until all resources are fully provisioned, including
 > the fleet registration. When complete, record the cluster name, resource group name, and OIDC
 > issuer URL from the outputs — these are referenced throughout the rest of the lab.
+
+```bash
+# Record key identifiers after apply completes
+tofu show | grep -E "cluster_id|resource_group|oidc_issuer"
+```
+
+| Value | Where to find it | Used in |
+|---|---|---|
+| Cluster name | `var.cluster_name_prefix` + deployment ID suffix | All `kubectl` and API commands |
+| Resource Group name | Azure portal or `tofu state show azurerm_resource_group.aks` | Azure console verification |
+| OIDC Issuer URL | `tofu state show azurerm_kubernetes_cluster.aks` | Exercise 7 verification |
+| GCP Project ID | Your `project_id` variable | All GCP console and API steps |
 
 ### 4.3 Configure Azure CLI (Optional)
 
@@ -319,6 +373,25 @@ Or directly:
 echo "https://console.cloud.google.com/kubernetes/list/overview?project=${PROJECT_ID}"
 ```
 
+1. Confirm the cluster appears with **Type: Attached** and **Location** set to your `gcp_location` region.
+2. Click the cluster name to open its details page and verify **Status** is **Running**.
+
+**gcloud equivalent — describe the attached cluster:**
+```bash
+gcloud container attached clusters describe ${CLUSTER_NAME} \
+  --location=${GCP_REGION} \
+  --project=${PROJECT_ID} \
+  --format='yaml(name,state,kubernetesVersion,platformVersion)'
+```
+
+**REST API equivalent — describe the attached cluster:**
+```bash
+curl -s \
+  "${MULTICLOUD_BASE}/projects/${PROJECT_ID}/locations/${GCP_REGION}/attachedClusters/${CLUSTER_NAME}" \
+  -H "Authorization: Bearer $TOKEN" \
+  | jq '{name: .name, state: .state, kubernetesVersion: .kubernetesVersion, platformVersion: .platformVersion}'
+```
+
 ### Step 1.4 — Verify Platform Version and Managed Features
 
 1. In the Google Cloud console, navigate to **Kubernetes Engine > Clusters**.
@@ -344,6 +417,52 @@ NAME                             READY   STATUS    RESTARTS
 gke-connect-agent-xxxxxxx        1/1     Running   0
 ```
 
+### Step 1.6 — View Fleet Feature Status
+
+GKE Hub features provide centralised capabilities — such as logging, monitoring, and service
+mesh — across all fleet members from a single control plane.
+
+1. In the Google Cloud console, navigate to **Kubernetes Engine > Features**.
+2. Review the list of fleet features. Note which features are enabled for your fleet, including:
+   - **Cloud Logging and Cloud Monitoring**
+   - **Config Management**
+   - **Service Mesh**
+
+**Expected result:** The Logging and Monitoring feature shows as enabled, consistent with the
+`logging_config` and `monitoring_config` blocks in the Terraform resource.
+
+**gcloud equivalent — list fleet features:**
+```bash
+gcloud container fleet features list \
+  --project=${PROJECT_ID} \
+  --format='table(name,resourceState.state)'
+```
+
+**REST API equivalent — list fleet features:**
+```bash
+curl -s \
+  "${HUB_BASE}/projects/${PROJECT_ID}/locations/global/features" \
+  -H "Authorization: Bearer $TOKEN" \
+  | jq '.resources[] | {name: .name, state: .state}'
+```
+
+### Step 1.7 — Inspect the Managed Components Namespace
+
+The bootstrap install manifest installed system components into the cluster.
+
+```bash
+kubectl get namespaces | grep -E "gke|anthos|cloud"
+```
+
+```bash
+kubectl get pods -n gke-managed-system 2>/dev/null || \
+  kubectl get pods -n gke-system 2>/dev/null || \
+  kubectl get pods -n kube-system | grep -E "gke|anthos"
+```
+
+**Expected result:** GKE-managed system pods are visible, confirming the Helm bootstrap chart
+was applied successfully during Terraform provisioning.
+
 ---
 
 ## Exercise 2 — Access via Connect Gateway
@@ -364,6 +483,10 @@ kubectl config get-contexts
 kubectl config current-context
 ```
 
+**Expected result:** The context name contains `connectgateway` and your project and cluster
+identifiers, for example:
+`connectgateway_your-project-id_global_azure-aks-cluster`.
+
 ### Step 2.2 — Verify Cluster Connectivity
 
 ```bash
@@ -382,6 +505,13 @@ aks-nodepool1-xxxxxxxx-vmss0     Ready    agent    10m   v1.34.x
 aks-nodepool1-xxxxxxxx-vmss1     Ready    agent    10m   v1.34.x
 aks-nodepool1-xxxxxxxx-vmss2     Ready    agent    10m   v1.34.x
 ```
+
+```bash
+kubectl get pods --all-namespaces
+```
+
+**Expected result:** System pods are visible, including GKE Hub components in the `gke-connect`
+namespace and any other system namespaces.
 
 ### Step 2.3 — Inspect Cluster Namespaces
 
@@ -417,6 +547,10 @@ kubectl describe pod -n gke-connect -l app=gke-connect-agent
 # - Environment variables (project number, membership name)
 # - Resource limits
 ```
+
+> **Note:** Connect Gateway requests are authenticated and authorised via Google Cloud IAM and
+> the RBAC bindings configured in the attached cluster authorisation block. The `trusted_users`
+> variable grants cluster-admin to the listed identities.
 
 ---
 
@@ -524,6 +658,21 @@ for i in $(seq 1 50); do
 done
 ```
 
+### Step 3.6 — Verify Workload Logs Appear in Cloud Logging
+
+In **Cloud Logging > Logs Explorer**, run:
+
+```
+resource.type="k8s_container"
+resource.labels.cluster_name="azure-aks-cluster"
+resource.labels.namespace_name="sample-workload"
+resource.labels.container_name="nginx"
+```
+
+**Expected result:** Nginx access log entries appear in Cloud Logging within 1–2 minutes of
+the traffic being generated, confirming that workload logs from the `sample-workload` namespace
+are forwarded to Cloud Logging.
+
 ---
 
 ## Exercise 4 — Centralised Logging with Cloud Logging
@@ -541,6 +690,21 @@ echo "https://console.cloud.google.com/logs/query?project=${PROJECT_ID}"
 ```
 
 ### Step 4.2 — Query System Component Logs
+
+In **Logs Explorer**, enter the following query and click **Run Query**:
+
+```
+resource.type="k8s_cluster"
+resource.labels.cluster_name="azure-aks-cluster"
+log_name=~"system"
+```
+
+Expand individual log entries and review the `resource.labels` fields, including `cluster_name`,
+`location`, and `project_id`.
+
+**Expected result:** Log entries from AKS system components (scheduler, controller-manager, API
+server) appear in Cloud Logging, streaming from the AKS cluster through the GKE Hub agent —
+no separate log forwarder required.
 
 **gcloud:**
 ```bash
@@ -567,6 +731,16 @@ curl -s -X POST \
 
 ### Step 4.3 — Query Workload Logs (nginx)
 
+In **Logs Explorer**, run:
+
+```
+resource.type="k8s_container"
+resource.labels.cluster_name="azure-aks-cluster"
+```
+
+**Expected result:** Container logs from all namespaces on the AKS cluster appear alongside
+logs from any other GKE clusters in the same project, providing a unified multi-cloud logging view.
+
 **gcloud:**
 ```bash
 gcloud logging read \
@@ -588,6 +762,7 @@ curl -s -X POST \
   -d "{
     \"resourceNames\": [\"projects/${PROJECT_ID}\"],
     \"filter\": \"resource.type=k8s_container resource.labels.namespace_name=sample-workload\",
+    \"orderBy\": \"timestamp desc\",
     \"pageSize\": 10
   }" | jq '.entries[].jsonPayload'
 ```
@@ -616,6 +791,20 @@ gcloud logging read \
   --project="${PROJECT_ID}" \
   --limit=5 \
   --format='table(timestamp,textPayload)'
+```
+
+**REST API:**
+```bash
+curl -s -X POST \
+  "https://logging.googleapis.com/v2/entries:list" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"resourceNames\": [\"projects/${PROJECT_ID}\"],
+    \"filter\": \"resource.type=k8s_container resource.labels.cluster_name=${CLUSTER_NAME} resource.labels.pod_name=log-test\",
+    \"orderBy\": \"timestamp desc\",
+    \"pageSize\": 5
+  }" | jq '.entries[] | {timestamp: .timestamp, message: .textPayload}'
 ```
 
 **Expected result:** The `AKS-GKE lab log entry` message appears in Cloud Logging, confirming
@@ -670,7 +859,23 @@ echo "https://console.cloud.google.com/monitoring/dashboards?project=${PROJECT_I
 
 Navigate to **Dashboards** → **Kubernetes Engine** → select the AKS cluster.
 
-### Step 5.2 — Query Metrics via Cloud Monitoring API
+**Expected result:** The AKS cluster appears alongside native GKE clusters in the Kubernetes
+Engine dashboard, providing a unified multi-cloud monitoring view from a single pane of glass.
+
+### Step 5.2 — View Cluster Metrics in Metrics Explorer
+
+1. In the Google Cloud console, navigate to **Monitoring > Metrics Explorer**.
+2. Click **Select a metric**.
+3. In the search box, type `kubernetes` and select the metric resource type **Kubernetes Container**.
+4. Select the metric **CPU request utilization**.
+5. In the **Filter** section, add a filter for `resource.labels.cluster_name = azure-aks-cluster`.
+6. Click **Apply**.
+
+**Expected result:** A time-series chart appears showing CPU request utilization for containers
+running on the AKS cluster. Metrics stream into Cloud Monitoring via the Managed Prometheus
+collector installed as part of the platform version bootstrap.
+
+### Step 5.3 — Query Metrics via Cloud Monitoring API
 
 **gcloud:**
 ```bash
@@ -679,6 +884,9 @@ gcloud monitoring metrics list \
   --project="${PROJECT_ID}" \
   | grep -E "container/cpu|container/memory|node/cpu"
 ```
+
+> Note: Reading time-series data points is not supported by the `gcloud` CLI; use the REST API
+> or Metrics Explorer in the console for that purpose.
 
 **REST API (MQL query — CPU utilisation per node):**
 ```bash
@@ -691,7 +899,18 @@ curl -s -X POST \
   }' | jq '.timeSeriesData[].pointData[-1].values'
 ```
 
-### Step 5.3 — Node and Pod Resource Usage
+**REST API — query time-series via the Monitoring API:**
+```bash
+START=$(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || \
+        date -u -v-5M +%Y-%m-%dT%H:%M:%SZ)
+END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+curl -s \
+  "https://monitoring.googleapis.com/v3/projects/${PROJECT_ID}/timeSeries?filter=metric.type%3D%22kubernetes.io%2Fnode%2Fcpu%2Fallocatable_utilization%22%20AND%20resource.labels.cluster_name%3D%22${CLUSTER_NAME}%22&interval.startTime=${START}&interval.endTime=${END}" \
+  -H "Authorization: Bearer $TOKEN" \
+  | jq '.timeSeries[] | {node: .resource.labels.node_name, points: (.points | length)}'
+```
+
+### Step 5.4 — Node and Pod Resource Usage
 
 ```bash
 # Current node resource consumption
@@ -704,7 +923,10 @@ kubectl top pods -n sample-workload
 kubectl top pods --all-namespaces | sort -k3 -rn | head -20
 ```
 
-### Step 5.4 — Create an Alerting Policy
+**Expected result:** CPU and memory utilization is shown per node and per pod. This data flows
+from the Managed Prometheus collector on the cluster to Cloud Monitoring.
+
+### Step 5.5 — Create an Alerting Policy
 
 **gcloud (alert when CPU > 80%):**
 ```bash
@@ -750,24 +972,32 @@ AKS Cluster API Server
 kubectl get clusterrolebindings \
   | grep -v system
 
-kubectl describe clusterrolebinding \
-  "$(kubectl get clusterrolebindings -o name | grep -i google | head -1)"
+kubectl get clusterrolebinding -o json | \
+  jq '.items[] | select(.roleRef.name=="cluster-admin") | {name: .metadata.name, subjects: .subjects}'
 ```
+
+**Expected result:** A cluster-admin binding exists for the identities listed in `trusted_users`.
+These users can perform all Kubernetes operations through Connect Gateway.
 
 ### Step 6.2 — Grant a Colleague Read-Only Access
 
-Replace `colleague@example.com` with the actual Google identity:
+To allow another Google identity to access the cluster via `kubectl`, two things are needed:
+a GCP IAM binding and a Kubernetes RBAC binding.
 
+**Step A — Grant GCP IAM access via the console:**
+
+1. In the Google Cloud console, navigate to **IAM & Admin > IAM**.
+2. Click **Grant Access**.
+3. Enter the colleague's email address.
+4. Add the role **GKE Hub Gateway Editor** (`roles/gkehub.gatewayEditor`).
+5. Click **Save**.
+
+**gcloud equivalent:**
 ```bash
 # Step 1: Grant IAM permission to use Connect Gateway
 gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --member="user:colleague@example.com" \
   --role="roles/gkehub.gatewayReader"
-
-# Step 2: Create a Kubernetes RBAC binding for cluster-level read
-kubectl create clusterrolebinding colleague-view \
-  --clusterrole=view \
-  --user="colleague@example.com"
 ```
 
 **REST API (IAM binding):**
@@ -786,6 +1016,30 @@ curl -s -X POST \
   }'
 ```
 
+**Step B — Grant Kubernetes RBAC access:**
+
+```bash
+# Step 2: Create a Kubernetes RBAC binding for cluster-level read
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: colleague-view
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+- kind: User
+  name: colleague@example.com
+  apiGroup: rbac.authorization.k8s.io
+EOF
+```
+
+**Expected result:** The colleague can authenticate via `gcloud` and run read-only `kubectl`
+commands against the AKS cluster through Connect Gateway, without needing direct network access
+to the Azure API server.
+
 ### Step 6.3 — Verify Your Own Admin Permissions
 
 ```bash
@@ -794,7 +1048,54 @@ kubectl auth can-i create deployments -n sample-workload
 kubectl auth can-i delete namespaces
 ```
 
-### Step 6.4 — Review Audit Logs
+**gcloud equivalent — check fleet membership IAM policy:**
+```bash
+gcloud container fleet memberships get-iam-policy ${CLUSTER_NAME} \
+  --project=${PROJECT_ID} \
+  --format='yaml(bindings)'
+```
+
+**REST API equivalent — check fleet membership IAM policy:**
+```bash
+curl -s -X POST \
+  "${HUB_BASE}/projects/${PROJECT_ID}/locations/global/memberships/${CLUSTER_NAME}:getIamPolicy" \
+  -H "Authorization: Bearer $TOKEN" \
+  | jq '.bindings[] | {role: .role, members: .members}'
+```
+
+### Step 6.4 — Review Audit Logs for Cluster Operations
+
+Every API call to `gkemulticloud.googleapis.com` and `gkehub.googleapis.com` generates an entry
+in Cloud Audit Logs.
+
+1. In the Google Cloud console, navigate to **Logging > Logs Explorer**.
+2. In the query editor, enter:
+
+```
+protoPayload.serviceName=("gkemulticloud.googleapis.com" OR "gkehub.googleapis.com")
+```
+
+3. Click **Run Query**.
+
+**gcloud:**
+```bash
+gcloud logging read \
+  'protoPayload.serviceName=("gkemulticloud.googleapis.com" OR "gkehub.googleapis.com")' \
+  --project=${PROJECT_ID} \
+  --limit=10 \
+  --format='table(timestamp,protoPayload.methodName,protoPayload.authenticationInfo.principalEmail,protoPayload.status.code)'
+```
+
+4. Expand individual entries and review:
+   - `protoPayload.methodName` — the API method called (e.g. `google.cloud.gkemulticloud.v1.AttachedClusters.CreateAttachedCluster`)
+   - `protoPayload.authenticationInfo.principalEmail` — the caller identity
+   - `resource.labels.cluster_name` — the cluster affected
+
+**Expected result:** Audit entries are visible for the Terraform provisioning operations (cluster
+registration, feature enablement), confirming that all control-plane operations are logged
+automatically with no additional configuration.
+
+You can also query specifically for Connect Gateway access:
 
 ```bash
 gcloud logging read \
@@ -820,6 +1121,7 @@ the AKS API server, and make direct Connect Gateway API calls.
 
 ### Step 7.1 — Inspect the OIDC Trust Configuration
 
+**gcloud:**
 ```bash
 gcloud container fleet memberships describe "${CLUSTER_NAME}" \
   --project="${PROJECT_ID}" \
@@ -841,6 +1143,27 @@ curl -s \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
   | jq '.authority'
 ```
+
+You can also view the full OIDC configuration via the Attached Clusters API:
+
+```bash
+# gcloud
+gcloud container attached clusters describe ${CLUSTER_NAME} \
+  --location=${GCP_REGION} \
+  --project=${PROJECT_ID} \
+  --format='yaml(oidcConfig)'
+
+# REST API
+curl -s \
+  "${MULTICLOUD_BASE}/projects/${PROJECT_ID}/locations/${GCP_REGION}/attachedClusters/${CLUSTER_NAME}" \
+  -H "Authorization: Bearer $TOKEN" \
+  | jq '.oidcConfig'
+```
+
+**Expected result:** The `issuerUrl` field matches the AKS OIDC issuer URL
+(format: `https://oidc.prod-aks.azure.com/<tenant-id>/<cluster-id>/`). Google Cloud uses this
+URL to validate tokens issued by the AKS API server, enabling Connect Gateway to verify the
+identity of `kubectl` callers.
 
 ### Step 7.2 — Direct Connect Gateway API Call
 
@@ -897,6 +1220,17 @@ curl -s \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
   | jq '.validVersions[] | {kubernetesVersion, platformVersion}'
 ```
+
+**REST API — list attached cluster versions with EOL dates:**
+```bash
+curl -s \
+  "${MULTICLOUD_BASE}/projects/${PROJECT_ID}/locations/${GCP_REGION}:getServerConfig" \
+  -H "Authorization: Bearer $TOKEN" \
+  | jq '.attachedClusterVersions[] | select(.version | startswith("1.")) | {version: .version, eolDate: .endOfLifeDate}'
+```
+
+**Expected result:** A list of supported platform versions appears, each with an optional
+end-of-life date. Use this output to plan upgrades before a version reaches end of life.
 
 ### Step 8.2 — Check Current Platform Version
 
@@ -1095,6 +1429,49 @@ kubectl get namespaces
 # Verify RBAC permissions
 kubectl auth can-i list pods --all-namespaces
 ```
+
+### Lab Summary: Automated vs Manual Actions
+
+The table below recaps every major action in the lab and whether it is automated by the
+`AKS_GKE` Terraform module or performed manually.
+
+| Action | Automated |
+|---|---|
+| Enable GCP APIs (gkemulticloud, gkeconnect, connectgateway, anthos, logging, monitoring, gkehub) | Yes — `main.tf` |
+| Create Azure Resource Group | Yes — `main.tf` |
+| Deploy AKS cluster with OIDC issuer | Yes — `main.tf` |
+| Assign Network Contributor role to AKS identity | Yes — `main.tf` |
+| Fetch GKE Attached Clusters install manifest | Yes — `attached-install-manifest` module |
+| Install bootstrap Helm chart onto AKS cluster | Yes — `attached-install-manifest` module |
+| Register AKS cluster in GKE Hub as attached cluster | Yes — `main.tf` |
+| Enable Cloud Logging (system components + workloads) | Yes — `main.tf` |
+| Enable Managed Prometheus monitoring | Yes — `main.tf` |
+| Grant cluster-admin to trusted_users | Yes — `main.tf` |
+| Verify cluster appears in GKE console | No — console verification |
+| Verify fleet membership | No — console verification |
+| Verify logging and monitoring enabled in cluster details | No — console verification |
+| Configure kubectl via Connect Gateway | No — `gcloud` command |
+| Verify cluster connectivity and list nodes | No — `kubectl` commands |
+| View fleet feature status | No — console verification |
+| Inspect GKE Connect agent pod | No — `kubectl` commands |
+| Inspect managed components namespace | No — `kubectl` commands |
+| View system component logs in Cloud Logging | No — Logs Explorer |
+| View workload logs in Cloud Logging | No — Logs Explorer |
+| Verify log ingestion with a test pod | No — `kubectl` and Logs Explorer |
+| View cluster metrics in Metrics Explorer | No — Cloud Monitoring console |
+| Explore Kubernetes Engine dashboard | No — Cloud Monitoring console |
+| View node and pod resource utilization | No — `kubectl top` commands |
+| Deploy nginx workload via Connect Gateway | No — `kubectl apply` |
+| Verify workload pods and external IP | No — `kubectl` commands |
+| Verify workload logs appear in Cloud Logging | No — Logs Explorer |
+| Review authorization model and RBAC bindings | No — `kubectl` and console |
+| Grant Connect Gateway access to a team member | No — IAM and `kubectl` |
+| Verify admin access with `kubectl auth can-i` | No — `kubectl` command |
+| Verify OIDC federation configuration | No — API inspection |
+| List available platform versions | No — API query |
+| Review audit logs for cluster operations | No — Cloud Logging |
+| Import an existing cluster (awareness) | No — reference only |
+| Destroy all Terraform-managed resources | Yes — `tofu destroy` |
 
 ### Further Reading
 
