@@ -78,7 +78,7 @@ module "vm_migration" {
 
 ## Lab Guide
 
-Full step-by-step instructions: [LAB_GUIDE.md](./LAB_GUIDE.md)
+Full step-by-step instructions: [VM_Migration Lab Guide](../../docs/labs/VM_Migration.md)
 
 The only manual steps are:
 1. RDP into the Windows VM (credentials in outputs)

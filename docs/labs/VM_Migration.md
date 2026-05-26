@@ -57,7 +57,7 @@ and total cost of ownership (TCO) projections.
 
 | Step | Automated by Terraform | Manual Step Required |
 |---|---|---|
-| Initialise Migration Center service | Yes — REST API `initializeConfig` | None |
+| Initialise Migration Center service | Yes — auto-initialises on first API call (v1 does not expose `initializeConfig`) | None |
 | Register MCDCv6 discovery source | Yes — REST API `sources` | None |
 | Import AWS sample data | Yes — downloads zip, uploads CSV files, runs job | None |
 | Create asset groups | Yes — All Assets, windows-only, linux-only | None |
@@ -81,9 +81,9 @@ and total cost of ownership (TCO) projections.
 │  │                                                                        │  │
 │  │  ┌──────────────────────────────┐  ┌──────────────────────────────┐   │  │
 │  │  │  Windows Server 2022 VM      │  │  Debian 12 Linux VMs         │   │  │
-│  │  │  migcenter-{id}-winvm01      │  │  migcenter-{id}-linvm-0      │   │  │
-│  │  │  e2-medium                   │  │  migcenter-{id}-linvm-1      │   │  │
-│  │  │  • MCDCv6 pre-installed      │  │  migcenter-{id}-linvm-2      │   │  │
+│  │  │  migcenter-{id}-winvm01      │  │  migcenter-{id}-linvm-1      │   │  │
+│  │  │  e2-medium                   │  │  migcenter-{id}-linvm-2      │   │  │
+│  │  │  • MCDCv6 pre-installed      │  │  migcenter-{id}-linvm-3      │   │  │
 │  │  │  • Chrome pre-installed      │  │  e2-medium × 3               │   │  │
 │  │  │  • RDP enabled (port 3389)   │  │  • migrationcenter user      │   │  │
 │  │  │  • User: migrationcenter     │  │  • SSH key auth enabled      │   │  │
@@ -103,7 +103,7 @@ and total cost of ownership (TCO) projections.
 │  ┌────────────────────────────────────────────────────────────────────────┐  │
 │  │  Migration Center (migrationcenter.googleapis.com)                     │  │
 │  │                                                                        │  │
-│  │  Discovery Source: migcenter-{id}-mc-source  (GUEST_OS_SCAN)          │  │
+│  │  Discovery Source: migcenter-{id}-mc-source  (SOURCE_TYPE_DISCOVERY_CLIENT) │  │
 │  │                    ↓ live scan results + AWS CSV import                │  │
 │  │  Asset Inventory:  Debian Linux VMs + simulated AWS VMs                │  │
 │  │                                                                        │  │
@@ -699,9 +699,9 @@ Click on each to inspect the detailed configuration.
 
 ```bash
 curl -s \
-  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/preferencesSets" \
+  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/preferenceSets" \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  | jq '.preferencesSets[] | {
+  | jq '.preferenceSets[] | {
       displayName,
       name,
       targetProduct: .virtualMachinePreferences.targetProduct,
@@ -835,7 +835,7 @@ done
 for PREF_SUFFIX in aggressive-3yr moderate-1yr; do
   PREF_ID="migcenter-<deployment-id>-${PREF_SUFFIX}"
   curl -s -X DELETE \
-    "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/preferencesSets/${PREF_ID}" \
+    "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/preferenceSets/${PREF_ID}" \
     -H "Authorization: Bearer $(gcloud auth print-access-token)"
   echo "Deleted preference set: ${PREF_ID}"
 done
@@ -931,7 +931,7 @@ gcloud compute networks delete "${VPC_NAME}" --project="${PROJECT_ID}" --quiet
 | Linux VMs not discovered | IP range too narrow | Ensure range covers all IPs from `linux_vm_internal_ips` output |
 | AWS import job pending/failed | API propagation delay | Check job state via REST API; may take up to 10 min |
 | TCO report still generating | Reports take up to 5 min | Refresh Migration Center → Reports |
-| `prevent_destroy` blocks destroy | Expected lifecycle policy | See SKILLS.md for full project decommission instructions |
+| `prevent_destroy` blocks destroy | Expected lifecycle policy | Delete resources manually via the Cloud Console or contact platform support |
 
 ### Useful Commands Reference
 
@@ -956,9 +956,9 @@ curl -s \
 
 # List all preference sets
 curl -s \
-  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/preferencesSets" \
+  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/preferenceSets" \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  | jq '.preferencesSets[] | {displayName}'
+  | jq '.preferenceSets[] | {displayName}'
 
 # Windows VM external IP
 gcloud compute instances list \
