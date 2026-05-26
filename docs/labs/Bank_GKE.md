@@ -655,7 +655,45 @@ kubectl apply -f vs-balancereader-delay.yaml
 # Check the CSM dashboard for increased latency on balancereader
 ```
 
-### Step 4.3 — Circuit Breaker on ledgerwriter
+### Step 4.3 — Inject an Abort Fault to Simulate a Service Failure
+
+Test what happens when the `contacts` service returns errors for all requests:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: contacts-fault
+  namespace: bank-of-anthos
+spec:
+  hosts:
+  - contacts
+  http:
+  - fault:
+      abort:
+        percentage:
+          value: 100
+        httpStatus: 503
+    route:
+    - destination:
+        host: contacts
+EOF
+```
+
+Navigate to the **Pay a Contact** section in the Bank of Anthos UI — the contact list will fail
+to load because `contacts` is returning 503 for every call. All other application features
+(balance display, transaction history, payments) continue to work because `contacts` is only
+used for the contact list feature.
+
+Observe the error rate spike on the `contacts` service node in the Service Mesh topology graph,
+then remove the fault:
+
+```bash
+kubectl delete virtualservice contacts-fault -n "${APP_NAMESPACE}"
+```
+
+### Step 4.4 — Circuit Breaker on ledgerwriter
 
 ```yaml
 # dr-ledgerwriter-circuit-breaker.yaml
@@ -682,11 +720,11 @@ spec:
 kubectl apply -f dr-ledgerwriter-circuit-breaker.yaml
 ```
 
-### Step 4.4 — Remove Traffic Rules
+### Step 4.5 — Remove Traffic Rules
 
 ```bash
-kubectl delete virtualservice userservice balancereader -n "${APP_NAMESPACE}"
-kubectl delete destinationrule ledgerwriter -n "${APP_NAMESPACE}"
+kubectl delete virtualservice userservice balancereader -n "${APP_NAMESPACE}" --ignore-not-found
+kubectl delete destinationrule ledgerwriter -n "${APP_NAMESPACE}" --ignore-not-found
 ```
 
 ---
@@ -1220,7 +1258,7 @@ Navigate to:
 echo "https://console.cloud.google.com/traces/list?project=${PROJECT_ID}"
 ```
 
-### Step 9.7 — Review VPC Network and Firewall Rules
+### Step 9.6 — Review VPC Network and Firewall Rules
 
 1. Navigate to **VPC Network > VPC Networks** and click **vpc-network**.
 2. Review the subnet CIDR assignments:
@@ -1262,7 +1300,7 @@ curl -s \
   | jq '.items[] | {name, direction, allowed, sourceRanges}'
 ```
 
-### Step 9.8 — View Workload Logs in the GKE Console
+### Step 9.7 — View Workload Logs in the GKE Console
 
 1. Navigate to **Kubernetes Engine > Workloads**.
 2. Click on **ledgerwriter**.
