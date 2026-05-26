@@ -33,11 +33,6 @@ locals {
   ssh_key_bucket   = "migcenter-${local.random_id}-mc-keys"
   mc_source_name   = "migcenter-${local.random_id}-mc-source"
   aws_import_name  = "migcenter-${local.random_id}-aws-import"
-  group_all_name   = "migcenter-${local.random_id}-all-assets"
-  group_win_name   = "migcenter-${local.random_id}-windows-only"
-  group_lin_name   = "migcenter-${local.random_id}-linux-only"
-  pref_agg_name    = "migcenter-${local.random_id}-aggressive-3yr"
-  pref_mod_name    = "migcenter-${local.random_id}-moderate-1yr"
 }
 
 resource "random_id" "default" {

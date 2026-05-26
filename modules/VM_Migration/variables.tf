@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys a fully configured Google Cloud Migration Center assessment environment. Migration Center is Google Cloud's free tool for discovering, analyzing, and planning migrations from on-premises or other cloud environments. The module provisions a Windows Server 2022 VM with the MC Discovery Client (MCDCv6) pre-installed, Debian Linux target VMs for live network scanning, and runs all Migration Center setup steps automatically — including initializing the service, registering the discovery source, importing sample AWS data, creating asset groups, configuring migration preferences, and generating TCO and inventory reports. Users connect via RDP and complete only the Google OAuth login step before exploring a fully populated Migration Center environment."
+  default     = "This module deploys a Google Cloud Migration Center assessment environment. It provisions a Windows Server 2022 VM with the MC Discovery Client (MCDCv6) pre-installed, Debian Linux target VMs for live network scanning, and automatically initialises the Migration Center service and registers the discovery source. AWS EC2 inventory can be imported automatically when credentials are provided. Asset groups, migration preferences, and TCO reports are created as hands-on lab exercises using the Migration Center console."
 }
 
 variable "module_documentation" {
@@ -102,7 +102,7 @@ variable "zone" {
   default     = "us-central1-a"
 }
 
-// SECTION 3: Networking
+// SECTION 3: Compute Engine
 
 variable "create_vpc" {
   description = "Set to true (default) to create a dedicated VPC network for this lab. Set to false to use an existing VPC. {{UIMeta group=3 order=301 }}"
@@ -122,42 +122,38 @@ variable "internal_traffic_cidr" {
   default     = "10.128.0.0/9"
 }
 
-// SECTION 5: Windows VM
-
 variable "create_windows_vm" {
-  description = "Set to true (default) to deploy the Windows Server 2022 VM that hosts the MC Discovery Client. The startup script automatically installs MCDCv6 and pre-stages AWS import data. {{UIMeta group=5 order=501 }}"
+  description = "Set to true (default) to deploy the Windows Server 2022 VM that hosts the MC Discovery Client. The startup script automatically installs MCDCv6. {{UIMeta group=3 order=304 }}"
   type        = bool
   default     = true
 }
 
 variable "windows_vm_machine_type" {
-  description = "Machine type for the Windows MCDCv6 host VM. e2-medium provides sufficient resources for running the discovery client. {{UIMeta group=5 order=502 }}"
+  description = "Machine type for the Windows MCDCv6 host VM. e2-medium provides sufficient resources for running the discovery client. {{UIMeta group=3 order=305 }}"
   type        = string
   default     = "e2-medium"
 }
 
 variable "windows_vm_boot_disk_size_gb" {
-  description = "Boot disk size in GB for the Windows VM. Minimum 50 GB recommended for Windows Server 2022 plus MCDCv6. {{UIMeta group=5 order=503 }}"
+  description = "Boot disk size in GB for the Windows VM. Minimum 50 GB recommended for Windows Server 2022 plus MCDCv6. {{UIMeta group=3 order=306 }}"
   type        = number
   default     = 50
 }
 
-// SECTION 6: Linux Target VMs
-
 variable "linux_vm_count" {
-  description = "Number of Debian Linux VMs to deploy as discovery scan targets. The MCDCv6 scanner will discover and inventory these VMs. {{UIMeta group=6 order=601 }}"
+  description = "Number of Debian Linux VMs to deploy as discovery scan targets. The MCDCv6 scanner will discover and inventory these VMs. {{UIMeta group=3 order=307 }}"
   type        = number
   default     = 3
 }
 
 variable "linux_vm_machine_type" {
-  description = "Machine type for each Linux discovery target VM. e2-medium is sufficient for lab purposes. {{UIMeta group=6 order=602 }}"
+  description = "Machine type for each Linux discovery target VM. e2-medium is sufficient for lab purposes. {{UIMeta group=3 order=308 }}"
   type        = string
   default     = "e2-medium"
 }
 
 variable "linux_vm_boot_disk_size_gb" {
-  description = "Boot disk size in GB for each Linux target VM. {{UIMeta group=6 order=603 }}"
+  description = "Boot disk size in GB for each Linux target VM. {{UIMeta group=3 order=309 }}"
   type        = number
   default     = 20
 }
@@ -173,7 +169,7 @@ variable "create_ssh_key_bucket" {
 // SECTION 8: Migration Center
 
 variable "initialize_migration_center" {
-  description = "Set to true (default) to automatically initialize the Migration Center service, create a discovery source, import sample AWS data, create asset groups and migration preferences, and trigger report generation. {{UIMeta group=8 order=801 }}"
+  description = "Set to true (default) to automatically initialize the Migration Center service and register the MCDCv6 discovery source. AWS EC2 inventory is also imported when aws_access_key_id is provided. Asset groups, preferences, and reports are created as lab exercises. {{UIMeta group=8 order=801 }}"
   type        = bool
   default     = true
 }
@@ -204,10 +200,3 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-// SECTION 9: Asset Groups and Preferences
-
-variable "generate_reports" {
-  description = "Set to true (default) to automatically create asset groups (All Assets, windows-only, linux-only) and migration preference sets (aggressive 3-year CUD, moderate 1-year CUD) in Migration Center. Report generation itself is a manual step performed from the console after MCDCv6 discovery completes. {{UIMeta group=9 order=901 }}"
-  type        = bool
-  default     = true
-}

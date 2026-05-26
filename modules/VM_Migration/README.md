@@ -129,9 +129,7 @@ The only manual steps are:
 | google_storage_bucket.ssh_key_bucket | resource |
 | google_storage_bucket_object.ssh_private_key | resource |
 | null_resource.mc_aws_import | resource |
-| null_resource.mc_groups | resource |
 | null_resource.mc_init | resource |
-| null_resource.mc_preferences | resource |
 | null_resource.mc_source | resource |
 | random_id.default | resource |
 | tls_private_key.ssh_key | resource |
@@ -148,7 +146,6 @@ The only manual steps are:
 | create_vpc | Create the lab VPC network | `bool` | `true` |
 | create_windows_vm | Deploy the Windows Server 2022 VM with MCDCv6 pre-installed | `bool` | `true` |
 | deployment_id | Short alphanumeric suffix for resource name uniqueness | `string` | `null` |
-| generate_reports | Create asset groups and migration preference sets; report generation is a manual console step after MCDCv6 discovery | `bool` | `true` |
 | initialize_migration_center | Initialize Migration Center and create a discovery source | `bool` | `true` |
 | internal_traffic_cidr | CIDR for allow-internal firewall rule | `string` | `"10.128.0.0/9"` |
 | linux_vm_boot_disk_size_gb | Boot disk size in GB for each Linux VM | `number` | `20` |

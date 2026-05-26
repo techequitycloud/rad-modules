@@ -61,9 +61,9 @@ and total cost of ownership (TCO) projections.
 | Initialise Migration Center service | Yes — auto-initialises on first API call (v1 does not expose `initializeConfig`) | None |
 | Register MCDCv6 discovery source | Yes — REST API `sources` | None |
 | Import AWS sample data | Yes — downloads zip, uploads CSV files, runs job | None |
-| Create asset groups | Yes — All Assets, windows-only, linux-only | None |
-| Create preference sets | Yes — aggressive-3yr, moderate-1yr | None |
-| Generate TCO report | **No — requires fully populated inventory** | **You generate this from the console after MCDCv6 scan** |
+| Create asset groups | **No** | **You create these in Exercise 6** |
+| Create preference sets | **No** | **You create these in Exercise 7** |
+| Generate TCO report | **No — requires fully populated inventory** | **You generate this in Exercise 8** |
 | Install MCDCv6 on Windows VM | Yes — PowerShell startup script | None |
 | Google OAuth login in MCDCv6 | **No — requires browser-based login** | **You complete this** |
 | Configure SSH credential in MCDCv6 | **No** | **You complete this** |
@@ -108,11 +108,7 @@ and total cost of ownership (TCO) projections.
 │  │                    ↓ live scan results + AWS CSV import                │  │
 │  │  Asset Inventory:  Debian Linux VMs + simulated AWS VMs                │  │
 │  │                                                                        │  │
-│  │  Groups:       All Assets  │  windows-only  │  linux-only              │  │
-│  │  Preferences:  aggressive-3yr (N2/N2D, 3yr CUD)                       │  │
-│  │                moderate-1yr  (C2/C2D, SSD, 1yr CUD)                   │  │
-│  │                                                                        │  │
-│  │  Report:  generated manually from console after MCDCv6 scan          │  │
+│  │  Groups, Preferences, Reports: created as hands-on lab exercises       │  │
 │  └────────────────────────────────────────────────────────────────────────┘  │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -211,7 +207,6 @@ Deploy the `VM_Migration` module via the RAD UI. In the variable form, set:
 | `initialize_migration_center` | `true` | Auto-initialise MC service and register discovery source |
 | `aws_access_key_id` | *(optional)* | Bootstrap AWS credentials — module creates scoped IAM user and imports EC2 inventory |
 | `aws_secret_access_key` | *(optional)* | AWS Secret Key corresponding to the Access Key ID |
-| `generate_reports` | `true` | Pre-create asset groups and migration preference sets |
 | `mc_discovery_client_name` | `mc-discovery-client` | Source name to enter in MCDCv6 |
 
 Click **Deploy** and wait for provisioning to complete.
@@ -618,87 +613,152 @@ curl -s \
 
 ---
 
-## Exercise 6 — Explore Asset Groups
+## Exercise 6 — Create Asset Groups
 
 ### Objective
 
-Explore the three asset groups that Terraform pre-created and understand how groups organise
-assets into logical sets for targeted TCO reporting.
+Create three asset groups that organise the discovered inventory into logical sets, then add
+assets to each group. Groups are required inputs when generating a TCO report in Exercise 8.
 
-### Step 6.1 — View Groups in the Cloud Console
+Set your deployment ID in the shell before starting:
+```bash
+export DEPLOYMENT_ID="<your-deployment-id>"   # from Terraform output deployment_id
+```
 
-Navigate to **Migration Center → Groups**. Three groups should be present:
-
-| Group Display Name | Purpose |
-|---|---|
-| **All Assets** | All discovered VMs — used in the report with the aggressive-3yr preferences |
-| **windows-only** | Windows VMs from the AWS import — used with the moderate-1yr preferences |
-| **linux-only** | Linux VMs from the scan and AWS import — used with the moderate-1yr preferences |
-
-Click on **All Assets** to see the member list and total asset count.
-
-### Step 6.2 — View Groups via REST API
+### Step 6.1 — Create Groups via REST API
 
 ```bash
-# List all groups with asset counts
+TOKEN=$(gcloud auth print-access-token)
+
+create_group() {
+  local GROUP_ID="$1"
+  local DISPLAY_NAME="$2"
+  curl -s -X POST \
+    "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/groups?groupId=${GROUP_ID}" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "{\"displayName\": \"${DISPLAY_NAME}\"}" \
+    | jq '{name, displayName}'
+}
+
+create_group "migcenter-${DEPLOYMENT_ID}-all-assets"    "All Assets"
+create_group "migcenter-${DEPLOYMENT_ID}-windows-only"  "windows-only"
+create_group "migcenter-${DEPLOYMENT_ID}-linux-only"    "linux-only"
+```
+
+**Cloud Console alternative:**
+Navigate to **Migration Center → Groups** → **Create group**, enter the display name, and click **Create**.
+
+### Step 6.2 — Verify Groups Were Created
+
+```bash
 curl -s \
   "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/groups" \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  | jq '.groups[] | {displayName, name, createTime}'
+  | jq '.groups[] | {displayName, name: (.name | split("/") | last)}'
 ```
 
-```bash
-# List assets in a specific group (replace GROUP_ID with the group's resource name)
-GROUP_ID="migcenter-<deployment-id>-linux-only"
-curl -s \
-  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/groups/${GROUP_ID}/assets" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  | jq '.assets[].name'
-```
+You should see three groups: `All Assets`, `windows-only`, `linux-only`.
 
-### Step 6.3 — Add an Asset to a Group Manually
+### Step 6.3 — Add Assets to Groups
 
-To explore group management, add a VM to a group via the Cloud Console:
-
-1. In **Migration Center → Assets**, select any VM by checking its checkbox
-2. Click **Add to group** in the actions bar
-3. Select **All Assets** from the dropdown
-4. Click **Confirm**
+In **Migration Center → Assets**, select one or more VMs by checking their checkboxes, then
+click **Add to group** and select the appropriate group. Repeat for each group.
 
 **REST API — add an asset to a group:**
 ```bash
-GROUP_ID="migcenter-<deployment-id>-all-assets"
+TOKEN=$(gcloud auth print-access-token)
+GROUP_ID="migcenter-${DEPLOYMENT_ID}-all-assets"
 ASSET_RESOURCE="projects/${PROJECT_ID}/locations/${REGION}/assets/<asset-id>"
 
 curl -s -X POST \
   "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/groups/${GROUP_ID}:addAssets" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
-  -d "{\"assets\": [{\"asset\": \"${ASSET_RESOURCE}\"}]}"
+  -d "{\"assets\": [{\"asset\": \"${ASSET_RESOURCE}\"}]}" \
+  | jq '{done}'
+```
+
+**REST API — list assets in a group:**
+```bash
+curl -s \
+  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/groups/migcenter-${DEPLOYMENT_ID}-linux-only/assets" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  | jq '.assets[].name'
 ```
 
 ---
 
-## Exercise 7 — Explore Migration Preferences
+## Exercise 7 — Create Migration Preference Sets
 
 ### Objective
 
-Explore the two pre-created migration preference sets and understand how they model different
-cost optimisation strategies that drive the TCO report projections.
+Create two migration preference sets that model different cost optimisation strategies. These
+preference sets are paired with asset groups when generating the TCO report in Exercise 8.
 
-### Step 7.1 — View Preference Sets in the Cloud Console
+### Step 7.1 — Understand the Two Strategies
 
-Navigate to **Migration Center → Preferences** (or **Migration preferences**). Two sets should
-be present:
+| Preference Set | Machine Series | Sizing | Commitment | Best For |
+|---|---|---|---|---|
+| **aggressive-optimization-3-year-commit** | N2, N2D | Aggressive | 3-year CUD | Stable workloads, maximum savings |
+| **moderate-optimization-1-year-commit** | C2, C2D + SSD | Moderate | 1-year CUD | Variable workloads, more flexibility |
 
-| Preference Set | Machine Series | Sizing Strategy | Commitment |
-|---|---|---|---|
-| **aggressive-optimization-3-year-commit** | N2, N2D | Aggressive | 3-year CUD |
-| **moderate-optimization-1-year-commit** | C2, C2D + SSD | Moderate | 1-year CUD |
+> **Why two?** Different business units have different risk tolerances for right-sizing and
+> budget planning cycles. Generating the report with both scenarios gives architects a cost
+> range to present in migration business cases.
 
-Click on each to inspect the detailed configuration.
+### Step 7.2 — Create Preference Sets via REST API
 
-### Step 7.2 — View Preference Sets via REST API
+```bash
+TOKEN=$(gcloud auth print-access-token)
+
+echo "Creating aggressive-optimization-3-year-commit..."
+curl -s -X POST \
+  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/preferenceSets?preferenceSetId=migcenter-${DEPLOYMENT_ID}-aggressive-3yr" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "displayName": "aggressive-optimization-3-year-commit",
+    "virtualMachinePreferences": {
+      "targetProduct": "COMPUTE_MIGRATION_TARGET_PRODUCT_COMPUTE_ENGINE",
+      "computeEnginePreferences": {
+        "machinePreferences": {
+          "allowedMachineSeries": [{"code": "n2"}, {"code": "n2d"}]
+        },
+        "licenseType": "LICENSE_TYPE_DEFAULT"
+      },
+      "sizingOptimizationStrategy": "SIZING_OPTIMIZATION_STRATEGY_AGGRESSIVE",
+      "commitmentPlan": "COMMITMENT_PLAN_THREE_YEAR"
+    }
+  }' | jq '{name, displayName}'
+
+echo "Creating moderate-optimization-1-year-commit..."
+curl -s -X POST \
+  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/preferenceSets?preferenceSetId=migcenter-${DEPLOYMENT_ID}-moderate-1yr" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "displayName": "moderate-optimization-1-year-commit",
+    "virtualMachinePreferences": {
+      "targetProduct": "COMPUTE_MIGRATION_TARGET_PRODUCT_COMPUTE_ENGINE",
+      "computeEnginePreferences": {
+        "machinePreferences": {
+          "allowedMachineSeries": [{"code": "c2"}, {"code": "c2d"}]
+        },
+        "licenseType": "LICENSE_TYPE_DEFAULT",
+        "persistentDiskType": "PERSISTENT_DISK_TYPE_SSD"
+      },
+      "sizingOptimizationStrategy": "SIZING_OPTIMIZATION_STRATEGY_MODERATE",
+      "commitmentPlan": "COMMITMENT_PLAN_ONE_YEAR"
+    }
+  }' | jq '{name, displayName}'
+```
+
+**Cloud Console alternative:**
+Navigate to **Migration Center → Migration preferences** → **Create preference set** and fill
+in the machine series, sizing strategy, and commitment plan fields.
+
+### Step 7.3 — Verify Preference Sets
 
 ```bash
 curl -s \
@@ -706,29 +766,10 @@ curl -s \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
   | jq '.preferenceSets[] | {
       displayName,
-      name,
-      targetProduct: .virtualMachinePreferences.targetProduct,
       sizingStrategy: .virtualMachinePreferences.sizingOptimizationStrategy,
       commitmentPlan: .virtualMachinePreferences.commitmentPlan
     }'
 ```
-
-### Step 7.3 — Understand the Preference Parameters
-
-**Aggressive optimisation (3-year):**
-- **Machine series:** N2 / N2D — general-purpose cost-effective series
-- **Sizing:** `AGGRESSIVE` — right-sizes VMs based on actual observed peak utilisation
-- **Commitment:** 3-year CUD — maximum discount, minimum flexibility; best for stable workloads
-
-**Moderate optimisation (1-year):**
-- **Machine series:** C2 / C2D with SSD persistent disk — compute-optimised, faster per core
-- **Sizing:** `MODERATE` — maintains larger headroom above observed utilisation
-- **Commitment:** 1-year CUD — balanced discount with more flexibility for changing needs
-
-> **Why two preference sets?** Different business units typically have different risk tolerances
-> for VM right-sizing and different budget planning cycles. The TCO report projects both
-> scenarios simultaneously, giving cloud architects a range to work with when presenting
-> migration business cases.
 
 ---
 
@@ -954,7 +995,6 @@ gcloud compute networks delete "${VPC_NAME}" --project="${PROJECT_ID}" --quiet
 | `aws_access_key_id` | string | `""` | Bootstrap AWS credentials — module creates scoped IAM user and imports EC2 inventory |
 | `aws_secret_access_key` | string | `""` | AWS Secret Key corresponding to the Access Key ID |
 | `aws_region` | string | `us-east-1` | AWS region for EC2 discovery |
-| `generate_reports` | bool | `true` | Pre-create asset groups and migration preference sets |
 | `mc_discovery_client_name` | string | `mc-discovery-client` | MCDCv6 source name |
 
 ### Terraform Outputs
