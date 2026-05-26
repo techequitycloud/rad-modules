@@ -204,16 +204,10 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-// SECTION 9: Reports
+// SECTION 9: Asset Groups and Preferences
 
 variable "generate_reports" {
-  description = "Set to true (default) to automatically create asset groups, migration preferences, and trigger TCO report generation in Migration Center after the AWS data import completes. {{UIMeta group=9 order=901 }}"
+  description = "Set to true (default) to automatically create asset groups (All Assets, windows-only, linux-only) and migration preference sets (aggressive 3-year CUD, moderate 1-year CUD) in Migration Center. Report generation itself is a manual step performed from the console after MCDCv6 discovery completes. {{UIMeta group=9 order=901 }}"
   type        = bool
   default     = true
-}
-
-variable "mc_report_name" {
-  description = "Name for the generated TCO and detailed pricing report in Migration Center. {{UIMeta group=9 order=902 }}"
-  type        = string
-  default     = "lab-tco-report"
 }

@@ -6,11 +6,12 @@ This lab guide walks you through discovering, analysing, and planning a cloud mi
 **Google Cloud Migration Center** and the **VM_Migration** module. You will connect to a
 pre-configured Windows VM running the MC Discovery Client (MCDCv6), register it against the
 Migration Center project that Terraform has already initialised, configure SSH-based discovery
-of Debian Linux target VMs, review the discovered inventory alongside sample AWS data, and
-explore the pre-generated TCO cost optimisation report.
+of Debian Linux target VMs, review the discovered inventory alongside AWS EC2 data, and
+generate and explore a TCO cost optimisation report.
 
-The module automates every infrastructure and Migration Center setup step — you complete only
-the Google OAuth login in the MCDCv6 UI and the asset collection configuration.
+The module automates every infrastructure and Migration Center configuration step. You complete
+the Google OAuth login in MCDCv6, run the discovery scan, and then generate a report from the
+console once the asset inventory is fully populated — ensuring the report reflects real data.
 
 ---
 
@@ -62,7 +63,7 @@ and total cost of ownership (TCO) projections.
 | Import AWS sample data | Yes — downloads zip, uploads CSV files, runs job | None |
 | Create asset groups | Yes — All Assets, windows-only, linux-only | None |
 | Create preference sets | Yes — aggressive-3yr, moderate-1yr | None |
-| Generate TCO report | Yes — REST API `reportConfigs` + `reports` | None |
+| Generate TCO report | **No — requires fully populated inventory** | **You generate this from the console after MCDCv6 scan** |
 | Install MCDCv6 on Windows VM | Yes — PowerShell startup script | None |
 | Google OAuth login in MCDCv6 | **No — requires browser-based login** | **You complete this** |
 | Configure SSH credential in MCDCv6 | **No** | **You complete this** |
@@ -111,7 +112,7 @@ and total cost of ownership (TCO) projections.
 │  │  Preferences:  aggressive-3yr (N2/N2D, 3yr CUD)                       │  │
 │  │                moderate-1yr  (C2/C2D, SSD, 1yr CUD)                   │  │
 │  │                                                                        │  │
-│  │  Report:  lab-tco-report  (TOTAL_COST_OF_OWNERSHIP)                   │  │
+│  │  Report:  generated manually from console after MCDCv6 scan          │  │
 │  └────────────────────────────────────────────────────────────────────────┘  │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -123,9 +124,9 @@ Module variable wiring:
     zone                        = "us-central1-a"        →  Compute Engine zone
     linux_vm_count              = 3                      →  3 Debian Linux scan targets
     create_windows_vm           = true                   →  Windows MCDCv6 host
-    initialize_migration_center = true                   →  Auto-initialise MC service
-    import_aws_sample_data      = true                   →  Import sample AWS CSV data
-    generate_reports            = true                   →  Auto-generate TCO report
+    initialize_migration_center = true                   →  Auto-initialise MC service, create source
+    aws_access_key_id           = "<key>"                →  Bootstrap creds → scoped IAM user + EC2 import
+    generate_reports            = true                   →  Pre-create groups + preference sets
     mc_discovery_client_name    = "mc-discovery-client"  →  Source name entered in MCDCv6
 ```
 
@@ -207,9 +208,10 @@ Deploy the `VM_Migration` module via the RAD UI. In the variable form, set:
 | `region` | `us-central1` | GCP region for all resources |
 | `zone` | `us-central1-a` | GCP zone for Compute Engine VMs |
 | `linux_vm_count` | `3` | Number of Debian Linux scan targets |
-| `initialize_migration_center` | `true` | Auto-initialise MC, create source, import data |
-| `import_aws_sample_data` | `true` | Import sample AWS CSV data |
-| `generate_reports` | `true` | Create groups, preferences, and TCO report |
+| `initialize_migration_center` | `true` | Auto-initialise MC service and register discovery source |
+| `aws_access_key_id` | *(optional)* | Bootstrap AWS credentials — module creates scoped IAM user and imports EC2 inventory |
+| `aws_secret_access_key` | *(optional)* | AWS Secret Key corresponding to the Access Key ID |
+| `generate_reports` | `true` | Pre-create asset groups and migration preference sets |
 | `mc_discovery_client_name` | `mc-discovery-client` | Source name to enter in MCDCv6 |
 
 Click **Deploy** and wait for provisioning to complete.
@@ -221,7 +223,8 @@ Click **Deploy** and wait for provisioning to complete.
 > **What this provisions:** A VPC with firewall rules, a Windows Server 2022 VM with MCDCv6
 > pre-installed, three Debian 12 Linux VMs, a Cloud Storage bucket containing an SSH private
 > key, and a fully configured Migration Center environment including a registered discovery
-> source, imported AWS sample data, asset groups, migration preferences, and a TCO report.
+> source, AWS EC2 inventory import (if credentials provided), pre-created asset groups, and
+> migration preference sets. TCO report generation is a manual step performed after discovery.
 
 ### 4.2 Retrieve Deployment Outputs
 
@@ -729,29 +732,104 @@ curl -s \
 
 ---
 
-## Exercise 8 — View the TCO Report
+## Exercise 8 — Generate and View the TCO Report
 
 ### Objective
 
-View the pre-generated Total Cost of Ownership report and understand how Migration Center
-projects GCP costs for each asset group under both preference scenarios.
+Create a report configuration, trigger TCO report generation, and explore how Migration Center
+projects GCP costs for each asset group under both preference scenarios. This exercise is
+intentionally performed after the MCDCv6 scan so the report reflects the full asset inventory.
 
-### Step 8.1 — Open the Report
+> **Why now?** Generating a report at deploy time would produce an incomplete snapshot because
+> MCDCv6 discovery data arrives only after the manual OAuth login and scan in Exercises 2–4.
+> The asset groups and preference sets were pre-created by Terraform — you only need to
+> trigger the report itself.
 
-Navigate to **Migration Center → Reports** in the Cloud Console.
+### Step 8.1 — Create a Report Configuration
 
-The report `lab-tco-report` was generated automatically by Terraform. If the report is still
-processing (it can take up to 5 minutes after Terraform completes), wait and refresh the page.
+A report configuration defines which groups and preference sets to compare. Create one via
+the Cloud Console or the REST API.
 
-### Step 8.2 — Explore the Report Summary
+**Cloud Console:**
+1. Navigate to **Migration Center → Reports**
+2. Click **Create report**
+3. Give it a display name (e.g. `lab-tco-report`)
+4. Under **Groups and preferences**, add the following assignments:
 
-On the report overview page, review:
+| Group | Preference set |
+|---|---|
+| All Assets (`migcenter-<id>-all-assets`) | aggressive-3yr (`migcenter-<id>-aggressive-3yr`) |
+| windows-only (`migcenter-<id>-windows-only`) | moderate-1yr (`migcenter-<id>-moderate-1yr`) |
+| linux-only (`migcenter-<id>-linux-only`) | moderate-1yr (`migcenter-<id>-moderate-1yr`) |
+
+5. Click **Create** — Migration Center generates the report (allow up to 5 minutes)
+
+**REST API — create report config and trigger report:**
+```bash
+DEPLOYMENT_ID="<your-deployment-id>"   # from Terraform output deployment_id
+
+REPORT_CONFIG_ID="migcenter-${DEPLOYMENT_ID}-report-config"
+
+# Create the report configuration
+curl -s -X POST \
+  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/reportConfigs?reportConfigId=${REPORT_CONFIG_ID}" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"displayName\": \"lab-report-config\",
+    \"groupPreferencesetAssignments\": [
+      {
+        \"group\": \"projects/${PROJECT_ID}/locations/${REGION}/groups/migcenter-${DEPLOYMENT_ID}-all-assets\",
+        \"preferenceSet\": \"projects/${PROJECT_ID}/locations/${REGION}/preferenceSets/migcenter-${DEPLOYMENT_ID}-aggressive-3yr\"
+      },
+      {
+        \"group\": \"projects/${PROJECT_ID}/locations/${REGION}/groups/migcenter-${DEPLOYMENT_ID}-windows-only\",
+        \"preferenceSet\": \"projects/${PROJECT_ID}/locations/${REGION}/preferenceSets/migcenter-${DEPLOYMENT_ID}-moderate-1yr\"
+      },
+      {
+        \"group\": \"projects/${PROJECT_ID}/locations/${REGION}/groups/migcenter-${DEPLOYMENT_ID}-linux-only\",
+        \"preferenceSet\": \"projects/${PROJECT_ID}/locations/${REGION}/preferenceSets/migcenter-${DEPLOYMENT_ID}-moderate-1yr\"
+      }
+    ]
+  }" | jq '{name, displayName}'
+```
+
+```bash
+# Generate a TCO report from the config
+curl -s -X POST \
+  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/reportConfigs/${REPORT_CONFIG_ID}/reports?reportId=migcenter-${DEPLOYMENT_ID}-tco" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "displayName": "lab-tco-report",
+    "type": "TOTAL_COST_OF_OWNERSHIP"
+  }' | jq '{name, displayName, state}'
+```
+
+### Step 8.2 — Wait for the Report to Complete
+
+Report generation typically takes **2–5 minutes**. Poll the status:
+
+```bash
+curl -s \
+  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/reportConfigs/${REPORT_CONFIG_ID}/reports" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  | jq '.reports[] | {displayName, state, createTime}'
+```
+
+Wait until `state` shows `SUCCEEDED`.
+
+### Step 8.3 — Explore the Report Summary
+
+Open **Migration Center → Reports** in the Cloud Console and click on `lab-tco-report`.
+
+On the overview page, review:
 
 1. **Total estimated monthly GCP cost** — combined projection across all groups
 2. **Cost breakdown by group** — All Assets vs. windows-only vs. linux-only sections
 3. **Preference set comparison** — side-by-side aggressive-3yr vs. moderate-1yr cost estimates
 
-### Step 8.3 — Explore the Detailed Report
+### Step 8.4 — Explore the Detailed Report
 
 Click **View report** to open the detailed breakdown:
 
@@ -762,39 +840,14 @@ Click **View report** to open the detailed breakdown:
 | **Storage** | Estimated persistent disk costs based on discovered disk profiles |
 | **Licenses** | Windows licence cost modelling (BYOL vs. Google-provided) |
 
-### Step 8.4 — View Report Metadata via REST API
+### Step 8.5 — Generate a Second Report Variation (Optional)
+
+Repeat the generation step with a different report ID to compare results after further
+discovery data arrives:
 
 ```bash
-# List all report configurations
-curl -s \
-  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/reportConfigs" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  | jq '.reportConfigs[] | {name, displayName}'
-```
-
-```bash
-# List reports within a report config
-REPORT_CONFIG=$(curl -s \
-  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/reportConfigs" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  | jq -r '.reportConfigs[0].name')
-
-curl -s \
-  "https://migrationcenter.googleapis.com/v1/${REPORT_CONFIG}/reports" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  | jq '.reports[] | {displayName, type, state, createTime}'
-```
-
-### Step 8.5 — Generate a New Report (Optional)
-
-To create a second report variation, trigger another generation run:
-
-```bash
-# Use the report config name retrieved above
-REPORT_CONFIG_ID=$(basename "${REPORT_CONFIG}")
-
 curl -s -X POST \
-  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/reportConfigs/${REPORT_CONFIG_ID}/reports?reportId=lab-tco-report-v2" \
+  "https://migrationcenter.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/reportConfigs/${REPORT_CONFIG_ID}/reports?reportId=migcenter-${DEPLOYMENT_ID}-tco-v2" \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
   -H "Content-Type: application/json" \
   -d '{
@@ -897,11 +950,12 @@ gcloud compute networks delete "${VPC_NAME}" --project="${PROJECT_ID}" --quiet
 | `windows_vm_machine_type` | string | `e2-medium` | Windows VM machine type |
 | `windows_vm_boot_disk_size_gb` | number | `50` | Windows VM boot disk size in GB |
 | `linux_vm_machine_type` | string | `e2-medium` | Linux VM machine type |
-| `initialize_migration_center` | bool | `true` | Auto-initialise MC, source, AWS import |
-| `import_aws_sample_data` | bool | `true` | Import AWS sample CSV data |
-| `generate_reports` | bool | `true` | Create groups, preferences, and TCO report |
+| `initialize_migration_center` | bool | `true` | Auto-initialise MC service and register discovery source |
+| `aws_access_key_id` | string | `""` | Bootstrap AWS credentials — module creates scoped IAM user and imports EC2 inventory |
+| `aws_secret_access_key` | string | `""` | AWS Secret Key corresponding to the Access Key ID |
+| `aws_region` | string | `us-east-1` | AWS region for EC2 discovery |
+| `generate_reports` | bool | `true` | Pre-create asset groups and migration preference sets |
 | `mc_discovery_client_name` | string | `mc-discovery-client` | MCDCv6 source name |
-| `mc_report_name` | string | `lab-tco-report` | Name for the generated TCO report |
 
 ### Terraform Outputs
 
@@ -930,7 +984,7 @@ gcloud compute networks delete "${VPC_NAME}" --project="${PROJECT_ID}" --quiet
 | SSH scan shows "Access Denied" | Wrong SSH key or username | Use `migrationcenter` user and `lab-ssh-key.pem` key |
 | Linux VMs not discovered | IP range too narrow | Ensure range covers all IPs from `linux_vm_internal_ips` output |
 | AWS import job pending/failed | API propagation delay | Check job state via REST API; may take up to 10 min |
-| TCO report still generating | Reports take up to 5 min | Refresh Migration Center → Reports |
+| TCO report still generating | Reports take up to 5 min after triggering | Refresh Migration Center → Reports; poll via REST API until state = SUCCEEDED |
 | `prevent_destroy` blocks destroy | Expected lifecycle policy | Delete resources manually via the Cloud Console or contact platform support |
 
 ### Useful Commands Reference

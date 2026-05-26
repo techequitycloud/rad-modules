@@ -497,82 +497,11 @@ resource "null_resource" "mc_preferences" {
   depends_on = [null_resource.mc_groups]
 }
 
-# ─── Step 6: Create Report Config and Generate TCO Report ────────────────────
-# Creates a report configuration referencing all three groups and both preference
-# sets, then triggers generation. Report takes up to 5 minutes; users can
-# monitor progress in the Migration Center console.
-resource "null_resource" "mc_report" {
-  count = (var.initialize_migration_center && var.generate_reports) ? 1 : 0
-
-  triggers = {
-    report_name = var.mc_report_name
-    project     = local.project.project_id
-    region      = var.region
-    random_id   = local.random_id
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      TOKEN=$(gcloud auth print-access-token \
-        --impersonate-service-account='${var.resource_creator_identity}' \
-        --quiet 2>/dev/null)
-
-      REPORT_CONFIG_ID="migcenter-${local.random_id}-report-config"
-
-      echo "Creating report configuration..."
-      RESP=$(curl -s -w "\n%%{http_code}" \
-        -X POST \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{
-          \"displayName\": \"${var.mc_report_name}-config\",
-          \"groupPreferencesetAssignments\": [
-            {
-              \"group\": \"projects/${local.project.project_id}/locations/${var.region}/groups/${local.group_all_name}\",
-              \"preferenceSet\": \"projects/${local.project.project_id}/locations/${var.region}/preferenceSets/${local.pref_agg_name}\"
-            },
-            {
-              \"group\": \"projects/${local.project.project_id}/locations/${var.region}/groups/${local.group_win_name}\",
-              \"preferenceSet\": \"projects/${local.project.project_id}/locations/${var.region}/preferenceSets/${local.pref_mod_name}\"
-            },
-            {
-              \"group\": \"projects/${local.project.project_id}/locations/${var.region}/groups/${local.group_lin_name}\",
-              \"preferenceSet\": \"projects/${local.project.project_id}/locations/${var.region}/preferenceSets/${local.pref_mod_name}\"
-            }
-          ]
-        }" \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/reportConfigs?reportConfigId=$REPORT_CONFIG_ID")
-      HTTP_CODE=$(echo "$RESP" | tail -1)
-      BODY=$(echo "$RESP" | head -n -1)
-      if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "409" ]; then
-        echo "Report config created or already exists (HTTP $HTTP_CODE)."
-      else
-        echo "ERROR: Report config creation returned HTTP $HTTP_CODE."
-        echo "$BODY"
-        exit 1
-      fi
-
-      echo "Triggering report generation for '${var.mc_report_name}'..."
-      RESP=$(curl -s -w "\n%%{http_code}" \
-        -X POST \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{
-          \"displayName\": \"${var.mc_report_name}\",
-          \"type\": \"TOTAL_COST_OF_OWNERSHIP\"
-        }" \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/reportConfigs/$REPORT_CONFIG_ID/reports?reportId=migcenter-${local.random_id}-tco")
-      HTTP_CODE=$(echo "$RESP" | tail -1)
-      BODY=$(echo "$RESP" | head -n -1)
-      if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "409" ]; then
-        echo "Report generation triggered (HTTP $HTTP_CODE). Allow up to 5 minutes for the report to appear."
-      else
-        echo "ERROR: Report generation returned HTTP $HTTP_CODE."
-        echo "$BODY"
-        exit 1
-      fi
-    EOT
-  }
-
-  depends_on = [null_resource.mc_preferences]
-}
+# ─── Report generation is intentionally NOT automated ────────────────────────
+# Reports require a fully populated asset inventory to be meaningful. MCDCv6
+# discovery data does not arrive until a user completes the OAuth login and runs
+# an IP scan (manual steps). Generating a report at deploy time would produce an
+# incomplete snapshot. Instead, groups and preference sets are pre-configured
+# here so the user can generate a report from the Migration Center console
+# immediately after completing the MCDCv6 scan.
+# ─────────────────────────────────────────────────────────────────────────────

@@ -11,9 +11,11 @@ cloud environments.
 assessment, infrastructure rightsizing analysis, TCO comparison for
 FinOps teams.
 
-The module provisions the complete lab environment and runs all Migration
-Center setup steps automatically, so users spend their time exploring
-assets and reports — not configuring infrastructure.
+The module provisions the complete lab environment and automates all
+infrastructure and Migration Center configuration steps. Users connect
+via RDP, complete the MCDCv6 Google OAuth login, run a discovery scan,
+and then generate a TCO report from the console against fully populated
+asset data.
 
 ## What Gets Deployed
 
@@ -27,7 +29,6 @@ assets and reports — not configuring infrastructure.
 | AWS Sample Data Import | 4-file AWS CSV export imported into the asset inventory |
 | Asset Groups | All Assets · windows-only · linux-only |
 | Migration Preferences | Aggressive 3-year · Moderate 1-year CUD |
-| TCO Report | Pre-generated, visible within ~5 minutes of deployment |
 
 ## Deployment Options
 
@@ -61,7 +62,6 @@ module "vm_migration" {
   # Optional overrides
   linux_vm_count           = 3
   mc_discovery_client_name = "mc-discovery-client"
-  mc_report_name           = "lab-tco-report"
 }
 ```
 
@@ -84,7 +84,8 @@ The only manual steps are:
 1. RDP into the Windows VM (credentials in outputs)
 2. Complete the Google OAuth login in MCDCv6 (browser-based)
 3. Add OS credentials and SSH key in MCDCv6 UI
-4. Run the IP scan and explore the populated console
+4. Run the IP scan
+5. Generate a TCO report from the Migration Center console (asset groups and preference sets are pre-created and ready)
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
@@ -131,7 +132,6 @@ The only manual steps are:
 | null_resource.mc_groups | resource |
 | null_resource.mc_init | resource |
 | null_resource.mc_preferences | resource |
-| null_resource.mc_report | resource |
 | null_resource.mc_source | resource |
 | random_id.default | resource |
 | tls_private_key.ssh_key | resource |
@@ -148,14 +148,13 @@ The only manual steps are:
 | create_vpc | Create the lab VPC network | `bool` | `true` |
 | create_windows_vm | Deploy the Windows Server 2022 VM with MCDCv6 pre-installed | `bool` | `true` |
 | deployment_id | Short alphanumeric suffix for resource name uniqueness | `string` | `null` |
-| generate_reports | Create groups, preferences, and trigger TCO report generation | `bool` | `true` |
+| generate_reports | Create asset groups and migration preference sets; report generation is a manual console step after MCDCv6 discovery | `bool` | `true` |
 | initialize_migration_center | Initialize Migration Center and create a discovery source | `bool` | `true` |
 | internal_traffic_cidr | CIDR for allow-internal firewall rule | `string` | `"10.128.0.0/9"` |
 | linux_vm_boot_disk_size_gb | Boot disk size in GB for each Linux VM | `number` | `20` |
 | linux_vm_count | Number of Linux discovery target VMs | `number` | `3` |
 | linux_vm_machine_type | Machine type for Linux VMs | `string` | `"e2-medium"` |
 | mc_discovery_client_name | MCDCv6 discovery client name (must match what you enter in the UI) | `string` | `"mc-discovery-client"` |
-| mc_report_name | Name for the generated TCO report | `string` | `"lab-tco-report"` |
 | project_id | GCP project ID | `string` | `null` |
 | region | GCP region | `string` | `"us-central1"` |
 | resource_creator_identity | Terraform service account email | `string` | `"rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"` |
