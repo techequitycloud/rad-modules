@@ -79,7 +79,21 @@ Every module's `main.tf` does the same three things at the top:
 
 1. Looks up the existing GCP project via `data "google_project" "existing_project"` keyed by `var.project_id`.
 2. Generates a deployment suffix: `random_id "default"` is created when `var.deployment_id` is `null`; `local.random_id` resolves to either the provided value or the generated hex.
-3. Enables the project's required APIs via `google_project_service.enabled_services` with `disable_dependent_services = false` and `disable_on_destroy = false` (critical — prevents destroy from disabling APIs that other modules may be using).
+3. Enables the project's required APIs via `google_project_service.enabled_services`. Always set `disable_dependent_services = false` and `disable_on_destroy = false`, and add a `lifecycle { prevent_destroy = true }` block. The combination provides two layers of protection: `disable_on_destroy = false` prevents the API from being switched off even if Terraform removes the resource record, while `prevent_destroy = true` causes `tofu destroy` to refuse to remove the resource at all, keeping the API enabled and tracked in state. APIs must never have an `enable_services` toggle variable — they should always be unconditionally enabled.
+
+```hcl
+resource "google_project_service" "enabled_services" {
+  for_each                   = toset(local.default_apis)
+  project                    = local.project.project_id
+  service                    = each.value
+  disable_dependent_services = false
+  disable_on_destroy         = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+```
 
 Modules that install workloads via `kubectl` also include a `null_resource.wait_for_container_api` that polls `gcloud services list` until `container.googleapis.com` reports as enabled before any cluster resource is created.
 
@@ -230,7 +244,7 @@ There is no scaffolding script. Create a new module by copying the layout from t
 
 - **File naming**: `snake_case` for `.tf` files. Module directories use `PascalCase` / `SCREAMING_SNAKE_CASE` (e.g. `Istio_GKE`, `MC_Bank_GKE`).
 - **Copyright headers**: Every `.tf` file begins with the Apache 2.0 license header.
-- **API enablement**: Always set `disable_dependent_services = false` and `disable_on_destroy = false` on `google_project_service` to avoid disabling APIs that may be in use by other modules or deployments.
+- **API enablement**: Always set `disable_dependent_services = false`, `disable_on_destroy = false`, and `lifecycle { prevent_destroy = true }` on every `google_project_service` resource. `disable_on_destroy = false` prevents the API from being switched off if the resource is ever removed from state. `prevent_destroy = true` goes further — it causes `tofu destroy` to abort rather than touch the API resource at all, ensuring the API stays enabled and remains in state. Do not expose an `enable_services` toggle variable; APIs must be unconditionally enabled by every module.
 - **Destroy safety**: Any `null_resource` with a meaningful create-time effect **must** have a matching `when = destroy` provisioner that cleans up, and that provisioner must tolerate missing resources (`--ignore-not-found`, `|| true`, etc.).
 - **Impersonation**: Only fetch an impersonation access token when `length(var.resource_creator_identity) != 0`; otherwise let the provider use ADC.
 - **No secrets in variables**: Credentials like `client_secret`, `aws_secret_key` are module inputs but must never be given default values. The caller is responsible for sourcing them from a secret store.
@@ -292,7 +306,11 @@ A `null_resource` destroy provisioner is failing hard. Every destroy provisioner
 
 ### API disabled after destroy
 
-Ensure `google_project_service.enabled_services` has `disable_on_destroy = false`. If you inherited a module where it was `true`, change it before the first destroy — once an API is disabled, dependent resources in other deployments will start failing.
+Ensure `google_project_service.enabled_services` has both `disable_on_destroy = false` and `lifecycle { prevent_destroy = true }`. `disable_on_destroy = false` prevents the API from being switched off when Terraform removes the resource record. `lifecycle { prevent_destroy = true }` prevents Terraform from removing the resource record at all, keeping the API enabled and tracked in state across destroy operations. If you inherited a module that has `disable_on_destroy = true` or lacks `prevent_destroy`, change it before the first destroy — once an API is disabled, dependent resources in other deployments will start failing immediately.
+
+### API `prevent_destroy` blocks `tofu destroy`
+
+This is expected and intentional. `google_project_service` resources with `lifecycle { prevent_destroy = true }` will cause `tofu destroy` to exit with an error rather than disable project APIs. To fully decommission a module and remove its API records from state, first remove the `lifecycle` block (or run `terraform state rm google_project_service.enabled_services`) then re-run `tofu destroy`. Do not skip this step — APIs disabled mid-destroy can break other running modules in the same project.
 
 ### Attached cluster never appears in the GCP Console
 
