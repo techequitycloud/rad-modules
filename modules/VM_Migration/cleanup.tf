@@ -27,9 +27,4 @@
 # tracked in Terraform state. They must be deleted manually from the
 # Migration Center console, or they will be cleaned up automatically when
 # the GCP project is deleted.
-#
-# The google_project_iam_member.migrationcenter_sa_user resource carries
-# prevent_destroy = true. To destroy it, run:
-#   terraform state rm google_project_iam_member.migrationcenter_sa_user
-# then re-run terraform destroy.
 # ────────────────────────────────────────────────────────────────────────────

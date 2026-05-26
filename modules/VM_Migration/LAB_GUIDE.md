@@ -279,12 +279,6 @@ export PROJECT="your-project-id"
 export REGION="us-central1"
 ```
 
-**Initialize Migration Center:**
-```bash
-curl -X POST "$BASE/projects/$PROJECT/locations/$REGION:initializeConfig" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{}'
-```
-
 **List assets:**
 ```bash
 curl -s "$BASE/projects/$PROJECT/locations/$REGION/assets" \

@@ -118,7 +118,6 @@ The only manual steps are:
 | google_compute_instance.linux_vm | resource |
 | google_compute_instance.windows_vm | resource |
 | google_compute_network.lab_vpc | resource |
-| google_project_iam_member.migrationcenter_sa_user | resource |
 | google_project_service.enabled_services | resource |
 | google_storage_bucket.ssh_key_bucket | resource |
 | google_storage_bucket_object.ssh_private_key | resource |
@@ -140,7 +139,6 @@ The only manual steps are:
 | create_vpc | Create the lab VPC network | `bool` | `true` |
 | create_windows_vm | Deploy the Windows Server 2022 VM with MCDCv6 pre-installed | `bool` | `true` |
 | deployment_id | Short alphanumeric suffix for resource name uniqueness | `string` | `null` |
-| enable_services | Automatically enable required GCP APIs | `bool` | `true` |
 | generate_reports | Create groups, preferences, and trigger TCO report generation | `bool` | `true` |
 | import_aws_sample_data | Download and import sample AWS CSV data into Migration Center | `bool` | `true` |
 | initialize_migration_center | Initialize Migration Center and create a discovery source | `bool` | `true` |
