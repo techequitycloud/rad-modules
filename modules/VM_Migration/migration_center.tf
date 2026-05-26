@@ -55,6 +55,12 @@ resource "null_resource" "mc_init" {
           exit 0
         fi
 
+        if [ "$STATUS" = "404" ]; then
+          echo "NOTE: initializeConfig returned 404 — v1 API auto-initializes on first use."
+          echo "Proceeding to create Discovery Source."
+          exit 0
+        fi
+
         echo "initializeConfig returned HTTP $STATUS — waiting $${WAIT}s before retry..."
         sleep $WAIT
         WAIT=$((WAIT * 2))
