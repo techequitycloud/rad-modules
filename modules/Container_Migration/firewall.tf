@@ -29,7 +29,7 @@ data "google_compute_network" "vpc" {
 resource "google_compute_firewall" "allow_internal" {
   count   = var.create_default_firewall_rules ? 1 : 0
   project = local.project.project_id
-  name    = "altostrat-${local.random_id}-allow-internal"
+  name    = "mig-${local.random_id}-allow-internal"
   network = data.google_compute_network.vpc.name
 
   direction = "INGRESS"
@@ -48,7 +48,7 @@ resource "google_compute_firewall" "allow_internal" {
 resource "google_compute_firewall" "allow_ssh" {
   count   = var.create_default_firewall_rules ? 1 : 0
   project = local.project.project_id
-  name    = "altostrat-${local.random_id}-allow-ssh"
+  name    = "mig-${local.random_id}-allow-ssh"
   network = data.google_compute_network.vpc.name
 
   direction = "INGRESS"
@@ -68,7 +68,7 @@ resource "google_compute_firewall" "allow_ssh" {
 resource "google_compute_firewall" "allow_icmp" {
   count   = var.create_default_firewall_rules ? 1 : 0
   project = local.project.project_id
-  name    = "altostrat-${local.random_id}-allow-icmp"
+  name    = "mig-${local.random_id}-allow-icmp"
   network = data.google_compute_network.vpc.name
 
   direction = "INGRESS"
@@ -90,7 +90,7 @@ resource "google_compute_firewall" "allow_icmp" {
 
 resource "google_compute_firewall" "allow_tomcat" {
   project = local.project.project_id
-  name    = "altostrat-${local.random_id}-allow-tomcat"
+  name    = "mig-${local.random_id}-allow-tomcat"
   network = data.google_compute_network.vpc.name
 
   direction = "INGRESS"

@@ -54,8 +54,8 @@ data to GKE PersistentVolumes — all without requiring changes to application s
 │                    GCP Project                           │
 │                                                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐ │
-│  │  petclinic-  │  │   tomcat-    │  │   m2c-cli     │ │
-│  │  postgres VM │  │ petclinic VM │  │      VM       │ │
+│  │  mig-{id}-   │  │  mig-{id}-   │  │  mig-{id}-m2c │ │
+│  │  postgres VM │  │   tomcat VM  │  │      VM       │ │
 │  │ PostgreSQL14 │  │  Tomcat 10   │  │ m2c + Docker  │ │
 │  │              │  │  PetClinic   │  │ kubectl+skaf. │ │
 │  └──────┬───────┘  └──────┬───────┘  └───────┬───────┘ │
@@ -64,12 +64,12 @@ data to GKE PersistentVolumes — all without requiring changes to application s
 │                           │ skaffold run                 │
 │                    ┌──────▼───────┐                      │
 │                    │  GKE Cluster │                      │
-│                    │  m2c-guide   │                      │
+│                    │ mig-{id}-gke │                      │
 │                    │  3x e2-med   │                      │
 │                    └─────────────┘                       │
 │                                                          │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │           Auto-mode VPC + Firewall Rules          │   │
+│  │    mig-{id}-vpc  +  Firewall Rules               │   │
 │  └──────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -142,9 +142,9 @@ export PROJECT_ID=$(gcloud config get-value project)
 export ZONE_ID=<your-zone>
 gcloud container clusters get-credentials $GKE_CLUSTER --zone=$ZONE_ID --project=$PROJECT_ID
 mkdir ~/m2c-petclinic/postgresql && cd ~/m2c-petclinic/postgresql
-m2c copy gcloud -p $PROJECT_ID -z $ZONE_ID -n $POSTGRES_VM -o petclinic-postgres-fs --filters ~/filters.txt
-m2c analyze -s petclinic-postgres-fs -p linux-vm-container -o ./migration
-sed -i 's/linux-system/petclinic-postgres/g' migration/config.yaml
+m2c copy gcloud -p $PROJECT_ID -z $ZONE_ID -n $POSTGRES_VM -o postgres-fs --filters ~/filters.txt
+m2c analyze -s postgres-fs -p linux-vm-container -o ./migration
+sed -i 's/linux-system/postgres/g' migration/config.yaml
 # Add endpoint and dataConfig.yaml — see full LAB_GUIDE.md
 m2c migrate-data -i migration -n default
 m2c generate -i ./migration -o ./artifacts
@@ -158,9 +158,9 @@ See [LAB_GUIDE.md](../../modules/Container_Migration/LAB_GUIDE.md) for complete 
 
 ```bash
 mkdir ~/m2c-petclinic/tomcat && cd ~/m2c-petclinic/tomcat
-m2c copy gcloud -p $PROJECT_ID -z $ZONE_ID -n $TOMCAT_VM -o tomcat-petclinic-fs --filters ~/filters.txt
-m2c analyze -s tomcat-petclinic-fs -p linux-vm-container -o ./migration
-sed -i 's/linux-system/tomcat-petclinic/g' migration/config.yaml
+m2c copy gcloud -p $PROJECT_ID -z $ZONE_ID -n $TOMCAT_VM -o tomcat-fs --filters ~/filters.txt
+m2c analyze -s tomcat-fs -p linux-vm-container -o ./migration
+sed -i 's/linux-system/tomcat/g' migration/config.yaml
 # Add endpoint — see full LAB_GUIDE.md
 m2c generate -i ./migration -o ./artifacts
 ```
@@ -194,7 +194,7 @@ kubectl get pods
 **Horizontal Pod Autoscaler:**
 
 ```bash
-kubectl autoscale deployment tomcat-petclinic --cpu-percent=50 --min=2 --max=8
+kubectl autoscale deployment tomcat --cpu-percent=50 --min=2 --max=8
 kubectl get hpa
 ```
 

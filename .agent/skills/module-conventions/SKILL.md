@@ -224,14 +224,14 @@ Modules that expose user-facing endpoints (e.g. `Istio_GKE` with the Ingress Gat
 
 ## Documentation
 
-Each module needs two markdown files, both kept in sync with `variables.tf`:
+Each module has one markdown file kept in sync with `variables.tf`, plus a shared lab guide under `docs/labs/`:
 
 ### README.md (~90–110 lines)
 
 Follow the exact table shape used by existing modules:
 
-1. One-paragraph overview.
-2. Link to the deep-dive `<MODULE>.md`.
+1. One-paragraph overview, including the `mig-{deployment_id}-*` resource naming convention.
+2. Link to the lab guide at `docs/labs/<Module_Name>.md` (e.g. `[Container_Migration.md](../../docs/labs/Container_Migration.md)`). **Never** link to a `LAB_GUIDE.md` inside the module directory — that file does not exist.
 3. `## Usage` — a minimal `module "name" { source = "..." ... }` block.
 4. `## Requirements` — provider versions table.
 5. `## Providers` — same table, lightly different.
@@ -242,9 +242,11 @@ Follow the exact table shape used by existing modules:
 
 The README's Inputs table must reflect defaults and descriptions from `variables.tf` verbatim (minus the `{{UIMeta ...}}` tag). When updating a variable, update the README in the same change.
 
-### `<MODULE_NAME>.md` (~1000–2600 lines)
+### Lab guide — `docs/labs/<Module_Name>.md`
 
-Long-form educational document. Follows the section structure seen in `modules/AKS_GKE/AKS_GKE.md`: Overview & Learning Objectives → What This Module Deploys → feature-specific deep dives → Troubleshooting. New modules can start shorter but should cover the "why" behind each architectural choice.
+Long-form hands-on lab guide shared across the repo. Lives at `docs/labs/<Module_Name>.md` (e.g. `docs/labs/Container_Migration.md`). Covers: Overview & Architecture → Lab Setup → numbered Exercises → Cleanup → Reference. The `module_documentation` variable default in `variables.tf` must point to the GitHub URL of this file, **not** to a `LAB_GUIDE.md` inside the module.
+
+> **Do not create `LAB_GUIDE.md` inside a module directory.** The lab guide is always at `docs/labs/<Module_Name>.md`.
 
 ## Checklist When Adding a New Module
 
@@ -255,6 +257,6 @@ Long-form educational document. Follows the section structure seen in `modules/A
 5. Keep the ten standard variables intact. Add module-specific variables in their own `SECTION N`, each with a `{{UIMeta group=N order=NNN }}` tag.
 6. Update `default_apis` in `main.tf` to the APIs actually required.
 7. Decide Pattern A vs Pattern B for provider auth; delete the unused file.
-8. Rewrite `README.md` tables against the final `variables.tf`, and write the deep-dive `<MODULE_NAME>.md`.
+8. Rewrite `README.md` tables against the final `variables.tf`, and write the lab guide at `docs/labs/<Module_Name>.md`. Update `module_documentation` default in `variables.tf` to point to its GitHub URL.
 9. Run `tofu fmt -recursive` and `tofu validate` in the module directory before committing.
 10. Smoke test via `rad-launcher` with a minimal `--varfile` before declaring done.
