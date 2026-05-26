@@ -318,7 +318,7 @@ resource "null_resource" "mc_report" {
         --impersonate-service-account='${var.resource_creator_identity}' \
         --quiet 2>/dev/null)
 
-      REPORT_CONFIG_ID="altostrat-${local.random_id}-report-config"
+      REPORT_CONFIG_ID="migcenter-${local.random_id}-report-config"
 
       echo "Creating report configuration..."
       curl -s -o /dev/null \
@@ -354,7 +354,7 @@ resource "null_resource" "mc_report" {
           \"displayName\": \"${var.mc_report_name}\",
           \"type\": \"TOTAL_COST_OF_OWNERSHIP\"
         }" \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/reportConfigs/$REPORT_CONFIG_ID/reports?reportId=altostrat-${local.random_id}-tco" \
+        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/reportConfigs/$REPORT_CONFIG_ID/reports?reportId=migcenter-${local.random_id}-tco" \
         || echo "WARNING: Report generation failed — run manually from the Migration Center console."
 
       echo "Report generation triggered. Allow up to 5 minutes for the report to appear."

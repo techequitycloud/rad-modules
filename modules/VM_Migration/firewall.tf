@@ -24,7 +24,7 @@
 resource "google_compute_firewall" "default_allow_internal" {
   count   = var.create_default_firewall_rules ? 1 : 0
   project = local.project.project_id
-  name    = "altostrat-${local.random_id}-allow-internal"
+  name    = "migcenter-${local.random_id}-allow-internal"
   network = data.google_compute_network.lab_vpc.name
 
   direction = "INGRESS"
@@ -43,7 +43,7 @@ resource "google_compute_firewall" "default_allow_internal" {
 resource "google_compute_firewall" "default_allow_ssh" {
   count   = var.create_default_firewall_rules ? 1 : 0
   project = local.project.project_id
-  name    = "altostrat-${local.random_id}-allow-ssh"
+  name    = "migcenter-${local.random_id}-allow-ssh"
   network = data.google_compute_network.lab_vpc.name
 
   direction = "INGRESS"
@@ -63,7 +63,7 @@ resource "google_compute_firewall" "default_allow_ssh" {
 resource "google_compute_firewall" "default_allow_rdp" {
   count   = var.create_default_firewall_rules ? 1 : 0
   project = local.project.project_id
-  name    = "altostrat-${local.random_id}-allow-rdp"
+  name    = "migcenter-${local.random_id}-allow-rdp"
   network = data.google_compute_network.lab_vpc.name
 
   direction = "INGRESS"
@@ -83,7 +83,7 @@ resource "google_compute_firewall" "default_allow_rdp" {
 resource "google_compute_firewall" "default_allow_icmp" {
   count   = var.create_default_firewall_rules ? 1 : 0
   project = local.project.project_id
-  name    = "altostrat-${local.random_id}-allow-icmp"
+  name    = "migcenter-${local.random_id}-allow-icmp"
   network = data.google_compute_network.lab_vpc.name
 
   direction = "INGRESS"
@@ -103,7 +103,7 @@ resource "google_compute_firewall" "default_allow_icmp" {
 # MCDCv6 to reach Migration Center APIs and Google OAuth endpoints.
 resource "google_compute_firewall" "default_allow_http" {
   project = local.project.project_id
-  name    = "altostrat-${local.random_id}-allow-http"
+  name    = "migcenter-${local.random_id}-allow-http"
   network = data.google_compute_network.lab_vpc.name
 
   direction = "INGRESS"

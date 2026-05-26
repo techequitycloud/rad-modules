@@ -27,17 +27,17 @@ locals {
     "iamcredentials.googleapis.com",
   ]
 
-  peer_vpc_name    = "altostrat-${local.random_id}-vpc"
-  windows_vm_name  = "altostrat-${local.random_id}-winvm01"
-  linux_vm_prefix  = "altostrat-${local.random_id}-linvm"
-  ssh_key_bucket   = "altostrat-${local.random_id}-mc-keys"
-  mc_source_name   = "altostrat-${local.random_id}-mc-source"
-  aws_import_name  = "altostrat-${local.random_id}-aws-import"
-  group_all_name   = "altostrat-${local.random_id}-all-assets"
-  group_win_name   = "altostrat-${local.random_id}-windows-only"
-  group_lin_name   = "altostrat-${local.random_id}-linux-only"
-  pref_agg_name    = "altostrat-${local.random_id}-aggressive-3yr"
-  pref_mod_name    = "altostrat-${local.random_id}-moderate-1yr"
+  peer_vpc_name    = "migcenter-${local.random_id}-vpc"
+  windows_vm_name  = "migcenter-${local.random_id}-winvm01"
+  linux_vm_prefix  = "migcenter-${local.random_id}-linvm"
+  ssh_key_bucket   = "migcenter-${local.random_id}-mc-keys"
+  mc_source_name   = "migcenter-${local.random_id}-mc-source"
+  aws_import_name  = "migcenter-${local.random_id}-aws-import"
+  group_all_name   = "migcenter-${local.random_id}-all-assets"
+  group_win_name   = "migcenter-${local.random_id}-windows-only"
+  group_lin_name   = "migcenter-${local.random_id}-linux-only"
+  pref_agg_name    = "migcenter-${local.random_id}-aggressive-3yr"
+  pref_mod_name    = "migcenter-${local.random_id}-moderate-1yr"
 }
 
 resource "random_id" "default" {

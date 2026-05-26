@@ -97,9 +97,9 @@ them throughout the lab.
 Outputs:
 
 windows_vm_external_ip    = "34.x.x.x"
-windows_vm_name           = "altostrat-ab12-winvm01"
+windows_vm_name           = "migcenter-ab12-winvm01"
 linux_vm_internal_ips     = ["10.128.0.2", "10.128.0.3", "10.128.0.4"]
-ssh_key_bucket_name       = "altostrat-ab12-mc-keys"
+ssh_key_bucket_name       = "migcenter-ab12-mc-keys"
 ssh_key_user              = "migrationcenter"
 mc_discovery_client_name  = "mc-discovery-client"
 migration_center_url      = "https://console.cloud.google.com/migration/center?project=..."
