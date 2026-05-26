@@ -1,6 +1,10 @@
 # Container\_Migration Module
 
-This module deploys **Google Cloud Migrate to Containers (M2C)** infrastructure — the automated path for replatforming VM-based Linux workloads to containers on Google Kubernetes Engine (GKE) without manual application refactoring. Migrate to Containers uses the `mcdc` CLI to analyse running VMs, auto-generates production-ready Dockerfiles and Kubernetes manifests, and migrates persistent data to GKE PersistentVolumes via the `m2c` CLI.
+This module deploys **Google Cloud Migrate to Containers (M2C)** infrastructure — the automated path for replatforming VM-based Linux workloads to containers on Google Kubernetes Engine (GKE) without manual application refactoring.
+
+M2C uses two distinct CLIs: the **`mcdc` CLI** runs on each source VM to assess containerisation suitability, scoring readiness across multiple migration journeys (GKE, GKE Autopilot, Cloud Run, and Compute Engine) and generating reports in HTML, Excel, CSV, and JSON formats; the **`m2c` CLI** runs on a migration workstation to copy VM filesystems, analyse them with workload-specific plugins, produce a customisable migration plan, migrate persistent data to GKE PersistentVolumes, and generate production-ready Dockerfiles and Kubernetes manifests.
+
+The full migration lifecycle spans three phases: **Transformation** (copy, analyse, customise, generate), **Workload Deployment** (build, push, deploy via Skaffold), and **Maintenance** (scale, autoscale, rolling updates using native Kubernetes).
 
 The module provisions two Ubuntu source VMs (PostgreSQL 14 and Apache Tomcat 10 running the Spring PetClinic application), a Migrate to Containers CLI workstation pre-installed with the `m2c` toolchain, Docker, `kubectl`, and Skaffold, and a three-node GKE cluster ready to receive migrated workloads.
 
@@ -8,10 +12,11 @@ All resources are named with the prefix `mig-{deployment_id}-` (e.g. `mig-8b56-p
 
 ## Industry Value & Use Cases
 
-Migrate to Containers is the Google-recommended path for engineering teams modernising VM fleets to Kubernetes without application-level refactoring. It is commonly adopted by organisations with large Java, Python, and Node.js VM estates that need to reduce operational overhead, improve density, and unlock CI/CD workflows — without a full application rewrite.
+Migrate to Containers is the Google-recommended path for engineering teams modernising VM fleets to Kubernetes without application-level refactoring. It is commonly adopted by organisations with large Java, Python, and Node.js VM estates that need to reduce operational overhead, improve density, and unlock CI/CD workflows — without a full application rewrite. Beyond Linux VMs, M2C also supports Apache Tomcat, IBM WebSphere, JBoss/WildFly, Apache HTTP Server, and WordPress workloads, with GKE and Cloud Run as deployment targets.
 
 **Key use cases this module demonstrates:**
 - **VM-to-container replatforming** — automatically containerise Linux VMs using the `m2c` CLI without modifying application source code
+- **Workload assessment** — use `mcdc` to generate multi-format suitability reports scoring VMs across GKE, GKE Autopilot, Cloud Run, and Compute Engine migration journeys
 - **Stateful workload migration** — migrate persistent database volumes (PostgreSQL data directory) to GKE PersistentVolumes using `m2c migrate-data`
 - **Kubernetes Day 2 operations** — use generated Skaffold and deployment manifests as a foundation for CI/CD pipelines
 - **Horizontal pod autoscaling** — configure GKE HPA on migrated Tomcat deployments to scale on CPU demand
