@@ -1240,7 +1240,7 @@ Pausing halts the incremental replication cycle without deleting any replicated 
 >   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{}' | jq '.name'
 > ```
 
-### Step 6.7f — Configure Migration Target Details
+#### Step 6.7f — Configure Migration Target Details
 
 Target details define the Compute Engine instance configuration that will be created when a test clone or cut-over is triggered.
 
@@ -1688,6 +1688,72 @@ By default the host project (where the Migrate Connector source is registered) i
 >   -d '{"project": "destination-project-id", "description": "Production landing zone"}' \
 >   | jq '.name'
 > ```
+
+---
+
+## Lab Summary
+
+The table below recaps every major action in the lab, its exercise, and whether it is
+automated by the `VMware_Engine` Terraform module or performed manually.
+
+| Action | Exercise | Automated |
+|---|---|---|
+| Enable GCP APIs | Lab Setup | Yes — `main.tf` |
+| Create VMware Engine Network | Lab Setup | Yes — `vmware_network.tf` |
+| Create Private Cloud | Lab Setup | Yes — `private_cloud.tf` |
+| Configure VPC Network Peering | Lab Setup | Yes — `network_peering.tf` |
+| Create Network Policy (internet + external IP) | Lab Setup | Yes — `network_policy.tf` |
+| Create default VPC firewall rules | Lab Setup | Yes — `firewall.tf` |
+| Deploy Windows Server 2022 jump host | Lab Setup | Yes — `jump_host.tf` |
+| Reset vCenter solution user credentials | Lab Setup | Yes — `vcenter_credentials.tf` |
+| Set Windows administrator password | Exercise 1 | No — GCP console only |
+| RDP connection to jump host | Exercise 1 | No — requires RDP client |
+| Download bank-of-anthos OVA | Exercise 1 | No — run from jump host Cloud Shell |
+| Open vCenter in browser | Exercise 1 | No — jump host browser session |
+| Open NSX-T Manager in browser | Exercise 1 | No — jump host browser session |
+| Explore vCenter inventory and clusters | Exercise 2 | No — console exploration |
+| Create DHCP Server on NSX-T T1-Gateway | Exercise 3 | No — NSX-T Manager UI |
+| Create NSX-T workload segment with DHCP config | Exercise 3 | No — NSX-T Manager UI |
+| Verify exported routes | Exercise 3 | No — console verification |
+| Confirm VPC peering is Active | Exercise 4 | No — console verification |
+| Test connectivity from jump host | Exercise 4 | No — PowerShell from jump host |
+| Confirm Network Policy internet activation | Exercise 5 | No — console verification |
+| Deploy bank-of-anthos OVF to vCenter | Exercise 6 | No — vSphere Client UI |
+| Power on workload VMs | Exercise 6 | No — vSphere Client UI |
+| Verify Bank of Anthos connectivity | Exercise 6 | No — manual ping and browser test |
+| Verify VM Migration API is enabled | Exercise 6 | No — console verification (API enabled by Terraform) |
+| Generate SSH key pair with PuTTYgen | Exercise 6 | No — Windows tool on jump host |
+| Deploy Migrate Connector OVF | Exercise 6 | No — vSphere Client UI |
+| Power on Migrate Connector VM | Exercise 6 | No — vSphere Client UI |
+| SSH into Migrate Connector | Exercise 6 | No — PuTTY from jump host |
+| Retrieve vCenter credentials | Exercise 6 | No — `gcloud` command in Cloud Shell |
+| Obtain OAuth access token | Exercise 6 | No — `gcloud auth print-access-token` |
+| Run `m2vm register` | Exercise 6 | No — interactive CLI on connector |
+| Set upload bandwidth limit | Exercise 6 | No — `m2vm` CLI on connector |
+| Verify source in Migrate to VMs console | Exercise 6 | No — console verification |
+| Delete leftover VMs and disks from prior runs | Exercise 6 | No — console cleanup |
+| Create Weekly, Monthly, and Yearly utilization reports | Exercise 6 | No — Migrate to VMs console |
+| Create VM migrations for front-end, back-end, db-server | Exercise 6 | No — Migrate to VMs console |
+| Create bank-of-anthos migration group | Exercise 6 | No — Migrate to VMs console |
+| Start replication via group | Exercise 6 | No — Migrate to VMs console |
+| Monitor replication progress and view cycle history | Exercise 6 | No — Migrate to VMs console |
+| Pause and resume replication | Exercise 6 | No — Migrate to VMs console |
+| Configure target details for all VMs | Exercise 6 | No — Migrate to VMs console |
+| Test clone front-end | Exercise 6 | No — Migrate to VMs console |
+| Cut-over back-end and db-server | Exercise 6 | No — Migrate to VMs console |
+| Verify cloned and cut-over VMs | Exercise 6 | No — Cloud Shell and browser |
+| View adaptation report | Exercise 6 | No — Migrate to VMs console |
+| Cancel a cut-over (awareness) | Exercise 6 | No — Migrate to VMs console |
+| Finalise migrations | Exercise 6 | No — Migrate to VMs console |
+| Explore Monitoring and Logging | Exercise 7 | No — exploratory console activity |
+| Explore Security Command Center | Exercise 7 | No — exploratory console activity |
+| Create additional cluster | Exercise 8 | No — gcloud / API |
+| Manage vCenter credentials | Exercise 8 | No — gcloud / API |
+| Export and import migration config via CSV | Exercise 8 | No — Migrate to VMs console |
+| Configure IAM roles for migration access | Exercise 8 | No — IAM & Admin console |
+| Review audit logs for migration operations | Exercise 8 | No — Cloud Logging |
+| Understand VM migration lifespan (awareness) | Exercise 8 | No — reference only |
+| Register an additional target project | Exercise 8 | No — Migrate to VMs console |
 
 ---
 
