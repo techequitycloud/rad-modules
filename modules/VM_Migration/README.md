@@ -92,6 +92,7 @@ The only manual steps are:
 | Name | Version |
 |------|---------|
 | terraform | >= 1.3 |
+| aws | >= 5.0 |
 | google | >= 5.0, < 6.0 |
 | null | >= 3.0 |
 | random | >= 3.0 |
@@ -101,6 +102,7 @@ The only manual steps are:
 
 | Name | Version |
 |------|---------|
+| aws | >= 5.0 |
 | google | >= 5.0, < 6.0 |
 | null | >= 3.0 |
 | random | >= 3.0 |
@@ -110,6 +112,10 @@ The only manual steps are:
 
 | Name | Type |
 |------|------|
+| aws_iam_access_key.mc_discovery_key | resource |
+| aws_iam_policy.mc_discovery | resource |
+| aws_iam_user.mc_discovery | resource |
+| aws_iam_user_policy_attachment.mc_discovery | resource |
 | google_compute_firewall.default_allow_http | resource |
 | google_compute_firewall.default_allow_icmp | resource |
 | google_compute_firewall.default_allow_internal | resource |
@@ -134,9 +140,9 @@ The only manual steps are:
 
 | Name | Description | Type | Default |
 |------|-------------|------|---------|
-| aws_access_key_id | AWS Access Key ID for EC2 discovery; leave empty to skip AWS import | `string` | `""` |
-| aws_region | AWS region for EC2 discovery (e.g. `us-east-1`) | `string` | `"us-east-1"` |
-| aws_secret_access_key | AWS Secret Access Key for EC2 discovery | `string` | `""` |
+| aws_access_key_id | Bootstrap AWS Access Key ID with IAM write permissions; module auto-creates a scoped EC2-read-only IAM user. Leave empty to skip AWS integration. | `string` | `""` |
+| aws_region | AWS region to discover EC2 instances from (e.g. `us-east-1`) | `string` | `"us-east-1"` |
+| aws_secret_access_key | Bootstrap AWS Secret Access Key corresponding to the Access Key ID above | `string` | `""` |
 | create_default_firewall_rules | Create allow-internal, allow-ssh, allow-rdp, allow-icmp firewall rules | `bool` | `true` |
 | create_ssh_key_bucket | Create a GCS bucket and store the generated SSH private key | `bool` | `true` |
 | create_vpc | Create the lab VPC network | `bool` | `true` |
@@ -170,6 +176,7 @@ The only manual steps are:
 | project_id | GCP Project ID |
 | ssh_key_bucket_name | GCS bucket containing the SSH private key |
 | ssh_key_user | SSH username for the Lab-key credential in MCDCv6 |
+| aws_iam_user_arn | ARN of the scoped EC2-read-only IAM user created for discovery. Null when AWS integration is disabled. |
 | vpc_name | Name of the lab VPC network |
 | windows_vm_external_ip | Windows VM external IP for RDP access |
 | windows_vm_name | Windows VM instance name |

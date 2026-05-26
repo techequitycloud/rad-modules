@@ -185,14 +185,14 @@ variable "mc_discovery_client_name" {
 }
 
 variable "aws_access_key_id" {
-  description = "AWS Access Key ID used to discover EC2 instances and import inventory into Migration Center. Leave empty to skip AWS discovery. {{UIMeta group=8 order=803 updatesafe }}"
+  description = "Bootstrap AWS Access Key ID with IAM write permissions (iam:CreateUser, iam:CreatePolicy, iam:AttachUserPolicy, iam:CreateAccessKey and their Delete/Detach counterparts). The module uses these credentials to automatically provision a scoped EC2-read-only IAM user; EC2 discovery runs under the generated key, not these bootstrap credentials. Leave empty to skip AWS integration entirely. {{UIMeta group=8 order=803 updatesafe }}"
   type        = string
   default     = ""
   sensitive   = true
 }
 
 variable "aws_secret_access_key" {
-  description = "AWS Secret Access Key corresponding to the Access Key ID above. {{UIMeta group=8 order=804 updatesafe }}"
+  description = "Bootstrap AWS Secret Access Key corresponding to the Access Key ID above. {{UIMeta group=8 order=804 updatesafe }}"
   type        = string
   default     = ""
   sensitive   = true

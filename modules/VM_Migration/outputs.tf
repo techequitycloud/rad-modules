@@ -73,3 +73,8 @@ output "vpc_name" {
   description = "Name of the VPC network created for this lab."
   value       = local.peer_vpc_name
 }
+
+output "aws_iam_user_arn" {
+  description = "ARN of the scoped AWS IAM user created for EC2 discovery. Null when AWS integration is disabled."
+  value       = length(aws_iam_user.mc_discovery) > 0 ? aws_iam_user.mc_discovery[0].arn : null
+}

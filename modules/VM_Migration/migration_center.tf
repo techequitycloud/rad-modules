@@ -136,19 +136,24 @@ resource "null_resource" "mc_aws_import" {
     project     = local.project.project_id
     region      = var.region
     aws_region  = var.aws_region
-    aws_key_id  = var.aws_access_key_id
+    # Trigger re-import when the scoped IAM key changes (e.g. key rotation).
+    aws_key_id  = aws_iam_access_key.mc_discovery_key[0].id
   }
 
   provisioner "local-exec" {
+    # Pass the scoped discovery key via env vars so the secret is never
+    # interpolated into the command string (which would appear in plan output).
+    environment = {
+      AWS_ACCESS_KEY_ID     = aws_iam_access_key.mc_discovery_key[0].id
+      AWS_SECRET_ACCESS_KEY = aws_iam_access_key.mc_discovery_key[0].secret
+      AWS_DEFAULT_REGION    = var.aws_region
+    }
+
     command = <<-EOT
       set -e
       echo "Starting AWS EC2 discovery for region ${var.aws_region}..."
 
       WORKDIR=$(mktemp -d)
-
-      export AWS_ACCESS_KEY_ID="${var.aws_access_key_id}"
-      export AWS_SECRET_ACCESS_KEY="${var.aws_secret_access_key}"
-      export AWS_DEFAULT_REGION="${var.aws_region}"
 
       if ! command -v aws &>/dev/null; then
         echo "ERROR: AWS CLI not found in build environment."
@@ -353,7 +358,7 @@ PYEOF
     EOT
   }
 
-  depends_on = [null_resource.mc_source]
+  depends_on = [null_resource.mc_source, aws_iam_access_key.mc_discovery_key]
 }
 
 # ─── Step 4: Create Asset Groups ─────────────────────────────────────────────
