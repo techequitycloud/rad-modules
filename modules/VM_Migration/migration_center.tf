@@ -181,22 +181,37 @@ resource "null_resource" "mc_aws_import" {
       done
 
       echo "Validating import job..."
-      curl -s -o /dev/null \
+      VAL_RESP=$(curl -s -w "\n%%{http_code}" \
         -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
         -d '{}' \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}:validate" \
-        || echo "WARNING: Validate call returned an error — run manually if needed."
+        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}:validate")
+      VAL_CODE=$(echo "$VAL_RESP" | tail -1)
+      if [ "$VAL_CODE" = "200" ]; then
+        echo "Validation started (HTTP $VAL_CODE) — waiting 30s for validation to complete..."
+        sleep 30
+      else
+        echo "WARNING: Validate returned HTTP $VAL_CODE — skipping run."
+        echo "$VAL_RESP" | head -n -1
+        rm -rf "$TMPDIR"
+        exit 0
+      fi
 
       echo "Running import job..."
-      curl -s -o /dev/null \
+      RUN_RESP=$(curl -s -w "\n%%{http_code}" \
         -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
         -d '{}' \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}:run" \
-        || echo "WARNING: Run call returned an error — the job may still be processing."
+        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}:run")
+      RUN_CODE=$(echo "$RUN_RESP" | tail -1)
+      if [ "$RUN_CODE" = "200" ]; then
+        echo "Import job running (HTTP $RUN_CODE). Check Migration Center console for status."
+      else
+        echo "WARNING: Run returned HTTP $RUN_CODE — job may not have started."
+        echo "$RUN_RESP" | head -n -1
+      fi
 
       echo "AWS data import job submitted. Check Migration Center console for status."
       rm -rf "$TMPDIR"
@@ -269,7 +284,7 @@ resource "null_resource" "mc_preferences" {
         --quiet 2>/dev/null)
 
       echo "Creating aggressive-3yr migration preferences..."
-      curl -s -o /dev/null \
+      RESP=$(curl -s -w "\n%%{http_code}" \
         -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
@@ -290,11 +305,19 @@ resource "null_resource" "mc_preferences" {
             "commitmentPlan": "COMMITMENT_PLAN_THREE_YEAR"
           }
         }' \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/preferenceSets?preferenceSetId=${local.pref_agg_name}" \
-        || echo "WARNING: Aggressive preference creation failed (may already exist)."
+        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/preferenceSets?preferenceSetId=${local.pref_agg_name}")
+      HTTP_CODE=$(echo "$RESP" | tail -1)
+      BODY=$(echo "$RESP" | head -n -1)
+      if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "409" ]; then
+        echo "Aggressive preference created or already exists (HTTP $HTTP_CODE)."
+      else
+        echo "ERROR: Aggressive preference creation returned HTTP $HTTP_CODE."
+        echo "$BODY"
+        exit 1
+      fi
 
       echo "Creating moderate-1yr migration preferences..."
-      curl -s -o /dev/null \
+      RESP=$(curl -s -w "\n%%{http_code}" \
         -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
@@ -316,8 +339,16 @@ resource "null_resource" "mc_preferences" {
             "commitmentPlan": "COMMITMENT_PLAN_ONE_YEAR"
           }
         }' \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/preferenceSets?preferenceSetId=${local.pref_mod_name}" \
-        || echo "WARNING: Moderate preference creation failed (may already exist)."
+        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/preferenceSets?preferenceSetId=${local.pref_mod_name}")
+      HTTP_CODE=$(echo "$RESP" | tail -1)
+      BODY=$(echo "$RESP" | head -n -1)
+      if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "409" ]; then
+        echo "Moderate preference created or already exists (HTTP $HTTP_CODE)."
+      else
+        echo "ERROR: Moderate preference creation returned HTTP $HTTP_CODE."
+        echo "$BODY"
+        exit 1
+      fi
 
       echo "Migration preferences created."
     EOT
@@ -337,6 +368,7 @@ resource "null_resource" "mc_report" {
     report_name = var.mc_report_name
     project     = local.project.project_id
     region      = var.region
+    random_id   = local.random_id
   }
 
   provisioner "local-exec" {
@@ -348,7 +380,7 @@ resource "null_resource" "mc_report" {
       REPORT_CONFIG_ID="migcenter-${local.random_id}-report-config"
 
       echo "Creating report configuration..."
-      curl -s -o /dev/null \
+      RESP=$(curl -s -w "\n%%{http_code}" \
         -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
@@ -369,11 +401,19 @@ resource "null_resource" "mc_report" {
             }
           ]
         }" \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/reportConfigs?reportConfigId=$REPORT_CONFIG_ID" \
-        || echo "WARNING: Report config creation failed (may already exist)."
+        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/reportConfigs?reportConfigId=$REPORT_CONFIG_ID")
+      HTTP_CODE=$(echo "$RESP" | tail -1)
+      BODY=$(echo "$RESP" | head -n -1)
+      if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "409" ]; then
+        echo "Report config created or already exists (HTTP $HTTP_CODE)."
+      else
+        echo "ERROR: Report config creation returned HTTP $HTTP_CODE."
+        echo "$BODY"
+        exit 1
+      fi
 
       echo "Triggering report generation for '${var.mc_report_name}'..."
-      curl -s -o /dev/null \
+      RESP=$(curl -s -w "\n%%{http_code}" \
         -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
@@ -381,10 +421,16 @@ resource "null_resource" "mc_report" {
           \"displayName\": \"${var.mc_report_name}\",
           \"type\": \"TOTAL_COST_OF_OWNERSHIP\"
         }" \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/reportConfigs/$REPORT_CONFIG_ID/reports?reportId=migcenter-${local.random_id}-tco" \
-        || echo "WARNING: Report generation failed — run manually from the Migration Center console."
-
-      echo "Report generation triggered. Allow up to 5 minutes for the report to appear."
+        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/reportConfigs/$REPORT_CONFIG_ID/reports?reportId=migcenter-${local.random_id}-tco")
+      HTTP_CODE=$(echo "$RESP" | tail -1)
+      BODY=$(echo "$RESP" | head -n -1)
+      if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "409" ]; then
+        echo "Report generation triggered (HTTP $HTTP_CODE). Allow up to 5 minutes for the report to appear."
+      else
+        echo "ERROR: Report generation returned HTTP $HTTP_CODE."
+        echo "$BODY"
+        exit 1
+      fi
     EOT
   }
 
