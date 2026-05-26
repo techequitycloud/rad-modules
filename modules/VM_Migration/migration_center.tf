@@ -23,8 +23,9 @@ resource "null_resource" "mc_init" {
   count = var.initialize_migration_center ? 1 : 0
 
   triggers = {
-    project = local.project.project_id
-    region  = var.region
+    project   = local.project.project_id
+    region    = var.region
+    random_id = local.random_id
   }
 
   provisioner "local-exec" {
@@ -97,17 +98,17 @@ resource "null_resource" "mc_source" {
         -H "Content-Type: application/json" \
         -d '{
           "displayName": "${var.mc_discovery_client_name}",
-          "type": "GUEST_OS_SCAN",
-          "managedObjectType": "VIRTUAL_MACHINE"
+          "type": "SOURCE_TYPE_DISCOVERY_CLIENT"
         }' \
         "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/sources?sourceId=${local.mc_source_name}")
 
       HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+      BODY=$(echo "$RESPONSE" | head -n -1)
       if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "409" ]; then
         echo "Discovery source created or already exists (HTTP $HTTP_CODE)."
       else
         echo "ERROR: Source creation returned HTTP $HTTP_CODE."
-        echo "$RESPONSE" | head -1
+        echo "$BODY"
         exit 1
       fi
     EOT
