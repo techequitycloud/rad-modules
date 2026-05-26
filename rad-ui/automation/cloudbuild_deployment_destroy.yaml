@@ -113,12 +113,37 @@ steps:
     fi
 
     if [ "$$CLONE_SUCCESS" != "true" ]; then
-        log "❌ All clone attempts failed for module ${_MODULE_NAME}"
+        log "⚠️  All clone attempts failed for module ${_MODULE_NAME}"
         log "   Repos tried (in order):"
         log "     _MODULE_GIT_REPO_URL : ${_MODULE_GIT_REPO_URL:-<not set>}"
         log "     Stored repo_url.txt  : $${STORED_REPO_URL:-<not found in GCS>}"
         log "     _GIT_REPO_URL        : ${_GIT_REPO_URL:-<not set>}"
         log "     Default              : techequitycloud/rad-modules"
+        log "🔄 Attempting GCS archive fallback for module ${_MODULE_NAME}..."
+
+        ARCHIVE_PATH="$$FILES_PATH/${_MODULE_NAME}.tar.gz"
+        if gsutil ls "$$ARCHIVE_PATH" > /dev/null 2>&1; then
+            log "📦 Found deployment archive in GCS — restoring module source code..."
+            find /workspace -mindepth 1 -delete 2>/dev/null || true
+            mkdir -p "/workspace/modules/${_MODULE_NAME}"
+            gsutil cp "$$ARCHIVE_PATH" /tmp/fallback.tar.gz
+            tar -xzf /tmp/fallback.tar.gz -C "/workspace/modules/${_MODULE_NAME}"
+            rm -f /tmp/fallback.tar.gz
+            if [ -d "/workspace/modules/${_MODULE_NAME}" ] && \
+               ls /workspace/modules/${_MODULE_NAME}/*.tf > /dev/null 2>&1; then
+                log "✅ Module source code restored from GCS archive (module was removed from git)"
+                CLONE_SUCCESS=true
+            else
+                log "❌ GCS archive did not contain valid Terraform source for ${_MODULE_NAME}"
+            fi
+        else
+            log "❌ No deployment archive found in GCS at: $$ARCHIVE_PATH"
+        fi
+    fi
+
+    if [ "$$CLONE_SUCCESS" != "true" ]; then
+        log "❌ All recovery attempts failed for module ${_MODULE_NAME}"
+        log "   Could not obtain module source from git or GCS archive."
         log "   Ensure the 'git-access-token' secret has read access to a repo"
         log "   containing modules/${_MODULE_NAME}/. For partner repos, pass"
         log "   _MODULE_GIT_REPO_URL=<org/repo> when triggering the destroy build."

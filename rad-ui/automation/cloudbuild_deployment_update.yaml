@@ -121,7 +121,33 @@ steps:
     fi
 
     if [ "$$CLONE_SUCCESS" != "true" ]; then
-        log "❌ All clone attempts failed for module ${_MODULE_NAME}"
+        log "⚠️  All clone attempts failed for module ${_MODULE_NAME}"
+        log "🔄 Attempting GCS archive fallback for module ${_MODULE_NAME}..."
+
+        ARCHIVE_PATH="$$FILES_PATH/${_MODULE_NAME}.tar.gz"
+        if gsutil ls "$$ARCHIVE_PATH" > /dev/null 2>&1; then
+            log "📦 Found deployment archive in GCS — restoring module source code..."
+            find /workspace -mindepth 1 -delete 2>/dev/null || true
+            mkdir -p "/workspace/modules/${_MODULE_NAME}"
+            gsutil cp "$$ARCHIVE_PATH" /tmp/fallback.tar.gz
+            tar -xzf /tmp/fallback.tar.gz -C "/workspace/modules/${_MODULE_NAME}"
+            rm -f /tmp/fallback.tar.gz
+            if [ -d "/workspace/modules/${_MODULE_NAME}" ] && \
+               ls /workspace/modules/${_MODULE_NAME}/*.tf > /dev/null 2>&1; then
+                log "✅ Module source code restored from GCS archive (module was removed from git)"
+                CLONE_SUCCESS=true
+                RESOLVED_REPO="gcs-archive:$$FILES_PATH"
+            else
+                log "❌ GCS archive did not contain valid Terraform source for ${_MODULE_NAME}"
+            fi
+        else
+            log "❌ No deployment archive found in GCS at: $$ARCHIVE_PATH"
+        fi
+    fi
+
+    if [ "$$CLONE_SUCCESS" != "true" ]; then
+        log "❌ All recovery attempts failed for module ${_MODULE_NAME}"
+        log "   Could not obtain module source from git or GCS archive."
         exit 1
     fi
 
@@ -527,10 +553,15 @@ steps:
     # Upload the archive
     gsutil -m cp "${_MODULE_NAME}.tar.gz" "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/"
 
-    # Update deployment metadata to reflect the commit and repo used in this update
-    git -C /workspace rev-parse HEAD > /tmp/commit_hash.txt
-    gsutil cp /tmp/commit_hash.txt "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/commit_hash.txt"
-    log "✅ Updated commit_hash.txt: $$(cat /tmp/commit_hash.txt)"
+    # Update deployment metadata to reflect the commit and repo used in this update.
+    # When the module was restored from the GCS archive (no git clone), skip the
+    # git command and preserve the previously stored commit hash instead.
+    if git -C /workspace rev-parse HEAD > /tmp/commit_hash.txt 2>/dev/null; then
+        gsutil cp /tmp/commit_hash.txt "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/commit_hash.txt"
+        log "✅ Updated commit_hash.txt: $$(cat /tmp/commit_hash.txt)"
+    else
+        log "ℹ️  No git repo in workspace (GCS archive fallback) — preserving stored commit hash"
+    fi
 
     if [ -f /workspace/resolved_repo.txt ]; then
         gsutil cp /workspace/resolved_repo.txt "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/repo_url.txt"
