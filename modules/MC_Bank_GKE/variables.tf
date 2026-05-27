@@ -114,6 +114,12 @@ variable "deployment_id" {
   default     = null
 }
 
+variable "enable_services" {
+  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com, mesh.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=0 order=109 }}"
+  type        = bool
+  default     = true
+}
+
 // SECTION 2: Main
 
 variable "project_id" {
@@ -168,12 +174,6 @@ variable "cluster_size" {
 }
 
 // SECTION 4: Services
-
-variable "enable_services" {
-  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com, mesh.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=0 order=401 }}"
-  type        = bool
-  default     = true
-}
 
 variable "enable_cloud_service_mesh" {
   description = "Set to true (default) to install and configure Cloud Service Mesh (Google-managed Istio) across all clusters, enabling mTLS encryption, cross-cluster traffic management, and unified observability. Requires the mesh.googleapis.com API. Set to false to skip service mesh installation. {{UIMeta group=4 order=401 }}"

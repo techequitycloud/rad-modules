@@ -90,6 +90,12 @@ variable "deployment_id" {
   default     = null
 }
 
+variable "enable_services" {
+  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=0 order=109 }}"
+  type        = bool
+  default     = true
+}
+
 variable "project_id" {
   description = "GCP project ID of the destination project where the GKE cluster and Istio service mesh will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=101 updatesafe }}"
   type        = string
@@ -172,12 +178,6 @@ variable "service_cidr_block" {
 }
 
 // SECTION 5: Features
-
-variable "enable_services" {
-  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=0 order=401 }}"
-  type        = bool
-  default     = true
-}
 
 variable "istio_version" {
   description = "Version of open source Istio to install on the GKE cluster (format: major.minor.patch, e.g. '1.24.2'). Must be a version supported by the selected GKE release channel. Defaults to '1.24.2'. Refer to the Istio release page for available versions. {{UIMeta group=4 order=402 }}"

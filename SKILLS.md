@@ -95,7 +95,7 @@ resource "google_project_service" "enabled_services" {
 
 `disable_dependent_services = false` prevents Terraform from cascade-disabling transitive API dependencies (e.g. disabling `container.googleapis.com` could otherwise automatically disable `containerregistry.googleapis.com`).
 
-**Do not add `lifecycle { prevent_destroy = true }` to `google_project_service` resources.** Although it prevents the resource record from being deleted, it also causes the platform destroy pipeline to fail with "Instance cannot be destroyed" when a full `tofu destroy` is run. `disable_on_destroy = false` is sufficient — it keeps the API enabled without blocking destroy. APIs must be unconditionally enabled — do not expose an `enable_services` toggle variable.
+**Do not add `lifecycle { prevent_destroy = true }` to `google_project_service` resources.** Although it prevents the resource record from being deleted, it also causes the platform destroy pipeline to fail with "Instance cannot be destroyed" when a full `tofu destroy` is run. `disable_on_destroy = false` is sufficient — it keeps the API enabled without blocking destroy. The `enable_services` toggle variable must be declared in **group 0, order 109** (Provider / Metadata) so it appears alongside other platform-level controls on the deployment form.
 
 Modules that install workloads via `kubectl` also include a `null_resource.wait_for_container_api` that polls `gcloud services list` until `container.googleapis.com` reports as enabled before any cluster resource is created.
 
@@ -144,19 +144,19 @@ All input variables carry a `{{UIMeta group=N order=M }}` annotation at the end 
 
 | Group | Section | Variables |
 |---|---|---|
-| 0 | Provider / Metadata | `module_description`, `module_documentation`, `module_dependency`, `module_services`, `credit_cost`, `require_credit_purchases`, `enable_purge`, `public_access`, `resource_creator_identity`, `trusted_users`, `deployment_id` |
+| 0 | Provider / Metadata | `module_description`, `module_documentation`, `module_dependency`, `module_services`, `credit_cost`, `require_credit_purchases`, `enable_purge`, `public_access`, `resource_creator_identity`, `trusted_users`, `deployment_id`, `enable_services` |
 | 1 | Main | `project_id`, `region` |
 | 2 | Network | `create_network`, `network_name`, `subnet_name`, `ip_cidr_ranges` |
 | 3 | GKE | `create_cluster`, `gke_cluster`, `release_channel`, `pod_ip_range`, `pod_cidr_block`, `service_ip_range`, `service_cidr_block` |
-| 4 | Features | `enable_services`, `istio_version`, `install_ambient_mesh` |
+| 4 | Features | `istio_version`, `install_ambient_mesh` |
 | 6 | Application | `deploy_application` |
 
 `VMware_Engine` uses a different group structure reflecting its domain:
 
 | Group | Section | Variables |
 |---|---|---|
-| 0 | Provider / Metadata | (same as above) |
-| 1 | Main | `project_id`, `region`, `zone`, `enable_services` |
+| 0 | Provider / Metadata | (same as above, including `enable_services`) |
+| 1 | Main | `project_id`, `region`, `zone` |
 | 4 | Private Cloud | `management_cidr`, `private_cloud_type`, `node_type_id`, `node_count` |
 | 5 | Network Peering | `create_vpc` |
 | 6 | Network Policy | `edge_services_cidr`, `enable_internet_access`, `enable_external_ip` |
@@ -246,7 +246,7 @@ There is no scaffolding script. Create a new module by copying the layout from t
 
 - **File naming**: `snake_case` for `.tf` files. Module directories use `PascalCase` / `SCREAMING_SNAKE_CASE` (e.g. `Istio_GKE`, `MC_Bank_GKE`).
 - **Copyright headers**: Every `.tf` file begins with the Apache 2.0 license header.
-- **API enablement — never disable on destroy**: Always set `disable_dependent_services = false` and `disable_on_destroy = false` on every `google_project_service` resource (see canonical pattern in §3.1). This is a hard invariant: the platform deploys multiple independent modules into a single GCP project, so destroying one module must not disable APIs that other modules, workloads, or platform components depend on. `disable_on_destroy = false` makes `tofu destroy` remove the Terraform resource record while leaving the API enabled in GCP — this is the correct and sufficient protection. Do **not** add `lifecycle { prevent_destroy = true }` to these resources: it blocks the platform's destroy pipeline with a fatal "Instance cannot be destroyed" error. Do not expose an `enable_services` toggle variable — APIs must be unconditionally enabled. When auditing inherited code, search for `disable_on_destroy = true` or any `google_project_service` block missing the flags and correct it before the first destroy is run.
+- **API enablement — never disable on destroy**: Always set `disable_dependent_services = false` and `disable_on_destroy = false` on every `google_project_service` resource (see canonical pattern in §3.1). This is a hard invariant: the platform deploys multiple independent modules into a single GCP project, so destroying one module must not disable APIs that other modules, workloads, or platform components depend on. `disable_on_destroy = false` makes `tofu destroy` remove the Terraform resource record while leaving the API enabled in GCP — this is the correct and sufficient protection. Do **not** add `lifecycle { prevent_destroy = true }` to these resources: it blocks the platform's destroy pipeline with a fatal "Instance cannot be destroyed" error. The `enable_services` toggle variable belongs in **group 0, order 109** (see §3.4) — it is a platform-level control and must not be placed in any other group. When auditing inherited code, search for `disable_on_destroy = true` or any `google_project_service` block missing the flags and correct it before the first destroy is run.
 - **Destroy safety**: Any `null_resource` with a meaningful create-time effect **must** have a matching `when = destroy` provisioner that cleans up, and that provisioner must tolerate missing resources (`--ignore-not-found`, `|| true`, etc.).
 - **Impersonation**: Only fetch an impersonation access token when `length(var.resource_creator_identity) != 0`; otherwise let the provider use ADC.
 - **No secrets in variables**: Credentials like `client_secret`, `aws_secret_key` are module inputs but must never be given default values. The caller is responsible for sourcing them from a secret store.

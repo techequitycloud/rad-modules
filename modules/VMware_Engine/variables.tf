@@ -82,6 +82,12 @@ variable "deployment_id" {
   default     = null
 }
 
+variable "enable_services" {
+  description = "Set to true (default) to automatically enable required GCP project APIs. Set to false when APIs are already enabled. {{UIMeta group=0 order=109 }}"
+  type        = bool
+  default     = true
+}
+
 // SECTION 2: Main
 
 variable "project_id" {
@@ -100,12 +106,6 @@ variable "zone" {
   description = "GCP zone where the private cloud will be deployed (e.g. 'us-west2-a'). {{UIMeta group=1 order=104 }}"
   type        = string
   default     = "us-west2-a"
-}
-
-variable "enable_services" {
-  description = "Set to true (default) to automatically enable required GCP project APIs. Set to false when APIs are already enabled. {{UIMeta group=1 order=105 }}"
-  type        = bool
-  default     = true
 }
 
 // SECTION 3: VMware Engine Network
