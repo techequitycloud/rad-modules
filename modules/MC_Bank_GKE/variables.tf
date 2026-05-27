@@ -67,9 +67,9 @@ variable "module_services" {
 }
 
 variable "credit_cost" {
-  description = "Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require_credit_purchases is true, users must have sufficient credit balance before deploying. Defaults to 150. {{UIMeta group=0 order=104 }}"
+  description = "Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require_credit_purchases is true, users must have sufficient credit balance before deploying. Defaults to 200. {{UIMeta group=0 order=104 }}"
   type        = number
-  default     = 150
+  default     = 200
 }
 
 variable "require_credit_purchases" {
@@ -85,9 +85,9 @@ variable "enable_purge" {
 }
 
 variable "public_access" {
-  description = "Set to true (default) to make this module visible and deployable by all platform users. Set to false to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
+  description = "Set to true to make this module visible and deployable by all platform users. Set to false (default) to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "shared_users" {
