@@ -15,26 +15,9 @@
  */
 
 provider "google" {
-  alias = "impersonated"
-
-  scopes = [
-    "https://www.googleapis.com/auth/cloud-platform",
-    "https://www.googleapis.com/auth/userinfo.email"
-  ]
-}
-
-data "google_service_account_access_token" "default" {
-  count                  = length(var.resource_creator_identity) != 0 ? 1 : 0
-  provider               = google.impersonated
-  scopes                 = ["userinfo-email", "cloud-platform"]
-  target_service_account = var.resource_creator_identity
-  lifetime               = "3600s"
-}
-
-provider "google" {
-  access_token = length(var.resource_creator_identity) != 0 ? data.google_service_account_access_token.default[0].access_token : null
+  impersonate_service_account = length(var.resource_creator_identity) != 0 ? var.resource_creator_identity : null
 }
 
 provider "google-beta" {
-  access_token = length(var.resource_creator_identity) != 0 ? data.google_service_account_access_token.default[0].access_token : null
+  impersonate_service_account = length(var.resource_creator_identity) != 0 ? var.resource_creator_identity : null
 }
