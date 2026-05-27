@@ -88,6 +88,12 @@ variable "deployment_id" {
   default     = null
 }
 
+variable "enable_services" {
+  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com, mesh.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=0 order=109 }}"
+  type        = bool
+  default     = true
+}
+
 // SECTION 2: Main
 
 variable "project_id" {
@@ -179,12 +185,6 @@ variable "service_cidr_block" {
 }
 
 // SECTION 6: FEATURES
-
-variable "enable_services" {
-  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com, mesh.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=0 order=600 }}"
-  type        = bool
-  default     = true
-}
 
 variable "enable_monitoring" {
   description = "Set to true (default) to enable Google Cloud Managed Service for Prometheus and Cloud Monitoring dashboards for the GKE cluster. Provides metrics, alerting, and observability for cluster workloads. Set to false to skip monitoring configuration. {{UIMeta group=6 order=601 }}"
