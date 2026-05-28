@@ -111,7 +111,7 @@ Module variable wiring:
 | Tool | Minimum Version | Install |
 |---|---|---|
 | `gcloud` CLI | 480.0.0 | [Install guide](https://cloud.google.com/sdk/docs/install) |
-| RDP client | Any | Windows Remote Desktop, Microsoft Remote Desktop (macOS), Remmina (Linux) |
+| RDP client | Any | Windows Remote Desktop, Windows App (macOS), Remmina (Linux) |
 | Web browser | Any | For vCenter and NSX-T web consoles |
 | `curl` / `jq` | Any | System package manager |
 
@@ -266,7 +266,12 @@ Username: <username-from-gcloud-output>
 Password: <password-from-gcloud-output>
 ```
 
-> **Tip:** On macOS, use Microsoft Remote Desktop. On Linux, use Remmina or FreeRDP:
+> **macOS:** Microsoft Remote Desktop has been discontinued. Use **Windows App** instead:
+> 1. Install via Homebrew: `brew install --cask windows-app`
+> 2. Open Windows App: `open -a "Windows App.app"`
+> 3. Add a new PC, enter the jump host IP and port (`<jump-host-external-ip>:3389`), and supply the username and password from the previous step.
+>
+> **Linux:** Use Remmina or FreeRDP:
 > ```bash
 > xfreerdp /u:<username> /p:<password> /v:<jump-host-ip>:3389 /dynamic-resolution
 > ```
