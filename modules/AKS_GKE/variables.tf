@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module enables you to create and manage a Microsoft Azure Kubernetes Service (AKS) cluster from your Google Cloud console, providing a unified way for organizations using both Azure and Google Cloud to manage their applications. This module is for demonstration purposes only."
+  default     = "This module enables you to manage Azure AKS clusters directly from your Google Cloud console using GKE Fleet — a critical capability for enterprises operating across multiple cloud providers. Teams in financial services, healthcare, and technology use GKE Attached Clusters to unify Kubernetes operations, apply consistent security policies, and centralize observability across Azure and Google Cloud without migrating or refactoring existing AKS workloads. This module is for demonstration purposes only."
 }
 
 variable "module_documentation" {
@@ -41,9 +41,9 @@ variable "module_services" {
 }
 
 variable "credit_cost" {
-  description = "Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require_credit_purchases is true, users must have sufficient credit balance before deploying. Defaults to 100. {{UIMeta group=0 order=103 }}"
+  description = "Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require_credit_purchases is true, users must have sufficient credit balance before deploying. Defaults to 200. {{UIMeta group=0 order=103 }}"
   type        = number
-  default     = 100
+  default     = 200
 }
 
 variable "require_credit_purchases" {
@@ -59,9 +59,15 @@ variable "enable_purge" {
 }
 
 variable "public_access" {
-  description = "Set to true (default) to make this module visible and deployable by all platform users. Set to false to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
+  description = "Set to true to make this module visible and deployable by all platform users. Set to false (default) to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
   type = bool
-  default = true
+  default = false
+}
+
+variable "shared_users" {
+  description = "List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }}"
+  type        = list(string)
+  default     = []
 }
 
 variable "deployment_id" {

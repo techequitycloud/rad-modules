@@ -19,13 +19,13 @@
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys Google Cloud VMware Engine infrastructure, including a private cloud, VMware Engine network, VPC peering, network policy, and default VPC firewall rules. It is designed to support VM migration workflows and GCVE lab environments."
+  default     = "This module deploys Google Cloud VMware Engine (GCVE) infrastructure — the enterprise-proven path for lifting and shifting existing VMware workloads to Google Cloud without refactoring. Adopted by large enterprises across financial services, healthcare, and manufacturing to accelerate data center exits, disaster recovery modernization, and VDI migrations, GCVE preserves familiar VMware operational tooling (vCenter, NSX-T, HCX) while unlocking access to native GCP services; one documented enterprise case study shows infrastructure provisioning time shrinking from 6 months to 6 days. This module provisions the complete GCVE stack and a Windows Server 2022 jump host, providing a production-representative environment to validate VM migration workflows."
 }
 
 variable "module_documentation" {
   description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https://docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
   type        = string
-  default     = "https://github.com/techequitycloud/rad-modules/blob/main/modules/VMware_Engine/LAB_GUIDE.md"
+  default     = "https://github.com/techequitycloud/rad-modules/blob/main/docs/labs/VMware_Engine.md"
 }
 
 variable "module_dependency" {
@@ -43,7 +43,7 @@ variable "module_services" {
 variable "credit_cost" {
   description = "Number of platform credits consumed when this module is deployed. {{UIMeta group=0 order=103 }}"
   type        = number
-  default     = 100
+  default     = 200
 }
 
 variable "require_credit_purchases" {
@@ -59,9 +59,15 @@ variable "enable_purge" {
 }
 
 variable "public_access" {
-  description = "Set to true (default) to make this module visible and deployable by all platform users. {{UIMeta group=0 order=106 }}"
+  description = "Set to false (default) to restrict this module to platform administrators only. Set to true to make it visible and deployable by all platform users. {{UIMeta group=0 order=106 }}"
   type        = bool
-  default     = true
+  default     = false
+}
+
+variable "shared_users" {
+  description = "List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }}"
+  type        = list(string)
+  default     = []
 }
 
 variable "resource_creator_identity" {
@@ -74,6 +80,12 @@ variable "deployment_id" {
   description = "Short alphanumeric suffix appended to resource names to ensure uniqueness within the project. Set by the platform; leave blank to use no suffix. {{UIMeta group=0 order=108 }}"
   type        = string
   default     = null
+}
+
+variable "enable_services" {
+  description = "Set to true (default) to automatically enable required GCP project APIs. Set to false when APIs are already enabled. {{UIMeta group=0 order=109 }}"
+  type        = bool
+  default     = true
 }
 
 // SECTION 2: Main
@@ -94,12 +106,6 @@ variable "zone" {
   description = "GCP zone where the private cloud will be deployed (e.g. 'us-west2-a'). {{UIMeta group=1 order=104 }}"
   type        = string
   default     = "us-west2-a"
-}
-
-variable "enable_services" {
-  description = "Set to true (default) to automatically enable required GCP project APIs. Set to false when APIs are already enabled. {{UIMeta group=1 order=105 }}"
-  type        = bool
-  default     = true
 }
 
 // SECTION 3: VMware Engine Network
@@ -213,7 +219,7 @@ variable "reset_vcenter_credentials" {
 }
 
 variable "vcenter_solution_user" {
-  description = "vCenter solution user account whose credentials will be reset (e.g. 'solution-user-01@gve.local'). Used for Migrate to Virtual Machines connector integration. {{UIMeta group=9 order=902 }}"
+  description = "vCenter solution user account whose credentials will be reset (e.g. 'solution-user-01@gve.local'). Required for accessing vCenter management consoles and deploying workloads in the private cloud. {{UIMeta group=9 order=902 }}"
   type        = string
   default     = "solution-user-01@gve.local"
 }

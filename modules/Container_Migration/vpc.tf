@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-provider "google" {
-  impersonate_service_account = length(var.resource_creator_identity) != 0 ? var.resource_creator_identity : null
-}
+resource "google_compute_network" "vpc" {
+  count                   = var.create_vpc ? 1 : 0
+  project                 = local.project.project_id
+  name                    = local.vpc_name
+  auto_create_subnetworks = true
+  description             = "Auto-mode VPC for the Container Migration lab environment"
 
-provider "google-beta" {
-  impersonate_service_account = length(var.resource_creator_identity) != 0 ? var.resource_creator_identity : null
+  depends_on = [google_project_service.enabled_services]
 }

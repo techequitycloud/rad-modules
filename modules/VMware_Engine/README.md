@@ -2,7 +2,18 @@
 
 This module deploys **Google Cloud VMware Engine (GCVE)** infrastructure, including a VMware Engine Network, a private cloud (single-node TIME\_LIMITED or multi-node STANDARD), VPC peering between the GCVE management network and a peer VPC, a network policy enabling internet access and external IPs for workload VMs, default VPC firewall rules, a Windows Server 2022 jump host for accessing vCenter and NSX-T, and automated vCenter solution user credential reset. It is designed to support VM migration workflows and GCVE lab environments.
 
-For a detailed technical walkthrough of the full lab, see [LAB_GUIDE.md](LAB_GUIDE.md).
+## Industry Value & Use Cases
+
+Google Cloud VMware Engine is the enterprise standard for data center exit and VMware cloud migration without refactoring. Large organizations across financial services, healthcare, and manufacturing use GCVE to lift and shift entire VMware estates to Google Cloud, preserving their existing vSphere operational model while gaining access to Google Cloud's AI, data, and networking services as a next step. One documented enterprise case study (BHP) shows infrastructure provisioning time reduced from 6 months to 6 days after adopting GCVE to replace a legacy VMware vRA environment.
+
+**Key use cases this module demonstrates:**
+- **Data center exit without refactoring** — lift and shift VMware VMs to Google Cloud preserving vCenter, NSX-T, and vSphere operations; no application or OS changes required
+- **Disaster recovery modernization** — replace expensive secondary data center hardware with GCVE private clouds sized for DR, activated on-demand
+- **VDI migration** — move VMware Horizon or Citrix virtual desktop infrastructure to Google Cloud, leveraging Google's global network for low-latency access
+- **Hybrid cloud bridge to GCP-native services** — GCVE clusters connect directly to GCP VPC networks, enabling VMware workloads to consume BigQuery, Cloud SQL, Vertex AI, and other GCP services without traversing the internet
+- **Validated migration lab environment** — the TIME\_LIMITED single-node private cloud option lets teams validate GCVE connectivity, HCX workflows, and vCenter access before committing to STANDARD production deployments
+
+For a detailed technical walkthrough of the full lab, see [VMware_Engine.md](../../docs/labs/VMware_Engine.md).
 
 Last tested on Fri May 15, 2026
 
@@ -119,7 +130,7 @@ No modules.
 | <a name="input_jump_host_subnetwork"></a> [jump\_host\_subnetwork](#input\_jump\_host\_subnetwork) | Subnetwork self-link or name for the jump host NIC. Required for custom-mode VPCs. Leave blank to let GCP auto-select the subnet for the region. | `string` | `""` | no |
 | <a name="input_management_cidr"></a> [management\_cidr](#input\_management\_cidr) | CIDR block reserved for the VMware Engine management cluster. Cannot be changed after private cloud creation. Must not overlap with the peer VPC or edge services CIDR. | `string` | `"172.20.1.0/24"` | no |
 | <a name="input_module_dependency"></a> [module\_dependency](#input\_module\_dependency) | Ordered list of module names that must be fully deployed before this module can be deployed. The platform enforces this sequence. Defaults to ['GCP Project']. | `list(string)` | <pre>[<br>  "GCP Project"<br>]</pre> | no |
-| <a name="input_module_description"></a> [module\_description](#input\_module\_description) | Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. | `string` | `"This module deploys Google Cloud VMware Engine infrastructure, including a private cloud, VMware Engine network, VPC peering, network policy, and default VPC firewall rules. It is designed to support VM migration workflows and GCVE lab environments."` | no |
+| <a name="input_module_description"></a> [module\_description](#input\_module\_description) | Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. | `string` | `"This module deploys Google Cloud VMware Engine (GCVE) infrastructure — the enterprise-proven path for lifting and shifting existing VMware workloads to Google Cloud without refactoring. Adopted by large enterprises across financial services, healthcare, and manufacturing to accelerate data center exits, disaster recovery modernization, and VDI migrations, GCVE preserves familiar VMware operational tooling (vCenter, NSX-T, HCX) while unlocking access to native GCP services; one documented enterprise case study shows infrastructure provisioning time shrinking from 6 months to 6 days. This module provisions the complete GCVE stack and a Windows Server 2022 jump host, providing a production-representative environment to validate VM migration workflows."` | no |
 | <a name="input_module_services"></a> [module\_services](#input\_module\_services) | List of cloud service tags associated with this module, used for display and filtering in the platform UI. | `list(string)` | <pre>[<br>  "GCP",<br>  "VMware Engine",<br>  "Cloud Networking",<br>  "Cloud IAM"<br>]</pre> | no |
 | <a name="input_node_count"></a> [node\_count](#input\_node\_count) | Number of nodes in the management cluster. Set to 1 for TIME\_LIMITED (single-node evaluation) private clouds. STANDARD type requires a minimum of 3 nodes. | `number` | `1` | no |
 | <a name="input_node_type_id"></a> [node\_type\_id](#input\_node\_type\_id) | VMware Engine node type API identifier for the management cluster. The UI displays this as 've1-standard-72' but the API and Terraform require 'standard-72'. | `string` | `"standard-72"` | no |
@@ -128,7 +139,7 @@ No modules.
 | <a name="input_require_credit_purchases"></a> [require\_credit\_purchases](#input\_require\_credit\_purchases) | Set to true to require users to hold a credit balance before deploying this module. When false (default), the module can be deployed regardless of credit balance. | `bool` | `false` | no |
 | <a name="input_reset_vcenter_credentials"></a> [reset\_vcenter\_credentials](#input\_reset\_vcenter\_credentials) | Set to true (default) to reset and retrieve the vCenter solution user credentials via gcloud after the private cloud is provisioned. | `bool` | `true` | no |
 | <a name="input_resource_creator_identity"></a> [resource\_creator\_identity](#input\_resource\_creator\_identity) | Email of the Terraform service account used to provision resources (format: name@project-id.iam.gserviceaccount.com). Must hold roles/owner in the destination project. | `string` | `""` | no |
-| <a name="input_vcenter_solution_user"></a> [vcenter\_solution\_user](#input\_vcenter\_solution\_user) | vCenter solution user account whose credentials will be reset (e.g. 'solution-user-01@gve.local'). Used for Migrate to Virtual Machines connector integration. | `string` | `"solution-user-01@gve.local"` | no |
+| <a name="input_vcenter_solution_user"></a> [vcenter\_solution\_user](#input\_vcenter\_solution\_user) | vCenter solution user account whose credentials will be reset (e.g. 'solution-user-01@gve.local'). Required for accessing vCenter management consoles and deploying workloads in the private cloud. | `string` | `"solution-user-01@gve.local"` | no |
 
 ## Outputs
 

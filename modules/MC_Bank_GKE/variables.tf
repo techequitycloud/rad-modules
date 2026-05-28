@@ -45,7 +45,7 @@ locals {
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module deploys an advanced, microservice banking demo application on Google Kubernetes Engine (GKE) across multiple clusters, utilizing Cloud Service Mesh for enhanced security and multi-cluster management. It serves as a reference implementation for highly scalable, secure, and feature-rich banking platforms. This module is for educational purposes only."
+  default     = "This module deploys the Bank of Anthos banking application across multiple GKE clusters in multiple GCP regions — demonstrating the active-active, geo-redundant architecture that regulated financial institutions and global payment processors require for 99.99%+ availability SLAs. By combining Multi-Cluster Ingress, fleet-wide Cloud Service Mesh, and GKE Fleet management, it shows engineering teams how to eliminate single-region failure risk and satisfy data residency requirements simultaneously — a pattern directly applicable to core banking, payments, and insurance platforms. This module is for educational purposes only."
 }
 
 variable "module_documentation" {
@@ -67,9 +67,9 @@ variable "module_services" {
 }
 
 variable "credit_cost" {
-  description = "Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require_credit_purchases is true, users must have sufficient credit balance before deploying. Defaults to 150. {{UIMeta group=0 order=104 }}"
+  description = "Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require_credit_purchases is true, users must have sufficient credit balance before deploying. Defaults to 200. {{UIMeta group=0 order=104 }}"
   type        = number
-  default     = 150
+  default     = 200
 }
 
 variable "require_credit_purchases" {
@@ -85,9 +85,15 @@ variable "enable_purge" {
 }
 
 variable "public_access" {
-  description = "Set to true (default) to make this module visible and deployable by all platform users. Set to false to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
+  description = "Set to true to make this module visible and deployable by all platform users. Set to false (default) to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
   type        = bool
-  default     = true
+  default     = false
+}
+
+variable "shared_users" {
+  description = "List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }}"
+  type        = list(string)
+  default     = []
 }
 
 variable "resource_creator_identity" {
@@ -106,6 +112,12 @@ variable "deployment_id" {
   description = "Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources. {{UIMeta group=0 order=108 }}"
   type        = string
   default     = null
+}
+
+variable "enable_services" {
+  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com, mesh.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=0 order=109 }}"
+  type        = bool
+  default     = true
 }
 
 // SECTION 2: Main
@@ -162,12 +174,6 @@ variable "cluster_size" {
 }
 
 // SECTION 4: Services
-
-variable "enable_services" {
-  description = "Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com, mesh.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. {{UIMeta group=0 order=401 }}"
-  type        = bool
-  default     = true
-}
 
 variable "enable_cloud_service_mesh" {
   description = "Set to true (default) to install and configure Cloud Service Mesh (Google-managed Istio) across all clusters, enabling mTLS encryption, cross-cluster traffic management, and unified observability. Requires the mesh.googleapis.com API. Set to false to skip service mesh installation. {{UIMeta group=4 order=401 }}"
