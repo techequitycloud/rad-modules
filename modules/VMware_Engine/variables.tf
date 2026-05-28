@@ -219,7 +219,7 @@ variable "reset_vcenter_credentials" {
 }
 
 variable "vcenter_solution_user" {
-  description = "vCenter solution user account whose credentials will be reset (e.g. 'solution-user-01@gve.local'). Used for Migrate to Virtual Machines connector integration. {{UIMeta group=9 order=902 }}"
+  description = "vCenter solution user account whose credentials will be reset (e.g. 'solution-user-01@gve.local'). Required for accessing vCenter management consoles and deploying workloads in the private cloud. {{UIMeta group=9 order=902 }}"
   type        = string
   default     = "solution-user-01@gve.local"
 }

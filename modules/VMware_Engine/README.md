@@ -139,7 +139,7 @@ No modules.
 | <a name="input_require_credit_purchases"></a> [require\_credit\_purchases](#input\_require\_credit\_purchases) | Set to true to require users to hold a credit balance before deploying this module. When false (default), the module can be deployed regardless of credit balance. | `bool` | `false` | no |
 | <a name="input_reset_vcenter_credentials"></a> [reset\_vcenter\_credentials](#input\_reset\_vcenter\_credentials) | Set to true (default) to reset and retrieve the vCenter solution user credentials via gcloud after the private cloud is provisioned. | `bool` | `true` | no |
 | <a name="input_resource_creator_identity"></a> [resource\_creator\_identity](#input\_resource\_creator\_identity) | Email of the Terraform service account used to provision resources (format: name@project-id.iam.gserviceaccount.com). Must hold roles/owner in the destination project. | `string` | `""` | no |
-| <a name="input_vcenter_solution_user"></a> [vcenter\_solution\_user](#input\_vcenter\_solution\_user) | vCenter solution user account whose credentials will be reset (e.g. 'solution-user-01@gve.local'). Used for Migrate to Virtual Machines connector integration. | `string` | `"solution-user-01@gve.local"` | no |
+| <a name="input_vcenter_solution_user"></a> [vcenter\_solution\_user](#input\_vcenter\_solution\_user) | vCenter solution user account whose credentials will be reset (e.g. 'solution-user-01@gve.local'). Required for accessing vCenter management consoles and deploying workloads in the private cloud. | `string` | `"solution-user-01@gve.local"` | no |
 
 ## Outputs
 

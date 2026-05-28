@@ -5,8 +5,8 @@
 This lab guide walks you through deploying and operating a **Google Cloud VMware Engine (GCVE)**
 private cloud using the **VMware_Engine** module. You will provision a VMware Software-Defined
 Data Centre (SDDC) in Google Cloud, access vCenter and NSX-T management consoles via a Windows
-jump host, configure VMware networking, and explore the VM migration workflow using Migrate to
-Virtual Machines.
+jump host, configure VMware networking, and deploy a test workload to verify the environment is
+fully operational.
 
 ---
 
@@ -21,7 +21,7 @@ Virtual Machines.
 7. [Exercise 3 — NSX-T Network Configuration](#exercise-3--nsx-t-network-configuration)
 8. [Exercise 4 — VPC Peering and Network Connectivity](#exercise-4--vpc-peering-and-network-connectivity)
 9. [Exercise 5 — Network Policies (Internet and External IP Access)](#exercise-5--network-policies-internet-and-external-ip-access)
-10. [Exercise 6 — VM Migration with Migrate to Virtual Machines](#exercise-6--vm-migration-with-migrate-to-virtual-machines)
+10. [Exercise 6 — Deploy a Test Workload in vCenter](#exercise-6--deploy-a-test-workload-in-vcenter)
 11. [Exercise 7 — Monitoring and Logging](#exercise-7--monitoring-and-logging)
 12. [Exercise 8 — Advanced Operations](#exercise-8--advanced-operations)
 13. [Cleanup](#13-cleanup)
@@ -428,49 +428,44 @@ From the jump host:
 2. Log in with NSX-T credentials (from Exercise 1 Step 1.4)
 3. Username typically: `admin`
 
-### Step 3.2 — Create a DHCP Server
+### Step 3.2 — Configure DHCP on the T1 Gateway
 
-In NSX-T Manager:
+In NSX-T Manager, DHCP is configured directly on the Tier-1 Gateway rather than as a
+standalone server:
 
-1. Navigate to **Networking** → **DHCP**
-2. Click **ADD SERVER**
-3. Configure:
-   - **Name**: `workload-dhcp`
-   - **DHCP Profile**: Gateway DHCP Server
-   - **Server IP Address**: `192.168.100.1/24`
-   - **DHCP Range**: `192.168.100.100 - 192.168.100.200`
+1. Navigate to **Networking** → **Tier-1 Gateways**
+2. Locate your deployed Tier-1 Gateway and click the three-dot menu (⋯) → **Edit**
+3. Under **DHCP Config**, click **Set**
+4. Under **Type**, select **DHCP Server**
+5. Click the three-dot menu next to **DHCP Server Profile** and select **Create New**
+6. Configure the profile:
+   - **Name**: `DHCP-Class`
+   - **Server IP Address**: `172.21.0.5/24`
+   - **Edge Cluster**: select `edge-cluster` from the dropdown
+7. Click **Save**, then **Apply**, then **Save**, then **Close Editing**
 
-**REST API (NSX-T via local endpoint from jump host):**
-```bash
-NSX_FQDN="<your-nsx-fqdn>"
-NSX_USER="admin"
-NSX_PASS="<nsx-password>"
-
-curl -s -k -X POST \
-  "https://${NSX_FQDN}/api/v1/dhcp/servers" \
-  -u "${NSX_USER}:${NSX_PASS}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "display_name": "workload-dhcp",
-    "dhcp_profile_id": "<dhcp-profile-id>",
-    "server_ip": "192.168.100.1/24",
-    "ipv6_profile_id": "<ipv6-profile-id>"
-  }'
-```
+> **Note:** The DHCP server IP (`172.21.0.5/24`) must be an address that does not conflict
+> with your management CIDR or workload subnets. Adjust if needed for your deployment.
 
 ### Step 3.3 — Create a Workload Segment
 
 In NSX-T Manager:
 
 1. Navigate to **Networking** → **Segments**
-2. Click **ADD SEGMENT**
+2. Click **Add Segment**
 3. Configure:
    - **Segment Name**: `workload-segment`
-   - **Connected Gateway**: `<Tier-1 Gateway>`
-   - **Transport Zone**: `<overlay transport zone>`
-   - **Subnets**: `192.168.100.1/24`
-   - **DHCP**: Set DHCP Server `workload-dhcp`
-4. Click **SAVE**
+   - **Connected Gateway**: select your **Tier-1** gateway
+   - **Transport Zone**: `TZ-OVERLAY | Overlay`
+   - **Subnets** (Gateway IP/Prefix Length): `192.168.142.1/24`
+4. Click **Set DHCP Config**:
+   - **DHCP Type**: `Gateway DHCP Server`
+   - **DHCP Range**: `192.168.142.10-192.168.142.50`, then press **Enter**
+   - **DNS Servers**: enter the DNS IP from your Private Cloud details (typically `10.11.0.234`)
+5. Click **Apply**, then **Save**
+6. Click **No** in the pop-up prompt to continue editing if it appears
+
+> The route to this new segment is automatically exported to the peered VPC network.
 
 ### Step 3.4 — Verify Route Export to Peer VPC
 
@@ -598,14 +593,30 @@ curl -s \
   | jq '.networkPolicies[] | {name, vmwareEngineNetwork, edgeServicesCidr, internetAccess: .internetAccess.enabled, externalIp: .externalIp.enabled}'
 ```
 
-### Step 5.2 — Enable Internet Access
+### Step 5.2 — Create a Network Policy
 
-If `enable_internet_access` was set to `true` during deployment, the network policy already
-allows outbound internet access from the GCVE network. To verify or update:
+If no network policy exists yet (i.e., `enable_internet_access` and `enable_external_ip` were both
+`false` at deployment time), create one now via the Cloud Console:
+
+1. In the Google Cloud Console, navigate to **VMware Engine** → **Network Policies**
+2. Click **Create**
+3. Configure:
+   - **Name**: `gcve-edge`
+   - **VMware Engine Network**: select `global-vmware-engine-network` (or your network)
+   - **Region**: your deployment region (e.g., `us-central1`)
+   - **Internet access service**: `Enabled`
+   - **External IP address service**: `Enabled`
+   - **Edge services address range**: `10.11.2.0/26`
+4. Click **Create**
+
+> **Note:** Enabling internet access can take up to 15 minutes. The Network Policies page
+> shows the service state.
+
+If the policy was created by the module, verify or update it via CLI:
 
 **gcloud:**
 ```bash
-gcloud vmware network-policies describe "<network-policy-name>" \
+gcloud vmware network-policies describe "gcve-edge" \
   --location="${REGION}" \
   --project="${PROJECT_ID}" \
   --format="yaml(internetAccess, externalIp)"
@@ -613,7 +624,7 @@ gcloud vmware network-policies describe "<network-policy-name>" \
 
 **REST API (update to enable internet access):**
 ```bash
-NETWORK_POLICY="<your-network-policy-name>"
+NETWORK_POLICY="gcve-edge"
 
 curl -s -X PATCH \
   "https://vmwareengine.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/networkPolicies/${NETWORK_POLICY}?updateMask=internet_access" \
@@ -624,14 +635,19 @@ curl -s -X PATCH \
   }'
 ```
 
-### Step 5.3 — Test Internet Access from vCenter VM
+### Step 5.3 — Verify Internet Access is Active
 
-From within vCenter, deploy a test VM and verify internet connectivity through the NSX-T edge:
+After the network policy is enabled, confirm the state:
 
-1. In vCenter, right-click the cluster → **New Virtual Machine**
-2. Use a minimal Linux ISO (e.g., Tiny Core Linux)
-3. Assign the VM to `workload-segment`
-4. Boot and test: `curl -s ifconfig.me`
+**gcloud:**
+```bash
+gcloud vmware network-policies list \
+  --location="${REGION}" \
+  --project="${PROJECT_ID}" \
+  --format="table(name, internetAccess.enabled, externalIp.enabled, edgeServicesCidr)"
+```
+
+Expected output shows `internetAccess.enabled: true` and `externalIp.enabled: true` for `gcve-edge`.
 
 ### Step 5.4 — External IP Access for Edge Services
 
@@ -647,123 +663,79 @@ gcloud vmware network-policies update "<network-policy-name>" \
 
 ---
 
-## Exercise 6 — VM Migration with Migrate to Virtual Machines
+## Exercise 6 — Deploy a Test Workload in vCenter
 
 ### Objective
 
-Use the Migrate to Virtual Machines service to migrate a VM from an on-premises VMware
-environment (or another source) into GCVE. This exercise covers the Migrate Connector
-setup and migration job configuration.
+Deploy a virtual machine in the GCVE private cloud to verify the full environment stack is
+operational: vSphere compute, vSAN storage, NSX-T networking, DHCP assignment, and connectivity
+from the jump host.
 
-### Step 6.1 — Verify Migration APIs
+> **Prerequisite:** You will need a VM image (ISO or OVF/OVA) to deploy. Any minimal Linux
+> distribution works (e.g., Alpine Linux, Ubuntu Server minimal). Download it to the jump host
+> before starting this exercise.
 
-**gcloud:**
-```bash
-gcloud services list \
-  --filter="config.name~vmmigration OR config.name~vmwareengine" \
-  --project="${PROJECT_ID}" \
-  --format="table(config.name, state)"
+### Step 6.1 — Upload an ISO to the vSAN Datastore
+
+If using an ISO rather than an OVA:
+
+1. In the vSphere Client, navigate to **Storage** in the left panel
+2. Select **vsanDatastore**
+3. Click the **Files** tab → **New Folder** → name it `ISOs`
+4. Click **Upload Files** and upload your ISO
+
+### Step 6.2 — Create a New Virtual Machine
+
+1. In the vSphere Client, click **Menu** → **Inventory** → **VMs and Templates**
+2. Expand the vCenter appliance and right-click **Datacenter** → **New Virtual Machine**
+3. Follow the wizard:
+   - **Creation type**: Create a new virtual machine
+   - **Name**: `test-vm`
+   - **Location**: select **Datacenter** (or a **Workload VMs** folder if present)
+   - **Compute resource**: select the available cluster or host
+   - **Storage**: select **vsanDatastore**
+   - **Compatibility**: default (ESXi 7.0 or later)
+   - **Guest OS family/version**: match your ISO (e.g., Linux / Ubuntu Linux 64-bit)
+4. On the **Customize hardware** page:
+   - **Network Adapter**: set to `workload-segment`
+   - **New CD/DVD Drive**: select **Datastore ISO file** and browse to your uploaded ISO; check
+     **Connect at power on**
+5. Click **Finish**
+
+### Step 6.3 — Power On and Verify DHCP Assignment
+
+1. In **VMs and Templates**, right-click `test-vm` → **Power** → **Power On**
+2. Click the VM name → **Summary** tab; wait for **VMware Tools** status or the guest IP to appear
+3. Once booted, open the VM console and check the assigned IP:
+   ```bash
+   ip addr show
+   ```
+   The address should fall within the DHCP range `192.168.142.10–192.168.142.50`.
+
+### Step 6.4 — Test Connectivity from the Jump Host
+
+From the Windows jump host, open PowerShell:
+
+```powershell
+# Confirm the VM received an IP in the workload-segment range
+Test-NetConnection -ComputerName 192.168.142.<vm-ip> -Port 22
+
+# Verify the workload segment subnet is reachable
+ping 192.168.142.1
 ```
 
-**REST API:**
-```bash
-curl -s \
-  "https://serviceusage.googleapis.com/v1/projects/${PROJECT_ID}/services?filter=state:ENABLED" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  | jq '.services[] | select(.name | test("vmmigration|vmware")) | .name'
-```
+A successful connection confirms that:
+- vSAN provisioned the VM disk correctly
+- NSX-T delivered DHCP to the workload segment
+- VPC peering allows the jump host (in the peer VPC) to reach the NSX-T overlay network
 
-### Step 6.2 — Create a Migration Source
+### Step 6.5 — Verify Internet Access from the VM (optional)
 
-**gcloud:**
-```bash
-gcloud migration vms sources create "on-prem-vcenter" \
-  --vcenter-ip="<vcenter-on-prem-ip>" \
-  --vcenter-username="administrator@vsphere.local" \
-  --vcenter-password="<password>" \
-  --project="${PROJECT_ID}" \
-  --location="${REGION}"
-```
-
-**REST API:**
-```bash
-curl -s -X POST \
-  "https://vmmigration.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/sources?sourceId=on-prem-vcenter" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "vmware": {
-      "vcenterClient": {
-        "datacenterPath": "<datacenter-name>",
-        "vcenterIp": "<vcenter-ip>",
-        "username": "administrator@vsphere.local",
-        "password": "<password>"
-      }
-    }
-  }'
-```
-
-### Step 6.3 — Deploy the Migrate Connector
-
-The Migrate Connector is an OVA deployed to the source vCenter environment:
-
-1. From the jump host, open vCenter
-2. Right-click the datacenter → **Deploy OVF Template**
-3. Use the OVA URL provided in the Cloud Console:
+If internet access was enabled in Exercise 5, test outbound connectivity from inside the VM:
 
 ```bash
-echo "https://console.cloud.google.com/migrate/virtual-machines?project=${PROJECT_ID}"
-```
-
-4. Configure the connector with the service account key and source registration token
-5. Verify the connector appears as `Connected` in the Cloud Console
-
-### Step 6.4 — Create a Migration Group
-
-```bash
-gcloud migration vms groups create "migration-group-1" \
-  --project="${PROJECT_ID}" \
-  --location="${REGION}"
-```
-
-### Step 6.5 — Add a VM to the Group and Start Replication
-
-```bash
-# List discovered VMs from the source
-gcloud migration vms sources list \
-  --project="${PROJECT_ID}" \
-  --location="${REGION}"
-
-# Create a migrating VM (replication job)
-gcloud migration vms create "web-server-migration" \
-  --source="on-prem-vcenter" \
-  --vm="<source-vm-name>" \
-  --project="${PROJECT_ID}" \
-  --location="${REGION}"
-```
-
-**REST API:**
-```bash
-curl -s -X POST \
-  "https://vmmigration.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/sources/on-prem-vcenter/migratingVms?migratingVmId=web-server-migration" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sourceVmId": "<source-vm-id>",
-    "description": "Web server migration to GCVE"
-  }'
-```
-
-### Step 6.6 — Perform a Test Clone
-
-A test clone creates a non-production copy of the VM in GCVE without affecting the source:
-
-```bash
-gcloud migration vms cutover-jobs create \
-  --migrating-vm="web-server-migration" \
-  --source="on-prem-vcenter" \
-  --project="${PROJECT_ID}" \
-  --location="${REGION}"
+curl -s --max-time 10 https://www.google.com -o /dev/null -w "%{http_code}"
+# Expected: 200
 ```
 
 ---
@@ -1086,7 +1058,6 @@ gcloud logging read "protoPayload.serviceName=vmwareengine.googleapis.com" \
 - [Google Cloud VMware Engine overview](https://cloud.google.com/vmware-engine/docs/overview)
 - [Private cloud provisioning](https://cloud.google.com/vmware-engine/docs/private-cloud/provision-private-cloud)
 - [NSX-T network configuration in GCVE](https://cloud.google.com/vmware-engine/docs/networking/nsx-t-configuration)
-- [Migrate to Virtual Machines overview](https://cloud.google.com/migrate/virtual-machines/docs/migrate-to-gcp-overview)
 - [VMware Engine node types](https://cloud.google.com/vmware-engine/docs/concepts-node-types)
 - [VPC peering for VMware Engine](https://cloud.google.com/vmware-engine/docs/networking/vpc-network-peering)
 - [GCVE security best practices](https://cloud.google.com/vmware-engine/docs/security/secure-your-private-cloud)
