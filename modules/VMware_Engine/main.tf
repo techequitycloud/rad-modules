@@ -65,6 +65,6 @@ resource "google_project_iam_member" "vmmigration_sa_user" {
   depends_on = [google_project_service.enabled_services]
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
