@@ -4,13 +4,13 @@ This module creates an Amazon Elastic Kubernetes Service (EKS) cluster and regis
 
 ## Industry Value & Use Cases
 
-AWS-GCP is the most common enterprise multi-cloud combination: AWS holds the largest cloud market share while Google Cloud leads in AI/ML, data analytics, and developer tooling. GKE Fleet bridges these two clouds by letting platform engineering teams manage EKS clusters through the same control plane, IAM model, and observability tooling used for native GKE — without refactoring or moving existing AWS workloads.
+AWS-GCP is the most common enterprise multi-cloud combination: AWS holds the largest cloud market share while Google Cloud leads in AI/ML, data analytics, and developer tooling — making the two platforms highly complementary. As organizations increasingly build AI and data capabilities on GCP, GKE Fleet delivers measurable operational savings by letting platform engineering teams manage EKS clusters from the same Google Cloud control plane, IAM model, and observability tooling used for native GKE — without moving a single container or rewriting a deployment pipeline.
 
 **Key use cases this module demonstrates:**
-- **Unified multi-cloud Kubernetes operations** — apply consistent RBAC, logging, and Cloud Monitoring policies across AWS and GCP clusters from a single Google Cloud console
+- **Unified multi-cloud Kubernetes operations** — apply consistent RBAC, logging, and Cloud Monitoring policies across AWS and GCP clusters from a single Google Cloud console, reducing the operational cost of running parallel Kubernetes toolchains
 - **AWS-first organizations adopting GCP** — teams in financial services, healthcare, and retail use GKE Attached Clusters to expand to GCP while preserving their EKS investment
-- **Incremental cloud migration at the platform layer** — keep EKS workloads running in AWS while onboarding new services in GCP, all under one Fleet control plane
-- **Access to GCP-native services** — Fleet-connected EKS clusters can consume GCP APIs (Vertex AI, BigQuery, AlloyDB) without container migration
+- **Incremental cloud migration at the platform layer** — keep EKS workloads running in AWS while onboarding new services in GCP, all under one Fleet control plane, without big-bang migration risk
+- **Access to GCP-native AI and data services** — Fleet-connected EKS clusters can consume GCP APIs (Vertex AI, BigQuery, AlloyDB) without container migration, shortening the path to production AI workloads
 
 For a detailed technical walkthrough covering OIDC federation, fleet management, observability, and service mesh, see [EKS\_GKE.md](EKS_GKE.md).
 

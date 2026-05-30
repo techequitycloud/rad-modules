@@ -4,11 +4,11 @@ This module deploys **Google Cloud VMware Engine (GCVE)** infrastructure, includ
 
 ## Industry Value & Use Cases
 
-Google Cloud VMware Engine is the enterprise standard for data center exit and VMware cloud migration without refactoring. Large organizations across financial services, healthcare, and manufacturing use GCVE to lift and shift entire VMware estates to Google Cloud, preserving their existing vSphere operational model while gaining access to Google Cloud's AI, data, and networking services as a next step. One documented enterprise case study (BHP) shows infrastructure provisioning time reduced from 6 months to 6 days after adopting GCVE to replace a legacy VMware vRA environment.
+VMware powers the majority of enterprise data center workloads globally, and Google Cloud VMware Engine (GCVE) is the enterprise standard for migrating that infrastructure to Google Cloud without refactoring. Organizations across financial services, healthcare, and manufacturing use GCVE to lift and shift entire VMware estates while preserving their existing vSphere operational model — then layer Google Cloud AI, data, and networking services on top as the next modernisation step. The business case is well documented: one enterprise case study (BHP) shows infrastructure provisioning time reduced from 6 months to 6 days after adopting GCVE to replace a legacy VMware vRA environment.
 
 **Key use cases this module demonstrates:**
-- **Data center exit without refactoring** — lift and shift VMware VMs to Google Cloud preserving vCenter, NSX-T, and vSphere operations; no application or OS changes required
-- **Disaster recovery modernization** — replace expensive secondary data center hardware with GCVE private clouds sized for DR, activated on-demand
+- **Data center exit without refactoring** — lift and shift VMware VMs to Google Cloud preserving vCenter, NSX-T, and vSphere operations, with no application or OS changes required and no retraining for VMware-skilled operations teams
+- **Disaster recovery modernisation** — replace expensive secondary data center hardware with GCVE private clouds sized for DR, activated on-demand and decommissioned when not needed
 - **VDI migration** — move VMware Horizon or Citrix virtual desktop infrastructure to Google Cloud, leveraging Google's global network for low-latency access
 - **Hybrid cloud bridge to GCP-native services** — GCVE clusters connect directly to GCP VPC networks, enabling VMware workloads to consume BigQuery, Cloud SQL, Vertex AI, and other GCP services without traversing the internet
 - **Validated migration lab environment** — the TIME\_LIMITED single-node private cloud option lets teams validate GCVE connectivity, HCX workflows, and vCenter access before committing to STANDARD production deployments

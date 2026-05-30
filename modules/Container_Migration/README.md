@@ -12,15 +12,15 @@ All resources are named with the prefix `mig-{deployment_id}-` (e.g. `mig-8b56-p
 
 ## Industry Value & Use Cases
 
-Migrate to Containers is the Google-recommended path for engineering teams modernising VM fleets to Kubernetes without application-level refactoring. It is commonly adopted by organisations with large Java, Python, and Node.js VM estates that need to reduce operational overhead, improve density, and unlock CI/CD workflows — without a full application rewrite. Beyond Linux VMs, M2C also supports Apache Tomcat, IBM WebSphere, JBoss/WildFly, Apache HTTP Server, and WordPress workloads, with GKE and Cloud Run as deployment targets.
+VM modernisation is the top infrastructure initiative for enterprises managing large Linux estates, where the goal is to reduce per-workload operational overhead, improve compute density, and unlock CI/CD workflows — without the cost and risk of a full application rewrite. Migrate to Containers is the Google-recommended path for this journey, adopted by organisations with Java, Python, and Node.js VM fleets running on-premises or in other clouds. Beyond Linux VMs, M2C supports Apache Tomcat, IBM WebSphere, JBoss/WildFly, Apache HTTP Server, and WordPress workloads, with GKE and Cloud Run as deployment targets — covering the broad majority of enterprise application stacks in scope for containerisation programmes.
 
 **Key use cases this module demonstrates:**
-- **VM-to-container replatforming** — automatically containerise Linux VMs using the `m2c` CLI without modifying application source code
-- **Workload assessment** — use `mcdc` to generate multi-format suitability reports scoring VMs across GKE, GKE Autopilot, Cloud Run, and Compute Engine migration journeys
-- **Stateful workload migration** — migrate persistent database volumes (PostgreSQL data directory) to GKE PersistentVolumes using `m2c migrate-data`
-- **Kubernetes Day 2 operations** — use generated Skaffold and deployment manifests as a foundation for CI/CD pipelines
-- **Horizontal pod autoscaling** — configure GKE HPA on migrated Tomcat deployments to scale on CPU demand
-- **Rolling update strategy** — configure zero-downtime rolling updates for migrated deployments
+- **VM-to-container replatforming** — automatically containerise Linux VMs using the `m2c` CLI without modifying application source code, delivering container packaging without application team involvement
+- **Workload assessment** — use `mcdc` to generate multi-format suitability reports scoring VMs across GKE, GKE Autopilot, Cloud Run, and Compute Engine migration journeys to prioritise the modernisation backlog
+- **Stateful workload migration** — migrate persistent database volumes (PostgreSQL data directory) to GKE PersistentVolumes using `m2c migrate-data`, handling the most complex part of containerisation automatically
+- **Kubernetes Day 2 operations** — use generated Skaffold and deployment manifests as a ready-to-use foundation for CI/CD pipelines, eliminating from-scratch Kubernetes authoring
+- **Horizontal pod autoscaling** — configure GKE HPA on migrated Tomcat deployments to scale on CPU demand, immediately improving resource efficiency over fixed VM sizing
+- **Rolling update strategy** — configure zero-downtime rolling updates for migrated deployments, unlocking safe continuous delivery for previously static VM workloads
 
 For a detailed technical walkthrough of the full lab, see [Container_Migration.md](../../docs/labs/Container_Migration.md).
 

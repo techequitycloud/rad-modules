@@ -7,15 +7,21 @@ assessment environment. Migration Center is Google Cloud's free tool for
 discovering, analyzing, and planning migrations from on-premises or other
 cloud environments.
 
-**Industry use cases:** Data center exit planning, cloud-to-cloud migration
-assessment, infrastructure rightsizing analysis, TCO comparison for
-FinOps teams.
-
 The module provisions the complete lab environment and automates all
 infrastructure and Migration Center configuration steps. Users connect
 via RDP, complete the MCDCv6 Google OAuth login, run a discovery scan,
 and then generate a TCO report from the console against fully populated
 asset data.
+
+## Industry Value & Use Cases
+
+Data center exit and cloud migration programmes consistently stall at the assessment phase — organizations lack a complete, trustworthy inventory of what they own, what it costs to run, and what it would cost to move. Migration Center is Google Cloud's free answer to this problem, delivering automated discovery, performance-based rightsizing, and TCO modelling in a single console. It is the recommended starting point for any GCP migration engagement, with adoption highest among enterprises preparing to consolidate aging data centers or move workloads from another cloud provider.
+
+**Key use cases this module demonstrates:**
+- **Data center exit planning** — discover and inventory on-premises VMs, analyze performance data, and generate TCO comparisons to build a migration business case before committing to a GCP investment
+- **Cloud-to-cloud migration assessment** — import AWS EC2 asset data via CSV export and evaluate migration paths alongside on-premises assets in a unified view, supporting multi-source migration programmes
+- **Infrastructure rightsizing analysis** — identify over-provisioned VMs and generate rightsizing recommendations that reduce cloud spend from day one, directly supporting FinOps cost-optimization mandates
+- **Migration business case development** — use preference sets (aggressive 3-year CUD vs. moderate 1-year CUD) to model different commitment scenarios for FinOps and procurement teams negotiating cloud contracts
 
 ## What Gets Deployed
 

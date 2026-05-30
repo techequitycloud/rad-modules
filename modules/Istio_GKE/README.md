@@ -4,13 +4,13 @@ This module provisions a GKE Standard cluster and installs **open-source Istio**
 
 ## Industry Value & Use Cases
 
-Istio is the de facto standard service mesh, adopted inside platforms at enterprises across financial services, healthcare, telecommunications, and retail. Organizations choose Istio specifically because it enforces zero-trust networking and compliance controls — mTLS, authorization policies, traffic encryption — at the infrastructure layer without requiring application code changes. This module gives engineers hands-on access to both Istio data plane architectures and its full observability ecosystem in a single deployment.
+Istio is the most widely deployed open-source service mesh, with production adoption across financial services, healthcare, telecommunications, and retail enterprises. Its growth is driven by a compelling business case: zero-trust networking and compliance controls — mTLS, authorization policies, traffic encryption — enforced at the infrastructure layer without requiring application code changes, eliminating the cost of per-service security implementations. This module gives engineers hands-on access to both Istio data plane architectures and the full observability ecosystem in a single deployment, covering the key technical decisions platform teams face before committing to a mesh in production.
 
 **Key use cases this module demonstrates:**
 - **Zero-trust networking for regulated industries** — mTLS mutual authentication between every service pair satisfies network segmentation requirements for PCI-DSS, HIPAA, and SOC 2 compliance without modifying application code
-- **Sidecar vs. ambient mode evaluation** — compare the operational trade-offs of per-pod Envoy sidecars (maximum per-service control) against ambient mode's node-level ztunnel (30–50% lower resource overhead, simpler pod lifecycle), a decision every platform team faces when adopting a mesh
+- **Sidecar vs. ambient mode evaluation** — compare the operational trade-offs of per-pod Envoy sidecars (maximum per-service control) against ambient mode's node-level ztunnel (30–50% lower resource overhead, simpler pod lifecycle), the key architectural decision every platform team faces when adopting a mesh
 - **Progressive delivery and traffic management** — canary releases, A/B testing, and weighted traffic splits using Istio VirtualServices are the standard deployment pattern for risk-averse enterprises rolling out changes to production services
-- **Full observability stack in one deployment** — Prometheus metrics, Jaeger distributed traces, Grafana dashboards, and Kiali topology maps installed out of the box, demonstrating the observability baseline that SRE teams expect from a production mesh
+- **Full observability stack in one deployment** — Prometheus metrics, Jaeger distributed traces, Grafana dashboards, and Kiali topology maps installed out of the box, providing the observability baseline SRE teams require before approving a mesh for production
 - **Bookinfo reference workload** — a live microservices application provides real traffic for exploring Istio features without building a demo app from scratch
 
 For a detailed technical walkthrough of the full implementation, see [Istio\_GKE.md](Istio_GKE.md).

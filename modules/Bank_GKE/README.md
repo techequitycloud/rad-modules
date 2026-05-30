@@ -4,13 +4,13 @@ This module deploys the **Bank of Anthos** microservices banking demo applicatio
 
 ## Industry Value & Use Cases
 
-Financial services is one of the most demanding environments for cloud-native infrastructure: strict regulatory requirements, zero-tolerance for data exposure, and high transaction volumes at peak load. The Bank of Anthos application is Google's reference architecture for this vertical, and this module deploys it with the production-grade guardrails — mTLS service mesh, GitOps-driven config management, and GKE Autopilot serverless scaling — that engineering teams at banks and payment processors evaluate before committing to a platform.
+Financial services accounts for the largest share of regulated cloud-native Kubernetes adoption, driven by digital transformation mandates, PCI-DSS and SOC 2 compliance requirements, and demand for scalable transaction infrastructure. Bank of Anthos is Google's reference architecture for this vertical — this module deploys it with the production-grade guardrails that engineering teams at banks and payment processors use to validate GKE Autopilot, Cloud Service Mesh, and GitOps workflows before platform commitment. The business value is tangible: GKE Autopilot eliminates node management overhead, Cloud Service Mesh satisfies network isolation controls without application changes, and GitOps-driven config management provides the audit trail regulators require.
 
 **Key use cases this module demonstrates:**
-- **PCI-DSS relevant microservices architecture** — mTLS-encrypted east-west traffic via Cloud Service Mesh satisfies network isolation requirements without application changes
-- **GitOps-driven operations** — Anthos Config Management (optional) syncs Kubernetes policies from Git, the operational model banks use for audit-ready change management
-- **Cloud-native financial services platform validation** — used by solution architects to benchmark GKE Autopilot, Cloud Service Mesh, and Cloud Monitoring SLOs for core banking workloads
-- **SRE practice for regulated industries** — Cloud Monitoring SLOs and dashboards provide hands-on experience with availability targets applicable to payment system uptime requirements
+- **PCI-DSS relevant microservices architecture** — mTLS-encrypted east-west traffic via Cloud Service Mesh satisfies network isolation requirements without application code changes
+- **GitOps-driven operations** — Anthos Config Management (optional) syncs Kubernetes policies from Git, the operational model banks use for audit-ready, version-controlled change management
+- **Cloud-native financial services platform validation** — used by solution architects to benchmark GKE Autopilot, Cloud Service Mesh, and Cloud Monitoring SLOs for core banking and payment workloads
+- **SRE practice for regulated industries** — Cloud Monitoring SLOs and dashboards provide hands-on experience with the availability targets and error budgets applicable to payment system uptime requirements
 
 For a detailed technical walkthrough of the full implementation, see [Bank\_GKE.md](Bank_GKE.md).
 

@@ -4,13 +4,13 @@ This module creates a Microsoft Azure Kubernetes Service (AKS) cluster and regis
 
 ## Industry Value & Use Cases
 
-Multi-cloud Kubernetes management is a defining challenge for enterprises that have built significant Azure footprints and now want to adopt Google Cloud AI, data, or developer services. GKE Fleet addresses this by letting platform teams operate AKS clusters through the same control plane, IAM model, and observability tooling they use for native GKE clusters — without touching the underlying Azure workloads.
+Nearly 9 in 10 enterprises operate across multiple cloud providers, and Azure-to-GCP is one of the fastest-growing expansion paths as organizations seek Google Cloud's AI, data, and developer capabilities. GKE Fleet bridges these environments, letting platform teams manage AKS clusters through the same control plane, IAM model, and observability tooling used for native GKE — without refactoring or migrating existing Azure workloads. The business case is clear: consolidate tooling spend, reduce the overhead of maintaining separate Kubernetes operational toolchains, and unlock GCP-native services without a forklift migration.
 
 **Key use cases this module demonstrates:**
-- **Unified multi-cloud operations** — apply consistent RBAC, logging, and monitoring policies across Azure and GCP clusters from a single Google Cloud console
+- **Unified multi-cloud operations** — apply consistent RBAC, logging, and monitoring policies across Azure and GCP clusters from a single Google Cloud console, eliminating the cost of maintaining parallel toolchains
 - **Cloud-agnostic platform engineering** — teams in financial services, healthcare, and retail use GKE Attached Clusters to consolidate tooling as they expand from Azure to GCP
-- **Incremental cloud migration** — keep existing AKS workloads running in Azure while onboarding new workloads in GCP, all visible in one Fleet view
-- **Zero-refactor path to GCP services** — connected clusters can consume GCP APIs (BigQuery, Vertex AI, Cloud SQL) without moving containers
+- **Incremental cloud migration** — keep existing AKS workloads running in Azure while onboarding new workloads in GCP, all visible in one Fleet view, eliminating big-bang migration risk
+- **Zero-refactor path to GCP services** — Fleet-connected AKS clusters can consume GCP APIs (BigQuery, Vertex AI, Cloud SQL) without moving containers, accelerating time-to-value for AI and data initiatives
 
 For a detailed technical walkthrough covering OIDC federation, fleet management, observability, and service mesh, see [AKS\_GKE.md](AKS_GKE.md).
 

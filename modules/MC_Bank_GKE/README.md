@@ -4,14 +4,14 @@ This module deploys the **Bank of Anthos** microservices banking demo applicatio
 
 ## Industry Value & Use Cases
 
-Global financial institutions, payment networks, and insurance companies cannot afford a single point of regional failure. This module demonstrates the multi-cluster, multi-region GKE architecture that engineering teams use to achieve the active-active redundancy, geographic traffic routing, and data residency controls that regulators and enterprise SLAs require.
+Multi-region active-active architecture is the benchmark for enterprise cloud maturity and a hard requirement for global financial institutions, payment networks, and insurance companies that cannot tolerate a single-region outage. This module demonstrates the multi-cluster, multi-region GKE topology that engineering teams use to achieve the active-active redundancy, geographic traffic routing, and data residency controls that regulators and enterprise SLAs require. The business value scales with the architecture: eliminating a single point of regional failure directly reduces the financial exposure of unplanned downtime for high-volume payment systems.
 
 **Key use cases this module demonstrates:**
 - **Active-active multi-region banking architecture** — two or more GKE clusters in different regions serve live traffic simultaneously, eliminating single-region outage risk and targeting 99.99%+ availability SLAs
-- **Global load balancing for regulated workloads** — Google Cloud's global HTTPS load balancer routes users to the nearest healthy cluster, with automatic failover between regions
-- **Cross-cluster service mesh** — Cloud Service Mesh fleet-wide provides mTLS encryption and observability across all clusters, applying consistent security policy regardless of where a pod runs
-- **Data residency and sovereignty compliance** — deploying clusters in specific GCP regions demonstrates how organizations satisfy requirements to keep financial data within defined geographic boundaries
-- **Multi-cluster platform engineering reference** — Terraform provisions the entire multi-cluster topology from a single configuration, the operational model for platform teams managing global infrastructure as code
+- **Global load balancing for regulated workloads** — Google Cloud's global HTTPS load balancer routes users to the nearest healthy cluster, with automatic failover across regions for transparent disaster recovery
+- **Cross-cluster service mesh** — Cloud Service Mesh deployed fleet-wide provides mTLS encryption and observability across all clusters, applying consistent security policy regardless of where a pod runs
+- **Data residency and sovereignty compliance** — deploying clusters in specific GCP regions demonstrates how organizations satisfy regulatory requirements to keep financial data within defined geographic boundaries
+- **Multi-cluster platform engineering reference** — a single Terraform configuration provisions the entire multi-cluster topology, the operational model for platform teams managing global infrastructure as code
 
 For a detailed technical walkthrough of the full implementation, see [MC\_Bank\_GKE.md](MC_Bank_GKE.md).
 
