@@ -1,0 +1,4 @@
+## 2024-05-31 - [Over-permissioned GKE Service Accounts]
+**Vulnerability:** GKE service accounts in `Istio_GKE`, `Bank_GKE`, and `MC_Bank_GKE` were configured with the `roles/storage.objectAdmin` role, granting overly broad write access across the project instead of least privilege read/write boundaries or specific bucket access.
+**Learning:** Foundational roles applied uniformly (like storage admin) often persist beyond when they were strictly needed and can violate the principle of least privilege, opening the risk of lateral movement if a pod is compromised.
+**Prevention:** Apply least privilege principles by replacing broadly scoped roles like `roles/storage.objectAdmin` with narrower roles (e.g., `roles/storage.objectViewer`) during standard module design, and restrict write access explicitly to required workload identities.
