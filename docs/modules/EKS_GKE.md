@@ -1100,3 +1100,49 @@ Deploying this module gives you a working environment to explore the following G
 | [Policy Controller](https://cloud.google.com/anthos-config-management/docs/concepts/policy-controller) | Enable Policy Controller from the Fleet dashboard and apply a constraint to the EKS cluster |
 | [Config Management](https://cloud.google.com/anthos-config-management/docs/overview) | Enable Config Sync and point it at a Git repository to synchronise manifests to the EKS cluster |
 
+
+---
+
+## Common Issues and Variable Dependencies
+
+### Variables That Depend on Each Other
+
+**`k8s_version` and `platform_version` must be compatible**: The GKE Hub Attached Clusters platform version must match the EKS cluster's Kubernetes minor version. For example, EKS running `1.34` requires `platform_version = "1.34.0-gke.1"`. Mismatched versions cause the `google_container_attached_cluster` resource to fail with a compatibility error.
+
+**`enable_public_subnets` determines which subnet IDs are used for EKS**: When `enable_public_subnets = true`, EKS nodes are placed in `aws_subnet.public` subnets with `map_public_ip_on_launch = true`. When `enable_public_subnets = false`, nodes are placed in `aws_subnet.private` subnets and a NAT Gateway is created for internet access. The EKS cluster OIDC issuer URL (required for GKE attachment) is accessible from Google Cloud in both cases because it is a public AWS endpoint.
+
+**`subnet_availability_zones` count must match `public_subnet_cidr_blocks` and `private_subnet_cidr_blocks` counts**: The lists must all have the same number of elements. The default is 3 AZs with 3 CIDR blocks each. A mismatch causes an index error during `for` expression evaluation.
+
+**`trusted_users` always includes the deploying GCP identity**: `data.google_client_openid_userinfo.me.email` is always prepended to the final admin user list. You do not need to add the deploying user's email to `trusted_users`.
+
+**`node_group_desired_size` must be between `node_group_min_size` and `node_group_max_size`**: EKS validation enforces this. Setting `desired_size > max_size` or `desired_size < min_size` causes the node group creation to fail.
+
+### Mutually Exclusive Variable Combinations
+
+**Public vs. private subnet topology**: `enable_public_subnets = true` creates an Internet Gateway and a public route table. `enable_public_subnets = false` creates a NAT Gateway (requiring an EIP) and a private route table instead. The two topologies are mutually exclusive — you cannot have both public and private subnets in a single deployment of this module.
+
+### Variables That Affect Other Variables' Behavior
+
+**`cluster_name_prefix` is combined with a random suffix**: The `local.cluster_name_prefix` is `"${var.cluster_name_prefix}-${random_string.suffix.result}"` (2 random lowercase letters). The EKS cluster name, node group name, IAM role names, VPC tags, and subnet tags all use `local.cluster_name_prefix`. However, `local.cluster_name = var.cluster_name_prefix` (without the suffix) is used for the GKE attached cluster name and Fleet membership. This inconsistency means the EKS cluster name includes a suffix but the GCP resources use the unmodified prefix.
+
+**`aws_region` determines available EC2 instance types**: EKS managed node groups use the AWS-managed AMI for the region. Default instance type selection by AWS depends on the region. The `aws_access_key` and `aws_secret_key` must have permission to create resources in `aws_region`.
+
+**`vpc_cidr_block` must accommodate all subnets**: The CIDR blocks in `public_subnet_cidr_blocks` and `private_subnet_cidr_blocks` must all be within `vpc_cidr_block`. The defaults (`10.0.0.0/16` for VPC, `10.0.1-3.0/24` private, `10.0.101-103.0/24` public) are compatible.
+
+### AWS IAM Roles Created
+
+The module creates two AWS IAM roles:
+- **`<prefix>-eks-role`**: EKS cluster role with `AmazonEKSClusterPolicy`. This is the role EKS assumes for cluster operations.
+- **`<prefix>-node-group-role`**: EC2 node group role with `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, and `AmazonEC2ContainerRegistryReadOnly`.
+
+### Common Pitfalls
+
+1. **AWS credentials must allow EKS, VPC, and IAM operations**: The `aws_access_key` / `aws_secret_key` must have sufficient AWS IAM permissions to create EKS clusters, VPCs, subnets, IAM roles, and route tables. A policy with `eks:*`, `ec2:*`, and `iam:*` on the relevant resources is the simplest approach for a lab environment.
+
+2. **EKS OIDC issuer is public but the bootstrap Helm chart runs on the cluster**: The `attached-install-manifest` sub-module installs a Helm chart on the EKS cluster. This requires the Terraform runner to have network access to the EKS cluster API server endpoint. For public subnets, this endpoint is publicly accessible. For private subnets, the runner must be in the same VPC or have network connectivity.
+
+3. **GCP API propagation**: After enabling the 10 GCP APIs, there is a propagation delay. The module does not poll for activation (unlike Bank_GKE). If the `google_container_attached_cluster` resource fails with "API not enabled," re-apply after 60 seconds.
+
+4. **`cluster_name_prefix` uniqueness**: Because the EKS cluster uses `<prefix>-<suffix>` but the GCP Fleet membership uses `<prefix>` directly, deploying two instances with the same `cluster_name_prefix` in the same GCP project will cause a Fleet membership conflict on the GCP side, even if the EKS clusters have different suffixes.
+
+5. **Teardown requires network access to EKS**: `terraform destroy` calls the `attached-install-manifest` module's destroy provisioner to uninstall the Helm chart from EKS. This requires the Terraform runner to still have connectivity to the EKS API endpoint. If the EKS cluster is no longer reachable, the Helm uninstall will fail, leaving the destroy process incomplete.

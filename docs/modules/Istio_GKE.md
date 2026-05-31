@@ -1405,3 +1405,47 @@ gcloud container clusters list
 - **Envoy proxy documentation:** https://www.envoyproxy.io/docs/envoy/latest/
 - **Kubernetes Gateway API:** https://gateway-api.sigs.k8s.io/
 - **CNCF Service Mesh Landscape:** https://landscape.cncf.io/card-mode?category=service-mesh
+
+---
+
+## Common Issues and Variable Dependencies
+
+### Variables That Depend on Each Other
+
+**`install_ambient_mesh` selects between two mutually exclusive Istio installations**: When `install_ambient_mesh = false` (default), `null_resource.install_sidecar_mesh` runs — it installs Istio with the default profile and enables sidecar injection in the `default` namespace. When `install_ambient_mesh = true`, `null_resource.install_ambient_mesh` runs instead — it installs Istio with the `--set profile=ambient` flag, labels the `default` namespace with `istio.io/dataplane-mode=ambient`, and applies a Waypoint proxy. Exactly one of the two null resources is created; setting both would require changing the `count` expressions.
+
+**`create_cluster = false` requires a pre-existing cluster named `gke_cluster` in `region`**: When `create_cluster = false`, the module uses `data.google_container_cluster.existing_cluster`. If the cluster does not exist, the data source fails. No service account, node pool, or IAM resources are created when reusing an existing cluster.
+
+**`deploy_application` deploys the Istio Bookinfo app using `istioctl` and `kubectl`**: The application deployment (`null_resource` in `outputs.tf`) is not shown explicitly — the lab guide covers this manually. The Bookinfo manifests are part of the downloaded Istio release bundle at `$HOME/istio-<version>/samples/bookinfo/platform/kube/`.
+
+**`create_network = false` requires `network_name` and `subnet_name` to identify an existing network**: The subnet must have secondary IP ranges with names matching `pod_ip_range` and `service_ip_range`. The cluster requires these range names in its `ip_allocation_policy`.
+
+**`enable_services` must be `true` for a fresh project**: The module only enables two APIs: `cloudapis.googleapis.com` and `container.googleapis.com`. If these are not enabled, the `google_container_cluster` resource will fail. The `null_resource.wait_for_container_api` polls until `container.googleapis.com` is confirmed active.
+
+### Variables That Affect Other Variables' Behavior
+
+**`istio_version` determines the download URL, Helm chart, and observability addon URLs**: The sidecar and ambient install scripts download the Istio release from GitHub using `var.istio_version` as the version tag. The observability addons (Prometheus, Grafana, Jaeger, Kiali) are installed from `raw.githubusercontent.com/istio/istio/release-<major.minor>/samples/addons/`. Specifying an invalid version will cause the download to fail.
+
+**`istio_version` regex is evaluated at plan time**: The expression `regex("^(\\d+\\.\\d+)", var.istio_version)[0]` extracts the `major.minor` portion. If the version string does not start with digits and a dot (e.g., if a prerelease tag like `1.24.2-rc1` is used), the regex will still match the leading `1.24` portion correctly. However, the release branch URL (`release-1.24`) must exist on GitHub.
+
+**GKE cluster uses `LEGACY_DATAPATH`**: The cluster is created with `datapath_provider = "LEGACY_DATAPATH"` (kube-proxy mode, not eBPF/Dataplane V2). This is required for open-source Istio compatibility — Dataplane V2 (eBPF) conflicts with Istio's packet-interception model. Do not change this setting.
+
+**GKE cluster uses `allow_net_admin = true`**: This grants the `NET_ADMIN` Linux capability to pods, which Istio's `istio-init` init container requires to configure iptables rules for traffic interception (sidecar mode). In ambient mode, ztunnel handles interception at the node level, but `allow_net_admin` is still set globally.
+
+**`resource_creator_identity` is used in `gcloud container clusters get-credentials` calls**: Both the sidecar and ambient install scripts optionally pass `--impersonate-service-account=<identity>` to `gcloud`. If the runner is authenticated as a user (not a service account), this impersonation may succeed only if the user has `iam.serviceAccounts.actAs` on the target service account.
+
+### Common Pitfalls
+
+1. **Istio download must succeed before installation**: The install scripts use `curl -fL ... | tar xz`. If the GitHub release URL is unavailable or the version does not exist, the command fails and the Terraform apply aborts. The `set -eo pipefail` in the script ensures failures propagate. Verify the version exists at `https://github.com/istio/istio/releases` before applying.
+
+2. **Node pool uses preemptible nodes**: The Standard cluster node pool uses `preemptible = true`. Preemptible nodes can be reclaimed by GCP with 30 seconds notice. If a node is preempted during Istio installation, the install script may fail waiting for nodes to be ready. The `--timeout=300s` on `kubectl wait` provides a buffer.
+
+3. **`istioctl verify-install` may report warnings**: The script runs `istioctl verify-install || echo "Warning..."` — failures are non-fatal. Common warnings include missing CRDs for Istio components not deployed in the profile. These are normal and do not indicate a broken installation.
+
+4. **Observability addon installation may fail silently**: The addon install loop (`for addon in prometheus jaeger grafana kiali`) uses `|| echo "Warning: Failed..."` — individual addon failures do not abort the script. Check `kubectl get pods -n istio-system` after installation to verify which addons are running.
+
+5. **Sidecar mode labels the `default` namespace only**: The `install_sidecar_mesh` script labels `default` with `istio-injection=enabled`. Other namespaces created after installation will not have sidecar injection unless explicitly labeled.
+
+6. **Ambient mode applies a Waypoint proxy to the `default` namespace**: The `istioctl waypoint apply --namespace default` command deploys a Waypoint Deployment. This Waypoint handles L7 traffic policies for the namespace. Without the Waypoint, AuthorizationPolicy and other L7 resources have no effect in ambient mode.
+
+7. **Destroy provisioners are graceful (`set +e`)**: Both the sidecar and ambient destroy provisioners use `set +e` to prevent individual cleanup step failures from aborting the destroy. This means a failed Istio uninstall during destroy will log a warning but not block GKE cluster deletion.

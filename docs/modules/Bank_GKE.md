@@ -1737,3 +1737,49 @@ gcloud compute addresses list \
 | Health Probes | https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/ |
 
 ---
+
+---
+
+## Common Issues and Variable Dependencies
+
+### Variables That Depend on Each Other
+
+**`create_cluster = false` requires a pre-existing cluster matching `gke_cluster` and `region`**: When `create_cluster = false`, the module uses `data.google_container_cluster.existing_cluster` to look up a cluster by name and region. The cluster must already exist and be accessible. All service mesh, config management, monitoring SLOs, and application deployment resources still run against this existing cluster.
+
+**`create_autopilot_cluster` only applies when `create_cluster = true`**: When `create_cluster = false`, the autopilot/standard distinction is irrelevant — the existing cluster's mode is used as-is. Setting `create_autopilot_cluster` when `create_cluster = false` has no effect.
+
+**`enable_cloud_service_mesh = true` requires Fleet Hub (`gkehub.googleapis.com`) and Mesh APIs**: The module enables these APIs when `enable_services = true`. If `enable_services = false`, these APIs must be pre-enabled. The service mesh installation sequence (verify hub API → wait for propagation → IAM → membership → feature → wait for active → deploy) is long (~15 minutes) and will fail if any API is missing.
+
+**`enable_config_management = true` works best with `enable_cloud_service_mesh = true`**: Anthos Config Management for the Bank of Anthos namespace is most effective when the service mesh is also running, as the namespace label `istio.io/rev=asm-managed` requires ASM to be active for sidecar injection. Config management can run without ASM, but the deployed application will lack mTLS.
+
+**`deploy_application = true` requires `enable_cloud_service_mesh = true`**: The `null_resource.deploy_bank_of_anthos` resource depends on `null_resource.wait_for_service_mesh`. If `enable_cloud_service_mesh = false`, the mesh wait step is skipped but the deploy step still runs. Without ASM running, the Bank of Anthos pods will start but the `bank-of-anthos` namespace label `istio.io/rev=asm-managed` will have no effect — pods will run without sidecars.
+
+**`create_network = false` requires existing network named `network_name` in `region`**: When `create_network = false`, the module looks up `data.google_compute_network.existing_vpc` and `data.google_compute_subnetwork.existing_subnet` by the names given in `network_name` and `subnet_name`. The subnet must have secondary IP ranges already configured for pod and service CIDRs — the names of these ranges must match `pod_ip_range` and `service_ip_range`.
+
+**`config_sync_repo` and `config_sync_policy_dir` are only used when `enable_config_management = true`**: When config management is disabled, these variables are ignored. The default repository is Google's public ACM samples repo; for private repositories, additional secret configuration outside this module is required.
+
+### Mutually Exclusive Variable Combinations
+
+**`create_autopilot_cluster` is mutually exclusive with manual node pool configuration**: When `create_autopilot_cluster = true`, no service account, node pool, or IAM bindings are created (they are managed by Google). When `create_autopilot_cluster = false`, a service account (`gke-standard-sa`), a node pool with 2 spot `e2-standard-2` nodes, and 9 IAM role bindings are created. The node pool configuration (machine type, count) is not variable — it is hardcoded in `gke.tf`.
+
+### Variables That Affect Other Variables' Behavior
+
+**`region` determines available zones for the Standard node pool**: In Standard mode, `data.google_compute_zones.available_zones` queries all UP zones in `region`. The node pool uses `node_locations = data.google_compute_zones.available_zones.names`, spreading 2 nodes across all available zones in the region.
+
+**`enable_monitoring = true` creates 9 monitoring services and 9 SLOs**: One `google_monitoring_service` and one `google_monitoring_slo` (95% CPU limit utilization, calendar day window) are created for each of the nine Bank of Anthos microservices. These resources depend on `google_container_cluster.gke_cluster` being present. The SLOs use the cluster name and region from `var.gke_cluster` and `var.region`.
+
+**`release_channel` must be compatible with `enable_cloud_service_mesh`**: The Cloud Service Mesh version `cloud_service_mesh_version` must be compatible with the GKE version in the selected release channel. The default `1.23.4-asm.1` is compatible with GKE REGULAR channel. Selecting RAPID may expose a GKE version that requires a newer ASM version.
+
+### Common Pitfalls
+
+1. **ASM activation takes 10–20 minutes**: The Fleet service mesh feature provisioning is asynchronous. The module polls for `ACTIVE` state with a 15-minute timeout. If the private cloud is under load or the Fleet API is slow, this timeout may be exceeded. Increase the polling timeout in `asm.tf` if needed, or re-apply after a partial failure.
+
+2. **GKE Hub IAM propagation**: The module grants 6 IAM roles to the GKE Hub service agent, then polls for propagation before creating the Fleet membership. IAM is eventually consistent; the 120-second wait may be insufficient in some regions. If membership creation fails with a permissions error, re-apply after a few minutes.
+
+3. **Bank of Anthos download is always fresh**: The `download_bank_of_anthos` resource uses `timestamp()` as a trigger, meaning it re-downloads and re-extracts the release archive on every `terraform apply`. This is intentional to ensure freshness but increases apply time by 1–2 minutes even when no changes are needed.
+
+4. **Network deletion requires cleanup of GKE-created resources**: The VPC `local-exec` destroy provisioner cleans up `gke-*-mcsd` firewall rules and `gsmrsvd*` Network Endpoint Groups that GKE creates but does not remove on cluster deletion. Without this cleanup, `terraform destroy` fails when attempting to delete the VPC network.
+
+5. **`project_id = null` (default)**: Setting `project_id` to null causes the module to look up the project via `data.google_project.existing_project` with a null/empty ID, which will fail. Always provide an explicit `project_id`.
+
+6. **Standard cluster node pool is non-configurable**: The Standard cluster node pool (`e2-standard-2`, 2 nodes, spot instances) is hardcoded. If different node specifications are needed, the `gke.tf` file must be modified directly.
