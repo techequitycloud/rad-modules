@@ -743,3 +743,45 @@ curl -s \
 - [Google Cloud Adoption Framework](https://cloud.google.com/adoption-framework)
 - [Migration to Google Cloud: Getting started](https://cloud.google.com/architecture/migration-to-gcp-getting-started)
 - [StratoZone → Migration Center transition](https://cloud.google.com/migration-center/docs/stratozone-migration-center)
+
+---
+
+## Common Issues and Variable Dependencies
+
+### Variables That Depend on Each Other
+
+- **`aws_access_key_id` and `aws_secret_access_key`**: Both must be provided together to enable AWS EC2 import. If `aws_access_key_id` is non-empty but `aws_secret_access_key` is empty (or vice versa), the `null_resource.mc_aws_import` provisioner will fail with an AWS authentication error. The module treats any non-empty `aws_access_key_id` as the trigger to run AWS import; leave both variables at their default empty string to skip AWS integration entirely.
+
+- **`initialize_migration_center` and `mc_discovery_client_name`**: The discovery source registration (via REST API call in `null_resource.mc_source`) uses `mc_discovery_client_name` as the display name. This name must exactly match what is entered in the MCDCv6 console on the Windows VM during the lab exercise. If `initialize_migration_center = false`, no source is registered and the name variable has no effect.
+
+- **`create_windows_vm` and MCDCv6**: The Windows VM is the host for the MC Discovery Client software. Setting `create_windows_vm = false` skips VM creation but `initialize_migration_center` may still attempt to register a discovery source. The source registration itself does not require the VM to exist (it is a REST API call), but the lab workflow requires the Windows VM to complete the MCDCv6 registration step manually in the browser.
+
+- **`create_vpc` and `create_default_firewall_rules`**: Firewall rules reference the VPC by a computed name (`mc-<id>-vpc`). If `create_vpc = false`, the named VPC must already exist with that exact name — there is no variable to specify a custom VPC name. Setting `create_default_firewall_rules = true` with `create_vpc = false` will attempt to add rules to the expected VPC; if it does not exist, Terraform will fail.
+
+- **`create_ssh_key_bucket`**: When `true`, a GCS bucket is created to store the generated SSH private key for Linux VMs. The bucket name is output so users can retrieve the key for MCDCv6 Linux scanning. If `create_ssh_key_bucket = false`, the SSH key is generated in Terraform state but not uploaded anywhere; users must extract it from state or use alternative access methods (IAP, OS Login).
+
+### Mutually Exclusive Variable Combinations
+
+- **`aws_access_key_id = ""` (default) with `aws_region` override**: Setting a non-default `aws_region` without providing `aws_access_key_id` has no effect — the AWS import step is skipped entirely when `aws_access_key_id` is empty. The `aws_region` variable is only consulted when the AWS import null_resource runs.
+
+### Variables That Affect Other Variables' Behavior
+
+- **`linux_vm_count`**: Controls how many target VMs are created for the MCDCv6 discovery scan. Higher counts produce more diverse inventory data in Migration Center but increase lab cost. The VMs are named `<prefix>-linux-<N>` and all receive the same `linux_vm_machine_type` and `linux_vm_boot_disk_size_gb` settings.
+
+- **`region` and `zone`**: Migration Center must be available in the selected region. The `zone` is used for Compute Engine VMs; `zone` must be within `region` (e.g., `zone = "us-central1-a"` with `region = "us-central1"`). Migration Center initialisation calls the API at `migrationcenter.googleapis.com/v1/projects/<id>/locations/<region>`, so an unsupported region will cause the `mc_init` null_resource to fail even if VMs create successfully.
+
+### Common Pitfalls
+
+1. **MCDCv6 startup script duration**: The Windows VM startup script downloads and installs MCDCv6 silently. This can take 5–10 minutes after `terraform apply` completes. RDP into the VM and check the Windows Task Manager or Event Viewer to confirm MCDCv6 installation is complete before launching the MCDCv6 console.
+
+2. **AWS bootstrap credentials require IAM write permissions**: The `aws_access_key_id` used for AWS import is a bootstrap credential that must have `iam:CreateUser`, `iam:CreatePolicy`, `iam:AttachUserPolicy`, and `iam:CreateAccessKey` permissions. The module provisions a scoped EC2-read-only IAM user internally; EC2 discovery runs under this generated key. Providing credentials with only EC2 read permissions will fail at the IAM provisioning step.
+
+3. **Migration Center must be initialized before sources can be registered**: The `null_resource.mc_init` must succeed before `null_resource.mc_source` runs. The `mc_init` call to `initializeConfig` is idempotent (safe to re-run), but if it fails due to API propagation delay, re-run `terraform apply` — the provisioner uses `|| true` guards to prevent hard failures that would block subsequent resource creation.
+
+4. **Discovery source name must match MCDCv6 UI registration**: The value of `mc_discovery_client_name` is registered as the source name via the REST API. When the lab user connects MCDCv6 to Migration Center in the browser, they must enter this exact same name. A mismatch creates a second, unregistered source and breaks the data flow from MCDCv6 to Migration Center.
+
+5. **AWS import generates four CSV files via Python**: The `mc_aws_import` provisioner runs a Python script that queries EC2 and generates four CSVs (`vmInfo.csv`, `diskInfo.csv`, `networkInfo.csv`, `tagInfo.csv`) before submitting an import job to Migration Center. If `python3` or `boto3` is unavailable in the Terraform execution environment, the script will fail silently (`|| true`). Verify the execution environment has Python 3 with boto3 installed when using AWS import.
+
+6. **`enable_services = false` with new projects**: The module enables 6 APIs: `migrationcenter`, `compute`, `storage`, `cloudresourcemanager`, `iam`, `iamcredentials`. Setting `enable_services = false` on a project where these APIs are not yet enabled will cause all resource creation to fail immediately with `API not enabled` errors.
+
+---

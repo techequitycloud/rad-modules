@@ -645,3 +645,49 @@ gcloud compute networks delete "peer-network" \
 ### Migration and Modernisation
 - [Google Cloud Adoption Framework](https://cloud.google.com/adoption-framework)
 - [GCVE use cases: data center exit, DR, and VDI](https://cloud.google.com/vmware-engine/docs/concepts-use-cases)
+
+---
+
+## Common Issues and Variable Dependencies
+
+### Variables That Depend on Each Other
+
+- **`private_cloud_type` and `node_count`**: `TIME_LIMITED` private clouds require exactly 1 node. `STANDARD` private clouds require a minimum of 3 nodes. Specifying `private_cloud_type = "STANDARD"` with `node_count = 1` will be rejected by the VMware Engine API. Conversely, `TIME_LIMITED` with `node_count > 1` is also invalid. Always set `node_count = 1` for `TIME_LIMITED` and `node_count >= 3` for `STANDARD`.
+
+- **`management_cidr` and `edge_services_cidr`**: These two CIDRs must not overlap with each other or with the peer VPC subnet ranges. The VMware Engine API validates CIDR allocations at creation time and will reject overlapping ranges. The default `management_cidr = "172.20.1.0/24"` and `edge_services_cidr = "10.11.3.0/26"` are pre-validated non-overlapping ranges. If customizing either, verify that they do not conflict with auto-mode VPC subnets (which use `10.128.0.0/9`).
+
+- **`create_vpc` and `create_default_firewall_rules`**: Firewall rules are created on the peer VPC. If `create_vpc = false`, firewall rules still attempt to reference the expected VPC by the computed name `altostrat-<id>-vpc`. There is no variable to specify a custom VPC name; the computed name is hardcoded in `locals`. If `create_vpc = false`, the named VPC must already exist.
+
+- **`create_jump_host` and `jump_host_subnetwork`**: When `create_jump_host = true` and `jump_host_subnetwork = ""` (default), GCP auto-selects a subnet in the jump host's region. For custom-mode VPCs (i.e., if `create_vpc = false`), auto-selection may fail because no auto-mode subnet exists. In that case, set `jump_host_subnetwork` to the self-link or name of an existing subnet.
+
+- **`reset_vcenter_credentials` and gcloud availability**: The vCenter credential reset runs a `gcloud vmware private-clouds vcenter credentials reset` command via a `null_resource` provisioner. This requires `gcloud` to be available in the Terraform execution environment. If deploying from a workstation without `gcloud` installed, set `reset_vcenter_credentials = false` and reset credentials manually from the Cloud Console after deployment.
+
+### Mutually Exclusive Variable Combinations
+
+- **`private_cloud_type = "TIME_LIMITED"` is evaluation-only**: TIME_LIMITED private clouds have a maximum lifetime enforced by Google Cloud and are not suitable for production use. They exist for lab and demo purposes. Switching between `TIME_LIMITED` and `STANDARD` is not supported in-place; it requires destroying and recreating the private cloud.
+
+- **`node_type_id` availability is zone-dependent**: The API identifier `standard-72` (displayed as `ve1-standard-72` in the console) may not be available in all zones. Before changing `node_type_id`, verify availability in the target zone with `gcloud vmware node-types list --location=<zone>`. Using an unavailable node type causes a hard API error during private cloud creation.
+
+### Variables That Affect Other Variables' Behavior
+
+- **`region` and `zone`**: The VMware Engine private cloud is created in `var.zone`, and the network policy is scoped to `var.region`. The `zone` must be within `region` (e.g., `zone = "us-west2-a"` with `region = "us-west2"`). If they are inconsistent, the network policy creation will fail.
+
+- **`deployment_id`**: All resource names use `altostrat-<id>-*` naming. Changing `deployment_id` after deployment forces recreation of the private cloud (a 3-hour operation) and all associated resources. Never change `deployment_id` on an existing deployment.
+
+- **`enable_internet_access` and `enable_external_ip`**: These are independent boolean flags on the `google_vmwareengine_network_policy` resource. Both can be `true` simultaneously. Disabling `enable_internet_access` while keeping `enable_external_ip = true` prevents outbound internet traffic but still allows external IP assignment within the VMware environment.
+
+### Common Pitfalls
+
+1. **Private cloud provisioning takes 2–4 hours**: The `google_vmwareengine_private_cloud` resource has create/update/delete timeouts of 180 minutes. This is a hard infrastructure provisioning delay and cannot be shortened. The Terraform apply will appear to hang for 2–4 hours while GCVE provisions VMware infrastructure. Do not interrupt `terraform apply` during this period.
+
+2. **TIME_LIMITED private clouds have an expiry**: TIME_LIMITED private clouds created for labs are automatically decommissioned by Google Cloud after a fixed trial period (typically 60 days). Once expired, the private cloud is deleted and cannot be recovered. Do not use TIME_LIMITED for workloads that need to persist beyond the trial period.
+
+3. **management_cidr cannot be changed after creation**: The `management_cidr` is baked into the VMware Engine network fabric at provisioning time. If the wrong CIDR is specified, the private cloud must be destroyed and recreated (2–4 hours). Verify CIDR ranges do not conflict with existing network infrastructure before running `terraform apply`.
+
+4. **VPC peering state depends on private cloud state**: The `network_peering_state` output reflects the current state of the VPC peering between the peer VPC and the VMware Engine network. Peering only becomes `ACTIVE` after the private cloud is fully provisioned. During the 2–4 hour provisioning window, the peering state will remain `INACTIVE` or `CREATING`. This is expected behavior.
+
+5. **vCenter FQDN is only reachable from the jump host**: The `vcenter_fqdn`, `nsx_fqdn`, and `hcx_fqdn` outputs resolve to internal VMware Engine management IP addresses that are only reachable through the peer VPC peering. Access these URLs only via RDP to the jump host (or any VM on the peer VPC), never directly from a workstation. Direct access from outside the peer VPC will time out.
+
+6. **`enable_services = false` with VMware Engine APIs**: The module enables `vmwareengine.googleapis.com` and `vmmigration.googleapis.com` in addition to common APIs. These are specialized APIs that are not enabled by default in new projects. Setting `enable_services = false` on a new project without these APIs will cause hard failures at resource creation time.
+
+---

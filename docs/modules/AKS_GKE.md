@@ -1580,3 +1580,52 @@ kubectl get svc grafana -n istio-system
 If a service is not present, it was not included in the `asmcli` installation profile. The Anthos Service Mesh installation with `--option attached-cluster` deploys a subset of these tools; Cloud Trace and the Anthos Service Mesh Console (§10.3) serve as the primary observability surfaces for the managed mesh.
 
 ---
+
+## 23. Common Issues and Variable Dependencies
+
+### 23.1 Variables That Depend on Each Other
+
+**`k8s_version` and `platform_version` must be compatible**: The `platform_version` (e.g., `1.34.0-gke.1`) must correspond to the `k8s_version` (e.g., `1.34`). The major.minor of `platform_version` must match the major.minor of `k8s_version`. Using a platform version whose minor differs from the cluster Kubernetes minor will cause the `google_container_attached_cluster` resource to fail.
+
+**`trusted_users` is combined with the deploying identity**: The module always adds `data.google_client_openid_userinfo.me.email` (the identity running Terraform) to the `trusted_users` list. The final admin user list on the attached cluster is the union of the deployer's identity and `var.trusted_users`, deduplicated. You do not need to add the deploying identity to `trusted_users`.
+
+**Azure credentials are all required together**: `client_id`, `client_secret`, `tenant_id`, and `subscription_id` are all required. The AzureRM provider is configured from all four. Missing any one will cause authentication failures; there is no way to supply partial credentials.
+
+**`gcp_location` must support GKE Hub Attached Clusters**: Not all GCP regions support Attached Clusters. Use `gcloud alpha container attached get-server-config --location=<region>` to verify. The default `us-central1` is supported.
+
+### 23.2 Mutually Exclusive Variable Combinations
+
+**`deployment_id` and auto-generated IDs**: If `deployment_id` is null (the default), a random 2-byte hex ID is generated via `random_id.default`. If `deployment_id` is set, the provided value is used directly. Changing `deployment_id` after initial deployment will cause the `cluster_name_prefix` to remain the same (it does not incorporate the deployment ID), but the `random_id` local will change, potentially causing drift if any resources reference it.
+
+**OIDC configuration**: The module sets `oidc_issuer_enabled = true` on the AKS cluster, which enables the public OIDC discovery endpoint. If this is set to `false`, the `google_container_attached_cluster` resource requires the `jwks` field to be populated manually. The module does not support manual JWKS configuration; `oidc_issuer_enabled` must remain true.
+
+### 23.3 Variables That Affect Other Variables' Behavior
+
+**`cluster_name_prefix` is used verbatim**: The AKS cluster name, resource group name (`<prefix>-rg`), DNS prefix (`<prefix>-dns`), and the GKE attached cluster name are all derived directly from `cluster_name_prefix`. There is no deployment ID appended to the cluster name. This means deploying two instances of this module with the same `cluster_name_prefix` in the same Azure subscription and GCP project will cause resource conflicts.
+
+**`azure_region` constrains `vm_size` availability**: Not all Azure VM SKUs are available in all regions. Using `Standard_D2s_v3` in a region where the SKU is not available causes the AKS node pool creation to fail with an availability error. Verify SKU availability before changing `azure_region` away from `westus2`.
+
+**`node_count` affects cluster HA**: With a single node (`node_count = 1`), GKE Connect agent eviction or node maintenance will temporarily interrupt the fleet connection. The default of 3 is recommended for any sustained exploration.
+
+### 23.4 The `attached-install-mesh` Sub-Module
+
+The `attached-install-mesh` sub-module (`modules/attached-install-mesh/`) is **not invoked by the root module**. It exists as a separately callable module for installing Anthos Service Mesh on an attached cluster. To use it:
+
+- `kubeconfig` and `context` are required; they must point to the AKS cluster's kubeconfig, which the AKS Terraform output does not expose directly. You must retrieve it with `az aks get-credentials`.
+- `fleet_id` must match the `project_id` used in the root module.
+- `asmcli_ca` defaults to `mesh_ca`. The only valid values are `mesh_ca`, `gcp_cas`, and `citadel`. Any other value will fail validation.
+- Setting `asmcli_enable_all = true` enables all `asmcli_enable_*` flags simultaneously. Individual flags are ignored when `enable_all = true`.
+- The sub-module downloads `gcloud`, `jq`, and `asmcli` at execution time. In air-gapped environments, set `gcloud_download_url`, `jq_download_url`, and `asmcli_download_url` to point to internal mirrors.
+
+### 23.5 Common Pitfalls
+
+1. **AKS cluster provisioning time**: AKS clusters take 6–10 minutes to provision. The GKE attachment steps that follow add another 3–5 minutes. Do not interrupt `terraform apply` during this window.
+
+2. **Azure Service Principal scope**: The Service Principal identified by `client_id`/`client_secret` must have at least `Contributor` rights on the target Azure subscription. Granting only resource group-level rights is insufficient because the module creates the resource group itself.
+
+3. **GCP project APIs take time to activate**: After `google_project_service` enables the 10 APIs, there is a propagation delay before they are usable. The module depends on this resource before creating the attached cluster, but rapid re-apply immediately after the first apply may still encounter transient "API not enabled" errors. Wait 60 seconds and re-apply.
+
+4. **`trusted_users` validation**: The variable validates that no entry is an empty string or whitespace, and that there are no duplicates. Passing `[""]` will fail validation. Pass an empty list `[]` or `null` to add no additional admin users.
+
+5. **Teardown leaves APIs enabled**: `disable_on_destroy = false` means the 10 enabled APIs remain enabled after `terraform destroy`. This is intentional to protect other workloads. The AKS cluster, resource group, and GKE attached cluster are fully destroyed.
+

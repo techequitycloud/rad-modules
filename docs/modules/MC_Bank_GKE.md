@@ -2624,3 +2624,47 @@ gcloud compute backend-services list --global --project PROJECT_ID \
 *This module is maintained by TechEquity Cloud. For issues or contributions, refer to the repository at [https://github.com/techequitycloud/rad-modules](https://github.com/techequitycloud/rad-modules).*
 
 ---
+
+## Common Issues and Variable Dependencies
+
+### Variables That Depend on Each Other
+
+- **`cluster_size` and `available_regions`**: Clusters are assigned to regions in round-robin order using `var.available_regions[i % length(var.available_regions)]`. If `cluster_size` exceeds `length(available_regions)`, regions are reused. With the default of 2 regions and `cluster_size = 4`, clusters 1 and 3 land in `us-west1` and clusters 2 and 4 land in `us-east1`. Ensure each region has sufficient quota for the cluster type (Autopilot or Standard).
+
+- **`create_autopilot_cluster` and node pool configuration**: When `create_autopilot_cluster = true`, GKE manages node pools automatically and no node pool variables are configurable. When `create_autopilot_cluster = false`, Standard clusters are created with manually configured node pools. There is no per-cluster override; the setting applies to all `cluster_size` clusters uniformly.
+
+- **`enable_cloud_service_mesh` and `deploy_application`**: When both are `true`, the application namespace receives the `istio.io/rev=asm-managed` label so ASM sidecars are injected into Bank of Anthos pods. If `enable_cloud_service_mesh = false` but `deploy_application = true`, the namespace label is still applied but no ASM control plane exists, which causes pods to start without sidecars (not an error, but service mesh traffic policies will not be enforced).
+
+- **`create_network` and `network_name`**: When `create_network = true`, a new VPC named `network_name` (default `vpc-network`) is created. When `create_network = false`, the module expects an existing network named `network_name` to exist in the project. There is no variable to specify a custom subnet name beyond `subnet_name`; subnets are always named `<subnet_name>-cluster<N>`.
+
+- **CIDR allocations are fixed and derived from cluster index**: Each cluster's subnet, pod range, and service range are computed by `cidrsubnet("10.0.0.0/8", 12, i*4)`, `cidrsubnet("10.0.0.0/8", 12, i*4+1)`, and `cidrsubnet("10.0.0.0/8", 12, i*4+2)` respectively. With the default `cluster_size = 2`, clusters use the 10.0.0.0/20, 10.0.16.0/20, 10.0.32.0/20 and 10.0.64.0/20, 10.0.80.0/20, 10.0.96.0/20 ranges. These ranges are not configurable; they are hardcoded in the `cluster_configs` local. Verify there is no overlap with existing network resources before setting `create_network = false`.
+
+### Mutually Exclusive Variable Combinations
+
+- **`create_autopilot_cluster = false` with Standard clusters**: Standard clusters in this module use a fixed node pool configuration (e2-standard-4 nodes, 2 per cluster). There is no `node_count` or `machine_type` variable in MC_Bank_GKE — these are hardcoded in `gke.tf`. This is different from the single-cluster Bank_GKE module, which exposes node pool configuration variables.
+
+- **`deploy_application = false` skips MCI cleanup**: The `null_resource.cleanup_mci_resources` that deletes MultiClusterIngress and MultiClusterService resources on destroy only runs when `deploy_application = true`. If the application was originally deployed with `deploy_application = true` and then `terraform apply` is run with `deploy_application = false`, the MCI/MCS resources will remain in the cluster and may block cluster deletion during `terraform destroy`.
+
+### Variables That Affect Other Variables' Behavior
+
+- **`cluster_size`**: This is the primary scaling variable. Increasing it adds clusters, subnets, Hub memberships, ASM feature memberships, application deployments, and MCI ingress entries — all proportionally. GKE Hub supports a maximum of 100 fleet members per project; at high `cluster_size` values, verify project quota.
+
+- **`deployment_id`**: When null, a random 2-byte hex ID is generated and used in resource names. Changing `deployment_id` after deployment forces recreation of all named resources including GKE clusters, VPC, and Hub memberships — effectively destroying and recreating the entire deployment.
+
+- **`release_channel`**: Applies to all clusters. The `NONE` channel disables automatic upgrades but requires manual node upgrades. Autopilot clusters ignore `NONE` and always follow Google-managed upgrade schedules.
+
+### Common Pitfalls
+
+1. **Multi-cluster Kubernetes provider aliasing is hardcoded to two clusters**: The `gke.tf` file defines separate `kubernetes` provider aliases (`cluster1`, `cluster2`) that reference `google_container_cluster.gke_cluster["cluster1"]` and `["cluster2"]` by name. If `cluster_size > 2`, additional clusters exist but the Kubernetes provider and all `kubernetes_*` resources only target `cluster1` and `cluster2`. Application deployments to clusters 3+ use a different mechanism. Review `deploy.tf` for the exact per-cluster deployment logic before increasing `cluster_size`.
+
+2. **MCI cleanup on destroy requires working cluster credentials**: The `null_resource.cleanup_mci_resources` destroy provisioner runs `gcloud container clusters get-credentials` before deleting MCI/MCS resources. If GKE clusters are deleted before this provisioner runs (e.g., due to resource dependency ordering), the provisioner will exit 0 with a warning rather than failing. The MCI resources may then persist and block future GKE Hub or Load Balancer cleanup.
+
+3. **30+ APIs enabled simultaneously**: The module enables approximately 30 GCP APIs including `multiclusteringress`, `multiclusterservicediscovery`, `trafficdirector`, `dns`, `anthos`, and `websecurityscanner`. On a new project, simultaneous API enablement can take 3–5 minutes. If `enable_services = false` is set and any of these APIs are missing, resource creation will fail with `API not enabled` errors. Never set `enable_services = false` unless all APIs are confirmed enabled.
+
+4. **ASM Fleet feature provisioning is slow**: The `google_gke_hub_feature` resource for `servicemesh` can take 10–15 minutes to reach `ACTIVE` state, especially when applied to multiple clusters simultaneously. The module uses `time_sleep` resources to wait, but on projects with high API load, these waits may time out. If `terraform apply` fails with a mesh readiness timeout, re-running `terraform apply` will resume where it left off.
+
+5. **Bank of Anthos multi-cluster database**: In a multi-cluster deployment, each cluster runs its own `accounts-db` and `ledger-db` PostgreSQL StatefulSet. There is no cross-cluster database synchronization by default. The Multi-Cluster Ingress routes traffic across clusters but each cluster operates an independent database. For a production-like setup, a shared Cloud SQL instance would be needed — this module demonstrates the networking and mesh pattern, not production data replication.
+
+6. **`available_regions` must contain valid GKE regions**: If a region specified in `available_regions` does not support GKE Autopilot or the required machine types, `terraform apply` will fail when creating the cluster in that region. Validate regional GKE availability before customizing `available_regions`. The defaults (`us-west1`, `us-east1`) are reliably available.
+
+---
