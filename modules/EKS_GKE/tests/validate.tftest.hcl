@@ -1,11 +1,3 @@
-# NOTE: EKS_GKE/provider.tf currently uses get_env() which is a Terragrunt
-# function, not valid Terraform. terraform validate will fail until this is
-# fixed (replace get_env() calls with coalesce(var.x, "") or remove them).
-#
-# Fix needed in provider.tf:
-#   access_key = var.aws_access_key
-#   secret_key = var.aws_secret_key
-
 mock_provider "aws" {}
 mock_provider "google" {}
 mock_provider "helm" {}
