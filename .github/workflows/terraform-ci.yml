@@ -1,0 +1,176 @@
+name: Terraform CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'modules/**'
+      - '.github/workflows/terraform-ci.yml'
+      - '.tflint.hcl'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'modules/**'
+      - '.github/workflows/terraform-ci.yml'
+      - '.tflint.hcl'
+  schedule:
+    # Weekly run every Monday at 06:00 UTC to catch upstream provider changes
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  detect-changes:
+    name: Detect changed modules
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.set-modules.outputs.modules }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine modules to validate
+        id: set-modules
+        run: |
+          if [[ "${{ github.event_name }}" == "schedule" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # On scheduled runs, validate all modules
+            MODULES=$(ls -d modules/*/ | sed 's|modules/||;s|/||' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          else
+            # On push/PR, validate only changed modules
+            CHANGED=$(git diff --name-only ${{ github.event.before || 'HEAD~1' }} HEAD -- 'modules/**' | grep -oP 'modules/\K[^/]+' | sort -u)
+            if [ -z "$CHANGED" ]; then
+              MODULES=$(ls -d modules/*/ | sed 's|modules/||;s|/||' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            else
+              MODULES=$(echo "$CHANGED" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            fi
+          fi
+          echo "modules=$MODULES" >> "$GITHUB_OUTPUT"
+          echo "Modules to validate: $MODULES"
+
+  format:
+    name: Format check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.9"
+
+      - name: terraform fmt
+        run: |
+          find modules -name "*.tf" -not -path "*/modules/*/modules/*/.terraform/*" | head -5
+          terraform fmt -check -recursive modules/
+
+  validate:
+    name: Validate — ${{ matrix.module }}
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.modules != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.detect-changes.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.9"
+
+      - name: terraform init
+        working-directory: modules/${{ matrix.module }}
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        working-directory: modules/${{ matrix.module }}
+        run: terraform validate
+
+  tflint:
+    name: tflint — ${{ matrix.module }}
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.modules != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.detect-changes.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: tflint init
+        working-directory: modules/${{ matrix.module }}
+        run: tflint --init --config ../../.tflint.hcl
+
+      - name: tflint run
+        working-directory: modules/${{ matrix.module }}
+        run: tflint --config ../../.tflint.hcl --format compact
+
+  test:
+    name: Test — ${{ matrix.module }}
+    runs-on: ubuntu-latest
+    needs: [validate, detect-changes]
+    if: needs.detect-changes.outputs.modules != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.detect-changes.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.9"
+
+      - name: terraform init
+        working-directory: modules/${{ matrix.module }}
+        run: terraform init -backend=false
+
+      - name: terraform test
+        working-directory: modules/${{ matrix.module }}
+        run: terraform test
+
+  security:
+    name: Security scan — ${{ matrix.module }}
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.modules != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.detect-changes.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: modules/${{ matrix.module }}
+          format: table
+          exit-code: 0
+          severity: HIGH,CRITICAL
+
+  ci-gate:
+    name: CI gate
+    runs-on: ubuntu-latest
+    needs: [format, validate, tflint, test]
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ needs.format.result }}" == "failure" ]] || \
+             [[ "${{ needs.validate.result }}" == "failure" ]] || \
+             [[ "${{ needs.tflint.result }}" == "failure" ]] || \
+             [[ "${{ needs.test.result }}" == "failure" ]]; then
+            echo "One or more CI jobs failed"
+            exit 1
+          fi
+          echo "All CI jobs passed"

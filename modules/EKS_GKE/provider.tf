@@ -29,13 +29,13 @@ terraform {
       version = "~> 2.0"
     }
   }
-  required_version = ">= 0.13"
+  required_version = ">= 1.3"
 }
 
 provider "aws" {
-  region = var.aws_region
-  access_key  = var.aws_access_key != "" ? var.aws_access_key : (get_env("AWS_ACCESS_KEY_ID", "")) 
-  secret_key  = var.aws_secret_key != "" ? var.aws_secret_key : (get_env("AWS_SECRET_ACCESS_KEY", "")) 
+  region     = var.aws_region
+  access_key = var.aws_access_key
+  secret_key = var.aws_secret_key
 }
 
 provider "google" {

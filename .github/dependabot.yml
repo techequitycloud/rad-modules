@@ -1,0 +1,64 @@
+version: 2
+updates:
+  - package-ecosystem: terraform
+    directory: /modules/AKS_GKE
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "terraform"]
+
+  - package-ecosystem: terraform
+    directory: /modules/Bank_GKE
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "terraform"]
+
+  - package-ecosystem: terraform
+    directory: /modules/Container_Migration
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "terraform"]
+
+  - package-ecosystem: terraform
+    directory: /modules/EKS_GKE
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "terraform"]
+
+  - package-ecosystem: terraform
+    directory: /modules/Istio_GKE
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "terraform"]
+
+  - package-ecosystem: terraform
+    directory: /modules/MC_Bank_GKE
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "terraform"]
+
+  - package-ecosystem: terraform
+    directory: /modules/Migration_Center
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "terraform"]
+
+  - package-ecosystem: terraform
+    directory: /modules/VMware_Engine
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "terraform"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "github-actions"]
