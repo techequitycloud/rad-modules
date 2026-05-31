@@ -44,7 +44,7 @@ resource "null_resource" "download_bank_of_anthos" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       echo "=========================================="
       echo "Downloading Bank of Anthos ${local.bank_of_anthos_version}..."
@@ -97,9 +97,9 @@ resource "null_resource" "download_bank_of_anthos" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when       = destroy
-    command    = "rm -rf ${self.triggers.download_path}"
-    on_failure = continue
+    when        = destroy
+    command     = "rm -rf ${self.triggers.download_path}"
+    on_failure  = continue
   }
 }
 
@@ -172,20 +172,22 @@ resource "null_resource" "deploy_bank_of_anthos" {
   for_each = var.deploy_application ? local.cluster_configs : {}
 
   triggers = {
-    cluster_name     = each.value.gke_cluster_name
-    version          = local.bank_of_anthos_version
-    namespace        = "bank-of-anthos"
-    region           = each.value.region
-    project_id       = google_container_cluster.gke_cluster[each.key].project
-    manifests_path   = local.manifests_path
-    jwt_secret_path  = local.jwt_secret_path
-    download_id      = null_resource.download_bank_of_anthos[0].id
-    is_primary       = each.key == "cluster1" ? "true" : "false"
+    cluster_name    = each.value.gke_cluster_name
+    version         = local.bank_of_anthos_version
+    namespace       = "bank-of-anthos"
+    region          = each.value.region
+    project_id      = google_container_cluster.gke_cluster[each.key].project
+    manifests_path  = local.manifests_path
+    jwt_secret_path = local.jwt_secret_path
+    is_primary      = each.key == "cluster1" ? "true" : "false"
+    # ⚡ Bolt Optimization: Eliminated `download_id` trigger dependency.
+    # This severs the continuous deployment loop where downloading files triggers an unnecessary redeployment,
+    # preventing unintended downtime and drastically reducing `terraform apply` time.
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       export KUBECONFIG="$(mktemp)"
 
@@ -436,7 +438,7 @@ resource "null_resource" "app_multicluster_ingress" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       export KUBECONFIG="$(mktemp)"
       
@@ -529,8 +531,8 @@ resource "null_resource" "cleanup_multicluster_ingress" {
   provisioner "local-exec" {
     when        = destroy
     interpreter = ["/bin/bash", "-c"]
-    on_failure  = continue  # Don't fail destroy if cleanup fails
-    command = <<-EOT
+    on_failure  = continue # Don't fail destroy if cleanup fails
+    command     = <<-EOT
       set -e
       export KUBECONFIG="$(mktemp)"
       

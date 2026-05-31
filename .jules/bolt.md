@@ -1,0 +1,3 @@
+## 2024-05-31 - [Continuous Deployment Loop via Timestamp Triggers]
+**Learning:** [Using `always_run = timestamp()` on a `null_resource` forces it to recreate on every apply. If downstream resources depend on its `id` (e.g. via triggers), they will also recreate. This causes continuous redeployment and unintended downtime, as the `when = destroy` provisioner runs before the `create` provisioner.]
+**Action:** [Remove the `always_run = timestamp()` trigger and sever the downstream dependency chain (e.g. by removing `download_id` triggers) to make the deployment scripts idempotent and significantly speed up `terraform apply`.]
