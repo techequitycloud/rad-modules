@@ -131,11 +131,11 @@ The module enables these APIs automatically:
 
 ```
 vmwareengine.googleapis.com
+vmmigration.googleapis.com
 compute.googleapis.com
 cloudresourcemanager.googleapis.com
 iam.googleapis.com
-logging.googleapis.com
-monitoring.googleapis.com
+iamcredentials.googleapis.com
 ```
 
 ### Environment Variables
@@ -144,7 +144,10 @@ monitoring.googleapis.com
 export PROJECT_ID="your-gcp-project-id"
 export REGION="us-central1"                 # matches the region variable
 export ZONE="us-central1-a"               # matches the zone variable
-export PRIVATE_CLOUD_NAME="pvt-cloud"    # default module value
+# PRIVATE_CLOUD_NAME follows the pattern altostrat-<deployment-id>-private-cloud
+# Retrieve it after deployment:
+export PRIVATE_CLOUD_NAME=$(gcloud vmware private-clouds list \
+  --location="${ZONE}" --project="${PROJECT_ID}" --format="value(name)" | head -1)
 
 gcloud config set project "${PROJECT_ID}"
 gcloud config set compute/region "${REGION}"
@@ -519,17 +522,24 @@ curl -s \
 
 ### Step 4.2 — Inspect the Compute VPC Peering
 
+The peer VPC is named `altostrat-<deployment-id>-vpc`. Retrieve the name and then inspect the peering:
+
 **gcloud:**
 ```bash
+PEER_VPC=$(gcloud compute networks list \
+  --filter="name~altostrat" \
+  --project="${PROJECT_ID}" \
+  --format="value(name)" | head -1)
+
 gcloud compute networks peerings list \
-  --network="peer-network" \
+  --network="${PEER_VPC}" \
   --project="${PROJECT_ID}"
 ```
 
 **REST API:**
 ```bash
 curl -s \
-  "https://compute.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/networks/peer-network" \
+  "https://compute.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/networks/${PEER_VPC}" \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
   | jq '.peerings[] | {name, state, network}'
 ```
@@ -601,22 +611,26 @@ If no network policy exists yet (i.e., `enable_internet_access` and `enable_exte
 1. In the Google Cloud Console, navigate to **VMware Engine** → **Network Policies**
 2. Click **Create**
 3. Configure:
-   - **Name**: `gcve-edge`
-   - **VMware Engine Network**: select `global-vmware-engine-network` (or your network)
+   - **Name**: `altostrat-<deployment-id>-edge-policy` (or any name if creating manually)
+   - **VMware Engine Network**: select `altostrat-<deployment-id>-ven` (or your network)
    - **Region**: your deployment region (e.g., `us-central1`)
    - **Internet access service**: `Enabled`
    - **External IP address service**: `Enabled`
-   - **Edge services address range**: `10.11.2.0/26`
+   - **Edge services address range**: `10.11.3.0/26`
 4. Click **Create**
 
 > **Note:** Enabling internet access can take up to 15 minutes. The Network Policies page
 > shows the service state.
 
-If the policy was created by the module, verify or update it via CLI:
+If the policy was created by the module, its name follows the pattern `altostrat-<deployment-id>-edge-policy`. Verify or update it via CLI:
 
 **gcloud:**
 ```bash
-gcloud vmware network-policies describe "gcve-edge" \
+NETWORK_POLICY=$(gcloud vmware network-policies list \
+  --location="${REGION}" --project="${PROJECT_ID}" \
+  --format="value(name)" | head -1)
+
+gcloud vmware network-policies describe "${NETWORK_POLICY}" \
   --location="${REGION}" \
   --project="${PROJECT_ID}" \
   --format="yaml(internetAccess, externalIp)"
@@ -624,7 +638,9 @@ gcloud vmware network-policies describe "gcve-edge" \
 
 **REST API (update to enable internet access):**
 ```bash
-NETWORK_POLICY="gcve-edge"
+NETWORK_POLICY=$(gcloud vmware network-policies list \
+  --location="${REGION}" --project="${PROJECT_ID}" \
+  --format="value(name)" | head -1)
 
 curl -s -X PATCH \
   "https://vmwareengine.googleapis.com/v1/projects/${PROJECT_ID}/locations/${REGION}/networkPolicies/${NETWORK_POLICY}?updateMask=internet_access" \
@@ -647,7 +663,7 @@ gcloud vmware network-policies list \
   --format="table(name, internetAccess.enabled, externalIp.enabled, edgeServicesCidr)"
 ```
 
-Expected output shows `internetAccess.enabled: true` and `externalIp.enabled: true` for `gcve-edge`.
+Expected output shows `internetAccess.enabled: true` and `externalIp.enabled: true` for the module-created policy.
 
 ### Step 5.4 — External IP Access for Edge Services
 
@@ -963,7 +979,12 @@ gcloud compute instances delete "${JUMP_HOST}" \
   --quiet
 
 # Step 4: Delete VPC network and firewall rules
-gcloud compute networks delete "peer-network" \
+# Replace <deployment-id> with the actual deployment ID (check gcloud compute networks list)
+PEER_VPC=$(gcloud compute networks list \
+  --filter="name~altostrat" \
+  --project="${PROJECT_ID}" \
+  --format="value(name)" | head -1)
+gcloud compute networks delete "${PEER_VPC}" \
   --project="${PROJECT_ID}" \
   --quiet
 ```
@@ -993,10 +1014,10 @@ curl -s -X DELETE \
 | `create_jump_host` | bool | `true` | Deploy Windows Server 2022 jump host |
 | `jump_host_machine_type` | string | `e2-medium` | Jump host Compute Engine machine type |
 | `reset_vcenter_credentials` | bool | `true` | Auto-reset vCenter solution user password |
-| `create_network` | bool | `true` | Create peer VPC network |
-| `enable_internet_access` | bool | `false` | Enable internet access from GCVE network |
-| `enable_external_ip` | bool | `false` | Enable external IP access for NSX-T edge |
-| `create_firewall_rules` | bool | `true` | Create firewall rules (RDP, SSH, HTTP, ICMP) |
+| `create_vpc` | bool | `true` | Create peer VPC network |
+| `enable_internet_access` | bool | `true` | Enable internet access from GCVE network |
+| `enable_external_ip` | bool | `true` | Enable external IP access for NSX-T edge |
+| `create_default_firewall_rules` | bool | `true` | Create firewall rules (RDP, SSH, HTTP, ICMP) |
 
 ### Terraform Outputs
 

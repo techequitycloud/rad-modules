@@ -50,13 +50,13 @@ bare-metal provisioning cycle.
 
 | Resource | Name Pattern | Purpose |
 |---|---|---|
-| VMware Engine Network | `{id}-vmware-engine-network` | Managed network fabric connecting private cloud to Google Cloud |
-| GCVE Private Cloud | `pvt-cloud` | Full SDDC: vCenter, NSX-T, vSAN, HCX on bare-metal nodes |
-| VMware Engine Network Peering | `{id}-vpc-peering` | Bridges the VMware Engine Network and the peer VPC |
-| Network Policy | `{id}-network-policy` | Controls internet access and external IP allocation for workload VMs |
-| Peer VPC Network | `{id}-peer-network` | GCP VPC for the jump host and peering anchor |
-| Firewall rules | `{id}-allow-*` | RDP, SSH, HTTP, ICMP, and internal traffic on the peer VPC |
-| Windows Server 2022 VM | `{id}-jump-host` | RDP workstation for accessing vCenter and NSX-T consoles |
+| VMware Engine Network | `altostrat-{id}-ven` | Managed network fabric connecting private cloud to Google Cloud |
+| GCVE Private Cloud | `altostrat-{id}-private-cloud` | Full SDDC: vCenter, NSX-T, vSAN, HCX on bare-metal nodes |
+| VMware Engine Network Peering | `altostrat-{id}-vpc-ven` | Bridges the VMware Engine Network and the peer VPC |
+| Network Policy | `altostrat-{id}-edge-policy` | Controls internet access and external IP allocation for workload VMs |
+| Peer VPC Network | `altostrat-{id}-vpc` | GCP VPC for the jump host and peering anchor |
+| Firewall rules | `altostrat-{id}-allow-*` | RDP, SSH, HTTP, ICMP, and internal traffic on the peer VPC |
+| Windows Server 2022 VM | `altostrat-{id}-jump-host` | RDP workstation for accessing vCenter and NSX-T consoles |
 | vCenter credentials reset | (null\_resource) | Automated reset of the vCenter solution user password post-provisioning |
 
 **GCVE private cloud components (provisioned inside the private cloud):**
@@ -113,7 +113,7 @@ bare-metal provisioning cycle.
 └────────────────────────────────────────────────────────────────────────────┘
 
 Deployment sequence:
-  1. Enable GCP APIs (vmwareengine, compute, cloudresourcemanager, iam, logging, monitoring)
+  1. Enable GCP APIs (vmwareengine, vmmigration, compute, cloudresourcemanager, iam, iamcredentials)
   2. Create VMware Engine Network (global, type STANDARD)
   3. Create GCVE private cloud — this triggers Google to provision bare-metal nodes,
      install vSphere/vSAN/NSX-T/HCX, and configure the management cluster
@@ -505,11 +505,11 @@ block and re-run `tofu plan` before `tofu destroy`.
 
 ```
 vmwareengine.googleapis.com
+vmmigration.googleapis.com
 compute.googleapis.com
 cloudresourcemanager.googleapis.com
 iam.googleapis.com
-logging.googleapis.com
-monitoring.googleapis.com
+iamcredentials.googleapis.com
 ```
 
 > **VMware Engine quota:** Single-node `TIME_LIMITED` private clouds require a quota of at
@@ -656,7 +656,7 @@ gcloud compute networks delete "peer-network" \
 
 - **`management_cidr` and `edge_services_cidr`**: These two CIDRs must not overlap with each other or with the peer VPC subnet ranges. The VMware Engine API validates CIDR allocations at creation time and will reject overlapping ranges. The default `management_cidr = "172.20.1.0/24"` and `edge_services_cidr = "10.11.3.0/26"` are pre-validated non-overlapping ranges. If customizing either, verify that they do not conflict with auto-mode VPC subnets (which use `10.128.0.0/9`).
 
-- **`create_vpc` and `create_default_firewall_rules`**: Firewall rules are created on the peer VPC. If `create_vpc = false`, firewall rules still attempt to reference the expected VPC by the computed name `altostrat-<id>-vpc`. There is no variable to specify a custom VPC name; the computed name is hardcoded in `locals`. If `create_vpc = false`, the named VPC must already exist.
+- **`create_vpc` and `create_default_firewall_rules`**: Firewall rules are created on the peer VPC. If `create_vpc = false`, firewall rules still attempt to reference the expected VPC by the computed name `altostrat-<deployment-id>-vpc`. There is no variable to specify a custom VPC name; this name is hardcoded in `locals`. If `create_vpc = false`, a VPC with that exact name must already exist in the project.
 
 - **`create_jump_host` and `jump_host_subnetwork`**: When `create_jump_host = true` and `jump_host_subnetwork = ""` (default), GCP auto-selects a subnet in the jump host's region. For custom-mode VPCs (i.e., if `create_vpc = false`), auto-selection may fail because no auto-mode subnet exists. In that case, set `jump_host_subnetwork` to the self-link or name of an existing subnet.
 
@@ -672,7 +672,7 @@ gcloud compute networks delete "peer-network" \
 
 - **`region` and `zone`**: The VMware Engine private cloud is created in `var.zone`, and the network policy is scoped to `var.region`. The `zone` must be within `region` (e.g., `zone = "us-west2-a"` with `region = "us-west2"`). If they are inconsistent, the network policy creation will fail.
 
-- **`deployment_id`**: All resource names use `altostrat-<id>-*` naming. Changing `deployment_id` after deployment forces recreation of the private cloud (a 3-hour operation) and all associated resources. Never change `deployment_id` on an existing deployment.
+- **`deployment_id`**: All resource names follow the pattern `altostrat-<id>-<suffix>` (e.g. `altostrat-<id>-ven`, `altostrat-<id>-private-cloud`, `altostrat-<id>-vpc`). Changing `deployment_id` after deployment forces recreation of the private cloud (a 3-hour operation) and all associated resources. Never change `deployment_id` on an existing deployment.
 
 - **`enable_internet_access` and `enable_external_ip`**: These are independent boolean flags on the `google_vmwareengine_network_policy` resource. Both can be `true` simultaneously. Disabling `enable_internet_access` while keeping `enable_external_ip = true` prevents outbound internet traffic but still allows external IP assignment within the VMware environment.
 
