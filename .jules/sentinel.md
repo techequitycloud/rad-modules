@@ -1,0 +1,4 @@
+## 2025-02-28 - Removed over-permissioned roles/storage.objectAdmin from GKE nodes
+**Vulnerability:** The default GKE service account (`gke_standard_sa_role`) across `Istio_GKE`, `Bank_GKE`, and `MC_Bank_GKE` modules was assigned `roles/storage.objectAdmin`, giving every pod without workload identity full write access to all GCS buckets in the project.
+**Learning:** This is a common but dangerous misconfiguration where `objectAdmin` is mistakenly granted instead of `objectViewer` to allow GKE to pull images. In `Bank_GKE` and `MC_Bank_GKE`, both roles were actually present, showing a failure to adhere to the principle of least privilege.
+**Prevention:** GKE nodes generally only require read access (`roles/storage.objectViewer` or `roles/artifactregistry.reader`) to pull images. Any pod requiring write access to a specific GCS bucket must use a dedicated Workload Identity with bucket-level permissions, rather than elevating the node-level service account.
