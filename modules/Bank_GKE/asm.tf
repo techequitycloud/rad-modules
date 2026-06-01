@@ -24,7 +24,7 @@ resource "null_resource" "verify_gke_hub_api_activation" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       
@@ -65,7 +65,7 @@ resource "null_resource" "verify_mesh_api_activation" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       
@@ -137,7 +137,7 @@ resource "null_resource" "verify_mesh_feature_active" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       
@@ -170,8 +170,8 @@ resource "null_resource" "verify_mesh_feature_active" {
   }
 
   triggers = {
-    project_id  = local.project.project_id
-    feature_id  = google_gke_hub_feature.service_mesh[0].name
+    project_id = local.project.project_id
+    feature_id = google_gke_hub_feature.service_mesh[0].name
   }
 }
 
@@ -208,7 +208,7 @@ resource "null_resource" "verify_hub_membership" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       CLUSTER_NAME="${var.gke_cluster}"
@@ -246,8 +246,8 @@ resource "null_resource" "verify_hub_membership" {
   }
 
   triggers = {
-    project_id   = local.project.project_id
-    cluster_name = var.gke_cluster
+    project_id    = local.project.project_id
+    cluster_name  = var.gke_cluster
     membership_id = google_gke_hub_membership.gke_cluster.membership_id
   }
 }
@@ -265,7 +265,7 @@ resource "null_resource" "verify_mesh_status" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       PROJECT_NUMBER="${local.project_number}"
@@ -357,7 +357,7 @@ resource "null_resource" "wait_for_service_mesh" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       
       PROJECT_ID="${local.project.project_id}"
