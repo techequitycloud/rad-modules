@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// SECTION 1: Provider
+# SECTION 1: Provider
 
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. {{UIMeta group=0 order=100 }}"
@@ -88,7 +88,7 @@ variable "enable_services" {
   default     = true
 }
 
-// SECTION 2: Main
+# SECTION 2: Main
 
 variable "project_id" {
   description = "GCP project ID where Container Migration resources will be deployed. Must already exist and the service account must hold roles/owner. {{UIMeta group=1 order=101 updatesafe }}"
@@ -108,7 +108,7 @@ variable "zone" {
   default     = "us-central1-a"
 }
 
-// SECTION 3: Network
+# SECTION 3: Network
 
 variable "create_vpc" {
   description = "Set to true (default) to create a new auto-mode VPC network for the lab. Set to false to use an existing VPC. {{UIMeta group=3 order=301 }}"
@@ -128,7 +128,7 @@ variable "internal_traffic_cidr" {
   default     = "10.128.0.0/9"
 }
 
-// SECTION 4: Source VMs
+# SECTION 4: Source VMs
 
 variable "postgres_machine_type" {
   description = "Machine type for the PostgreSQL source VM (e.g. 'e2-medium'). This VM runs PostgreSQL 14 and serves as the database migration source. {{UIMeta group=4 order=401 }}"
@@ -154,7 +154,7 @@ variable "tomcat_disk_size_gb" {
   default     = 20
 }
 
-// SECTION 5: Migrate to Containers CLI VM
+# SECTION 5: Migrate to Containers CLI VM
 
 variable "m2c_machine_type" {
   description = "Machine type for the Migrate to Containers CLI VM (e.g. 'e2-standard-4'). This VM requires sufficient CPU and memory to copy and analyse source VM filesystems. {{UIMeta group=5 order=501 }}"
@@ -168,7 +168,7 @@ variable "m2c_disk_size_gb" {
   default     = 200
 }
 
-// SECTION 6: GKE Cluster
+# SECTION 6: GKE Cluster
 
 variable "gke_node_machine_type" {
   description = "Machine type for GKE worker nodes (e.g. 'e2-medium'). Used for the default node pool that runs migrated container workloads. {{UIMeta group=6 order=601 }}"
