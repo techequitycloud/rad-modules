@@ -47,7 +47,7 @@ locals {
 resource "google_compute_network" "vpc" {
   count                    = var.create_network ? 1 : 0
   project                  = local.project.project_id
-  name                     = var.network_name
+  name                     = "${var.network_name}-${local.random_id}"
   auto_create_subnetworks  = false
   routing_mode             = "GLOBAL"
   depends_on               = [google_project_service.enabled_services]
@@ -82,7 +82,7 @@ resource "google_compute_subnetwork" "subnetwork" {
 resource "google_compute_firewall" "fw_allow_lb_hc" {
   count   = var.create_network ? 1 : 0
   project = local.project.project_id
-  name    = "fw-allow-lb-hc"
+  name    = "fw-allow-lb-hc-${local.random_id}"
   network = google_compute_network.vpc[0].name
 
   allow {
@@ -97,7 +97,7 @@ resource "google_compute_firewall" "fw_allow_lb_hc" {
 resource "google_compute_firewall" "fw_allow_nfs_hc" {
   count   = var.create_network ? 1 : 0
   project = local.project.project_id
-  name    = "fw-allow-nfs-hc"
+  name    = "fw-allow-nfs-hc-${local.random_id}"
   network = google_compute_network.vpc[0].name
 
   allow {
@@ -112,7 +112,7 @@ resource "google_compute_firewall" "fw_allow_nfs_hc" {
 resource "google_compute_firewall" "fw_allow_iap_ssh" {
   count   = var.create_network ? 1 : 0
   project = local.project.project_id
-  name    = "fw-allow-iap-ssh"
+  name    = "fw-allow-iap-ssh-${local.random_id}"
   network = google_compute_network.vpc[0].name
 
   allow {
@@ -127,7 +127,7 @@ resource "google_compute_firewall" "fw_allow_iap_ssh" {
 resource "google_compute_firewall" "fw_allow_intra_vpc" {
   count   = var.create_network ? 1 : 0
   project = local.project.project_id
-  name    = "fw-allow-intra-vpc"
+  name    = "fw-allow-intra-vpc-${local.random_id}"
   network = google_compute_network.vpc[0].name
 
   allow {
@@ -141,7 +141,7 @@ resource "google_compute_firewall" "fw_allow_intra_vpc" {
 resource "google_compute_firewall" "fw_allow_gce_nfs_tcp" {
   count   = var.create_network ? 1 : 0
   project = local.project.project_id
-  name    = "fw-allow-nfs-tcp"
+  name    = "fw-allow-nfs-tcp-${local.random_id}"
   network = google_compute_network.vpc[0].name
 
   allow {
@@ -157,7 +157,7 @@ resource "google_compute_firewall" "fw_allow_gce_nfs_tcp" {
 resource "google_compute_firewall" "fw_allow_http_tcp" {
   count   = var.create_network ? 1 : 0
   project = local.project.project_id
-  name    = "fw-allow-http-tcp"
+  name    = "fw-allow-http-tcp-${local.random_id}"
   network = google_compute_network.vpc[0].name
 
   allow {
