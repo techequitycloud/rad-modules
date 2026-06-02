@@ -142,7 +142,7 @@ variable "create_network" {
 }
 
 variable "network_name" {
-  description = "Name of the shared VPC network used by all clusters. When create_network is true, this is the name given to the newly created network. When create_network is false, this identifies the existing network to use. Defaults to 'vpc-network'. {{UIMeta group=2 order=202 }}"
+  description = "Name of the shared VPC network used by all clusters. When create_network is true, this is the name given to the newly created network. When create_network is false, this identifies the existing network to use. Defaults to 'vpc-network'. When left at the default and create_network is true, the deployment_id suffix is automatically appended to ensure uniqueness. {{UIMeta group=2 order=202 }}"
   type        = string
   default     = "vpc-network"
 }

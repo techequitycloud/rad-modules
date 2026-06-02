@@ -24,6 +24,10 @@ data "google_compute_network" "existing_vpc" {
   name    = var.network_name
 }
 
+locals {
+  network_name = var.create_network ? "${var.network_name}-${local.random_id}" : var.network_name
+}
+
 # ============================================
 # Local — unified VPC reference regardless of create_network
 # ============================================
@@ -39,7 +43,7 @@ locals {
 resource "google_compute_network" "vpc" {
   count                           = var.create_network ? 1 : 0
   project                         = local.project.project_id
-  name                            = var.network_name
+  name                            = "${var.network_name}-${local.random_id}"
   auto_create_subnetworks         = false
   routing_mode                    = "GLOBAL"
   delete_default_routes_on_create = false
@@ -195,7 +199,7 @@ resource "google_compute_address" "static_ip" {
 
 resource "google_compute_firewall" "allow_ssh" {
   project       = local.project.project_id
-  name          = "allow-ssh"
+  name          = "allow-ssh-${local.random_id}"
   network       = local.network.name
   direction     = "INGRESS"
   priority      = 1000
@@ -214,7 +218,7 @@ resource "google_compute_firewall" "allow_ssh" {
 
 resource "google_compute_firewall" "allow_internal" {
   project   = local.project.project_id
-  name      = "allow-internal"
+  name      = "allow-internal-${local.random_id}"
   network   = local.network.name
   direction = "INGRESS"
   priority  = 1000
@@ -246,7 +250,7 @@ resource "google_compute_firewall" "allow_internal" {
 
 resource "google_compute_firewall" "allow_gke_masters" {
   project       = local.project.project_id
-  name          = "allow-gke-masters"
+  name          = "allow-gke-masters-${local.random_id}"
   network       = local.network.name
   direction     = "INGRESS"
   priority      = 1000
@@ -272,7 +276,7 @@ resource "google_compute_firewall" "allow_gke_masters" {
 
 resource "google_compute_firewall" "allow_health_checks" {
   project   = local.project.project_id
-  name      = "allow-health-checks"
+  name      = "allow-health-checks-${local.random_id}"
   network   = local.network.name
   direction = "INGRESS"
   priority  = 1000
@@ -295,7 +299,7 @@ resource "google_compute_firewall" "allow_health_checks" {
 
 resource "google_compute_firewall" "allow_webhooks" {
   project       = local.project.project_id
-  name          = "allow-webhooks"
+  name          = "allow-webhooks-${local.random_id}"
   network       = local.network.name
   direction     = "INGRESS"
   priority      = 1000
