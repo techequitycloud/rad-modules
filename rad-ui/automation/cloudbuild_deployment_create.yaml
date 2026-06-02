@@ -259,7 +259,7 @@ steps:
     # headroom for GKE Autopilot LoadBalancer IP provisioning (which can take 10+
     # minutes on a brand-new cluster) to complete before the final retry.
     apply_with_retry() {
-        local max_attempts=2
+        local max_attempts=1
         local attempt=1
         local sleep_seconds=60
 
@@ -413,7 +413,7 @@ steps:
 
                 k8s_apply_with_retry() {
                     local plan_file="tfplan-k8s"
-                    local max_attempts=2
+                    local max_attempts=1
                     local attempt=1
                     local sleep_seconds=60
 
