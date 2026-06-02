@@ -187,11 +187,6 @@ steps:
         fi
     fi
 
-    if [ -d ".terraform" ]; then
-        cp -r .terraform "$$TARGET_DIR/"
-        log "   Restored .terraform directory"
-    fi
-
     if [ -f "terraform.tfstate" ]; then
         cp terraform.tfstate "$$TARGET_DIR/"
         log "   Restored terraform.tfstate"
@@ -232,22 +227,31 @@ steps:
         log "ℹ️  No provider cache found — providers will be downloaded fresh"
     fi
 
+    # Checksum the cache before init so we can skip the upload if nothing changed
+    CACHE_CHECKSUM_BEFORE=$$(find "$$CACHE_DIR" -type f | sort | xargs md5sum 2>/dev/null | md5sum || echo "empty")
+
     tofu init -reconfigure
 
-    # Save provider cache to GCS for future builds
-    log "📤 Saving Terraform provider cache to GCS..."
-    if tar -czf /tmp/providers.tar.gz -C "$$CACHE_DIR" . 2>/dev/null && \
-       gsutil cp /tmp/providers.tar.gz "$$CACHE_GCS_PATH" 2>/dev/null; then
-        log "✅ Provider cache saved to GCS"
+    # Only re-upload the provider cache if it changed
+    CACHE_CHECKSUM_AFTER=$$(find "$$CACHE_DIR" -type f | sort | xargs md5sum 2>/dev/null | md5sum || echo "empty")
+    if [ "$$CACHE_CHECKSUM_BEFORE" != "$$CACHE_CHECKSUM_AFTER" ]; then
+        log "📤 Provider cache changed — saving to GCS..."
+        if tar -czf /tmp/providers.tar.gz -C "$$CACHE_DIR" . 2>/dev/null && \
+           gsutil cp /tmp/providers.tar.gz "$$CACHE_GCS_PATH" 2>/dev/null; then
+            log "✅ Provider cache saved to GCS"
+        else
+            log "⚠️  Failed to save provider cache (non-critical)"
+        fi
+        rm -f /tmp/providers.tar.gz
     else
-        log "⚠️  Failed to save provider cache (non-critical)"
+        log "ℹ️  Provider cache unchanged — skipping upload"
     fi
-    rm -f /tmp/providers.tar.gz
 
     log "🔍 Validating current state..."
 
-    if tofu show -json > /dev/null 2>&1; then
-        RESOURCE_COUNT=$$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "unknown")
+    mkdir -p /workspace/audit
+    if tofu show -json > /workspace/audit/pre_destroy_state.json 2>/dev/null; then
+        RESOURCE_COUNT=$$(jq -r '.values.root_module.resources // [] | length' /workspace/audit/pre_destroy_state.json 2>/dev/null || echo "unknown")
         log "📊 Found $$RESOURCE_COUNT resources in state"
 
         log "📋 Planning destroy..."
@@ -257,23 +261,18 @@ steps:
         tofu show -json destroy.tfplan | jq -r '.resource_changes[]? | select(.change.actions[] == "delete") | .address' 2>/dev/null || log "Unable to parse destroy plan"
 
         log "📝 Creating pre-destroy audit record..."
-        mkdir -p /workspace/audit
+        jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' /workspace/audit/pre_destroy_state.json 2>/dev/null > /workspace/audit/pre_destroy_resources.txt || echo "No resources found" > /workspace/audit/pre_destroy_resources.txt
 
-        tofu show -json > /workspace/audit/pre_destroy_state.json 2>/dev/null || echo "{}" > /workspace/audit/pre_destroy_state.json
-
-        tofu show -json | jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' 2>/dev/null > /workspace/audit/pre_destroy_resources.txt || echo "No resources found" > /workspace/audit/pre_destroy_resources.txt
-
-        gsutil -m cp /workspace/audit/pre_destroy_state.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destroy/pre_destroy_state.json" || log "Failed to upload pre-destroy state"
-        gsutil -m cp /workspace/audit/pre_destroy_resources.txt "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destroy/pre_destroy_resources.txt" || log "Failed to upload resource list"
+        gsutil -m cp /workspace/audit/pre_destroy_state.json "gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/pre_destroy_state.json" || log "Failed to upload pre-destroy state"
+        gsutil -m cp /workspace/audit/pre_destroy_resources.txt "gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/pre_destroy_resources.txt" || log "Failed to upload resource list"
 
         log "✅ Pre-destroy audit completed"
     else
         log "⚠️  No state file found or state is empty"
         log "   This may indicate resources were already destroyed"
 
-        mkdir -p /workspace/audit
         echo '{"message": "No state found", "timestamp": "'$$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /workspace/audit/pre_destroy_state.json
-        gsutil cp /workspace/audit/pre_destroy_state.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destroy/pre_destroy_state.json" || log "Failed to upload empty state"
+        gsutil cp /workspace/audit/pre_destroy_state.json "gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/pre_destroy_state.json" || log "Failed to upload empty state"
     fi
 
     log "✅ State validation completed"
@@ -360,7 +359,7 @@ steps:
                 sleep 60
 
                 log "🔄 Refreshing state before retry..."
-                tofu refresh || log "State refresh failed, continuing with retry"
+                tofu apply -refresh-only -auto-approve || log "State refresh failed, continuing with retry"
             fi
 
             ((attempt++))
@@ -421,25 +420,26 @@ steps:
     VERIFICATION_STATUS="success"
     VERIFICATION_MESSAGE="All resources successfully destroyed"
 
-    if tofu show -json > /dev/null 2>&1; then
-        REMAINING_COUNT=$$(tofu show -json | jq -r '.values.root_module.resources // [] | length' 2>/dev/null || echo "0")
+    if tofu show -json > /workspace/audit/post_destroy_state.json 2>/dev/null; then
+        REMAINING_COUNT=$$(jq -r '.values.root_module.resources // [] | length' /workspace/audit/post_destroy_state.json 2>/dev/null || echo "0")
 
         if [ "$$REMAINING_COUNT" = "0" ]; then
             log "✅ All resources successfully destroyed"
         else
             log "⚠️  Warning: $$REMAINING_COUNT resources may still exist"
             log "📋 Remaining resources:"
-            tofu show -json | jq -r '.values.root_module.resources[]?.address // empty' 2>/dev/null || log "Unable to list remaining resources"
+            jq -r '.values.root_module.resources[]?.address // empty' /workspace/audit/post_destroy_state.json 2>/dev/null || log "Unable to list remaining resources"
             VERIFICATION_STATUS="partial"
             VERIFICATION_MESSAGE="$$REMAINING_COUNT resources may still exist in state"
 
-            tofu show -json > /workspace/audit/post_destroy_state.json 2>/dev/null || echo "{}" > /workspace/audit/post_destroy_state.json
-            tofu show -json | jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' 2>/dev/null > /workspace/audit/remaining_resources.txt || echo "Unable to list" > /workspace/audit/remaining_resources.txt
+            jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' /workspace/audit/post_destroy_state.json 2>/dev/null > /workspace/audit/remaining_resources.txt || echo "Unable to list" > /workspace/audit/remaining_resources.txt
         fi
     else
         log "✅ State is clean - no resources found"
         echo '{"message": "No state found after destroy", "timestamp": "'$$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /workspace/audit/post_destroy_state.json
     fi
+
+    AUDIT_BASE="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
 
     cat > /workspace/audit/destroy_verification.json <<EOF
     {
@@ -452,20 +452,6 @@ steps:
     }
     EOF
 
-    gsutil cp /workspace/audit/destroy_verification.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destroy/destroy_verification.json" || log "Failed to upload verification report"
-
-    if [ -f /workspace/audit/post_destroy_state.json ]; then
-        gsutil cp /workspace/audit/post_destroy_state.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destroy/post_destroy_state.json" || log "Failed to upload post-destroy state"
-    fi
-
-    if [ -f /workspace/audit/remaining_resources.txt ]; then
-        gsutil cp /workspace/audit/remaining_resources.txt "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destroy/remaining_resources.txt" || log "Failed to upload remaining resources list"
-    fi
-
-    log "✅ Destroy verification completed"
-
-    log "📝 Creating destroy completion marker..."
-
     cat > /workspace/audit/destroy_complete.json <<EOF
     {
       "module": "${_MODULE_NAME}",
@@ -474,12 +460,21 @@ steps:
       "build_id": "${BUILD_ID}",
       "destroyed_at": "$$(date -u +%Y-%m-%dT%H:%M:%SZ)",
       "verification_status": "$$VERIFICATION_STATUS",
-      "build_logs": "gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/",
-      "audit_files": "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destroy/"
+      "build_logs": "$$AUDIT_BASE/"
     }
     EOF
 
-    gsutil cp /workspace/audit/destroy_complete.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destroy/destroy_complete.json" || log "Failed to upload completion marker"
+    gsutil -m cp \
+        /workspace/audit/destroy_verification.json \
+        /workspace/audit/destroy_complete.json \
+        /workspace/audit/post_destroy_state.json \
+        "$$AUDIT_BASE/" || log "Failed to upload some audit files"
+
+    if [ -f /workspace/audit/remaining_resources.txt ]; then
+        gsutil cp /workspace/audit/remaining_resources.txt "$$AUDIT_BASE/remaining_resources.txt" || log "Failed to upload remaining resources list"
+    fi
+
+    log "✅ Destroy verification completed"
 
     log "🗑️  Removing deployment folder from Cloud Storage..."
 
