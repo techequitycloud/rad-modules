@@ -23,7 +23,7 @@ provider "kubernetes" {
   host  = "https://${google_container_cluster.gke_cluster["cluster1"].endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
-    google_container_cluster.gke_cluster["cluster1"].master_auth[0].cluster_ca_certificate,
+    try(google_container_cluster.gke_cluster["cluster1"].master_auth[0].cluster_ca_certificate, ""),
   )
 }
 
@@ -32,25 +32,7 @@ provider "kubernetes" {
   host  = "https://${google_container_cluster.gke_cluster["cluster2"].endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
-    google_container_cluster.gke_cluster["cluster2"].master_auth[0].cluster_ca_certificate,
-  )
-}
-
-provider "kubernetes" {
-  alias = "cluster3"
-  host  = "https://${google_container_cluster.gke_cluster["cluster3"].endpoint}"
-  token = data.google_client_config.gke_cluster.access_token
-  cluster_ca_certificate = base64decode(
-    google_container_cluster.gke_cluster["cluster3"].master_auth[0].cluster_ca_certificate,
-  )
-}
-
-provider "kubernetes" {
-  alias = "cluster4"
-  host  = "https://${google_container_cluster.gke_cluster["cluster4"].endpoint}"
-  token = data.google_client_config.gke_cluster.access_token
-  cluster_ca_certificate = base64decode(
-    google_container_cluster.gke_cluster["cluster4"].master_auth[0].cluster_ca_certificate,
+    try(google_container_cluster.gke_cluster["cluster2"].master_auth[0].cluster_ca_certificate, ""),
   )
 }
 
