@@ -181,9 +181,6 @@ substitutions:
   _DEPLOYMENT_ID: "none"
   _MODULE_NAME: "unknown"
   _DEPLOYMENT_BUCKET_ID: "rad-deployments-2b65"
-  _GIT_REPO_URL: "techequitycloud/rad-modules"  # Not used, but kept for consistency
-  _MODULE_GIT_REPO_URL: ""  # Not used, but kept for consistency
-  _GITHUB_TOKEN_SECRET_NAME: "git-access-token"  # Not used, but kept for consistency
 
 # ============================================
 # Logs Configuration

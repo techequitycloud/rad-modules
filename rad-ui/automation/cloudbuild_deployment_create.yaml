@@ -180,18 +180,26 @@ steps:
     fi
 
     # Initialize with comprehensive options
-    if tofu init -reconfigure -upgrade; then
+    # Checksum the cache before init so we can skip the upload if nothing changed
+    CACHE_CHECKSUM_BEFORE=$$(find "$$CACHE_DIR" -type f | sort | xargs md5sum 2>/dev/null | md5sum || echo "empty")
+
+    if tofu init -reconfigure; then
         log "✅ Terraform initialization successful"
 
-        # Save provider cache to GCS for future builds
-        log "📤 Saving Terraform provider cache to GCS..."
-        if tar -czf /tmp/providers.tar.gz -C "$$CACHE_DIR" . 2>/dev/null && \
-           gsutil cp /tmp/providers.tar.gz "$$CACHE_GCS_PATH" 2>/dev/null; then
-            log "✅ Provider cache saved to GCS"
+        # Only re-upload the provider cache if it changed
+        CACHE_CHECKSUM_AFTER=$$(find "$$CACHE_DIR" -type f | sort | xargs md5sum 2>/dev/null | md5sum || echo "empty")
+        if [ "$$CACHE_CHECKSUM_BEFORE" != "$$CACHE_CHECKSUM_AFTER" ]; then
+            log "📤 Provider cache changed — saving to GCS..."
+            if tar -czf /tmp/providers.tar.gz -C "$$CACHE_DIR" . 2>/dev/null && \
+               gsutil cp /tmp/providers.tar.gz "$$CACHE_GCS_PATH" 2>/dev/null; then
+                log "✅ Provider cache saved to GCS"
+            else
+                log "⚠️  Failed to save provider cache (non-critical)"
+            fi
+            rm -f /tmp/providers.tar.gz
         else
-            log "⚠️  Failed to save provider cache (non-critical)"
+            log "ℹ️  Provider cache unchanged — skipping upload"
         fi
-        rm -f /tmp/providers.tar.gz
     else
         log "❌ Terraform initialization failed"
         log "🔍 Checking for common issues..."
@@ -547,7 +555,7 @@ steps:
   dir: /workspace
 
 - id: 'Deployment Summary'
-  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
   entrypoint: 'bash'
   args:
   - '-c'
@@ -580,15 +588,6 @@ steps:
     echo "  • Outputs: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/output/output.json"
     echo "  • Completion Marker: gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files/deployment_complete.json"
     echo "  • Logs: gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/create/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
-    echo "========================================"
-
-    # Optional: Show final resource summary
-    if [[ -f "/workspace/modules/${_MODULE_NAME}/terraform.tfstate" ]]; then
-        echo "📊 Deployed Resources Summary:"
-        cd /workspace/modules/${_MODULE_NAME}
-        tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || echo "Resource summary unavailable"
-    fi
-
     echo "========================================"
   dir: /workspace
 
