@@ -1,0 +1,4 @@
+## 2024-06-02 - [Over-permissioned GKE Service Accounts]
+**Vulnerability:** The default node pool service accounts for `Istio_GKE`, `Bank_GKE`, and `MC_Bank_GKE` modules were granted `roles/storage.objectAdmin`, which provides full read and write access to all Cloud Storage objects across the entire GCP project.
+**Learning:** This is a recurring pattern where service accounts are given broad project-wide write permissions instead of the minimum required `roles/storage.objectViewer` just to pull container images from Artifact Registry/GCR.
+**Prevention:** Always audit the default IAM roles granted to GKE service accounts. Avoid granting project-wide data-plane roles (like `objectAdmin`) to node pools unless explicitly required by the workload, and even then, prefer workload identity with bucket-level bindings.
