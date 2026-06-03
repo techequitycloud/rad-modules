@@ -57,10 +57,10 @@ run "standard_cluster_config" {
   command = plan
 
   variables {
-    project_id             = "test-project-123"
-    create_autopilot_cluster = false
+    project_id                = "test-project-123"
+    create_autopilot_cluster  = false
     enable_cloud_service_mesh = false
-    deploy_application     = false
+    deploy_application        = false
   }
 
   assert {
