@@ -1,0 +1,3 @@
+## 2024-06-03 - Avoid `always_run = timestamp()` on null_resource provisioners
+**Learning:** Setting `always_run = timestamp()` on a `null_resource` ensures execution triggers resource replacement on every apply. If the resource contains a `when = destroy` cleanup provisioner, this forced replacement will delete files before the new create provisioner runs, defeating any bash idempotency (like `if [ -d "$dir" ]; then exit 0; fi`).
+**Action:** To speed up applies and prevent downtime, remove the `always_run` trigger entirely so the provisioner only runs when specific functional triggers (like `version`) change. Break the downstream replacement chain by removing dynamic upstream triggers (like `download_id`), relying only on `depends_on` for sequencing.
