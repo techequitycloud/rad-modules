@@ -70,6 +70,12 @@ variable "shared_users" {
   default     = []
 }
 
+variable "technical_support_users" {
+  description = "List of users who are responsible for providing technical support for this module. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=108 }}"
+  type        = list(string)
+  default     = []
+}
+
 variable "deployment_id" {
   description = "Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources. {{UIMeta group=0 order=108 }}"
   type        = string
