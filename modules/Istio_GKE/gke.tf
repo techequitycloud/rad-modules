@@ -165,7 +165,8 @@ resource "google_service_account" "gke_sa" {
 
 locals {
   gke_sa_project_roles = [
-    "roles/storage.objectAdmin",
+    # SECURITY: Replaced roles/storage.objectAdmin with roles/storage.objectViewer to enforce least privilege. Node pool SAs only need to read artifacts, not administer all storage buckets.
+    "roles/storage.objectViewer",
     "roles/artifactregistry.reader",
     "roles/monitoring.metricWriter",
     "roles/monitoring.viewer",

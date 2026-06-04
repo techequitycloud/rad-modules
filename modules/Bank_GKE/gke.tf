@@ -163,7 +163,7 @@ resource "google_container_node_pool" "preemptible_nodes" {
 
 locals {
   gke_sa_project_roles = [
-    "roles/storage.objectAdmin",
+    # SECURITY: Removed roles/storage.objectAdmin to enforce least privilege. roles/storage.objectViewer is sufficient for GKE node pools.
     "roles/storage.objectViewer",
     "roles/artifactregistry.reader",
     "roles/monitoring.metricWriter",
