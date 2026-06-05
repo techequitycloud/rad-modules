@@ -1,0 +1,3 @@
+## 2024-06-05 - Avoid timestamp() in provisioner triggers
+**Learning:** Using `always_run = timestamp()` in `null_resource` triggers forces resource replacement on every terraform apply. If there's a `destroy` provisioner, it runs first, destroying the resource and defeating bash idempotency. Downstream resources with dynamic triggers (e.g. `download_id = null_resource.foo.id`) also get replaced on every apply, creating a chain of unnecessary re-executions and significantly increasing apply time.
+**Action:** Remove `always_run = timestamp()` so provisioners only run when functional triggers (like `version`) change. Break the downstream replacement chain by removing upstream triggers (like `download_id`), relying only on `depends_on` for sequencing.
