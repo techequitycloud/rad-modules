@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      http:#www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,12 +25,12 @@ resource "null_resource" "install_sidecar_mesh" {
     project_id                = local.project.project_id
     istio_release             = regex("^(\\d+\\.\\d+)", var.istio_version)[0]
     istio_version             = var.istio_version
-    resource_creator_identity = var.resource_creator_identity  # Added for destroy provisioner
+    resource_creator_identity = var.resource_creator_identity # Added for destroy provisioner
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOF
+    command     = <<-EOF
     set -eo pipefail
     echo "=== Installing Istio ${var.istio_version} (Sidecar Mode) ==="
     
@@ -51,7 +51,7 @@ resource "null_resource" "install_sidecar_mesh" {
       esac
       
       # Download kubectl to local bin
-      curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/$OS/$ARCH/kubectl"
+      curl -LO "https:#dl.k8s.io/release/$(curl -L -s https:#dl.k8s.io/release/stable.txt)/bin/$OS/$ARCH/kubectl"
       chmod +x kubectl
       mv kubectl $HOME/.local/bin/
       echo "kubectl installed to $HOME/.local/bin/"
@@ -80,7 +80,7 @@ resource "null_resource" "install_sidecar_mesh" {
     # Download and extract Istio
     echo "Downloading Istio ${var.istio_version} for $OS_SUFFIX-$ARCH..."
     cd $HOME
-    curl -fL https://github.com/istio/istio/releases/download/${var.istio_version}/istio-${var.istio_version}-$OS_SUFFIX-$ARCH.tar.gz \
+    curl -fL https:#github.com/istio/istio/releases/download/${var.istio_version}/istio-${var.istio_version}-$OS_SUFFIX-$ARCH.tar.gz \
       | tar xz || { echo "Failed to download/extract Istio"; exit 1; }
       
     export PATH=$HOME/istio-${var.istio_version}/bin:$PATH
@@ -178,7 +178,7 @@ ISTIO_CONFIG
     ISTIO_RELEASE=$(echo "${var.istio_version}" | cut -d. -f1,2)
     for addon in prometheus jaeger grafana kiali; do
       echo "Installing $addon..."
-      kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-$ISTIO_RELEASE/samples/addons/$addon.yaml || \
+      kubectl apply -f https:#raw.githubusercontent.com/istio/istio/release-$ISTIO_RELEASE/samples/addons/$addon.yaml || \
         echo "Warning: Failed to install $addon"
     done
 
@@ -194,14 +194,14 @@ ISTIO_CONFIG
     EOF
 
     environment = {
-      KUBECONFIG = ""  # Use default kubeconfig location
+      KUBECONFIG = "" # Use default kubeconfig location
     }
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when = destroy
-    command = <<-EOF
+    when        = destroy
+    command     = <<-EOF
       set +e  # Disable exit-on-error for the entire destroy phase
       echo "=== Uninstalling Istio Sidecar Mesh (Graceful Mode) ==="
       
@@ -225,7 +225,7 @@ ISTIO_CONFIG
       # Remove addons (ignore missing manifests)
       echo "Removing observability addons..."
       for addon in kiali grafana jaeger prometheus; do
-        kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-$ISTIO_RELEASE/samples/addons/$addon.yaml \
+        kubectl delete -f https:#raw.githubusercontent.com/istio/istio/release-$ISTIO_RELEASE/samples/addons/$addon.yaml \
           --ignore-not-found --timeout=60s 2>/dev/null || \
           echo "Warning: Failed to remove $addon"
       done
@@ -265,12 +265,12 @@ ISTIO_CONFIG
 # Output Istio ingress gateway external IP for sidecar mesh
 resource "null_resource" "get_sidecar_istio_ingress_ip" {
   count = var.install_ambient_mesh ? 0 : 1
-  
+
   depends_on = [null_resource.install_sidecar_mesh]
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       echo "Waiting for Istio ingress gateway external IP..."
       export PATH=$HOME/.local/bin:$PATH
       

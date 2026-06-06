@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      http:#www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// SECTION 1: Provider
+# SECTION 1: Provider
 
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
@@ -23,9 +23,9 @@ variable "module_description" {
 }
 
 variable "module_documentation" {
-  description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https://docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
+  description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https:#docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
   type        = string
-  default     = "https://docs.radmodules.dev/docs/modules/Bank_GKE"
+  default     = "https:#docs.radmodules.dev/docs/modules/Bank_GKE"
 }
 
 variable "module_dependency" {
@@ -94,7 +94,7 @@ variable "enable_services" {
   default     = true
 }
 
-// SECTION 2: Main
+# SECTION 2: Main
 
 variable "project_id" {
   description = "GCP project ID of the destination project where the GKE cluster and banking application will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Leave blank to use the default project. {{UIMeta group=1 order=101 updatesafe }}"
@@ -108,7 +108,7 @@ variable "region" {
   default     = "us-central1"
 }
 
-// SECTION 3: Network
+# SECTION 3: Network
 
 variable "create_network" {
   description = "Set to true (default) to create a new VPC network and subnet for the GKE cluster. Set to false to use an existing network and subnet identified by network_name and subnet_name. {{UIMeta group=2 order=201 }}"
@@ -134,7 +134,7 @@ variable "ip_cidr_ranges" {
   default     = ["10.132.0.0/16", "192.168.1.0/24"]
 }
 
-// SECTION 5: CLUSTER
+# SECTION 5: CLUSTER
 
 variable "create_cluster" {
   description = "Set to true (default) to create a new GKE cluster. Set to false to deploy the banking application onto an existing cluster identified by gke_cluster. {{UIMeta group=5 order=501 }}"
@@ -184,7 +184,7 @@ variable "service_cidr_block" {
   default     = "10.64.128.0/20"
 }
 
-// SECTION 6: FEATURES
+# SECTION 6: FEATURES
 
 variable "enable_monitoring" {
   description = "Set to true (default) to enable Google Cloud Managed Service for Prometheus and Cloud Monitoring dashboards for the GKE cluster. Provides metrics, alerting, and observability for cluster workloads. Set to false to skip monitoring configuration. {{UIMeta group=6 order=601 }}"
@@ -217,9 +217,9 @@ variable "config_management_version" {
 }
 
 variable "config_sync_repo" {
-  description = "URL of the Git repository from which Anthos Config Sync will pull Kubernetes manifests (e.g. 'https://github.com/org/repo'). Only used when enable_config_management is true. Defaults to the Google Cloud Platform ACM samples repository. The repository must be publicly accessible or credentials must be configured separately. {{UIMeta group=6 order=606 }}"
+  description = "URL of the Git repository from which Anthos Config Sync will pull Kubernetes manifests (e.g. 'https:#github.com/org/repo'). Only used when enable_config_management is true. Defaults to the Google Cloud Platform ACM samples repository. The repository must be publicly accessible or credentials must be configured separately. {{UIMeta group=6 order=606 }}"
   type        = string
-  default     = "https://github.com/GoogleCloudPlatform/anthos-config-management-samples"
+  default     = "https:#github.com/GoogleCloudPlatform/anthos-config-management-samples"
 }
 
 variable "config_sync_policy_dir" {
@@ -228,7 +228,7 @@ variable "config_sync_policy_dir" {
   default     = "config-sync-quickstart/multirepo/root"
 }
 
-// SECTION 8: Application
+# SECTION 8: Application
 
 variable "deploy_application" {
   description = "Set to true (default) to deploy the Bank of Anthos microservices banking demo application onto the GKE cluster after it is created. Set to false to provision only the cluster infrastructure without deploying the application. {{UIMeta group=7 order=701 }}"
