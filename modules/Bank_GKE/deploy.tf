@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      http:#www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +20,7 @@
 
 locals {
   bank_of_anthos_version = "v0.6.7"
-  release_url            = "https://github.com/GoogleCloudPlatform/bank-of-anthos/archive/refs/tags/${local.bank_of_anthos_version}.tar.gz"
+  release_url            = "https:#github.com/GoogleCloudPlatform/bank-of-anthos/archive/refs/tags/${local.bank_of_anthos_version}.tar.gz"
   download_path          = "${path.module}/.terraform/bank-of-anthos"
   extracted_path         = "${local.download_path}/bank-of-anthos-${trimprefix(local.bank_of_anthos_version, "v")}"
   manifests_path         = "${local.extracted_path}/kubernetes-manifests"
@@ -37,12 +37,12 @@ resource "null_resource" "download_bank_of_anthos" {
   triggers = {
     version       = local.bank_of_anthos_version
     download_path = local.download_path
-    always_run    = timestamp()  # ✅ FIXED: Force fresh download
+    always_run    = timestamp() # ✅ FIXED: Force fresh download
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       echo "=========================================="
       echo "Downloading Bank of Anthos ${local.bank_of_anthos_version}..."
@@ -84,9 +84,9 @@ resource "null_resource" "download_bank_of_anthos" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when       = destroy
-    command    = "rm -rf ${self.triggers.download_path}"
-    on_failure = continue
+    when        = destroy
+    command     = "rm -rf ${self.triggers.download_path}"
+    on_failure  = continue
   }
 }
 
@@ -97,14 +97,14 @@ resource "null_resource" "download_bank_of_anthos" {
 resource "kubernetes_namespace" "bank_of_anthos" {
   count    = var.deploy_application ? 1 : 0
   provider = kubernetes.primary
-  
+
   metadata {
     name = "bank-of-anthos"
     labels = {
       "istio.io/rev" = "asm-managed"
     }
   }
-  
+
   timeouts {
     delete = "15m"
   }
@@ -130,19 +130,19 @@ resource "null_resource" "deploy_bank_of_anthos" {
   count = var.deploy_application ? 1 : 0
 
   triggers = {
-    cluster_name     = local.cluster.name
-    version          = local.bank_of_anthos_version
-    namespace        = "bank-of-anthos"  # ✅ FIXED: Direct string
-    region           = var.region
-    project_id       = local.project.project_id
-    manifests_path   = local.manifests_path
-    jwt_secret_path  = local.jwt_secret_path
-    download_id      = null_resource.download_bank_of_anthos[0].id  # ✅ FIXED: Added dependency
+    cluster_name    = local.cluster.name
+    version         = local.bank_of_anthos_version
+    namespace       = "bank-of-anthos" # ✅ FIXED: Direct string
+    region          = var.region
+    project_id      = local.project.project_id
+    manifests_path  = local.manifests_path
+    jwt_secret_path = local.jwt_secret_path
+    download_id     = null_resource.download_bank_of_anthos[0].id # ✅ FIXED: Added dependency
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -e
       
       NAMESPACE="${self.triggers.namespace}"
@@ -286,8 +286,8 @@ resource "null_resource" "deploy_bank_of_anthos" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when    = destroy
-    command = <<-EOT
+    when        = destroy
+    command     = <<-EOT
       set -e
       
       NAMESPACE="${self.triggers.namespace}"
@@ -342,7 +342,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
       
       echo "✓ Cleanup complete"
     EOT
-    on_failure = continue
+    on_failure  = continue
   }
 
   depends_on = [
