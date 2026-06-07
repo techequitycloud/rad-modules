@@ -1,0 +1,7 @@
+## 2024-05-30 - GKE Service Accounts with Broad Roles
+
+**Vulnerability:** GKE Service Accounts (Node Pool SAs) granted overly permissive roles like `roles/storage.objectAdmin` across all GCS buckets in the project, found in multiple GKE modules: `modules/Istio_GKE/gke.tf`, `modules/Bank_GKE/gke.tf`, `modules/MC_Bank_GKE/gke.tf`.
+
+**Learning:** This is a classic pattern where a node pool needs to pull images (which requires `roles/storage.objectViewer` or `roles/artifactregistry.reader`) or specific workload access, but was over-permissioned to `roles/storage.objectAdmin` which grants full write/delete access across all buckets in the project. The principle of least privilege states it should only have `roles/storage.objectViewer` or `roles/artifactregistry.reader` depending on where the images are stored. This codebase already has `roles/artifactregistry.reader` and `roles/storage.objectViewer` in some places, but `roles/storage.objectAdmin` is unnecessarily broad and allows node pools to mutate all GCS data.
+
+**Prevention:** Never grant `roles/storage.objectAdmin` or any write-access storage roles to node pool service accounts by default. If workloads require write access to specific buckets, use Workload Identity with dedicated Google Service Accounts bound to Kubernetes Service Accounts with bucket-level permissions, rather than granting broad write access to the node pool identity.
