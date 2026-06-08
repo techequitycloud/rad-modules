@@ -609,4 +609,4 @@ substitutions:
   _GITHUB_TOKEN_SECRET_NAME: "git-access-token"
 
 logsBucket: 'gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/create/${_MODULE_NAME}/${_DEPLOYMENT_ID}'
-timeout: 10800s
+timeout: 3600s
