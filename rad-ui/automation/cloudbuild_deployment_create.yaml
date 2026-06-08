@@ -253,6 +253,30 @@ steps:
 
     log "🚀 Applying infrastructure changes..."
 
+    # ── Persist state on failure (option B) ──────────────────────────────
+    # Cloud Build aborts the entire build at the first non-zero step, so the
+    # final "Archive and Upload" step never runs after a failed apply. Any
+    # resources created during a failed apply would then be recorded ONLY in
+    # the local terraform.tfstate, which is discarded when this container is
+    # torn down — causing "already exists" errors on the next run. We
+    # therefore repack and upload the state archive on EXIT, regardless of
+    # success or failure. No-op when a remote GCS backend is in use (there is
+    # no local terraform.tfstate to persist).
+    FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
+    persist_state_to_gcs() {
+        if [ -f "/workspace/modules/${_MODULE_NAME}/terraform.tfstate" ]; then
+            log "💾 Persisting Terraform state to GCS..."
+            if tar -hczf "/tmp/${_MODULE_NAME}-state.tar.gz" -C "/workspace/modules/${_MODULE_NAME}" . 2>/dev/null \
+               && gsutil -q cp "/tmp/${_MODULE_NAME}-state.tar.gz" "$$FILES_PATH/${_MODULE_NAME}.tar.gz"; then
+                log "✅ Terraform state persisted to GCS"
+            else
+                log "⚠️  Failed to persist Terraform state to GCS (non-critical)"
+            fi
+            rm -f "/tmp/${_MODULE_NAME}-state.tar.gz"
+        fi
+    }
+    trap persist_state_to_gcs EXIT
+
     # Apply with retry logic for transient errors.
     #
     # After each failed attempt we:
@@ -353,6 +377,26 @@ steps:
     }
 
     log "🔄 Refreshing Terraform state..."
+
+    # ── Persist state on failure (option B) ──────────────────────────────
+    # This step runs a second apply for Kubernetes resources, which can fail
+    # mid-way. As above, persist the local state archive on EXIT so resources
+    # created during a failed apply are not lost (which would cause
+    # "already exists" errors on the next run). No-op for remote GCS backends.
+    FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
+    persist_state_to_gcs() {
+        if [ -f "/workspace/modules/${_MODULE_NAME}/terraform.tfstate" ]; then
+            log "💾 Persisting Terraform state to GCS..."
+            if tar -hczf "/tmp/${_MODULE_NAME}-state.tar.gz" -C "/workspace/modules/${_MODULE_NAME}" . 2>/dev/null \
+               && gsutil -q cp "/tmp/${_MODULE_NAME}-state.tar.gz" "$$FILES_PATH/${_MODULE_NAME}.tar.gz"; then
+                log "✅ Terraform state persisted to GCS"
+            else
+                log "⚠️  Failed to persist Terraform state to GCS (non-critical)"
+            fi
+            rm -f "/tmp/${_MODULE_NAME}-state.tar.gz"
+        fi
+    }
+    trap persist_state_to_gcs EXIT
 
     # Capture kubernetes_ready before the refresh (for logging purposes).
     # NOTE: On a first-time deployment with an inline GKE cluster, Step 3's apply
