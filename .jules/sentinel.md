@@ -1,0 +1,4 @@
+## 2023-10-27 - Overly Permissive IAM Roles for GKE Node Pools
+**Vulnerability:** GKE node pool service accounts in multiple modules (`Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE`) were granted `roles/storage.objectAdmin`.
+**Learning:** Node pools only require read access to pull container images from Container Registry or Artifact Registry. Granting `objectAdmin` violates the principle of least privilege and allows compromised nodes to modify or delete objects across all buckets in the project.
+**Prevention:** Always grant `roles/storage.objectViewer` or `roles/artifactregistry.reader` for node pool service accounts unless write access to specific buckets is required. If write access is needed, use a dedicated Workload Identity service account mapped to a specific bucket rather than elevating the default node-level service account.
