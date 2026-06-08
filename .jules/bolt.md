@@ -1,0 +1,3 @@
+## 2024-06-08 - Break downstream replacement chain on null_resource triggers
+**Learning:** Setting `always_run = timestamp()` on a `null_resource` ensures it triggers a replacement on every apply, which breaks downstream dependencies (like `deploy_bank_of_anthos`) by causing them to be recreated every time. To speed up applies and prevent downtime, we must remove the `always_run = timestamp()` trigger so the provisioner only runs when specific functional triggers (like `version` or `download_path`) change.
+**Action:** Remove `always_run = timestamp()` from `download_bank_of_anthos` in `modules/Bank_GKE/deploy.tf` and `modules/MC_Bank_GKE/deploy.tf`.
