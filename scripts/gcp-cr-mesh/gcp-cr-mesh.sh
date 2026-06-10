@@ -18,6 +18,9 @@
 ##############           Configure Cloud Run Service Mesh         ###############
 #################################################################################
 
+set -e
+set -o pipefail
+
 # User prompt function
 function ask_yes_or_no() {
     read -p "$1 ([y]yes to preview, [n]o to create, [d]del to delete): "
