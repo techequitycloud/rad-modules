@@ -172,7 +172,7 @@ resource "google_gke_hub_membership" "gke_cluster" {
 
   endpoint {
     gke_cluster {
-      resource_link = "//container.googleapis.com/projects/${local.project.project_id}/locations/${var.region}/clusters/${var.gke_cluster}"
+      resource_link = "#container.googleapis.com/projects/${local.project.project_id}/locations/${var.region}/clusters/${var.gke_cluster}"
     }
   }
 
