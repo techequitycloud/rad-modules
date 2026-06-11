@@ -1,112 +1,214 @@
-# Container_Migration Module
+# Migrate to Containers on GKE
 
-## Overview
+This module provisions a complete, hands-on environment for practising **Google Cloud Migrate to Containers (M2C)** — the automated path for replatforming VM-based Linux workloads to containers on Google Kubernetes Engine (GKE) without modifying application source code. It is a **standalone module**: it builds its own VPC, source VMs, a migration workstation, and a target GKE cluster, and does not depend on any shared foundation infrastructure.
 
-The **Container_Migration** module provisions a complete lab environment for practising **Google Cloud Migrate to Containers (M2C)** — the automated path for replatforming Linux VM workloads to containers on GKE without modifying application source code. It deploys two source VMs running real applications, a dedicated migration workstation with the full M2C toolchain, and a GKE cluster ready to receive migrated workloads.
+On apply the module deploys two Ubuntu source VMs running real applications (PostgreSQL 14 and Apache Tomcat 10 serving the Spring PetClinic app), a Migrate to Containers CLI workstation pre-loaded with the migration toolchain, and a multi-node GKE cluster ready to receive migrated workloads. From there an operator works through the M2C lifecycle by hand: assess each VM with the `mcdc` CLI, copy and analyse filesystems with the `m2c` CLI, generate Dockerfiles and Kubernetes manifests, migrate persistent data to GKE PersistentVolumes, and deploy the resulting containers with Skaffold.
 
-The module creates an end-to-end environment in which engineers can execute the full container migration lifecycle: assessing source VMs with `mcdc`, copying filesystems and generating Kubernetes manifests with `m2c`, building container images with Skaffold, and deploying to GKE.
+This guide focuses on the cloud services the module provisions and how to explore and operate them from the Google Cloud Console and the command line. The full operator walkthrough is in the [Lab Guide](https://docs.radmodules.dev/docs/labs/Container_Migration).
 
----
-
-## Resources Created
-
-### Networking
-- **VPC network** (`google_compute_network`) — auto-mode VPC named `mig-<id>-vpc`, created when `create_vpc = true`
-- **Firewall rules** (when `create_default_firewall_rules = true`):
-  - `mig-<id>-allow-internal` — all traffic within `internal_traffic_cidr` (default `10.128.0.0/9`)
-  - `mig-<id>-allow-ssh` — TCP/22 from `0.0.0.0/0`
-  - `mig-<id>-allow-icmp` — ICMP from `0.0.0.0/0`
-  - `mig-<id>-allow-tomcat` — TCP/8080 from `0.0.0.0/0`, targeting instances with tag `tomcat`
-
-### Compute Engine — Source VMs
-- **PostgreSQL VM** (`mig-<id>-postgres`) — Ubuntu 22.04, `e2-medium` (configurable), tagged `postgres`. Startup script installs PostgreSQL 14, creates the `petclinic` database, sets the `postgres` password to `petclinic`, enables remote connections, and installs the `mcdc` collector CLI.
-- **Tomcat VM** (`mig-<id>-tomcat`) — Ubuntu 22.04, `e2-medium` (configurable), tagged `tomcat`. Startup script installs Java 17, Maven, Apache Tomcat 10.1.25, clones and builds the Spring PetClinic WAR (`petclinic.war`), deploys it to Tomcat, and installs the `mcdc` collector CLI. The PostgreSQL VM's internal IP is injected into `/etc/hosts` as `petclinic-postgres`.
-
-### Compute Engine — Migration Workstation
-- **m2c-cli VM** (`mig-<id>-m2c`) — Ubuntu 22.04, `e2-standard-4` (configurable), 200 GB disk (configurable). Startup script pre-installs: Docker, `m2c` CLI (latest), `kubectl` (latest stable), Skaffold (latest), and `gke-gcloud-auth-plugin`. Writes a `/root/filters.txt` exclusion list and creates the `/root/m2c-petclinic/` working directory.
-
-### GKE Cluster
-- **Zonal GKE cluster** (`mig-<id>-gke-cluster`) — located in `var.zone`. Default node pool removed and replaced by a custom `default-pool` with `var.gke_node_count` nodes (default 3) of machine type `var.gke_node_machine_type` (default `e2-medium`), 50 GB `pd-standard` disk, `cloud-platform` OAuth scope. Uses VPC-native networking with empty `ip_allocation_policy {}` (GKE assigns pod/service ranges automatically).
-
-### APIs Enabled (when `enable_services = true`)
-`compute.googleapis.com`, `container.googleapis.com`, `artifactregistry.googleapis.com`, `containerregistry.googleapis.com`, `iam.googleapis.com`, `iamcredentials.googleapis.com`, `cloudresourcemanager.googleapis.com`, `storage.googleapis.com`, `logging.googleapis.com`, `monitoring.googleapis.com`
+All resources share the prefix `mig-<id>-`, where `<id>` is the deployment suffix (e.g. `mig-8b56-postgres`, `mig-8b56-tomcat`, `mig-8b56-m2c`, `mig-8b56-gke-cluster`, `mig-8b56-vpc`).
 
 ---
 
-## Variables
+## 1. Overview
 
-| Variable | Type | Default | Description |
-|---|---|---|---|
-| `project_id` | string | null | GCP project ID (required) |
-| `region` | string | `us-central1` | GCP region for all resources |
-| `zone` | string | `us-central1-a` | GCP zone for VMs and GKE cluster |
-| `deployment_id` | string | null | Suffix for resource names; auto-generated if null |
-| `enable_services` | bool | true | Enable required GCP APIs |
-| `create_vpc` | bool | true | Create a new auto-mode VPC |
-| `create_default_firewall_rules` | bool | true | Create allow-internal/ssh/icmp firewall rules |
-| `internal_traffic_cidr` | string | `10.128.0.0/9` | Source CIDR for allow-internal firewall rule |
-| `postgres_machine_type` | string | `e2-medium` | Machine type for PostgreSQL source VM |
-| `postgres_disk_size_gb` | number | 20 | Boot disk size (GB) for PostgreSQL VM |
-| `tomcat_machine_type` | string | `e2-medium` | Machine type for Tomcat source VM |
-| `tomcat_disk_size_gb` | number | 20 | Boot disk size (GB) for Tomcat VM |
-| `m2c_machine_type` | string | `e2-standard-4` | Machine type for m2c-cli workstation |
-| `m2c_disk_size_gb` | number | 200 | Boot disk size (GB) for m2c-cli VM (must hold source VM filesystem copies) |
-| `gke_node_machine_type` | string | `e2-medium` | Machine type for GKE worker nodes |
-| `gke_node_count` | number | 3 | Number of GKE nodes |
+The module wires together a focused set of Google Cloud services to create a self-contained migration sandbox:
 
-### Platform / Metadata Variables
-`module_description`, `module_documentation`, `module_dependency`, `module_services`, `credit_cost`, `require_credit_purchases`, `enable_purge`, `public_access`, `shared_users`, `resource_creator_identity`
+| Capability | Google Cloud service | Notes |
+|---|---|---|
+| Migration tooling | Migrate to Containers (`mcdc` + `m2c` CLIs) | Pre-installed on a dedicated workstation VM; operator-driven, not provisioned as a managed service |
+| Source workloads | Compute Engine VMs | One PostgreSQL 14 VM and one Tomcat 10 / Spring PetClinic VM, both Ubuntu 22.04 |
+| Migration workstation | Compute Engine VM | Large-disk VM with `m2c`, Docker, `kubectl`, Skaffold, and the GKE auth plugin |
+| Target platform | GKE (zonal, standard) | Multi-node cluster (3 nodes by default) that receives the migrated containers |
+| Networking | VPC + firewall rules | Auto-mode VPC with internal/SSH/ICMP rules plus a Tomcat (port 8080) rule |
+
+**Things to know up front:**
+
+- **This is a learning/demo environment, not a production migration pipeline.** The migration itself is performed manually by the operator on the workstation VM after the infrastructure is provisioned — the module does not run the migration for you.
+- **The source VMs run real, working applications.** The PostgreSQL VM hosts a `petclinic` database; the Tomcat VM builds and serves the Spring PetClinic WAR against it. You can browse PetClinic on the Tomcat VM before migrating anything (`petclinic_url` output).
+- **VM startup scripts take several minutes.** Each VM installs and configures its software at first boot (PostgreSQL setup, a Maven build of PetClinic, downloading the migration toolchain). Allow roughly 5–10 minutes after deploy before the tools are ready; check `/var/log/startup-script.log` on each VM.
+- **The migration toolchain is downloaded at boot.** `mcdc`, `m2c`, `kubectl`, and Skaffold are fetched from public release endpoints during VM startup. Convenience scripts (`/assess_mcdc.sh`, `/install_container_tools.sh`, and others) are written to each VM to drive the lab steps.
+- **The GKE cluster is zonal.** It is created in the configured `zone`, with one control plane and a single node pool. There is no regional-cluster option in this module.
+- **Container images you build during the lab are not managed by the module.** Images pushed to Artifact Registry / Container Registry and any PersistentVolumeClaims you create survive until you delete them manually (PVCs are removed when the cluster is destroyed).
 
 ---
 
-## Outputs
+## 2. Google Cloud Services & How to Explore Them
+
+All commands assume `PROJECT`, `REGION`, and `ZONE` are set to match your deployment. Resource names are reported in the deployment [Outputs](#5-outputs).
+
+### A. Migrate to Containers (the migration tooling)
+
+Migrate to Containers is delivered as two command-line tools rather than a managed cloud service. The **`mcdc`** CLI runs on each source VM to collect system data and produce a containerisation suitability report (scoring the workload across GKE, GKE Autopilot, Cloud Run, and Compute Engine journeys). The **`m2c`** CLI runs on the workstation VM to copy a source VM's filesystem, analyse it into a migration plan, migrate persistent data to GKE, and generate Dockerfiles and Kubernetes manifests. Both are pre-installed by the module's startup scripts.
+
+- **Console:** there is no dedicated Console surface for the CLI-based workflow. Track progress through the source VMs (Compute Engine) and the resulting workloads (Kubernetes Engine → Workloads).
+- **CLI (run on the workstation VM over SSH):**
+  ```bash
+  # Connect to the workstation, then verify the toolchain:
+  gcloud compute ssh <m2c-cli-vm> --project "$PROJECT" --zone "$ZONE"
+  sudo /install_container_tools.sh        # checks m2c, kubectl, skaffold, docker, auth plugin
+  m2c version
+  # Core migration commands (see the Lab Guide for the full sequence):
+  m2c copy gcloud -p "$PROJECT" -z "$ZONE" -n <source-vm> -o <out-dir> --filters ~/filters.txt
+  m2c analyze -s <copied-fs> -p linux-vm-container -o ./migration
+  m2c migrate-data -i migration -n default
+  m2c generate -i ./migration -o ./artifacts
+  ```
+
+### B. Compute Engine — source VMs and workstation
+
+Three Compute Engine VMs are provisioned, all Ubuntu 22.04 with public IPs for SSH access:
+
+- the **PostgreSQL source VM** (tagged `postgres`) running PostgreSQL 14 with a pre-seeded `petclinic` database,
+- the **Tomcat source VM** (tagged `tomcat`) running Apache Tomcat 10 with the Spring PetClinic application, reachable on port 8080, and
+- the **migration workstation VM** with a large boot disk to hold copies of the source filesystems.
+
+- **Console:** Compute Engine → VM instances. Use the SSH button, or open the serial console to watch the startup script.
+- **CLI:**
+  ```bash
+  gcloud compute instances list --project "$PROJECT"
+  gcloud compute ssh <vm-name> --project "$PROJECT" --zone "$ZONE"
+  # Confirm a VM's startup script finished:
+  gcloud compute ssh <vm-name> --project "$PROJECT" --zone "$ZONE" \
+    --command 'tail -5 /var/log/startup-script.log'
+  ```
+
+### C. GKE — the migration target
+
+A zonal, standard GKE cluster receives the migrated containers. Its default node pool is replaced by a module-managed pool sized by `gke_node_count` (default 3) and `gke_node_machine_type` (default `e2-medium`), with nodes granted the `cloud-platform` scope so they can pull images and talk to other Google Cloud APIs. The cluster uses VPC-native networking with auto-assigned pod and service ranges.
+
+- **Console:** Kubernetes Engine → Clusters for the cluster and node pool; Workloads and Services & Ingress for the migrated apps once deployed.
+- **CLI:**
+  ```bash
+  gcloud container clusters list --project "$PROJECT"
+  gcloud container clusters get-credentials <cluster-name> --zone "$ZONE" --project "$PROJECT"
+  kubectl get nodes
+  kubectl get pods,svc,pvc -n default     # migrated workloads land in the default namespace
+  ```
+
+### D. VPC network & firewall
+
+The module creates an auto-mode VPC and the firewall rules the lab needs: internal traffic between instances, SSH (22) and ICMP from anywhere, and HTTP on port 8080 to `tomcat`-tagged instances so the PetClinic app is browsable. The migration workstation reaches the source VMs over this internal network to copy their filesystems.
+
+- **Console:** VPC network → VPC networks for the network; VPC network → Firewall for the rules.
+- **CLI:**
+  ```bash
+  gcloud compute networks list --project "$PROJECT"
+  gcloud compute firewall-rules list --project "$PROJECT" --filter="network~mig-"
+  ```
+
+---
+
+## 3. Behaviour
+
+**What gets provisioned on apply.** A single apply builds the full environment: the VPC and firewall rules, the three Compute Engine VMs (each with a startup script that installs and configures its software), and the GKE cluster with its node pool. The required project APIs (Compute, GKE, Artifact Registry, Container Registry, IAM, Resource Manager, Storage, Logging, Monitoring) are enabled automatically when `enable_services` is left on.
+
+**First-boot configuration.** The VM startup scripts do real work and take time:
+
+- The PostgreSQL VM installs PostgreSQL 14, creates the `petclinic` database, sets the `postgres` user password, opens the server to remote connections, and installs the `mcdc` assessment CLI plus an `/assess_mcdc.sh` helper.
+- The Tomcat VM installs Java 17, Maven, and Tomcat 10, clones and builds the Spring PetClinic WAR, deploys it, and installs `mcdc` and `/assess_mcdc.sh`. It points the app at the PostgreSQL VM by adding its internal IP to `/etc/hosts` as `petclinic-postgres`.
+- The workstation VM installs Docker, the `m2c` CLI, `kubectl`, Skaffold, and the GKE auth plugin, and writes helper scripts (`/install_container_tools.sh`, a copy-exclusion `filters.txt`, and a working directory).
+
+**The migration workflow (operator-driven).** Once the infrastructure is up, the operator performs the migration manually from the workstation VM. The end-to-end flow is:
+
+1. **Assess** each source VM with `mcdc` (run `/assess_mcdc.sh`) to confirm containerisation readiness and identify the ports each workload uses.
+2. **Copy** a source VM's filesystem to the workstation with `m2c copy` (uses rsync over SSH — the source VM keeps running and is never modified).
+3. **Analyse** the copy with `m2c analyze` to produce a migration plan, then customise it (image name, exposed endpoints, persistent-volume paths).
+4. **Migrate data** for stateful workloads with `m2c migrate-data`, which creates and populates a GKE PersistentVolumeClaim.
+5. **Generate** Dockerfiles, Kubernetes manifests, and a Skaffold config with `m2c generate`.
+6. **Deploy** to GKE with `skaffold run`, then operate the workloads with native Kubernetes (scaling, Horizontal Pod Autoscaling, rolling updates).
+
+**Manual follow-up the operator performs.** All of the M2C steps above are manual and are documented in detail in the Lab Guide. The module only supplies the environment and the convenience scripts; it does not orchestrate the migration.
+
+**Cleanup behaviour.** Destroying the module removes everything it created — the VMs, the GKE cluster and node pool, the firewall rules, and the VPC. Two things are **not** cleaned up automatically: container images you pushed to Artifact Registry / Container Registry during the lab (delete them manually), and any PersistentVolumeClaims you created (these are removed when the cluster is destroyed, but must be deleted by hand if you keep the cluster).
+
+**Runtime notes.** The migration toolchain versions are fetched from public endpoints at boot; if an endpoint is briefly unavailable an install step may be skipped silently, so verify with `/install_container_tools.sh` before starting. The Tomcat app self-heals its database connection once PostgreSQL finishes initialising, so a transient connection error immediately after deploy is expected.
+
+---
+
+## 4. Configuration Variables
+
+Variables are grouped exactly as they appear on the deployment platform.
+
+### Group 1 — Project & Location
+
+| Variable | Default | Description |
+|---|---|---|
+| `project_id` | _(required)_ | Target Google Cloud project. Must already exist. |
+| `region` | `us-central1` | Region used for API calls and data lookups. |
+| `zone` | `us-central1-a` | Zone for the VMs and the GKE cluster. Must lie within `region`. |
+
+### Group 3 — Network
+
+| Variable | Default | Description |
+|---|---|---|
+| `create_vpc` | `true` | Create a new auto-mode VPC for the lab. Set `false` only if a VPC named `mig-<id>-vpc` already exists. |
+| `create_default_firewall_rules` | `true` | Create the allow-internal, allow-SSH, and allow-ICMP rules. Disable if equivalent rules already exist. |
+| `internal_traffic_cidr` | `10.128.0.0/9` | Source range for the allow-internal rule. Matches the auto-mode subnet range; override for a custom-mode VPC. |
+
+### Group 4 — Source VMs
+
+| Variable | Default | Description |
+|---|---|---|
+| `postgres_machine_type` | `e2-medium` | Machine type for the PostgreSQL 14 source VM. |
+| `postgres_disk_size_gb` | `20` | Boot disk size (GB) for the PostgreSQL VM; 20 GB minimum recommended. |
+| `tomcat_machine_type` | `e2-medium` | Machine type for the Tomcat 10 / PetClinic source VM. |
+| `tomcat_disk_size_gb` | `20` | Boot disk size (GB) for the Tomcat VM; 20 GB minimum recommended. |
+
+### Group 5 — Migrate to Containers CLI VM
+
+| Variable | Default | Description |
+|---|---|---|
+| `m2c_machine_type` | `e2-standard-4` | Machine type for the workstation VM. Needs enough CPU/memory to copy and analyse source filesystems. |
+| `m2c_disk_size_gb` | `200` | Boot disk size (GB). Must hold copies of the source VM filesystems plus working space; the generous default is intentional. |
+
+### Group 6 — GKE Cluster
+
+| Variable | Default | Description |
+|---|---|---|
+| `gke_node_machine_type` | `e2-medium` | Machine type for the GKE node pool that runs migrated workloads. |
+| `gke_node_count` | `3` | Number of nodes; 3 supports running both a StatefulSet and a Deployment during the lab. |
+
+---
+
+## 5. Outputs
+
+These values are returned on a successful deployment and are the quickest way to locate and explore the environment.
 
 | Output | Description |
 |---|---|
-| `deployment_id` | Deployment ID suffix used in resource names |
-| `project_id` | GCP project ID |
-| `gke_cluster_name` | Name of the GKE cluster receiving migrated containers |
-| `gke_cluster_location` | Zone where the GKE cluster is deployed |
-| `postgres_vm_name` | Instance name of the PostgreSQL source VM |
-| `postgres_vm_internal_ip` | Internal IP address of the PostgreSQL VM |
-| `tomcat_vm_name` | Instance name of the Tomcat source VM |
-| `tomcat_vm_external_ip` | External IP of the Tomcat VM (access PetClinic at port 8080) |
-| `m2c_cli_vm_name` | Instance name of the migration workstation |
-| `petclinic_url` | Full URL to the PetClinic application running on Tomcat |
-| `vpc_name` | Name of the VPC network |
+| `deployment_id` | The deployment suffix used in all resource names. |
+| `project_id` | GCP project ID. |
+| `gke_cluster_name` | Name of the GKE cluster that receives migrated workloads. |
+| `gke_cluster_location` | Zone where the GKE cluster is deployed. |
+| `postgres_vm_name` | Instance name of the PostgreSQL source VM. |
+| `postgres_vm_internal_ip` | Internal IP of the PostgreSQL source VM. |
+| `tomcat_vm_name` | Instance name of the Tomcat source VM. |
+| `tomcat_vm_external_ip` | External IP of the Tomcat VM (browse PetClinic on port 8080). |
+| `m2c_cli_vm_name` | Instance name of the migration workstation VM. |
+| `petclinic_url` | Full browser URL for the PetClinic app on the Tomcat VM. |
+| `vpc_name` | Name of the VPC network created for the lab. |
 
 ---
 
-## Common Issues and Variable Dependencies
+## 6. Configuration Pitfalls & Sensible Defaults
 
-### Variables That Depend on Each Other
+> Risk: **Critical** (data loss / outage / security) — **High** (service degraded) —
+> **Medium** (cost or partial degradation) — **Low** (minor).
 
-- **`create_vpc` and `create_default_firewall_rules`**: The firewall rules reference `data.google_compute_network.vpc`, which depends on `google_compute_network.vpc` being created first. If `create_vpc = false`, the firewall resources still create against the existing VPC whose name is `local.vpc_name = "mig-<id>-vpc"`. This means if `create_vpc = false`, the named VPC must already exist with exactly that name — there is no variable to specify a different VPC name.
+| Setting | Sensible value | Risk | Consequence if wrong |
+|---|---|---|---|
+| `deployment_id` | set once | Critical | Embedded in every resource name. Changing it after deploy forces recreation of the VPC, VMs, and GKE cluster. |
+| `create_vpc` | `true` | High | Setting `false` requires a pre-existing VPC named exactly `mig-<id>-vpc` — there is no variable to point at a differently named network, so the apply fails if it is absent. |
+| `zone` within `region` | matched pair | High | The cluster and VMs deploy to `zone`; a zone outside `region` (or an unavailable zone) fails the apply. |
+| `m2c_disk_size_gb` | `200` | High | Too small a workstation disk cannot hold the copied source filesystems, and `m2c copy` fails partway through. |
+| `enable_services` | `true` | High | If the required APIs are not already enabled and this is `false`, resource creation fails immediately. Only disable when all required APIs are confirmed enabled. |
+| `gke_node_count` | `3` | Medium | Fewer than 3 nodes can leave a migrated StatefulSet and Deployment unable to schedule together during the lab. |
+| `create_default_firewall_rules` | `true` | Medium | Without the allow-internal rule the workstation cannot reach the source VMs to copy their filesystems; without allow-SSH you cannot connect to drive the lab. |
+| `postgres_disk_size_gb` / `tomcat_disk_size_gb` | `20`+ | Medium | Undersized boot disks can run out of space during the PostgreSQL setup or the Maven build of PetClinic. |
+| SSH / Tomcat firewall scope | restrict for shared projects | Medium | SSH (22) and Tomcat (8080) are open to `0.0.0.0/0` by default — acceptable for a short-lived lab, but tighten the source ranges in long-lived or shared projects. |
+| Lab-built images & PVCs | clean up manually | Low | Images pushed during the lab and retained PVCs are not removed by destroy and continue to incur storage cost until deleted. |
 
-- **`region` and `zone` must be consistent**: The GKE cluster and all VMs are deployed to `var.zone`. The `var.region` is used only for GCP API calls and data lookups. Ensure `zone` is within `region` (e.g., `zone = "us-central1-a"` with `region = "us-central1"`).
+---
 
-- **`m2c_disk_size_gb` must accommodate source VM filesystems**: The m2c-cli VM copies the entire filesystem of each source VM before analysis. With default 20 GB disks on the source VMs, the m2c disk needs at least 50–60 GB for the copies plus working space. The default of 200 GB is intentionally generous.
-
-### Mutually Exclusive Variable Combinations
-
-- **`create_vpc = false` with no existing VPC**: The `data.google_compute_network.vpc` data source looks up a VPC by the name `mig-<id>-vpc`. If this VPC does not exist, Terraform will fail. There is no variable to specify a custom VPC name when `create_vpc = false`.
-
-### Variables That Affect Other Variables' Behavior
-
-- **`deployment_id`**: When set, all resource names (`local.vpc_name`, `local.gke_cluster_name`, `local.postgres_vm_name`, `local.tomcat_vm_name`, `local.m2c_cli_vm_name`) use this value as the suffix. When null, a random 2-byte hex ID is generated. Changing this after deployment forces recreation of all resources.
-
-- **`zone` affects GKE cluster type**: The GKE cluster is created as a zonal cluster (not regional), so it uses `var.zone` as its location. This means a single control plane in one zone; there is no option for a regional cluster in this module.
-
-### Common Pitfalls
-
-1. **Startup script duration**: All three VMs run lengthy startup scripts (PostgreSQL installation + db setup, Tomcat installation + Maven build, m2c toolchain download). Allow 5–10 minutes after `terraform apply` completes before SSHing to the VMs and expecting the tools to be ready. Check `/var/log/startup-script.log` on each VM to confirm completion.
-
-2. **`mcdc` and `m2c` versions are fetched at runtime**: The startup scripts download the latest version of `mcdc` and `m2c` from Google's public release storage at VM creation time. If these endpoints are unavailable or return a different version format, the installation may silently skip with `|| true`. Verify with `mcdc --version` and `m2c version` after connecting.
-
-3. **Tomcat startup depends on PostgreSQL**: The Tomcat VM startup script injects the PostgreSQL VM's internal IP into `/etc/hosts` before starting Tomcat. If the PostgreSQL VM is not yet responding, the PetClinic application will start but fail to connect to the database. The Spring PetClinic will retry connections, so this is self-healing once PostgreSQL finishes initialization.
-
-4. **GKE cluster uses empty `ip_allocation_policy {}`**: This tells GKE to automatically assign pod and service CIDR ranges from the VPC's secondary ranges. For a VPC-native cluster on an auto-mode VPC, GKE will select appropriate ranges automatically. This is intentional and removes the need to specify `pod_cidr_block` and `service_cidr_block` for this module.
-
-5. **Container images built during the lab are not managed by Terraform**: Images pushed to Artifact Registry or Container Registry during the migration exercises are outside the Terraform state. They must be deleted manually if you want to clean up Artifact Registry storage after `terraform destroy`.
-
-6. **`enable_services = false` pitfall**: If APIs are not yet enabled and `enable_services = false`, `terraform apply` will fail on resource creation. Only set this to `false` if all 10 required APIs are confirmed enabled in the target project.
+For the full operator walkthrough — assessment, copy/analyse, data migration, manifest generation, GKE deployment, and Day-2 operations — see the **[Lab Guide](https://docs.radmodules.dev/docs/labs/Container_Migration)**.
