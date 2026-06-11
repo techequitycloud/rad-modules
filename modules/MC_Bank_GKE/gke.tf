@@ -1,18 +1,18 @@
-/**
- * Copyright 2023 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+# **
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 # Configure kubernetes provider with Oauth2 access token.
 data "google_client_config" "gke_cluster" {
@@ -23,7 +23,7 @@ provider "kubernetes" {
   host  = "https://${google_container_cluster.gke_cluster["cluster1"].endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
-    google_container_cluster.gke_cluster["cluster1"].master_auth[0].cluster_ca_certificate,
+    try(google_container_cluster.gke_cluster["cluster1"].master_auth[0].cluster_ca_certificate, ""),
   )
 }
 
@@ -32,7 +32,7 @@ provider "kubernetes" {
   host  = "https://${google_container_cluster.gke_cluster["cluster2"].endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
-    google_container_cluster.gke_cluster["cluster2"].master_auth[0].cluster_ca_certificate,
+    try(google_container_cluster.gke_cluster["cluster2"].master_auth[0].cluster_ca_certificate, ""),
   )
 }
 
@@ -41,7 +41,7 @@ provider "kubernetes" {
   host  = "https://${google_container_cluster.gke_cluster["cluster3"].endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
-    google_container_cluster.gke_cluster["cluster3"].master_auth[0].cluster_ca_certificate,
+    try(google_container_cluster.gke_cluster["cluster3"].master_auth[0].cluster_ca_certificate, ""),
   )
 }
 
@@ -50,7 +50,7 @@ provider "kubernetes" {
   host  = "https://${google_container_cluster.gke_cluster["cluster4"].endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
-    google_container_cluster.gke_cluster["cluster4"].master_auth[0].cluster_ca_certificate,
+    try(google_container_cluster.gke_cluster["cluster4"].master_auth[0].cluster_ca_certificate, ""),
   )
 }
 
@@ -65,7 +65,7 @@ resource "google_container_cluster" "gke_cluster" {
   subnetwork          = google_compute_subnetwork.subnetwork[each.key].name
 
   # Conditional attributes based on cluster type
-  enable_autopilot = var.create_autopilot_cluster
+  enable_autopilot = var.create_autopilot_cluster ? true : null
 
   # Only set these for Standard clusters (not Autopilot)
   remove_default_node_pool = var.create_autopilot_cluster ? null : true
