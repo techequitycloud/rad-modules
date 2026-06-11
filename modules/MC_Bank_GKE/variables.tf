@@ -23,8 +23,8 @@ locals {
   # Cluster configurations - references region assignments
   cluster_configs = {
     for i in range(var.cluster_size) : "cluster${i + 1}" => {
-      gke_cluster_name   = "gke-cluster-${i + 1}"
-      region             = local.region_assignments[i]
+      gke_cluster_name = "gke-cluster-${i + 1}"
+      region           = local.region_assignments[i]
 
       # Primary subnet: 10.X.0.0/20 (4,096 IPs for nodes)
       ip_cidr_range = cidrsubnet("10.0.0.0/8", 12, i * 4)
@@ -187,10 +187,10 @@ variable "cloud_service_mesh_version" {
   default     = "1.23.4-asm.1"
 }
 
-// SECTION 5: Application
+// SECTION 6: Application
 
 variable "deploy_application" {
-  description = "Set to true (default) to deploy the Bank of Anthos microservices banking demo application across all GKE clusters after they are created. Set to false to provision only the cluster infrastructure without deploying the application. {{UIMeta group=5 order=501 }}"
+  description = "Set to true (default) to deploy the Bank of Anthos microservices banking demo application across all GKE clusters after they are created. Set to false to provision only the cluster infrastructure without deploying the application. {{UIMeta group=6 order=601 }}"
   type        = bool
   default     = true
 }

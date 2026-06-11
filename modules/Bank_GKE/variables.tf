@@ -228,10 +228,10 @@ variable "config_sync_policy_dir" {
   default     = "config-sync-quickstart/multirepo/root"
 }
 
-// SECTION 8: Application
+// SECTION 6: Application
 
 variable "deploy_application" {
-  description = "Set to true (default) to deploy the Bank of Anthos microservices banking demo application onto the GKE cluster after it is created. Set to false to provision only the cluster infrastructure without deploying the application. {{UIMeta group=7 order=701 }}"
+  description = "Set to true (default) to deploy the Bank of Anthos microservices banking demo application onto the GKE cluster after it is created. Set to false to provision only the cluster infrastructure without deploying the application. {{UIMeta group=6 order=601 }}"
   type        = bool
   default     = true
 }
