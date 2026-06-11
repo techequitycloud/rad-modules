@@ -1,5 +1,27 @@
-mock_provider "aws" {}
-mock_provider "google" {}
+mock_provider "aws" {
+  mock_resource "aws_eks_cluster" {
+    defaults = {
+      certificate_authority = [{ data = "dummy" }]
+    }
+  }
+  mock_resource "aws_iam_role" {
+    defaults = {
+      arn = "arn:aws:iam::123456789012:role/eks-role"
+    }
+  }
+  mock_data "aws_iam_policy_document" {
+    defaults = {
+      json = "{}"
+    }
+  }
+}
+mock_provider "google" {
+  mock_data "google_project" {
+    defaults = {
+      number = "1234567890"
+    }
+  }
+}
 mock_provider "helm" {}
 
 run "defaults_produce_valid_plan" {
