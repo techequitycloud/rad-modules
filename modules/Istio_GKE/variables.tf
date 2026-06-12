@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// SECTION 1: Provider
+// SECTION 0: Provider
 
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
@@ -82,7 +82,7 @@ variable "trusted_users" {
   default     = []
 }
 
-// SECTION 2: Main
+// SECTION 1: Main
 
 variable "deployment_id" {
   description = "Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources. {{UIMeta group=0 order=108 }}"
@@ -107,7 +107,7 @@ variable "region" {
   default     = "us-central1"
 }
 
-// SECTION 3: Network
+// SECTION 2: Network
 
 variable "create_network" {
   description = "Set to true (default) to create a new VPC network and subnet for the GKE cluster. Set to false to use an existing network and subnet identified by network_name and subnet_name. {{UIMeta group=2 order=201 }}"
@@ -133,7 +133,7 @@ variable "ip_cidr_ranges" {
   default     = ["10.132.0.0/16", "192.168.1.0/24"]
 }
 
-// SECTION 4: GKE
+// SECTION 3: GKE
 
 variable "create_cluster" {
   description = "Set to true (default) to create a new GKE cluster. Set to false to install Istio onto an existing cluster identified by gke_cluster. {{UIMeta group=3 order=301 }}"
@@ -154,7 +154,7 @@ variable "release_channel" {
 }
 
 variable "pod_ip_range" {
-  description = "Alias name for the secondary IP range used to assign IP addresses to Pods in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'pod-ip-range'. Must be unique within the subnet. {{UIMeta group=0 order=304 }}"
+  description = "Alias name for the secondary IP range used to assign IP addresses to Pods in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'pod-ip-range'. Must be unique within the subnet. {{UIMeta group=3 order=304 }}"
   type        = string
   default     = "pod-ip-range"
 }
@@ -166,7 +166,7 @@ variable "pod_cidr_block" {
 }
 
 variable "service_ip_range" {
-  description = "Alias name for the secondary IP range used to assign IP addresses to Kubernetes Services (ClusterIP) in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'service-ip-range'. Must be unique within the subnet. {{UIMeta group=0 order=306 }}"
+  description = "Alias name for the secondary IP range used to assign IP addresses to Kubernetes Services (ClusterIP) in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'service-ip-range'. Must be unique within the subnet. {{UIMeta group=3 order=306 }}"
   type        = string
   default     = "service-ip-range"
 }
@@ -177,7 +177,7 @@ variable "service_cidr_block" {
   default     = "10.64.128.0/20"
 }
 
-// SECTION 5: Features
+// SECTION 4: Features
 
 variable "istio_version" {
   description = "Version of open source Istio to install on the GKE cluster (format: major.minor.patch, e.g. '1.24.2'). Must be a version supported by the selected GKE release channel. Defaults to '1.24.2'. Refer to the Istio release page for available versions. {{UIMeta group=4 order=402 }}"
@@ -194,7 +194,7 @@ variable "install_ambient_mesh" {
 // SECTION 6: Application
 
 variable "deploy_application" {
-  description = "Set to true (default) to deploy the Istio Bookinfo sample application onto the GKE cluster after Istio is installed. The Bookinfo app demonstrates Istio traffic management, telemetry, and security features. Set to false to install only the Istio service mesh without a demo application. {{UIMeta group=0 order=601 }}"
+  description = "Set to true (default) to deploy the Istio Bookinfo sample application onto the GKE cluster after Istio is installed. The Bookinfo app demonstrates Istio traffic management, telemetry, and security features. Set to false to install only the Istio service mesh without a demo application. {{UIMeta group=6 order=601 }}"
   type        = bool
   default     = true
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// SECTION 1: Provider
+// SECTION 0: Provider
 
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
@@ -94,7 +94,7 @@ variable "enable_services" {
   default     = true
 }
 
-// SECTION 2: Main
+// SECTION 1: Main
 
 variable "project_id" {
   description = "GCP project ID of the destination project where the GKE cluster and banking application will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Leave blank to use the default project. {{UIMeta group=1 order=101 updatesafe }}"
@@ -108,7 +108,7 @@ variable "region" {
   default     = "us-central1"
 }
 
-// SECTION 3: Network
+// SECTION 2: Network
 
 variable "create_network" {
   description = "Set to true (default) to create a new VPC network and subnet for the GKE cluster. Set to false to use an existing network and subnet identified by network_name and subnet_name. {{UIMeta group=2 order=201 }}"
@@ -161,7 +161,7 @@ variable "release_channel" {
 }
 
 variable "pod_ip_range" {
-  description = "Alias name for the secondary IP range used to assign IP addresses to Pods in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'pod-ip-range'. Must be unique within the subnet. {{UIMeta group=0 order=505 }}"
+  description = "Alias name for the secondary IP range used to assign IP addresses to Pods in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'pod-ip-range'. Must be unique within the subnet. {{UIMeta group=5 order=505 }}"
   type        = string
   default     = "pod-ip-range"
 }
@@ -173,7 +173,7 @@ variable "pod_cidr_block" {
 }
 
 variable "service_ip_range" {
-  description = "Alias name for the secondary IP range used to assign IP addresses to Kubernetes Services (ClusterIP) in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'service-ip-range'. Must be unique within the subnet. {{UIMeta group=0 order=507 }}"
+  description = "Alias name for the secondary IP range used to assign IP addresses to Kubernetes Services (ClusterIP) in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'service-ip-range'. Must be unique within the subnet. {{UIMeta group=5 order=507 }}"
   type        = string
   default     = "service-ip-range"
 }
@@ -228,7 +228,7 @@ variable "config_sync_policy_dir" {
   default     = "config-sync-quickstart/multirepo/root"
 }
 
-// SECTION 8: Application
+// SECTION 7: Application
 
 variable "deploy_application" {
   description = "Set to true (default) to deploy the Bank of Anthos microservices banking demo application onto the GKE cluster after it is created. Set to false to provision only the cluster infrastructure without deploying the application. {{UIMeta group=7 order=701 }}"
