@@ -1,0 +1,3 @@
+## 2024-06-12 - Fix UIMeta group leakage for cluster IP aliases
+**Learning:** Secondary IP range alias variables (`pod_ip_range`, `service_ip_range`) and application deployment flags (`deploy_application`) are frequently mis-assigned to `group=0`, causing network and application configurations to bleed into the initial Provider/Metadata wizard page instead of appearing on their respective GKE and Application pages.
+**Action:** Always audit UIMeta group annotations for variables that logically belong to a specific module layer (like network or application) to ensure they are not defaulting to the global `group=0`, and ensure that `// SECTION N:` headers perfectly match the `group=N` annotations.

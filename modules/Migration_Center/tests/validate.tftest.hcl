@@ -56,8 +56,8 @@ run "aws_integration_skipped_when_no_credentials" {
   command = plan
 
   variables {
-    project_id         = "test-project-123"
-    aws_access_key_id  = ""
+    project_id            = "test-project-123"
+    aws_access_key_id     = ""
     aws_secret_access_key = ""
   }
 

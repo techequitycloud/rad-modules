@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      http:#www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -49,9 +49,9 @@ resource "local_file" "bootstrap_manifests" {
 
 # Apply the helm chart to the cluster.
 resource "helm_release" "local" {
-  name    = local.helm_chart_name
-  chart   = local.helm_chart_dir
+  name       = local.helm_chart_name
+  chart      = local.helm_chart_dir
   depends_on = [local_file.bootstrap_helm_chart, local_file.bootstrap_manifests]
-  timeout = var.helm_timeout
+  timeout    = var.helm_timeout
 }
 
