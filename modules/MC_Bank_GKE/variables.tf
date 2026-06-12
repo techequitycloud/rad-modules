@@ -23,8 +23,8 @@ locals {
   # Cluster configurations - references region assignments
   cluster_configs = {
     for i in range(var.cluster_size) : "cluster${i + 1}" => {
-      gke_cluster_name   = "gke-cluster-${i + 1}"
-      region             = local.region_assignments[i]
+      gke_cluster_name = "gke-cluster-${i + 1}"
+      region           = local.region_assignments[i]
 
       # Primary subnet: 10.X.0.0/20 (4,096 IPs for nodes)
       ip_cidr_range = cidrsubnet("10.0.0.0/8", 12, i * 4)
@@ -40,7 +40,7 @@ locals {
   }
 }
 
-// SECTION 1: Provider
+// SECTION 0: Provider
 
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"

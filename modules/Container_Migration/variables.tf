@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// SECTION 1: Provider
+// SECTION 0: Provider
 
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. {{UIMeta group=0 order=100 }}"
