@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http:#www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,9 +23,9 @@ variable "module_description" {
 }
 
 variable "module_documentation" {
-  description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https:#docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
+  description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https://docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
   type        = string
-  default     = "https:#docs.radmodules.dev/docs/modules/Bank_GKE"
+  default     = "https://docs.radmodules.dev/docs/modules/Bank_GKE"
 }
 
 variable "module_dependency" {
@@ -217,9 +217,9 @@ variable "config_management_version" {
 }
 
 variable "config_sync_repo" {
-  description = "URL of the Git repository from which Anthos Config Sync will pull Kubernetes manifests (e.g. 'https:#github.com/org/repo'). Only used when enable_config_management is true. Defaults to the Google Cloud Platform ACM samples repository. The repository must be publicly accessible or credentials must be configured separately. {{UIMeta group=6 order=606 }}"
+  description = "URL of the Git repository from which Anthos Config Sync will pull Kubernetes manifests (e.g. 'https://github.com/org/repo'). Only used when enable_config_management is true. Defaults to the Google Cloud Platform ACM samples repository. The repository must be publicly accessible or credentials must be configured separately. {{UIMeta group=6 order=606 }}"
   type        = string
-  default     = "https:#github.com/GoogleCloudPlatform/anthos-config-management-samples"
+  default     = "https://github.com/GoogleCloudPlatform/anthos-config-management-samples"
 }
 
 variable "config_sync_policy_dir" {

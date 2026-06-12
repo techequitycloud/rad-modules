@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http:#www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -48,7 +48,7 @@ resource "null_resource" "mc_init" {
           -H "Authorization: Bearer $TOKEN" \
           -H "Content-Type: application/json" \
           -d '{}' \
-          "https:#migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}:initializeConfig")
+          "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}:initializeConfig")
 
         if [ "$STATUS" = "200" ] || [ "$STATUS" = "409" ]; then
           echo "Migration Center initialized (HTTP $STATUS)."
@@ -106,7 +106,7 @@ resource "null_resource" "mc_source" {
           "displayName": "${var.mc_discovery_client_name}",
           "type": "SOURCE_TYPE_DISCOVERY_CLIENT"
         }' \
-        "https:#migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/sources?sourceId=${local.mc_source_name}")
+        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/sources?sourceId=${local.mc_source_name}")
 
       HTTP_CODE=$(echo "$RESPONSE" | tail -1)
       BODY=$(echo "$RESPONSE" | head -n -1)
@@ -293,7 +293,7 @@ PYEOF
           "displayName": "aws-ec2-import",
           "assetSource": "projects/${local.project.project_id}/locations/${var.region}/sources/${local.mc_source_name}"
         }' \
-        "https:#migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs?importJobId=${local.aws_import_name}")
+        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs?importJobId=${local.aws_import_name}")
 
       HTTP_CODE=$(echo "$CREATE_RESP" | tail -1)
       if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "409" ]; then
@@ -311,7 +311,7 @@ PYEOF
           -H "Authorization: Bearer $TOKEN" \
           -H "Content-Type: text/csv" \
           --data-binary "@$CSV_FILE" \
-          "https:#migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}/importDataFiles?importDataFileId=$(echo "$FILENAME" | tr '.' '-')")
+          "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}/importDataFiles?importDataFileId=$(echo "$FILENAME" | tr '.' '-')")
         CODE=$(echo "$RESP" | tail -1)
         if [ "$CODE" = "200" ] || [ "$CODE" = "409" ]; then
           echo "  Uploaded $FILENAME (HTTP $CODE)."
@@ -326,7 +326,7 @@ PYEOF
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
         -d '{}' \
-        "https:#migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}:validate")
+        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}:validate")
       VAL_CODE=$(echo "$VAL_RESP" | tail -1)
       if [ "$VAL_CODE" = "200" ]; then
         echo "Validation started — waiting 30s for validation to complete..."
@@ -344,7 +344,7 @@ PYEOF
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
         -d '{}' \
-        "https:#migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}:run")
+        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}:run")
       RUN_CODE=$(echo "$RUN_RESP" | tail -1)
       if [ "$RUN_CODE" = "200" ]; then
         echo "Import job running (HTTP $RUN_CODE). Check Migration Center console for status."

@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http:#www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +20,7 @@ data "google_client_config" "gke_cluster" {
 
 provider "kubernetes" {
   alias = "cluster1"
-  host  = "https:#${google_container_cluster.gke_cluster["cluster1"].endpoint}"
+  host  = "https://${google_container_cluster.gke_cluster["cluster1"].endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
     google_container_cluster.gke_cluster["cluster1"].master_auth[0].cluster_ca_certificate,
@@ -29,7 +29,7 @@ provider "kubernetes" {
 
 provider "kubernetes" {
   alias = "cluster2"
-  host  = "https:#${google_container_cluster.gke_cluster["cluster2"].endpoint}"
+  host  = "https://${google_container_cluster.gke_cluster["cluster2"].endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
     google_container_cluster.gke_cluster["cluster2"].master_auth[0].cluster_ca_certificate,
@@ -38,7 +38,7 @@ provider "kubernetes" {
 
 provider "kubernetes" {
   alias = "cluster3"
-  host  = "https:#${google_container_cluster.gke_cluster["cluster3"].endpoint}"
+  host  = "https://${google_container_cluster.gke_cluster["cluster3"].endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
     google_container_cluster.gke_cluster["cluster3"].master_auth[0].cluster_ca_certificate,
@@ -47,7 +47,7 @@ provider "kubernetes" {
 
 provider "kubernetes" {
   alias = "cluster4"
-  host  = "https:#${google_container_cluster.gke_cluster["cluster4"].endpoint}"
+  host  = "https://${google_container_cluster.gke_cluster["cluster4"].endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
     google_container_cluster.gke_cluster["cluster4"].master_auth[0].cluster_ca_certificate,
@@ -157,9 +157,9 @@ resource "google_container_node_pool" "preemptible_nodes" {
 
     service_account = google_service_account.gke_standard[0].email
     oauth_scopes = [
-      "https:#www.googleapis.com/auth/cloud-platform",
-      "https:#www.googleapis.com/auth/logging.write",
-      "https:#www.googleapis.com/auth/monitoring",
+      "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/logging.write",
+      "https://www.googleapis.com/auth/monitoring",
     ]
   }
 

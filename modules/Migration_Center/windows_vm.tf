@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http:#www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -69,14 +69,14 @@ resource "google_compute_instance" "windows_vm" {
       $chromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
       if (-not (Test-Path $chromePath)) {
         $chromeInstaller = "$env:TEMP\ChromeSetup.exe"
-        Invoke-WebRequest -Uri "https:#dl.google.com/chrome/install/ChromeStandaloneSetup64.exe" `
+        Invoke-WebRequest -Uri "https://dl.google.com/chrome/install/ChromeStandaloneSetup64.exe" `
           -OutFile $chromeInstaller -UseBasicParsing
         Start-Process -FilePath $chromeInstaller -ArgumentList "/silent /install" -Wait
         Remove-Item $chromeInstaller -Force -ErrorAction SilentlyContinue
       }
 
       # ── 4. Download and silently install MCDCv6 ─────────────────────────────
-      $mcdcUrl       = "https:#storage.googleapis.com/mcdc-release/current/windows/mcdc.msi"
+      $mcdcUrl       = "https://storage.googleapis.com/mcdc-release/current/windows/mcdc.msi"
       $mcdcInstaller = "$env:TEMP\mcdc.msi"
       Invoke-WebRequest -Uri $mcdcUrl -OutFile $mcdcInstaller -UseBasicParsing
       Start-Process msiexec.exe -ArgumentList "/i `"$mcdcInstaller`" /quiet /norestart" -Wait
@@ -85,7 +85,7 @@ resource "google_compute_instance" "windows_vm" {
       # ── 5. Pre-stage AWS import sample data ─────────────────────────────────
       $downloadsDir = "C:\Users\$labUser\Downloads"
       New-Item -ItemType Directory -Force -Path $downloadsDir | Out-Null
-      $awsZipUrl  = "https:#storage.googleapis.com/spls/gsp1095/vm-aws-import-files.zip"
+      $awsZipUrl  = "https://storage.googleapis.com/spls/gsp1095/vm-aws-import-files.zip"
       $awsZipPath = "$downloadsDir\vm-aws-import-files.zip"
       Invoke-WebRequest -Uri $awsZipUrl -OutFile $awsZipPath -UseBasicParsing
       Expand-Archive -Path $awsZipPath -DestinationPath "$downloadsDir\vm-aws-import-files" -Force

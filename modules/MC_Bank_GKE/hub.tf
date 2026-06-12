@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http:#www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -64,7 +64,7 @@ resource "google_gke_hub_membership" "hub_membership" {
   }
 
   authority {
-    issuer = "https:#container.googleapis.com/v1/${google_container_cluster.gke_cluster[each.key].id}"
+    issuer = "https://container.googleapis.com/v1/${google_container_cluster.gke_cluster[each.key].id}"
   }
 
   depends_on = [
