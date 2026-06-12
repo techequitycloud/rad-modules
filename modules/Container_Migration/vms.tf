@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      http:#www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -79,9 +79,9 @@ resource "google_compute_instance" "petclinic_postgres" {
       INNER
       chmod +x /install_postgres.sh
 
-      MCDC_VER=$(curl -sf "https://mcdc-release.storage.googleapis.com/latest" 2>/dev/null || true)
+      MCDC_VER=$(curl -sf "https:#mcdc-release.storage.googleapis.com/latest" 2>/dev/null || true)
       if [ -n "$MCDC_VER" ]; then
-        curl -sf -O "https://mcdc-release.storage.googleapis.com/$MCDC_VER/linux/amd64/mcdc" \
+        curl -sf -O "https:#mcdc-release.storage.googleapis.com/$MCDC_VER/linux/amd64/mcdc" \
           && chmod +x mcdc && mv mcdc /usr/local/bin/ || true
       fi
       mkdir -p /var/m4a
@@ -162,9 +162,9 @@ resource "google_compute_instance" "tomcat_petclinic" {
       apt-get install -y openjdk-17-jdk maven git curl
 
       cd /opt
-      git clone https://github.com/spring-petclinic/spring-framework-petclinic.git \
+      git clone https:#github.com/spring-petclinic/spring-framework-petclinic.git \
         || { echo "Git clone failed, retrying..."; sleep 10; \
-             git clone https://github.com/spring-petclinic/spring-framework-petclinic.git; }
+             git clone https:#github.com/spring-petclinic/spring-framework-petclinic.git; }
       cd spring-framework-petclinic
       sed -i 's/localhost:5432/petclinic-postgres:5432/g' pom.xml
       ./mvnw package -DskipTests=true -PPostgreSQL
@@ -173,7 +173,7 @@ resource "google_compute_instance" "tomcat_petclinic" {
 
       TOMCAT_VER="10.1.25"
       curl -sf \
-        "https://archive.apache.org/dist/tomcat/tomcat-10/v$TOMCAT_VER/bin/apache-tomcat-$TOMCAT_VER.tar.gz" \
+        "https:#archive.apache.org/dist/tomcat/tomcat-10/v$TOMCAT_VER/bin/apache-tomcat-$TOMCAT_VER.tar.gz" \
         -o /opt/apache-tomcat.tar.gz
       tar -xzf /opt/apache-tomcat.tar.gz -C /opt
       mv "/opt/apache-tomcat-$TOMCAT_VER" /opt/tomcat
@@ -223,9 +223,9 @@ resource "google_compute_instance" "tomcat_petclinic" {
       INNER
       chmod +x /install_tomcat.sh
 
-      MCDC_VER=$(curl -sf "https://mcdc-release.storage.googleapis.com/latest" 2>/dev/null || true)
+      MCDC_VER=$(curl -sf "https:#mcdc-release.storage.googleapis.com/latest" 2>/dev/null || true)
       if [ -n "$MCDC_VER" ]; then
-        curl -sf -O "https://mcdc-release.storage.googleapis.com/$MCDC_VER/linux/amd64/mcdc" \
+        curl -sf -O "https:#mcdc-release.storage.googleapis.com/$MCDC_VER/linux/amd64/mcdc" \
           && chmod +x mcdc && mv mcdc /usr/local/bin/ || true
       fi
       mkdir -p /var/m4a
@@ -307,27 +307,27 @@ resource "google_compute_instance" "m2c_cli" {
         usermod -aG docker "$U" 2>/dev/null || true
       done
 
-      M2C_VER=$(curl -sf "https://m2c-cli-release.storage.googleapis.com/latest" 2>/dev/null || true)
+      M2C_VER=$(curl -sf "https:#m2c-cli-release.storage.googleapis.com/latest" 2>/dev/null || true)
       if [ -n "$M2C_VER" ]; then
         curl -sf -O \
-          "https://m2c-cli-release.storage.googleapis.com/$M2C_VER/linux/amd64/m2c" \
+          "https:#m2c-cli-release.storage.googleapis.com/$M2C_VER/linux/amd64/m2c" \
           && chmod +x m2c && mv m2c /usr/local/bin/ || true
       fi
 
-      KUBE_VER=$(curl -sf "https://dl.k8s.io/release/stable.txt" 2>/dev/null || true)
+      KUBE_VER=$(curl -sf "https:#dl.k8s.io/release/stable.txt" 2>/dev/null || true)
       if [ -n "$KUBE_VER" ]; then
-        curl -sf -LO "https://dl.k8s.io/release/$KUBE_VER/bin/linux/amd64/kubectl" \
+        curl -sf -LO "https:#dl.k8s.io/release/$KUBE_VER/bin/linux/amd64/kubectl" \
           && chmod +x kubectl && mv kubectl /usr/local/bin/ || true
       fi
 
       curl -sf -Lo /usr/local/bin/skaffold \
-        "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64" \
+        "https:#storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64" \
         && chmod +x /usr/local/bin/skaffold || true
 
       echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] \
-        https://packages.cloud.google.com/apt cloud-sdk main" \
+        https:#packages.cloud.google.com/apt cloud-sdk main" \
         | tee /etc/apt/sources.list.d/google-cloud-sdk.list
-      curl -sf https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+      curl -sf https:#packages.cloud.google.com/apt/doc/apt-key.gpg \
         | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg 2>/dev/null || true
       apt-get update -q \
         && apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin 2>/dev/null || true

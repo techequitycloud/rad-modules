@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      http:#www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -61,7 +61,7 @@ output "m2c_cli_vm_name" {
 
 output "petclinic_url" {
   description = "Browser URL for the PetClinic application running on Tomcat"
-  value       = "http://${google_compute_instance.tomcat_petclinic.network_interface[0].access_config[0].nat_ip}:8080/petclinic/"
+  value       = "http:#${google_compute_instance.tomcat_petclinic.network_interface[0].access_config[0].nat_ip}:8080/petclinic/"
 }
 
 output "vpc_name" {

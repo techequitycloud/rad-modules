@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      http:#www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// SECTION 0: Provider
+# SECTION 0: Provider
 
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. {{UIMeta group=0 order=100 }}"
@@ -23,9 +23,9 @@ variable "module_description" {
 }
 
 variable "module_documentation" {
-  description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https://docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
+  description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https:#docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
   type        = string
-  default     = "https://github.com/techequitycloud/rad-modules/blob/main/docs/labs/VMware_Engine.md"
+  default     = "https:#github.com/techequitycloud/rad-modules/blob/main/docs/labs/VMware_Engine.md"
 }
 
 variable "module_dependency" {
@@ -88,7 +88,7 @@ variable "enable_services" {
   default     = true
 }
 
-// SECTION 2: Main
+# SECTION 2: Main
 
 variable "project_id" {
   description = "GCP project ID where VMware Engine resources will be deployed. Must already exist and the service account must hold roles/owner. {{UIMeta group=1 order=101 updatesafe }}"
@@ -108,9 +108,9 @@ variable "zone" {
   default     = "us-west2-a"
 }
 
-// SECTION 3: VMware Engine Network
+# SECTION 3: VMware Engine Network
 
-// SECTION 4: Private Cloud
+# SECTION 4: Private Cloud
 
 variable "management_cidr" {
   description = "CIDR block reserved for the VMware Engine management cluster (e.g. '10.11.0.0/23'). Cannot be changed after private cloud creation. Must not overlap with the peer VPC or edge services CIDR. {{UIMeta group=4 order=402 }}"
@@ -141,7 +141,7 @@ variable "node_count" {
   default     = 1
 }
 
-// SECTION 5: Network Peering
+# SECTION 5: Network Peering
 
 variable "create_vpc" {
   description = "Set to true (default) to create the peer VPC network. Set to false to use an existing VPC and skip creation. {{UIMeta group=5 order=503 }}"
@@ -150,7 +150,7 @@ variable "create_vpc" {
 }
 
 
-// SECTION 6: Network Policy
+# SECTION 6: Network Policy
 
 variable "edge_services_cidr" {
   description = "CIDR block for VMware Engine edge services (internet ingress/egress, e.g. '10.11.2.0/26'). Must not overlap with management_cidr or the peer VPC subnets. {{UIMeta group=6 order=602 }}"
@@ -170,7 +170,7 @@ variable "enable_external_ip" {
   default     = true
 }
 
-// SECTION 7: Firewall Rules
+# SECTION 7: Firewall Rules
 
 variable "create_default_firewall_rules" {
   description = "Set to true (default) to create the four Google-default firewall rules (allow-internal, allow-ssh, allow-rdp, allow-icmp) on the peer VPC. Set to false if these rules already exist on the target network. {{UIMeta group=7 order=701 }}"
@@ -184,7 +184,7 @@ variable "internal_traffic_cidr" {
   default     = "10.128.0.0/9"
 }
 
-// SECTION 8: Jump Host
+# SECTION 8: Jump Host
 
 variable "create_jump_host" {
   description = "Set to true (default) to deploy a Windows Server 2022 jump host VM on the peer VPC for accessing vCenter, NSX-T, and HCX management consoles via RDP. {{UIMeta group=8 order=801 }}"
@@ -210,7 +210,7 @@ variable "jump_host_subnetwork" {
   default     = ""
 }
 
-// SECTION 9: vCenter Credentials
+# SECTION 9: vCenter Credentials
 
 variable "reset_vcenter_credentials" {
   description = "Set to true (default) to reset and retrieve the vCenter solution user credentials via gcloud after the private cloud is provisioned. Requires gcloud to be available in the Terraform runner (Cloud Build). {{UIMeta group=9 order=901 }}"

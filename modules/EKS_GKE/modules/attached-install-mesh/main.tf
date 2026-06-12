@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      http:#www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,10 +22,10 @@ locals {
   gcloud_bin_abs_path  = abspath(local.gcloud_bin_path)
 
   gcloud              = "${local.gcloud_bin_path}/gcloud"
-  gcloud_download_url = var.gcloud_download_url != null ? var.gcloud_download_url : "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${var.gcloud_sdk_version}-${var.platform}-x86_64.tar.gz"
+  gcloud_download_url = var.gcloud_download_url != null ? var.gcloud_download_url : "https:#dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${var.gcloud_sdk_version}-${var.platform}-x86_64.tar.gz"
   jq_platform         = var.platform == "darwin" ? "osx-amd" : var.platform
-  jq_download_url     = var.jq_download_url != null ? var.jq_download_url : "https://github.com/stedolan/jq/releases/download/jq-${var.jq_version}/jq-${local.jq_platform}64"
-  asmcli_download_url = var.asmcli_download_url != null ? var.asmcli_download_url : "https://storage.googleapis.com/csm-artifacts/asm/asmcli_${var.asmcli_version}"
+  jq_download_url     = var.jq_download_url != null ? var.jq_download_url : "https:#github.com/stedolan/jq/releases/download/jq-${var.jq_version}/jq-${local.jq_platform}64"
+  asmcli_download_url = var.asmcli_download_url != null ? var.asmcli_download_url : "https:#storage.googleapis.com/csm-artifacts/asm/asmcli_${var.asmcli_version}"
 
   asmcli_options = join("", [
     " --ca ${var.asmcli_ca}",
