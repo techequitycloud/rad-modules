@@ -79,6 +79,7 @@ variable "shared_users" {
   default     = []
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "resource_creator_identity" {
   description = "Email of the Terraform service account used to provision resources (format: name@project-id.iam.gserviceaccount.com). Must hold roles/owner in the destination project. {{UIMeta group=0 order=107 updatesafe }}"
   type        = string
@@ -99,6 +100,7 @@ variable "project_id" {
   default     = null
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "region" {
   description = "GCP region where all resources will be deployed (e.g. 'us-central1'). Migration Center must be available in this region. {{UIMeta group=1 order=103 }}"
   type        = string

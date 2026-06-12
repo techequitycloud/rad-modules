@@ -15,8 +15,10 @@
  */
 
 locals {
-  random_id      = (var.deployment_id != null && var.deployment_id != "") ? var.deployment_id : random_id.default[0].hex
-  project        = try(data.google_project.existing_project, null)
+  # tflint-ignore: terraform_unused_declarations
+  random_id = (var.deployment_id != null && var.deployment_id != "") ? var.deployment_id : random_id.default[0].hex
+  project   = try(data.google_project.existing_project, null)
+  # tflint-ignore: terraform_unused_declarations
   project_number = try(local.project.number, null)
 
   default_apis = [

@@ -1,22 +1,23 @@
-/**
- * Copyright 2023 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+#*
+# * Copyright 2023 Google LLC
+# *
+# * Licensed under the Apache License, Version 2.0 (the "License");
+# * you may not use this file except in compliance with the License.
+# * You may obtain a copy of the License at
+# *
+# *      http://www.apache.org/licenses/LICENSE-2.0
+# *
+# * Unless required by applicable law or agreed to in writing, software
+# * distributed under the License is distributed on an "AS IS" BASIS,
+# * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# * See the License for the specific language governing permissions and
+# * limitations under the License.
+#
 
 # Define local values for use throughout the Terraform configuration
 locals {
   # Choose a deployment ID based on whether the user provides one or generate a new random ID
+  # tflint-ignore: terraform_unused_declarations
   random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
 
   # Select the project resource depending on whether a new project is created or an existing one is used
@@ -25,6 +26,7 @@ locals {
     : null)                                # Return null if the count is 0
   )
 
+  # tflint-ignore: terraform_unused_declarations
   project_number = try(data.google_project.existing_project.number, null)
 
   # List of default APIs to enable on the Google Cloud project
