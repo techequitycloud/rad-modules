@@ -1,69 +1,78 @@
-/**
- * Copyright 2022 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+#*
+# * Copyright 2022 Google LLC
+# *
+# * Licensed under the Apache License, Version 2.0 (the "License");
+# * you may not use this file except in compliance with the License.
+# * You may obtain a copy of the License at
+# *
+# *      http://www.apache.org/licenses/LICENSE-2.0
+# *
+# * Unless required by applicable law or agreed to in writing, software
+# * distributed under the License is distributed on an "AS IS" BASIS,
+# * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# * See the License for the specific language governing permissions and
+# * limitations under the License.
+#
 
 # SECTION 1: Deployment
 
+# tflint-ignore: terraform_unused_declarations
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
   type        = string
   default     = "This module enables you to manage Amazon EKS clusters directly from your Google Cloud console using GKE Fleet — the architecture of choice for enterprises running workloads across the world's two largest clouds. Teams in financial services, healthcare, and retail use GKE Attached Clusters to unify security policies, centralize logging and access controls, and apply consistent configuration across AWS and GCP deployments without disrupting existing EKS workloads. This module is for demonstration purposes only."
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "module_documentation" {
   description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https://docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
   type        = string
   default     = "https://docs.radmodules.dev/docs/modules/EKS_GKE"
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "module_dependency" {
   description = "Ordered list of module names that must be fully deployed before this module can be deployed. The platform enforces this sequence. Defaults to ['AWS Account', 'GCP Project']. {{UIMeta group=0 order=101 }}"
   type        = list(string)
   default     = ["AWS Account", "GCP Project"]
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "module_services" {
   description = "List of cloud service tags associated with this module, used for display and filtering in the platform UI. Represents the key services provisioned by this module. Defaults to the core services this module provisions. {{UIMeta group=0 order=102 }}"
-  type = list(string)
-  default = ["AWS", "EKS", "IAM", "VPC", "GCP", "GKE Hub", "Anthos"]
+  type        = list(string)
+  default     = ["AWS", "EKS", "IAM", "VPC", "GCP", "GKE Hub", "Anthos"]
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "credit_cost" {
   description = "Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require_credit_purchases is true, users must have sufficient credit balance before deploying. Defaults to 200. {{UIMeta group=0 order=103 }}"
   type        = number
   default     = 200
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "require_credit_purchases" {
   description = "Set to true to require users to hold a credit balance before deploying this module. When false (default), the module can be deployed regardless of credit balance. {{UIMeta group=0 order=104 }}"
   type        = bool
   default     = false
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "enable_purge" {
   description = "Set to true (default) to allow platform administrators to permanently delete all resources created by this module via the platform purge operation. Set to false to prevent purge operations on this deployment. {{UIMeta group=0 order=105 }}"
   type        = bool
   default     = true
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "public_access" {
   description = "Set to true to make this module visible and deployable by all platform users. Set to false (default) to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
-  type = bool
-  default = false
+  type        = bool
+  default     = false
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "shared_users" {
   description = "List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }}"
   type        = list(string)
@@ -76,12 +85,14 @@ variable "deployment_id" {
   default     = null
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "resource_creator_identity" {
   description = "Email of the Terraform service account used to provision resources in the destination GCP project (format: name@project-id.iam.gserviceaccount.com). This account must hold roles/owner in the destination project. Defaults to the platform's built-in provisioning service account; only override if using a custom service account. {{UIMeta group=0 order=107 updatesafe }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
 }
 
+# tflint-ignore: terraform_unused_declarations
 variable "trusted_users" {
   description = "List of Google account email addresses granted cluster-admin privileges on the EKS cluster (e.g. ['user@example.com']). Defaults to an empty list (no additional admin users). Entries must be valid, non-blank email addresses with no duplicates. {{UIMeta group=1 order=101 updatesafe }}"
   type        = list(string)

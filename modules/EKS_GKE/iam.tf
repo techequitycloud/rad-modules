@@ -1,18 +1,18 @@
-/**
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+#*
+# * Copyright 2024 Google LLC
+# *
+# * Licensed under the Apache License, Version 2.0 (the "License");
+# * you may not use this file except in compliance with the License.
+# * You may obtain a copy of the License at
+# *
+# *      http://www.apache.org/licenses/LICENSE-2.0
+# *
+# * Unless required by applicable law or agreed to in writing, software
+# * distributed under the License is distributed on an "AS IS" BASIS,
+# * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# * See the License for the specific language governing permissions and
+# * limitations under the License.
+#
 
 data "aws_iam_policy_document" "assume_role" {
   statement {
@@ -32,12 +32,12 @@ resource "aws_iam_role" "eks" {
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
-data "aws_iam_policy" "AmazonEKSClusterPolicy" {
+data "aws_iam_policy" "amazon_eks_cluster_policy" {
   arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
 resource "aws_iam_role_policy_attachment" "AmazonEKSClusterPolicy" {
-  policy_arn = data.aws_iam_policy.AmazonEKSClusterPolicy.arn
+  policy_arn = data.aws_iam_policy.amazon_eks_cluster_policy.arn
   role       = aws_iam_role.eks.name
 }
 
@@ -56,29 +56,29 @@ resource "aws_iam_role" "node" {
   })
 }
 
-data "aws_iam_policy" "AmazonEKSWorkerNodePolicy" {
+data "aws_iam_policy" "amazon_eks_worker_node_policy" {
   arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
 }
 
 resource "aws_iam_role_policy_attachment" "AmazonEKSWorkerNodePolicy" {
-  policy_arn = data.aws_iam_policy.AmazonEKSWorkerNodePolicy.arn
+  policy_arn = data.aws_iam_policy.amazon_eks_worker_node_policy.arn
   role       = aws_iam_role.node.name
 }
 
-data "aws_iam_policy" "AmazonEKS_CNI_Policy" {
+data "aws_iam_policy" "amazon_eks_cni_policy" {
   arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
 resource "aws_iam_role_policy_attachment" "AmazonEKS_CNI_Policy" {
-  policy_arn = data.aws_iam_policy.AmazonEKS_CNI_Policy.arn
+  policy_arn = data.aws_iam_policy.amazon_eks_cni_policy.arn
   role       = aws_iam_role.node.name
 }
 
-data "aws_iam_policy" "AmazonEC2ContainerRegistryReadOnly" {
+data "aws_iam_policy" "amazon_ec2_container_registry_read_only" {
   arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
 resource "aws_iam_role_policy_attachment" "AmazonEC2ContainerRegistryReadOnly" {
-  policy_arn = data.aws_iam_policy.AmazonEC2ContainerRegistryReadOnly.arn
+  policy_arn = data.aws_iam_policy.amazon_ec2_container_registry_read_only.arn
   role       = aws_iam_role.node.name
 }

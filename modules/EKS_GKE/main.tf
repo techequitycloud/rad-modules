@@ -1,18 +1,18 @@
-/**
- * Copyright 2022 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+#*
+# * Copyright 2022 Google LLC
+# *
+# * Licensed under the Apache License, Version 2.0 (the "License");
+# * you may not use this file except in compliance with the License.
+# * You may obtain a copy of the License at
+# *
+# *      http://www.apache.org/licenses/LICENSE-2.0
+# *
+# * Unless required by applicable law or agreed to in writing, software
+# * distributed under the License is distributed on an "AS IS" BASIS,
+# * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# * See the License for the specific language governing permissions and
+# * limitations under the License.
+#
 
 # Define local values for use throughout the Terraform configuration
 data "google_client_openid_userinfo" "me" {}
@@ -25,12 +25,15 @@ locals {
     "owner" = local.trusted_users[0]
   }
 
+  # tflint-ignore: terraform_unused_declarations
   random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
 
   # Use the existing project data source directly
   project_id = data.google_project.existing_project.project_id
+  # tflint-ignore: terraform_unused_declarations
   project_number = data.google_project.existing_project.number
 
+  # tflint-ignore: terraform_unused_declarations
   cluster_name_prefix = "${var.cluster_name_prefix}-${random_string.suffix.result}"
 
   # List of default APIs to enable on the Google Cloud project
@@ -47,13 +50,13 @@ locals {
     "kubernetesmetadata.googleapis.com"
   ]
 
-  cluster_name = "${var.cluster_name_prefix}"
+  cluster_name = var.cluster_name_prefix
 }
 
 # Generate a random ID if a deployment ID is not provided
 resource "random_id" "default" {
-  count       = var.deployment_id == null ? 1 : 0 
-  byte_length = 2 
+  count       = var.deployment_id == null ? 1 : 0
+  byte_length = 2
 }
 
 data "google_project" "existing_project" {
@@ -62,13 +65,13 @@ data "google_project" "existing_project" {
 
 # Resource to enable APIs on the selected Google Cloud project
 resource "google_project_service" "enabled_services" {
-  for_each                   = toset(local.default_apis) # Iterate over each service in the set
-  project                    = local.project_id          # Apply to the selected project
-  service                    = each.value                # The API service to enable
-  
+  for_each = toset(local.default_apis) # Iterate over each service in the set
+  project  = local.project_id          # Apply to the selected project
+  service  = each.value                # The API service to enable
+
   # These settings ensure that disabling or destroying this resource does not affect dependent services
-  disable_dependent_services = false 
-  disable_on_destroy         = false 
+  disable_dependent_services = false
+  disable_on_destroy         = false
 }
 
 resource "random_string" "suffix" {
@@ -131,7 +134,7 @@ provider "helm" {
 
 module "attached_install_manifest" {
   source                         = "./modules/attached-install-manifest"
-  attached_cluster_name          = "${var.cluster_name_prefix}"
+  attached_cluster_name          = var.cluster_name_prefix
   attached_cluster_fleet_project = local.project_id
   gcp_location                   = var.gcp_location
   platform_version               = var.platform_version
@@ -148,7 +151,7 @@ module "attached_install_manifest" {
 }
 
 resource "google_container_attached_cluster" "primary" {
-  name             = "${var.cluster_name_prefix}"
+  name             = var.cluster_name_prefix
   project          = local.project_id
   location         = var.gcp_location
   description      = "EKS attached cluster example"
@@ -175,7 +178,7 @@ resource "google_container_attached_cluster" "primary" {
 
   authorization {
     admin_users = local.trusted_users
-  #   admin_groups = var.groups
+    #   admin_groups = var.groups
   }
 
   depends_on = [

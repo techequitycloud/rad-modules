@@ -1,18 +1,18 @@
-/**
- * Copyright 2023 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+#*
+# * Copyright 2023 Google LLC
+# *
+# * Licensed under the Apache License, Version 2.0 (the "License");
+# * you may not use this file except in compliance with the License.
+# * You may obtain a copy of the License at
+# *
+# *      http://www.apache.org/licenses/LICENSE-2.0
+# *
+# * Unless required by applicable law or agreed to in writing, software
+# * distributed under the License is distributed on an "AS IS" BASIS,
+# * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# * See the License for the specific language governing permissions and
+# * limitations under the License.
+#
 
 #########################################################################
 # Data source — look up existing cluster when create_cluster = false
@@ -30,8 +30,10 @@ data "google_container_cluster" "existing_cluster" {
 #########################################################################
 
 locals {
-  cluster          = var.create_cluster ? google_container_cluster.gke_standard_cluster[0] : data.google_container_cluster.existing_cluster[0]
-  cluster_name     = local.cluster.name
+  cluster = var.create_cluster ? google_container_cluster.gke_standard_cluster[0] : data.google_container_cluster.existing_cluster[0]
+  # tflint-ignore: terraform_unused_declarations
+  cluster_name = local.cluster.name
+  # tflint-ignore: terraform_unused_declarations
   cluster_location = local.cluster.location
 }
 
@@ -39,16 +41,6 @@ locals {
 # Kubernetes provider
 #########################################################################
 
-data "google_client_config" "gke_cluster" {}
-
-provider "kubernetes" {
-  alias = "primary"
-  host  = "https://${local.cluster.endpoint}"
-  token = data.google_client_config.gke_cluster.access_token
-  cluster_ca_certificate = base64decode(
-    local.cluster.master_auth[0].cluster_ca_certificate
-  )
-}
 
 locals {
   k8s_credentials_cmd = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.region} --project ${local.project.project_id}"
@@ -59,18 +51,18 @@ locals {
 #########################################################################
 
 resource "google_container_cluster" "gke_standard_cluster" {
-  count                     = var.create_cluster ? 1 : 0
-  project                   = local.project.project_id
-  name                      = var.gke_cluster
-  location                  = var.region
-  allow_net_admin           = true
-  networking_mode           = "VPC_NATIVE"
-  datapath_provider         = "LEGACY_DATAPATH"
-  remove_default_node_pool  = true
-  initial_node_count        = 1
-  deletion_protection       = false
-  network                   = local.network.name
-  subnetwork                = local.subnet.name
+  count                    = var.create_cluster ? 1 : 0
+  project                  = local.project.project_id
+  name                     = var.gke_cluster
+  location                 = var.region
+  allow_net_admin          = true
+  networking_mode          = "VPC_NATIVE"
+  datapath_provider        = "LEGACY_DATAPATH"
+  remove_default_node_pool = true
+  initial_node_count       = 1
+  deletion_protection      = false
+  network                  = local.network.name
+  subnetwork               = local.subnet.name
 
   ip_allocation_policy {
     cluster_secondary_range_name  = var.pod_ip_range
