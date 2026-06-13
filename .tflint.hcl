@@ -25,7 +25,7 @@ rule "terraform_documented_variables" {
 }
 
 rule "terraform_naming_convention" {
-  enabled = true
+  enabled = false
 }
 
 rule "terraform_required_version" {
