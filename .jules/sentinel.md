@@ -1,0 +1,4 @@
+## 2024-05-24 - Overly Permissive Storage Admin on GKE Node Pools
+**Vulnerability:** GKE service accounts in `modules/Istio_GKE`, `modules/Bank_GKE`, and `modules/MC_Bank_GKE` were explicitly granted `roles/storage.objectAdmin`.
+**Learning:** This is an over-permissioned service account. GKE node pools only require read access to pull container images from GCR or Artifact Registry. Granting them `objectAdmin` allows nodes (and pods using the node's default identity) to freely modify or delete objects in any GCS bucket in the project.
+**Prevention:** Always grant `roles/storage.objectViewer` or `roles/artifactregistry.reader` to GKE node service accounts. Avoid granting `roles/storage.objectAdmin` unless a specific workload on the node absolutely requires bucket write access (and even then, prefer Workload Identity).
