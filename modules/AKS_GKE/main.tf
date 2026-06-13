@@ -24,7 +24,7 @@ locals {
     "owner" = local.trusted_users[0]
   }
 
-  random_id = var.deployment_id != null ? var.deployment_id : random_id.default.hex
+  random_id = var.deployment_id != null ? var.deployment_id : lower(random_id.default.hex)
 
   # Use the existing project data source directly
   project_id     = data.google_project.existing_project.project_id
@@ -57,8 +57,8 @@ data "google_project" "existing_project" {
 # Resource to enable APIs on the selected Google Cloud project
 resource "google_project_service" "enabled_services" {
   for_each = toset(local.default_apis) # Iterate over each service in the set
-  project  = local.project_id         # Apply to the selected project
-  service  = each.value               # The API service to enable
+  project  = local.project_id          # Apply to the selected project
+  service  = each.value                # The API service to enable
 
   # These settings ensure that disabling or destroying this resource does not affect dependent services
   disable_dependent_services = false

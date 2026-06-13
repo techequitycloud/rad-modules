@@ -1,6 +1,4 @@
-mock_provider "azurerm" {
-  features {}
-}
+mock_provider "azurerm" {}
 mock_provider "google" {}
 mock_provider "helm" {}
 mock_provider "random" {}

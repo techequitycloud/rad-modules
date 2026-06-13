@@ -17,7 +17,7 @@
 # Define local values for use throughout the Terraform configuration
 locals {
   # Choose a deployment ID based on whether the user provides one or generate a new random ID
-  random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
+  random_id = var.deployment_id != null ? var.deployment_id : lower(random_id.default[0].hex)
 
   project = ((length(data.google_project.existing_project) > 0
     ? data.google_project.existing_project # Return the first object if it exists
