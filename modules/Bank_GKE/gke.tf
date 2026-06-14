@@ -48,6 +48,10 @@ provider "kubernetes" {
   )
 }
 
+locals {
+  k8s_credentials_cmd = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.region} --project ${local.project.project_id}"
+}
+
 #########################################################################
 # GKE cluster (only when create_cluster = true)
 #########################################################################

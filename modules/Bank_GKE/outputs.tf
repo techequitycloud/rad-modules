@@ -25,3 +25,9 @@ output "project_id" {
   description = "Project ID"            # Description of what the project ID represents
   value       = local.project.project_id  # The value of the project ID from local variables
 }
+
+# Output the command to fetch Kubernetes cluster credentials.
+output "cluster_credentials_cmd" {
+  description = "Kubernetes credentials"
+  value       = local.k8s_credentials_cmd
+}
