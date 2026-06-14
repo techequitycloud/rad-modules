@@ -44,8 +44,12 @@ provider "kubernetes" {
   host  = "https://${local.cluster.endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
-    local.cluster.master_auth[0].cluster_ca_certificate,
+    try(local.cluster.master_auth[0].cluster_ca_certificate, "")
   )
+}
+
+locals {
+  k8s_credentials_cmd = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.region} --project ${local.project.project_id}"
 }
 
 #########################################################################
@@ -53,15 +57,15 @@ provider "kubernetes" {
 #########################################################################
 
 resource "google_container_cluster" "gke_cluster" {
-  count                 = var.create_cluster ? 1 : 0
-  project               = local.project.project_id
-  name                  = var.gke_cluster
-  location              = var.region
-  deletion_protection   = false
-  network               = local.network.name
-  subnetwork            = local.subnet.name
+  count               = var.create_cluster ? 1 : 0
+  project             = local.project.project_id
+  name                = var.gke_cluster
+  location            = var.region
+  deletion_protection = false
+  network             = local.network.name
+  subnetwork          = local.subnet.name
 
-  enable_autopilot         = var.create_autopilot_cluster
+  enable_autopilot         = var.create_autopilot_cluster ? true : null
   remove_default_node_pool = var.create_autopilot_cluster ? null : true
   initial_node_count       = var.create_autopilot_cluster ? null : 1
 
