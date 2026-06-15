@@ -44,7 +44,7 @@ run "ambient_mesh_mode" {
   command = plan
 
   variables {
-    project_id          = "test-project-123"
+    project_id           = "test-project-123"
     install_ambient_mesh = true
   }
 
