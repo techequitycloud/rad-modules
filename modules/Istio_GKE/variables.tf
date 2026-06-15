@@ -154,7 +154,7 @@ variable "release_channel" {
 }
 
 variable "pod_ip_range" {
-  description = "Alias name for the secondary IP range used to assign IP addresses to Pods in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'pod-ip-range'. Must be unique within the subnet. {{UIMeta group=0 order=304 }}"
+  description = "Alias name for the secondary IP range used to assign IP addresses to Pods in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'pod-ip-range'. Must be unique within the subnet. {{UIMeta group=3 order=304 }}"
   type        = string
   default     = "pod-ip-range"
 }
@@ -166,7 +166,7 @@ variable "pod_cidr_block" {
 }
 
 variable "service_ip_range" {
-  description = "Alias name for the secondary IP range used to assign IP addresses to Kubernetes Services (ClusterIP) in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'service-ip-range'. Must be unique within the subnet. {{UIMeta group=0 order=306 }}"
+  description = "Alias name for the secondary IP range used to assign IP addresses to Kubernetes Services (ClusterIP) in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'service-ip-range'. Must be unique within the subnet. {{UIMeta group=3 order=306 }}"
   type        = string
   default     = "service-ip-range"
 }
