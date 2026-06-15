@@ -1,18 +1,18 @@
-/**
- * Copyright 2022 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+#
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 # SECTION 1: Deployment
 
@@ -36,8 +36,8 @@ variable "module_dependency" {
 
 variable "module_services" {
   description = "List of cloud service tags associated with this module, used for display and filtering in the platform UI. Represents the key services provisioned by this module. Defaults to the core services this module provisions. {{UIMeta group=0 order=102 }}"
-  type = list(string)
-  default = ["Azure", "AKS", "Resource Group", "GCP", "GKE Hub", "Anthos"]
+  type        = list(string)
+  default     = ["Azure", "AKS", "Resource Group", "GCP", "GKE Hub", "Anthos"]
 }
 
 variable "credit_cost" {
@@ -60,8 +60,8 @@ variable "enable_purge" {
 
 variable "public_access" {
   description = "Set to true to make this module visible and deployable by all platform users. Set to false (default) to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
-  type = bool
-  default = false
+  type        = bool
+  default     = false
 }
 
 variable "shared_users" {
