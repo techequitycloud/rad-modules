@@ -1,18 +1,18 @@
-/**
- * Copyright 2025 Tech Equity Ltd
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+#
+# Copyright 2025 Tech Equity Ltd
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 resource "null_resource" "install_sidecar_mesh" {
   count = var.install_ambient_mesh ? 0 : 1
@@ -25,12 +25,12 @@ resource "null_resource" "install_sidecar_mesh" {
     project_id                = local.project.project_id
     istio_release             = regex("^(\\d+\\.\\d+)", var.istio_version)[0]
     istio_version             = var.istio_version
-    resource_creator_identity = var.resource_creator_identity  # Added for destroy provisioner
+    resource_creator_identity = var.resource_creator_identity # Added for destroy provisioner
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOF
+    command     = <<-EOF
     set -eo pipefail
     echo "=== Installing Istio ${var.istio_version} (Sidecar Mode) ==="
     
@@ -47,7 +47,7 @@ resource "null_resource" "install_sidecar_mesh" {
       case $ARCH in
         x86_64) ARCH="amd64" ;;
         arm64|aarch64) ARCH="arm64" ;;
-        *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+#) echo "Unsupported architecture: $ARCH"; exit 1 ;;
       esac
       
       # Download kubectl to local bin
@@ -69,12 +69,12 @@ resource "null_resource" "install_sidecar_mesh" {
     case $ARCH in
       x86_64) ARCH="amd64" ;;
       arm64|aarch64) ARCH="arm64" ;;
-      *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+#) echo "Unsupported architecture: $ARCH"; exit 1 ;;
     esac
     case $OS in
       darwin) OS_SUFFIX="osx" ;;
       linux) OS_SUFFIX="linux" ;;
-      *) echo "Unsupported OS: $OS"; exit 1 ;;
+#) echo "Unsupported OS: $OS"; exit 1 ;;
     esac
 
     # Download and extract Istio
@@ -194,14 +194,14 @@ ISTIO_CONFIG
     EOF
 
     environment = {
-      KUBECONFIG = ""  # Use default kubeconfig location
+      KUBECONFIG = "" # Use default kubeconfig location
     }
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when = destroy
-    command = <<-EOF
+    when        = destroy
+    command     = <<-EOF
       set +e  # Disable exit-on-error for the entire destroy phase
       echo "=== Uninstalling Istio Sidecar Mesh (Graceful Mode) ==="
       
@@ -265,12 +265,12 @@ ISTIO_CONFIG
 # Output Istio ingress gateway external IP for sidecar mesh
 resource "null_resource" "get_sidecar_istio_ingress_ip" {
   count = var.install_ambient_mesh ? 0 : 1
-  
+
   depends_on = [null_resource.install_sidecar_mesh]
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       echo "Waiting for Istio ingress gateway external IP..."
       export PATH=$HOME/.local/bin:$PATH
       

@@ -1,18 +1,18 @@
-/**
- * Copyright 2023 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+#
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 #########################################################################
 # Data source — look up existing cluster when create_cluster = false
@@ -59,18 +59,18 @@ locals {
 #########################################################################
 
 resource "google_container_cluster" "gke_standard_cluster" {
-  count                     = var.create_cluster ? 1 : 0
-  project                   = local.project.project_id
-  name                      = var.gke_cluster
-  location                  = var.region
-  allow_net_admin           = true
-  networking_mode           = "VPC_NATIVE"
-  datapath_provider         = "LEGACY_DATAPATH"
-  remove_default_node_pool  = true
-  initial_node_count        = 1
-  deletion_protection       = false
-  network                   = local.network.name
-  subnetwork                = local.subnet.name
+  count                    = var.create_cluster ? 1 : 0
+  project                  = local.project.project_id
+  name                     = var.gke_cluster
+  location                 = var.region
+  allow_net_admin          = true
+  networking_mode          = "VPC_NATIVE"
+  datapath_provider        = "LEGACY_DATAPATH"
+  remove_default_node_pool = true
+  initial_node_count       = 1
+  deletion_protection      = false
+  network                  = local.network.name
+  subnetwork               = local.subnet.name
 
   ip_allocation_policy {
     cluster_secondary_range_name  = var.pod_ip_range
