@@ -30,8 +30,14 @@ output "windows_vm_name" {
 }
 
 output "windows_vm_external_ip" {
-  description = "External IP address of the Windows VM — use this to connect via RDP. Username: migrationcenter  Password: m1grat10nc#nt#r"
+  description = "External IP address of the Windows VM — use this to connect via RDP. Username: migrationcenter  Password: (stored in Secret Manager)"
   value       = var.create_windows_vm ? google_compute_instance.windows_vm[0].network_interface[0].access_config[0].nat_ip : null
+}
+
+output "windows_vm_rdp_password_secret_id" {
+  description = "Secret Manager Secret ID containing the Windows VM RDP password for the 'migrationcenter' user."
+  value       = var.create_windows_vm ? google_secret_manager_secret.windows_rdp[0].id : null
+  sensitive   = true
 }
 
 output "linux_vm_names" {
