@@ -37,12 +37,12 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "schedule" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             # On scheduled runs, validate all modules
-            MODULES=$(ls -d modules/*/ | sed 's|modules/||;s|/||' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            MODULES=$(ls -d modules/*/ | grep -v "modules" | sed 's|modules/||;s|/||' | jq -R -s -c 'split("\n") | map(select(length > 0))')
           else
             # On push/PR, validate only changed modules
-            CHANGED=$(git diff --name-only ${{ github.event.before || 'HEAD~1' }} HEAD -- 'modules/**' | grep -oP 'modules/\K[^/]+' | sort -u)
+            CHANGED=$(git diff --name-only ${{ github.event.before || 'HEAD~1' }} HEAD -- 'modules/**' | awk -F'/' '{if ($2 != "modules") print $2}' | sort -u)
             if [ -z "$CHANGED" ]; then
-              MODULES=$(ls -d modules/*/ | sed 's|modules/||;s|/||' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+              MODULES=$(ls -d modules/*/ | grep -v "modules" | sed 's|modules/||;s|/||' | jq -R -s -c 'split("\n") | map(select(length > 0))')
             else
               MODULES=$(echo "$CHANGED" | jq -R -s -c 'split("\n") | map(select(length > 0))')
             fi
