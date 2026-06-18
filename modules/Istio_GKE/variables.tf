@@ -194,7 +194,7 @@ variable "install_ambient_mesh" {
 // SECTION 6: Application
 
 variable "deploy_application" {
-  description = "Set to true (default) to deploy the Istio Bookinfo sample application onto the GKE cluster after Istio is installed. The Bookinfo app demonstrates Istio traffic management, telemetry, and security features. Set to false to install only the Istio service mesh without a demo application. {{UIMeta group=0 order=601 }}"
+  description = "Set to true (default) to deploy the Istio Bookinfo sample application onto the GKE cluster after Istio is installed. The Bookinfo app demonstrates Istio traffic management, telemetry, and security features. Set to false to install only the Istio service mesh without a demo application. {{UIMeta group=6 order=601 }}"
   type        = bool
   default     = true
 }
