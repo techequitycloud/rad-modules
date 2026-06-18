@@ -1,0 +1,4 @@
+## 2024-06-18 - Remove overly permissive roles/storage.objectAdmin on GKE SA
+**Vulnerability:** GKE standard node pool service accounts are granted `roles/storage.objectAdmin` in `modules/Istio_GKE/gke.tf`, `modules/Bank_GKE/gke.tf`, and `modules/MC_Bank_GKE/gke.tf`.
+**Learning:** Node pools only require read access to pull images (`roles/artifactregistry.reader` or `roles/storage.objectViewer`). `roles/storage.objectAdmin` is over-permissioned and gives write access. The issue was found in multiple GKE modules. We are fixing `Istio_GKE` now, but `Bank_GKE` and `MC_Bank_GKE` still need fixing in separate PRs as batching security fixes is forbidden.
+**Prevention:** Always verify service account bindings against least-privilege principles, specifically ensuring compute/node pools do not receive broad write permissions like `objectAdmin` unless absolutely necessary.
