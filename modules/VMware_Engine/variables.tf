@@ -61,7 +61,7 @@ variable "enable_purge" {
 variable "public_access" {
   description = "Set to false (default) to restrict this module to platform administrators only. Set to true to make it visible and deployable by all platform users. {{UIMeta group=0 order=106 }}"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "shared_users" {
