@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
+# SECURITY: Generate a random password for the Windows VM admin user instead of using a hardcoded one.
+resource "random_password" "windows_admin_password" {
+  count            = var.create_windows_vm ? 1 : 0
+  length           = 16
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
 # Windows Server 2022 VM that hosts the MC Discovery Client (MCDCv6).
 # The sysprep startup script runs on first boot and:
 #   1. Creates the migrationcenter local user with the lab RDP password
@@ -47,7 +55,7 @@ resource "google_compute_instance" "windows_vm" {
     windows-startup-script-ps1 = <<-PS1
       # ── 1. Create lab user ──────────────────────────────────────────────────
       $labUser     = "migrationcenter"
-      $labPassword = "m1grat10nc#nt#r"
+      $labPassword = '${random_password.windows_admin_password[0].result}'
       $securePass  = ConvertTo-SecureString $labPassword -AsPlainText -Force
 
       if (-not (Get-LocalUser -Name $labUser -ErrorAction SilentlyContinue)) {

@@ -124,7 +124,7 @@ provider "helm" {
   alias = "bootstrap_installer"
   kubernetes {
     host                   = aws_eks_cluster.eks.endpoint
-    cluster_ca_certificate = base64decode(aws_eks_cluster.eks.certificate_authority[0].data)
+    cluster_ca_certificate = try(base64decode(aws_eks_cluster.eks.certificate_authority[0].data), "")
     token                  = data.aws_eks_cluster_auth.eks.token
   }
 }
@@ -155,7 +155,7 @@ resource "google_container_attached_cluster" "primary" {
   distribution     = "eks"
   platform_version = var.platform_version
   oidc_config {
-    issuer_url = aws_eks_cluster.eks.identity[0].oidc[0].issuer
+    issuer_url = try(aws_eks_cluster.eks.identity[0].oidc[0].issuer, "")
   }
   fleet {
     project = "projects/${local.project_number}"
