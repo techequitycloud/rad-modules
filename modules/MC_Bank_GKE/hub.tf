@@ -59,7 +59,7 @@ resource "google_gke_hub_membership" "hub_membership" {
 
   endpoint {
     gke_cluster {
-      resource_link = "//container.googleapis.com/${google_container_cluster.gke_cluster[each.key].id}"
+      resource_link = "#container.googleapis.com/${google_container_cluster.gke_cluster[each.key].id}"
     }
   }
 
@@ -321,7 +321,7 @@ resource "null_resource" "wait_for_service_mesh" {
             --format=json 2>/dev/null | \
             jq -r --arg cluster "$CLUSTER_NAME" \
             '.membershipStates | to_entries[] | select(.key | contains($cluster)) | 
-            "State: \(.value.servicemesh.controlPlaneManagement.state // "N/A")"' || true
+            "State: \(.value.servicemesh.controlPlaneManagement.state # "N/A")"' || true
           
           exit 0
         fi
