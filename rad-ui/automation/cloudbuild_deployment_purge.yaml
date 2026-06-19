@@ -40,6 +40,20 @@ steps:
         }
 
         # ============================================
+        # Safety guard
+        # ============================================
+        # ALLOW_LOOSE permits empty/sentinel substitutions. A recursive delete
+        # with an unset or sentinel deployment ID / module name would collapse
+        # the path (e.g. deployments/unknown/none/) and risk deleting far more
+        # than one deployment's folder. Refuse to run unless both are real.
+        if [ -z "${_DEPLOYMENT_ID}" ] || [ "${_DEPLOYMENT_ID}" = "none" ] || \
+           [ -z "${_MODULE_NAME}" ] || [ "${_MODULE_NAME}" = "unknown" ]; then
+            log "❌ Refusing to purge: _MODULE_NAME and _DEPLOYMENT_ID must be set to real values"
+            log "   _MODULE_NAME='${_MODULE_NAME}'  _DEPLOYMENT_ID='${_DEPLOYMENT_ID}'"
+            exit 1
+        fi
+
+        # ============================================
         # Clean up deployment folder from GCS
         # ============================================
         log "🔍 Checking for deployment folder..."

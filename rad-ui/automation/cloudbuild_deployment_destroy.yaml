@@ -37,6 +37,18 @@ steps:
         echo "[$(date +'%H:%M:%S')] $$1"
     }
 
+    # Safety guard: this build runs `tofu destroy` and a recursive
+    # `gsutil rm -r` of the deployment folder. ALLOW_LOOSE permits empty /
+    # sentinel substitutions, which would collapse the GCS path and risk
+    # deleting far more than one deployment. Refuse to run unless both the
+    # module name and deployment ID are set to real values.
+    if [ -z "${_DEPLOYMENT_ID}" ] || [ "${_DEPLOYMENT_ID}" = "none" ] || \
+       [ -z "${_MODULE_NAME}" ] || [ "${_MODULE_NAME}" = "unknown" ]; then
+        log "❌ Refusing to destroy: _MODULE_NAME and _DEPLOYMENT_ID must be set to real values"
+        log "   _MODULE_NAME='${_MODULE_NAME}'  _DEPLOYMENT_ID='${_DEPLOYMENT_ID}'"
+        exit 1
+    fi
+
     log "🧹 Preparing environment..."
 
     mkdir -p /tmp/deployment_files
