@@ -37,7 +37,7 @@ variable "module_dependency" {
 variable "module_services" {
   description = "List of cloud service tags associated with this module. {{UIMeta group=0 order=102 }}"
   type        = list(string)
-  default     = ["GCP", "VMware Engine", "Cloud Networking", "Cloud IAM"]
+  default     = ["GCP", "VMware Engine", "Cloud Networking", "Cloud IAM", "VPC Network", "Compute Engine"]
 }
 
 variable "credit_cost" {

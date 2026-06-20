@@ -37,7 +37,7 @@ variable "module_dependency" {
 variable "module_services" {
   description = "List of cloud service tags associated with this module, used for display and filtering in the platform UI. Represents the key services provisioned by this module. Defaults to the core services this module provisions. {{UIMeta group=0 order=102 }}"
   type        = list(string)
-  default     = ["GCP", "GKE", "Anthos Service Mesh", "Anthos Config Management", "Cloud IAM", "Cloud Networking"]
+  default     = ["GCP", "GKE", "Anthos Service Mesh", "Anthos Config Management", "Cloud IAM", "Cloud Networking", "VPC Network", "Config Sync", "GKE Fleet", "Workload Identity", "Cloud Monitoring"]
 }
 
 variable "credit_cost" {
