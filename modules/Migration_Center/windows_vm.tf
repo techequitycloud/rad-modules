@@ -47,7 +47,7 @@ resource "google_compute_instance" "windows_vm" {
     windows-startup-script-ps1 = <<-PS1
       # ── 1. Create lab user ──────────────────────────────────────────────────
       $labUser     = "migrationcenter"
-      $labPassword = "m1grat10nc#nt#r"
+      $labPassword = '${random_password.windows_password.result}'
       $securePass  = ConvertTo-SecureString $labPassword -AsPlainText -Force
 
       if (-not (Get-LocalUser -Name $labUser -ErrorAction SilentlyContinue)) {

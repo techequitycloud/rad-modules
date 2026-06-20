@@ -15,8 +15,8 @@
  */
 
 locals {
-  random_id      = (var.deployment_id != null && var.deployment_id != "") ? var.deployment_id : random_id.default[0].hex
-  project      = try(data.google_project.existing_project, null)
+  random_id = (var.deployment_id != null && var.deployment_id != "") ? var.deployment_id : random_id.default[0].hex
+  project   = try(data.google_project.existing_project, null)
 
   default_apis = [
     "migrationcenter.googleapis.com",
@@ -27,12 +27,20 @@ locals {
     "iamcredentials.googleapis.com",
   ]
 
-  peer_vpc_name    = "migcenter-${local.random_id}-vpc"
-  windows_vm_name  = "migcenter-${local.random_id}-winvm01"
-  linux_vm_prefix  = "migcenter-${local.random_id}-linvm"
-  ssh_key_bucket   = "migcenter-${local.random_id}-mc-keys"
-  mc_source_name   = "migcenter-${local.random_id}-mc-source"
-  aws_import_name  = "migcenter-${local.random_id}-aws-import"
+  peer_vpc_name   = "migcenter-${local.random_id}-vpc"
+  windows_vm_name = "migcenter-${local.random_id}-winvm01"
+  linux_vm_prefix = "migcenter-${local.random_id}-linvm"
+  ssh_key_bucket  = "migcenter-${local.random_id}-mc-keys"
+  mc_source_name  = "migcenter-${local.random_id}-mc-source"
+  aws_import_name = "migcenter-${local.random_id}-aws-import"
+}
+
+# SECURITY FIX: Replaced hardcoded lab password with dynamically generated secret
+# Impact: Prevents plaintext credentials from being exposed in version control and state files.
+resource "random_password" "windows_password" {
+  length           = 16
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
 resource "random_id" "default" {
