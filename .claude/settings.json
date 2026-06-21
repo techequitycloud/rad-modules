@@ -23,6 +23,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/check_conventions_hook.py",
+            "statusMessage": "Checking module conventions..."
+          }
+        ]
+      }
     ]
   }
 }
