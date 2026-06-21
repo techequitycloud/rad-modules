@@ -11,7 +11,7 @@ This skill explains how the Terraform/OpenTofu modules in this repository are st
 
 Each top-level entry under `modules/` is an **independent, self-contained module**. There is no shared foundation module, no symlink pattern, and no cross-module Terraform dependency. A module owns every resource it provisions and produces its own state.
 
-The six modules in the repository today:
+The eight modules in the repository today:
 
 | Module | What it provisions | Target audience |
 |---|---|---|
@@ -21,6 +21,8 @@ The six modules in the repository today:
 | `AKS_GKE` | Microsoft Azure AKS cluster registered with GCP as a **GKE Attached Cluster** via Fleet, with the GKE Connect agent installed via Helm | Engineers exploring multi-cloud fleet management |
 | `EKS_GKE` | AWS EKS cluster registered with GCP as a **GKE Attached Cluster** via Fleet, with the GKE Connect agent installed via Helm | Engineers exploring multi-cloud fleet management |
 | `VMware_Engine` | Google Cloud VMware Engine (GCVE) private cloud + VMware Engine Network + VPC peering + network policy + firewall rules + Windows jump host + vCenter credential reset | Engineers exploring VMware workload migration to GCP |
+| `Container_Migration` | GKE cluster + Compute Engine VMs (PostgreSQL source, Tomcat source, M2C workstation) provisioned as a hands-on Migrate to Containers (M2C) lab environment | Engineers replatforming VM-based Linux workloads to containers |
+| `Migration_Center` | Windows Server VM (MCDCv6 pre-installed) + Debian Linux target VMs + Migration Center service registration + optional AWS asset import | Engineers running Migration Center discovery and TCO assessment labs |
 
 Supporting directories:
 
@@ -49,6 +51,7 @@ modules/Istio_GKE/
 ├── istioambient.tf      # null_resource installing Istio in ambient mode (conditional)
 ├── manifests/           # Raw Kubernetes manifests applied as-is
 ├── templates/           # Kubernetes manifest templates rendered by Terraform
+├── tests/               # *.tftest.hcl — mock-provider plan tests (no GCP credentials needed)
 ├── README.md            # Short overview + usage + Requirements/Providers/Resources/Inputs/Outputs tables
 └── Istio_GKE.md         # Long technical walkthrough (≈1,400 lines)
 # Lab guide lives at: docs/labs/Istio_GKE.md
@@ -129,14 +132,16 @@ Pins required providers and `required_version`. The set of pinned providers diff
 
 | Module | Pinned providers | `required_version` |
 |---|---|---|
-| `Istio_GKE` | `google`, `kubernetes` | `>= 0.13` |
+| `Istio_GKE` | `google` (>= 5.0), `google-beta` (>= 5.0), `kubernetes` (>= 2.23) | `>= 1.3` |
 | `Bank_GKE` | `google` (>= 5.0), `kubernetes` (>= 2.23), `kubectl` (gavinbunney/kubectl >= 1.14), `time` (>= 0.9), `http` (>= 3.0) | `>= 1.3` |
-| `MC_Bank_GKE` | `google`, `kubernetes` | `>= 0.13` |
+| `MC_Bank_GKE` | `google` (>= 5.0), `google-beta` (>= 5.0), `kubernetes` (>= 2.23) | `>= 1.3` |
 | `VMware_Engine` | `google` (>= 5.0), `random` (>= 3.0), `null` (>= 3.0), `external` (>= 2.0) | `>= 1.3` |
+| `Container_Migration` | `google` (>= 5.0, < 6.0), `random` (>= 3.0), `null` (>= 3.0) | `>= 1.3` |
+| `Migration_Center` | `google` (>= 5.0, < 6.0), `aws` (>= 5.0, < 6.0), `random` (>= 3.0), `null` (>= 3.0), `tls` (>= 4.0) | `>= 1.3` |
 | `AKS_GKE` | No top-level `versions.tf`; the nested submodules have their own | — |
 | `EKS_GKE` | No top-level `versions.tf`; the nested submodules have their own | — |
 
-Providers that are used but not explicitly pinned (e.g. `random`, `null`, `google-beta`) are downloaded at the version OpenTofu/Terraform selects automatically. All GKE-based modules and `VMware_Engine` configure a `google-beta` provider block in `provider-auth.tf` for completeness, but none currently assign resources to it explicitly.
+Providers that are used but not explicitly pinned (e.g. `random`, `null`) are downloaded at the version OpenTofu/Terraform selects automatically. `Istio_GKE`, `MC_Bank_GKE`, `Bank_GKE`, and `VMware_Engine` configure a `google-beta` provider block in `provider-auth.tf`, but none currently assign resources to it explicitly. `Istio_GKE` and `MC_Bank_GKE` explicitly pin `google-beta` in `versions.tf` (alongside `google`) even though no resources use it.
 
 ### 3.4 `variables.tf` — UIMeta Annotations
 
@@ -388,11 +393,13 @@ output "external_ip" {
 
 The table shows which providers each module actively uses. GKE-based modules and `VMware_Engine` also configure a `google-beta` provider block in `provider-auth.tf` as a convenience (for future use), but no resources are currently assigned to it.
 
-| Module | google | kubernetes | kubectl | helm | azurerm | aws | random | null | external | time / http |
-|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| Istio_GKE | ✓ | ✓ | | | | | ✓ | ✓ | | |
-| Bank_GKE | ✓ | ✓ | ✓ | | | | ✓ | ✓ | | ✓ |
-| MC_Bank_GKE | ✓ | ✓ (×N aliases) | | | | | ✓ | ✓ | | |
-| AKS_GKE | ✓ | | | ✓ | ✓ | | ✓ | | | |
-| EKS_GKE | ✓ | | | ✓ | | ✓ | ✓ | | | |
-| VMware_Engine | ✓ | | | | | | ✓ | ✓ | ✓ | |
+| Module | google | kubernetes | kubectl | helm | azurerm | aws | tls | random | null | external | time / http |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Istio_GKE | ✓ | ✓ | | | | | | ✓ | ✓ | | |
+| Bank_GKE | ✓ | ✓ | ✓ | | | | | ✓ | ✓ | | ✓ |
+| MC_Bank_GKE | ✓ | ✓ (×N aliases) | | | | | | ✓ | ✓ | | |
+| AKS_GKE | ✓ | | | ✓ | ✓ | | | ✓ | | | |
+| EKS_GKE | ✓ | | | ✓ | | ✓ | | ✓ | | | |
+| VMware_Engine | ✓ | | | | | | | ✓ | ✓ | ✓ | |
+| Container_Migration | ✓ | | | | | | | ✓ | ✓ | | |
+| Migration_Center | ✓ | | | | | ✓ | ✓ | ✓ | ✓ | | |

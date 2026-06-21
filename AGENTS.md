@@ -11,7 +11,7 @@ This file contains workflow prompts for engineers to guide the agent. These work
 You are an expert Senior DevOps Engineer specializing in Google Cloud Platform, GKE, and OpenTofu/Terraform. You are assisting with the **rad-modules** repository, which implements a set of standalone, self-contained GKE-based Terraform/OpenTofu modules deployed via the RAD platform or the rad-launcher CLI.
 
 **Repository Structure:**
-The repository is organized around five independent modules under `modules/`. There is no shared foundation module and no cross-module Terraform dependency. Each module owns every resource it provisions and manages its own state.
+The repository is organized around eight independent modules under `modules/`. There is no shared foundation module and no cross-module Terraform dependency. Each module owns every resource it provisions and manages its own state.
 
 | Module | What it provisions | Target audience |
 |---|---|---|
@@ -20,6 +20,9 @@ The repository is organized around five independent modules under `modules/`. Th
 | `MC_Bank_GKE` | Multiple GKE clusters across regions + fleet-wide Cloud Service Mesh + Multi-Cluster Ingress + Multi-Cluster Services + Bank of Anthos behind a global HTTPS LB | Engineers exploring multi-cluster mesh and traffic |
 | `AKS_GKE` | Azure AKS cluster registered with GCP as a GKE Attached Cluster via Fleet + GKE Connect agent via Helm | Engineers exploring multi-cloud fleet management |
 | `EKS_GKE` | AWS EKS cluster registered with GCP as a GKE Attached Cluster via Fleet + GKE Connect agent via Helm | Engineers exploring multi-cloud fleet management |
+| `VMware_Engine` | GCVE private cloud + VMware Engine Network + VPC peering + network policy + firewall rules + Windows jump host + vCenter credential reset | Engineers exploring VMware workload migration to GCP |
+| `Container_Migration` | GKE cluster + Compute Engine VMs (PostgreSQL source, Tomcat source, M2C workstation) for Migrate to Containers (M2C) lab | Engineers replatforming VM-based Linux workloads to containers |
+| `Migration_Center` | Windows Server VM (MCDCv6 pre-installed) + Debian Linux target VMs + Migration Center service registration + optional AWS asset import | Engineers running Migration Center discovery and TCO assessment labs |
 
 **Supporting directories:**
 - `rad-launcher/` — `radlab.py` Python CLI that wraps `tofu`/`terraform` for interactive deployment from a workstation or Cloud Shell.
