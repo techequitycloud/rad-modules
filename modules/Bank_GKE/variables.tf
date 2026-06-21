@@ -187,9 +187,9 @@ variable "service_cidr_block" {
 // SECTION 6: FEATURES
 
 variable "enable_monitoring" {
-  description = "Set to true (default) to enable Google Cloud Managed Service for Prometheus and Cloud Monitoring dashboards for the GKE cluster. Provides metrics, alerting, and observability for cluster workloads. Set to false to skip monitoring configuration. {{UIMeta group=6 order=601 }}"
+  description = "Set to true to enable Google Cloud Managed Service for Prometheus and Cloud Monitoring SLOs for the GKE cluster. Provides metrics and observability for cluster workloads. Defaults to false; enable as an advanced configuration option. {{UIMeta group=6 order=601 updatesafe }}"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_cloud_service_mesh" {
