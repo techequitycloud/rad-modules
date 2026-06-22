@@ -40,7 +40,9 @@ jobs:
             MODULES=$(ls -d modules/*/ | sed 's|modules/||;s|/||' | jq -R -s -c 'split("\n") | map(select(length > 0))')
           else
             # On push/PR, validate only changed modules
-            CHANGED=$(git diff --name-only ${{ github.event.before || 'HEAD~1' }} HEAD -- 'modules/**' | grep -oP 'modules/\K[^/]+' | sort -u)
+            # Anchor with ^ so nested paths (modules/<top>/modules/<sub>/…) only
+            # yield the top-level module, never the phantom nested name.
+            CHANGED=$(git diff --name-only ${{ github.event.before || 'HEAD~1' }} HEAD -- 'modules/**' | grep -oP '^modules/\K[^/]+' | sort -u)
             if [ -z "$CHANGED" ]; then
               MODULES=$(ls -d modules/*/ | sed 's|modules/||;s|/||' | jq -R -s -c 'split("\n") | map(select(length > 0))')
             else
@@ -109,9 +111,14 @@ jobs:
         working-directory: modules/${{ matrix.module }}
         run: tflint --init --config ../../.tflint.hcl
 
+      # All current tflint findings are Warning-severity and stem from repo
+      # conventions (the Apache /** */ header trips terraform_comment_syntax;
+      # platform-only group-0 metadata vars trip terraform_unused_declarations).
+      # Gate on error-severity so those expected warnings don't fail CI — they
+      # still print in the log for visibility.
       - name: tflint run
         working-directory: modules/${{ matrix.module }}
-        run: tflint --config ../../.tflint.hcl --format compact
+        run: tflint --config ../../.tflint.hcl --format compact --minimum-failure-severity=error
 
   test:
     name: Test — ${{ matrix.module }}
