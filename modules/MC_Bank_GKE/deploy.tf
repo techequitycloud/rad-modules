@@ -235,37 +235,25 @@ resource "null_resource" "deploy_bank_of_anthos" {
       echo "Cluster nodes (first 5):"
       kubectl get nodes --context="$CONTEXT_NAME" -o wide | head -6
 
-      # Verify namespace exists and is Active
+      # Ensure the namespace exists before applying manifests.
+      # kubernetes_namespace resources are declared statically for cluster1 and
+      # cluster2 only (the kubernetes provider aliases cannot be generated with
+      # for_each), so for cluster_size > 2 no managed resource creates it on the
+      # additional clusters. This null_resource is also replaced on every apply
+      # (its download_id trigger changes because download_bank_of_anthos uses
+      # always_run = timestamp()). Recreate the namespace idempotently here
+      # rather than only verifying it — which previously failed with "Failed to
+      # verify namespace". The istio.io/rev=asm-managed label keeps Cloud
+      # Service Mesh sidecar injection enabled.
       echo ""
-      echo "Verifying namespace '$NAMESPACE'..."
-      max_retries=5
-      retry_count=0
-      
-      while [ $retry_count -lt $max_retries ]; do
-        NAMESPACE_STATUS=$(kubectl get namespace "$NAMESPACE" \
-          --context="$CONTEXT_NAME" \
-          -o jsonpath='{.status.phase}' 2>/dev/null || echo "NOT_FOUND")
-      
-        if [ "$NAMESPACE_STATUS" = "Active" ]; then
-          echo "✓ Namespace '$NAMESPACE' is Active"
-          break
-        elif [ "$NAMESPACE_STATUS" = "NOT_FOUND" ]; then
-          echo "⏳ Waiting for namespace to be created... (Attempt $((retry_count + 1))/$max_retries)"
-        else
-          echo "⏳ Namespace status: $NAMESPACE_STATUS (Attempt $((retry_count + 1))/$max_retries)"
-        fi
-      
-        retry_count=$((retry_count + 1))
-        
-        if [ $retry_count -lt $max_retries ]; then
-          sleep 5
-        fi
-      done
-      
-      if [ "$NAMESPACE_STATUS" != "Active" ]; then
-        echo "❌ Failed to verify namespace after $max_retries attempts"
-        exit 1
-      fi
+      echo "Ensuring namespace '$NAMESPACE' exists..."
+      kubectl create namespace "$NAMESPACE" \
+        --context="$CONTEXT_NAME" \
+        --dry-run=client -o yaml | kubectl apply --context="$CONTEXT_NAME" -f -
+      kubectl label namespace "$NAMESPACE" \
+        --context="$CONTEXT_NAME" \
+        istio.io/rev=asm-managed --overwrite
+      echo "✓ Namespace '$NAMESPACE' is ready"
 
       # Verify ASM injection label
       echo ""
