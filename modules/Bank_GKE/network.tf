@@ -80,6 +80,20 @@ resource "google_compute_network" "vpc" {
         done
       fi
 
+      # Delete gke-csm-thc-* firewall rules created by Cloud Service Mesh health checks
+      CSM_FIREWALLS=$(gcloud compute firewall-rules list \
+        --project=$PROJECT_ID \
+        --filter="name~^gke-csm-thc-.*" \
+        --format="value(name)" 2>/dev/null || echo "")
+
+      if [ -n "$CSM_FIREWALLS" ]; then
+        for FW in $CSM_FIREWALLS; do
+          gcloud compute firewall-rules delete $FW \
+            --project=$PROJECT_ID \
+            --quiet 2>/dev/null || true
+        done
+      fi
+
       ZONES=$(gcloud compute zones list --project=$PROJECT_ID --format="value(name)" 2>/dev/null || echo "")
 
       if [ -n "$ZONES" ]; then
