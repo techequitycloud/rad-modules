@@ -91,6 +91,45 @@ resource "null_resource" "download_bank_of_anthos" {
 }
 
 # ============================================
+# WORKLOAD IDENTITY — LOCAL GSA FOR BANK OF ANTHOS
+# ============================================
+#
+# Bank of Anthos v0.6.7 manifests ship with:
+#   iam.gke.io/gcp-service-account: gke-workload-development@bank-of-anthos-ci.iam.gserviceaccount.com
+# That GSA belongs to Google's CI project and is inaccessible in any other project.
+# Without a valid Workload Identity binding the metadata server cannot return a project ID,
+# causing StackdriverTraceAutoConfiguration to crash with "projectId == null" on startup.
+# These resources create a project-local GSA and wire it up before the app is deployed.
+
+resource "google_service_account" "bank_of_anthos" {
+  count        = var.deploy_application ? 1 : 0
+  project      = local.project.project_id
+  account_id   = "bank-of-anthos"
+  display_name = "Bank of Anthos workload identity GSA"
+}
+
+resource "google_project_iam_member" "bank_of_anthos_trace" {
+  count   = var.deploy_application ? 1 : 0
+  project = local.project.project_id
+  role    = "roles/cloudtrace.agent"
+  member  = "serviceAccount:${google_service_account.bank_of_anthos[0].email}"
+}
+
+resource "google_project_iam_member" "bank_of_anthos_metrics" {
+  count   = var.deploy_application ? 1 : 0
+  project = local.project.project_id
+  role    = "roles/monitoring.metricWriter"
+  member  = "serviceAccount:${google_service_account.bank_of_anthos[0].email}"
+}
+
+resource "google_service_account_iam_member" "bank_of_anthos_workload_identity" {
+  count              = var.deploy_application ? 1 : 0
+  service_account_id = google_service_account.bank_of_anthos[0].name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${local.project.project_id}.svc.id.goog[bank-of-anthos/bank-of-anthos]"
+}
+
+# ============================================
 # NAMESPACE
 # ============================================
 
@@ -138,6 +177,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
     manifests_path  = local.manifests_path
     jwt_secret_path = local.jwt_secret_path
     download_id     = null_resource.download_bank_of_anthos[0].id # ✅ FIXED: Added dependency
+    gsa_email       = google_service_account.bank_of_anthos[0].email
   }
 
   provisioner "local-exec" {
@@ -151,6 +191,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
       PROJECT_ID="${self.triggers.project_id}"
       JWT_SECRET_PATH="${self.triggers.jwt_secret_path}"
       MANIFESTS_PATH="${self.triggers.manifests_path}"
+      GSA_EMAIL="${self.triggers.gsa_email}"
       
       echo "=========================================="
       echo "Deploying Bank of Anthos Application"
@@ -244,6 +285,18 @@ resource "null_resource" "deploy_bank_of_anthos" {
         -n "$NAMESPACE" \
         --context="$CONTEXT_NAME"
       echo "✓ Manifests applied"
+
+      # Patch the bank-of-anthos KSA to use the project-local GSA.
+      # The upstream manifests hardcode gke-workload-development@bank-of-anthos-ci.iam.gserviceaccount.com
+      # which is inaccessible outside Google's CI project, causing projectId == null at startup.
+      echo ""
+      echo "Patching bank-of-anthos KSA with local GSA for Workload Identity..."
+      kubectl annotate serviceaccount bank-of-anthos \
+        -n "$NAMESPACE" \
+        --context="$CONTEXT_NAME" \
+        iam.gke.io/gcp-service-account="$GSA_EMAIL" \
+        --overwrite
+      echo "✓ KSA annotated with: $GSA_EMAIL"
       
       # Wait for deployments
       echo ""
@@ -349,5 +402,9 @@ resource "null_resource" "deploy_bank_of_anthos" {
     null_resource.download_bank_of_anthos,
     kubernetes_namespace.bank_of_anthos,
     null_resource.wait_for_service_mesh,
+    google_service_account.bank_of_anthos,
+    google_project_iam_member.bank_of_anthos_trace,
+    google_project_iam_member.bank_of_anthos_metrics,
+    google_service_account_iam_member.bank_of_anthos_workload_identity,
   ]
 }
