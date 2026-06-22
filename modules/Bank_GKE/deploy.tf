@@ -101,32 +101,64 @@ resource "null_resource" "download_bank_of_anthos" {
 # causing StackdriverTraceAutoConfiguration to crash with "projectId == null" on startup.
 # These resources create a project-local GSA and wire it up before the app is deployed.
 
-resource "google_service_account" "bank_of_anthos" {
-  count        = var.deploy_application ? 1 : 0
-  project      = local.project.project_id
-  account_id   = "bank-of-anthos"
-  display_name = "Bank of Anthos workload identity GSA"
+locals {
+  bank_of_anthos_gsa_email = "bank-of-anthos@${local.project.project_id}.iam.gserviceaccount.com"
+}
+
+# Create the GSA idempotently — handles both fresh projects and projects where
+# the GSA was created manually (e.g. during troubleshooting).
+resource "null_resource" "create_bank_of_anthos_gsa" {
+  count = var.deploy_application ? 1 : 0
+
+  triggers = {
+    project_id = local.project.project_id
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<-EOT
+      set -e
+      PROJECT_ID="${local.project.project_id}"
+      GSA="bank-of-anthos@$${PROJECT_ID}.iam.gserviceaccount.com"
+
+      if gcloud iam service-accounts describe "$GSA" --project="$PROJECT_ID" &>/dev/null; then
+        echo "✓ GSA $GSA already exists"
+      else
+        echo "Creating GSA $GSA..."
+        gcloud iam service-accounts create bank-of-anthos \
+          --display-name="Bank of Anthos workload identity GSA" \
+          --project="$PROJECT_ID"
+        echo "✓ GSA created"
+      fi
+    EOT
+  }
 }
 
 resource "google_project_iam_member" "bank_of_anthos_trace" {
   count   = var.deploy_application ? 1 : 0
   project = local.project.project_id
   role    = "roles/cloudtrace.agent"
-  member  = "serviceAccount:${google_service_account.bank_of_anthos[0].email}"
+  member  = "serviceAccount:${local.bank_of_anthos_gsa_email}"
+
+  depends_on = [null_resource.create_bank_of_anthos_gsa]
 }
 
 resource "google_project_iam_member" "bank_of_anthos_metrics" {
   count   = var.deploy_application ? 1 : 0
   project = local.project.project_id
   role    = "roles/monitoring.metricWriter"
-  member  = "serviceAccount:${google_service_account.bank_of_anthos[0].email}"
+  member  = "serviceAccount:${local.bank_of_anthos_gsa_email}"
+
+  depends_on = [null_resource.create_bank_of_anthos_gsa]
 }
 
 resource "google_service_account_iam_member" "bank_of_anthos_workload_identity" {
   count              = var.deploy_application ? 1 : 0
-  service_account_id = google_service_account.bank_of_anthos[0].name
+  service_account_id = "projects/${local.project.project_id}/serviceAccounts/${local.bank_of_anthos_gsa_email}"
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${local.project.project_id}.svc.id.goog[bank-of-anthos/bank-of-anthos]"
+
+  depends_on = [null_resource.create_bank_of_anthos_gsa]
 }
 
 # ============================================
@@ -177,7 +209,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
     manifests_path  = local.manifests_path
     jwt_secret_path = local.jwt_secret_path
     download_id     = null_resource.download_bank_of_anthos[0].id # ✅ FIXED: Added dependency
-    gsa_email       = google_service_account.bank_of_anthos[0].email
+    gsa_email       = local.bank_of_anthos_gsa_email
   }
 
   provisioner "local-exec" {
@@ -402,7 +434,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
     null_resource.download_bank_of_anthos,
     kubernetes_namespace.bank_of_anthos,
     null_resource.wait_for_service_mesh,
-    google_service_account.bank_of_anthos,
+    null_resource.create_bank_of_anthos_gsa,
     google_project_iam_member.bank_of_anthos_trace,
     google_project_iam_member.bank_of_anthos_metrics,
     google_service_account_iam_member.bank_of_anthos_workload_identity,
