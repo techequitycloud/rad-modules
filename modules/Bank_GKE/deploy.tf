@@ -152,13 +152,28 @@ resource "google_project_iam_member" "bank_of_anthos_metrics" {
   depends_on = [null_resource.create_bank_of_anthos_gsa]
 }
 
+# The PROJECT.svc.id.goog Workload Identity pool only exists once the GKE
+# cluster has been created (Autopilot enables Workload Identity automatically;
+# Standard sets workload_identity_config explicitly in gke.tf). Wait for the
+# cluster, then give the pool a short grace period to propagate, before binding
+# to it — otherwise the bind fails with "Identity Pool does not exist" on a
+# single-pass apply, as the binding would otherwise race cluster creation.
+resource "time_sleep" "wait_for_wi_pool" {
+  count           = var.deploy_application ? 1 : 0
+  depends_on      = [google_container_cluster.gke_cluster]
+  create_duration = "30s"
+}
+
 resource "google_service_account_iam_member" "bank_of_anthos_workload_identity" {
   count              = var.deploy_application ? 1 : 0
   service_account_id = "projects/${local.project.project_id}/serviceAccounts/${local.bank_of_anthos_gsa_email}"
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${local.project.project_id}.svc.id.goog[bank-of-anthos/bank-of-anthos]"
 
-  depends_on = [null_resource.create_bank_of_anthos_gsa]
+  depends_on = [
+    null_resource.create_bank_of_anthos_gsa,
+    time_sleep.wait_for_wi_pool,
+  ]
 }
 
 # ============================================
