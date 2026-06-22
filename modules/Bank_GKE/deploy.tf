@@ -263,31 +263,23 @@ resource "null_resource" "deploy_bank_of_anthos" {
       
       echo "Using context: $CONTEXT_NAME"
       
-      # ✅ FIXED: All kubectl commands use --context
+      # Ensure the namespace exists before applying manifests.
+      # It is normally created by kubernetes_namespace.bank_of_anthos, but this
+      # null_resource is replaced on every apply (see the download_id trigger,
+      # which changes because download_bank_of_anthos uses always_run). If the
+      # destroy-time provisioner of a prior generation ran, the namespace can be
+      # briefly absent — so recreate it idempotently here rather than only
+      # verifying it, which previously failed the deploy on re-applies. The
+      # istio.io/rev label keeps Cloud Service Mesh sidecar injection enabled.
       echo ""
-      echo "Verifying namespace '$NAMESPACE'..."
-      max_retries=5
-      retry_count=0
-      
-      while [ $retry_count -lt $max_retries ]; do
-        NAMESPACE_STATUS=$(kubectl get namespace "$NAMESPACE" \
-          --context="$CONTEXT_NAME" \
-          -o jsonpath='{.status.phase}' 2>/dev/null || echo "NOT_FOUND")
-        
-        if [ "$NAMESPACE_STATUS" = "Active" ]; then
-          echo "✓ Namespace '$NAMESPACE' is Active"
-          break
-        fi
-        
-        echo "⏳ Waiting for namespace... (Attempt $((retry_count + 1))/$max_retries)"
-        retry_count=$((retry_count + 1))
-        [ $retry_count -lt $max_retries ] && sleep 5
-      done
-      
-      if [ "$NAMESPACE_STATUS" != "Active" ]; then
-        echo "❌ Failed to verify namespace"
-        exit 1
-      fi
+      echo "Ensuring namespace '$NAMESPACE' exists..."
+      kubectl create namespace "$NAMESPACE" \
+        --context="$CONTEXT_NAME" \
+        --dry-run=client -o yaml | kubectl apply --context="$CONTEXT_NAME" -f -
+      kubectl label namespace "$NAMESPACE" \
+        --context="$CONTEXT_NAME" \
+        istio.io/rev=asm-managed --overwrite
+      echo "✓ Namespace '$NAMESPACE' is ready"
       
       # Check ASM injection
       echo ""
@@ -407,17 +399,13 @@ resource "null_resource" "deploy_bank_of_anthos" {
             --context="$CONTEXT_NAME" \
             --timeout=60s --ignore-not-found=true || true
           
-          echo "Deleting namespace..."
-          if kubectl delete namespace "$NAMESPACE" \
-            --context="$CONTEXT_NAME" \
-            --timeout=300s 2>/dev/null; then
-            echo "✓ Namespace deleted"
-          else
-            echo "⚠ Forcing namespace deletion..."
-            kubectl delete namespace "$NAMESPACE" \
-              --context="$CONTEXT_NAME" \
-              --grace-period=0 --force 2>/dev/null || true
-          fi
+          # Do NOT delete the namespace here. It is owned by the
+          # kubernetes_namespace.bank_of_anthos resource, which Terraform tears
+          # down on a real destroy AFTER this resource (see depends_on). This
+          # provisioner also runs on every replace of this null_resource, so
+          # deleting the namespace here would race against the create-time
+          # provisioner that re-applies the manifests into it.
+          echo "ℹ Leaving namespace '$NAMESPACE' to its owning Terraform resource"
         else
           echo "ℹ Namespace not found"
         fi
