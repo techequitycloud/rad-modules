@@ -69,7 +69,7 @@ jobs:
             echo "${CHANGED}"
           } > /tmp/prompt.txt
 
-          claude --dangerouslySkipPermissions \
+          claude --dangerously-skip-permissions \
             --allowedTools "Read,Grep,Glob,Bash" \
             --output-format text \
             -p "$(cat /tmp/prompt.txt)" > /tmp/review.txt 2>&1 \

@@ -61,7 +61,7 @@ jobs:
         run: |
           # Prompt body lives in a separate file so this YAML never embeds a
           # column-0 heredoc.
-          claude --dangerouslySkipPermissions \
+          claude --dangerously-skip-permissions \
             --allowedTools "Read,Grep,Glob,Bash" \
             --output-format text \
             -p "$(cat .github/claude-prompts/weekly-audit.md)" > /tmp/audit.txt 2>&1 \
