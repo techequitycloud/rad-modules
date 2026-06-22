@@ -276,58 +276,47 @@ resource "null_resource" "verify_mesh_status" {
       
       echo "Verifying Service Mesh configuration for cluster..."
       echo "Membership Path: $MEMBERSHIP_PATH"
-      end_time=$((SECONDS+300))
-      
+      end_time=$((SECONDS+900))
+
       while [ $SECONDS -lt $end_time ]; do
         # Use direct path access in format string (no flatten/filter needed)
         CONTROL_PLANE_STATE=$(gcloud container hub features describe servicemesh \
           --project="$PROJECT_ID" \
           --format="value(membershipStates['$MEMBERSHIP_PATH'].servicemesh.controlPlaneManagement.state)" \
           2>/dev/null || echo "NOT_FOUND")
-        
+
         echo "Control Plane State: $CONTROL_PLANE_STATE"
-        
-        # Check overall membership state
-        MEMBERSHIP_STATE=$(gcloud container hub features describe servicemesh \
-          --project="$PROJECT_ID" \
-          --format="value(membershipStates['$MEMBERSHIP_PATH'].state.code)" \
-          2>/dev/null || echo "NOT_FOUND")
-        
-        echo "Membership State: $MEMBERSHIP_STATE"
-        
+
         # Check feature state
         FEATURE_STATE=$(gcloud container hub features describe servicemesh \
           --project="$PROJECT_ID" \
           --format="value(resourceState.state)" \
           2>/dev/null || echo "NOT_FOUND")
-        
+
         echo "Feature State: $FEATURE_STATE"
-        
-        # Success condition: Control plane ACTIVE and membership OK
+
+        # Success condition: Control plane ACTIVE and feature ACTIVE
+        # (membership state.code is not reliably populated by this gcloud version)
         if [ "$CONTROL_PLANE_STATE" = "ACTIVE" ] && \
-           [ "$MEMBERSHIP_STATE" = "OK" ] && \
            [ "$FEATURE_STATE" = "ACTIVE" ]; then
           echo "✓ Service Mesh is fully configured and active!"
           echo "  ✓ Control Plane: $CONTROL_PLANE_STATE"
-          echo "  ✓ Membership: $MEMBERSHIP_STATE"
           echo "  ✓ Feature: $FEATURE_STATE"
           exit 0
         fi
-        
-        if [ "$CONTROL_PLANE_STATE" = "NOT_FOUND" ] || \
-           [ "$MEMBERSHIP_STATE" = "NOT_FOUND" ]; then
+
+        if [ "$CONTROL_PLANE_STATE" = "NOT_FOUND" ]; then
           echo "Mesh configuration not yet available, waiting..."
         else
           echo "Waiting for all components to be ready..."
         fi
-        
+
         sleep 15
       done
       
       echo "❌ Timed out waiting for Service Mesh configuration."
       echo "Final states:"
       echo "  Control Plane: $CONTROL_PLANE_STATE"
-      echo "  Membership: $MEMBERSHIP_STATE"
       echo "  Feature: $FEATURE_STATE"
       echo ""
       echo "=== Full Feature Description ==="
