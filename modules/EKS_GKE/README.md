@@ -165,5 +165,8 @@ limitations under the License.
 
 ## Outputs
 
-No outputs.
+| Name | Description |
+|------|-------------|
+| <a name="output_deployment_id"></a> [deployment\_id](#output\_deployment\_id) | Module Deployment ID |
+| <a name="output_project_id"></a> [project\_id](#output\_project\_id) | Project ID |
 <!-- END_TF_DOCS -->
