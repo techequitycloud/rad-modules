@@ -1,0 +1,114 @@
+name: Claude Semantic Review
+
+# Posts a review comment on every PR to main covering the checks the static CI
+# (terraform-ci.yml) and the convention checker cannot perform on their own:
+#   - Convention drift (summarised from scripts/check_conventions.py + judgement)
+#   - License headers, UIMeta completeness, API-enablement invariant
+#   - Hardcoded multi-cloud credentials (Azure/AWS) and missing sensitive flags
+#   - Documentation drift (README Inputs/Outputs vs variables.tf/outputs.tf,
+#     module_documentation lab-guide URL)
+#
+# Prerequisites:
+#   - Add ANTHROPIC_API_KEY to the repository secrets
+#   - The job already requests pull-requests: write
+#
+# Security: untrusted PR fields (title/body/branch) are never interpolated into a
+# run: step. Only github.base_ref (a branch name) is passed, via an env var.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  semantic-review:
+    name: Semantic Review
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run convention checker (machine-readable input for the review)
+        run: python3 scripts/check_conventions.py --modules-dir modules/ > /tmp/conventions.txt 2>&1 || true
+
+      - name: Run semantic review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          CHANGED=$(git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null \
+            || echo "(unable to determine changed files)")
+
+          # Prompt body lives in a separate file so this YAML never embeds a
+          # column-0 heredoc. The changed-file list (derived from BASE_REF, a
+          # branch name) is appended via an env var — no untrusted PR text
+          # (title/body) ever reaches the shell.
+          {
+            cat .github/claude-prompts/pr-review.md
+            echo
+            echo "Changed files in this PR:"
+            echo "${CHANGED}"
+          } > /tmp/prompt.txt
+
+          claude --dangerouslySkipPermissions \
+            --allowedTools "Read,Grep,Glob,Bash" \
+            --output-format text \
+            -p "$(cat /tmp/prompt.txt)" > /tmp/review.txt 2>&1 \
+            || echo "Claude review encountered an error — check the workflow logs." \
+               > /tmp/review.txt
+
+      - name: Post review comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const findings = fs.readFileSync('/tmp/review.txt', 'utf8').trim();
+            const sha = context.payload.pull_request.head.sha.slice(0, 7);
+            const body = `## Claude Semantic Review (${sha})\n\n${findings}\n\n` +
+              `<sub>Checks: convention drift · standard vars/UIMeta · API invariant · credentials · doc drift</sub>`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c =>
+              c.user.login === 'github-actions[bot]' &&
+              c.body.startsWith('## Claude Semantic Review')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

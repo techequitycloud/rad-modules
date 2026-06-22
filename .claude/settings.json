@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/fmt_tf.py",
+            "statusMessage": "Formatting Terraform..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/scan_secrets.py",
+            "statusMessage": "Scanning for hardcoded credentials..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/check_conventions_hook.py",
+            "statusMessage": "Checking module conventions..."
+          }
+        ]
+      }
+    ]
+  }
+}

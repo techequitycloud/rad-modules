@@ -1,0 +1,44 @@
+name: Convention Check
+
+# Deterministic, offline convention checker — the rad-native equivalent of the
+# partner-modules Cloud Build "convention-check" step. Complements terraform-ci.yml
+# (fmt/validate/tflint/test/Trivy) by enforcing the rad-modules-specific rules in
+# scripts/check_conventions.py: the ten standard variables, UIMeta tags, license
+# headers, the google_project_service API-enablement invariant, sensitive
+# credentials, and no symlinks.
+#
+# Hard errors (FAIL) break the build; module-type variations (WARN) are reported
+# but non-blocking. Pass --strict in the run step to make warnings blocking once
+# the catalog is fully clean.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'modules/**'
+      - 'scripts/check_conventions.py'
+      - '.github/workflows/convention-check.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'modules/**'
+      - 'scripts/check_conventions.py'
+      - '.github/workflows/convention-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conventions:
+    name: Convention check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run convention checker
+        run: python3 scripts/check_conventions.py --modules-dir modules/
