@@ -37,7 +37,7 @@ data "google_compute_subnetwork" "existing_subnet" {
 
 locals {
   network = var.create_network ? google_compute_network.vpc[0] : data.google_compute_network.existing_vpc[0]
-  subnet  = var.create_network ? google_compute_subnetwork.subnetwork[0] : data.google_compute_subnetwork.existing_subnet[0]
+  subnet  = var.create_network ? try(google_compute_subnetwork.subnetwork[0], null) : data.google_compute_subnetwork.existing_subnet[0]
 }
 
 #########################################################################
