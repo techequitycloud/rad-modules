@@ -93,7 +93,7 @@ variable "public_access" {
 variable "shared_users" {
   description = "List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }}"
   type        = list(string)
-  default     = []
+  default     = ["shiyghan.navti@techequity.cloud"]
 }
 
 variable "resource_creator_identity" {
