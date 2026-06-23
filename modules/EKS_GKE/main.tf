@@ -147,6 +147,11 @@ module "attached_install_manifest" {
   ]
 }
 
+resource "time_sleep" "wait_for_bootstrap" {
+  create_duration = "120s"
+  depends_on      = [module.attached_install_manifest]
+}
+
 resource "google_container_attached_cluster" "primary" {
   name             = var.cluster_name_prefix
   project          = local.project_id
@@ -179,6 +184,6 @@ resource "google_container_attached_cluster" "primary" {
   }
 
   depends_on = [
-    module.attached_install_manifest,
+    time_sleep.wait_for_bootstrap,
   ]
 }

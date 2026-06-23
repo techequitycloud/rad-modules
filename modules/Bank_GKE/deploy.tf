@@ -91,6 +91,92 @@ resource "null_resource" "download_bank_of_anthos" {
 }
 
 # ============================================
+# WORKLOAD IDENTITY — LOCAL GSA FOR BANK OF ANTHOS
+# ============================================
+#
+# Bank of Anthos v0.6.7 manifests ship with:
+#   iam.gke.io/gcp-service-account: gke-workload-development@bank-of-anthos-ci.iam.gserviceaccount.com
+# That GSA belongs to Google's CI project and is inaccessible in any other project.
+# Without a valid Workload Identity binding the metadata server cannot return a project ID,
+# causing StackdriverTraceAutoConfiguration to crash with "projectId == null" on startup.
+# These resources create a project-local GSA and wire it up before the app is deployed.
+
+locals {
+  bank_of_anthos_gsa_email = "bank-of-anthos@${local.project.project_id}.iam.gserviceaccount.com"
+}
+
+# Create the GSA idempotently — handles both fresh projects and projects where
+# the GSA was created manually (e.g. during troubleshooting).
+resource "null_resource" "create_bank_of_anthos_gsa" {
+  count = var.deploy_application ? 1 : 0
+
+  triggers = {
+    project_id = local.project.project_id
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<-EOT
+      set -e
+      PROJECT_ID="${local.project.project_id}"
+      GSA="bank-of-anthos@$${PROJECT_ID}.iam.gserviceaccount.com"
+
+      if gcloud iam service-accounts describe "$GSA" --project="$PROJECT_ID" &>/dev/null; then
+        echo "✓ GSA $GSA already exists"
+      else
+        echo "Creating GSA $GSA..."
+        gcloud iam service-accounts create bank-of-anthos \
+          --display-name="Bank of Anthos workload identity GSA" \
+          --project="$PROJECT_ID"
+        echo "✓ GSA created"
+      fi
+    EOT
+  }
+}
+
+resource "google_project_iam_member" "bank_of_anthos_trace" {
+  count   = var.deploy_application ? 1 : 0
+  project = local.project.project_id
+  role    = "roles/cloudtrace.agent"
+  member  = "serviceAccount:${local.bank_of_anthos_gsa_email}"
+
+  depends_on = [null_resource.create_bank_of_anthos_gsa]
+}
+
+resource "google_project_iam_member" "bank_of_anthos_metrics" {
+  count   = var.deploy_application ? 1 : 0
+  project = local.project.project_id
+  role    = "roles/monitoring.metricWriter"
+  member  = "serviceAccount:${local.bank_of_anthos_gsa_email}"
+
+  depends_on = [null_resource.create_bank_of_anthos_gsa]
+}
+
+# The PROJECT.svc.id.goog Workload Identity pool only exists once the GKE
+# cluster has been created (Autopilot enables Workload Identity automatically;
+# Standard sets workload_identity_config explicitly in gke.tf). Wait for the
+# cluster, then give the pool a short grace period to propagate, before binding
+# to it — otherwise the bind fails with "Identity Pool does not exist" on a
+# single-pass apply, as the binding would otherwise race cluster creation.
+resource "time_sleep" "wait_for_wi_pool" {
+  count           = var.deploy_application ? 1 : 0
+  depends_on      = [google_container_cluster.gke_cluster]
+  create_duration = "30s"
+}
+
+resource "google_service_account_iam_member" "bank_of_anthos_workload_identity" {
+  count              = var.deploy_application ? 1 : 0
+  service_account_id = "projects/${local.project.project_id}/serviceAccounts/${local.bank_of_anthos_gsa_email}"
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${local.project.project_id}.svc.id.goog[bank-of-anthos/bank-of-anthos]"
+
+  depends_on = [
+    null_resource.create_bank_of_anthos_gsa,
+    time_sleep.wait_for_wi_pool,
+  ]
+}
+
+# ============================================
 # NAMESPACE
 # ============================================
 
@@ -138,6 +224,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
     manifests_path  = local.manifests_path
     jwt_secret_path = local.jwt_secret_path
     download_id     = null_resource.download_bank_of_anthos[0].id # ✅ FIXED: Added dependency
+    gsa_email       = local.bank_of_anthos_gsa_email
   }
 
   provisioner "local-exec" {
@@ -151,6 +238,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
       PROJECT_ID="${self.triggers.project_id}"
       JWT_SECRET_PATH="${self.triggers.jwt_secret_path}"
       MANIFESTS_PATH="${self.triggers.manifests_path}"
+      GSA_EMAIL="${self.triggers.gsa_email}"
       
       echo "=========================================="
       echo "Deploying Bank of Anthos Application"
@@ -190,31 +278,23 @@ resource "null_resource" "deploy_bank_of_anthos" {
       
       echo "Using context: $CONTEXT_NAME"
       
-      # ✅ FIXED: All kubectl commands use --context
+      # Ensure the namespace exists before applying manifests.
+      # It is normally created by kubernetes_namespace.bank_of_anthos, but this
+      # null_resource is replaced on every apply (see the download_id trigger,
+      # which changes because download_bank_of_anthos uses always_run). If the
+      # destroy-time provisioner of a prior generation ran, the namespace can be
+      # briefly absent — so recreate it idempotently here rather than only
+      # verifying it, which previously failed the deploy on re-applies. The
+      # istio.io/rev label keeps Cloud Service Mesh sidecar injection enabled.
       echo ""
-      echo "Verifying namespace '$NAMESPACE'..."
-      max_retries=5
-      retry_count=0
-      
-      while [ $retry_count -lt $max_retries ]; do
-        NAMESPACE_STATUS=$(kubectl get namespace "$NAMESPACE" \
-          --context="$CONTEXT_NAME" \
-          -o jsonpath='{.status.phase}' 2>/dev/null || echo "NOT_FOUND")
-        
-        if [ "$NAMESPACE_STATUS" = "Active" ]; then
-          echo "✓ Namespace '$NAMESPACE' is Active"
-          break
-        fi
-        
-        echo "⏳ Waiting for namespace... (Attempt $((retry_count + 1))/$max_retries)"
-        retry_count=$((retry_count + 1))
-        [ $retry_count -lt $max_retries ] && sleep 5
-      done
-      
-      if [ "$NAMESPACE_STATUS" != "Active" ]; then
-        echo "❌ Failed to verify namespace"
-        exit 1
-      fi
+      echo "Ensuring namespace '$NAMESPACE' exists..."
+      kubectl create namespace "$NAMESPACE" \
+        --context="$CONTEXT_NAME" \
+        --dry-run=client -o yaml | kubectl apply --context="$CONTEXT_NAME" -f -
+      kubectl label namespace "$NAMESPACE" \
+        --context="$CONTEXT_NAME" \
+        istio.io/rev=asm-managed --overwrite
+      echo "✓ Namespace '$NAMESPACE' is ready"
       
       # Check ASM injection
       echo ""
@@ -244,6 +324,18 @@ resource "null_resource" "deploy_bank_of_anthos" {
         -n "$NAMESPACE" \
         --context="$CONTEXT_NAME"
       echo "✓ Manifests applied"
+
+      # Patch the bank-of-anthos KSA to use the project-local GSA.
+      # The upstream manifests hardcode gke-workload-development@bank-of-anthos-ci.iam.gserviceaccount.com
+      # which is inaccessible outside Google's CI project, causing projectId == null at startup.
+      echo ""
+      echo "Patching bank-of-anthos KSA with local GSA for Workload Identity..."
+      kubectl annotate serviceaccount bank-of-anthos \
+        -n "$NAMESPACE" \
+        --context="$CONTEXT_NAME" \
+        iam.gke.io/gcp-service-account="$GSA_EMAIL" \
+        --overwrite
+      echo "✓ KSA annotated with: $GSA_EMAIL"
       
       # Wait for deployments
       echo ""
@@ -322,17 +414,13 @@ resource "null_resource" "deploy_bank_of_anthos" {
             --context="$CONTEXT_NAME" \
             --timeout=60s --ignore-not-found=true || true
           
-          echo "Deleting namespace..."
-          if kubectl delete namespace "$NAMESPACE" \
-            --context="$CONTEXT_NAME" \
-            --timeout=300s 2>/dev/null; then
-            echo "✓ Namespace deleted"
-          else
-            echo "⚠ Forcing namespace deletion..."
-            kubectl delete namespace "$NAMESPACE" \
-              --context="$CONTEXT_NAME" \
-              --grace-period=0 --force 2>/dev/null || true
-          fi
+          # Do NOT delete the namespace here. It is owned by the
+          # kubernetes_namespace.bank_of_anthos resource, which Terraform tears
+          # down on a real destroy AFTER this resource (see depends_on). This
+          # provisioner also runs on every replace of this null_resource, so
+          # deleting the namespace here would race against the create-time
+          # provisioner that re-applies the manifests into it.
+          echo "ℹ Leaving namespace '$NAMESPACE' to its owning Terraform resource"
         else
           echo "ℹ Namespace not found"
         fi
@@ -349,5 +437,9 @@ resource "null_resource" "deploy_bank_of_anthos" {
     null_resource.download_bank_of_anthos,
     kubernetes_namespace.bank_of_anthos,
     null_resource.wait_for_service_mesh,
+    null_resource.create_bank_of_anthos_gsa,
+    google_project_iam_member.bank_of_anthos_trace,
+    google_project_iam_member.bank_of_anthos_metrics,
+    google_service_account_iam_member.bank_of_anthos_workload_identity,
   ]
 }

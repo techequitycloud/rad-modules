@@ -37,7 +37,7 @@ data "google_compute_subnetwork" "existing_subnet" {
 
 locals {
   network = var.create_network ? google_compute_network.vpc[0] : data.google_compute_network.existing_vpc[0]
-  subnet  = var.create_network ? google_compute_subnetwork.subnetwork[0] : data.google_compute_subnetwork.existing_subnet[0]
+  subnet  = var.create_network ? try(google_compute_subnetwork.subnetwork[0], null) : data.google_compute_subnetwork.existing_subnet[0]
 }
 
 #########################################################################
@@ -74,6 +74,20 @@ resource "google_compute_network" "vpc" {
 
       if [ -n "$FIREWALLS" ]; then
         for FW in $FIREWALLS; do
+          gcloud compute firewall-rules delete $FW \
+            --project=$PROJECT_ID \
+            --quiet 2>/dev/null || true
+        done
+      fi
+
+      # Delete gke-csm-thc-* firewall rules created by Cloud Service Mesh health checks
+      CSM_FIREWALLS=$(gcloud compute firewall-rules list \
+        --project=$PROJECT_ID \
+        --filter="name~^gke-csm-thc-.*" \
+        --format="value(name)" 2>/dev/null || echo "")
+
+      if [ -n "$CSM_FIREWALLS" ]; then
+        for FW in $CSM_FIREWALLS; do
           gcloud compute firewall-rules delete $FW \
             --project=$PROJECT_ID \
             --quiet 2>/dev/null || true
