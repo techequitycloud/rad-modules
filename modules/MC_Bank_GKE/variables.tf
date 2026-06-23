@@ -69,7 +69,7 @@ variable "module_services" {
 variable "credit_cost" {
   description = "Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require_credit_purchases is true, users must have sufficient credit balance before deploying. Defaults to 200. {{UIMeta group=0 order=104 }}"
   type        = number
-  default     = 200
+  default     = 0
 }
 
 variable "require_credit_purchases" {
