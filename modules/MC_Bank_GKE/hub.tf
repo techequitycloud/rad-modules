@@ -217,7 +217,7 @@ resource "null_resource" "wait_for_fleet_registration" {
 }
 
 # ============================================
-# Enable Anthos Service Mesh
+# Enable Cloud Service Mesh
 # ============================================
 resource "null_resource" "enable_asm" {
   for_each = var.enable_cloud_service_mesh ? local.cluster_configs : {}
@@ -238,7 +238,7 @@ resource "null_resource" "enable_asm" {
       CLUSTER_NAME="${self.triggers.cluster_name}"
 
       echo "=========================================="
-      echo "Enabling Anthos Service Mesh for cluster: $CLUSTER_NAME"
+      echo "Enabling Cloud Service Mesh for cluster: $CLUSTER_NAME"
       echo "=========================================="
 
       # Enable ASM on the Fleet (idempotent)
