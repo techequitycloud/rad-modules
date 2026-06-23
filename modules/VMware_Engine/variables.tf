@@ -43,7 +43,7 @@ variable "module_services" {
 variable "credit_cost" {
   description = "Number of platform credits consumed when this module is deployed. {{UIMeta group=0 order=103 }}"
   type        = number
-  default     = 200
+  default     = 0
 }
 
 variable "require_credit_purchases" {
