@@ -164,8 +164,10 @@ resource "google_service_account" "gke_sa" {
 }
 
 locals {
+  # SECURITY: Narrowed from roles/storage.objectAdmin to objectViewer to follow least privilege
+  # since node pool service accounts only need read access to pull images.
   gke_sa_project_roles = [
-    "roles/storage.objectAdmin",
+    "roles/storage.objectViewer",
     "roles/artifactregistry.reader",
     "roles/monitoring.metricWriter",
     "roles/monitoring.viewer",

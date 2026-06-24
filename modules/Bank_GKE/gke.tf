@@ -162,8 +162,9 @@ resource "google_container_node_pool" "preemptible_nodes" {
 }
 
 locals {
+  # SECURITY: Removed roles/storage.objectAdmin to follow least privilege
+  # since node pool service accounts only need read access to pull images.
   gke_sa_project_roles = [
-    "roles/storage.objectAdmin",
     "roles/storage.objectViewer",
     "roles/artifactregistry.reader",
     "roles/monitoring.metricWriter",
