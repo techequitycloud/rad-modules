@@ -1,0 +1,4 @@
+## 2024-06-24 - Default GKE Node Service Account Privileges
+**Vulnerability:** GKE standard node service accounts across multiple modules (Bank_GKE, MC_Bank_GKE, Istio_GKE) are currently granted the highly privileged roles/storage.objectAdmin role.
+**Learning:** Default GKE node service accounts only require read-only access (roles/storage.objectViewer or roles/artifactregistry.reader) to pull container images from Google Container Registry (GCR) or Artifact Registry. Granting objectAdmin violates the principle of least privilege and allows any pod running on those nodes to modify or delete objects in any GCS bucket within the project, which is a significant security risk.
+**Prevention:** GKE node service accounts must strictly adhere to read-only roles for storage and artifact registries, unless specific node-level write access is explicitly justified and scoped to individual buckets.
