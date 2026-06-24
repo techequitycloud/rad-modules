@@ -1,0 +1,4 @@
+## 2024-05-03 - roles/storage.objectAdmin on GKE Nodes
+**Vulnerability:** GKE node service accounts (`local.gke_sa_project_roles`) in `Bank_GKE`, `MC_Bank_GKE`, and `Istio_GKE` were granted `roles/storage.objectAdmin`.
+**Learning:** Granting project-wide `roles/storage.objectAdmin` to a GKE node gives any pod running on that node the ability to delete or overwrite objects in ALL GCS buckets in the project, which is a massive blast radius.
+**Prevention:** GKE nodes typically only need `roles/storage.objectViewer` to pull container images from GCR/Artifact Registry if it's backed by GCS, or to read configuration data. Always use the least privilege viewer role unless the application explicitly requires write access, in which case a dedicated Workload Identity with bucket-level permissions should be used instead of modifying the node-level service account.
