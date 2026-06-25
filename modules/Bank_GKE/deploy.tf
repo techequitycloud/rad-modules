@@ -37,7 +37,8 @@ resource "null_resource" "download_bank_of_anthos" {
   triggers = {
     version       = local.bank_of_anthos_version
     download_path = local.download_path
-    always_run    = timestamp() # ✅ FIXED: Force fresh download
+    # PERFORMANCE: Removed always_run = timestamp() to prevent unnecessary replacements
+    # on every tofu apply, leveraging the 'version' trigger for idempotency.
   }
 
   provisioner "local-exec" {
@@ -280,9 +281,8 @@ resource "null_resource" "deploy_bank_of_anthos" {
       
       # Ensure the namespace exists before applying manifests.
       # It is normally created by kubernetes_namespace.bank_of_anthos, but this
-      # null_resource is replaced on every apply (see the download_id trigger,
-      # which changes because download_bank_of_anthos uses always_run). If the
-      # destroy-time provisioner of a prior generation ran, the namespace can be
+      # null_resource could be replaced (see the download_id trigger).
+      # If the destroy-time provisioner of a prior generation ran, the namespace can be
       # briefly absent — so recreate it idempotently here rather than only
       # verifying it, which previously failed the deploy on re-applies. The
       # istio.io/rev label keeps Cloud Service Mesh sidecar injection enabled.
