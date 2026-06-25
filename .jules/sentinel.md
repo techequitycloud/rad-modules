@@ -1,0 +1,4 @@
+## 2025-06-25 - Over-permissive Storage Role on GKE Node Service Accounts
+**Vulnerability:** GKE default Node Service Accounts in `Bank_GKE`, `MC_Bank_GKE`, and `Istio_GKE` were granted `roles/storage.objectAdmin` within the `gke_sa_project_roles` local block, allowing write/delete access to all buckets in the project, instead of just the read access needed to pull images.
+**Learning:** `Bank_GKE` and `MC_Bank_GKE` already had both `roles/storage.objectViewer` and `roles/storage.objectAdmin` declared, rendering the admin role both insecure and redundant. The pattern of defining `gke_sa_project_roles` as a local block often copies broad permissions without restricting them to least privilege.
+**Prevention:** GKE node service accounts should only be granted `roles/storage.objectViewer` or `roles/artifactregistry.reader`. Audit modules with `gke_sa_project_roles` (or equivalent IAM local lists) for excessive permissions like `roles/storage.objectAdmin` before merging.
