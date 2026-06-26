@@ -1,0 +1,4 @@
+## 2024-05-30 - [Over-permissioned GKE Node Service Account]
+**Vulnerability:** The default GKE service accounts in `modules/Istio_GKE/gke.tf`, `modules/Bank_GKE/gke.tf`, and `modules/MC_Bank_GKE/gke.tf` are granted `roles/storage.objectAdmin`.
+**Learning:** This is a clear violation of the principle of least privilege, as GKE nodes typically only need `roles/storage.objectViewer` to pull images from GCR/Artifact Registry. Granting `objectAdmin` allows pods to modify or delete objects in any bucket in the project. The code even contains both `roles/storage.objectAdmin` and `roles/storage.objectViewer` in some lists, highlighting the redundancy and over-permissioning.
+**Prevention:** Always verify that standard service accounts are only given read permissions (`roles/storage.objectViewer` or `roles/artifactregistry.reader`) unless explicitly required to write to specific buckets (in which case, narrow scope to a specific bucket IAM binding rather than project-wide).
