@@ -165,7 +165,7 @@ resource "google_service_account" "gke_sa" {
 
 locals {
   gke_sa_project_roles = [
-    "roles/storage.objectAdmin",
+    "roles/storage.objectViewer",
     "roles/artifactregistry.reader",
     "roles/monitoring.metricWriter",
     "roles/monitoring.viewer",
