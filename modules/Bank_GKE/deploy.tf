@@ -37,7 +37,6 @@ resource "null_resource" "download_bank_of_anthos" {
   triggers = {
     version       = local.bank_of_anthos_version
     download_path = local.download_path
-    always_run    = timestamp() # ✅ FIXED: Force fresh download
   }
 
   provisioner "local-exec" {

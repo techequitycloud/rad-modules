@@ -18,7 +18,6 @@ resource "null_resource" "install_sidecar_mesh" {
   count = var.install_ambient_mesh ? 0 : 1
 
   triggers = {
-    # always_run                = timestamp()
     istio_path                = "$HOME/istio-${var.istio_version}"
     cluster_name              = var.gke_cluster
     region                    = var.region
