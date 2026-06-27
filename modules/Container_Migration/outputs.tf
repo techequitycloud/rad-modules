@@ -42,6 +42,7 @@ output "postgres_vm_name" {
 output "postgres_vm_internal_ip" {
   description = "Internal IP address of the PostgreSQL source VM"
   value       = google_compute_instance.petclinic_postgres.network_interface[0].network_ip
+  sensitive   = true
 }
 
 output "tomcat_vm_name" {
