@@ -42,6 +42,7 @@ output "linux_vm_names" {
 output "linux_vm_internal_ips" {
   description = "Internal IP addresses of the Linux target VMs. Use the first three octets to define the MCDCv6 IP scan range (e.g. if IPs are 10.128.0.2–10.128.0.4, scan 10.128.0.1 to 10.128.0.8)."
   value       = [for vm in google_compute_instance.linux_vm : vm.network_interface[0].network_ip]
+  sensitive   = true
 }
 
 output "ssh_key_bucket_name" {
