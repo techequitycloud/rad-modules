@@ -25,3 +25,13 @@ output "project_id" {
   description = "Project ID"             # Description of what the project ID represents
   value       = local.project.project_id # The value of the project ID from local variables
 }
+
+output "external_ip" {
+  description = "External IP"
+  value       = google_compute_global_address.glb.address
+}
+
+output "cluster_credentials_cmd" {
+  description = "Kubernetes credentials"
+  value       = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.region} --project ${local.project.project_id}"
+}
