@@ -60,7 +60,7 @@ On apply the module calls the Migration Center API to initialise the service for
 
 ### B. The MCDCv6 host (Windows VM)
 
-The Windows Server 2022 VM (`migcenter-<id>-winvm01`) is the interactive workstation. A PowerShell startup script runs once on first boot and: creates the local `migrationcenter` user (RDP password `m1grat10nc#nt#r`), enables RDP, installs Google Chrome (needed for the MCDCv6 OAuth flow), silently installs MCDCv6, and pre-stages a sample AWS CSV import zip in the `migrationcenter` user's Downloads folder.
+The Windows Server 2022 VM (`migcenter-<id>-winvm01`) is the interactive workstation. A PowerShell startup script runs once on first boot and: creates the local `migrationcenter` user (RDP password is randomly generated and exposed via the `windows_vm_password` output), enables RDP, installs Google Chrome (needed for the MCDCv6 OAuth flow), silently installs MCDCv6, and pre-stages a sample AWS CSV import zip in the `migrationcenter` user's Downloads folder.
 
 - **Console:** Compute Engine → VM instances → select the Windows VM. Use the external IP (output `windows_vm_external_ip`) with an RDP client.
 - **CLI:**
@@ -72,7 +72,7 @@ The Windows Server 2022 VM (`migcenter-<id>-winvm01`) is the interactive worksta
     --zone "$ZONE" --project "$PROJECT" | grep -Ei "mcdc|chrome|lab setup"
   ```
 
-RDP credentials are **Username: `migrationcenter`  Password: `m1grat10nc#nt#r`** (hardcoded for lab simplicity; also shown in the `windows_vm_external_ip` output description).
+RDP credentials are **Username: `migrationcenter`  Password: is provided by the `windows_vm_password` output** (also referenced in the `windows_vm_external_ip` output description).
 
 ### C. The discovery scan targets (Linux VMs)
 
@@ -207,7 +207,8 @@ Variables are grouped exactly as they appear on the deployment platform.
 | `deployment_id` | The deployment suffix embedded in all resource names. |
 | `project_id` | Target Google Cloud project. |
 | `windows_vm_name` | Name of the Windows MCDCv6 host (null when not created). |
-| `windows_vm_external_ip` | External IP for RDP. Username `migrationcenter`, password `m1grat10nc#nt#r`. |
+| `windows_vm_external_ip` | External IP for RDP. Username `migrationcenter`, password is provided by the `windows_vm_password` output. |
+| `windows_vm_password` | The generated password for the Migration Center Windows VM. (sensitive) |
 | `linux_vm_names` | Names of the Debian Linux scan targets. |
 | `linux_vm_internal_ips` | Internal IPs of the Linux targets — use these to set the MCDCv6 IP scan range. |
 | `ssh_key_bucket_name` | Cloud Storage bucket holding `lab-ssh-key.pem` (null when not created). |
