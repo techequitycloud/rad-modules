@@ -1,0 +1,3 @@
+## 2024-05-24 - Avoid always_run = timestamp() in null_resource triggers
+**Learning:** Using `always_run = timestamp()` inside the `triggers` block of a `null_resource` (e.g., for downloading manifests) forces the resource to be replaced on every single `tofu apply`. This breaks idempotency, significantly slows down terraform execution by triggering downstream dependent null_resources and provisioners, and goes against the goal of fast provisioning.
+**Action:** Rely on explicit change indicators like explicit `version` tags or `filemd5()` rather than time-based triggers. Remove `always_run = timestamp()` and let the resource run only when true triggers change.
