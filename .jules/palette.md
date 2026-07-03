@@ -1,0 +1,3 @@
+## 2024-07-03 - [Fixing UIMeta annotations for internal IP/CIDR variables]
+**Learning:** Found a UIMeta pattern that consistently confuses deployers. In `Istio_GKE`, variables like `pod_ip_range`, `service_ip_range`, and `deploy_application` are incorrectly mapped to `group=0` (Provider/Metadata), making them appear alongside generic platform metadata instead of the cluster or application configuration sections they belong to.
+**Action:** When finding internal or advanced settings that override default infrastructure, they should be grouped correctly with the rest of their domain section (e.g., in `group=3` for Istio_GKE cluster configs, or `group=6` for application features) rather than dumped into `group=0`.
