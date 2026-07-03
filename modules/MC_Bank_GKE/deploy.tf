@@ -38,8 +38,6 @@ resource "null_resource" "download_bank_of_anthos" {
   triggers = {
     version       = local.bank_of_anthos_version
     download_path = local.download_path
-    # Force re-download on every apply to ensure files are always present
-    always_run = timestamp()
   }
 
   provisioner "local-exec" {
@@ -239,9 +237,9 @@ resource "null_resource" "deploy_bank_of_anthos" {
       # kubernetes_namespace resources are declared statically for cluster1 and
       # cluster2 only (the kubernetes provider aliases cannot be generated with
       # for_each), so for cluster_size > 2 no managed resource creates it on the
-      # additional clusters. This null_resource is also replaced on every apply
-      # (its download_id trigger changes because download_bank_of_anthos uses
-      # always_run = timestamp()). Recreate the namespace idempotently here
+      # additional clusters. This null_resource is replaced on version updates
+      # (its download_id trigger changes when the bank_of_anthos_version updates).
+      # Recreate the namespace idempotently here
       # rather than only verifying it — which previously failed with "Failed to
       # verify namespace". The istio.io/rev=asm-managed label keeps Cloud
       # Service Mesh sidecar injection enabled.
