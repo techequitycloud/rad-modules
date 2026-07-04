@@ -1,0 +1,3 @@
+## 2023-10-27 - Remove always_run from null_resource
+**Learning:** Using `always_run = timestamp()` inside the `triggers` block of a `null_resource` (e.g., for downloading manifests) defeats caching and forces re-execution on every `tofu apply`. This slows down deployment significantly as it forces recreation of dependent resources on every apply even when the configuration has not changed.
+**Action:** Remove `always_run = timestamp()` from `null_resource` triggers when downloading manifests or other files, and instead rely on explicit change indicators like `version` or `filemd5()` to optimize deployment speed.
