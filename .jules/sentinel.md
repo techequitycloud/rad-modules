@@ -1,0 +1,4 @@
+## 2023-10-27 - Restrict GKE Node Service Account Storage Permissions
+**Vulnerability:** GKE node service accounts were granted the overly permissive `roles/storage.objectAdmin` role at the project level across multiple modules (`Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE`).
+**Learning:** Default GKE node service accounts only require read-only access (like `roles/storage.objectViewer` or `roles/artifactregistry.reader`) to pull container images. Granting them `objectAdmin` exposes all GCS buckets in the project to modification or deletion if a pod compromises the node's identity.
+**Prevention:** Ensure GKE node service accounts are only granted `roles/storage.objectViewer` and `roles/artifactregistry.reader`. Application pods requiring write access to specific buckets should use Workload Identity with narrowly scoped service accounts.
