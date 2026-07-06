@@ -1,0 +1,4 @@
+## 2025-02-28 - GKE Node Service Account Over-permissioning
+**Vulnerability:** GKE node service accounts in `Bank_GKE`, `MC_Bank_GKE`, and `Istio_GKE` were over-permissioned with `roles/storage.objectAdmin`.
+**Learning:** Foundational architecture modules must adhere strictly to least-privilege for IAM bindings. The GKE node service accounts only require read-only access to storage and artifact registries (`roles/storage.objectViewer`, `roles/artifactregistry.reader`) to pull container images, and should not possess cluster-wide write privileges to Cloud Storage. This prevents workloads from escalating privileges via compromised GKE nodes.
+**Prevention:** Avoid `admin` roles in GKE node SA definitions unless explicitly required by a specific component, and use precise read-only roles instead.
