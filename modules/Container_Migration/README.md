@@ -28,7 +28,7 @@ Last tested on Mon May 26, 2026
 
 ## Deployment Options
 
-This module can be deployed using the **RAD Modules web UI** or the **RAD Modules Launcher (CLI)**.
+Deploy this module from the **[RAD Modules platform UI](https://radmodules.dev)** — the recommended path, with **no command line or local toolchain required**. Advanced/automation users can alternatively use the Launcher CLI or call the Terraform module directly (see **Advanced** below).
 
 | | [RAD Modules UI](https://radmodules.dev) | RAD Modules Launcher (CLI) |
 |---|---|---|
@@ -41,11 +41,13 @@ This module can be deployed using the **RAD Modules web UI** or the **RAD Module
 
 Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in with your Google account, and select this module from the catalog.
 
-### Option 2: RAD Modules Launcher (CLI)
+### Advanced — RAD Modules Launcher (CLI, for automation/maintainers)
 
 Use the [RAD Modules Launcher](../../rad-launcher/README.md) to deploy from your workstation or Google Cloud Shell.
 
-## Usage
+## Advanced — Terraform module (maintainers)
+
+> **Platform users don't need this** — deploy from the [RAD Modules UI](https://radmodules.dev) above. The Terraform module call below is for maintainers/automation integrating the module directly.
 
 ```hcl
 module "container_migration" {

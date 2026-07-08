@@ -37,7 +37,7 @@ asset data.
 Select **Migration Center** from the module catalog and click **Deploy**.
 All defaults are production-ready for the lab.
 
-### Launcher CLI
+### Advanced — Launcher CLI (automation/maintainers)
 
 ```bash
 cd modules/Migration_Center
@@ -49,7 +49,9 @@ EOF
 tofu init && tofu apply
 ```
 
-## Usage (as a Terraform module)
+## Advanced — Terraform module (maintainers)
+
+> **Platform users don't need this** — deploy from the [RAD Modules UI](https://radmodules.dev) above. The Terraform module call below is for maintainers/automation integrating the module directly.
 
 ```hcl
 module "migration_center" {
