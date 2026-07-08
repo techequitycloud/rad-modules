@@ -17,7 +17,7 @@ For a detailed technical walkthrough of the full implementation, see [MC\_Bank\_
 
 ## Deployment Options
 
-This module can be deployed using the **RAD Modules web UI** or the **RAD Modules Launcher (CLI)**. Choose the option that best fits your workflow.
+Deploy this module from the **[RAD Modules platform UI](https://radmodules.dev)** — the recommended path, with **no command line or local toolchain required**. Advanced/automation users can alternatively use the Launcher CLI or call the Terraform module directly (see **Advanced** below).
 
 | | [RAD Modules UI](https://radmodules.dev) | RAD Modules Launcher (CLI) |
 |---|---|---|
@@ -32,13 +32,15 @@ Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in with your Go
 
 Choose this option if you want a fast, no-setup path to explore this module or run a guided demo.
 
-### Option 2: RAD Modules Launcher (CLI)
+### Advanced — RAD Modules Launcher (CLI, for automation/maintainers)
 
 Use the [RAD Modules Launcher](../../rad-launcher/README.md) to deploy from your workstation or Google Cloud Shell. This option gives you full control over all module variables, supports non-interactive scripted deployments, and lets you manage Terraform state in a GCS bucket you own.
 
 Choose this option if you need custom variable overrides, automated pipelines, or deeper integration with your own GCP environment.
 
-## Usage
+## Advanced — Terraform module (maintainers)
+
+> **Platform users don't need this** — deploy from the [RAD Modules UI](https://radmodules.dev) above. The Terraform module call below is for maintainers/automation integrating the module directly.
 
 ```hcl
 module "mc_bank_gke" {
