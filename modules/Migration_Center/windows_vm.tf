@@ -21,6 +21,15 @@
 #   3. Silently downloads and installs MCDCv6
 #   4. Pre-downloads the AWS sample import zip to the Downloads folder
 #   5. Installs Google Chrome (required by MCDCv6 OAuth browser flow)
+
+# SECURITY: Dynamically generate the lab RDP password to prevent hardcoded secrets in source control and state.
+resource "random_password" "windows_password" {
+  count            = var.create_windows_vm ? 1 : 0
+  length           = 16
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
 resource "google_compute_instance" "windows_vm" {
   count        = var.create_windows_vm ? 1 : 0
   project      = local.project.project_id
@@ -47,7 +56,7 @@ resource "google_compute_instance" "windows_vm" {
     windows-startup-script-ps1 = <<-PS1
       # ── 1. Create lab user ──────────────────────────────────────────────────
       $labUser     = "migrationcenter"
-      $labPassword = "m1grat10nc#nt#r"
+      $labPassword = '${random_password.windows_password[0].result}'
       $securePass  = ConvertTo-SecureString $labPassword -AsPlainText -Force
 
       if (-not (Get-LocalUser -Name $labUser -ErrorAction SilentlyContinue)) {

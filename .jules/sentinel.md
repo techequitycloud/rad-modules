@@ -1,0 +1,4 @@
+## 2024-05-27 - Hardcoded password in Windows VM startup script
+**Vulnerability:** A hardcoded password (`m1grat10nc#nt#r`) was used for the local Windows administrator account (`migrationcenter`) in `modules/Migration_Center/windows_vm.tf` via a sysprep startup script. The password was also exposed in the Terraform outputs, module documentation, and lab instructions.
+**Learning:** Even in lab environments, hardcoded credentials in Terraform configurations and documentation pose a severe risk, as they are committed to source control and are often reused. The `random_password` provider should always be used to generate secure, dynamic credentials.
+**Prevention:** Use `random_password` with `override_special = "!#$%&*()-_=+[]{}<>:?"` for Windows passwords to avoid script injection/syntax issues, and store the result in a `sensitive = true` output. Never hardcode passwords in `.tf` or `.md` files.
