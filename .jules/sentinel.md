@@ -1,0 +1,5 @@
+## 2024-07-09 - Hardcoded RDP password in Windows VM Startup Script
+
+**Vulnerability:** A hardcoded password (`m1grat10nc#nt#r`) is defined in `modules/Migration_Center/windows_vm.tf` inside the `windows-startup-script-ps1` metadata block, and is also hardcoded in the `windows_vm_external_ip` output in `modules/Migration_Center/outputs.tf` and the README.
+**Learning:** This is a clear violation of security standards, but more importantly, hardcoding passwords directly in string interpolations for PowerShell execution poses an increased risk since it exposes the static credential in plain text within the GCP Console (in the instance metadata view) as well as within Terraform state.
+**Prevention:** Use a `random_password` resource with `override_special` (to omit single quotes and prevent PowerShell script injection), inject it using `${random_password.windows_password.result}` within single quotes in the PS1 script, and surface it as a new `sensitive = true` output instead of appending it to the `windows_vm_external_ip` description/value. Update documentation to reflect the dynamic password.
