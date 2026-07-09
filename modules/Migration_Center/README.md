@@ -71,7 +71,8 @@ module "migration_center" {
 
 | Output | Description |
 |---|---|
-| `windows_vm_external_ip` | RDP target IP — Username: `migrationcenter` / Password: `m1grat10nc#nt#r` |
+| `windows_vm_external_ip` | RDP target IP — Username: `migrationcenter` |
+| `windows_vm_password` | Generated RDP password for the Windows VM |
 | `linux_vm_internal_ips` | Internal IPs for configuring the MCDCv6 IP scan range |
 | `ssh_key_bucket_name` | GCS bucket holding `lab-ssh-key.pem` for MCDCv6 SSH credential |
 | `ssh_key_user` | SSH username (`migrationcenter`) for the Lab-key credential |
@@ -177,6 +178,7 @@ The only manual steps are:
 | aws_iam_user_arn | ARN of the scoped EC2-read-only IAM user created for discovery. Null when AWS integration is disabled. |
 | vpc_name | Name of the lab VPC network |
 | windows_vm_external_ip | Windows VM external IP for RDP access |
+| windows_vm_password | Generated RDP password for the Windows VM |
 | windows_vm_name | Windows VM instance name |
 <!-- END_TF_DOCS -->
 
