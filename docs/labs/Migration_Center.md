@@ -105,7 +105,7 @@ export ZONE="us-central1-a"
 
    ```
    Username: migrationcenter
-   Password: m1grat10nc#nt#r
+   Password: <see windows_vm_password output>
    ```
 
    Inside the VM, confirm **MCDCv6** and **Google Chrome** are installed and that
