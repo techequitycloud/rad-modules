@@ -1,0 +1,4 @@
+## 2024-07-11 - Hardcoded Windows VM password in Migration Center module
+**Vulnerability:** A hardcoded password (`m1grat10nc#nt#r`) is used for the `migrationcenter` local user in the Windows VM startup script (`modules/Migration_Center/windows_vm.tf`) and exposed in `outputs.tf` and Markdown documentation.
+**Learning:** When generating passwords for injection into PowerShell scripts using `random_password`, `override_special` must explicitly omit single quotes (`'`) to prevent PowerShell from interpreting them as script injection or syntax errors, and the interpolation must be wrapped in single quotes (e.g., `$labPassword = '${random_password.windows_password[0].result}'`).
+**Prevention:** Use `random_password` as an ephemeral resource and inject it via Terraform interpolation, avoiding hardcoding passwords in `.tf` files or documentation.

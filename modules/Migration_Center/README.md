@@ -71,7 +71,7 @@ module "migration_center" {
 
 | Output | Description |
 |---|---|
-| `windows_vm_external_ip` | RDP target IP — Username: `migrationcenter` / Password: `m1grat10nc#nt#r` |
+| `windows_vm_external_ip` | RDP target IP — Username: `migrationcenter` / Password: (see Terraform output `windows_vm_password`) |
 | `linux_vm_internal_ips` | Internal IPs for configuring the MCDCv6 IP scan range |
 | `ssh_key_bucket_name` | GCS bucket holding `lab-ssh-key.pem` for MCDCv6 SSH credential |
 | `ssh_key_user` | SSH username (`migrationcenter`) for the Lab-key credential |
