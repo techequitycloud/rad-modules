@@ -1,0 +1,3 @@
+## 2024-07-12 - Missing Standard Outputs in Bank_GKE
+**Learning:** Some GKE-based modules (like `Bank_GKE`) are missing the standard `cluster_credentials_cmd` and `external_ip` outputs that are expected for all GKE modules according to the `SKILLS.md` standard. The `Istio_GKE` module contains the proper examples. Missing these outputs degrades the Operator Experience because they lack the ready-to-paste `gcloud` command for accessing their clusters, forcing them to manually reconstruct it or check GCP console.
+**Action:** Add `cluster_credentials_cmd` and `external_ip` outputs to the `outputs.tf` file of the `Bank_GKE` module to standardize the operator experience.
