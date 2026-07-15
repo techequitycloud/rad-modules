@@ -78,12 +78,12 @@ pressing `0`** to choose an execution mode and confirm the GCP project.
 | `n` | **Create** | Authenticates and executes each step, pausing for manual console work. |
 | `d` | **Delete** | Best-effort teardown of what each step created. |
 
-In Create / Delete mode the script runs `gcloud auth login`, asks for the
-project ID, creates a service account `<project>@<project>.iam.gserviceaccount.com`
-with `roles/owner`, drops the key at
-`./gcp-gemini-cymbalpools/.<project>.json`, and creates a `gs://<project>`
-bucket for backing up `.env`. Delete the cached key file to switch projects
-later.
+In Create / Delete mode the script always runs `gcloud auth login`, asks for
+the project ID, and unconditionally recreates the service account
+`<project>@<project>.iam.gserviceaccount.com` with `roles/owner`, its key at
+`./gcp-gemini-cymbalpools/.<project>.json`, and a `gs://<project>` bucket for
+backing up `.env` — there is no cached-key shortcut, so re-entering option
+`0` always re-authenticates fresh rather than silently reusing a prior key.
 
 ## Configuration (`.env`)
 
