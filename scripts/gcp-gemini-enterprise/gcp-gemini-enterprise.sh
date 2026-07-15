@@ -364,41 +364,46 @@ read -n 1 -s -r -p "$ "
 "3")
 start=`date +%s`
 source $PROJDIR/.env
+export GE_HOST=discoveryengine.googleapis.com
+if [[ "$GE_LOCATION" != "global" ]]; then
+    export GE_HOST=${GE_LOCATION}-discoveryengine.googleapis.com
+fi
 if [ $MODE -eq 1 ]; then
     export STEP="${STEP},3i"
     echo
-    echo "$ curl -X POST -H \"Authorization: Bearer \$(gcloud auth print-access-token)\" \"https://discoveryengine.googleapis.com/v1/projects/\$GCP_PROJECT/locations/global/collections/default_collection/engines?engineId=\$APP_ID\" -d '{\"displayName\":\"'\$APP_NAME'\",\"dataStoreIds\":[],\"solutionType\":\"SOLUTION_TYPE_SEARCH\",\"industryVertical\":\"GENERIC\",\"appType\":\"APP_TYPE_INTRANET\",\"commonConfig\":{\"companyName\":\"'\$COMPANY_NAME'\"}}' # to create the Gemini Enterprise app" | pv -qL 100
+    echo "$ curl -X POST -H \"Authorization: Bearer \$(gcloud auth print-access-token)\" \"https://\$GE_HOST/v1/projects/\$GCP_PROJECT/locations/\$GE_LOCATION/collections/default_collection/engines?engineId=\$APP_ID\" -d '{\"displayName\":\"'\$APP_NAME'\",\"dataStoreIds\":[],\"solutionType\":\"SOLUTION_TYPE_SEARCH\",\"industryVertical\":\"GENERIC\",\"appType\":\"APP_TYPE_INTRANET\",\"commonConfig\":{\"companyName\":\"'\$COMPANY_NAME'\"}}' # to create the Gemini Enterprise app" | pv -qL 100
     echo
     echo "*** Identity provider confirmation has no API yet -- complete it in the console for the '\$GE_LOCATION' location specifically ***" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},3"
     gcloud config set project $GCP_PROJECT > /dev/null 2>&1
     echo
-    echo "$ curl -X POST -H \"Authorization: Bearer \$(gcloud auth print-access-token)\" \"https://discoveryengine.googleapis.com/v1/projects/$GCP_PROJECT/locations/global/collections/default_collection/engines?engineId=$APP_ID\" -d '{\"displayName\":\"$APP_NAME\",\"dataStoreIds\":[],\"solutionType\":\"SOLUTION_TYPE_SEARCH\",\"industryVertical\":\"GENERIC\",\"appType\":\"APP_TYPE_INTRANET\",\"commonConfig\":{\"companyName\":\"$COMPANY_NAME\"}}' # to create the Gemini Enterprise app" | pv -qL 100
+    echo "$ curl -X POST -H \"Authorization: Bearer \$(gcloud auth print-access-token)\" \"https://$GE_HOST/v1/projects/$GCP_PROJECT/locations/$GE_LOCATION/collections/default_collection/engines?engineId=$APP_ID\" -d '{\"displayName\":\"$APP_NAME\",\"dataStoreIds\":[],\"solutionType\":\"SOLUTION_TYPE_SEARCH\",\"industryVertical\":\"GENERIC\",\"appType\":\"APP_TYPE_INTRANET\",\"commonConfig\":{\"companyName\":\"$COMPANY_NAME\"}}' # to create the Gemini Enterprise app" | pv -qL 100
     echo "*** engines.create is a v1 API that is still evolving -- verify field names in the console if this call fails ***" | pv -qL 100
+    echo "*** Confirmed by testing: the 'global' location's custom-agent-creation quota is 0 on some sandbox" | pv -qL 100
+    echo "*** projects, so this creates the app at '\$GE_LOCATION' (default 'us') instead of 'global' ***" | pv -qL 100
     curl -s -X POST \
       -H "Authorization: Bearer $(gcloud auth print-access-token)" \
       -H "Content-Type: application/json" \
       -H "X-Goog-User-Project: $GCP_PROJECT" \
-      "https://discoveryengine.googleapis.com/v1/projects/$GCP_PROJECT/locations/global/collections/default_collection/engines?engineId=$APP_ID" \
+      "https://$GE_HOST/v1/projects/$GCP_PROJECT/locations/$GE_LOCATION/collections/default_collection/engines?engineId=$APP_ID" \
       -d "{\"displayName\":\"$APP_NAME\",\"dataStoreIds\":[],\"solutionType\":\"SOLUTION_TYPE_SEARCH\",\"industryVertical\":\"GENERIC\",\"appType\":\"APP_TYPE_INTRANET\",\"commonConfig\":{\"companyName\":\"$COMPANY_NAME\"}}" | tee $PROJDIR/engine_create.json
     echo
     echo "1. In the Gemini Enterprise / AI Applications console, go to Settings > Authentication" | pv -qL 100
-    echo "2. The Identity provider list is per-location. Confirm Google Identity for the 'global' row --" | pv -qL 100
-    echo "   step 5's data stores default to the 'global' multi-region regardless of the app's '$GE_LOCATION'" | pv -qL 100
-    echo "   setting, and ACLed connectors (Drive/Calendar) check the IdP for whichever location they land in" | pv -qL 100
-    echo "3. Only configure the '$GE_LOCATION'/'eu' rows too if you deliberately create data stores at those" | pv -qL 100
-    echo "   locations instead of the 'global' default" | pv -qL 100
-    read -n 1 -s -r -p $'*** Press the Enter key once Google Identity is confirmed for the global location ***'
+    echo "2. The Identity provider list is per-location. Confirm Google Identity for the '$GE_LOCATION' row --" | pv -qL 100
+    echo "   this app and step 5's data stores must be created at '$GE_LOCATION' (not the console wizard's" | pv -qL 100
+    echo "   'global' default) to avoid the agent-creation quota gap, and ACLed connectors (Drive/Calendar)" | pv -qL 100
+    echo "   check the IdP for whichever location they land in" | pv -qL 100
+    read -n 1 -s -r -p $'*** Press the Enter key once Google Identity is confirmed for the '"$GE_LOCATION"' location ***'
     echo
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},3x"
     echo
-    echo "$ curl -X DELETE -H \"Authorization: Bearer \$(gcloud auth print-access-token)\" \"https://discoveryengine.googleapis.com/v1/projects/$GCP_PROJECT/locations/global/collections/default_collection/engines/$APP_ID\" # to delete the app" | pv -qL 100
+    echo "$ curl -X DELETE -H \"Authorization: Bearer \$(gcloud auth print-access-token)\" \"https://$GE_HOST/v1/projects/$GCP_PROJECT/locations/$GE_LOCATION/collections/default_collection/engines/$APP_ID\" # to delete the app" | pv -qL 100
     curl -s -X DELETE \
       -H "Authorization: Bearer $(gcloud auth print-access-token)" \
       -H "X-Goog-User-Project: $GCP_PROJECT" \
-      "https://discoveryengine.googleapis.com/v1/projects/$GCP_PROJECT/locations/global/collections/default_collection/engines/$APP_ID" > /dev/null 2>&1 || echo "Warning: could not delete app $APP_ID automatically -- remove it from the Gemini Enterprise console"
+      "https://$GE_HOST/v1/projects/$GCP_PROJECT/locations/$GE_LOCATION/collections/default_collection/engines/$APP_ID" > /dev/null 2>&1 || echo "Warning: could not delete app $APP_ID automatically -- remove it from the Gemini Enterprise console"
 else
     export STEP="${STEP},3i"
     echo
@@ -480,13 +485,15 @@ elif [ $MODE -eq 2 ]; then
     echo "4. Data > Advanced options: for Drive, optionally check 'Supports All Drives' to sync all shared drives" | pv -qL 100
     echo "   (unchecked = My Drive only); optionally scope with Shared Drive IDs / Folder IDs, then Continue" | pv -qL 100
     echo "5. Actions: leave 'Select all actions' checked, then Continue" | pv -qL 100
-    echo "6. Configuration: leave Location as the default 'global (Global)' multi-region -- this is independent of" | pv -qL 100
-    echo "   the app's own '$GE_LOCATION' location from step 3 and does not need to match it" | pv -qL 100
+    echo "6. Configuration: Location should show '$GE_LOCATION' since this data store is Connected to that app; if" | pv -qL 100
+    echo "   the field is editable, select '$GE_LOCATION' explicitly rather than leaving the wizard's 'global'" | pv -qL 100
+    echo "   default -- confirmed by testing: 'global' can hit a zero custom-agent-creation quota later in step 7" | pv -qL 100
     echo "   Data connector name: google-drive (or google-calendar), then Create" | pv -qL 100
     echo
     echo "For Announcements:" | pv -qL 100
     echo "7. Connected data stores > + New data store > search 'Announcements' > Add data source" | pv -qL 100
-    echo "8. Configuration: Data store name: Announcements, then Create" | pv -qL 100
+    echo "8. Configuration: Location should show '$GE_LOCATION'; select it explicitly if editable. Data store name:" | pv -qL 100
+    echo "   Announcements, then Create" | pv -qL 100
     echo "9. Open the Announcements data store, click +New, and fill in:" | pv -qL 100
     echo "   Title: Annual pool party, RSVP today!" | pv -qL 100
     echo "   Description: Join us for a splash!" | pv -qL 100
@@ -594,6 +601,10 @@ read -n 1 -s -r -p "$ "
 start=`date +%s`
 source $PROJDIR/.env
 export PROJECT_NUMBER=$(gcloud projects describe $GCP_PROJECT --format='value(projectNumber)' 2>/dev/null)
+export GE_HOST=discoveryengine.googleapis.com
+if [[ "$GE_LOCATION" != "global" ]]; then
+    export GE_HOST=${GE_LOCATION}-discoveryengine.googleapis.com
+fi
 if [ $MODE -eq 1 ]; then
     export STEP="${STEP},7i"
     echo
@@ -601,9 +612,9 @@ if [ $MODE -eq 1 ]; then
     echo
     echo "$ python3 \$PROJDIR/\$AGENT_DIR/construct_auth_uri.py # to build the Authorization URI" | pv -qL 100
     echo
-    echo "$ curl -X POST \"https://discoveryengine.googleapis.com/v1alpha/projects/\$PROJECT_NUMBER/locations/global/authorizations?authorizationId=\$AUTH_ID\" -d '{\"serverSideOauth2\":{\"clientId\":...,\"clientSecret\":...,\"authorizationUri\":...,\"tokenUri\":...}}' # to register the OAuth client with Gemini Enterprise" | pv -qL 100
+    echo "$ curl -X POST \"https://\$GE_HOST/v1alpha/projects/\$PROJECT_NUMBER/locations/\$GE_LOCATION/authorizations?authorizationId=\$AUTH_ID\" -d '{\"serverSideOauth2\":{\"clientId\":...,\"clientSecret\":...,\"authorizationUri\":...,\"tokenUri\":...}}' # to register the OAuth client with Gemini Enterprise" | pv -qL 100
     echo
-    echo "$ curl -X POST \"https://discoveryengine.googleapis.com/v1alpha/projects/\$GCP_PROJECT/locations/global/collections/default_collection/engines/\$APP_ID/assistants/default_assistant/agents\" -d '{\"displayName\":\"BigQuery Agent\",...,\"adkAgentDefinition\":{\"provisionedReasoningEngine\":{\"reasoningEngine\":\"\$REASONING_ENGINE\"}},\"authorizationConfig\":{\"toolAuthorizations\":[...]}}' # to register the agent" | pv -qL 100
+    echo "$ curl -X POST \"https://\$GE_HOST/v1alpha/projects/\$GCP_PROJECT/locations/\$GE_LOCATION/collections/default_collection/engines/\$APP_ID/assistants/default_assistant/agents\" -d '{\"displayName\":\"BigQuery Agent\",...,\"adkAgentDefinition\":{\"provisionedReasoningEngine\":{\"reasoningEngine\":\"\$REASONING_ENGINE\"}},\"authorizationConfig\":{\"toolAuthorizations\":[...]}}' # to register the agent" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},7"
     if [[ ! -f "$PROJDIR/$AGENT_DIR/construct_auth_uri.py" ]]; then
@@ -626,16 +637,17 @@ elif [ $MODE -eq 2 ]; then
     echo
     echo "*** projects.locations.authorizations and assistants.agents are v1alpha APIs that are still evolving -- verify field names in the console if a call fails ***" | pv -qL 100
     echo
-    echo "*** Registering the agent's Authorization must live in the SAME Discovery Engine location as the app's" | pv -qL 100
-    echo "*** engine (confirmed by testing: engines.create in step 3 is hardcoded to 'global', not '\$GE_LOCATION') ***" | pv -qL 100
+    echo "*** Confirmed by testing: the app's engine (step 3), this Authorization, and the agent below must all" | pv -qL 100
+    echo "*** live at the SAME Discovery Engine location -- using '\$GE_LOCATION' throughout, not 'global', also" | pv -qL 100
+    echo "*** avoids a custom-agent-creation quota gap seen at 'global' on some sandbox projects ***" | pv -qL 100
     echo "$ curl -X POST .../authorizations?authorizationId=$AUTH_ID # to register the OAuth client with Gemini Enterprise" | pv -qL 100
     curl -s -X POST \
       -H "Authorization: Bearer $(gcloud auth print-access-token)" \
       -H "Content-Type: application/json" \
       -H "X-Goog-User-Project: $GCP_PROJECT" \
-      "https://discoveryengine.googleapis.com/v1alpha/projects/$PROJECT_NUMBER/locations/global/authorizations?authorizationId=$AUTH_ID" \
-      -d "{\"name\":\"projects/$PROJECT_NUMBER/locations/global/authorizations/$AUTH_ID\",\"serverSideOauth2\":{\"clientId\":\"$OAUTH_CLIENT_ID\",\"clientSecret\":\"$OAUTH_CLIENT_SECRET\",\"authorizationUri\":\"$AUTH_URI\",\"tokenUri\":\"https://oauth2.googleapis.com/token\"}}" | tee $PROJDIR/authorization.json
-    export AUTHORIZATION=projects/$PROJECT_NUMBER/locations/global/authorizations/$AUTH_ID
+      "https://$GE_HOST/v1alpha/projects/$PROJECT_NUMBER/locations/$GE_LOCATION/authorizations?authorizationId=$AUTH_ID" \
+      -d "{\"name\":\"projects/$PROJECT_NUMBER/locations/$GE_LOCATION/authorizations/$AUTH_ID\",\"serverSideOauth2\":{\"clientId\":\"$OAUTH_CLIENT_ID\",\"clientSecret\":\"$OAUTH_CLIENT_SECRET\",\"authorizationUri\":\"$AUTH_URI\",\"tokenUri\":\"https://oauth2.googleapis.com/token\"}}" | tee $PROJDIR/authorization.json
+    export AUTHORIZATION=projects/$PROJECT_NUMBER/locations/$GE_LOCATION/authorizations/$AUTH_ID
     sed -i '/^export AUTHORIZATION=/d' $PROJDIR/.env
     echo "export AUTHORIZATION='$AUTHORIZATION'" >> $PROJDIR/.env
     source $PROJDIR/.env
@@ -645,14 +657,13 @@ elif [ $MODE -eq 2 ]; then
       -H "Authorization: Bearer $(gcloud auth print-access-token)" \
       -H "Content-Type: application/json" \
       -H "X-Goog-User-Project: $GCP_PROJECT" \
-      "https://discoveryengine.googleapis.com/v1alpha/projects/$GCP_PROJECT/locations/global/collections/default_collection/engines/$APP_ID/assistants/default_assistant/agents" \
+      "https://$GE_HOST/v1alpha/projects/$GCP_PROJECT/locations/$GE_LOCATION/collections/default_collection/engines/$APP_ID/assistants/default_assistant/agents" \
       -d "{\"displayName\":\"BigQuery Agent\",\"description\":\"Queries pool installation data\",\"adkAgentDefinition\":{\"provisionedReasoningEngine\":{\"reasoningEngine\":\"$REASONING_ENGINE\"}},\"authorizationConfig\":{\"toolAuthorizations\":[\"$AUTHORIZATION\"]}}" | tee $PROJDIR/agent_create.json
     echo
-    echo "*** If this returned 'Failed to allocate quota for agent creation' (FAILED_PRECONDITION), that is a real" | pv -qL 100
-    echo "*** per-project custom-agent quota, not a bug in this call -- other users hit it through the console too." | pv -qL 100
-    echo "*** First check Agents in the Gemini Enterprise console for an existing/duplicate entry from an earlier" | pv -qL 100
-    echo "*** attempt and delete it; if the quota is still exhausted with a clean list, it needs an increase --" | pv -qL 100
-    echo "*** see Gemini Enterprise Agent Platform quotas and limits in the Google Cloud docs." | pv -qL 100
+    echo "*** If this still returned 'Failed to allocate quota for agent creation' (FAILED_PRECONDITION), that is a" | pv -qL 100
+    echo "*** real per-project quota, not a bug in this call -- other users hit it through the console too. Try a" | pv -qL 100
+    echo "*** different GE_LOCATION (e.g. 'eu') by re-running steps 3-7 with a new APP_ID/AUTH_ID, or check IAM &" | pv -qL 100
+    echo "*** Admin > Quotas filtered to 'Discovery Engine API' for the exact agent-related metric and its value." | pv -qL 100
     echo
     echo "1. In Gemini Enterprise, open the BigQuery Agent and go to its User Permissions tab" | pv -qL 100
     echo "2. Grant All Users the Agent User role (no verified API for this yet -- getIamPolicy/setIamPolicy on the" | pv -qL 100

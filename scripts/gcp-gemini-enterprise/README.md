@@ -34,6 +34,19 @@ names in the console if it fails; treat this script as a strong starting
 point, not a guarantee, and rerun it against a real project before using it
 live in front of a class.
 
+**Location matters more than the lab guide suggests.** The app's engine
+(step `3`), its data stores (step `5`), the Authorization resource, and the
+custom agent registration (step `7`) must all share the same Discovery
+Engine location — confirmed by testing, `assistants.agents.create` rejects a
+mismatch outright. Worse, on at least one Qwiklabs sandbox project the
+custom-agent-creation quota at the `global` location was `0` while `us` had
+headroom (`Failed to allocate quota for agent creation`, reproducible even
+through the console, not just the API). This script standardizes everything
+on `$GE_LOCATION` (`us` by default) instead of the `global` default the
+console wizards fall back to, specifically to avoid that gap. If you still
+hit the quota error at `us`, it's a genuine per-project limit, not a bug —
+see step `7`'s notes.
+
 ## Prerequisites
 
 - Google Cloud project with Gemini Enterprise, Vertex AI, and Discovery
@@ -85,7 +98,7 @@ as you complete each step:
 | `GCS_BUCKET` | `<project>-bucket` | Bucket holding demo docs, the announcement image, and `adk_to_ge/`. |
 | `APP_NAME` | `Cymbal Pools GE` | Gemini Enterprise app display name. |
 | `APP_ID` | `cymbal-pools-ge` | Gemini Enterprise engine/app resource ID used by `engines.create`. |
-| `GE_LOCATION` | `us` | The app's own Discovery Engine location (used by `engines.create`/`authorizations.create`). Data stores created in step 5's console wizard default to `global` independently of this. |
+| `GE_LOCATION` | `us` | Discovery Engine location used consistently by the app (`engines.create`), the Authorization resource, and the agent registration — must match across all three, and avoids a `global`-location custom-agent quota gap seen on some sandbox projects. |
 | `COMPANY_NAME` | `Cymbal Pools` | Company name for the app's Advanced Options. |
 | `AGENT_DIR` | `adk_to_ge` | Local/bucket directory holding the ADK agent source. |
 | `MODEL` | `gemini-3.5-flash` | Model used by the BigQuery agent's `.env`. |
@@ -102,9 +115,10 @@ Run options `1` → `8` once, in order, to stand up the environment, then use
 
 ### `(1) Enable APIs`
 Enables `discoveryengine`, `aiplatform`, `iap`, `bigquery`, `storage`, `iam`,
-and `cloudresourcemanager`. Delete mode leaves APIs enabled — other modules or
-labs in the same project may depend on them, per this repo's API-enablement
-convention.
+`cloudresourcemanager`, and `apphub` (needed for the Agent Runtime deployment
+dashboard's telemetry widgets under Agent Platform > Deployments). Delete
+mode leaves APIs enabled — other modules or labs in the same project may
+depend on them, per this repo's API-enablement convention.
 
 ### `(2) Prepare demo content`
 Downloads the demo PDF/DOCX from `$GCS_BUCKET` and pauses with instructions to
@@ -112,18 +126,16 @@ upload them to Google Drive by hand (Drive upload needs a user OAuth grant,
 not a service account).
 
 ### `(3) Create Gemini Enterprise app & identity provider`
-Calls `engines.create` (`appType: APP_TYPE_INTRANET`) to create the app with
-`$APP_NAME`/`$APP_ID`/`$COMPANY_NAME` and no data stores attached yet, then
-prints the Identity Provider steps, which have no API: go to **Settings >
-Authentication** and confirm Google Identity for the **`global`** row. This
-setting is per-location (the page lists `global`, `us`, `eu`, ...), and it
-matters because **step 5's data stores default to the `global` multi-region
-regardless of the app's own `$GE_LOCATION` setting** — confirmed by testing.
-ACLed connectors (Drive/Calendar) check the IdP for whichever location the
-data store actually lands in, so `global` is what needs to be configured
-unless you deliberately pick a different location in step 5's wizard.
-Skipping this produces `FAILED_PRECONDITION: IdP must be selected before
-creating an ACLed Data Connector`. Delete mode calls `engines.delete`.
+Calls `engines.create` (`appType: APP_TYPE_INTRANET`) at `$GE_LOCATION` (not
+`global`) to create the app with `$APP_NAME`/`$APP_ID`/`$COMPANY_NAME` and no
+data stores attached yet, then prints the Identity Provider steps, which have
+no API: go to **Settings > Authentication** and confirm Google Identity for
+the **`$GE_LOCATION`** row (the page lists a row per location — `global`,
+`us`, `eu`, ...). ACLed connectors (Drive/Calendar) check the IdP for
+whichever location the data store actually lands in, so this must match
+where step 5 creates its data stores. Skipping this produces
+`FAILED_PRECONDITION: IdP must be selected before creating an ACLed Data
+Connector`. Delete mode calls `engines.delete`.
 
 ### `(4) Create OAuth consent screen & OAuth client`
 Console-only — custom redirect URIs on a Web-application OAuth client still
@@ -136,9 +148,10 @@ Console-only, and deliberately so (see above). Prints the "+ New data store"
 wizard steps for Drive and Calendar — Source (search and pick the first-party
 card) → Data/Authentication settings (Client ID/Secret from step `4`, Verify
 Auth, complete the OAuth popup) → Advanced options ("Supports All Drives" for
-Drive) → Actions (select all) → Configuration (leave Location at the default
-`global`, name the connector) — then the Announcements data store/content
-steps with `Start Time`/`End Time` computed as today/tomorrow.
+Drive) → Actions (select all) → Configuration (select **`$GE_LOCATION`**
+explicitly if the Location field is editable, rather than leaving the
+wizard's `global` default, name the connector) — then the Announcements data
+store/content steps with `Start Time`/`End Time` computed as today/tomorrow.
 
 ### `(6) Deploy custom ADK agent to Agent Engine`
 Fully automated: downloads `$AGENT_DIR` from the bucket, installs
@@ -150,12 +163,21 @@ the Vertex AI Python SDK (`vertexai.agent_engines.delete`) — there is no
 
 ### `(7) Construct auth URI & register agent in Gemini Enterprise`
 Patches `OAUTH_CLIENT_ID` into `construct_auth_uri.py` and runs it to build
-the Authorization URI (verify the substitution still matches the shipped
-script before trusting it), then calls `authorizations.create` to register
-the OAuth client with Discovery Engine and
-`assistants.agents.create` to register the BigQuery agent against the
-deployed reasoning engine and that authorization. Only granting the agent's
-"Agent User" role to All Users has no confirmed API and stays a console step.
+the Authorization URI, extracting it by matching the line that starts with
+`https://` rather than assuming it's the script's last line of output (the
+script prints blank lines around it). Writes `AUTH_URI`/`AUTHORIZATION` into
+`.env` via delete-then-append with the value single-quoted, not `sed`
+replacement-text interpolation — the URI contains `&` characters, which `sed`
+treats as "insert the whole match" in a replacement string, and which bash
+treats as a background-job operator if written unquoted into a file that
+gets `source`d later. Then calls `authorizations.create` and
+`assistants.agents.create`, both at `$GE_LOCATION` to match the engine.
+Only granting the agent's "Agent User" role to All Users has no confirmed API
+and stays a console step. If agent registration returns `Failed to allocate
+quota for agent creation`, that's a real per-project quota (reproducible
+through the console too) — try a different `GE_LOCATION` with a fresh
+`APP_ID`/`AUTH_ID`, or check **IAM & Admin > Quotas**, filtered to
+"Discovery Engine API," for the exact agent-related metric.
 
 ### `(8) Grant IAM permissions`
 Runs `gcloud beta services identity create` to materialize the AI Platform
