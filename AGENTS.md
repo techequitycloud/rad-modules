@@ -27,7 +27,7 @@ The repository is organized around eight independent modules under `modules/`. T
 **Supporting directories:**
 - `rad-launcher/` — `radlab.py` Python CLI that wraps `tofu`/`terraform` for interactive deployment from a workstation or Cloud Shell.
 - `rad-ui/automation/` — Cloud Build YAML files (`cloudbuild_deployment_{create,destroy,purge,update}.yaml`) invoked by the RAD platform UI.
-- `scripts/` — standalone helper shell scripts (`gcp-istio-security/`, `gcp-istio-traffic/`, `gcp-cr-mesh/`, `gcp-m2c-vm/`) for lab exercises; not called by any module.
+- `scripts/` — standalone helper shell scripts (`gcp-istio-security/`, `gcp-istio-traffic/`, `gcp-cr-mesh/`, `gcp-m2c-vm/`, `gcp-gemini-cymbalpools/`) for lab exercises; not called by any module.
 - `SKILLS.md` — detailed implementation guide; read this before making structural changes.
 
 **Standard file layout (using `Istio_GKE` as the canonical example):**

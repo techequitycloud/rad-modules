@@ -54,7 +54,7 @@ python3 rad-launcher/radlab.py \
 
 ### Module Families
 
-Six independent modules under `modules/`. No shared foundation module, no symlinks, no cross-module Terraform dependency — each owns every resource it provisions and its own state.
+Eight independent modules under `modules/`. No shared foundation module, no symlinks, no cross-module Terraform dependency — each owns every resource it provisions and its own state.
 
 | Module | What it deploys |
 |---|---|
@@ -64,6 +64,8 @@ Six independent modules under `modules/`. No shared foundation module, no symlin
 | `AKS_GKE` | Azure AKS registered in a GKE Fleet as a GKE Attached Cluster via Helm |
 | `EKS_GKE` | AWS EKS registered in a GKE Fleet as a GKE Attached Cluster via Helm |
 | `VMware_Engine` | GCVE private cloud + VPC peering + Windows jump host + vCenter credential reset |
+| `Container_Migration` | GKE cluster + Compute Engine VMs (PostgreSQL source, Tomcat source, M2C workstation) for a Migrate to Containers (M2C) lab |
+| `Migration_Center` | Windows Server VM (MCDCv6) + Debian Linux target VMs + Migration Center service registration + optional AWS asset import |
 
 ### Standard Module File Layout
 
@@ -88,7 +90,7 @@ Lab guides live at `docs/labs/<Module_Name>.md`, **not** inside the module direc
 
 ### Two Provider Auth Patterns
 
-**Impersonation (`provider-auth.tf`)** — used by `Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE`, `VMware_Engine`. Fetches a short-lived access token for `var.resource_creator_identity` (a service account) when that variable is non-empty; otherwise falls back to ADC.
+**Impersonation (`provider-auth.tf`)** — used by `Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE`, `VMware_Engine`, `Container_Migration`, `Migration_Center`. Fetches a short-lived access token for `var.resource_creator_identity` (a service account) when that variable is non-empty; otherwise falls back to ADC.
 
 **Direct (`provider.tf`)** — used by `AKS_GKE`, `EKS_GKE`. Configures `azurerm`/`aws`/`helm` providers directly. Azure credentials via `ARM_*` env vars; AWS credentials via `AWS_*` env vars — never hardcode these as defaults.
 

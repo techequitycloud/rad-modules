@@ -1,6 +1,6 @@
 ---
 name: rad-modules-implementation
-description: Guide for implementing Terraform/OpenTofu modules in the rad-modules repository. The modules are standalone GKE-based Kubernetes, multi-cloud fleet deployments (Istio_GKE, Bank_GKE, MC_Bank_GKE, AKS_GKE, EKS_GKE), and VMware infrastructure (VMware_Engine).
+description: Guide for implementing Terraform/OpenTofu modules in the rad-modules repository. The modules are standalone GKE-based Kubernetes and multi-cloud fleet deployments (Istio_GKE, Bank_GKE, MC_Bank_GKE, AKS_GKE, EKS_GKE), VMware infrastructure (VMware_Engine), and migration labs (Container_Migration, Migration_Center).
 ---
 
 # RAD Modules Implementation Skill
@@ -28,7 +28,7 @@ Supporting directories:
 
 - `rad-launcher/` — `radlab.py` is a Python CLI that wraps OpenTofu/Terraform for interactive module deployment from a workstation or Cloud Shell.
 - `rad-ui/automation/` — Cloud Build YAML files (`cloudbuild_deployment_{create,destroy,purge,update}.yaml`) used by the RAD platform UI to run module deployments remotely.
-- `scripts/` — standalone helper shell scripts grouped by topic (`gcp-istio-security/`, `gcp-istio-traffic/`, `gcp-cr-mesh/`, `gcp-m2c-vm/`). Each subdirectory contains a single `.sh` script and a `README.md`. These are not called by any Terraform module; they are hand-run by engineers for lab exercises or operational tasks.
+- `scripts/` — standalone helper shell scripts grouped by topic (`gcp-istio-security/`, `gcp-istio-traffic/`, `gcp-cr-mesh/`, `gcp-m2c-vm/`, `gcp-gemini-cymbalpools/`). Each subdirectory contains a single `.sh` script and a `README.md`. These are not called by any Terraform module; they are hand-run by engineers for lab exercises or operational tasks.
 - `docs/labs/` — centralized lab guides for all modules (e.g. `docs/labs/Istio_GKE.md`). This is the canonical location for all step-by-step lab guides; there are no `LAB_GUIDE.md` files inside module directories.
 - `docs/modules/` — reference documentation for GKE-based modules.
 - `docs/capabilities/`, `docs/practices/` — cross-cutting capability and practice guides.
@@ -106,7 +106,7 @@ Modules that install workloads via `kubectl` also include a `null_resource.wait_
 
 Two patterns exist:
 
-**Impersonation pattern (`provider-auth.tf`)** — used by `Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE`, `VMware_Engine`:
+**Impersonation pattern (`provider-auth.tf`)** — used by `Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE`, `VMware_Engine`, `Container_Migration`, `Migration_Center`:
 
 ```hcl
 provider "google" { alias = "impersonated" ... }
@@ -141,7 +141,7 @@ Pins required providers and `required_version`. The set of pinned providers diff
 | `AKS_GKE` | No top-level `versions.tf`; the nested submodules have their own | — |
 | `EKS_GKE` | No top-level `versions.tf`; the nested submodules have their own | — |
 
-Providers that are used but not explicitly pinned (e.g. `random`, `null`) are downloaded at the version OpenTofu/Terraform selects automatically. `Istio_GKE`, `MC_Bank_GKE`, `Bank_GKE`, and `VMware_Engine` configure a `google-beta` provider block in `provider-auth.tf`, but none currently assign resources to it explicitly. `Istio_GKE` and `MC_Bank_GKE` explicitly pin `google-beta` in `versions.tf` (alongside `google`) even though no resources use it.
+Providers that are used but not explicitly pinned (e.g. `random`, `null`) are downloaded at the version OpenTofu/Terraform selects automatically. `Istio_GKE`, `MC_Bank_GKE`, `Bank_GKE`, `VMware_Engine`, `Container_Migration`, and `Migration_Center` configure a `google-beta` provider block in `provider-auth.tf`, but none currently assign resources to it explicitly. `Istio_GKE` and `MC_Bank_GKE` explicitly pin `google-beta` in `versions.tf` (alongside `google`) even though no resources use it.
 
 ### 3.4 `variables.tf` — UIMeta Annotations
 
@@ -391,7 +391,7 @@ output "external_ip" {
 
 ### Common providers
 
-The table shows which providers each module actively uses. GKE-based modules and `VMware_Engine` also configure a `google-beta` provider block in `provider-auth.tf` as a convenience (for future use), but no resources are currently assigned to it.
+The table shows which providers each module actively uses. GKE-based modules, `VMware_Engine`, `Container_Migration`, and `Migration_Center` also configure a `google-beta` provider block in `provider-auth.tf` as a convenience (for future use), but no resources are currently assigned to it.
 
 | Module | google | kubernetes | kubectl | helm | azurerm | aws | tls | random | null | external | time / http |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
