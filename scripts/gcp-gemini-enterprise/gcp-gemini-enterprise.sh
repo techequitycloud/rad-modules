@@ -744,7 +744,8 @@ echo "*** Validation is manual by design -- confirm each item in the browser ***
 echo
 echo "1. On the Gemini Enterprise app's Configurations tab, click Feature Management" | pv -qL 100
 echo "   Enable agent designer" | pv -qL 100
-echo "   Under Enable image generation, select Gemini 3.1 flash image (Nano Banana), then Save" | pv -qL 100
+echo "   Under Enable image generation, select whichever Gemini flash image model is offered (the exact" | pv -qL 100
+echo "   version, e.g. 3.1 vs 2.5 'Nano Banana', varies by region/project), then Save" | pv -qL 100
 echo "2. Click Overview, then the URL or Preview to open the app" | pv -qL 100
 echo "   If you see an access error, confirm you are logged in with the correct Qwiklabs account" | pv -qL 100
 echo "3. In the query bar, click the Connectors icon; confirm Google Drive is enabled" | pv -qL 100
