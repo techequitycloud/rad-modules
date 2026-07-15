@@ -648,6 +648,12 @@ elif [ $MODE -eq 2 ]; then
       "https://discoveryengine.googleapis.com/v1alpha/projects/$GCP_PROJECT/locations/global/collections/default_collection/engines/$APP_ID/assistants/default_assistant/agents" \
       -d "{\"displayName\":\"BigQuery Agent\",\"description\":\"Queries pool installation data\",\"adkAgentDefinition\":{\"provisionedReasoningEngine\":{\"reasoningEngine\":\"$REASONING_ENGINE\"}},\"authorizationConfig\":{\"toolAuthorizations\":[\"$AUTHORIZATION\"]}}" | tee $PROJDIR/agent_create.json
     echo
+    echo "*** If this returned 'Failed to allocate quota for agent creation' (FAILED_PRECONDITION), that is a real" | pv -qL 100
+    echo "*** per-project custom-agent quota, not a bug in this call -- other users hit it through the console too." | pv -qL 100
+    echo "*** First check Agents in the Gemini Enterprise console for an existing/duplicate entry from an earlier" | pv -qL 100
+    echo "*** attempt and delete it; if the quota is still exhausted with a clean list, it needs an increase --" | pv -qL 100
+    echo "*** see Gemini Enterprise Agent Platform quotas and limits in the Google Cloud docs." | pv -qL 100
+    echo
     echo "1. In Gemini Enterprise, open the BigQuery Agent and go to its User Permissions tab" | pv -qL 100
     echo "2. Grant All Users the Agent User role (no verified API for this yet -- getIamPolicy/setIamPolicy on the" | pv -qL 100
     echo "   agent resource is the likely mechanism; confirm the exact role name in the console first)" | pv -qL 100
