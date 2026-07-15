@@ -12,17 +12,21 @@ directory (see `../gcp-istio-security/README.md` for the shared conventions).
 Gemini Enterprise has a real REST surface (`discoveryengine.googleapis.com`,
 documented under
 [Gemini Enterprise API reference](https://docs.cloud.google.com/gemini/enterprise/docs/reference/rest))
-for creating the app itself (`engines.create`), wiring up the Drive/Calendar
-connectors (`:setUpDataConnector`), and registering a custom ADK agent
-(`authorizations.create` + `assistants.agents.create`) — steps `3`, `5`, and
-most of `7` now call it with `curl` instead of just printing instructions.
-None of that surface has a Terraform provider yet, and some pieces genuinely
-have no API at all: the Identity Provider confirmation, the "Google Auth
-Platform" OAuth consent screen + client (custom redirect URIs still require
-the console), the Announcements data store content, Feature Management
-toggles, Model Armor, and granting the "Agent User" role to end users. Those
-stay as printed console instructions with a pause. `1`, `2`, `6`, `8`, and the
-`curl` calls in `3`/`5`/`7` execute for real.
+for creating the app itself (`engines.create`) and registering a custom ADK
+agent (`authorizations.create` + `assistants.agents.create`) — steps `3` and
+most of `7` call it with `curl` instead of just printing instructions.
+**Step 5 (Drive/Calendar connectors) was tried the same way and confirmed,
+by testing against a real project, not to work**: `setUpDataConnector` has no
+field for an OAuth client, so it cannot complete the connector's
+authorization — only the console's "+ New data store" wizard has an
+Authentication settings screen with Client ID/Secret fields and a "Verify
+Auth" button that drives the OAuth popup. Step 5 prints that wizard's exact
+screens/fields instead. Other pieces genuinely have no API at all: the
+Identity Provider confirmation, the "Google Auth Platform" OAuth consent
+screen + client (custom redirect URIs still require the console), Feature
+Management toggles, Model Armor, and granting the "Agent User" role to end
+users. Those stay as printed console instructions with a pause. `1`, `2`,
+`6`, `8`, and the `curl` calls in `3`/`7` execute for real.
 
 The `discoveryengine.googleapis.com` endpoints used here are `v1alpha`/`v1` —
 still evolving. Each `curl` call is preceded by a warning to verify the field
@@ -81,7 +85,7 @@ as you complete each step:
 | `GCS_BUCKET` | `<project>-bucket` | Bucket holding demo docs, the announcement image, and `adk_to_ge/`. |
 | `APP_NAME` | `Cymbal Pools GE` | Gemini Enterprise app display name. |
 | `APP_ID` | `cymbal-pools-ge` | Gemini Enterprise engine/app resource ID used by `engines.create`. |
-| `GE_LOCATION` | `us` | Discovery Engine data location; prefixes the regional API endpoint for connectors/authorizations. |
+| `GE_LOCATION` | `us` | The app's own Discovery Engine location (used by `engines.create`/`authorizations.create`). Data stores created in step 5's console wizard default to `global` independently of this. |
 | `COMPANY_NAME` | `Cymbal Pools` | Company name for the app's Advanced Options. |
 | `AGENT_DIR` | `adk_to_ge` | Local/bucket directory holding the ADK agent source. |
 | `MODEL` | `gemini-3.5-flash` | Model used by the BigQuery agent's `.env`. |
@@ -111,13 +115,15 @@ not a service account).
 Calls `engines.create` (`appType: APP_TYPE_INTRANET`) to create the app with
 `$APP_NAME`/`$APP_ID`/`$COMPANY_NAME` and no data stores attached yet, then
 prints the Identity Provider steps, which have no API: go to **Settings >
-Authentication** and configure Google Identity. **This setting is
-per-location** — the page lists a row per location (`global`, `us`, `eu`,
-...), and step 5's Drive/Calendar connectors check the row for `$GE_LOCATION`
-specifically. A `global` row showing Google Identity does *not* satisfy the
-precondition for `us` — configure the `$GE_LOCATION` row explicitly, or
-step 5 fails with `FAILED_PRECONDITION: IdP must be selected before creating
-an ACLed Data Connector`. Delete mode calls `engines.delete`.
+Authentication** and confirm Google Identity for the **`global`** row. This
+setting is per-location (the page lists `global`, `us`, `eu`, ...), and it
+matters because **step 5's data stores default to the `global` multi-region
+regardless of the app's own `$GE_LOCATION` setting** — confirmed by testing.
+ACLed connectors (Drive/Calendar) check the IdP for whichever location the
+data store actually lands in, so `global` is what needs to be configured
+unless you deliberately pick a different location in step 5's wizard.
+Skipping this produces `FAILED_PRECONDITION: IdP must be selected before
+creating an ACLed Data Connector`. Delete mode calls `engines.delete`.
 
 ### `(4) Create OAuth consent screen & OAuth client`
 Console-only — custom redirect URIs on a Web-application OAuth client still
@@ -126,12 +132,13 @@ required redirect URIs, then prompts you to paste back the resulting Client
 ID/Secret so later steps can reuse them.
 
 ### `(5) Create data stores (Drive, Calendar, Announcements)`
-Calls `:setUpDataConnector` twice (Google Drive, Google Calendar) to create
-the federated connectors, then prints the remaining console steps: pointing
-each connector's "Configure OAuth" setting at the client from step `4`
-(connectors use a Workspace-level OAuth wiring, not the Authorization
-resource from step `7`), and creating the Announcements data store/content
-with `Start date`/`End date` computed as today/tomorrow.
+Console-only, and deliberately so (see above). Prints the "+ New data store"
+wizard steps for Drive and Calendar — Source (search and pick the first-party
+card) → Data/Authentication settings (Client ID/Secret from step `4`, Verify
+Auth, complete the OAuth popup) → Advanced options ("Supports All Drives" for
+Drive) → Actions (select all) → Configuration (leave Location at the default
+`global`, name the connector) — then the Announcements data store/content
+steps with `Start Time`/`End Time` computed as today/tomorrow.
 
 ### `(6) Deploy custom ADK agent to Agent Engine`
 Fully automated: downloads `$AGENT_DIR` from the bucket, installs
@@ -188,7 +195,6 @@ without switching back to the PDF.
 ├── .<GCP_PROJECT>.json        # service-account key
 ├── *.pdf / *.docx             # demo documents downloaded in step 2
 ├── engine_create.json         # engines.create response from step 3
-├── gdrive_connector.json / gcal_connector.json  # setUpDataConnector responses from step 5
 ├── adk_deploy.log             # captured `adk deploy agent_engine` output
 ├── adk_to_ge/                 # ADK agent source downloaded in step 6
 └── authorization.json / agent_create.json       # authorizations/agents.create responses from step 7

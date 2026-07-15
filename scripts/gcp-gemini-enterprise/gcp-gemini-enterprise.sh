@@ -390,11 +390,12 @@ elif [ $MODE -eq 2 ]; then
       -d "{\"displayName\":\"$APP_NAME\",\"dataStoreIds\":[],\"solutionType\":\"SOLUTION_TYPE_SEARCH\",\"industryVertical\":\"GENERIC\",\"appType\":\"APP_TYPE_INTRANET\",\"commonConfig\":{\"companyName\":\"$COMPANY_NAME\"}}" | tee $PROJDIR/engine_create.json
     echo
     echo "1. In the Gemini Enterprise / AI Applications console, go to Settings > Authentication" | pv -qL 100
-    echo "2. The Identity provider list is per-location -- find the row for '$GE_LOCATION' specifically" | pv -qL 100
-    echo "   (a 'global' row showing Google Identity does NOT satisfy the '$GE_LOCATION' precondition check)" | pv -qL 100
-    echo "3. Click the pencil next to '$GE_LOCATION', select Google Identity, and save" | pv -qL 100
-    echo "   Step 5's connector calls will fail with FAILED_PRECONDITION until this row is configured" | pv -qL 100
-    read -n 1 -s -r -p $'*** Press the Enter key once the identity provider is confirmed for the '"$GE_LOCATION"' location ***'
+    echo "2. The Identity provider list is per-location. Confirm Google Identity for the 'global' row --" | pv -qL 100
+    echo "   step 5's data stores default to the 'global' multi-region regardless of the app's '$GE_LOCATION'" | pv -qL 100
+    echo "   setting, and ACLed connectors (Drive/Calendar) check the IdP for whichever location they land in" | pv -qL 100
+    echo "3. Only configure the '$GE_LOCATION'/'eu' rows too if you deliberately create data stores at those" | pv -qL 100
+    echo "   locations instead of the 'global' default" | pv -qL 100
+    read -n 1 -s -r -p $'*** Press the Enter key once Google Identity is confirmed for the global location ***'
     echo
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},3x"
@@ -470,46 +471,38 @@ export END_DATE=$(date -d "+1 day" +%Y-%m-%d 2>/dev/null || date -v+1d +%Y-%m-%d
 if [ $MODE -eq 1 ]; then
     export STEP="${STEP},5i"
     echo
-    echo "$ curl -X POST \"https://\${GE_LOCATION}-discoveryengine.googleapis.com/v1alpha/projects/\$GCP_PROJECT/locations/\${GE_LOCATION}:setUpDataConnector\" -d '{\"collectionId\":\"gdrive\",...,\"dataConnector\":{\"dataSource\":\"google_drive\",...}}' # to connect Google Drive" | pv -qL 100
-    echo
-    echo "$ curl -X POST \"https://\${GE_LOCATION}-discoveryengine.googleapis.com/v1alpha/projects/\$GCP_PROJECT/locations/\${GE_LOCATION}:setUpDataConnector\" -d '{\"collectionId\":\"gcal\",...,\"dataConnector\":{\"dataSource\":\"google_calendar\",...}}' # to connect Google Calendar" | pv -qL 100
-    echo
-    echo "*** Announcements data store/content and the connectors' OAuth client wiring have no verified API yet -- complete them in the console ***" | pv -qL 100
+    echo "*** No API for this -- the OAuth handshake only works through the console wizard (confirmed by testing) ***" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},5"
     echo
-    echo "*** setUpDataConnector is a v1alpha API that is still evolving -- verify field names in the console if a call fails ***" | pv -qL 100
-    echo "*** These are ACLed connectors: Settings > Authentication must show an Identity provider configured ***" | pv -qL 100
-    echo "*** for the '$GE_LOCATION' location specifically (step 3) -- a 'global' row alone will not satisfy this ***" | pv -qL 100
-    echo "*** and both calls below will fail with FAILED_PRECONDITION until it is ***" | pv -qL 100
+    echo "*** Confirmed by testing: setUpDataConnector has no field for the OAuth client, so it cannot complete the" | pv -qL 100
+    echo "*** connector's authorization -- use the console's '+ New data store' wizard for Drive and Calendar instead ***" | pv -qL 100
     echo
-    echo "$ curl -X POST .../:setUpDataConnector # to connect Google Drive" | pv -qL 100
-    curl -s -X POST \
-      -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-      -H "Content-Type: application/json" \
-      -H "X-Goog-User-Project: $GCP_PROJECT" \
-      "https://${GE_LOCATION}-discoveryengine.googleapis.com/v1alpha/projects/$GCP_PROJECT/locations/${GE_LOCATION}:setUpDataConnector" \
-      -d "{\"collectionId\":\"gdrive\",\"collectionDisplayName\":\"Google Drive\",\"dataConnector\":{\"dataSource\":\"google_drive\",\"entities\":[{\"entityName\":\"google_drive\"}],\"connectorModes\":[\"FEDERATED\"]}}" | tee $PROJDIR/gdrive_connector.json
+    echo "For BOTH Google Drive and Google Calendar, repeat:" | pv -qL 100
+    echo "1. Connected data stores > + New data store (or the top-level Data Stores page > Create data store)" | pv -qL 100
+    echo "2. Source: search 'drive' or 'calendar', click the first-party card, then Add data source" | pv -qL 100
+    echo "3. Data > Authentication settings: enter Client ID: $OAUTH_CLIENT_ID and the Client Secret from step 4" | pv -qL 100
+    echo "   Click Verify Auth, click Allow in the OAuth popup, confirm 'Successfully logged in', then Continue" | pv -qL 100
+    echo "4. Data > Advanced options: for Drive, optionally check 'Supports All Drives' to sync all shared drives" | pv -qL 100
+    echo "   (unchecked = My Drive only); optionally scope with Shared Drive IDs / Folder IDs, then Continue" | pv -qL 100
+    echo "5. Actions: leave 'Select all actions' checked, then Continue" | pv -qL 100
+    echo "6. Configuration: leave Location as the default 'global (Global)' multi-region -- this is independent of" | pv -qL 100
+    echo "   the app's own '$GE_LOCATION' location from step 3 and does not need to match it" | pv -qL 100
+    echo "   Data connector name: google-drive (or google-calendar), then Create" | pv -qL 100
     echo
-    echo "$ curl -X POST .../:setUpDataConnector # to connect Google Calendar" | pv -qL 100
-    curl -s -X POST \
-      -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-      -H "Content-Type: application/json" \
-      -H "X-Goog-User-Project: $GCP_PROJECT" \
-      "https://${GE_LOCATION}-discoveryengine.googleapis.com/v1alpha/projects/$GCP_PROJECT/locations/${GE_LOCATION}:setUpDataConnector" \
-      -d "{\"collectionId\":\"gcal\",\"collectionDisplayName\":\"Google Calendar\",\"dataConnector\":{\"dataSource\":\"google_calendar\",\"entities\":[{\"entityName\":\"google_calendar\"}],\"connectorModes\":[\"FEDERATED\"]}}" | tee $PROJDIR/gcal_connector.json
-    echo
-    echo "1. In the Gemini Enterprise app, open Configure OAuth for Google Drive / Google Calendar and select the" | pv -qL 100
-    echo "   OAuth client created in step 4 (Client ID: $OAUTH_CLIENT_ID)" | pv -qL 100
-    echo "2. Under Connected data stores, confirm Google Drive and Google Calendar show as Active (can take a few minutes)" | pv -qL 100
-    echo "3. Create another data store for Announcements, then click +New and fill in:" | pv -qL 100
+    echo "For Announcements:" | pv -qL 100
+    echo "7. Connected data stores > + New data store > search 'Announcements' > Add data source" | pv -qL 100
+    echo "8. Configuration: Data store name: Announcements, then Create" | pv -qL 100
+    echo "9. Open the Announcements data store, click +New, and fill in:" | pv -qL 100
     echo "   Title: Annual pool party, RSVP today!" | pv -qL 100
     echo "   Description: Join us for a splash!" | pv -qL 100
     echo "   Image URL: https://storage.googleapis.com/${GCS_BUCKET}/pool%20party.png" | pv -qL 100
     echo "   Link URL: https://www.soundcore.com/blogs/speaker/how-to-host-a-pool-party" | pv -qL 100
-    echo "   Start date: $START_DATE" | pv -qL 100
-    echo "   End date: $END_DATE" | pv -qL 100
+    echo "   Start Time: $START_DATE, End Time: $END_DATE" | pv -qL 100
     echo "   Click Publish" | pv -qL 100
+    echo
+    echo "10. Under Connected data stores, confirm all three show 'Active' (Drive/Calendar can take a few minutes" | pv -qL 100
+    echo "    to move past 'Creating')" | pv -qL 100
     echo
     read -n 1 -s -r -p $'*** Press the Enter key once all three data stores are active ***'
     echo
