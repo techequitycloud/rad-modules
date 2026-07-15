@@ -109,8 +109,8 @@ Please enter number to select your choice:
  (7) Construct auth URI & register agent in Gemini Enterprise
  (8) Grant IAM permissions
  (9) Validate the setup
- (10) Configure Feature Management & Model Armor
- (11) Show in-class demo prompts
+(10) Configure Feature Management & Model Armor
+(11) Show in-class demo prompts
  (Q) Quit
 --------------------------------------------------------------
 EOF
@@ -137,32 +137,26 @@ if [[ ! -z "$TRAINING_ORG_ID" ]]  &&  [[ $ORG_ID == "$TRAINING_ORG_ID" ]]; then
         echo
         echo "*** Command preview mode is active ***" | pv -qL 100
     else
-        if [[ -f $PROJDIR/.${GCP_PROJECT}.json ]]; then
+        while [[ -z "$PROJECT_ID" ]] || [[ "$GCP_PROJECT" != "$PROJECT_ID" ]]; do
             echo
-            echo "*** Authenticating using service account key $PROJDIR/.${GCP_PROJECT}.json ***" | pv -qL 100
-            echo "*** To use a different GCP project, delete the service account key ***" | pv -qL 100
-        else
-            while [[ -z "$PROJECT_ID" ]] || [[ "$GCP_PROJECT" != "$PROJECT_ID" ]]; do
+            echo "$ gcloud auth login --brief --quiet # to authenticate as project owner or editor" | pv -qL 100
+            gcloud auth login  --brief --quiet
+            export ACCOUNT=$(gcloud config list account --format "value(core.account)")
+            if [[ $ACCOUNT != "" ]]; then
                 echo
-                echo "$ gcloud auth login --brief --quiet # to authenticate as project owner or editor" | pv -qL 100
-                gcloud auth login  --brief --quiet
-                export ACCOUNT=$(gcloud config list account --format "value(core.account)")
-                if [[ $ACCOUNT != "" ]]; then
-                    echo
-                    echo "Copy and paste a valid Google Cloud project ID below to confirm your choice:" | pv -qL 100
-                    read GCP_PROJECT
-                    gcloud config set project $GCP_PROJECT --quiet 2>/dev/null
-                    sleep 3
-                    export PROJECT_ID=$(gcloud projects list --filter $GCP_PROJECT --format 'value(PROJECT_ID)' 2>/dev/null)
-                fi
-            done
-            gcloud iam service-accounts delete ${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com --quiet 2>/dev/null
-            sleep 2
-            gcloud --project $GCP_PROJECT iam service-accounts create ${GCP_PROJECT} 2>/dev/null
-            gcloud projects add-iam-policy-binding $GCP_PROJECT --member serviceAccount:$GCP_PROJECT@$GCP_PROJECT.iam.gserviceaccount.com --role=roles/owner > /dev/null 2>&1
-            gcloud --project $GCP_PROJECT iam service-accounts keys create $PROJDIR/.${GCP_PROJECT}.json --iam-account=${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com 2>/dev/null
-            gcloud --project $GCP_PROJECT storage buckets create gs://$GCP_PROJECT > /dev/null 2>&1
-        fi
+                echo "Copy and paste a valid Google Cloud project ID below to confirm your choice:" | pv -qL 100
+                read GCP_PROJECT
+                gcloud config set project $GCP_PROJECT --quiet 2>/dev/null
+                sleep 3
+                export PROJECT_ID=$(gcloud projects list --filter $GCP_PROJECT --format 'value(PROJECT_ID)' 2>/dev/null)
+            fi
+        done
+        gcloud iam service-accounts delete ${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com --quiet 2>/dev/null
+        sleep 2
+        gcloud --project $GCP_PROJECT iam service-accounts create ${GCP_PROJECT} 2>/dev/null
+        gcloud projects add-iam-policy-binding $GCP_PROJECT --member serviceAccount:$GCP_PROJECT@$GCP_PROJECT.iam.gserviceaccount.com --role=roles/owner > /dev/null 2>&1
+        gcloud --project $GCP_PROJECT iam service-accounts keys create $PROJDIR/.${GCP_PROJECT}.json --iam-account=${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com 2>/dev/null
+        gcloud --project $GCP_PROJECT storage buckets create gs://$GCP_PROJECT > /dev/null 2>&1
         export GOOGLE_APPLICATION_CREDENTIALS=$PROJDIR/.${GCP_PROJECT}.json
         sed -i "s/^export GCP_PROJECT=.*/export GCP_PROJECT=$GCP_PROJECT/" $PROJDIR/.env
         source $PROJDIR/.env
