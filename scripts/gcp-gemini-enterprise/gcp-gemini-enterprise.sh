@@ -601,7 +601,7 @@ if [ $MODE -eq 1 ]; then
     echo
     echo "$ python3 \$PROJDIR/\$AGENT_DIR/construct_auth_uri.py # to build the Authorization URI" | pv -qL 100
     echo
-    echo "$ curl -X POST \"https://\${GE_LOCATION}-discoveryengine.googleapis.com/v1alpha/projects/\$PROJECT_NUMBER/locations/\${GE_LOCATION}/authorizations?authorizationId=\$AUTH_ID\" -d '{\"serverSideOauth2\":{\"clientId\":...,\"clientSecret\":...,\"authorizationUri\":...,\"tokenUri\":...}}' # to register the OAuth client with Gemini Enterprise" | pv -qL 100
+    echo "$ curl -X POST \"https://discoveryengine.googleapis.com/v1alpha/projects/\$PROJECT_NUMBER/locations/global/authorizations?authorizationId=\$AUTH_ID\" -d '{\"serverSideOauth2\":{\"clientId\":...,\"clientSecret\":...,\"authorizationUri\":...,\"tokenUri\":...}}' # to register the OAuth client with Gemini Enterprise" | pv -qL 100
     echo
     echo "$ curl -X POST \"https://discoveryengine.googleapis.com/v1alpha/projects/\$GCP_PROJECT/locations/global/collections/default_collection/engines/\$APP_ID/assistants/default_assistant/agents\" -d '{\"displayName\":\"BigQuery Agent\",...,\"adkAgentDefinition\":{\"provisionedReasoningEngine\":{\"reasoningEngine\":\"\$REASONING_ENGINE\"}},\"authorizationConfig\":{\"toolAuthorizations\":[...]}}' # to register the agent" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
@@ -625,14 +625,16 @@ elif [ $MODE -eq 2 ]; then
     echo
     echo "*** projects.locations.authorizations and assistants.agents are v1alpha APIs that are still evolving -- verify field names in the console if a call fails ***" | pv -qL 100
     echo
+    echo "*** Registering the agent's Authorization must live in the SAME Discovery Engine location as the app's" | pv -qL 100
+    echo "*** engine (confirmed by testing: engines.create in step 3 is hardcoded to 'global', not '\$GE_LOCATION') ***" | pv -qL 100
     echo "$ curl -X POST .../authorizations?authorizationId=$AUTH_ID # to register the OAuth client with Gemini Enterprise" | pv -qL 100
     curl -s -X POST \
       -H "Authorization: Bearer $(gcloud auth print-access-token)" \
       -H "Content-Type: application/json" \
       -H "X-Goog-User-Project: $GCP_PROJECT" \
-      "https://${GE_LOCATION}-discoveryengine.googleapis.com/v1alpha/projects/$PROJECT_NUMBER/locations/${GE_LOCATION}/authorizations?authorizationId=$AUTH_ID" \
-      -d "{\"name\":\"projects/$PROJECT_NUMBER/locations/${GE_LOCATION}/authorizations/$AUTH_ID\",\"serverSideOauth2\":{\"clientId\":\"$OAUTH_CLIENT_ID\",\"clientSecret\":\"$OAUTH_CLIENT_SECRET\",\"authorizationUri\":\"$AUTH_URI\",\"tokenUri\":\"https://oauth2.googleapis.com/token\"}}" | tee $PROJDIR/authorization.json
-    export AUTHORIZATION=projects/$PROJECT_NUMBER/locations/${GE_LOCATION}/authorizations/$AUTH_ID
+      "https://discoveryengine.googleapis.com/v1alpha/projects/$PROJECT_NUMBER/locations/global/authorizations?authorizationId=$AUTH_ID" \
+      -d "{\"name\":\"projects/$PROJECT_NUMBER/locations/global/authorizations/$AUTH_ID\",\"serverSideOauth2\":{\"clientId\":\"$OAUTH_CLIENT_ID\",\"clientSecret\":\"$OAUTH_CLIENT_SECRET\",\"authorizationUri\":\"$AUTH_URI\",\"tokenUri\":\"https://oauth2.googleapis.com/token\"}}" | tee $PROJDIR/authorization.json
+    export AUTHORIZATION=projects/$PROJECT_NUMBER/locations/global/authorizations/$AUTH_ID
     sed -i "s#^export AUTHORIZATION=.*#export AUTHORIZATION=$AUTHORIZATION#" $PROJDIR/.env
     source $PROJDIR/.env
     echo
