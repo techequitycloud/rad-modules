@@ -1,4 +1,4 @@
-# gcp-gemini-enterprise.sh — Cymbal Pools Gemini Enterprise Demo
+# gcp-gemini-cymbalpools.sh — Cymbal Pools Gemini Enterprise Demo
 
 Interactive bash script that walks a trainer through preparing and running the
 "Cymbal Pools" Gemini Enterprise demo: seeding demo content, standing up a
@@ -64,7 +64,7 @@ see step `7`'s notes.
 
 ```bash
 cd /path/where/you/want/working/files
-./gcp-gemini-enterprise.sh
+./gcp-gemini-cymbalpools.sh
 ```
 
 A menu appears that loops until you press `Q`. **Always start each session by
@@ -81,13 +81,13 @@ pressing `0`** to choose an execution mode and confirm the GCP project.
 In Create / Delete mode the script runs `gcloud auth login`, asks for the
 project ID, creates a service account `<project>@<project>.iam.gserviceaccount.com`
 with `roles/owner`, drops the key at
-`./gcp-gemini-enterprise/.<project>.json`, and creates a `gs://<project>`
+`./gcp-gemini-cymbalpools/.<project>.json`, and creates a `gs://<project>`
 bucket for backing up `.env`. Delete the cached key file to switch projects
 later.
 
 ## Configuration (`.env`)
 
-Created at `./gcp-gemini-enterprise/.env`. Edit values before running the
+Created at `./gcp-gemini-cymbalpools/.env`. Edit values before running the
 numbered steps, or let the script populate the OAuth and agent fields for you
 as you complete each step:
 
@@ -212,7 +212,7 @@ without switching back to the PDF.
 ## Working files
 
 ```
-./gcp-gemini-enterprise/
+./gcp-gemini-cymbalpools/
 ├── .env                       # current configuration, including captured OAuth/agent IDs
 ├── .<GCP_PROJECT>.json        # service-account key
 ├── *.pdf / *.docx             # demo documents downloaded in step 2
@@ -222,7 +222,7 @@ without switching back to the PDF.
 └── authorization.json / agent_create.json       # authorizations/agents.create responses from step 7
 ```
 
-`.env` is also backed up to `gs://<GCP_PROJECT>/gcp-gemini-enterprise.sh.env`.
+`.env` is also backed up to `gs://<GCP_PROJECT>/gcp-gemini-cymbalpools.sh.env`.
 
 ## Cleanup
 
@@ -236,4 +236,4 @@ without switching back to the PDF.
 4. Manually remove the OAuth client/brand from Google Auth Platform and the
    Model Armor template — steps `4` and `10` print reminders but do not
    delete console-managed resources.
-5. Delete `./gcp-gemini-enterprise/` and the service-account key file.
+5. Delete `./gcp-gemini-cymbalpools/` and the service-account key file.

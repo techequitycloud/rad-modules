@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2024 Tech Equity Cloud Services Ltd
+# Copyright 2026 Google LLC
 # 
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -46,8 +46,8 @@ echo
 echo
 echo -e "                        👋  Welcome to Cloud Sandbox! 💻"
 echo 
-echo -e " Visit https://docs.techequity.cloud for terraform based rapid application deployment"
-echo -e "          Developed by: Shiyghan Navti shiyghan.navti@techequity.cloud"
+echo -e "                          Developed by: Shiyghan Navti"
+echo -e "          Need help? Contact shiyghan.navti@techequity.cloud for assistance"
 echo 
 echo -e "              *** PLEASE WAIT WHILE LAB UTILITIES ARE INSTALLED ***"
 sudo apt-get -qq install pv > /dev/null 2>&1
@@ -113,32 +113,26 @@ if [[ ! -z "$TRAINING_ORG_ID" ]]  &&  [[ $ORG_ID == "$TRAINING_ORG_ID" ]]; then
         echo
         echo "*** Command preview mode is active ***" | pv -qL 100
     else 
-        if [[ -f $PROJDIR/.${GCP_PROJECT}.json ]]; then
+        while [[ -z "$PROJECT_ID" ]] || [[ "$GCP_PROJECT" != "$PROJECT_ID" ]]; do
             echo 
-            echo "*** Authenticating using service account key $PROJDIR/.${GCP_PROJECT}.json ***" | pv -qL 100
-            echo "*** To use a different GCP project, delete the service account key ***" | pv -qL 100
-        else
-            while [[ -z "$PROJECT_ID" ]] || [[ "$GCP_PROJECT" != "$PROJECT_ID" ]]; do
-                echo 
-                echo "$ gcloud auth login --brief --quiet # to authenticate as project owner or editor" | pv -qL 100
-                gcloud auth login  --brief --quiet 
-                export ACCOUNT=$(gcloud config list account --format "value(core.account)")
-                if [[ $ACCOUNT != "" ]]; then
-                    echo
-                    echo "Copy and paste a valid Google Cloud project ID below to confirm your choice:" | pv -qL 100
-                    read GCP_PROJECT
-                    gcloud config set project $GCP_PROJECT --quiet 2>/dev/null
-                    sleep 3
-                    export PROJECT_ID=$(gcloud projects list --filter $GCP_PROJECT --format 'value(PROJECT_ID)' 2>/dev/null)
-                fi
-            done
-            gcloud iam service-accounts delete ${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com --quiet 2>/dev/null
-            sleep 2
-            gcloud --project $GCP_PROJECT iam service-accounts create ${GCP_PROJECT} 2>/dev/null
-            gcloud projects add-iam-policy-binding $GCP_PROJECT --member serviceAccount:$GCP_PROJECT@$GCP_PROJECT.iam.gserviceaccount.com --role=roles/owner > /dev/null 2>&1
-            gcloud --project $GCP_PROJECT iam service-accounts keys create $PROJDIR/.${GCP_PROJECT}.json --iam-account=${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com 2>/dev/null
-            gcloud --project $GCP_PROJECT storage buckets create gs://$GCP_PROJECT > /dev/null 2>&1
-        fi
+            echo "$ gcloud auth login --brief --quiet # to authenticate as project owner or editor" | pv -qL 100
+            gcloud auth login  --brief --quiet 
+            export ACCOUNT=$(gcloud config list account --format "value(core.account)")
+            if [[ $ACCOUNT != "" ]]; then
+                echo
+                echo "Copy and paste a valid Google Cloud project ID below to confirm your choice:" | pv -qL 100
+                read GCP_PROJECT
+                gcloud config set project $GCP_PROJECT --quiet 2>/dev/null
+                sleep 3
+                export PROJECT_ID=$(gcloud projects list --filter $GCP_PROJECT --format 'value(PROJECT_ID)' 2>/dev/null)
+            fi
+        done
+        gcloud iam service-accounts delete ${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com --quiet 2>/dev/null
+        sleep 2
+        gcloud --project $GCP_PROJECT iam service-accounts create ${GCP_PROJECT} 2>/dev/null
+        gcloud projects add-iam-policy-binding $GCP_PROJECT --member serviceAccount:$GCP_PROJECT@$GCP_PROJECT.iam.gserviceaccount.com --role=roles/owner > /dev/null 2>&1
+        gcloud --project $GCP_PROJECT iam service-accounts keys create $PROJDIR/.${GCP_PROJECT}.json --iam-account=${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com 2>/dev/null
+        gcloud --project $GCP_PROJECT storage buckets create gs://$GCP_PROJECT > /dev/null 2>&1
         export GOOGLE_APPLICATION_CREDENTIALS=$PROJDIR/.${GCP_PROJECT}.json
         cat <<EOF > $PROJDIR/.env
 export GCP_PROJECT=$GCP_PROJECT
@@ -205,35 +199,29 @@ else
                 MODE=2
                 echo && echo
                 echo "*** Access code is valid ***" | pv -qL 100
-                if [[ -f $PROJDIR/.${GCP_PROJECT}.json ]]; then
+                while [[ -z "$PROJECT_ID" ]] || [[ "$GCP_PROJECT" != "$PROJECT_ID" ]]; do
                     echo 
-                    echo "*** Authenticating using service account key $PROJDIR/.${GCP_PROJECT}.json ***" | pv -qL 100
-                    echo "*** To use a different GCP project, delete the service account key ***" | pv -qL 100
-                else
-                    while [[ -z "$PROJECT_ID" ]] || [[ "$GCP_PROJECT" != "$PROJECT_ID" ]]; do
-                        echo 
-                        echo "$ gcloud auth login --brief --quiet # to authenticate as project owner or editor" | pv -qL 100
-                        gcloud auth login  --brief --quiet
-                        export ACCOUNT=$(gcloud config list account --format "value(core.account)")
-                        if [[ $ACCOUNT != "" ]]; then
-                            echo
-                            echo "Copy and paste a valid Google Cloud project ID below to confirm your choice:" | pv -qL 100
-                            read GCP_PROJECT
-                            gcloud config set project $GCP_PROJECT --quiet 2>/dev/null
-                            sleep 3
-                            export PROJECT_ID=$(gcloud projects list --filter $GCP_PROJECT --format 'value(PROJECT_ID)' 2>/dev/null)
-                        fi
-                    done
-                    echo
-                    echo "Enter the name of the virtual machine to analyze and migrate" | pv -qL 100
-                    read MESH_NAME
-                    gcloud iam service-accounts delete ${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com --quiet 2>/dev/null
-                    sleep 2
-                    gcloud --project $GCP_PROJECT iam service-accounts create ${GCP_PROJECT} 2>/dev/null
-                    gcloud projects add-iam-policy-binding $GCP_PROJECT --member serviceAccount:$GCP_PROJECT@$GCP_PROJECT.iam.gserviceaccount.com --role=roles/owner > /dev/null 2>&1
-                    gcloud --project $GCP_PROJECT iam service-accounts keys create $PROJDIR/.${GCP_PROJECT}.json --iam-account=${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com 2>/dev/null
-                    gcloud --project $GCP_PROJECT storage buckets create gs://$GCP_PROJECT > /dev/null 2>&1
-                fi
+                    echo "$ gcloud auth login --brief --quiet # to authenticate as project owner or editor" | pv -qL 100
+                    gcloud auth login  --brief --quiet
+                    export ACCOUNT=$(gcloud config list account --format "value(core.account)")
+                    if [[ $ACCOUNT != "" ]]; then
+                        echo
+                        echo "Copy and paste a valid Google Cloud project ID below to confirm your choice:" | pv -qL 100
+                        read GCP_PROJECT
+                        gcloud config set project $GCP_PROJECT --quiet 2>/dev/null
+                        sleep 3
+                        export PROJECT_ID=$(gcloud projects list --filter $GCP_PROJECT --format 'value(PROJECT_ID)' 2>/dev/null)
+                    fi
+                done
+                echo
+                echo "Enter the name of the virtual machine to analyze and migrate" | pv -qL 100
+                read MESH_NAME
+                gcloud iam service-accounts delete ${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com --quiet 2>/dev/null
+                sleep 2
+                gcloud --project $GCP_PROJECT iam service-accounts create ${GCP_PROJECT} 2>/dev/null
+                gcloud projects add-iam-policy-binding $GCP_PROJECT --member serviceAccount:$GCP_PROJECT@$GCP_PROJECT.iam.gserviceaccount.com --role=roles/owner > /dev/null 2>&1
+                gcloud --project $GCP_PROJECT iam service-accounts keys create $PROJDIR/.${GCP_PROJECT}.json --iam-account=${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com 2>/dev/null
+                gcloud --project $GCP_PROJECT storage buckets create gs://$GCP_PROJECT > /dev/null 2>&1
                 export GOOGLE_APPLICATION_CREDENTIALS=$PROJDIR/.${GCP_PROJECT}.json
                 cat <<EOF > $PROJDIR/.env
 export GCP_PROJECT=$GCP_PROJECT
