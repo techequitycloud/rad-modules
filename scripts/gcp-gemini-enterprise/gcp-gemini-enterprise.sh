@@ -616,7 +616,7 @@ elif [ $MODE -eq 2 ]; then
         sed -i "s/OAUTH_CLIENT_ID = .*/OAUTH_CLIENT_ID = '$OAUTH_CLIENT_ID'/" $PROJDIR/$AGENT_DIR/construct_auth_uri.py
         echo
         echo "$ python3 $PROJDIR/$AGENT_DIR/construct_auth_uri.py # to build the Authorization URI" | pv -qL 100
-        export AUTH_URI=$(python3 $PROJDIR/$AGENT_DIR/construct_auth_uri.py | tail -1)
+        export AUTH_URI=$(python3 $PROJDIR/$AGENT_DIR/construct_auth_uri.py | grep '^https://')
         sed -i "s#^export AUTH_URI=.*#export AUTH_URI=$AUTH_URI#" $PROJDIR/.env
         source $PROJDIR/.env
         echo
