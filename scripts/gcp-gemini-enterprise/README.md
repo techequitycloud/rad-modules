@@ -110,8 +110,14 @@ not a service account).
 ### `(3) Create Gemini Enterprise app & identity provider`
 Calls `engines.create` (`appType: APP_TYPE_INTRANET`) to create the app with
 `$APP_NAME`/`$APP_ID`/`$COMPANY_NAME` and no data stores attached yet, then
-prints the Identity Provider steps (Use Google Identity, Confirm Workforce
-Identity), which have no API. Delete mode calls `engines.delete`.
+prints the Identity Provider steps, which have no API: go to **Settings >
+Authentication** and configure Google Identity. **This setting is
+per-location** — the page lists a row per location (`global`, `us`, `eu`,
+...), and step 5's Drive/Calendar connectors check the row for `$GE_LOCATION`
+specifically. A `global` row showing Google Identity does *not* satisfy the
+precondition for `us` — configure the `$GE_LOCATION` row explicitly, or
+step 5 fails with `FAILED_PRECONDITION: IdP must be selected before creating
+an ACLed Data Connector`. Delete mode calls `engines.delete`.
 
 ### `(4) Create OAuth consent screen & OAuth client`
 Console-only — custom redirect URIs on a Web-application OAuth client still

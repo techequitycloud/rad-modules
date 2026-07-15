@@ -375,7 +375,7 @@ if [ $MODE -eq 1 ]; then
     echo
     echo "$ curl -X POST -H \"Authorization: Bearer \$(gcloud auth print-access-token)\" \"https://discoveryengine.googleapis.com/v1/projects/\$GCP_PROJECT/locations/global/collections/default_collection/engines?engineId=\$APP_ID\" -d '{\"displayName\":\"'\$APP_NAME'\",\"dataStoreIds\":[],\"solutionType\":\"SOLUTION_TYPE_SEARCH\",\"industryVertical\":\"GENERIC\",\"appType\":\"APP_TYPE_INTRANET\",\"commonConfig\":{\"companyName\":\"'\$COMPANY_NAME'\"}}' # to create the Gemini Enterprise app" | pv -qL 100
     echo
-    echo "*** Identity provider confirmation has no API yet -- complete it in the console ***" | pv -qL 100
+    echo "*** Identity provider confirmation has no API yet -- complete it in the console for the '\$GE_LOCATION' location specifically ***" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},3"
     gcloud config set project $GCP_PROJECT > /dev/null 2>&1
@@ -389,9 +389,12 @@ elif [ $MODE -eq 2 ]; then
       "https://discoveryengine.googleapis.com/v1/projects/$GCP_PROJECT/locations/global/collections/default_collection/engines?engineId=$APP_ID" \
       -d "{\"displayName\":\"$APP_NAME\",\"dataStoreIds\":[],\"solutionType\":\"SOLUTION_TYPE_SEARCH\",\"industryVertical\":\"GENERIC\",\"appType\":\"APP_TYPE_INTRANET\",\"commonConfig\":{\"companyName\":\"$COMPANY_NAME\"}}" | tee $PROJDIR/engine_create.json
     echo
-    echo "1. In the Gemini Enterprise console, open app $APP_ID and go to Integration" | pv -qL 100
-    echo "2. Select Use Google Identity and click Confirm Workforce Identity" | pv -qL 100
-    read -n 1 -s -r -p $'*** Press the Enter key once the identity provider is confirmed ***'
+    echo "1. In the Gemini Enterprise / AI Applications console, go to Settings > Authentication" | pv -qL 100
+    echo "2. The Identity provider list is per-location -- find the row for '$GE_LOCATION' specifically" | pv -qL 100
+    echo "   (a 'global' row showing Google Identity does NOT satisfy the '$GE_LOCATION' precondition check)" | pv -qL 100
+    echo "3. Click the pencil next to '$GE_LOCATION', select Google Identity, and save" | pv -qL 100
+    echo "   Step 5's connector calls will fail with FAILED_PRECONDITION until this row is configured" | pv -qL 100
+    read -n 1 -s -r -p $'*** Press the Enter key once the identity provider is confirmed for the '"$GE_LOCATION"' location ***'
     echo
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},3x"
@@ -476,6 +479,9 @@ elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},5"
     echo
     echo "*** setUpDataConnector is a v1alpha API that is still evolving -- verify field names in the console if a call fails ***" | pv -qL 100
+    echo "*** These are ACLed connectors: Settings > Authentication must show an Identity provider configured ***" | pv -qL 100
+    echo "*** for the '$GE_LOCATION' location specifically (step 3) -- a 'global' row alone will not satisfy this ***" | pv -qL 100
+    echo "*** and both calls below will fail with FAILED_PRECONDITION until it is ***" | pv -qL 100
     echo
     echo "$ curl -X POST .../:setUpDataConnector # to connect Google Drive" | pv -qL 100
     curl -s -X POST \
