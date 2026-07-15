@@ -483,7 +483,7 @@ elif [ $MODE -eq 2 ]; then
       -H "Content-Type: application/json" \
       -H "X-Goog-User-Project: $GCP_PROJECT" \
       "https://${GE_LOCATION}-discoveryengine.googleapis.com/v1alpha/projects/$GCP_PROJECT/locations/${GE_LOCATION}:setUpDataConnector" \
-      -d "{\"collectionId\":\"gdrive\",\"collectionDisplayName\":\"Google Drive\",\"dataConnector\":{\"dataSource\":\"google_drive\",\"entities\":[{\"entityName\":\"drive\"}],\"connectorModes\":[\"FEDERATED\"]}}" | tee $PROJDIR/gdrive_connector.json
+      -d "{\"collectionId\":\"gdrive\",\"collectionDisplayName\":\"Google Drive\",\"dataConnector\":{\"dataSource\":\"google_drive\",\"entities\":[{\"entityName\":\"google_drive\"}],\"connectorModes\":[\"FEDERATED\"]}}" | tee $PROJDIR/gdrive_connector.json
     echo
     echo "$ curl -X POST .../:setUpDataConnector # to connect Google Calendar" | pv -qL 100
     curl -s -X POST \
@@ -491,7 +491,7 @@ elif [ $MODE -eq 2 ]; then
       -H "Content-Type: application/json" \
       -H "X-Goog-User-Project: $GCP_PROJECT" \
       "https://${GE_LOCATION}-discoveryengine.googleapis.com/v1alpha/projects/$GCP_PROJECT/locations/${GE_LOCATION}:setUpDataConnector" \
-      -d "{\"collectionId\":\"gcal\",\"collectionDisplayName\":\"Google Calendar\",\"dataConnector\":{\"dataSource\":\"google_calendar\",\"entities\":[{\"entityName\":\"calendar\"}],\"connectorModes\":[\"FEDERATED\"]}}" | tee $PROJDIR/gcal_connector.json
+      -d "{\"collectionId\":\"gcal\",\"collectionDisplayName\":\"Google Calendar\",\"dataConnector\":{\"dataSource\":\"google_calendar\",\"entities\":[{\"entityName\":\"google_calendar\"}],\"connectorModes\":[\"FEDERATED\"]}}" | tee $PROJDIR/gcal_connector.json
     echo
     echo "1. In the Gemini Enterprise app, open Configure OAuth for Google Drive / Google Calendar and select the" | pv -qL 100
     echo "   OAuth client created in step 4 (Client ID: $OAUTH_CLIENT_ID)" | pv -qL 100
