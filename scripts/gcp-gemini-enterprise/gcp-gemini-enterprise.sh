@@ -617,7 +617,8 @@ elif [ $MODE -eq 2 ]; then
         echo
         echo "$ python3 $PROJDIR/$AGENT_DIR/construct_auth_uri.py # to build the Authorization URI" | pv -qL 100
         export AUTH_URI=$(python3 $PROJDIR/$AGENT_DIR/construct_auth_uri.py | grep '^https://')
-        sed -i "s#^export AUTH_URI=.*#export AUTH_URI=$AUTH_URI#" $PROJDIR/.env
+        sed -i '/^export AUTH_URI=/d' $PROJDIR/.env
+        echo "export AUTH_URI='$AUTH_URI'" >> $PROJDIR/.env
         source $PROJDIR/.env
         echo
         echo "*** Authorization URI captured: $AUTH_URI ***" | pv -qL 100
@@ -635,7 +636,8 @@ elif [ $MODE -eq 2 ]; then
       "https://discoveryengine.googleapis.com/v1alpha/projects/$PROJECT_NUMBER/locations/global/authorizations?authorizationId=$AUTH_ID" \
       -d "{\"name\":\"projects/$PROJECT_NUMBER/locations/global/authorizations/$AUTH_ID\",\"serverSideOauth2\":{\"clientId\":\"$OAUTH_CLIENT_ID\",\"clientSecret\":\"$OAUTH_CLIENT_SECRET\",\"authorizationUri\":\"$AUTH_URI\",\"tokenUri\":\"https://oauth2.googleapis.com/token\"}}" | tee $PROJDIR/authorization.json
     export AUTHORIZATION=projects/$PROJECT_NUMBER/locations/global/authorizations/$AUTH_ID
-    sed -i "s#^export AUTHORIZATION=.*#export AUTHORIZATION=$AUTHORIZATION#" $PROJDIR/.env
+    sed -i '/^export AUTHORIZATION=/d' $PROJDIR/.env
+    echo "export AUTHORIZATION='$AUTHORIZATION'" >> $PROJDIR/.env
     source $PROJDIR/.env
     echo
     echo "$ curl -X POST .../engines/$APP_ID/assistants/default_assistant/agents # to register the BigQuery Agent" | pv -qL 100
