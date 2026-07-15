@@ -56,8 +56,8 @@ echo
 echo
 echo -e "                        👋  Welcome to Cloud Sandbox! 💻"
 echo
-echo -e " Visit https://docs.techequity.cloud for terraform based rapid application deployment"
-echo -e "          Developed by: Shiyghan Navti shiyghan.navti@techequity.cloud"
+echo -e "                          Developed by: Shiyghan Navti"
+echo -e "          Need help? Contact shiyghan.navti@techequity.cloud for assistance"
 echo
 echo -e "              *** PLEASE WAIT WHILE LAB UTILITIES ARE INSTALLED ***"
 sudo apt-get -qq install pv > /dev/null 2>&1
