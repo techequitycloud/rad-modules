@@ -40,6 +40,12 @@ resource "random_id" "default" {
   byte_length = 2
 }
 
+resource "random_password" "windows_password" {
+  length           = 32
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
 data "google_project" "existing_project" {
   project_id = trimspace(var.project_id)
 }

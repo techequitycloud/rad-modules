@@ -101,11 +101,11 @@ export ZONE="us-central1-a"
      --project="$PROJECT" --format="table(name, networkInterfaces[0].networkIP)"
    ```
 
-2. **RDP into the Windows VM** using the external IP from step 1:
+2. **RDP into the Windows VM** using the external IP and `windows_vm_password` output from step 1:
 
    ```
    Username: migrationcenter
-   Password: m1grat10nc#nt#r
+   Password: <your-windows_vm_password-output>
    ```
 
    Inside the VM, confirm **MCDCv6** and **Google Chrome** are installed and that
