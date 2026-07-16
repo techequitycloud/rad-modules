@@ -30,8 +30,14 @@ output "windows_vm_name" {
 }
 
 output "windows_vm_external_ip" {
-  description = "External IP address of the Windows VM — use this to connect via RDP. Username: migrationcenter  Password: m1grat10nc#nt#r"
+  description = "External IP address of the Windows VM — use this to connect via RDP. Username: migrationcenter. Password is in the windows_vm_password output."
   value       = var.create_windows_vm ? google_compute_instance.windows_vm[0].network_interface[0].access_config[0].nat_ip : null
+}
+
+output "windows_vm_password" {
+  description = "Password for the Windows VM RDP user (migrationcenter)."
+  value       = random_password.windows_password.result
+  sensitive   = true
 }
 
 output "linux_vm_names" {
