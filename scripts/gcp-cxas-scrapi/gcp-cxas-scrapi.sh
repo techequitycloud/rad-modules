@@ -735,7 +735,13 @@ TESTEOF
 import json
 p = 'agents/$AGENT_NAME/$AGENT_NAME.json'
 d = json.load(open(p))
-d['before_model_callbacks'] = [{
+# CES round-trips this field as 'beforeModelCallbacks' (camelCase) on pull/push,
+# but accepts 'before_model_callbacks' (snake_case) too -- confirmed by testing,
+# having BOTH spellings present in the same file makes push fail with 'Field
+# ...before_model_callbacks has already been set', so clear both before setting.
+d.pop('before_model_callbacks', None)
+d.pop('beforeModelCallbacks', None)
+d['beforeModelCallbacks'] = [{
     'pythonCode': 'agents/$AGENT_NAME/before_model_callbacks/state_orchestrator/python_code.py',
     'description': 'Slot-filling state machine for the scheduling flow',
     'disabled': False,
@@ -1159,9 +1165,13 @@ FAQEOF
 import json
 path = 'agents/$AGENT_NAME/$AGENT_NAME.json'
 d = json.load(open(path))
-child_agents = d.setdefault('child_agents', [])
-if '$FAQ_AGENT_NAME' not in child_agents:
-    child_agents.append('$FAQ_AGENT_NAME')
+# Same camelCase/snake_case collision as before_model_callbacks (step 6): CES
+# round-trips this field as 'childAgents' -- normalize to that single spelling
+# so a repeat run after a pull doesn't leave both keys set and break push.
+existing = d.pop('childAgents', None) or d.pop('child_agents', None) or []
+if '$FAQ_AGENT_NAME' not in existing:
+    existing.append('$FAQ_AGENT_NAME')
+d['childAgents'] = existing
 json.dump(d, open(path, 'w'), indent=2)
 "
     echo
