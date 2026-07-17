@@ -1252,6 +1252,22 @@ elif [ $MODE -eq 2 ]; then
     1. Do not attempt to book or modify appointments -- transfer back to the
        scheduling agent if the customer wants to schedule a visit.
 </constraints>
+<taskflow>
+    <subtask name="Answering">
+        <step name="Answer question">
+            <trigger>Customer asks a general pool-care question.</trigger>
+            <action>
+                Answer directly using general pool-care knowledge.
+            </action>
+        </step>
+        <step name="Hand off">
+            <trigger>Customer wants to book, reschedule, or check an appointment.</trigger>
+            <action>
+                Transfer back to the scheduling agent.
+            </action>
+        </step>
+    </subtask>
+</taskflow>
 FAQEOF
     python3 -c "
 import json
@@ -1271,6 +1287,12 @@ json.dump(d, open(path, 'w'), indent=2)
     echo
     echo "$ cxas lint" | pv -qL 100
     cxas lint
+    echo
+    echo "*** If this reports [V005] 'Missing required fields for GenerativeAnswer' on a guardrail named" | pv -qL 100
+    echo "*** something like Safety_Guardrail_<timestamp> or Prompt_Guardrail_<timestamp>, that's a false" | pv -qL 100
+    echo "*** positive -- confirmed by testing, those are the platform's own built-in guardrails (Safety /" | pv -qL 100
+    echo "*** Prompt Guard), which use modelSafety/llmPromptSecurity and genuinely have no 'prompt' field," | pv -qL 100
+    echo "*** not our own \$GUARDRAIL_NAME. Safe to ignore -- we never created or modified them ***" | pv -qL 100
     echo
     echo "$ cxas push --app-dir . --to projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$BRANCH_APP_ID" | pv -qL 100
     cxas push --app-dir . --to projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$BRANCH_APP_ID

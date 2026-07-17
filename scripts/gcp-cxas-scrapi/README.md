@@ -300,12 +300,21 @@ all operate on this branch so the validated baseline from steps `3`–`10` is
 never touched by the AI-driven or architectural experiments that follow.
 
 ### `(13) Split off a second agent (multi-agent architecture)`
-On the branch, scaffolds a `faq` agent and adds it to `scheduler.json`'s
-`child_agents` list (Agent Architecture guide: start single-agent, split only
-once a second, genuinely distinct responsibility appears). Whether live
-routing also needs a `transfer_rules` entry was not confirmed — check the
-console's agent transfer settings if the FAQ agent doesn't trigger in
-Preview.
+On the branch, scaffolds a `faq` agent (with its own `<taskflow>` — every
+agent's instructions need one, root or not, confirmed by lint rule `I001`)
+and adds it to `scheduler.json`'s `child_agents` list (Agent Architecture
+guide: start single-agent, split only once a second, genuinely distinct
+responsibility appears). Whether live routing also needs a `transfer_rules`
+entry was not confirmed — check the console's agent transfer settings if
+the FAQ agent doesn't trigger in Preview.
+
+`cxas lint` at this point may report `[V005]` on a guardrail named something
+like `Safety_Guardrail_<timestamp>` or `Prompt_Guardrail_<timestamp>` —
+confirmed by testing, those are the platform's own built-in guardrails
+(Safety / Prompt Guard, visible as toggles in the console's Guardrails
+panel), using `modelSafety`/`llmPromptSecurity` rather than `llmPolicy` and
+genuinely having no `prompt` field. That's a lint false positive on
+platform-managed guardrails we never created or touched, safe to ignore.
 
 ### `(14) Install the Antigravity CLI`
 Installs `agy` and runs `cxas init` inside the branch directory to register
