@@ -54,12 +54,12 @@ export GCP_PROJECT=$(gcloud config list --format 'value(core.project)' 2>/dev/nu
 
 echo
 echo
-echo -e "                        👋  Welcome to Cloud Demo! 💻"
+echo -e "                         👋  Welcome to Cloud Demo! 💻"
 echo
 echo -e "                          Developed by: Shiyghan Navti"
-echo -e "          Need help? Contact shiyghan.navti@techequity.cloud for assistance"
+echo -e "       Need help? Contact shiyghan.navti@techequity.cloud for assistance"
 echo
-echo -e "              *** PLEASE WAIT WHILE LAB UTILITIES ARE INSTALLED ***"
+echo -e "             *** PLEASE WAIT WHILE LAB UTILITIES ARE INSTALLED ***"
 sudo apt-get -qq install pv > /dev/null 2>&1
 echo
 export SCRIPTPATH=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
