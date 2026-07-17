@@ -110,6 +110,24 @@ student account with the roles from step 1 pre-granted), you can skip option
 `0`'s `n`/`d` flow entirely and just export `GCP_PROJECT` yourself before
 running the numbered steps.
 
+**Surviving a new terminal / Cloud Shell reconnect**: `GOOGLE_APPLICATION_CREDENTIALS`
+(the key file `cxas` actually authenticates with) is only an `export` in the
+shell that ran option `0` — a new terminal loses it, and `cxas` then silently
+falls back to whatever ambient credentials that shell has (on Cloud Shell,
+the VM's own service account, which has none of the roles from step 1), and
+fails deep inside a `cxas push`/`cxas create` call with a confusing
+`ces.apps.import` permission error rather than a clear one. To fix this, the
+script persists `GOOGLE_APPLICATION_CREDENTIALS` into `.env` — since `.env`
+is sourced at the top of the script and at the start of every step, a fresh
+terminal that just runs `./gcp-cxas-scrapi.sh` again picks the credential
+back up automatically without re-running option `0`. Step 2 also appends a
+one-time auto-activation block to `~/.bashrc` (source the venv and `.env`)
+so `cxas` and the credential are both available even outside the script's
+own menu, e.g. if you're debugging with raw `cxas` commands directly. If
+`.env`'s `GOOGLE_APPLICATION_CREDENTIALS` ever points to a file that no
+longer exists (e.g. copied to a different machine), the script warns at
+startup and tells you to re-run option `0`.
+
 ## Configuration (`.env`)
 
 Created at `./gcp-cxas-scrapi/.env`. Edit values before running the numbered
@@ -131,6 +149,7 @@ steps:
 | `VOICE_APP_NAME` / `VOICE_APP_ID` / `VOICE_APP_DIR` | `Cymbal Pools Service Voice` / `cymbal-pools-service-voice` / `Cymbal_Pools_Service_Voice` | Voice-modality variant created in step 19. |
 | `VOICE_MODEL` | `gemini-3.1-flash-live` | Audio-modality model for the voice variant. |
 | `IAM_PRINCIPAL` | `NOT_SET` | Captured by step 1 (`gcloud config list account`). |
+| `GOOGLE_APPLICATION_CREDENTIALS` | `NOT_SET` | Captured by option `0` — the service-account key path `cxas` actually authenticates with. Persisted here so a new terminal picks it back up automatically. |
 
 ## Menu walkthrough
 

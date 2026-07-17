@@ -92,8 +92,17 @@ export VOICE_APP_ID=cymbal-pools-service-voice
 export VOICE_APP_DIR=Cymbal_Pools_Service_Voice
 export VOICE_MODEL=gemini-3.1-flash-live
 export IAM_PRINCIPAL=NOT_SET
+export GOOGLE_APPLICATION_CREDENTIALS=NOT_SET
 EOF
 source $PROJDIR/.env
+fi
+
+if [ "$GOOGLE_APPLICATION_CREDENTIALS" != "NOT_SET" ] && [ ! -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+    echo
+    echo "*** WARNING: \$GOOGLE_APPLICATION_CREDENTIALS ($GOOGLE_APPLICATION_CREDENTIALS) is set in .env but the" | pv -qL 100
+    echo "*** file doesn't exist -- likely a stale reference from a different machine/session. Re-run option 0" | pv -qL 100
+    echo "*** in create mode to regenerate it before running any cxas step ***" | pv -qL 100
+    sleep 2
 fi
 
 # Display menu options
@@ -174,6 +183,7 @@ if [[ ! -z "$TRAINING_ORG_ID" ]]  &&  [[ $ORG_ID == "$TRAINING_ORG_ID" ]]; then
         gcloud --project $GCP_PROJECT iam service-accounts keys create $PROJDIR/.${GCP_PROJECT}.json --iam-account=${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com 2>/dev/null
         gcloud --project $GCP_PROJECT storage buckets create gs://$GCP_PROJECT > /dev/null 2>&1
         export GOOGLE_APPLICATION_CREDENTIALS=$PROJDIR/.${GCP_PROJECT}.json
+        sed -i "s#^export GOOGLE_APPLICATION_CREDENTIALS=.*#export GOOGLE_APPLICATION_CREDENTIALS=$PROJDIR/.${GCP_PROJECT}.json#" $PROJDIR/.env
         sed -i "s/^export GCP_PROJECT=.*/export GCP_PROJECT=$GCP_PROJECT/" $PROJDIR/.env
         source $PROJDIR/.env
         gsutil cp $PROJDIR/.env gs://${GCP_PROJECT}/${SCRIPTNAME}.env > /dev/null 2>&1
@@ -252,6 +262,7 @@ else
                 gcloud --project $GCP_PROJECT iam service-accounts keys create $PROJDIR/.${GCP_PROJECT}.json --iam-account=${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com 2>/dev/null
                 gcloud --project $GCP_PROJECT storage buckets create gs://$GCP_PROJECT > /dev/null 2>&1
                 export GOOGLE_APPLICATION_CREDENTIALS=$PROJDIR/.${GCP_PROJECT}.json
+                sed -i "s#^export GOOGLE_APPLICATION_CREDENTIALS=.*#export GOOGLE_APPLICATION_CREDENTIALS=$PROJDIR/.${GCP_PROJECT}.json#" $PROJDIR/.env
                 sed -i "s/^export GCP_PROJECT=.*/export GCP_PROJECT=$GCP_PROJECT/" $PROJDIR/.env
                 source $PROJDIR/.env
                 gsutil cp $PROJDIR/.env gs://${GCP_PROJECT}/${SCRIPTNAME}.env > /dev/null 2>&1
@@ -385,6 +396,19 @@ elif [ $MODE -eq 2 ]; then
     echo
     echo "$ gcloud storage buckets create gs://$GCS_BUCKET --project $GCP_PROJECT --location $CXAS_LOCATION # for eval reports" | pv -qL 100
     gcloud storage buckets create gs://$GCS_BUCKET --project $GCP_PROJECT --location $CXAS_LOCATION 2>/dev/null || echo "*** Bucket may already exist -- continuing ***"
+    if ! grep -q "# gcp-cxas-scrapi auto-activation" $HOME/.bashrc 2>/dev/null; then
+        cat <<BASHRCEOF >> $HOME/.bashrc
+
+# gcp-cxas-scrapi auto-activation -- keeps cxas and GOOGLE_APPLICATION_CREDENTIALS
+# working in every new shell/reconnect, not just the one that ran step 2
+if [ -f "$PROJDIR/.venv/bin/activate" ]; then
+    source "$PROJDIR/.venv/bin/activate"
+    source "$PROJDIR/.env"
+fi
+BASHRCEOF
+        echo
+        echo "*** Added auto-activation to ~/.bashrc -- new shells/reconnects will have cxas and your credentials automatically ***" | pv -qL 100
+    fi
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},2x"
     echo
