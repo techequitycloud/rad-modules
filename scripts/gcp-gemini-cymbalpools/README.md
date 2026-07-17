@@ -78,12 +78,10 @@ pressing `0`** to choose an execution mode and confirm the GCP project.
 | `n` | **Create** | Authenticates and executes each step, pausing for manual console work. |
 | `d` | **Delete** | Best-effort teardown of what each step created. |
 
-In Create / Delete mode the script always runs `gcloud auth login`, asks for
-the project ID, and unconditionally recreates the service account
-`<project>@<project>.iam.gserviceaccount.com` with `roles/owner`, its key at
-`./gcp-gemini-cymbalpools/.<project>.json`, and a `gs://<project>` bucket for
-backing up `.env` — there is no cached-key shortcut, so re-entering option
-`0` always re-authenticates fresh rather than silently reusing a prior key.
+In Create / Delete mode the script always runs `gcloud auth login` and asks
+for the project ID, then creates a `gs://<project>` bucket for backing up
+`.env` — there is no cached-credential shortcut, so re-entering option `0`
+always re-authenticates fresh rather than silently reusing a prior session.
 
 ## Configuration (`.env`)
 
@@ -214,7 +212,6 @@ without switching back to the PDF.
 ```
 ./gcp-gemini-cymbalpools/
 ├── .env                       # current configuration, including captured OAuth/agent IDs
-├── .<GCP_PROJECT>.json        # service-account key
 ├── *.pdf / *.docx             # demo documents downloaded in step 2
 ├── engine_create.json         # engines.create response from step 3
 ├── adk_deploy.log             # captured `adk deploy agent_engine` output
@@ -236,4 +233,4 @@ without switching back to the PDF.
 4. Manually remove the OAuth client/brand from Google Auth Platform and the
    Model Armor template — steps `4` and `10` print reminders but do not
    delete console-managed resources.
-5. Delete `./gcp-gemini-cymbalpools/` and the service-account key file.
+5. Delete `./gcp-gemini-cymbalpools/`.

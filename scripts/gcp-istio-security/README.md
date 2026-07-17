@@ -35,11 +35,8 @@ pressing `0`** to choose an execution mode and confirm the GCP project.
 | `d` | **Delete** | Removes resources created by each step. |
 
 In Create / Delete mode the script runs `gcloud auth login`, asks for the
-project ID, creates a service account
-`<project>@<project>.iam.gserviceaccount.com` with `roles/owner`, drops the
-key at `./gcp-istio-security/.<project>.json`, and creates a
-`gs://<project>` bucket for backing up `.env`. Delete the cached key file to
-switch projects later.
+project ID, and creates a `gs://<project>` bucket for backing up `.env`. Just
+run option `0` again with a different project ID to switch projects later.
 
 ## Configuration (`.env`)
 
@@ -122,8 +119,7 @@ Delete mode removes the namespaces and bundled policies.
 
 ```
 ./gcp-istio-security/
-├── .env                       # current configuration
-└── .<GCP_PROJECT>.json        # service-account key
+└── .env                       # current configuration
 
 $HOME/istio-<ISTIO_VERSION>/   # istioctl binary + samples used by steps 6–8
 ```
@@ -139,4 +135,4 @@ The cluster is the dominant cost. To tear everything down:
 3. Run `5`, `4`, `3` to remove the application namespace, uninstall Istio, and
    delete the GKE cluster.
 4. Optionally `2` to disable the APIs and `1` to remove Istio binaries.
-5. Delete `./gcp-istio-security/` and the service-account key file.
+5. Delete `./gcp-istio-security/`.

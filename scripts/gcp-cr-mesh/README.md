@@ -39,15 +39,12 @@ When you select `0` the script asks how it should behave:
 
 In Create or Delete mode the script will:
 
-1. Run `gcloud auth login` if no service-account key is cached.
+1. Run `gcloud auth login` to authenticate as a project Owner or Editor.
 2. Prompt for the Google Cloud project ID to operate against.
-3. Create a service account `<project>@<project>.iam.gserviceaccount.com`,
-   grant it `roles/owner`, save its key to
-   `./gcp-cr-mesh/.<project>.json`, and create a `gs://<project>` bucket for
-   backing up `.env`.
+3. Create a `gs://<project>` bucket for backing up `.env`.
 4. Re-export the configuration to `./gcp-cr-mesh/.env`.
 
-To change projects later, delete the cached key file and run option `0` again.
+To change projects later, just run option `0` again with a different project ID.
 
 ## Configuration (`.env`)
 
@@ -120,7 +117,6 @@ After running option `0` you'll have:
 ```
 ./gcp-cr-mesh/
 ├── .env                       # current configuration (edit to customize)
-├── .<GCP_PROJECT>.json        # service-account key (delete to switch projects)
 ├── mesh.yaml                  # written by step 3
 └── http_route.yaml            # written by step 5
 ```
@@ -132,5 +128,4 @@ can be restored across Cloud Shell sessions.
 
 Run option `0` and choose `d` (delete), then step through `(7)` down to `(1)`
 in reverse order. Once everything is gone you can also delete the local
-`./gcp-cr-mesh/` working directory and remove the cached service-account key
-to avoid unexpected re-use.
+`./gcp-cr-mesh/` working directory.

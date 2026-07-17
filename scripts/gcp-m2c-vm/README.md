@@ -44,10 +44,9 @@ VM name.
 
 In Create / Delete mode the script runs `gcloud auth login`, asks for the
 project ID and source VM name, derives the VM zone and region from
-`gcloud compute instances list`, creates a service account
-`<project>@<project>.iam.gserviceaccount.com` with `roles/owner`, drops the
-key at `./gcp-m2c-vm/.<project>.json`, and creates a `gs://<project>` bucket
-for backing up `.env`. Delete the cached key file to switch projects.
+`gcloud compute instances list`, and creates a `gs://<project>` bucket for
+backing up `.env`. Just run option `0` again with a different project ID to
+switch projects.
 
 ## Configuration (`.env`)
 
@@ -60,7 +59,6 @@ Created at `./gcp-m2c-vm/.env`. Edit values before running the numbered steps:
 | `CONTAINER_NAME` | `NOT_SET` | Name used for the generated container and Cloud Run service. |
 | `VM_ZONE` | discovered from VM_NAME | Zone of the source VM. |
 | `GCP_REGION` | derived from VM_ZONE | Region for Cloud Run deployment. |
-| `GOOGLE_APPLICATION_CREDENTIALS` | `./gcp-m2c-vm/.<project>.json` | Service-account key path. |
 
 ## Menu walkthrough
 
@@ -130,7 +128,6 @@ In delete mode it removes the Cloud Run service and the GKE deployment.
 ```
 ./gcp-m2c-vm/
 ├── .env                                # current configuration
-├── .<GCP_PROJECT>.json                 # service-account key
 ├── m2c                                 # Migrate to Containers CLI
 ├── mcdc                                # local copy of the discovery CLI
 ├── filters.txt                         # rsync exclusion list (edit before sync)
@@ -156,8 +153,8 @@ In delete mode it removes the Cloud Run service and the GKE deployment.
   and package archives often cuts the rsync to a fraction of the original.
 - **SSH failures.** `gcloud compute ssh` uses IAP by default — make sure your
   user has `roles/iap.tunnelResourceAccessor` and the VM allows IAP ranges.
-- **Wrong project after first run.** Delete `./gcp-m2c-vm/.<project>.json`
-  and re-run option `0`.
+- **Wrong project after first run.** Just re-run option `0` with the correct
+  project ID.
 - **Re-running step 3.** If you change `config.yaml` and re-run, the script
   will re-sync the filesystem. Keep `filters.txt` in place to avoid repeating
   the slow parts.
@@ -171,4 +168,4 @@ In delete mode it removes the Cloud Run service and the GKE deployment.
 2. Step `4` to delete the Cloud Run service and any GKE deployment.
 3. Step `2` to delete the source VM (only if you no longer need it).
 4. Optionally remove built images from Artifact Registry by hand.
-5. Delete `./gcp-m2c-vm/` and the cached service-account key.
+5. Delete `./gcp-m2c-vm/`.
