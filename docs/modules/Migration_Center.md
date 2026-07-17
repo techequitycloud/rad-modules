@@ -5,6 +5,8 @@ sidebar_label: "Migration Center"
 
 # Migration Center — Discovery & Assessment Environment
 
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/Migration_Center.png" alt="Migration Center — Discovery & Assessment Environment" style={{maxWidth: "100%", borderRadius: "8px"}} />
+
 Google Cloud Migration Center is Google Cloud's free, unified platform for the *assessment phase* of a cloud migration — discovering existing workloads, building an accurate inventory, estimating what they would cost to run on Google Cloud, and planning migration waves. This module deploys a complete, hands-on Migration Center discovery and assessment environment: it initialises the Migration Center service for your project, registers a discovery source, and provisions a set of sample source workloads (a Windows MCDCv6 host plus Debian Linux scan targets) so you can run a realistic end-to-end discovery and produce a Total Cost of Ownership (TCO) report.
 
 This is a **standalone module** — it does not build on any shared foundation. Everything it needs (a dedicated VPC, firewall rules, sample VMs, an SSH-key bucket, and the Migration Center service objects) is created directly in the target project. Optionally, when AWS credentials are supplied, it also discovers and imports live AWS EC2 inventory alongside the Google Cloud scan results.

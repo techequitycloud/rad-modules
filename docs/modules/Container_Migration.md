@@ -1,5 +1,7 @@
 # Migrate to Containers on GKE
 
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/Container_Migration.png" alt="Migrate to Containers on GKE" style={{maxWidth: "100%", borderRadius: "8px"}} />
+
 This module provisions a complete, hands-on environment for practising **Google Cloud Migrate to Containers (M2C)** — the automated path for replatforming VM-based Linux workloads to containers on Google Kubernetes Engine (GKE) without modifying application source code. It is a **standalone module**: it builds its own VPC, source VMs, a migration workstation, and a target GKE cluster, and does not depend on any shared foundation infrastructure.
 
 On apply the module deploys two Ubuntu source VMs running real applications (PostgreSQL 14 and Apache Tomcat 10 serving the Spring PetClinic app), a Migrate to Containers CLI workstation pre-loaded with the migration toolchain, and a multi-node GKE cluster ready to receive migrated workloads. From there an operator works through the M2C lifecycle by hand: assess each VM with the `mcdc` CLI, copy and analyse filesystems with the `m2c` CLI, generate Dockerfiles and Kubernetes manifests, migrate persistent data to GKE PersistentVolumes, and deploy the resulting containers with Skaffold.

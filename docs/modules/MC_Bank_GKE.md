@@ -1,5 +1,7 @@
 # Multi-Cluster Bank of Anthos on GKE
 
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/MC_Bank_GKE.png" alt="Multi-Cluster Bank of Anthos on GKE" style={{maxWidth: "100%", borderRadius: "8px"}} />
+
 This module deploys **Bank of Anthos** — Google's open-source microservices banking demo — across **multiple GKE clusters in multiple regions**, wired together as a single application platform. It is a self-contained, standalone module: it builds its own VPC, creates every GKE cluster, registers them all into a **GKE Fleet**, joins them into one **multi-primary Cloud Service Mesh**, and fronts them with a **multi-cluster gateway / global external load balancer** so a single public address serves the nearest healthy region.
 
 It is intended as an educational reference for the active-active, geo-redundant architecture that regulated financial and global payment platforms use to meet high-availability and data-residency requirements. It is not a production banking system.

@@ -1,5 +1,7 @@
 # Bank of Anthos on GKE
 
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/Bank_GKE.png" alt="Bank of Anthos on GKE" style={{maxWidth: "100%", borderRadius: "8px"}} />
+
 Bank of Anthos is Google Cloud's open-source reference banking application — a polyglot microservices demo (Python and Java services, two PostgreSQL databases, and a synthetic load generator) that mimics a retail bank with accounts, a transaction ledger, and a web frontend. This module is a **standalone** deployment: it builds its own VPC, GKE cluster, fleet membership, Cloud Service Mesh, and monitoring, then deploys the upstream Bank of Anthos manifests onto the cluster. It does not depend on any shared foundation module.
 
 The module is intended for **education and demonstration** — exploring GKE Autopilot, a managed service mesh with automatic mTLS, fleet management, and Cloud Monitoring. It is not a production banking system.

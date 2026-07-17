@@ -5,6 +5,8 @@ sidebar_label: "Istio_GKE"
 
 # Istio on GKE
 
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/Istio_GKE.png" alt="Istio on GKE" style={{maxWidth: "100%", borderRadius: "8px"}} />
+
 This module stands up a **GKE Standard cluster** and installs the **open-source Istio service mesh** onto it — the upstream CNCF project that underpins Google Cloud Service Mesh and many other managed mesh offerings. Istio is installed directly with `istioctl`, so every configuration decision is transparent and inspectable, making this an ideal hands-on environment for platform engineers learning how a service mesh works from the ground up.
 
 At deploy time you choose one of two data-plane architectures: **sidecar mode** (an Envoy proxy injected into every pod for full per-pod traffic control) or **ambient mode** (a shared per-node `ztunnel` proxy plus optional waypoint proxies, with much lower resource overhead). Alongside Istio, the module installs the full open-source observability stack — **Prometheus, Jaeger, Grafana, and Kiali** — so you can explore mesh telemetry immediately. This is a standalone infrastructure module: it provisions its own VPC, cluster, and networking, and does not build on any shared foundation.

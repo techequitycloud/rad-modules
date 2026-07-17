@@ -1,5 +1,7 @@
 # Azure AKS attached to a Google Cloud Fleet
 
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/AKS_GKE.png" alt="Azure AKS attached to a Google Cloud Fleet" style={{maxWidth: "100%", borderRadius: "8px"}} />
+
 This module creates a Microsoft Azure Kubernetes Service (AKS) cluster and registers it with Google Cloud as a **GKE Attached Cluster** — a full member of a **GKE Fleet**. Once attached, the AKS cluster appears in the Google Cloud Console alongside any native GKE clusters in the project, and can be accessed, observed, and governed through the same Google Cloud tooling, IAM model, and observability stack used for GKE — without migrating or refactoring the workloads that run on it.
 
 Unlike the application modules in this catalogue, this is a **standalone module** with no shared foundation. It owns its own Azure provider and creates resources in **two clouds**: an Azure Resource Group and AKS cluster on the Azure side, and a fleet membership plus managed logging and monitoring configuration on the Google Cloud side. The AKS cluster continues to run entirely in Azure; Google Cloud only gains a management plane over it. Trust between the two clouds is established with OIDC federation, so no service-account keys or shared secrets are exchanged.

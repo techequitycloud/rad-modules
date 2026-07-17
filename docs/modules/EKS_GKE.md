@@ -5,6 +5,8 @@ sidebar_label: "EKS_GKE"
 
 # AWS EKS attached to a Google Cloud Fleet
 
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/EKS_GKE.png" alt="AWS EKS attached to a Google Cloud Fleet" style={{maxWidth: "100%", borderRadius: "8px"}} />
+
 This module provisions a complete Amazon Elastic Kubernetes Service (EKS) cluster on AWS and registers it with Google Cloud as a **GKE Attached Cluster** — a member of a Google Cloud Fleet. Once attached, the EKS cluster appears in the Google Cloud console alongside any native GKE clusters in the same project and can be operated centrally: reached with `kubectl` through the Connect gateway using a Google identity (no AWS credentials), with its logs flowing to Cloud Logging and its metrics to Cloud Monitoring / Managed Service for Prometheus.
 
 This is a **standalone module**. It does not build on an application foundation — it creates its own AWS networking, IAM, and EKS cluster, and its own Google Cloud Fleet registration. Because it touches both clouds, deploying it requires **AWS credentials** in addition to a Google Cloud project.

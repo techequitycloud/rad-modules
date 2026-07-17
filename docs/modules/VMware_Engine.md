@@ -5,6 +5,8 @@ sidebar_label: "VMware Engine"
 
 # Google Cloud VMware Engine
 
+<img src="https://storage.googleapis.com/rad-public-2b65/modules/VMware_Engine.png" alt="Google Cloud VMware Engine" style={{maxWidth: "100%", borderRadius: "8px"}} />
+
 Google Cloud VMware Engine (GCVE) runs the complete VMware Software-Defined Data Center stack — vSphere, vSAN, NSX-T, and HCX — on dedicated, Google-managed bare-metal hardware. It is the enterprise-proven path for lifting and shifting existing VMware workloads to Google Cloud without refactoring: the same vCenter, NSX-T, and HCX tooling you use on-premises works unchanged, while the environment gains native access to Google Cloud services.
 
 This is a **standalone** module — it does not build on a shared foundation. It provisions an end-to-end GCVE environment in a single deployment: a VMware Engine network, a private cloud (the SDDC itself), VMware Engine VPC peering into a Google Cloud VPC, a network policy for internet and external-IP access, default firewall rules, and a Windows Server 2022 jump host for reaching the vCenter, NSX-T, and HCX consoles. It also resets and surfaces the vCenter solution-user credentials so you can immediately register migration tooling or sign in.
