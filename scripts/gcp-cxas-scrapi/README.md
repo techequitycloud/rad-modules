@@ -61,6 +61,20 @@ from the public docs that are now fixed here:
   `--evaluation-id`, `--display-name-prefix`, or `--tags` to select which
   tests to run. `load_golden_evals_from_yaml` auto-tags every pushed golden
   with its YAML file's basename, so `--tags happy_path` would also work.
+- **The guardrail's original prompt false-triggered** on ordinary
+  conversational content (a time like "11:30") and silently ate the
+  booking turn, which is why the golden failed with `Actual: (None /
+  Missed)` for `book_appointment` — the guardrail's canned refusal was
+  returned instead of the model ever getting to call the tool. Diagnosed
+  via `cxas trace list --source EVAL --format json` to find the eval's
+  conversation ID, then `cxas trace get <id> --format text` to see the
+  turn-by-turn transcript including which step (`Guardrail`, `Callback`,
+  `LLM`) fired — that's the general technique for debugging *any* eval
+  failure that isn't self-explanatory from `cxas run`'s summary. Fixed by
+  rewriting the prompt with an explicit "DO NOT FLAG" section (the
+  platform's own auto-generated guardrail template has one for exactly
+  this reason, which the original prompt skipped) and requiring an actual
+  13-19-digit card-like sequence rather than "contains digits."
 
 **Still best-effort / not live-verified** — flagged inline with the exact
 `--help` command to check if it fails:

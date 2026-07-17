@@ -59,7 +59,7 @@ echo -e "                          Developed by: Shiyghan Navti"
 echo -e "          Need help? Contact shiyghan.navti@techequity.cloud for assistance"
 echo
 echo -e "              *** PLEASE WAIT WHILE LAB UTILITIES ARE INSTALLED ***"
-sudo apt-get -qq install pv > /dev/null 2>&1
+sudo apt-get -qq install pv ffmpeg > /dev/null 2>&1
 echo
 export SCRIPTPATH=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -883,9 +883,18 @@ p = 'guardrails/$GUARDRAIL_NAME/$GUARDRAIL_NAME.json'
 d = json.load(open(p))
 d['llmPolicy']['prompt'] = (
     '### CRITICAL RULE\n'
-    '- Flag any user or agent message that includes a credit card number, debit card number, CVV, or bank account/routing number.\n\n'
+    '- Flag ONLY messages that contain an actual credit/debit card number, CVV, bank account number, or routing number.\n'
+    '- Do NOT flag times, dates, confirmation numbers, phone numbers, or other ordinary conversational numbers.\n\n'
     '### TRIGGER CRITERIA\n'
-    'FLAG the message if it contains payment card digits or bank account details.\n'
+    'FLAG the message if it contains:\n'
+    '- A contiguous sequence of 13-19 digits that could be a card number (e.g. \"4111 1111 1111 1111\")\n'
+    '- An explicit CVV, security code, bank account number, or routing number\n'
+    '- Explicit mention of providing or requesting payment card details\n\n'
+    '### DO NOT FLAG (False Positive Prevention)\n'
+    'Do NOT flag ordinary conversational content such as:\n'
+    '- Times (e.g. \"11:30\"), dates (e.g. \"2026-08-04\"), or short confirmation codes\n'
+    '- Customer names, addresses, or general appointment details\n'
+    '- Phone numbers or zip codes\n'
 )
 d['action']['generativeAnswer']['prompt'] = (
     \"Respond with: For your security, I can't accept payment details in this chat. \"
@@ -1306,11 +1315,13 @@ echo "   an inspection next Tuesday" | pv -qL 100
 echo "   Here are the available times for that date: 09:00, 11:30, 14:00, 16:30." | pv -qL 100
 echo "   Which works best?" | pv -qL 100
 echo
-echo "2. Then paste this prompt to refine the guardrail:" | pv -qL 100
+echo "2. Then paste this prompt to add regression coverage for the guardrail:" | pv -qL 100
 echo
-echo "   Update the $GUARDRAIL_NAME guardrail so it also catches bank account" | pv -qL 100
-echo "   and routing numbers, and add a local simulation that tests the whole" | pv -qL 100
-echo "   conversation to confirm it is refused." | pv -qL 100
+echo "   Add two local simulations for the $GUARDRAIL_NAME guardrail: one confirming" | pv -qL 100
+echo "   a message with a real card number is refused, and one confirming a normal" | pv -qL 100
+echo "   booking conversation (picking a time like 11:30 and giving a name) is NOT" | pv -qL 100
+echo "   blocked -- this guardrail previously false-triggered on ordinary times and" | pv -qL 100
+echo "   confirmation numbers, so guard against regressing that." | pv -qL 100
 echo
 echo "3. Approve any access requests, then type /exit" | pv -qL 100
 if [ $MODE -eq 2 ]; then
