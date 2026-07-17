@@ -89,11 +89,13 @@ Treat this script as a strong, mostly-verified starting point — rerun it
 against a real project before using it live in front of a class.
 
 Steps **14–16 and 18** deliberately hand control to the interactive
-**Antigravity CLI** (`agy`) — CXAS SCRAPI's own "vibe coding" workflow. The
-script prints the exact natural-language prompt to paste in, then pauses for
-you to complete the conversation and exit back to the script. This mirrors
-GENAI176/GENAI177 exactly rather than hand-authoring everything
-deterministically.
+**Antigravity CLI** (`agy --dangerously-skip-permissions`) — CXAS SCRAPI's own "vibe coding"
+workflow. `--dangerously-skip-permissions` auto-approves the per-action confirmation prompts Antigravity
+would otherwise stop for on every file edit/tool call, so the only manual
+step is authenticating and pasting the prompt. The script prints the exact
+natural-language prompt to paste in, then pauses for you to complete the
+conversation and exit back to the script. This mirrors GENAI176/GENAI177's
+intent rather than hand-authoring everything deterministically.
 
 ## Prerequisites
 
@@ -321,10 +323,11 @@ Installs `agy` and runs `cxas init` inside the branch directory to register
 the CXAS SCRAPI skills Antigravity uses.
 
 ### `(15) Vibe-code: convert tools to use variables`
-Prints the exact prompt (from GENAI176's Task 3) to paste into `agy`,
-converting the tools to use CX session variables so multiple appointments can
-be tracked. Pauses for you to complete the conversation, then lints and
-pushes.
+Prints the exact prompt (from GENAI176's Task 3) to paste into `agy --dangerously-skip-permissions`
+(`--dangerously-skip-permissions` auto-approves per-action confirmations instead of prompting for
+each one), converting the tools to use CX session variables so multiple
+appointments can be tracked. Pauses for you to complete the conversation,
+then lints and pushes.
 
 ### `(16) Vibe-code: golden eval & guardrail refinement`
 Prints two prompts (from GENAI177's Tasks 3 and 5): generate a golden from a
@@ -343,8 +346,8 @@ agent met it.
 ### `(18) Agent-foundry: build an agent from a PRD`
 Creates a second app (`Cymbal Pools Membership`) via `cxas create --app-id`
 (which, unlike `cxas branch`, does support a custom ID), bundles a short PRD
-markdown file, and hands control to `agy` with the `agent-foundry` skill
-prompt to build the whole agent from that PRD in one shot. Not run to
+markdown file, and hands control to `agy --dangerously-skip-permissions` with the `agent-foundry`
+skill prompt to build the whole agent from that PRD in one shot. Not run to
 completion live — it needs an interactive `agy` OAuth session.
 
 ### `(19) Create a voice variant`

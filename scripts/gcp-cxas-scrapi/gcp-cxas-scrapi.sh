@@ -1358,7 +1358,7 @@ export STEP="${STEP},15"
 echo
 echo "*** Vibe-coding step -- this hands control to the interactive Antigravity CLI ***" | pv -qL 100
 echo
-echo "1. cd $PROJDIR/$BRANCH_APP_DIR && run: agy" | pv -qL 100
+echo "1. cd $PROJDIR/$BRANCH_APP_DIR && run: agy --dangerously-skip-permissions # --dangerously-skip-permissions skips per-action confirmation prompts" | pv -qL 100
 echo "2. Authenticate with a Google Cloud project as prompted (device-code flow), select $GCP_PROJECT and $CXAS_LOCATION" | pv -qL 100
 echo "3. Type /cxas to see the available skills, then paste this prompt:" | pv -qL 100
 echo
@@ -1366,7 +1366,7 @@ echo "   given the current cxas scrapi agent, change the check_availability and"
 echo "   book_appointment tools into dynamic functions using CX Agent variables," | pv -qL 100
 echo "   so that multiple appointments can be tracked and checked." | pv -qL 100
 echo
-echo "4. Approve any access requests, then type /exit" | pv -qL 100
+echo "4. With --dangerously-skip-permissions, access requests are auto-approved -- just type /exit when done" | pv -qL 100
 if [ $MODE -eq 2 ]; then
     echo
     read -n 1 -s -r -p $'*** Press the Enter key once you have exited Antigravity ***'
@@ -1392,7 +1392,7 @@ start=`date +%s`
 source $PROJDIR/.env
 export STEP="${STEP},16"
 echo
-echo "*** Vibe-coding step -- run agy again from $PROJDIR/$BRANCH_APP_DIR ***" | pv -qL 100
+echo "*** Vibe-coding step -- run agy --dangerously-skip-permissions again from $PROJDIR/$BRANCH_APP_DIR ***" | pv -qL 100
 echo
 echo "1. Paste this prompt to create a golden from a sample conversation:" | pv -qL 100
 echo
@@ -1413,7 +1413,7 @@ echo "   booking conversation (picking a time like 11:30 and giving a name) is N
 echo "   blocked -- this guardrail previously false-triggered on ordinary times and" | pv -qL 100
 echo "   confirmation numbers, so guard against regressing that." | pv -qL 100
 echo
-echo "3. Approve any access requests, then type /exit" | pv -qL 100
+echo "3. With --dangerously-skip-permissions, access requests are auto-approved -- just type /exit when done" | pv -qL 100
 if [ $MODE -eq 2 ]; then
     echo
     read -n 1 -s -r -p $'*** Press the Enter key once you have exited Antigravity ***'
@@ -1513,13 +1513,13 @@ PRDEOF
     echo
     echo "*** Wrote prds/cymbal_pools_membership_prd.md ***" | pv -qL 100
     echo
-    echo "1. cd $PROJDIR/$FOUNDRY_APP_DIR && run: agy" | pv -qL 100
+    echo "1. cd $PROJDIR/$FOUNDRY_APP_DIR && run: agy --dangerously-skip-permissions # --dangerously-skip-permissions skips per-action confirmation prompts" | pv -qL 100
     echo "2. Type /cxas, then paste this prompt:" | pv -qL 100
     echo
     echo "   Use the cxas-scrapi skill called agent-foundry to build a new agent" | pv -qL 100
     echo "   using the PRD at prds/cymbal_pools_membership_prd.md" | pv -qL 100
     echo
-    echo "3. Approve any access requests, then type /exit" | pv -qL 100
+    echo "3. With --dangerously-skip-permissions, access requests are auto-approved -- just type /exit when done" | pv -qL 100
     read -n 1 -s -r -p $'*** Press the Enter key once agent-foundry has finished ***'
     echo
     echo
