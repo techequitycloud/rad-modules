@@ -49,12 +49,22 @@ from the public docs that are now fixed here:
   `cxas push-eval --file`, not `--eval-file`; `cxas ci-test`/`local-test`
   require `--project-id`/`--location`; `cxas insights list-scorecards`, not
   `list`; `cxas trace list`/`cxas trace open`, not a bare `cxas trace`).
+- **The golden-eval YAML is "Dataset format"**: a top-level `conversations:`
+  list where each item's `conversation:` field is the eval's **display
+  name** (a string, not the turn list), and `turns:` holds `{user, agent,
+  tool_calls: [{action, args}]}` objects — the `expect_tool_call`/
+  `expect_response_contains` shorthand this script originally guessed
+  doesn't exist. `cxas test-callbacks`'s callback test is a plain pytest
+  `test.py` colocated with `python_code.py` (from step 6), importing and
+  calling `before_model_callback` directly against a small fake context.
+- **`cxas run` has no "run everything" bare invocation** — it requires
+  `--evaluation-id`, `--display-name-prefix`, or `--tags` to select which
+  tests to run. `load_golden_evals_from_yaml` auto-tags every pushed golden
+  with its YAML file's basename, so `--tags happy_path` would also work.
 
 **Still best-effort / not live-verified** — flagged inline with the exact
 `--help` command to check if it fails:
 
-- The golden-eval YAML schema (step `10`) and the `test.py` fixture pattern
-  `cxas test-callbacks` expects for the callback test (step `6`/`10`).
 - Whether the scheduler also needs a `transfer_rules` entry (step `13`) to
   actually route to the FAQ agent live, beyond `child_agents`.
 - `cxas ci-test`, `cxas insights`, and the agent-foundry PRD skill (step `18`,
@@ -225,12 +235,16 @@ response) — both required fields — then pushes it and pauses to test the
 refusal in Preview (Guardrails guide).
 
 ### `(10) Write goldens, tool tests & callback tests`
-Writes a golden conversation and two tool tests using the real, live-tested
-schema (`tests: - name/tool/args/expectations.response[].{path,operator,
-value}`, with response paths nested under `$.result.<field>`), then runs
-`cxas test-tools` (×2), `cxas test-callbacks --app-dir . --agent-name
-scheduler --callback-name state_orchestrator` (runs step 6's `test.py`),
-`cxas push-eval --file`, and `cxas run --wait` (Testing & Evaluation guide).
+Writes a golden conversation using the real "Dataset format" schema
+(`conversations: [{conversation: <display name>, turns: [{user, agent,
+tool_calls}]}]`) and two tool tests (`tests: - name/tool/args/
+expectations.response[].{path,operator,value}`, with response paths nested
+under `$.result.<field>`), then runs `cxas test-tools` (×2),
+`cxas test-callbacks --app-dir . --agent-name scheduler --callback-name
+state_orchestrator` (runs step 6's `test.py`), `cxas push-eval --file`, and
+`cxas run --display-name-prefix happy_path --wait` (`cxas run` has no
+"run everything" mode — it requires an explicit filter) (Testing &
+Evaluation guide).
 
 ### `(11) Run CI/CD tests`
 Runs `cxas ci-test`/`cxas local-test` (both require `--project-id

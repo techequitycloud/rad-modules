@@ -935,28 +935,32 @@ if [ $MODE -eq 1 ]; then
     echo "$ cxas test-callbacks --app-dir . --agent-name \$AGENT_NAME --callback-name state_orchestrator # runs the test.py from step 6" | pv -qL 100
     echo
     echo "$ cxas push-eval --app-name ... --file evals/goldens/happy_path.yaml" | pv -qL 100
-    echo "$ cxas run --app-name projects/\$GCP_PROJECT/locations/\$CXAS_LOCATION/apps/\$APP_ID --wait # trigger evaluations" | pv -qL 100
-    echo
-    echo "*** The golden YAML's exact schema was not confirmed against a live push-eval call -- if it's rejected," | pv -qL 100
-    echo "*** check the error message for the expected field names ***" | pv -qL 100
+    echo "$ cxas run --app-name ... --display-name-prefix happy_path --wait # trigger evaluations -- confirmed by testing: cxas run requires an explicit --evaluation-id/--display-name-prefix/--tags filter, there is no 'run everything' bare invocation" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},10"
     source $PROJDIR/.venv/bin/activate
     cd $PROJDIR/$APP_DIR
     mkdir -p evals/goldens evals/tool_tests
     cat <<GOLDEOF > evals/goldens/happy_path.yaml
-name: happy_path
-description: Linear happy-path booking conversation
-conversation:
-  - user: hi
-  - user: I'd like to book a pool inspection for 2026-08-04
-  - expect_tool_call: check_availability
-  - user: 11:30 works, my name is Andrew
-  - expect_tool_call: book_appointment
-  - expect_response_contains: Confirmation number
+conversations:
+  - conversation: happy_path
+    turns:
+      - user: "hi"
+      - user: "I'd like to book a pool inspection for 2026-08-04"
+        tool_calls:
+          - action: check_availability
+            args:
+              service_type: inspection
+              preferred_date: "2026-08-04"
+      - user: "11:30 works, my name is Andrew"
+        tool_calls:
+          - action: book_appointment
+            args:
+              service_type: inspection
+              date: "2026-08-04"
+              time: "11:30"
+              customer_name: Andrew
 GOLDEOF
-    echo "*** The golden schema above is best-effort -- confirmed working schemas are the tool tests below" | pv -qL 100
-    echo "*** (validated against a live project); check push-eval's error output if this golden is rejected ***" | pv -qL 100
     cat <<TOOLTEST1 > evals/tool_tests/check_availability_test.yaml
 tests:
   - name: check_availability_test
@@ -995,10 +999,10 @@ TOOLTEST2
     cxas test-callbacks --app-dir . --agent-name $AGENT_NAME --callback-name state_orchestrator 2>/dev/null || echo "*** test.py's fixture pattern from step 6 is best-effort -- run 'cxas test-callbacks --help' and adjust it if this fails ***"
     echo
     echo "$ cxas push-eval --app-name projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --file evals/goldens/happy_path.yaml" | pv -qL 100
-    cxas push-eval --app-name projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --file evals/goldens/happy_path.yaml 2>/dev/null || echo "*** golden YAML schema is best-effort -- check the error above for the expected field names ***"
+    cxas push-eval --app-name projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --file evals/goldens/happy_path.yaml
     echo
-    echo "$ cxas run --app-name projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --wait" | pv -qL 100
-    cxas run --app-name projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --wait
+    echo "$ cxas run --app-name projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --display-name-prefix happy_path --wait" | pv -qL 100
+    cxas run --app-name projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --display-name-prefix happy_path --wait
     echo
     echo "*** Open the app's Evaluations tab in the console to see the golden's run history ***" | pv -qL 100
 elif [ $MODE -eq 3 ]; then
