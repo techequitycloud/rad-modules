@@ -45,7 +45,7 @@ export GCP_PROJECT=$(gcloud config list --format 'value(core.project)' 2>/dev/nu
 
 echo
 echo
-echo -e "                        👋  Welcome to Cloud Sandbox! 💻"
+echo -e "                        👋  Welcome to Cloud Demo! 💻"
 echo 
 echo -e "                          Developed by: Shiyghan Navti"
 echo -e "          Need help? Contact shiyghan.navti@techequity.cloud for assistance"
