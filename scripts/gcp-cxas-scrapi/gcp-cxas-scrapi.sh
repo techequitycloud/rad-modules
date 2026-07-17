@@ -92,17 +92,8 @@ export VOICE_APP_ID=cymbal-pools-service-voice
 export VOICE_APP_DIR=Cymbal_Pools_Service_Voice
 export VOICE_MODEL=gemini-3.1-flash-live
 export IAM_PRINCIPAL=NOT_SET
-export GOOGLE_APPLICATION_CREDENTIALS=NOT_SET
 EOF
 source $PROJDIR/.env
-fi
-
-if [ "$GOOGLE_APPLICATION_CREDENTIALS" != "NOT_SET" ] && [ ! -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
-    echo
-    echo "*** WARNING: \$GOOGLE_APPLICATION_CREDENTIALS ($GOOGLE_APPLICATION_CREDENTIALS) is set in .env but the" | pv -qL 100
-    echo "*** file doesn't exist -- likely a stale reference from a different machine/session. Re-run option 0" | pv -qL 100
-    echo "*** in create mode to regenerate it before running any cxas step ***" | pv -qL 100
-    sleep 2
 fi
 
 # Display menu options
@@ -176,14 +167,11 @@ if [[ ! -z "$TRAINING_ORG_ID" ]]  &&  [[ $ORG_ID == "$TRAINING_ORG_ID" ]]; then
                 export PROJECT_ID=$(gcloud projects list --filter $GCP_PROJECT --format 'value(PROJECT_ID)' 2>/dev/null)
             fi
         done
-        gcloud iam service-accounts delete ${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com --quiet 2>/dev/null
-        sleep 2
-        gcloud --project $GCP_PROJECT iam service-accounts create ${GCP_PROJECT} 2>/dev/null
-        gcloud projects add-iam-policy-binding $GCP_PROJECT --member serviceAccount:$GCP_PROJECT@$GCP_PROJECT.iam.gserviceaccount.com --role=roles/owner > /dev/null 2>&1
-        gcloud --project $GCP_PROJECT iam service-accounts keys create $PROJDIR/.${GCP_PROJECT}.json --iam-account=${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com 2>/dev/null
+        echo
+        echo "$ gcloud auth application-default login --quiet # cxas authenticates via ADC, not the gcloud CLI account, so this must be set explicitly" | pv -qL 100
+        gcloud auth application-default login --quiet
+        gcloud auth application-default set-quota-project $GCP_PROJECT --quiet 2>/dev/null
         gcloud --project $GCP_PROJECT storage buckets create gs://$GCP_PROJECT > /dev/null 2>&1
-        export GOOGLE_APPLICATION_CREDENTIALS=$PROJDIR/.${GCP_PROJECT}.json
-        sed -i "s#^export GOOGLE_APPLICATION_CREDENTIALS=.*#export GOOGLE_APPLICATION_CREDENTIALS=$PROJDIR/.${GCP_PROJECT}.json#" $PROJDIR/.env
         sed -i "s/^export GCP_PROJECT=.*/export GCP_PROJECT=$GCP_PROJECT/" $PROJDIR/.env
         source $PROJDIR/.env
         gsutil cp $PROJDIR/.env gs://${GCP_PROJECT}/${SCRIPTNAME}.env > /dev/null 2>&1
@@ -255,14 +243,11 @@ else
                         export PROJECT_ID=$(gcloud projects list --filter $GCP_PROJECT --format 'value(PROJECT_ID)' 2>/dev/null)
                     fi
                 done
-                gcloud iam service-accounts delete ${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com --quiet 2>/dev/null
-                sleep 2
-                gcloud --project $GCP_PROJECT iam service-accounts create ${GCP_PROJECT} 2>/dev/null
-                gcloud projects add-iam-policy-binding $GCP_PROJECT --member serviceAccount:$GCP_PROJECT@$GCP_PROJECT.iam.gserviceaccount.com --role=roles/owner > /dev/null 2>&1
-                gcloud --project $GCP_PROJECT iam service-accounts keys create $PROJDIR/.${GCP_PROJECT}.json --iam-account=${GCP_PROJECT}@${GCP_PROJECT}.iam.gserviceaccount.com 2>/dev/null
+                echo
+                echo "$ gcloud auth application-default login --quiet # cxas authenticates via ADC, not the gcloud CLI account, so this must be set explicitly" | pv -qL 100
+                gcloud auth application-default login --quiet
+                gcloud auth application-default set-quota-project $GCP_PROJECT --quiet 2>/dev/null
                 gcloud --project $GCP_PROJECT storage buckets create gs://$GCP_PROJECT > /dev/null 2>&1
-                export GOOGLE_APPLICATION_CREDENTIALS=$PROJDIR/.${GCP_PROJECT}.json
-                sed -i "s#^export GOOGLE_APPLICATION_CREDENTIALS=.*#export GOOGLE_APPLICATION_CREDENTIALS=$PROJDIR/.${GCP_PROJECT}.json#" $PROJDIR/.env
                 sed -i "s/^export GCP_PROJECT=.*/export GCP_PROJECT=$GCP_PROJECT/" $PROJDIR/.env
                 source $PROJDIR/.env
                 gsutil cp $PROJDIR/.env gs://${GCP_PROJECT}/${SCRIPTNAME}.env > /dev/null 2>&1
@@ -399,15 +384,17 @@ elif [ $MODE -eq 2 ]; then
     if ! grep -q "# gcp-cxas-scrapi auto-activation" $HOME/.bashrc 2>/dev/null; then
         cat <<BASHRCEOF >> $HOME/.bashrc
 
-# gcp-cxas-scrapi auto-activation -- keeps cxas and GOOGLE_APPLICATION_CREDENTIALS
-# working in every new shell/reconnect, not just the one that ran step 2
+# gcp-cxas-scrapi auto-activation -- keeps cxas on PATH and \$GCP_PROJECT/etc.
+# set in every new shell/reconnect, not just the one that ran step 2. Auth
+# itself (gcloud auth application-default login, from option 0) already
+# persists on disk automatically -- nothing to redo here for that part.
 if [ -f "$PROJDIR/.venv/bin/activate" ]; then
     source "$PROJDIR/.venv/bin/activate"
     source "$PROJDIR/.env"
 fi
 BASHRCEOF
         echo
-        echo "*** Added auto-activation to ~/.bashrc -- new shells/reconnects will have cxas and your credentials automatically ***" | pv -qL 100
+        echo "*** Added auto-activation to ~/.bashrc -- new shells/reconnects will have cxas on PATH automatically ***" | pv -qL 100
     fi
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},2x"

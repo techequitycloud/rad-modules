@@ -99,34 +99,40 @@ pressing `0`** to choose an execution mode and confirm the GCP project.
 | `n` | **Create** | Authenticates and executes each step, pausing for manual console/`agy` work. |
 | `d` | **Delete** | Best-effort teardown of what each step created. |
 
-In Create / Delete mode the script always runs `gcloud auth login`, asks for
-the project ID, and unconditionally recreates the service account
-`<project>@<project>.iam.gserviceaccount.com` with `roles/owner`, its key at
-`./gcp-cxas-scrapi/.<project>.json`, and a `gs://<project>` bucket for
-backing up `.env` — there is no cached-key shortcut, so re-entering option
-`0` always re-authenticates fresh rather than silently reusing a prior key.
-If you are already authenticated as the right principal (e.g. a Qwiklabs
-student account with the roles from step 1 pre-granted), you can skip option
-`0`'s `n`/`d` flow entirely and just export `GCP_PROJECT` yourself before
-running the numbered steps.
+In Create / Delete mode the script runs both `gcloud auth login` (the
+`gcloud` CLI's own identity) **and** `gcloud auth application-default login`
+(Application Default Credentials, ADC) for the same account, then sets that
+account as the ADC quota project and creates a `gs://<project>` bucket for
+backing up `.env`. Both matter: `cxas` itself authenticates via ADC, not
+whatever account `gcloud` CLI commands are using — confirmed by testing, the
+two are genuinely separate credential stores, and a shell where only
+`gcloud auth login` has run will fail `cxas push`/`cxas create` with a
+confusing `ces.apps.import` permission error, because `cxas` falls back to
+ambient credentials (on Cloud Shell, the VM's own service account, which has
+none of the granted roles). If you are already authenticated as the right
+principal (e.g. a Qwiklabs student account with the roles from step 1
+pre-granted) via both mechanisms, you can skip option `0`'s `n`/`d` flow
+entirely and just export `GCP_PROJECT` yourself before running the numbered
+steps.
 
-**Surviving a new terminal / Cloud Shell reconnect**: `GOOGLE_APPLICATION_CREDENTIALS`
-(the key file `cxas` actually authenticates with) is only an `export` in the
-shell that ran option `0` — a new terminal loses it, and `cxas` then silently
-falls back to whatever ambient credentials that shell has (on Cloud Shell,
-the VM's own service account, which has none of the roles from step 1), and
-fails deep inside a `cxas push`/`cxas create` call with a confusing
-`ces.apps.import` permission error rather than a clear one. To fix this, the
-script persists `GOOGLE_APPLICATION_CREDENTIALS` into `.env` — since `.env`
-is sourced at the top of the script and at the start of every step, a fresh
-terminal that just runs `./gcp-cxas-scrapi.sh` again picks the credential
-back up automatically without re-running option `0`. Step 2 also appends a
+**Why not a service-account key?** An earlier version of this script created
+a dedicated service account with `roles/owner` and pointed
+`GOOGLE_APPLICATION_CREDENTIALS` at its key file, matching the convention
+other scripts in this directory use for Terraform-heavy provisioning. For
+`cxas` specifically that turned out to be strictly worse: it's a second,
+more fragile credential system layered on top of ADC (which already works,
+since the pre-granted roles belong to your own account), and in practice hit
+a repeating class of failures — a key file invalidated by a later
+delete/recreate of the service account, an empty/corrupt key file from an
+IAM-propagation race right after creating the account, and a `GOOGLE_
+APPLICATION_CREDENTIALS` `export` that doesn't survive a new terminal.
+Plain ADC for your own account persists reliably on disk
+(`~/.config/gcloud/application_default_credentials.json`) across new
+terminals and Cloud Shell reconnects with no extra bookkeeping, so the
+script no longer creates a service account at all. Step 2 still appends a
 one-time auto-activation block to `~/.bashrc` (source the venv and `.env`)
-so `cxas` and the credential are both available even outside the script's
-own menu, e.g. if you're debugging with raw `cxas` commands directly. If
-`.env`'s `GOOGLE_APPLICATION_CREDENTIALS` ever points to a file that no
-longer exists (e.g. copied to a different machine), the script warns at
-startup and tells you to re-run option `0`.
+so `cxas` and `$GCP_PROJECT`/etc. are available in any new shell without
+re-running option `0` — auth itself doesn't need it.
 
 ## Configuration (`.env`)
 
@@ -149,7 +155,6 @@ steps:
 | `VOICE_APP_NAME` / `VOICE_APP_ID` / `VOICE_APP_DIR` | `Cymbal Pools Service Voice` / `cymbal-pools-service-voice` / `Cymbal_Pools_Service_Voice` | Voice-modality variant created in step 19. |
 | `VOICE_MODEL` | `gemini-3.1-flash-live` | Audio-modality model for the voice variant. |
 | `IAM_PRINCIPAL` | `NOT_SET` | Captured by step 1 (`gcloud config list account`). |
-| `GOOGLE_APPLICATION_CREDENTIALS` | `NOT_SET` | Captured by option `0` — the service-account key path `cxas` actually authenticates with. Persisted here so a new terminal picks it back up automatically. |
 
 ## Menu walkthrough
 
@@ -313,7 +318,6 @@ membership agent.
 ```
 ./gcp-cxas-scrapi/
 ├── .env                              # current configuration
-├── .<GCP_PROJECT>.json               # service-account key
 ├── .venv/                            # cxas-scrapi virtual environment
 ├── Cymbal_Pools_Service/             # primary app (steps 3-11)
 │   ├── gecx-config.json
@@ -348,5 +352,7 @@ membership agent.
    agent, then `3` to delete the primary app itself.
 5. Run `2` to remove the virtual environment and eval-report bucket, then `1`
    to remove the IAM bindings (APIs are left enabled).
-6. Delete `./gcp-cxas-scrapi/` and the service-account key file. The
-   Antigravity CLI (step 14) is left installed — it is not project-scoped.
+6. Delete `./gcp-cxas-scrapi/`. The Antigravity CLI (step 14) is left
+   installed — it is not project-scoped. ADC (`gcloud auth
+   application-default revoke`) is left as-is, since it's your own account's
+   credential, not something this script owns.
