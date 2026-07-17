@@ -81,9 +81,9 @@ from the public docs that are now fixed here:
 
 - Whether the scheduler also needs a `transfer_rules` entry (step `13`) to
   actually route to the FAQ agent live, beyond `child_agents`.
-- `cxas ci-test`, `cxas insights`, and the agent-foundry PRD skill (step `18`,
-  which also needs an interactive `agy` OAuth session) were not run to
-  completion live.
+- `cxas insights` and the agent-foundry PRD skill (step `18`, which also
+  needs an interactive `agy` OAuth session) were not run to completion
+  live. (`cxas ci-test` and `cxas local-test` *were* — see step `11` above.)
 
 Treat this script as a strong, mostly-verified starting point — rerun it
 against a real project before using it live in front of a class.
@@ -261,9 +261,20 @@ state_orchestrator` (runs step 6's `test.py`), `cxas push-eval --file`, and
 Evaluation guide).
 
 ### `(11) Run CI/CD tests`
-Runs `cxas ci-test`/`cxas local-test` (both require `--project-id
---location`; the latter only if Docker is available) and
-`cxas init-github-action` to scaffold a workflow file.
+Runs `cxas ci-test` with a fixed `--display-name "[CI] gcp-cxas-scrapi"` —
+confirmed by testing, `ci-test` always pushes to a **new** temp app and
+never deletes it ("Temp agent persists for review" is deliberate), so a
+fixed display name makes repeat runs update the same temp app instead of
+accumulating orphans; delete mode removes it by that display name. Runs
+`cxas local-test` if Docker is available (both require `--project-id
+--location`). Runs `cxas init-github-action --app-name ...` explicitly —
+confirmed by testing, it looks for an `app.yaml` (we have `app.json`) and
+silently synthesizes the *wrong* app-id from the directory name if
+`--app-name` is omitted. Even with the correct app-name, it still requires
+`--workload-identity-provider`/`--service-account` or `--auto-create-wif`
+(which provisions real Workload Identity infrastructure) to produce a
+working workflow — this script only scaffolds the template and leaves that
+choice to you rather than silently creating persistent GCP resources.
 
 ### `(12) Branch the app for experiments`
 `cxas branch <source> --new-name ... --project-id ... --location ...`

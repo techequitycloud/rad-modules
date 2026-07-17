@@ -1038,16 +1038,24 @@ source $PROJDIR/.env
 if [ $MODE -eq 1 ]; then
     export STEP="${STEP},11i"
     echo
-    echo "$ cxas ci-test --app-dir . --project-id \$GCP_PROJECT --location \$CXAS_LOCATION # full CI lifecycle against a temporary app" | pv -qL 100
+    echo "$ cxas ci-test --app-dir . --project-id \$GCP_PROJECT --location \$CXAS_LOCATION --display-name \"[CI] gcp-cxas-scrapi\" # full CI lifecycle against a temporary app" | pv -qL 100
+    echo "*** --display-name makes repeat runs reuse/update the same temp app instead of creating a new one every time" | pv -qL 100
+    echo "*** (confirmed by testing: without it, cxas ci-test creates a brand new app on every run and never cleans up" | pv -qL 100
+    echo "*** the old ones -- 'Temp agent persists for review' is deliberate, but that means orphans accumulate) ***" | pv -qL 100
     echo "$ cxas local-test --app-dir . --project-id \$GCP_PROJECT --location \$CXAS_LOCATION # CI testing inside a local Docker container" | pv -qL 100
-    echo "$ cxas init-github-action --app-dir . --project-id \$GCP_PROJECT --location \$CXAS_LOCATION # scaffold .github/workflows" | pv -qL 100
+    echo "$ cxas init-github-action --app-dir . --app-name projects/\$GCP_PROJECT/locations/\$CXAS_LOCATION/apps/\$APP_ID --project-id \$GCP_PROJECT --location \$CXAS_LOCATION # scaffold .github/workflows" | pv -qL 100
+    echo "*** --app-name is required explicitly -- confirmed by testing: init-github-action looks for an app.yaml (we" | pv -qL 100
+    echo "*** have app.json) and silently synthesizes the WRONG app-id from the directory name if it's omitted. Even" | pv -qL 100
+    echo "*** with the correct app-name, this needs --workload-identity-provider/--service-account or --auto-create-wif" | pv -qL 100
+    echo "*** (which provisions real, persistent GCP Workload Identity infrastructure) to produce a working workflow --" | pv -qL 100
+    echo "*** this script only scaffolds the template and leaves that opt-in choice to you ***" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},11"
     source $PROJDIR/.venv/bin/activate
     cd $PROJDIR/$APP_DIR
     echo
-    echo "$ cxas ci-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION" | pv -qL 100
-    cxas ci-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION 2>/dev/null || echo "*** cxas ci-test needs cloudbuild.googleapis.com and may take a few minutes -- check its output above for the real failure if this warns ***"
+    echo "$ cxas ci-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION --display-name \"[CI] gcp-cxas-scrapi\"" | pv -qL 100
+    cxas ci-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION --display-name "[CI] gcp-cxas-scrapi" 2>/dev/null || echo "*** cxas ci-test needs cloudbuild.googleapis.com and may take a few minutes -- check its output above for the real failure if this warns ***"
     if command -v docker > /dev/null 2>&1; then
         echo
         echo "$ cxas local-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION" | pv -qL 100
@@ -1057,13 +1065,15 @@ elif [ $MODE -eq 2 ]; then
         echo "*** Docker is not available in this environment -- skipping cxas local-test ***" | pv -qL 100
     fi
     echo
-    echo "$ cxas init-github-action --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION" | pv -qL 100
-    cxas init-github-action --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION 2>/dev/null || echo "*** cxas init-github-action needs a git remote to infer the GitHub repo -- pass --github-repo owner/repo if this warns ***"
+    echo "$ cxas init-github-action --app-dir . --app-name projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --project-id $GCP_PROJECT --location $CXAS_LOCATION" | pv -qL 100
+    cxas init-github-action --app-dir . --app-name projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --project-id $GCP_PROJECT --location $CXAS_LOCATION 2>/dev/null || echo "*** cxas init-github-action needs --workload-identity-provider/--service-account or --auto-create-wif to finish (see above) -- add --auto-create-wif yourself if you want it to provision that infrastructure ***"
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},11x"
     rm -rf $PROJDIR/$APP_DIR/.github 2>/dev/null
     echo
-    echo "*** Removed the generated GitHub Actions workflow (if any). Temporary apps created by cxas ci-test clean themselves up ***" | pv -qL 100
+    echo "$ cxas delete --display-name \"[CI] gcp-cxas-scrapi\" --project-id $GCP_PROJECT --location $CXAS_LOCATION --force # confirmed by testing: ci-test's temp app persists until deleted manually" | pv -qL 100
+    source $PROJDIR/.venv/bin/activate 2>/dev/null
+    cxas delete --display-name "[CI] gcp-cxas-scrapi" --project-id $GCP_PROJECT --location $CXAS_LOCATION --force 2>/dev/null || echo "*** No matching temp app found, or it was already removed ***"
 else
     export STEP="${STEP},11i"
     echo
