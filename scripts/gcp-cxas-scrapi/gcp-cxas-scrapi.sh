@@ -1065,8 +1065,10 @@ elif [ $MODE -eq 2 ]; then
     echo "$ cxas ci-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION --display-name \"[CI] gcp-cxas-scrapi\"" | pv -qL 100
     cxas ci-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION --display-name "[CI] gcp-cxas-scrapi" 2>/dev/null || echo "*** cxas ci-test needs cloudbuild.googleapis.com and may take a few minutes -- check its output above for the real failure if this warns ***"
     if command -v docker > /dev/null 2>&1; then
-        if [ ! -f Dockerfile ]; then
-            cat <<'DOCKEREOF' > Dockerfile
+        # Always overwrite: this is a script-generated file, not a
+        # user-customized one, and a stale copy from an earlier version
+        # of this script would otherwise never get the current fix.
+        cat <<'DOCKEREOF' > Dockerfile
 # Use an official Python runtime as a parent image
 FROM python:3.10-slim
 
@@ -1107,7 +1109,6 @@ COPY . .
 # Set the entrypoint to cxas-scrapi
 ENTRYPOINT ["cxas"]
 DOCKEREOF
-        fi
         if [ ! -f requirements.txt ]; then
             cat <<'REQEOF' > requirements.txt
 # Add your agent dependencies here
