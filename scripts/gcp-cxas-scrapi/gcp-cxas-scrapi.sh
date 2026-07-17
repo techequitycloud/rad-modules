@@ -424,12 +424,31 @@ elif [ $MODE -eq 2 ]; then
     cd $PROJDIR
     echo
     echo "$ cxas create \"$APP_NAME\" --app-id $APP_ID --project-id $GCP_PROJECT --location $CXAS_LOCATION --description \"Schedules pool inspection and installation visits\" # to create the app" | pv -qL 100
-    cxas create "$APP_NAME" --app-id $APP_ID --project-id $GCP_PROJECT --location $CXAS_LOCATION --description "Schedules pool inspection and installation visits"
-    echo
-    echo "$ cxas pull projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --target-dir $PROJDIR # to pull it locally" | pv -qL 100
-    cxas pull projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --target-dir $PROJDIR
-    cd $PROJDIR/$APP_DIR
-    cat <<CONFIGEOF > gecx-config.json
+    if ! cxas create "$APP_NAME" --app-id $APP_ID --project-id $GCP_PROJECT --location $CXAS_LOCATION --description "Schedules pool inspection and installation visits"; then
+        echo
+        echo "*** cxas create failed -- this is a real backend error, not a script bug. Before retrying: ***" | pv -qL 100
+        echo "*** 1. Confirm step 1 finished (APIs enabled, roles granted) and has had a minute to propagate ***" | pv -qL 100
+        echo "*** 2. Visit https://ces.cloud.google.com/ once for this project to confirm CX Agent Studio is" | pv -qL 100
+        echo "***    provisioned there, then rerun this step ***" | pv -qL 100
+        echo "*** 3. If it's a 500/INTERNAL error, it may simply be transient -- wait a minute and retry ***" | pv -qL 100
+        echo "*** 4. If '\$CXAS_LOCATION' (us) keeps failing, try 'global' instead by editing .env ***" | pv -qL 100
+        echo
+        echo "*** Stopping this step here -- not attempting pull, since there is nothing to pull yet ***" | pv -qL 100
+    else
+        echo
+        echo "$ cxas pull projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --target-dir $PROJDIR # to pull it locally" | pv -qL 100
+        if ! cxas pull projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --target-dir $PROJDIR; then
+            echo
+            echo "*** cxas pull failed right after a successful create -- rerun this step once more; the app" | pv -qL 100
+            echo "*** may still be finishing provisioning on the backend ***" | pv -qL 100
+        elif [ ! -d "$PROJDIR/$APP_DIR" ]; then
+            echo
+            echo "*** Pull reported success but $PROJDIR/$APP_DIR was not created -- if the app's display name" | pv -qL 100
+            echo "*** doesn't map to 'Cymbal_Pools_Service' as expected, find the real directory with:" | pv -qL 100
+            echo "*** ls $PROJDIR and update APP_DIR in $PROJDIR/.env to match ***" | pv -qL 100
+        else
+            cd $PROJDIR/$APP_DIR
+            cat <<CONFIGEOF > gecx-config.json
 {
   "gcp_project_id": "$GCP_PROJECT",
   "location": "$CXAS_LOCATION",
@@ -442,11 +461,13 @@ elif [ $MODE -eq 2 ]; then
   "gcs_bucket": "gs://$GCS_BUCKET"
 }
 CONFIGEOF
-    echo
-    echo "*** Wrote $PROJDIR/$APP_DIR/gecx-config.json ***" | pv -qL 100
-    echo
-    echo "1. Navigate to the CX Agent Studio console at https://ces.cloud.google.com/" | pv -qL 100
-    echo "2. Select project $GCP_PROJECT and verify that $APP_NAME is listed" | pv -qL 100
+            echo
+            echo "*** Wrote $PROJDIR/$APP_DIR/gecx-config.json ***" | pv -qL 100
+            echo
+            echo "1. Navigate to the CX Agent Studio console at https://ces.cloud.google.com/" | pv -qL 100
+            echo "2. Select project $GCP_PROJECT and verify that $APP_NAME is listed" | pv -qL 100
+        fi
+    fi
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},3x"
     echo
