@@ -1043,6 +1043,14 @@ if [ $MODE -eq 1 ]; then
     echo "*** (confirmed by testing: without it, cxas ci-test creates a brand new app on every run and never cleans up" | pv -qL 100
     echo "*** the old ones -- 'Temp agent persists for review' is deliberate, but that means orphans accumulate) ***" | pv -qL 100
     echo "$ cxas local-test --app-dir . --project-id \$GCP_PROJECT --location \$CXAS_LOCATION # CI testing inside a local Docker container" | pv -qL 100
+    echo "*** Writes Dockerfile/requirements.txt directly first -- confirmed by testing: cxas init-github-action" | pv -qL 100
+    echo "*** normally generates these as a side effect, but only after its WIF check passes, so local-test has" | pv -qL 100
+    echo "*** nothing to build against unless that succeeded first. Also swaps the template's 'COPY .../uv /uvbin" | pv -qL 100
+    echo "*** --link' + PATH trick for the standard /usr/local/bin/uv, since --link hit a BuildKit-version-dependent" | pv -qL 100
+    echo "*** checksum bug in testing. A separate bug remains even after this -- uv fails extracting Google's" | pv -qL 100
+    echo "*** ces-v1beta-py.tar with a checksum/UTF-8 error -- that's inside cxas-scrapi's own template reaching a" | pv -qL 100
+    echo "*** Google-hosted tarball, not something this script can fix; cxas ci-test (already validated) covers" | pv -qL 100
+    echo "*** the same ground without Docker's fragility ***" | pv -qL 100
     echo "$ cxas init-github-action --app-dir . --app-name projects/\$GCP_PROJECT/locations/\$CXAS_LOCATION/apps/\$APP_ID --project-id \$GCP_PROJECT --location \$CXAS_LOCATION # scaffold .github/workflows" | pv -qL 100
     echo "*** --app-name is required explicitly -- confirmed by testing: init-github-action looks for an app.yaml (we" | pv -qL 100
     echo "*** have app.json) and silently synthesizes the WRONG app-id from the directory name if it's omitted. Even" | pv -qL 100
@@ -1057,9 +1065,52 @@ elif [ $MODE -eq 2 ]; then
     echo "$ cxas ci-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION --display-name \"[CI] gcp-cxas-scrapi\"" | pv -qL 100
     cxas ci-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION --display-name "[CI] gcp-cxas-scrapi" 2>/dev/null || echo "*** cxas ci-test needs cloudbuild.googleapis.com and may take a few minutes -- check its output above for the real failure if this warns ***"
     if command -v docker > /dev/null 2>&1; then
+        if [ ! -f Dockerfile ]; then
+            cat <<'DOCKEREOF' > Dockerfile
+# Use an official Python runtime as a parent image
+FROM python:3.10-slim
+
+
+# Install uv (copied to the standard /usr/local/bin -- more portable across
+# BuildKit versions than the generated template's "/uvbin" + PATH trick)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Set the working directory to /app
+WORKDIR /app
+
+# Install git and wget (required for pip install and downloading CES lib)
+RUN apt-get update && apt-get install -y git wget && rm -rf /var/lib/apt/lists/*
+
+# Install CES Client Library (Pre-requisite) - Cached Layer
+RUN URL="https://storage.googleapis.com/gassets-api-ai/" && \
+    URL="${URL}ces-client-libraries/v1beta/ces-v1beta-py.tar" && \
+    wget $URL && \
+    uv pip install --system ces-v1beta-py.tar --quiet && \
+    rm ces-v1beta-py.tar
+
+# Copy requirements first to leverage Docker cache
+COPY requirements.txt .
+
+# Install dependencies and local CLI wheel
+RUN uv pip install --system --no-cache-dir -r requirements.txt && \
+    uv pip install --system cxas-scrapi
+
+# Copy the agent code into the container
+COPY . .
+
+# Set the entrypoint to cxas-scrapi
+ENTRYPOINT ["cxas"]
+DOCKEREOF
+        fi
+        if [ ! -f requirements.txt ]; then
+            cat <<'REQEOF' > requirements.txt
+# Add your agent dependencies here
+# google-cloud-ces  # Uncomment if needed
+REQEOF
+        fi
         echo
         echo "$ cxas local-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION" | pv -qL 100
-        cxas local-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION 2>/dev/null || echo "*** cxas local-test failed -- confirm the Docker daemon is running ***"
+        cxas local-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION || echo "*** cxas local-test failed -- the Docker build error above (not suppressed) has the real cause; 'docker info' confirms whether the daemon is reachable. If it's failing inside 'uv pip install ... ces-v1beta-py.tar' with a checksum/UTF-8 extraction error, that's a confirmed bug in cxas-scrapi's own Dockerfile template reaching a Google-hosted tarball, not fixable here -- cxas ci-test already covers the same ground ***"
     else
         echo
         echo "*** Docker is not available in this environment -- skipping cxas local-test ***" | pv -qL 100
@@ -1069,7 +1120,7 @@ elif [ $MODE -eq 2 ]; then
     cxas init-github-action --app-dir . --app-name projects/$GCP_PROJECT/locations/$CXAS_LOCATION/apps/$APP_ID --project-id $GCP_PROJECT --location $CXAS_LOCATION 2>/dev/null || echo "*** cxas init-github-action needs --workload-identity-provider/--service-account or --auto-create-wif to finish (see above) -- add --auto-create-wif yourself if you want it to provision that infrastructure ***"
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},11x"
-    rm -rf $PROJDIR/$APP_DIR/.github 2>/dev/null
+    rm -rf $PROJDIR/$APP_DIR/.github $PROJDIR/$APP_DIR/Dockerfile $PROJDIR/$APP_DIR/requirements.txt 2>/dev/null
     echo
     echo "$ cxas delete --display-name \"[CI] gcp-cxas-scrapi\" --project-id $GCP_PROJECT --location $CXAS_LOCATION --force # confirmed by testing: ci-test's temp app persists until deleted manually" | pv -qL 100
     source $PROJDIR/.venv/bin/activate 2>/dev/null

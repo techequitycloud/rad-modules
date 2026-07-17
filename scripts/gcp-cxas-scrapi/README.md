@@ -265,9 +265,22 @@ Runs `cxas ci-test` with a fixed `--display-name "[CI] gcp-cxas-scrapi"` —
 confirmed by testing, `ci-test` always pushes to a **new** temp app and
 never deletes it ("Temp agent persists for review" is deliberate), so a
 fixed display name makes repeat runs update the same temp app instead of
-accumulating orphans; delete mode removes it by that display name. Runs
-`cxas local-test` if Docker is available (both require `--project-id
---location`). Runs `cxas init-github-action --app-name ...` explicitly —
+accumulating orphans; delete mode removes it by that display name. If
+Docker is available, writes `Dockerfile`/`requirements.txt` directly before
+running `cxas local-test` (both require `--project-id --location`) —
+confirmed by testing, `cxas init-github-action` normally generates these as
+a side effect, but only *after* its WIF check passes (see below), so
+`local-test` has nothing to build against unless that already succeeded.
+The written Dockerfile also swaps the generated template's `COPY .../uv
+/uvbin --link` + `PATH` trick for the standard `COPY .../uv
+/usr/local/bin/uv`, since `--link` hit a BuildKit-version-dependent
+checksum bug in testing. One layer still fails even with both fixes: `uv
+pip install ces-v1beta-py.tar` errors extracting that Google-hosted tarball
+(`numeric field did not have utf-8 text ... when getting cksum`) — that's a
+bug inside `cxas-scrapi`'s own shipped Dockerfile template, not fixable
+from this script; `cxas ci-test` (confirmed working) covers the same
+ground without Docker's fragility, so treat `local-test` as best-effort.
+Runs `cxas init-github-action --app-name ...` explicitly —
 confirmed by testing, it looks for an `app.yaml` (we have `app.json`) and
 silently synthesizes the *wrong* app-id from the directory name if
 `--app-name` is omitted. Even with the correct app-name, it still requires
