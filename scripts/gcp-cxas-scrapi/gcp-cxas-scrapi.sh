@@ -53,12 +53,12 @@ export GCP_PROJECT=$(gcloud config list --format 'value(core.project)' 2>/dev/nu
 
 echo
 echo
-echo -e "                        👋  Welcome to Cloud Demo! 💻"
+echo -e "                         👋  Welcome to Cloud Demo! 💻"
 echo
 echo -e "                          Developed by: Shiyghan Navti"
-echo -e "          Need help? Contact shiyghan.navti@techequity.cloud for assistance"
+echo -e "       Need help? Contact shiyghan.navti@techequity.cloud for assistance"
 echo
-echo -e "              *** PLEASE WAIT WHILE LAB UTILITIES ARE INSTALLED ***"
+echo -e "             *** PLEASE WAIT WHILE LAB UTILITIES ARE INSTALLED ***"
 sudo apt-get -qq install pv ffmpeg > /dev/null 2>&1
 echo
 export SCRIPTPATH=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -1047,10 +1047,10 @@ if [ $MODE -eq 1 ]; then
     echo "*** normally generates these as a side effect, but only after its WIF check passes, so local-test has" | pv -qL 100
     echo "*** nothing to build against unless that succeeded first. Also swaps the template's 'COPY .../uv /uvbin" | pv -qL 100
     echo "*** --link' + PATH trick for the standard /usr/local/bin/uv, since --link hit a BuildKit-version-dependent" | pv -qL 100
-    echo "*** checksum bug in testing. A separate bug remains even after this -- uv fails extracting Google's" | pv -qL 100
-    echo "*** ces-v1beta-py.tar with a checksum/UTF-8 error -- that's inside cxas-scrapi's own template reaching a" | pv -qL 100
-    echo "*** Google-hosted tarball, not something this script can fix; cxas ci-test (already validated) covers" | pv -qL 100
-    echo "*** the same ground without Docker's fragility ***" | pv -qL 100
+    echo "*** checksum bug in testing. Also extracts ces-v1beta-py.tar with system tar before installing from the" | pv -qL 100
+    echo "*** directory, instead of letting uv pip install parse the .tar directly -- confirmed by testing, uv's" | pv -qL 100
+    echo "*** own tar parser fails on this specific archive ('numeric field did not have utf-8 text ... when" | pv -qL 100
+    echo "*** getting cksum'), a bug in uv's tar handling rather than the archive itself ***" | pv -qL 100
     echo "$ cxas init-github-action --app-dir . --app-name projects/\$GCP_PROJECT/locations/\$CXAS_LOCATION/apps/\$APP_ID --project-id \$GCP_PROJECT --location \$CXAS_LOCATION # scaffold .github/workflows" | pv -qL 100
     echo "*** --app-name is required explicitly -- confirmed by testing: init-github-action looks for an app.yaml (we" | pv -qL 100
     echo "*** have app.json) and silently synthesizes the WRONG app-id from the directory name if it's omitted. Even" | pv -qL 100
@@ -1078,15 +1078,21 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Set the working directory to /app
 WORKDIR /app
 
-# Install git and wget (required for pip install and downloading CES lib)
-RUN apt-get update && apt-get install -y git wget && rm -rf /var/lib/apt/lists/*
+# Install git, wget, and tar (required for pip install and downloading CES lib)
+RUN apt-get update && apt-get install -y git wget tar && rm -rf /var/lib/apt/lists/*
 
 # Install CES Client Library (Pre-requisite) - Cached Layer
+# Extract with system tar and install from the directory, not the .tar
+# itself -- confirmed by testing: uv's own tar parser fails on this
+# specific archive ("numeric field did not have utf-8 text ... when
+# getting cksum"), a bug in uv's tar handling, not the archive; system
+# tar extracts it fine and the resulting directory installs normally.
 RUN URL="https://storage.googleapis.com/gassets-api-ai/" && \
     URL="${URL}ces-client-libraries/v1beta/ces-v1beta-py.tar" && \
     wget $URL && \
-    uv pip install --system ces-v1beta-py.tar --quiet && \
-    rm ces-v1beta-py.tar
+    tar -xf ces-v1beta-py.tar && \
+    uv pip install --system ./ces-v1beta-py --quiet && \
+    rm -rf ces-v1beta-py.tar ces-v1beta-py
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
@@ -1110,7 +1116,7 @@ REQEOF
         fi
         echo
         echo "$ cxas local-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION" | pv -qL 100
-        cxas local-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION || echo "*** cxas local-test failed -- the Docker build error above (not suppressed) has the real cause; 'docker info' confirms whether the daemon is reachable. If it's failing inside 'uv pip install ... ces-v1beta-py.tar' with a checksum/UTF-8 extraction error, that's a confirmed bug in cxas-scrapi's own Dockerfile template reaching a Google-hosted tarball, not fixable here -- cxas ci-test already covers the same ground ***"
+        cxas local-test --app-dir . --project-id $GCP_PROJECT --location $CXAS_LOCATION || echo "*** cxas local-test failed -- the Docker build error above (not suppressed) has the real cause; 'docker info' confirms whether the daemon is reachable ***"
     else
         echo
         echo "*** Docker is not available in this environment -- skipping cxas local-test ***" | pv -qL 100

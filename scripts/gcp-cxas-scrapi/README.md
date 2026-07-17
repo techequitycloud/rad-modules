@@ -274,12 +274,13 @@ a side effect, but only *after* its WIF check passes (see below), so
 The written Dockerfile also swaps the generated template's `COPY .../uv
 /uvbin --link` + `PATH` trick for the standard `COPY .../uv
 /usr/local/bin/uv`, since `--link` hit a BuildKit-version-dependent
-checksum bug in testing. One layer still fails even with both fixes: `uv
-pip install ces-v1beta-py.tar` errors extracting that Google-hosted tarball
-(`numeric field did not have utf-8 text ... when getting cksum`) — that's a
-bug inside `cxas-scrapi`'s own shipped Dockerfile template, not fixable
-from this script; `cxas ci-test` (confirmed working) covers the same
-ground without Docker's fragility, so treat `local-test` as best-effort.
+checksum bug in testing. It also extracts `ces-v1beta-py.tar` with system
+`tar` before installing from the resulting directory, instead of letting
+`uv pip install` parse the `.tar` directly — confirmed by testing, `uv`'s
+own tar parser fails on this specific archive (`numeric field did not have
+utf-8 text ... when getting cksum`), a bug in `uv`'s tar handling rather
+than the archive itself; system `tar` extracts it without complaint. With
+all three fixes the full build succeeds end-to-end (verified live).
 Runs `cxas init-github-action --app-name ...` explicitly —
 confirmed by testing, it looks for an `app.yaml` (we have `app.json`) and
 silently synthesizes the *wrong* app-id from the directory name if
