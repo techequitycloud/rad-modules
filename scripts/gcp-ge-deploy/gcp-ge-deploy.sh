@@ -263,7 +263,7 @@ if [ $MODE -eq 1 ]; then
     echo "$ gcloud --project \$GCP_PROJECT services enable $APIS # [M2] to enable Gemini Enterprise's underlying APIs" | pv -qL 100
     echo
     for ROLE in $ROLES; do
-        echo "$ gcloud projects add-iam-policy-binding \$GCP_PROJECT --member=user:\$IAM_PRINCIPAL --role=$ROLE" | pv -qL 100
+        echo "$ gcloud projects add-iam-policy-binding \$GCP_PROJECT --member=user:\$IAM_PRINCIPAL --role=$ROLE # [M2] grant baseline role needed for later steps" | pv -qL 100
     done
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},1"
@@ -277,7 +277,7 @@ elif [ $MODE -eq 2 ]; then
     echo
     echo "*** Discovery Engine API (discoveryengine.googleapis.com) is what M2 calls the API underlying Gemini Enterprise ***" | pv -qL 100
     for ROLE in $ROLES; do
-        echo "$ gcloud projects add-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=$ROLE" | pv -qL 100
+        echo "$ gcloud projects add-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=$ROLE # [M2] grant $ROLE, baseline access for later steps" | pv -qL 100
         gcloud projects add-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=$ROLE > /dev/null 2>&1 || echo "Warning: binding $ROLE failed -- grant it manually in IAM & Admin"
     done
 elif [ $MODE -eq 3 ]; then
@@ -285,7 +285,7 @@ elif [ $MODE -eq 3 ]; then
     echo
     echo "*** APIs are left enabled: other labs and modules in this project may depend on them ***" | pv -qL 100
     for ROLE in $ROLES; do
-        echo "$ gcloud projects remove-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=$ROLE" | pv -qL 100
+        echo "$ gcloud projects remove-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=$ROLE # [M2] revoke $ROLE granted in create mode" | pv -qL 100
         gcloud projects remove-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=$ROLE > /dev/null 2>&1 || echo "Warning: could not remove $ROLE"
     done
 else
@@ -464,7 +464,7 @@ elif [ $MODE -eq 2 ]; then
         fi
         echo
         echo "$ gcloud iam workforce-pools create $WIF_POOL_ID --organization=$ORG_ID --location=global \\" | pv -qL 100
-        echo "    --display-name=\"$APP_NAME\" --description=\"Demo pool for the GE deployment course\"" | pv -qL 100
+        echo "    --display-name=\"$APP_NAME\" --description=\"Demo pool for the GE deployment course\" # [M4] create the WIF pool that will hold your Okta provider" | pv -qL 100
         gcloud iam workforce-pools create $WIF_POOL_ID --organization=$ORG_ID --location=global \
           --display-name="$APP_NAME" --description="Demo pool for the GE deployment course" \
           || echo "Warning: pool create failed -- this needs org-level roles/iam.workforcePoolAdmin at org $ORG_ID. Qwiklabs-style temporary sandbox accounts almost never have this (they're scoped to the project, not the org) -- if that's what you're running in, this step can only be demonstrated in preview mode here, not actually created. Try a Google Cloud org you or your instructor administers instead."
@@ -472,7 +472,7 @@ elif [ $MODE -eq 2 ]; then
         echo "$ gcloud iam workforce-pools providers create-oidc $WIF_PROVIDER_ID --workforce-pool=$WIF_POOL_ID \\" | pv -qL 100
         echo "    --location=global --issuer-uri=$WIF_ISSUER_URI --client-id=$WIF_CLIENT_ID \\" | pv -qL 100
         echo "    --web-sso-response-type=id-token --web-sso-assertion-claims-behavior=only-id-token-claims \\" | pv -qL 100
-        echo "    --attribute-mapping=\"google.subject=assertion.sub,google.groups=assertion.groups\"" | pv -qL 100
+        echo "    --attribute-mapping=\"google.subject=assertion.sub,google.groups=assertion.groups\" # [M4] register Okta as the pool's OIDC provider" | pv -qL 100
         gcloud iam workforce-pools providers create-oidc $WIF_PROVIDER_ID --workforce-pool=$WIF_POOL_ID \
           --location=global --issuer-uri=$WIF_ISSUER_URI --client-id=$WIF_CLIENT_ID \
           --web-sso-response-type=id-token --web-sso-assertion-claims-behavior=only-id-token-claims \
@@ -491,10 +491,10 @@ elif [ $MODE -eq 3 ]; then
     if confirm_org_level_change "Deleting a Workforce Identity Federation pool"; then
         export STEP="${STEP},3x"
         echo
-        echo "$ gcloud iam workforce-pools providers delete $WIF_PROVIDER_ID --workforce-pool=$WIF_POOL_ID --location=global --quiet" | pv -qL 100
+        echo "$ gcloud iam workforce-pools providers delete $WIF_PROVIDER_ID --workforce-pool=$WIF_POOL_ID --location=global --quiet # [M4] remove the Okta OIDC provider" | pv -qL 100
         gcloud iam workforce-pools providers delete $WIF_PROVIDER_ID --workforce-pool=$WIF_POOL_ID --location=global --quiet 2>/dev/null \
           || echo "Warning: could not delete provider $WIF_PROVIDER_ID"
-        echo "$ gcloud iam workforce-pools delete $WIF_POOL_ID --location=global --quiet" | pv -qL 100
+        echo "$ gcloud iam workforce-pools delete $WIF_POOL_ID --location=global --quiet # [M4] remove the WIF pool itself" | pv -qL 100
         gcloud iam workforce-pools delete $WIF_POOL_ID --location=global --quiet 2>/dev/null \
           || echo "Warning: could not delete pool $WIF_POOL_ID"
     fi
@@ -528,7 +528,7 @@ elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},4"
     for ROLE in roles/discoveryengine.admin roles/discoveryengine.viewer; do
         echo
-        echo "$ gcloud projects add-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=$ROLE" | pv -qL 100
+        echo "$ gcloud projects add-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=$ROLE # [M4] grant $ROLE, a Gemini Enterprise predefined IAM role" | pv -qL 100
         gcloud projects add-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=$ROLE > /dev/null 2>&1 \
           || echo "Warning: binding $ROLE failed"
     done
@@ -540,7 +540,7 @@ elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},4x"
     for ROLE in roles/discoveryengine.admin roles/discoveryengine.viewer; do
         echo
-        echo "$ gcloud projects remove-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=$ROLE" | pv -qL 100
+        echo "$ gcloud projects remove-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=$ROLE # [M4] revoke $ROLE granted in create mode" | pv -qL 100
         gcloud projects remove-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=$ROLE > /dev/null 2>&1 \
           || echo "Warning: could not remove $ROLE"
     done
@@ -635,11 +635,11 @@ elif [ $MODE -eq 2 ]; then
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},5x"
     echo
-    echo "$ curl -X DELETE .../dataStores/$GCS_DATASTORE_ID" | pv -qL 100
+    echo "$ curl -X DELETE .../dataStores/$GCS_DATASTORE_ID # [M6] delete the Cloud Storage data store" | pv -qL 100
     curl -s -X DELETE -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "X-Goog-User-Project: $GCP_PROJECT" \
       "https://$GE_HOST/v1/projects/$GCP_PROJECT/locations/$GE_LOCATION/collections/default_collection/dataStores/$GCS_DATASTORE_ID" \
       || echo "Warning: could not delete $GCS_DATASTORE_ID automatically -- remove it from the console"
-    echo "$ curl -X DELETE .../dataStores/$MCP_DATASTORE_ID" | pv -qL 100
+    echo "$ curl -X DELETE .../dataStores/$MCP_DATASTORE_ID # [M6] delete the Custom MCP Server data store" | pv -qL 100
     curl -s -X DELETE -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "X-Goog-User-Project: $GCP_PROJECT" \
       "https://$GE_HOST/v1/projects/$GCP_PROJECT/locations/$GE_LOCATION/collections/default_collection/dataStores/$MCP_DATASTORE_ID" \
       || echo "Warning: could not delete $MCP_DATASTORE_ID automatically -- remove it from the console"
@@ -749,13 +749,13 @@ filterConfig:
       filterEnforcement: ENABLED
 FLOOREOF
     echo
-    echo "$ gcloud model-armor floor-settings update --project=$GCP_PROJECT --filter-config-file=$PROJDIR/floor-settings.yaml" | pv -qL 100
+    echo "$ gcloud model-armor floor-settings update --project=$GCP_PROJECT --filter-config-file=$PROJDIR/floor-settings.yaml # [M5] set the project-wide minimum filter enforcement" | pv -qL 100
     gcloud model-armor floor-settings update --project=$GCP_PROJECT --filter-config-file=$PROJDIR/floor-settings.yaml \
       || echo "Warning: floor-settings update failed -- this sets the org/project MINIMUM; local template settings always still apply"
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},7x"
     echo
-    echo "$ gcloud model-armor templates delete $MA_TEMPLATE_ID --location=$GE_LOCATION --quiet" | pv -qL 100
+    echo "$ gcloud model-armor templates delete $MA_TEMPLATE_ID --location=$GE_LOCATION --quiet # [M5] delete the Model Armor template" | pv -qL 100
     gcloud model-armor templates delete $MA_TEMPLATE_ID --location=$GE_LOCATION --project=$GCP_PROJECT --quiet 2>/dev/null \
       || echo "Warning: could not delete template $MA_TEMPLATE_ID"
 else
@@ -834,10 +834,10 @@ CUSTOMEOF
 elif [ $MODE -eq 3 ]; then
     if confirm_org_level_change "Resetting organization policy constraints to their default (inherited) state"; then
         export STEP="${STEP},8x"
-        echo "$ gcloud org-policies delete discoveryengine.managed.allowedDataSources --project=$GCP_PROJECT --quiet" | pv -qL 100
+        echo "$ gcloud org-policies delete discoveryengine.managed.allowedDataSources --project=$GCP_PROJECT --quiet # [M5] revert the allowed-data-sources override" | pv -qL 100
         gcloud org-policies delete discoveryengine.managed.allowedDataSources --project=$GCP_PROJECT --quiet 2>/dev/null \
           || echo "Warning: could not delete policy"
-        echo "$ gcloud org-policies delete discoveryengine.managed.disableCustomMcpServerConnector --project=$GCP_PROJECT --quiet" | pv -qL 100
+        echo "$ gcloud org-policies delete discoveryengine.managed.disableCustomMcpServerConnector --project=$GCP_PROJECT --quiet # [M5] revert the custom-MCP-connector override" | pv -qL 100
         gcloud org-policies delete discoveryengine.managed.disableCustomMcpServerConnector --project=$GCP_PROJECT --quiet 2>/dev/null \
           || echo "Warning: could not delete policy"
     fi
@@ -875,19 +875,19 @@ if [ $MODE -eq 1 ]; then
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},9"
     echo
-    echo "$ gcloud kms keyrings create $KMS_KEYRING --location=$GE_LOCATION # [M5]" | pv -qL 100
+    echo "$ gcloud kms keyrings create $KMS_KEYRING --location=$GE_LOCATION # [M5] create the KMS keyring to hold the CMEK key" | pv -qL 100
     gcloud kms keyrings create $KMS_KEYRING --location=$GE_LOCATION --project=$GCP_PROJECT 2>/dev/null \
       || echo "Note: keyring may already exist, continuing"
-    echo "$ gcloud kms keys create $KMS_KEY --keyring=$KMS_KEYRING --location=$GE_LOCATION --purpose=encryption" | pv -qL 100
+    echo "$ gcloud kms keys create $KMS_KEY --keyring=$KMS_KEYRING --location=$GE_LOCATION --purpose=encryption # [M5] create the CMEK encryption key" | pv -qL 100
     gcloud kms keys create $KMS_KEY --keyring=$KMS_KEYRING --location=$GE_LOCATION --purpose=encryption --project=$GCP_PROJECT 2>/dev/null \
       || echo "Note: key may already exist, continuing"
-    echo "$ gcloud kms keys add-iam-policy-binding $KMS_KEY --keyring=$KMS_KEYRING --location=$GE_LOCATION ..." | pv -qL 100
+    echo "$ gcloud kms keys add-iam-policy-binding $KMS_KEY --keyring=$KMS_KEYRING --location=$GE_LOCATION ... # [M5] let the Discovery Engine service agent use the key" | pv -qL 100
     gcloud kms keys add-iam-policy-binding $KMS_KEY --keyring=$KMS_KEYRING --location=$GE_LOCATION --project=$GCP_PROJECT \
       --member="serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-discoveryengine.iam.gserviceaccount.com" \
       --role="roles/cloudkms.cryptoKeyEncrypterDecrypter" \
       || echo "Warning: IAM binding failed -- the discoveryengine service agent may not exist yet, run step 1 first"
     echo
-    echo "$ curl -X POST .../cmekConfigs?cmekConfigId=${KMS_KEY}-cmek # [M5]" | pv -qL 100
+    echo "$ curl -X POST .../cmekConfigs?cmekConfigId=${KMS_KEY}-cmek # [M5] apply the CMEK key to Gemini Enterprise" | pv -qL 100
     curl -s -X POST \
       -H "Authorization: Bearer $(gcloud auth print-access-token)" \
       -H "Content-Type: application/json" \
@@ -928,19 +928,19 @@ elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},10"
     echo
     echo "*** [M3] Timeout example (edit BACKEND_SERVICE_NAME to a real backend service in this project): ***" | pv -qL 100
-    echo "$ gcloud compute backend-services update BACKEND_SERVICE_NAME --global --timeout=300s" | pv -qL 100
+    echo "$ gcloud compute backend-services update BACKEND_SERVICE_NAME --global --timeout=300s # [M3] raise the backend timeout for agentic latency" | pv -qL 100
     echo "*** Not executed automatically -- this project may not have an agentic-facing load balancer yet. ***" | pv -qL 100
     echo
     if confirm_org_level_change "Creating a VPC Service Controls access policy and perimeter"; then
         echo
         echo "*** VPC-SC blocks public-internet access to protected APIs for the WHOLE project --" | pv -qL 100
         echo "*** if this project is shared with other trainees or labs, this can break them. ***" | pv -qL 100
-        echo "$ gcloud access-context-manager policies create --organization=$ORG_ID --title=\"$ACCESS_POLICY_TITLE\"" | pv -qL 100
+        echo "$ gcloud access-context-manager policies create --organization=$ORG_ID --title=\"$ACCESS_POLICY_TITLE\" # [M3] create the org's Access Context Manager policy (one per org)" | pv -qL 100
         gcloud access-context-manager policies create --organization=$ORG_ID --title="$ACCESS_POLICY_TITLE" \
           || echo "Warning: policy create failed -- an access policy may already exist for this org (only one is allowed)"
         export ACM_POLICY_ID=$(gcloud access-context-manager policies list --organization=$ORG_ID --format='value(name)' 2>/dev/null | head -1)
         if [[ -n "$ACM_POLICY_ID" ]]; then
-            echo "$ gcloud access-context-manager perimeters create $PERIMETER_NAME --policy=$ACM_POLICY_ID --resources=projects/$PROJECT_NUMBER --restricted-services=discoveryengine.googleapis.com" | pv -qL 100
+            echo "$ gcloud access-context-manager perimeters create $PERIMETER_NAME --policy=$ACM_POLICY_ID --resources=projects/$PROJECT_NUMBER --restricted-services=discoveryengine.googleapis.com # [M3] wrap this project's Discovery Engine API in a VPC-SC perimeter" | pv -qL 100
             gcloud access-context-manager perimeters create $PERIMETER_NAME --policy=$ACM_POLICY_ID \
               --title="$APP_NAME Perimeter" --resources=projects/$PROJECT_NUMBER \
               --restricted-services=discoveryengine.googleapis.com \
@@ -958,11 +958,11 @@ elif [ $MODE -eq 2 ]; then
       || echo "Note: network may already exist, continuing"
     gcloud compute networks subnets create $SUBNET_NAME --network=$VPC_NAME --region=$GCP_REGION --range=10.10.0.0/24 --project=$GCP_PROJECT 2>/dev/null \
       || echo "Note: subnet may already exist, continuing"
-    echo "$ gcloud compute addresses create ${PSC_ENDPOINT_NAME}-ip --global --purpose=PRIVATE_SERVICE_CONNECT --network=$VPC_NAME --addresses=10.10.10.10" | pv -qL 100
+    echo "$ gcloud compute addresses create ${PSC_ENDPOINT_NAME}-ip --global --purpose=PRIVATE_SERVICE_CONNECT --network=$VPC_NAME --addresses=10.10.10.10 # [M3] reserve the internal IP for the PSC endpoint" | pv -qL 100
     gcloud compute addresses create ${PSC_ENDPOINT_NAME}-ip --global --purpose=PRIVATE_SERVICE_CONNECT \
       --network=$VPC_NAME --addresses=10.10.10.10 --project=$GCP_PROJECT 2>/dev/null \
       || echo "Note: address may already exist, continuing"
-    echo "$ gcloud compute forwarding-rules create $PSC_ENDPOINT_NAME --global --network=$VPC_NAME --address=${PSC_ENDPOINT_NAME}-ip --target-google-apis-bundle=all-apis" | pv -qL 100
+    echo "$ gcloud compute forwarding-rules create $PSC_ENDPOINT_NAME --global --network=$VPC_NAME --address=${PSC_ENDPOINT_NAME}-ip --target-google-apis-bundle=all-apis # [M3] create the Private Service Connect endpoint to Google APIs" | pv -qL 100
     gcloud compute forwarding-rules create $PSC_ENDPOINT_NAME --global --network=$VPC_NAME \
       --address=${PSC_ENDPOINT_NAME}-ip --target-google-apis-bundle=all-apis --project=$GCP_PROJECT \
       || echo "Warning: forwarding rule create failed -- see gcloud compute forwarding-rules create --help"
@@ -972,7 +972,7 @@ elif [ $MODE -eq 2 ]; then
     echo "*** DNS/internet egress for that domain if this deployment needs those features. ***" | pv -qL 100
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},10x"
-    echo "$ gcloud compute forwarding-rules delete $PSC_ENDPOINT_NAME --global --quiet" | pv -qL 100
+    echo "$ gcloud compute forwarding-rules delete $PSC_ENDPOINT_NAME --global --quiet # [M3] remove the Private Service Connect endpoint" | pv -qL 100
     gcloud compute forwarding-rules delete $PSC_ENDPOINT_NAME --global --project=$GCP_PROJECT --quiet 2>/dev/null || echo "Warning: could not delete forwarding rule"
     gcloud compute addresses delete ${PSC_ENDPOINT_NAME}-ip --global --project=$GCP_PROJECT --quiet 2>/dev/null || echo "Warning: could not delete address"
     gcloud compute networks subnets delete $SUBNET_NAME --region=$GCP_REGION --project=$GCP_PROJECT --quiet 2>/dev/null || echo "Warning: could not delete subnet"
@@ -1057,7 +1057,7 @@ elif [ $MODE -eq 2 ]; then
     gcloud logging read 'protoPayload.serviceName="discoveryengine.googleapis.com"' --project=$GCP_PROJECT --limit=20 --format='table(timestamp, protoPayload.methodName)' \
       || echo "Note: no matching log entries yet -- generate some traffic against the app first"
     echo
-    echo "$ gcloud monitoring time-series list --filter='metric.type=\"discoveryengine.googleapis.com/session_count\"' --project=$GCP_PROJECT # [M8]" | pv -qL 100
+    echo "$ gcloud monitoring time-series list --filter='metric.type=\"discoveryengine.googleapis.com/session_count\"' --project=$GCP_PROJECT # [M8] query the Core Assistant's session-count metric" | pv -qL 100
     gcloud monitoring time-series list \
       --filter='metric.type="discoveryengine.googleapis.com/session_count"' \
       --project=$GCP_PROJECT \
@@ -1096,7 +1096,7 @@ if [ $MODE -eq 1 ]; then
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},13"
     echo
-    echo "$ gcloud logging metrics create ge_datastore_created --log-filter='...' # [M8]" | pv -qL 100
+    echo "$ gcloud logging metrics create ge_datastore_created --log-filter='...' # [M8] create a log-based metric for new-data-store events" | pv -qL 100
     gcloud logging metrics create ge_datastore_created \
       --description="Fires when a new Gemini Enterprise data store is created" \
       --log-filter='protoPayload.methodName="google.discoveryengine.v1alpha.DataStoreService.CreateDataStore"' \
@@ -1120,7 +1120,7 @@ alertStrategy:
     period: 3600s
   autoClose: 604800s
 ALERTEOF
-    echo "$ gcloud alpha monitoring policies create --policy-from-file=$PROJDIR/alert-policy.yaml # [M8]" | pv -qL 100
+    echo "$ gcloud alpha monitoring policies create --policy-from-file=$PROJDIR/alert-policy.yaml # [M8] wire the log-based metric to an alerting policy" | pv -qL 100
     gcloud alpha monitoring policies create --policy-from-file=$PROJDIR/alert-policy.yaml --project=$GCP_PROJECT \
       || echo "Warning: policy create failed -- add a notification channel (email/Slack/PagerDuty) in the console after creation"
     echo
@@ -1129,7 +1129,7 @@ ALERTEOF
     echo "*** and exact latency per step, useful for deciding Pro vs. Flash per agent. ***" | pv -qL 100
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},13x"
-    echo "$ gcloud alpha monitoring policies list --filter='displayName=\"GE Deploy Demo - New Data Store Created\"'" | pv -qL 100
+    echo "$ gcloud alpha monitoring policies list --filter='displayName=\"GE Deploy Demo - New Data Store Created\"' # [M8] look up the alert policy's resource name so it can be deleted" | pv -qL 100
     export POLICY_NAME=$(gcloud alpha monitoring policies list --project=$GCP_PROJECT --filter='displayName="GE Deploy Demo - New Data Store Created"' --format='value(name)' 2>/dev/null)
     if [[ -n "$POLICY_NAME" ]]; then
         gcloud alpha monitoring policies delete $POLICY_NAME --project=$GCP_PROJECT --quiet 2>/dev/null || echo "Warning: could not delete alert policy"
@@ -1192,7 +1192,7 @@ google-adk
 google-cloud-aiplatform[adk,agent_engines]
 REQEOF
     echo
-    echo "$ adk deploy agent_engine --display_name \"$APP_NAME Agent\" --project $GCP_PROJECT --region $GCP_REGION $AGENT_DIR # [M9]" | pv -qL 100
+    echo "$ adk deploy agent_engine --display_name \"$APP_NAME Agent\" --project $GCP_PROJECT --region $GCP_REGION $AGENT_DIR # [M9] deploy the ADK agent to Agent Engine" | pv -qL 100
     (cd $PROJDIR && adk deploy agent_engine --display_name "$APP_NAME Agent" --project $GCP_PROJECT --region $GCP_REGION $AGENT_DIR | tee $PROJDIR/adk_deploy.log)
     export REASONING_ENGINE=$(grep -oE 'projects/[0-9]+/locations/[a-z0-9-]+/reasoningEngines/[0-9]+' $PROJDIR/adk_deploy.log | tail -1)
     if [[ -n "$REASONING_ENGINE" ]]; then
@@ -1207,7 +1207,7 @@ REQEOF
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},14x"
     if [[ "$REASONING_ENGINE" != "NOT_SET" ]] && [[ -n "$REASONING_ENGINE" ]]; then
-        echo "$ gcloud ai reasoning-engines delete $REASONING_ENGINE --quiet" | pv -qL 100
+        echo "$ gcloud ai reasoning-engines delete $REASONING_ENGINE --quiet # [M9] delete the deployed ADK agent from Agent Engine" | pv -qL 100
         gcloud ai reasoning-engines delete $REASONING_ENGINE --quiet 2>/dev/null || echo "Warning: could not delete reasoning engine -- remove it in Vertex AI > Agent Engine console"
     fi
     rm -rf $PROJDIR/$AGENT_DIR 2>/dev/null
