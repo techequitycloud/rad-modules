@@ -406,20 +406,27 @@ elif [ $MODE -eq 2 ]; then
             echo "4. Sign-in redirect URI (must match this exactly):" | pv -qL 100
             echo "   https://auth.cloud.google/signin-callback/locations/global/workforcePools/$WIF_POOL_ID/providers/$WIF_PROVIDER_ID" | pv -qL 100
             echo "5. Assignment: choose \"Skip group assignment for now\". Save the app." | pv -qL 100
-            echo "6. On the app's Sign On tab > OpenID Connect ID Token > Edit: set Groups" | pv -qL 100
-            echo "   claim type to \"Matches regex\" with value .* -- this is what the" | pv -qL 100
-            echo "   google.groups attribute mapping below actually reads. Skip this and" | pv -qL 100
-            echo "   sign-in will still work, but every user arrives with no group memberships." | pv -qL 100
+            echo "6. On the app's Sign On tab > OpenID Connect ID Token > Edit: set Issuer to" | pv -qL 100
+            echo "   the fixed \"Okta URL (https://<org>.okta.com)\" option, NOT \"Dynamic" | pv -qL 100
+            echo "   (based on request domain)\" -- Google's --issuer-uri below must match a" | pv -qL 100
+            echo "   stable, known value, not one that can vary by request. Save." | pv -qL 100
+            echo "   Some Okta orgs show a separate Groups claim type filter right here; this" | pv -qL 100
+            echo "   Integrator Free Plan org doesn't -- instead scroll to the Token claims" | pv -qL 100
+            echo "   section further down the same Sign On tab and use Add expression to add" | pv -qL 100
+            echo "   a groups claim, so the google.groups attribute mapping below has" | pv -qL 100
+            echo "   something to read. Skip this and sign-in will still work, but every user" | pv -qL 100
+            echo "   arrives with no group memberships." | pv -qL 100
             echo "7. Directory > People > Add Person to create a test user, then on the app's" | pv -qL 100
             echo "   Assignments tab, assign that user to the app." | pv -qL 100
-            echo "8. Back on the app's General tab, copy the Client ID, the Issuer URI, and the" | pv -qL 100
-            echo "   Client Secret. The Issuer URI is typically https://<org>.okta.com/oauth2/default" | pv -qL 100
-            echo "   but use whatever value Okta actually shows you on that tab -- paste that" | pv -qL 100
-            echo "   exact value below, not a guess based on this description." | pv -qL 100
+            echo "8. Back on the app's General tab, copy the Client ID, the Issuer URI (should" | pv -qL 100
+            echo "   match the fixed Okta URL value from step 6 -- no /oauth2/default suffix" | pv -qL 100
+            echo "   on this app type), and the Client Secret. Paste whatever Okta actually" | pv -qL 100
+            echo "   shows you, not a guess based on this description." | pv -qL 100
             echo
             read -n 1 -s -r -p "Press any key once your Okta app is created and you have those values... "
             echo
-            echo "Paste your IdP's OIDC issuer URI (e.g. https://your-org.okta.com/oauth2/default):" | pv -qL 100
+            echo "Paste your IdP's OIDC issuer URI exactly as shown on its General tab" | pv -qL 100
+            echo "(e.g. https://your-org.okta.com -- no /oauth2/default suffix for a Web App integration):" | pv -qL 100
             read WIF_ISSUER_URI
             echo "Paste the OIDC client ID Google should present to your IdP:" | pv -qL 100
             read WIF_CLIENT_ID
