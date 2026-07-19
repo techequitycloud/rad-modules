@@ -608,6 +608,13 @@ elif [ $MODE -eq 2 ]; then
     echo "*** store (ID: $GCS_DATASTORE_ID) won't show up under the default \"global\" filter. ***" | pv -qL 100
     echo
     if [[ "$MCP_SERVER_URL" == "NOT_SET" ]]; then
+        echo "*** [M6] There's no bundled MCP server to point at -- a Custom MCP Server data" | pv -qL 100
+        echo "*** store represents a CUSTOMER'S OWN internal system (their Jira, ServiceNow," | pv -qL 100
+        echo "*** etc.) exposed as a remote HTTPS MCP server, which this generic demo can't" | pv -qL 100
+        echo "*** provide. Pressing Enter to skip is expected and fine -- the org-policy" | pv -qL 100
+        echo "*** override in step 8 already demonstrates the part of this that matters for" | pv -qL 100
+        echo "*** training. Only paste a URL here if you've stood up your own MCP server" | pv -qL 100
+        echo "*** (e.g. the official MCP SDK deployed to Cloud Run for a free HTTPS endpoint)." | pv -qL 100
         echo "Paste the HTTPS URL of an MCP server to register (or press Enter to skip this part):" | pv -qL 100
         read MCP_SERVER_URL
         if [[ -n "$MCP_SERVER_URL" ]]; then

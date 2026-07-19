@@ -206,9 +206,17 @@ always overrides app-level policy.
 
 ### `(5) [M6] Create data stores (Cloud Storage + Custom MCP Server)`
 Creates a Cloud Storage data store using **one-time ingestion** (the only
-mode that supports ACLs, per M6) and imports a sample document, then
-optionally registers a Custom MCP Server data store against a URL you
-provide.
+mode that supports ACLs, per M6). The imported content is intentionally
+minimal — a single placeholder text file the script writes into a bucket it
+just created — enough to prove the create → import → queryable pipeline
+works, not a realistic corpus; drop real files into the bucket yourself for
+a more substantial demo. Then optionally registers a Custom MCP Server data
+store against a URL you provide — there's no bundled MCP server to point
+at, since that data store type represents a *customer's own* internal
+system exposed as a remote HTTPS MCP server. Pressing Enter to skip that
+part is expected; the org-policy override in step 8 already demonstrates
+the part of this that matters for training regardless of whether a real
+server exists.
 
 ### `(6) [M6] Configure OAuth consent & connect actions`
 Console walkthrough for the OAuth consent screen, Web-app OAuth client, and
