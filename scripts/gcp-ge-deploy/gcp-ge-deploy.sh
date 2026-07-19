@@ -410,12 +410,14 @@ elif [ $MODE -eq 2 ]; then
             echo "   the fixed \"Okta URL (https://<org>.okta.com)\" option, NOT \"Dynamic" | pv -qL 100
             echo "   (based on request domain)\" -- Google's --issuer-uri below must match a" | pv -qL 100
             echo "   stable, known value, not one that can vary by request. Save." | pv -qL 100
-            echo "   Some Okta orgs show a separate Groups claim type filter right here; this" | pv -qL 100
-            echo "   Integrator Free Plan org doesn't -- instead scroll to the Token claims" | pv -qL 100
-            echo "   section further down the same Sign On tab and use Add expression to add" | pv -qL 100
-            echo "   a groups claim, so the google.groups attribute mapping below has" | pv -qL 100
-            echo "   something to read. Skip this and sign-in will still work, but every user" | pv -qL 100
-            echo "   arrives with no group memberships." | pv -qL 100
+            echo "   On an Integrator Free Plan org, the Groups claim filter is hidden by" | pv -qL 100
+            echo "   default -- scroll to the Token claims section further down the same Sign" | pv -qL 100
+            echo "   On tab and click \"Show legacy configuration\" to reveal it (don't use the" | pv -qL 100
+            echo "   \"Add expression\" button above that toggle -- that's a different, raw-EL-" | pv -qL 100
+            echo "   syntax path). Under Group Claims, click Edit: set the claim name to" | pv -qL 100
+            echo "   \"groups\", type \"Matches regex\", value \".*\", then Save -- this is what the" | pv -qL 100
+            echo "   google.groups attribute mapping below actually reads. Skip this and" | pv -qL 100
+            echo "   sign-in will still work, but every user arrives with no group memberships." | pv -qL 100
             echo "7. Directory > People > Add Person to create a test user, then on the app's" | pv -qL 100
             echo "   Assignments tab, assign that user to the app." | pv -qL 100
             echo "8. Back on the app's General tab, copy the Client ID, the Issuer URI (should" | pv -qL 100
