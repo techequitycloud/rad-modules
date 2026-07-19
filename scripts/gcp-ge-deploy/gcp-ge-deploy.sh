@@ -388,9 +388,12 @@ elif [ $MODE -eq 2 ]; then
             echo "*** [M4] No IdP configured yet -- here's how to set up a free Okta developer" | pv -qL 100
             echo "*** account and OIDC app if you don't already have an identity provider: ***" | pv -qL 100
             echo
-            echo "1. Sign up free at https://developer.okta.com/signup/ -- choose Workforce" | pv -qL 100
-            echo "   Identity Cloud, verify your email, and set a password. This creates your" | pv -qL 100
-            echo "   Okta org (a domain like dev-12345678.okta.com)." | pv -qL 100
+            echo "1. Sign up free at https://developer.okta.com/signup/ -- click \"Sign up for" | pv -qL 100
+            echo "   Integrator Free Plan\" (the rightmost card), NOT the middle \"Try Okta" | pv -qL 100
+            echo "   Platform\" card -- that one is a 30-day trial that expires. The Integrator" | pv -qL 100
+            echo "   Free Plan doesn't expire on a timer (only after 180 days of inactivity)" | pv -qL 100
+            echo "   and still gives full Admin Console access. Verify your email and set a" | pv -qL 100
+            echo "   password -- this creates your Okta org (a domain like dev-12345678.okta.com)." | pv -qL 100
             echo "2. In the Okta Admin Console: Applications > Applications > Create App" | pv -qL 100
             echo "   Integration. Sign-in method: OIDC - OpenID Connect. Application type:" | pv -qL 100
             echo "   Web Application." | pv -qL 100
