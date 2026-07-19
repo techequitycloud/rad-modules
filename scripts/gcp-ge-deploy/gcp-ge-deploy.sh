@@ -1074,7 +1074,7 @@ if [ $MODE -eq 1 ]; then
     echo "*** (carefully -- PII risk) prompt/response logging from Configurations > Observability. ***" | pv -qL 100
     echo
     echo "$ gcloud logging read 'protoPayload.serviceName=\"discoveryengine.googleapis.com\"' --project=\$GCP_PROJECT --limit=20" | pv -qL 100
-    echo "$ gcloud monitoring time-series list --filter='metric.type=\"discoveryengine.googleapis.com/session_count\"'" | pv -qL 100
+    echo "$ curl .../v3/projects/\$GCP_PROJECT/timeSeries?filter=metric.type=\"discoveryengine.googleapis.com/session_count\" # Monitoring API is REST-only, no gcloud CLI equivalent exists" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},12"
     echo
@@ -1088,12 +1088,18 @@ elif [ $MODE -eq 2 ]; then
     gcloud logging read 'protoPayload.serviceName="discoveryengine.googleapis.com"' --project=$GCP_PROJECT --limit=20 --format='table(timestamp, protoPayload.methodName)' \
       || echo "Note: no matching log entries yet -- generate some traffic against the app first"
     echo
-    echo "$ gcloud monitoring time-series list --filter='metric.type=\"discoveryengine.googleapis.com/session_count\"' --project=$GCP_PROJECT # [M8] query the Core Assistant's session-count metric" | pv -qL 100
-    gcloud monitoring time-series list \
-      --filter='metric.type="discoveryengine.googleapis.com/session_count"' \
-      --project=$GCP_PROJECT \
-      --interval-start-time=$(date -u -d '-1 hour' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-1H +%Y-%m-%dT%H:%M:%SZ) \
-      --interval-end-time=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+    echo "*** There is no gcloud CLI command for querying time series data -- confirmed against" | pv -qL 100
+    echo "*** the local SDK's own command tree (neither the stable nor alpha track has one). ***" | pv -qL 100
+    echo "*** The Cloud Monitoring API is REST/client-library only for this operation. ***" | pv -qL 100
+    echo "$ curl .../v3/projects/$GCP_PROJECT/timeSeries?filter=... # [M8] query the Core Assistant's session-count metric" | pv -qL 100
+    curl -s -G \
+      -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+      -H "X-Goog-User-Project: $GCP_PROJECT" \
+      --data-urlencode 'filter=metric.type="discoveryengine.googleapis.com/session_count"' \
+      --data-urlencode "interval.startTime=$(date -u -d '-1 hour' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-1H +%Y-%m-%dT%H:%M:%SZ)" \
+      --data-urlencode "interval.endTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      --data-urlencode "view=FULL" \
+      "https://monitoring.googleapis.com/v3/projects/$GCP_PROJECT/timeSeries" \
       || echo "Note: no matching time series yet -- generate some traffic against the app first"
     echo
     echo "*** In-console shortcut: Agents > Core Assistant > Metrics gives a pre-built dashboard ***" | pv -qL 100

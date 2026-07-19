@@ -301,6 +301,14 @@ traces/logs; prompt/response logging — PII risk, restrict access), then
 queries recent Discovery Engine audit log entries and the Core Assistant's
 session-count metric.
 
+Corrected: the session-count query originally used a `gcloud monitoring
+time-series list` command that doesn't exist — confirmed against the
+locally installed SDK's own command tree (checked both the stable and
+alpha tracks) and against Google's Cloud Monitoring API documentation,
+which states this operation is REST/client-library only with no `gcloud`
+CLI equivalent. Replaced with a direct `curl` call against
+`monitoring.googleapis.com/v3/projects/<project>/timeSeries`.
+
 ### `(13) [M8] Create a log-based alert & inspect traces`
 Recreates the exact example from the M8 deck: a log-based metric and
 alerting policy that fire when a new data store is created. Points to Trace
