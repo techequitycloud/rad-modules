@@ -897,8 +897,9 @@ if [ $MODE -eq 1 ]; then
     echo
     echo "$ gcloud kms keyrings create \$KMS_KEYRING --location=\$GE_LOCATION" | pv -qL 100
     echo "$ gcloud kms keys create \$KMS_KEY --keyring=\$KMS_KEYRING --location=\$GE_LOCATION --purpose=encryption" | pv -qL 100
+    echo "$ gcloud projects add-iam-policy-binding \$GCP_PROJECT --member=user:\$IAM_PRINCIPAL --role=roles/cloudkms.admin" | pv -qL 100
     echo "$ gcloud kms keys add-iam-policy-binding ... --member=serviceAccount:service-\$PROJECT_NUMBER@gcp-sa-discoveryengine.iam.gserviceaccount.com --role=roles/cloudkms.cryptoKeyEncrypterDecrypter" | pv -qL 100
-    echo "$ curl -X POST .../cmekConfigs?cmekConfigId=\$KMS_KEY-cmek -d '{\"kmsKey\":\"...\"}'" | pv -qL 100
+    echo "$ curl -X PATCH .../cmekConfigs/\$KMS_KEY-cmek?set_default=true -d '{\"kmsKey\":\"...\"}'" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},9"
     echo
@@ -908,18 +909,21 @@ elif [ $MODE -eq 2 ]; then
     echo "$ gcloud kms keys create $KMS_KEY --keyring=$KMS_KEYRING --location=$GE_LOCATION --purpose=encryption # [M5] create the CMEK encryption key" | pv -qL 100
     gcloud kms keys create $KMS_KEY --keyring=$KMS_KEYRING --location=$GE_LOCATION --purpose=encryption --project=$GCP_PROJECT 2>/dev/null \
       || echo "Note: key may already exist, continuing"
+    echo "$ gcloud projects add-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=roles/cloudkms.admin # [M5] grant the role needed to set IAM policy on a KMS key" | pv -qL 100
+    gcloud projects add-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=roles/cloudkms.admin > /dev/null 2>&1 \
+      || echo "Warning: binding roles/cloudkms.admin failed -- grant it manually in IAM & Admin"
     echo "$ gcloud kms keys add-iam-policy-binding $KMS_KEY --keyring=$KMS_KEYRING --location=$GE_LOCATION ... # [M5] let the Discovery Engine service agent use the key" | pv -qL 100
     gcloud kms keys add-iam-policy-binding $KMS_KEY --keyring=$KMS_KEYRING --location=$GE_LOCATION --project=$GCP_PROJECT \
       --member="serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-discoveryengine.iam.gserviceaccount.com" \
       --role="roles/cloudkms.cryptoKeyEncrypterDecrypter" \
       || echo "Warning: IAM binding failed -- the discoveryengine service agent may not exist yet, run step 1 first"
     echo
-    echo "$ curl -X POST .../cmekConfigs?cmekConfigId=${KMS_KEY}-cmek # [M5] apply the CMEK key to Gemini Enterprise" | pv -qL 100
-    curl -s -X POST \
+    echo "$ curl -X PATCH .../cmekConfigs/${KMS_KEY}-cmek?set_default=true # [M5] apply the CMEK key to Gemini Enterprise" | pv -qL 100
+    curl -s -X PATCH \
       -H "Authorization: Bearer $(gcloud auth print-access-token)" \
       -H "Content-Type: application/json" \
       -H "X-Goog-User-Project: $GCP_PROJECT" \
-      "https://$GE_HOST/v1/projects/$GCP_PROJECT/locations/$GE_LOCATION/cmekConfigs?cmekConfigId=${KMS_KEY}-cmek" \
+      "https://$GE_HOST/v1/projects/$GCP_PROJECT/locations/$GE_LOCATION/cmekConfigs/${KMS_KEY}-cmek?set_default=true" \
       -d "{\"kmsKey\":\"projects/$GCP_PROJECT/locations/$GE_LOCATION/keyRings/$KMS_KEYRING/cryptoKeys/$KMS_KEY\"}" \
       | tee $PROJDIR/cmek_config_create.json \
       || echo "Warning: CMEK config create failed -- verify field names in the console, this endpoint evolves"

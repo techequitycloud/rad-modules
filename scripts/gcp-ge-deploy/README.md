@@ -272,6 +272,17 @@ encrypt/decrypt access, and calls the CMEK config endpoint. Delete mode
 deliberately does **not** destroy the key — doing so would make encrypted
 data permanently unreadable.
 
+Confirmed live and corrected twice: setting IAM policy on the KMS key
+(`cloudkms.cryptoKeys.setIamPolicy`) needs `roles/cloudkms.admin`, which
+nothing earlier in the script granted — the script now grants it to the
+trainer account first. Separately, the CMEK config call was structurally
+wrong, not just missing a role: it's a `PATCH` to
+`cmekConfigs/<CMEK_CONFIG_ID>?set_default=true` with the ID embedded in the
+URL path, not a `POST` to `cmekConfigs?cmekConfigId=<id>` the way
+engine/data-store creation works — the original `POST` returned a plain
+Google 404 (not even a JSON API error), confirming the URL itself didn't
+resolve to anything, verified against Google's own CMEK API documentation.
+
 ### `(10) [M3] Harden networking (timeouts, VPC-SC, PSC)`
 Shows the backend-timeout override pattern for agentic latency, optionally
 creates a VPC Service Controls access policy and perimeter, and creates a
