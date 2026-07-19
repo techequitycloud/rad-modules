@@ -171,11 +171,22 @@ Creates a workforce pool and OIDC provider for the syncless, third-party-only
 identity path M4 covers. **Organization-level — extra confirmation
 required.** If `WIF_ISSUER_URI`/`WIF_CLIENT_ID` aren't already in `.env`,
 prints a full walkthrough for standing up a free Okta developer account and
-OIDC app first — including the exact sign-in redirect URI (built from
-`WIF_POOL_ID`/`WIF_PROVIDER_ID`), the groups-claim configuration the
-script's attribute mapping depends on, and where to find the Client ID and
-Issuer URI — before prompting for those values. Not yet run end-to-end
-against a real Okta org — see the PR's test plan.
+OIDC app first — including which signup tier to pick, the exact sign-in
+redirect URI (built from `WIF_POOL_ID`/`WIF_PROVIDER_ID`), the Issuer URI
+format, and the groups-claim configuration the script's attribute mapping
+depends on — before prompting for the Client ID/Issuer URI/Client Secret.
+
+The signup-tier choice, app creation (OIDC/Web Application, Authorization
+Code + Implicit grant, redirect URI), Issuer selection, and groups-claim
+setup (steps 1–6 of the walkthrough) have been live-verified against a real
+Okta Integrator Free Plan org and corrected twice from what generic Okta
+documentation suggested — notably, that org type hides the classic "Groups
+claim type" filter behind a "Show legacy configuration" toggle rather than
+showing it inline, and the ID token Issuer has no `/oauth2/default` suffix
+for a Web App integration. Test-user creation and assignment, and reading
+the final values off the General tab (steps 7–8), are standard Okta UI and
+believed correct but haven't been screenshot-confirmed the way steps 1–6
+were.
 
 ### `(4) [M4] Grant Gemini Enterprise IAM roles`
 Grants `roles/discoveryengine.admin` and `roles/discoveryengine.viewer` at

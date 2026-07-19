@@ -385,45 +385,59 @@ elif [ $MODE -eq 2 ]; then
         export STEP="${STEP},3"
         if [[ "$WIF_ISSUER_URI" == "NOT_SET" ]] || [[ "$WIF_CLIENT_ID" == "NOT_SET" ]]; then
             echo
-            echo "*** [M4] No IdP configured yet -- here's how to set up a free Okta developer" | pv -qL 100
-            echo "*** account and OIDC app if you don't already have an identity provider: ***" | pv -qL 100
+            echo "*** [M4] No IdP configured yet -- Workforce Identity Federation needs one to" | pv -qL 100
+            echo "*** federate against. Here's how to stand up a free Okta org and OIDC app so ***" | pv -qL 100
+            echo "*** you can demonstrate the whole syncless-SSO flow live: ***" | pv -qL 100
             echo
             echo "1. Sign up free at https://developer.okta.com/signup/ -- click \"Sign up for" | pv -qL 100
             echo "   Integrator Free Plan\" (the rightmost card), NOT the middle \"Try Okta" | pv -qL 100
-            echo "   Platform\" card -- that one is a 30-day trial that expires. The Integrator" | pv -qL 100
-            echo "   Free Plan doesn't expire on a timer (only after 180 days of inactivity)" | pv -qL 100
-            echo "   and still gives full Admin Console access. Verify your email and set a" | pv -qL 100
-            echo "   password -- this creates your Okta org, with a domain like" | pv -qL 100
-            echo "   integrator-1234567.okta.com (Admin Console at the -admin.okta.com variant" | pv -qL 100
-            echo "   of that same domain). Limited to 10 active users on this plan -- plenty" | pv -qL 100
-            echo "   for this demo, which only needs one test user (see step 7 below)." | pv -qL 100
+            echo "   Platform\" card -- that one is a 30-day trial that expires, which would" | pv -qL 100
+            echo "   mean redoing this setup mid-course. The Integrator Free Plan only expires" | pv -qL 100
+            echo "   after 180 days of inactivity and still gives full Admin Console access." | pv -qL 100
+            echo "   Verify your email and set a password -- this creates your Okta org, with a" | pv -qL 100
+            echo "   domain like integrator-1234567.okta.com (Admin Console at the" | pv -qL 100
+            echo "   -admin.okta.com variant of that same domain). Limited to 10 active users" | pv -qL 100
+            echo "   on this plan -- plenty, since this demo only needs the one test user from" | pv -qL 100
+            echo "   step 7 below." | pv -qL 100
             echo "2. In the Okta Admin Console: Applications > Applications > Create App" | pv -qL 100
-            echo "   Integration. Sign-in method: OIDC - OpenID Connect. Application type:" | pv -qL 100
+            echo "   Integration. Sign-in method: OIDC - OpenID Connect (the protocol the" | pv -qL 100
+            echo "   create-oidc command below actually speaks, not SAML). Application type:" | pv -qL 100
             echo "   Web Application." | pv -qL 100
-            echo "3. Grant type: check Implicit (hybrid) in addition to Authorization Code --" | pv -qL 100
-            echo "   Google's console/gcloud sign-in needs the ID token returned directly to" | pv -qL 100
-            echo "   the browser." | pv -qL 100
-            echo "4. Sign-in redirect URI (must match this exactly):" | pv -qL 100
+            echo "3. Grant type: check Implicit (hybrid) in addition to the default" | pv -qL 100
+            echo "   Authorization Code -- Google's console/gcloud sign-in needs the ID token" | pv -qL 100
+            echo "   returned directly to the browser, which only the implicit/hybrid grant" | pv -qL 100
+            echo "   supports." | pv -qL 100
+            echo "4. Sign-in redirect URI (must match this exactly -- it's the fixed callback" | pv -qL 100
+            echo "   Google's Security Token Service uses to hand back the ID token once Okta" | pv -qL 100
+            echo "   authenticates the user):" | pv -qL 100
             echo "   https://auth.cloud.google/signin-callback/locations/global/workforcePools/$WIF_POOL_ID/providers/$WIF_PROVIDER_ID" | pv -qL 100
-            echo "5. Assignment: choose \"Skip group assignment for now\". Save the app." | pv -qL 100
+            echo "5. Assignment: choose \"Skip group assignment for now\" -- you'll assign a" | pv -qL 100
+            echo "   single test user directly in step 7, so a real assignment group isn't" | pv -qL 100
+            echo "   needed for this demo. Save the app." | pv -qL 100
             echo "6. On the app's Sign On tab > OpenID Connect ID Token > Edit: set Issuer to" | pv -qL 100
-            echo "   the fixed \"Okta URL (https://<org>.okta.com)\" option, NOT \"Dynamic" | pv -qL 100
-            echo "   (based on request domain)\" -- Google's --issuer-uri below must match a" | pv -qL 100
-            echo "   stable, known value, not one that can vary by request. Save." | pv -qL 100
+            echo "   the fixed \"Okta URL (https://<org>.okta.com)\" option, NOT \"Dynamic (based" | pv -qL 100
+            echo "   on request domain)\" -- Google's --issuer-uri below must match the token's" | pv -qL 100
+            echo "   iss claim exactly and consistently, not a value that can vary by request." | pv -qL 100
+            echo "   Save." | pv -qL 100
             echo "   On an Integrator Free Plan org, the Groups claim filter is hidden by" | pv -qL 100
-            echo "   default -- scroll to the Token claims section further down the same Sign" | pv -qL 100
-            echo "   On tab and click \"Show legacy configuration\" to reveal it (don't use the" | pv -qL 100
-            echo "   \"Add expression\" button above that toggle -- that's a different, raw-EL-" | pv -qL 100
-            echo "   syntax path). Under Group Claims, click Edit: set the claim name to" | pv -qL 100
-            echo "   \"groups\", type \"Matches regex\", value \".*\", then Save -- this is what the" | pv -qL 100
-            echo "   google.groups attribute mapping below actually reads. Skip this and" | pv -qL 100
-            echo "   sign-in will still work, but every user arrives with no group memberships." | pv -qL 100
-            echo "7. Directory > People > Add Person to create a test user, then on the app's" | pv -qL 100
-            echo "   Assignments tab, assign that user to the app." | pv -qL 100
+            echo "   default: scroll to the Token claims section further down the same Sign On" | pv -qL 100
+            echo "   tab and click \"Show legacy configuration\" to reveal it (don't use the" | pv -qL 100
+            echo "   \"Add expression\" button above that toggle -- that's a different, raw" | pv -qL 100
+            echo "   expression-language path). Under Group Claims, click Edit: set the claim" | pv -qL 100
+            echo "   name to \"groups\", type \"Matches regex\", value \".*\", then Save -- this is" | pv -qL 100
+            echo "   the claim the google.groups attribute mapping below actually reads. Skip" | pv -qL 100
+            echo "   this and sign-in will still work, but every user arrives with no group" | pv -qL 100
+            echo "   memberships, which breaks any group-based IAM policy later." | pv -qL 100
+            echo "7. Directory > People > Add Person to create a test user -- this is the" | pv -qL 100
+            echo "   identity that will actually prove the WIF chain works end to end. Then on" | pv -qL 100
+            echo "   the app's Assignments tab, assign that user to the app (an unassigned" | pv -qL 100
+            echo "   user can't sign in even with everything else configured correctly)." | pv -qL 100
             echo "8. Back on the app's General tab, copy the Client ID, the Issuer URI (should" | pv -qL 100
-            echo "   match the fixed Okta URL value from step 6 -- no /oauth2/default suffix" | pv -qL 100
-            echo "   on this app type), and the Client Secret. Paste whatever Okta actually" | pv -qL 100
-            echo "   shows you, not a guess based on this description." | pv -qL 100
+            echo "   match the fixed Okta URL value from step 6 -- no /oauth2/default suffix on" | pv -qL 100
+            echo "   this app type), and the Client Secret -- these three values are exactly" | pv -qL 100
+            echo "   what the create-oidc command below needs to trust this Okta app as a WIF" | pv -qL 100
+            echo "   provider. Paste whatever Okta actually shows you, not a guess based on" | pv -qL 100
+            echo "   this description." | pv -qL 100
             echo
             read -n 1 -s -r -p "Press any key once your Okta app is created and you have those values... "
             echo
