@@ -393,7 +393,10 @@ elif [ $MODE -eq 2 ]; then
             echo "   Platform\" card -- that one is a 30-day trial that expires. The Integrator" | pv -qL 100
             echo "   Free Plan doesn't expire on a timer (only after 180 days of inactivity)" | pv -qL 100
             echo "   and still gives full Admin Console access. Verify your email and set a" | pv -qL 100
-            echo "   password -- this creates your Okta org (a domain like dev-12345678.okta.com)." | pv -qL 100
+            echo "   password -- this creates your Okta org, with a domain like" | pv -qL 100
+            echo "   integrator-1234567.okta.com (Admin Console at the -admin.okta.com variant" | pv -qL 100
+            echo "   of that same domain). Limited to 10 active users on this plan -- plenty" | pv -qL 100
+            echo "   for this demo, which only needs one test user (see step 7 below)." | pv -qL 100
             echo "2. In the Okta Admin Console: Applications > Applications > Create App" | pv -qL 100
             echo "   Integration. Sign-in method: OIDC - OpenID Connect. Application type:" | pv -qL 100
             echo "   Web Application." | pv -qL 100
@@ -409,9 +412,10 @@ elif [ $MODE -eq 2 ]; then
             echo "   sign-in will still work, but every user arrives with no group memberships." | pv -qL 100
             echo "7. Directory > People > Add Person to create a test user, then on the app's" | pv -qL 100
             echo "   Assignments tab, assign that user to the app." | pv -qL 100
-            echo "8. Back on the app's General tab, copy the Client ID, the Issuer URI" | pv -qL 100
-            echo "   (format: https://your-domain.okta.com/oauth2/default), and the Client" | pv -qL 100
-            echo "   Secret." | pv -qL 100
+            echo "8. Back on the app's General tab, copy the Client ID, the Issuer URI, and the" | pv -qL 100
+            echo "   Client Secret. The Issuer URI is typically https://<org>.okta.com/oauth2/default" | pv -qL 100
+            echo "   but use whatever value Okta actually shows you on that tab -- paste that" | pv -qL 100
+            echo "   exact value below, not a guess based on this description." | pv -qL 100
             echo
             read -n 1 -s -r -p "Press any key once your Okta app is created and you have those values... "
             echo
