@@ -742,6 +742,7 @@ if [ $MODE -eq 1 ]; then
     echo "    --rai-settings-filters='[{\"filterType\":\"HATE_SPEECH\",\"confidenceLevel\":\"MEDIUM_AND_ABOVE\"}, ...]' \\" | pv -qL 100
     echo "    --pi-and-jailbreak-filter-settings-enforcement=ENABLED --pi-and-jailbreak-filter-settings-confidence-level=HIGH \\" | pv -qL 100
     echo "    --basic-config-filter-enforcement=ENABLED" | pv -qL 100
+    echo "$ gcloud projects add-iam-policy-binding \$GCP_PROJECT --member=user:\$IAM_PRINCIPAL --role=roles/modelarmor.floorSettingsAdmin" | pv -qL 100
     echo "$ gcloud model-armor floorsettings update --full-uri=projects/\$GCP_PROJECT/locations/global/floorSetting \\" | pv -qL 100
     echo "    --enable-floor-setting-enforcement=true --pi-and-jailbreak-filter-settings-enforcement=ENABLED \\" | pv -qL 100
     echo "    --pi-and-jailbreak-filter-settings-confidence-level=HIGH --basic-config-filter-enforcement=ENABLED" | pv -qL 100
@@ -761,6 +762,10 @@ elif [ $MODE -eq 2 ]; then
     echo "*** [M5] Best practice: disable prompt-injection/jailbreak detection on the RESPONSE" | pv -qL 100
     echo "*** template specifically -- those attacks originate from the user prompt, not the ***" | pv -qL 100
     echo "*** model's own output, so leaving it on the response side just adds false positives. ***" | pv -qL 100
+    echo
+    echo "$ gcloud projects add-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=roles/modelarmor.floorSettingsAdmin # [M5] grant the role floor settings specifically need" | pv -qL 100
+    gcloud projects add-iam-policy-binding $GCP_PROJECT --member=user:$IAM_PRINCIPAL --role=roles/modelarmor.floorSettingsAdmin > /dev/null 2>&1 \
+      || echo "Warning: binding roles/modelarmor.floorSettingsAdmin failed -- grant it manually in IAM & Admin"
     echo
     echo "$ gcloud model-armor floorsettings update --full-uri=projects/$GCP_PROJECT/locations/global/floorSetting \\" | pv -qL 100
     echo "    --enable-floor-setting-enforcement=true --pi-and-jailbreak-filter-settings-enforcement=ENABLED \\" | pv -qL 100

@@ -229,12 +229,17 @@ injection/jailbreak detection, sensitive data protection) and a project-level
 floor setting. Reminds trainers of the M5 best practice: disable
 injection/jailbreak detection on the *response* template specifically.
 
-Confirmed live and corrected twice: the SDP flag is `--basic-config-filter-enforcement`,
-not `--sdp-basic-config-enforcement`; and floor settings are configured with
+Confirmed live and corrected three times: the SDP flag is `--basic-config-filter-enforcement`,
+not `--sdp-basic-config-enforcement`; floor settings are configured with
 `gcloud model-armor floorsettings update` (one word, no `--filter-config-file`
 YAML input) targeting a `--full-uri=projects/<project>/locations/global/floorSetting`
 resource with the enforcement flags passed directly — not the `floor-settings`
-(hyphenated) command group with a YAML file this script originally used.
+(hyphenated) command group with a YAML file this script originally used; and
+floor settings specifically need the `roles/modelarmor.floorSettingsAdmin`
+role, which step 1's baseline role grants don't include (template creation
+succeeds without it, so this one is easy to miss until floor settings fails
+with `PERMISSION_DENIED: Read access to project ... was denied` — the script
+now grants this role right before the floor settings call).
 
 ### `(8) [M5] Set organization policy constraints`
 Overrides the constraints that block custom MCP data stores by default
