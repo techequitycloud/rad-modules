@@ -96,6 +96,21 @@ only be demonstrated in preview mode inside Qwiklabs — actually creating
 these resources needs a Google Cloud org you or your training organization
 administers.
 
+**Step 7's floor settings call hits the same wall, non-obviously.** Model
+Armor *template* creation (the first half of step 7) works fine on a
+Qwiklabs sandbox account. `floorsettings update` does not — it fails with
+`PERMISSION_DENIED: Read access to project ... was denied` even after
+granting the documented `roles/modelarmor.floorSettingsAdmin` role, and a
+read-only `gcloud model-armor floorsettings describe` against the same
+resource fails identically. That rules out both a missing-role explanation
+and a propagation delay. The most likely cause, given the exact parallel to
+step 3's failure: floor settings conceptually roll up through org → folder →
+project, and evaluating even a project-scoped floor setting requires
+resource-hierarchy read access up to the org — which this account doesn't
+have, for the same reason it can't create a workforce pool. This has not
+been confirmed in an environment with org-level access; if you hit this in
+your own org and it works, that would confirm the diagnosis.
+
 ## Quick start
 
 ```bash
@@ -238,8 +253,10 @@ resource with the enforcement flags passed directly — not the `floor-settings`
 floor settings specifically need the `roles/modelarmor.floorSettingsAdmin`
 role, which step 1's baseline role grants don't include (template creation
 succeeds without it, so this one is easy to miss until floor settings fails
-with `PERMISSION_DENIED: Read access to project ... was denied` — the script
-now grants this role right before the floor settings call).
+with `PERMISSION_DENIED: Read access to project ... was denied` — the
+script now grants this role right before the floor settings call). That
+role grant is necessary but, on a Qwiklabs sandbox account, **not
+sufficient** — see Prerequisites above for why.
 
 ### `(8) [M5] Set organization policy constraints`
 Overrides the constraints that block custom MCP data stores by default

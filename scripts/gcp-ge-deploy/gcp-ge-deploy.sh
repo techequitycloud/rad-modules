@@ -737,6 +737,9 @@ if [ $MODE -eq 1 ]; then
     echo "*** [M5] A Model Armor template bundles filters (prompt injection/jailbreak," | pv -qL 100
     echo "*** sensitive data, hate speech, dangerous content, harassment, sexually explicit) ***" | pv -qL 100
     echo "*** with a confidence threshold per filter -- start High to minimize false positives. ***" | pv -qL 100
+    echo "*** Confirmed live: template creation works fine on a Qwiklabs-style sandbox, but ***" | pv -qL 100
+    echo "*** floorsettings (even read-only 'describe') fails with PERMISSION_DENIED there -- ***" | pv -qL 100
+    echo "*** the same org-hierarchy-visibility gap that blocks step 3's WIF pool. ***" | pv -qL 100
     echo
     echo "$ gcloud model-armor templates create \$MA_TEMPLATE_ID --location=\$GE_LOCATION \\" | pv -qL 100
     echo "    --rai-settings-filters='[{\"filterType\":\"HATE_SPEECH\",\"confidenceLevel\":\"MEDIUM_AND_ABOVE\"}, ...]' \\" | pv -qL 100
@@ -775,7 +778,7 @@ elif [ $MODE -eq 2 ]; then
       --pi-and-jailbreak-filter-settings-enforcement=ENABLED \
       --pi-and-jailbreak-filter-settings-confidence-level=HIGH \
       --basic-config-filter-enforcement=ENABLED \
-      || echo "Warning: floorsettings update failed -- this sets the project MINIMUM; local template settings always still apply. Verify exact flag names/values with 'gcloud model-armor floorsettings update --help' if this still fails"
+      || echo "Warning: floorsettings update failed. Confirmed live: this is NOT fixed by granting more project-level roles -- even a read-only 'floorsettings describe' fails identically with PERMISSION_DENIED on a Qwiklabs-style sandbox account. Floor settings appear to require resource-hierarchy read access up to the org, the same limitation that blocks step 3's Workforce Identity Federation pool. Local template settings (this step's first command) always still apply regardless."
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},7x"
     echo
