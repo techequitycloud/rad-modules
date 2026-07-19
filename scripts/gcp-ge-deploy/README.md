@@ -365,10 +365,7 @@ successful engagement, the nine Day-1 capabilities worth demonstrating, and
 an abridged risk register with mitigations. Useful to have on screen during
 a live discovery call.
 
-### `(R)` / `(G)` / `(Q)`
-- `R` — show maintainer credits.
-- `G` — launch a bundled Cloud Shell tutorial, if `.tutorial.md` exists next
-  to the script (not included by default).
+### `(Q)`
 - `Q` — quit.
 
 ## Working files

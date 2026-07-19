@@ -97,7 +97,6 @@ echo
 echo -e "             *** PLEASE WAIT WHILE LAB UTILITIES ARE INSTALLED ***"
 sudo apt-get -qq install pv > /dev/null 2>&1
 echo
-export SCRIPTPATH=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 mkdir -p `pwd`/gcp-ge-deploy > /dev/null 2>&1
 export SCRIPTNAME=gcp-ge-deploy.sh
@@ -175,8 +174,6 @@ Please enter number to select your choice:
 (19) [M1] Run a Day-1 organizational readiness check
 (20) [M1] Score & prioritize use cases (Innovation Matrix rubric)
 (21) [M1] Show the engagement playbook (phases, stakeholders, risks)
- (R) Show credits
- (G) Launch bundled Cloud Shell tutorial
  (Q) Quit
 --------------------------------------------------------------
 EOF
@@ -1692,39 +1689,6 @@ echo
 echo Execution time was `expr $end - $start` seconds.
 echo
 read -n 1 -s -r -p "$ "
-;;
-
-"R")
-echo
-echo "
-  __                      __                              __
- /|            /         /              / /              /
-( |  ___  ___ (___      (___  ___        (___           (___  ___  ___  ___|(___  ___
-  | |___)|    |   )     |    |   )|   )| |    \   )         )|   )|   )|   )|   )|   )(_/_
-  | |__  |__  |  /      |__  |__/||__/ | |__   \_/       __/ |__/||  / |__/ |__/ |__/  / /
-                                 |              /
-"
-echo "
-We are a group of information technology professionals committed to driving cloud
-adoption. We create cloud skills development assets during our client consulting
-engagements, and use these assets to build cloud skills independently or in partnership
-with training organizations.
-
-You can access more resources from our iOS and Android mobile applications.
-
-iOS App: https://apps.apple.com/us/app/tech-equity/id1627029775
-Android App: https://play.google.com/store/apps/details?id=com.techequity.app
-
-Email:support@techequity.cloud
-Web: https://techequity.cloud
-
-Ⓒ Tech Equity 2026" | pv -qL 100
-echo
-read -n 1 -s -r -p "$ "
-;;
-
-"G")
-cloudshell launch-tutorial $SCRIPTPATH/.tutorial.md
 ;;
 
 "Q")
