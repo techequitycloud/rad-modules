@@ -331,6 +331,17 @@ elif [ $MODE -eq 2 ]; then
     echo
     echo "*** This is a long-running operation -- poll the operation name above, or check ***" | pv -qL 100
     echo "*** the Gemini Enterprise console, before moving on to later steps. ***" | pv -qL 100
+    echo
+    echo "*** To view it in the console: ***" | pv -qL 100
+    echo "*** https://console.cloud.google.com/gemini-enterprise/apps?project=$GCP_PROJECT ***" | pv -qL 100
+    echo "*** -> left nav: Apps ***" | pv -qL 100
+    echo
+    echo "*** IMPORTANT: the Apps page defaults to \"Current location: global\" and will show" | pv -qL 100
+    echo "*** \"There are no apps yet\" even though this app exists -- Gemini Enterprise resources" | pv -qL 100
+    echo "*** are scoped per-location, and this app was created in \"$GE_LOCATION\" (GE_LOCATION), not" | pv -qL 100
+    echo "*** global. Click the \"Edit\" button next to \"Current location\" and switch it to" | pv -qL 100
+    echo "*** \"$GE_LOCATION\" -- the app (ID: $APP_ID) will then appear in the Apps table. ***" | pv -qL 100
+    echo "*** The same location switch is needed on the Data stores page in step 5. ***" | pv -qL 100
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},2x"
     echo
@@ -516,6 +527,10 @@ elif [ $MODE -eq 2 ]; then
     echo
     echo "*** [M6] Reminder: PERIODIC ingestion does not support access control lists -- if this" | pv -qL 100
     echo "*** demo needs ACL enforcement, keep using one-time imports and refresh manually. ***" | pv -qL 100
+    echo
+    echo "*** To view it in the console: https://console.cloud.google.com/gemini-enterprise/datastores?project=$GCP_PROJECT" | pv -qL 100
+    echo "*** Same gotcha as step 2 -- switch \"Current location\" to \"$GE_LOCATION\" or the data" | pv -qL 100
+    echo "*** store (ID: $GCS_DATASTORE_ID) won't show up under the default \"global\" filter. ***" | pv -qL 100
     echo
     if [[ "$MCP_SERVER_URL" == "NOT_SET" ]]; then
         echo "Paste the HTTPS URL of an MCP server to register (or press Enter to skip this part):" | pv -qL 100

@@ -157,7 +157,13 @@ depend on them.
 ### `(2) [M2] Create the Gemini Enterprise app`
 Calls `engines.create` to stand up the app every later step attaches a data
 store, agent, or policy to — this is the "Search and Agentic Experience"
-engine from the M2 architecture diagram.
+engine from the M2 architecture diagram. Prints the console URL
+(`https://console.cloud.google.com/gemini-enterprise/apps?project=<GCP_PROJECT>`)
+and a reminder that the Apps page defaults to **Current location: global**
+and will say "There are no apps yet" even though the app exists — click
+**Edit** next to Current location and switch it to `$GE_LOCATION` (`us` by
+default). Step 5 prints the same reminder for the Data stores page, which
+has identical behavior.
 
 ### `(3) [M4] Configure Workforce Identity Federation`
 Creates a workforce pool and OIDC provider for the syncless, third-party-only
