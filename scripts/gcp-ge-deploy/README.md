@@ -229,6 +229,13 @@ injection/jailbreak detection, sensitive data protection) and a project-level
 floor setting. Reminds trainers of the M5 best practice: disable
 injection/jailbreak detection on the *response* template specifically.
 
+Confirmed live and corrected twice: the SDP flag is `--basic-config-filter-enforcement`,
+not `--sdp-basic-config-enforcement`; and floor settings are configured with
+`gcloud model-armor floorsettings update` (one word, no `--filter-config-file`
+YAML input) targeting a `--full-uri=projects/<project>/locations/global/floorSetting`
+resource with the enforcement flags passed directly — not the `floor-settings`
+(hyphenated) command group with a YAML file this script originally used.
+
 ### `(8) [M5] Set organization policy constraints`
 Overrides the constraints that block custom MCP data stores by default
 (`discoveryengine.managed.allowedDataSources`,
@@ -336,7 +343,6 @@ a live discovery call.
 ├── allowed_data_sources_policy.yaml  # step 8
 ├── custom_mcp_policy.yaml            # step 8
 ├── block-public-website-constraint.yaml  # step 8 (reference only, not applied)
-├── floor-settings.yaml               # step 7
 ├── cmek_config_create.json           # step 9 response
 ├── alert-policy.yaml                 # step 13
 ├── adk_agent/                        # step 14 ADK agent source

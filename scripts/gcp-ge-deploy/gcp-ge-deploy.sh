@@ -741,8 +741,10 @@ if [ $MODE -eq 1 ]; then
     echo "$ gcloud model-armor templates create \$MA_TEMPLATE_ID --location=\$GE_LOCATION \\" | pv -qL 100
     echo "    --rai-settings-filters='[{\"filterType\":\"HATE_SPEECH\",\"confidenceLevel\":\"MEDIUM_AND_ABOVE\"}, ...]' \\" | pv -qL 100
     echo "    --pi-and-jailbreak-filter-settings-enforcement=ENABLED --pi-and-jailbreak-filter-settings-confidence-level=HIGH \\" | pv -qL 100
-    echo "    --sdp-basic-config-enforcement=ENABLED" | pv -qL 100
-    echo "$ gcloud model-armor floor-settings update --project=\$GCP_PROJECT --filter-config-file=floor.yaml" | pv -qL 100
+    echo "    --basic-config-filter-enforcement=ENABLED" | pv -qL 100
+    echo "$ gcloud model-armor floorsettings update --full-uri=projects/\$GCP_PROJECT/locations/global/floorSetting \\" | pv -qL 100
+    echo "    --enable-floor-setting-enforcement=true --pi-and-jailbreak-filter-settings-enforcement=ENABLED \\" | pv -qL 100
+    echo "    --pi-and-jailbreak-filter-settings-confidence-level=HIGH --basic-config-filter-enforcement=ENABLED" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},7"
     echo
@@ -753,25 +755,22 @@ elif [ $MODE -eq 2 ]; then
       --rai-settings-filters='[{"filterType":"HATE_SPEECH","confidenceLevel":"MEDIUM_AND_ABOVE"},{"filterType":"DANGEROUS","confidenceLevel":"MEDIUM_AND_ABOVE"},{"filterType":"HARASSMENT","confidenceLevel":"MEDIUM_AND_ABOVE"},{"filterType":"SEXUALLY_EXPLICIT","confidenceLevel":"MEDIUM_AND_ABOVE"}]' \
       --pi-and-jailbreak-filter-settings-enforcement=ENABLED \
       --pi-and-jailbreak-filter-settings-confidence-level=HIGH \
-      --sdp-basic-config-enforcement=ENABLED \
+      --basic-config-filter-enforcement=ENABLED \
       || echo "Warning: template create failed -- confirm modelarmor.googleapis.com is enabled and gcloud is current, then verify exact flag names in the console"
     echo
     echo "*** [M5] Best practice: disable prompt-injection/jailbreak detection on the RESPONSE" | pv -qL 100
     echo "*** template specifically -- those attacks originate from the user prompt, not the ***" | pv -qL 100
     echo "*** model's own output, so leaving it on the response side just adds false positives. ***" | pv -qL 100
-    cat <<FLOOREOF > $PROJDIR/floor-settings.yaml
-filterConfig:
-  piAndJailbreakFilterSettings:
-    filterEnforcement: ENABLED
-    confidenceLevel: HIGH
-  sdpSettings:
-    basicConfig:
-      filterEnforcement: ENABLED
-FLOOREOF
     echo
-    echo "$ gcloud model-armor floor-settings update --project=$GCP_PROJECT --filter-config-file=$PROJDIR/floor-settings.yaml # [M5] set the project-wide minimum filter enforcement" | pv -qL 100
-    gcloud model-armor floor-settings update --project=$GCP_PROJECT --filter-config-file=$PROJDIR/floor-settings.yaml \
-      || echo "Warning: floor-settings update failed -- this sets the org/project MINIMUM; local template settings always still apply"
+    echo "$ gcloud model-armor floorsettings update --full-uri=projects/$GCP_PROJECT/locations/global/floorSetting \\" | pv -qL 100
+    echo "    --enable-floor-setting-enforcement=true --pi-and-jailbreak-filter-settings-enforcement=ENABLED \\" | pv -qL 100
+    echo "    --pi-and-jailbreak-filter-settings-confidence-level=HIGH --basic-config-filter-enforcement=ENABLED # [M5] set the project-wide minimum filter enforcement" | pv -qL 100
+    gcloud model-armor floorsettings update --full-uri=projects/$GCP_PROJECT/locations/global/floorSetting \
+      --enable-floor-setting-enforcement=true \
+      --pi-and-jailbreak-filter-settings-enforcement=ENABLED \
+      --pi-and-jailbreak-filter-settings-confidence-level=HIGH \
+      --basic-config-filter-enforcement=ENABLED \
+      || echo "Warning: floorsettings update failed -- this sets the project MINIMUM; local template settings always still apply. Verify exact flag names/values with 'gcloud model-armor floorsettings update --help' if this still fails"
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},7x"
     echo
