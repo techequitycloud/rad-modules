@@ -677,7 +677,15 @@ elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},6"
     echo
     echo "*** [M6] In the Google Cloud console, complete these in order: ***" | pv -qL 100
-    echo "1. APIs & Services > OAuth consent screen -- configure branding and scopes." | pv -qL 100
+    echo "1. APIs & Services > OAuth consent screen -- this is now branded \"Google Auth" | pv -qL 100
+    echo "   Platform\", with separate Overview/Branding/Audience/Clients/Data Access tabs" | pv -qL 100
+    echo "   instead of one page. First-time setup is a 4-step wizard:" | pv -qL 100
+    echo "     - App Information: App name (any label, e.g. \"$APP_NAME\") and User" | pv -qL 100
+    echo "       support email (pick your own account from the dropdown)." | pv -qL 100
+    echo "     - Audience, Contact Information, Finish -- on a project with no Workspace" | pv -qL 100
+    echo "       org behind it, expect only \"External\" to be selectable under Audience," | pv -qL 100
+    echo "       which means you'll need to add yourself as a test user before this" | pv -qL 100
+    echo "       consent screen will work for anyone signing in." | pv -qL 100
     echo "2. APIs & Services > Credentials > Create OAuth client ID (type: Web application)," | pv -qL 100
     echo "   redirect URI: https://vertexaisearch.cloud.google.com/oauth-redirect" | pv -qL 100
     echo "3. Gemini Enterprise console > your app > Data Stores > New Data Store > Google" | pv -qL 100
