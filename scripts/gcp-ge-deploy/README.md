@@ -88,6 +88,14 @@ if run against the wrong one. Read the on-screen warning before confirming.
 - `pv` is installed automatically by the splash screen the first time the
   script runs.
 
+**Confirmed live in a Qwiklabs sandbox: the org-level roles above are not
+available there.** A Qwiklabs student account (`student-NN-xxxxx@qwiklabs.net`)
+is scoped to the project, not the organization, and `iam.workforcePools.create`
+was denied with `IAM_PERMISSION_DENIED` when tested. Steps 3, 8, and 10 can
+only be demonstrated in preview mode inside Qwiklabs — actually creating
+these resources needs a Google Cloud org you or your training organization
+administers.
+
 ## Quick start
 
 ```bash

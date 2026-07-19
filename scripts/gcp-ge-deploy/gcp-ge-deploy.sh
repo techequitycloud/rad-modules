@@ -379,6 +379,7 @@ if [ $MODE -eq 1 ]; then
     echo "    --display-name=\"$APP_NAME\" --description=\"Demo pool for the GE deployment course\"" | pv -qL 100
     echo "$ gcloud iam workforce-pools providers create-oidc \$WIF_PROVIDER_ID --workforce-pool=\$WIF_POOL_ID \\" | pv -qL 100
     echo "    --location=global --issuer-uri=\$WIF_ISSUER_URI --client-id=\$WIF_CLIENT_ID \\" | pv -qL 100
+    echo "    --web-sso-response-type=id-token --web-sso-assertion-claims-behavior=only-id-token-claims \\" | pv -qL 100
     echo "    --attribute-mapping=\"google.subject=assertion.sub,google.groups=assertion.groups\"" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     if confirm_org_level_change "Creating a Workforce Identity Federation pool"; then
@@ -466,15 +467,17 @@ elif [ $MODE -eq 2 ]; then
         echo "    --display-name=\"$APP_NAME\" --description=\"Demo pool for the GE deployment course\"" | pv -qL 100
         gcloud iam workforce-pools create $WIF_POOL_ID --organization=$ORG_ID --location=global \
           --display-name="$APP_NAME" --description="Demo pool for the GE deployment course" \
-          || echo "Warning: pool create failed -- confirm you hold roles/iam.workforcePoolAdmin at org $ORG_ID"
+          || echo "Warning: pool create failed -- this needs org-level roles/iam.workforcePoolAdmin at org $ORG_ID. Qwiklabs-style temporary sandbox accounts almost never have this (they're scoped to the project, not the org) -- if that's what you're running in, this step can only be demonstrated in preview mode here, not actually created. Try a Google Cloud org you or your instructor administers instead."
         echo
         echo "$ gcloud iam workforce-pools providers create-oidc $WIF_PROVIDER_ID --workforce-pool=$WIF_POOL_ID \\" | pv -qL 100
         echo "    --location=global --issuer-uri=$WIF_ISSUER_URI --client-id=$WIF_CLIENT_ID \\" | pv -qL 100
+        echo "    --web-sso-response-type=id-token --web-sso-assertion-claims-behavior=only-id-token-claims \\" | pv -qL 100
         echo "    --attribute-mapping=\"google.subject=assertion.sub,google.groups=assertion.groups\"" | pv -qL 100
         gcloud iam workforce-pools providers create-oidc $WIF_PROVIDER_ID --workforce-pool=$WIF_POOL_ID \
           --location=global --issuer-uri=$WIF_ISSUER_URI --client-id=$WIF_CLIENT_ID \
+          --web-sso-response-type=id-token --web-sso-assertion-claims-behavior=only-id-token-claims \
           --attribute-mapping="google.subject=assertion.sub,google.groups=assertion.groups" \
-          || echo "Warning: provider create failed -- verify the issuer URI/client ID and that OIDC discovery succeeds"
+          || echo "Warning: provider create failed -- verify the issuer URI/client ID, that OIDC discovery succeeds, and that the pool above was actually created (this command depends on it existing)"
         echo
         echo "*** Reminder [M4]: normalize claims to lowercase, leave attribute_conditions blank ***" | pv -qL 100
         echo "*** until this basic flow verifies, and allow a 5-10 minute propagation buffer. ***" | pv -qL 100
