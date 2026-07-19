@@ -121,6 +121,7 @@ values before running the numbered steps if you want non-default names.
 | `GCS_CONTENT_BUCKET` | `<project>-ge-deploy-content` | Sample content bucket for step 5 |
 | `WIF_POOL_ID` / `WIF_PROVIDER_ID` | `ge-deploy-wif-pool` / `ge-deploy-oidc` | Step 3 |
 | `WIF_ISSUER_URI` / `WIF_CLIENT_ID` | `NOT_SET` | Your IdP's OIDC issuer/client — prompted for in step 3 |
+| `WIF_CLIENT_SECRET` | `NOT_SET` | Optional, prompted for in step 3; captured for a future confidential-client flow but not currently passed to `create-oidc` |
 | `MCP_SERVER_URL` | `NOT_SET` | HTTPS URL of an MCP server to register — prompted for in step 5 |
 | `OAUTH_CLIENT_ID` / `OAUTH_CLIENT_SECRET` | `NOT_SET` | Captured in step 6 |
 | `MA_TEMPLATE_ID` | `ge-deploy-template` | Step 7 |
@@ -168,8 +169,13 @@ has identical behavior.
 ### `(3) [M4] Configure Workforce Identity Federation`
 Creates a workforce pool and OIDC provider for the syncless, third-party-only
 identity path M4 covers. **Organization-level — extra confirmation
-required.** Prompts for your IdP's issuer URI and client ID if not already
-in `.env`.
+required.** If `WIF_ISSUER_URI`/`WIF_CLIENT_ID` aren't already in `.env`,
+prints a full walkthrough for standing up a free Okta developer account and
+OIDC app first — including the exact sign-in redirect URI (built from
+`WIF_POOL_ID`/`WIF_PROVIDER_ID`), the groups-claim configuration the
+script's attribute mapping depends on, and where to find the Client ID and
+Issuer URI — before prompting for those values. Not yet run end-to-end
+against a real Okta org — see the PR's test plan.
 
 ### `(4) [M4] Grant Gemini Enterprise IAM roles`
 Grants `roles/discoveryengine.admin` and `roles/discoveryengine.viewer` at

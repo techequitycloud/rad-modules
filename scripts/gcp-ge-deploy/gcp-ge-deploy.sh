@@ -124,6 +124,7 @@ export WIF_POOL_ID=ge-deploy-wif-pool
 export WIF_PROVIDER_ID=ge-deploy-oidc
 export WIF_ISSUER_URI=NOT_SET
 export WIF_CLIENT_ID=NOT_SET
+export WIF_CLIENT_SECRET=NOT_SET
 export OAUTH_CLIENT_ID=NOT_SET
 export OAUTH_CLIENT_SECRET=NOT_SET
 export MA_TEMPLATE_ID=ge-deploy-template
@@ -371,7 +372,8 @@ if [ $MODE -eq 1 ]; then
     echo
     echo "*** [M4] Workforce Identity Federation is the syncless path for third-party-only" | pv -qL 100
     echo "*** deployments -- it lets users authenticate with an existing corporate IdP ***" | pv -qL 100
-    echo "*** (Okta/Entra ID) without syncing accounts into Cloud Identity. ***" | pv -qL 100
+    echo "*** (Okta/Entra ID) without syncing accounts into Cloud Identity. If you don't have ***" | pv -qL 100
+    echo "*** an IdP yet, Create mode walks you through a free Okta developer account. ***" | pv -qL 100
     echo
     echo "$ gcloud iam workforce-pools create \$WIF_POOL_ID --organization=\$ORG_ID --location=global \\" | pv -qL 100
     echo "    --display-name=\"$APP_NAME\" --description=\"Demo pool for the GE deployment course\"" | pv -qL 100
@@ -383,15 +385,49 @@ elif [ $MODE -eq 2 ]; then
         export STEP="${STEP},3"
         if [[ "$WIF_ISSUER_URI" == "NOT_SET" ]] || [[ "$WIF_CLIENT_ID" == "NOT_SET" ]]; then
             echo
-            echo "Paste your IdP's OIDC issuer URI (e.g. https://your-org.okta.com):" | pv -qL 100
+            echo "*** [M4] No IdP configured yet -- here's how to set up a free Okta developer" | pv -qL 100
+            echo "*** account and OIDC app if you don't already have an identity provider: ***" | pv -qL 100
+            echo
+            echo "1. Sign up free at https://developer.okta.com/signup/ -- choose Workforce" | pv -qL 100
+            echo "   Identity Cloud, verify your email, and set a password. This creates your" | pv -qL 100
+            echo "   Okta org (a domain like dev-12345678.okta.com)." | pv -qL 100
+            echo "2. In the Okta Admin Console: Applications > Applications > Create App" | pv -qL 100
+            echo "   Integration. Sign-in method: OIDC - OpenID Connect. Application type:" | pv -qL 100
+            echo "   Web Application." | pv -qL 100
+            echo "3. Grant type: check Implicit (hybrid) in addition to Authorization Code --" | pv -qL 100
+            echo "   Google's console/gcloud sign-in needs the ID token returned directly to" | pv -qL 100
+            echo "   the browser." | pv -qL 100
+            echo "4. Sign-in redirect URI (must match this exactly):" | pv -qL 100
+            echo "   https://auth.cloud.google/signin-callback/locations/global/workforcePools/$WIF_POOL_ID/providers/$WIF_PROVIDER_ID" | pv -qL 100
+            echo "5. Assignment: choose \"Skip group assignment for now\". Save the app." | pv -qL 100
+            echo "6. On the app's Sign On tab > OpenID Connect ID Token > Edit: set Groups" | pv -qL 100
+            echo "   claim type to \"Matches regex\" with value .* -- this is what the" | pv -qL 100
+            echo "   google.groups attribute mapping below actually reads. Skip this and" | pv -qL 100
+            echo "   sign-in will still work, but every user arrives with no group memberships." | pv -qL 100
+            echo "7. Directory > People > Add Person to create a test user, then on the app's" | pv -qL 100
+            echo "   Assignments tab, assign that user to the app." | pv -qL 100
+            echo "8. Back on the app's General tab, copy the Client ID, the Issuer URI" | pv -qL 100
+            echo "   (format: https://your-domain.okta.com/oauth2/default), and the Client" | pv -qL 100
+            echo "   Secret." | pv -qL 100
+            echo
+            read -n 1 -s -r -p "Press any key once your Okta app is created and you have those values... "
+            echo
+            echo "Paste your IdP's OIDC issuer URI (e.g. https://your-org.okta.com/oauth2/default):" | pv -qL 100
             read WIF_ISSUER_URI
             echo "Paste the OIDC client ID Google should present to your IdP:" | pv -qL 100
             read WIF_CLIENT_ID
+            echo "Paste the OIDC client secret (optional -- press Enter to skip; not required" | pv -qL 100
+            echo "for the implicit/hybrid browser sign-in flow above, captured here only for a" | pv -qL 100
+            echo "future confidential-client flow -- it is NOT passed to create-oidc below):" | pv -qL 100
+            read WIF_CLIENT_SECRET
             sed -i '/^export WIF_ISSUER_URI=/d' $PROJDIR/.env
             echo "export WIF_ISSUER_URI='$WIF_ISSUER_URI'" >> $PROJDIR/.env
             sed -i '/^export WIF_CLIENT_ID=/d' $PROJDIR/.env
             echo "export WIF_CLIENT_ID='$WIF_CLIENT_ID'" >> $PROJDIR/.env
+            sed -i '/^export WIF_CLIENT_SECRET=/d' $PROJDIR/.env
+            echo "export WIF_CLIENT_SECRET='$WIF_CLIENT_SECRET'" >> $PROJDIR/.env
             source $PROJDIR/.env
+            gsutil cp $PROJDIR/.env gs://${GCP_PROJECT}/${SCRIPTNAME}.env > /dev/null 2>&1
         fi
         echo
         echo "$ gcloud iam workforce-pools create $WIF_POOL_ID --organization=$ORG_ID --location=global \\" | pv -qL 100
@@ -410,6 +446,8 @@ elif [ $MODE -eq 2 ]; then
         echo
         echo "*** Reminder [M4]: normalize claims to lowercase, leave attribute_conditions blank ***" | pv -qL 100
         echo "*** until this basic flow verifies, and allow a 5-10 minute propagation buffer. ***" | pv -qL 100
+        echo "*** Test with: gcloud auth login --brief --quiet -- it should offer a workforce ***" | pv -qL 100
+        echo "*** identity sign-in option that redirects to your Okta login page. ***" | pv -qL 100
     else
         echo
         echo "*** Skipped -- confirmation not given ***" | pv -qL 100
@@ -428,8 +466,10 @@ elif [ $MODE -eq 3 ]; then
 else
     export STEP="${STEP},3i"
     echo
-    echo "1. [M4] Create a Workforce Identity Federation pool" | pv -qL 100
-    echo "2. [M4] Create an OIDC provider inside that pool" | pv -qL 100
+    echo "1. [M4] Walk through creating a free Okta developer account and OIDC app" | pv -qL 100
+    echo "   (only if WIF_ISSUER_URI/WIF_CLIENT_ID aren't already set in .env)" | pv -qL 100
+    echo "2. [M4] Create a Workforce Identity Federation pool" | pv -qL 100
+    echo "3. [M4] Create an OIDC provider inside that pool" | pv -qL 100
 fi
 end=`date +%s`
 echo
