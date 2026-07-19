@@ -690,7 +690,12 @@ elif [ $MODE -eq 2 ]; then
     echo "   redirect URI: https://vertexaisearch.cloud.google.com/oauth-redirect" | pv -qL 100
     echo "3. Gemini Enterprise console > your app > Data Stores > New Data Store > Google" | pv -qL 100
     echo "   Calendar / Gmail -- follow the connector wizard, which drives its own OAuth" | pv -qL 100
-    echo "   consent using the client you just created." | pv -qL 100
+    echo "   consent using the client you just created. On the Configuration step, the" | pv -qL 100
+    echo "   wizard blocks Create with \"You must select Google Identity as your access" | pv -qL 100
+    echo "   control settings before you continue\" -- this is the M4 GWS Connector Rule" | pv -qL 100
+    echo "   enforced inline: any Google Workspace source (Calendar/Gmail/Drive) requires" | pv -qL 100
+    echo "   the app to use Google Identity, not a third-party IdP. Click \"Configure" | pv -qL 100
+    echo "   access control\" and select Google Identity before Create becomes available." | pv -qL 100
     echo
     echo "Paste the OAuth client ID once created (or press Enter to skip):" | pv -qL 100
     read OAUTH_CLIENT_ID
