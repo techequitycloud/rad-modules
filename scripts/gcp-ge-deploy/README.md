@@ -177,16 +177,18 @@ format, and the groups-claim configuration the script's attribute mapping
 depends on — before prompting for the Client ID/Issuer URI/Client Secret.
 
 The signup-tier choice, app creation (OIDC/Web Application, Authorization
-Code + Implicit grant, redirect URI), Issuer selection, and groups-claim
-setup (steps 1–6 of the walkthrough) have been live-verified against a real
-Okta Integrator Free Plan org and corrected twice from what generic Okta
-documentation suggested — notably, that org type hides the classic "Groups
-claim type" filter behind a "Show legacy configuration" toggle rather than
-showing it inline, and the ID token Issuer has no `/oauth2/default` suffix
-for a Web App integration. Test-user creation and assignment, and reading
-the final values off the General tab (steps 7–8), are standard Okta UI and
-believed correct but haven't been screenshot-confirmed the way steps 1–6
-were.
+Code + Implicit grant, redirect URI), Issuer selection, groups-claim setup,
+and where to find the three final values (steps 1-6 and 8 of the
+walkthrough) have been live-verified against a real Okta Integrator Free
+Plan org and corrected three times from what generic Okta documentation
+suggested: that org type hides the classic "Groups claim type" filter
+behind a "Show legacy configuration" toggle rather than showing it inline;
+the ID token Issuer has no `/oauth2/default` suffix for a Web App
+integration; and the Issuer URI is on the **Sign On** tab (OpenID Connect ID
+Token section), not the General tab — only Client ID and Client Secret are
+on General, under Client Credentials. Test-user creation and assignment
+(step 7) is standard Okta UI and believed correct but hasn't been
+screenshot-confirmed the way the rest of this walkthrough was.
 
 ### `(4) [M4] Grant Gemini Enterprise IAM roles`
 Grants `roles/discoveryengine.admin` and `roles/discoveryengine.viewer` at

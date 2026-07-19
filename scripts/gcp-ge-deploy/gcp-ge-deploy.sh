@@ -432,11 +432,13 @@ elif [ $MODE -eq 2 ]; then
             echo "   identity that will actually prove the WIF chain works end to end. Then on" | pv -qL 100
             echo "   the app's Assignments tab, assign that user to the app (an unassigned" | pv -qL 100
             echo "   user can't sign in even with everything else configured correctly)." | pv -qL 100
-            echo "8. Back on the app's General tab, copy the Client ID, the Issuer URI (should" | pv -qL 100
-            echo "   match the fixed Okta URL value from step 6 -- no /oauth2/default suffix on" | pv -qL 100
-            echo "   this app type), and the Client Secret -- these three values are exactly" | pv -qL 100
-            echo "   what the create-oidc command below needs to trust this Okta app as a WIF" | pv -qL 100
-            echo "   provider. Paste whatever Okta actually shows you, not a guess based on" | pv -qL 100
+            echo "8. Copy three values -- exactly what the create-oidc command below needs to" | pv -qL 100
+            echo "   trust this Okta app as a WIF provider. Client ID and Client Secret are on" | pv -qL 100
+            echo "   the General tab, under Client Credentials. The Issuer URI is NOT on the" | pv -qL 100
+            echo "   General tab -- go back to the Sign On tab > OpenID Connect ID Token" | pv -qL 100
+            echo "   section, where it now displays as plain text (the fixed Okta URL value" | pv -qL 100
+            echo "   you picked in step 6, no /oauth2/default suffix on this app type). Paste" | pv -qL 100
+            echo "   whatever Okta actually shows you, not a guess based on this description." | pv -qL 100
             echo "   this description." | pv -qL 100
             echo
             read -n 1 -s -r -p "Press any key once your Okta app is created and you have those values... "
