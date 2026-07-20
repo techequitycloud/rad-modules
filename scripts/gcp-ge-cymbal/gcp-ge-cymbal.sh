@@ -24,7 +24,7 @@
 # gcloud or Terraform surface. Those steps print the exact console navigation
 # and values to enter instead of executing a command -- the script pauses so
 # you can complete them in the browser tab, then captures anything it needs
-# back (e.g. Client ID/Secret) into ./gcp-gemini-cymbalpools/.env for reuse in
+# back (e.g. Client ID/Secret) into ./gcp-ge-cymbal/.env for reuse in
 # later steps. Everything else (bucket/object staging, API enablement, IAM
 # bindings, the ADK agent deploy pipeline) executes for real in Create mode.
 
@@ -64,20 +64,20 @@ sudo apt-get -qq install pv > /dev/null 2>&1
 echo
 export SCRIPTPATH=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-mkdir -p `pwd`/gcp-gemini-cymbalpools > /dev/null 2>&1
-export SCRIPTNAME=gcp-gemini-cymbalpools.sh
-export PROJDIR=`pwd`/gcp-gemini-cymbalpools
+mkdir -p `pwd`/gcp-ge-cymbal > /dev/null 2>&1
+export SCRIPTNAME=gcp-ge-cymbal.sh
+export PROJDIR=`pwd`/gcp-ge-cymbal
 
 if [ -f "$PROJDIR/.env" ]; then
     source $PROJDIR/.env
 else
 cat <<EOF > $PROJDIR/.env
 export GCP_PROJECT=$GCP_PROJECT
-export GCP_REGION=us-central1
+export GCP_REGION=europe-west1
 export GCS_BUCKET=${GCP_PROJECT}-bucket
 export APP_NAME="Cymbal Pools GE"
 export APP_ID=cymbal-pools-ge
-export GE_LOCATION=us
+export GE_LOCATION=eu
 export COMPANY_NAME="Cymbal Pools"
 export AGENT_DIR=adk_to_ge
 export MODEL=gemini-3.5-flash

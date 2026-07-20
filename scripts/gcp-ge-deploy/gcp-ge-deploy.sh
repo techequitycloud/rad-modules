@@ -37,11 +37,11 @@
 # infrastructure.
 #
 # Follows the same menu / preview / create / delete pattern as the other
-# scripts in this directory -- see scripts/gcp-gemini-cymbalpools/README.md
+# scripts in this directory -- see scripts/gcp-ge-cymbal/README.md
 # and scripts/gcp-cxas-scrapi/README.md for the shared conventions this
 # script reuses (splash screen, .env bootstrap, option 0 execution-mode
 # selector, credits banner). A handful of steps reuse patterns directly from
-# gcp-gemini-cymbalpools.sh (app creation, data connectors, ADK-agent
+# gcp-ge-cymbal.sh (app creation, data connectors, ADK-agent
 # registration) -- see this script's README.md for the full list.
 #
 # A few steps below (Workforce Identity Federation pool creation, organization

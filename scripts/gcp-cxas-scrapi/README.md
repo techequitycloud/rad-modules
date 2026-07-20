@@ -10,7 +10,7 @@ slot-filling callback, a guardrail, evaluations, CI/CD, branching, a
 multi-agent split, "vibe coding" via the Antigravity CLI, a PRD-driven
 agent-foundry build, and a voice variant. It follows the same
 menu/preview/create/delete pattern as the other scripts in this directory
-(see `../gcp-gemini-cymbalpools/README.md` for the shared conventions).
+(see `../gcp-ge-cymbal/README.md` for the shared conventions).
 
 ## Validated against a live project
 
