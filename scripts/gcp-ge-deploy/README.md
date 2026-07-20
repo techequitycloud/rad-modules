@@ -2,9 +2,9 @@
 
 Menu-driven companion script for the "Deploying Gemini Enterprise" training
 course. It follows the same menu / preview / create / delete pattern as the
-other scripts in this directory (see `../gcp-gemini-cymbalpools/README.md`
+other scripts in this directory (see `../gcp-ge-cymbal/README.md`
 and `../gcp-cxas-scrapi/README.md` for the shared conventions) and reuses
-several patterns directly from `gcp-gemini-cymbalpools.sh` (Gemini Enterprise
+several patterns directly from `gcp-ge-cymbal.sh` (Gemini Enterprise
 app creation, data connectors, ADK-agent deploy-and-register). Each numbered
 menu option is tagged with the course module it demonstrates — `[M1]` and
 `[M2]` through `[M9]` — so a trainer can jump from a slide deck straight to
@@ -49,7 +49,7 @@ the time of writing and are console-only in this script:
 
 - Identity Provider confirmation and the OAuth consent screen / Web-app OAuth
   client (step 6) — confirmed against a live project, per
-  `gcp-gemini-cymbalpools`'s own testing notes.
+  `gcp-ge-cymbal`'s own testing notes.
 - The Calendar/Gmail/Drive data-connector OAuth handshake (step 6) —
   `setUpDataConnector` has no OAuth-client field.
 - Homepage UI, autocomplete, search control, assistant instructions,

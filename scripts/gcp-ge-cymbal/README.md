@@ -1,4 +1,4 @@
-# gcp-gemini-cymbalpools.sh — Cymbal Pools Gemini Enterprise Demo
+# gcp-ge-cymbal.sh — Cymbal Pools Gemini Enterprise Demo
 
 Interactive bash script that walks a trainer through preparing and running the
 "Cymbal Pools" Gemini Enterprise demo: seeding demo content, standing up a
@@ -64,7 +64,7 @@ see step `7`'s notes.
 
 ```bash
 cd /path/where/you/want/working/files
-./gcp-gemini-cymbalpools.sh
+./gcp-ge-cymbal.sh
 ```
 
 A menu appears that loops until you press `Q`. **Always start each session by
@@ -85,7 +85,7 @@ always re-authenticates fresh rather than silently reusing a prior session.
 
 ## Configuration (`.env`)
 
-Created at `./gcp-gemini-cymbalpools/.env`. Edit values before running the
+Created at `./gcp-ge-cymbal/.env`. Edit values before running the
 numbered steps, or let the script populate the OAuth and agent fields for you
 as you complete each step:
 
@@ -210,7 +210,7 @@ without switching back to the PDF.
 ## Working files
 
 ```
-./gcp-gemini-cymbalpools/
+./gcp-ge-cymbal/
 ├── .env                       # current configuration, including captured OAuth/agent IDs
 ├── *.pdf / *.docx             # demo documents downloaded in step 2
 ├── engine_create.json         # engines.create response from step 3
@@ -219,7 +219,7 @@ without switching back to the PDF.
 └── authorization.json / agent_create.json       # authorizations/agents.create responses from step 7
 ```
 
-`.env` is also backed up to `gs://<GCP_PROJECT>/gcp-gemini-cymbalpools.sh.env`.
+`.env` is also backed up to `gs://<GCP_PROJECT>/gcp-ge-cymbal.sh.env`.
 
 ## Cleanup
 
@@ -233,4 +233,4 @@ without switching back to the PDF.
 4. Manually remove the OAuth client/brand from Google Auth Platform and the
    Model Armor template — steps `4` and `10` print reminders but do not
    delete console-managed resources.
-5. Delete `./gcp-gemini-cymbalpools/`.
+5. Delete `./gcp-ge-cymbal/`.
