@@ -73,11 +73,11 @@ if [ -f "$PROJDIR/.env" ]; then
 else
 cat <<EOF > $PROJDIR/.env
 export GCP_PROJECT=$GCP_PROJECT
-export GCP_REGION=europe-west1
+export GCP_REGION=us-central1
 export GCS_BUCKET=${GCP_PROJECT}-bucket
 export APP_NAME="Cymbal Pools GE"
 export APP_ID=cymbal-pools-ge
-export GE_LOCATION=eu
+export GE_LOCATION=us
 export COMPANY_NAME="Cymbal Pools"
 export AGENT_DIR=adk_to_ge
 export MODEL=gemini-3.5-flash
@@ -315,6 +315,9 @@ if [ $MODE -eq 1 ]; then
     echo "$ gcloud storage cp gs://\$GCS_BUCKET/*.pdf gs://\$GCS_BUCKET/*.docx \$PROJDIR/ # to download demo documents" | pv -qL 100
     echo
     echo "*** Then upload the downloaded files to Google Drive at https://drive.google.com using the lab's Qwiklabs account ***" | pv -qL 100
+    echo "*** Also seed Google Calendar: at https://calendar.google.com, create an event named 'Astronomers" | pv -qL 100
+    echo "*** Lunch Planning Meeting' starting at least 1 hour from now, and Save -- this gives the Calendar" | pv -qL 100
+    echo "*** connector created in step 5 some existing content to find ***" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},2"
     gcloud config set project $GCP_PROJECT > /dev/null 2>&1
@@ -325,8 +328,11 @@ elif [ $MODE -eq 2 ]; then
     echo "*** Documents downloaded to $PROJDIR ***" | pv -qL 100
     echo "1. Open a new browser tab (use the Qwiklabs student ID as the profile) and go to https://drive.google.com" | pv -qL 100
     echo "2. Upload every file from $PROJDIR to the root of My Drive" | pv -qL 100
+    echo "3. In another tab, go to https://calendar.google.com and create an event named 'Astronomers Lunch" | pv -qL 100
+    echo "   Planning Meeting' starting at least 1 hour from now, then Save -- this gives the Calendar" | pv -qL 100
+    echo "   connector created in step 5 some existing content to find" | pv -qL 100
     echo
-    read -n 1 -s -r -p $'*** Press the Enter key once the upload to Drive is complete ***'
+    read -n 1 -s -r -p $'*** Press the Enter key once the Drive upload and Calendar event are complete ***'
     echo
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},2x"
@@ -335,11 +341,13 @@ elif [ $MODE -eq 3 ]; then
     rm -f $PROJDIR/*.pdf $PROJDIR/*.docx 2>/dev/null
     echo
     echo "*** Remove the uploaded files from Google Drive manually if no longer needed ***" | pv -qL 100
+    echo "*** Remove the 'Astronomers Lunch Planning Meeting' event from Google Calendar manually if no longer needed ***" | pv -qL 100
 else
     export STEP="${STEP},2i"
     echo
     echo "1. Download demo documents from the project bucket" | pv -qL 100
     echo "2. Upload them to Google Drive" | pv -qL 100
+    echo "3. Create the Calendar demo event" | pv -qL 100
 fi
 end=`date +%s`
 echo
@@ -358,17 +366,33 @@ fi
 if [ $MODE -eq 1 ]; then
     export STEP="${STEP},3i"
     echo
+    echo "*** First-time-per-project setup: engines.create below fails until Gemini Enterprise itself has been" | pv -qL 100
+    echo "*** activated once -- enabling the discoveryengine API in step 1 is not the same thing ***" | pv -qL 100
+    echo "1. Search for Gemini Enterprise in the Cloud Console and open it" | pv -qL 100
+    echo "2. If offered, click Start 30-day free trial, then Continue to activate the API (skip if already active)" | pv -qL 100
+    echo
     echo "$ curl -X POST -H \"Authorization: Bearer \$(gcloud auth print-access-token)\" \"https://\$GE_HOST/v1/projects/\$GCP_PROJECT/locations/\$GE_LOCATION/collections/default_collection/engines?engineId=\$APP_ID\" -d '{\"displayName\":\"'\$APP_NAME'\",\"dataStoreIds\":[],\"solutionType\":\"SOLUTION_TYPE_SEARCH\",\"industryVertical\":\"GENERIC\",\"appType\":\"APP_TYPE_INTRANET\",\"commonConfig\":{\"companyName\":\"'\$COMPANY_NAME'\"}}' # to create the Gemini Enterprise app" | pv -qL 100
     echo
     echo "*** Identity provider confirmation has no API yet -- complete it in the console for the '\$GE_LOCATION' location specifically ***" | pv -qL 100
+    echo
+    echo "*** Also on the app itself: Integration (left nav) > select Use Google Identity > Confirm Workforce" | pv -qL 100
+    echo "*** Identity -- this app-level confirmation is separate from the per-location IdP row above and is" | pv -qL 100
+    echo "*** required once before the app's web URL will work ***" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},3"
     gcloud config set project $GCP_PROJECT > /dev/null 2>&1
     echo
+    echo "*** First-time-per-project setup: engines.create below fails until Gemini Enterprise itself has been" | pv -qL 100
+    echo "*** activated once -- enabling the discoveryengine API in step 1 is not the same thing ***" | pv -qL 100
+    echo "1. Search for Gemini Enterprise in the Cloud Console and open it" | pv -qL 100
+    echo "2. If offered, click Start 30-day free trial, then Continue to activate the API (skip if already active)" | pv -qL 100
+    read -n 1 -s -r -p $'*** Press the Enter key once Gemini Enterprise is activated for this project ***'
+    echo
+    echo
     echo "$ curl -X POST -H \"Authorization: Bearer \$(gcloud auth print-access-token)\" \"https://$GE_HOST/v1/projects/$GCP_PROJECT/locations/$GE_LOCATION/collections/default_collection/engines?engineId=$APP_ID\" -d '{\"displayName\":\"$APP_NAME\",\"dataStoreIds\":[],\"solutionType\":\"SOLUTION_TYPE_SEARCH\",\"industryVertical\":\"GENERIC\",\"appType\":\"APP_TYPE_INTRANET\",\"commonConfig\":{\"companyName\":\"$COMPANY_NAME\"}}' # to create the Gemini Enterprise app" | pv -qL 100
     echo "*** engines.create is a v1 API that is still evolving -- verify field names in the console if this call fails ***" | pv -qL 100
     echo "*** Confirmed by testing: the 'global' location's custom-agent-creation quota is 0 on some sandbox" | pv -qL 100
-    echo "*** projects, so this creates the app at '\$GE_LOCATION' (default 'us') instead of 'global' ***" | pv -qL 100
+    echo "*** projects, so this creates the app at '$GE_LOCATION' instead of 'global' ***" | pv -qL 100
     curl -s -X POST \
       -H "Authorization: Bearer $(gcloud auth print-access-token)" \
       -H "Content-Type: application/json" \
@@ -383,6 +407,13 @@ elif [ $MODE -eq 2 ]; then
     echo "   check the IdP for whichever location they land in" | pv -qL 100
     read -n 1 -s -r -p $'*** Press the Enter key once Google Identity is confirmed for the '"$GE_LOCATION"' location ***'
     echo
+    echo
+    echo "3. On the app itself, click Integration in the left-hand navigation pane" | pv -qL 100
+    echo "4. Select Use Google Identity as the identity provider, then click Confirm Workforce Identity --" | pv -qL 100
+    echo "   this app-level confirmation is separate from the per-location IdP row above and is required" | pv -qL 100
+    echo "   once before the app's web URL will work" | pv -qL 100
+    read -n 1 -s -r -p $'*** Press the Enter key once Workforce Identity is confirmed on the Integration tab ***'
+    echo
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},3x"
     echo
@@ -394,8 +425,10 @@ elif [ $MODE -eq 3 ]; then
 else
     export STEP="${STEP},3i"
     echo
-    echo "1. Create the Gemini Enterprise app" | pv -qL 100
-    echo "2. Confirm the identity provider" | pv -qL 100
+    echo "1. Activate Gemini Enterprise for the project (Start 30-day free trial), if not already active" | pv -qL 100
+    echo "2. Create the Gemini Enterprise app" | pv -qL 100
+    echo "3. Confirm the identity provider" | pv -qL 100
+    echo "4. Confirm Workforce Identity on the app's Integration tab" | pv -qL 100
 fi
 end=`date +%s`
 echo
@@ -525,7 +558,7 @@ if [ $MODE -eq 1 ]; then
     echo
     echo "$ cd \$PROJDIR/\$AGENT_DIR && python3 -m pip install -r requirements.txt # to install dependencies" | pv -qL 100
     echo
-    echo "$ adk deploy agent_engine --display_name \"BigQuery Pool Data Agent\" --project \$GCP_PROJECT --region \$GCP_REGION bigquery_agent # to deploy the agent (takes ~5-10 minutes)" | pv -qL 100
+    echo "$ adk deploy agent_engine --display_name \"BigQuery Pool Data Agent\" --project \$GCP_PROJECT --region \$GCP_REGION --staging_bucket gs://\$GCS_BUCKET bigquery_agent # to deploy the agent (takes ~5-10 minutes)" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},6"
     gcloud config set project $GCP_PROJECT > /dev/null 2>&1
@@ -551,8 +584,8 @@ GOOGLE_CLOUD_LOCATION=global
 MODEL=$MODEL
 EOF
     echo
-    echo "$ adk deploy agent_engine --display_name \"BigQuery Pool Data Agent\" --project $GCP_PROJECT --region $GCP_REGION bigquery_agent # to deploy the agent (takes ~5-10 minutes)" | pv -qL 100
-    adk deploy agent_engine --display_name "BigQuery Pool Data Agent" --project $GCP_PROJECT --region $GCP_REGION bigquery_agent | tee $PROJDIR/adk_deploy.log
+    echo "$ adk deploy agent_engine --display_name \"BigQuery Pool Data Agent\" --project $GCP_PROJECT --region $GCP_REGION --staging_bucket gs://$GCS_BUCKET bigquery_agent # to deploy the agent (takes ~5-10 minutes)" | pv -qL 100
+    adk deploy agent_engine --display_name "BigQuery Pool Data Agent" --project $GCP_PROJECT --region $GCP_REGION --staging_bucket gs://$GCS_BUCKET bigquery_agent | tee $PROJDIR/adk_deploy.log
     export REASONING_ENGINE=$(grep -o 'projects/[^ ]*/locations/[^ ]*/reasoningEngines/[^ ]*' $PROJDIR/adk_deploy.log | tail -1)
     if [[ -n "$REASONING_ENGINE" ]]; then
         sed -i "s#^export REASONING_ENGINE=.*#export REASONING_ENGINE=$REASONING_ENGINE#" $PROJDIR/.env
@@ -629,7 +662,7 @@ elif [ $MODE -eq 2 ]; then
     echo "*** projects.locations.authorizations and assistants.agents are v1alpha APIs that are still evolving -- verify field names in the console if a call fails ***" | pv -qL 100
     echo
     echo "*** Confirmed by testing: the app's engine (step 3), this Authorization, and the agent below must all" | pv -qL 100
-    echo "*** live at the SAME Discovery Engine location -- using '\$GE_LOCATION' throughout, not 'global', also" | pv -qL 100
+    echo "*** live at the SAME Discovery Engine location -- using '$GE_LOCATION' throughout, not 'global', also" | pv -qL 100
     echo "*** avoids a custom-agent-creation quota gap seen at 'global' on some sandbox projects ***" | pv -qL 100
     echo "$ curl -X POST .../authorizations?authorizationId=$AUTH_ID # to register the OAuth client with Gemini Enterprise" | pv -qL 100
     curl -s -X POST \
@@ -737,17 +770,20 @@ echo "1. On the Gemini Enterprise app's Configurations tab, click Feature Manage
 echo "   Enable agent designer" | pv -qL 100
 echo "   Under Enable image generation, select whichever Gemini flash image model is offered (the exact" | pv -qL 100
 echo "   version, e.g. 3.1 vs 2.5 'Nano Banana', varies by region/project), then Save" | pv -qL 100
-echo "2. Click Overview, then the URL or Preview to open the app" | pv -qL 100
+echo "2. If not already done in step 3: on the app's Integration tab, select Use Google Identity and click" | pv -qL 100
+echo "   Confirm Workforce Identity -- this finalizes the app's public sign-in and is required once before" | pv -qL 100
+echo "   the web app URL will work" | pv -qL 100
+echo "3. Click Overview, then the URL or Preview to open the app" | pv -qL 100
 echo "   If you see an access error, confirm you are logged in with the correct Qwiklabs account" | pv -qL 100
-echo "3. In the query bar, click the Connectors icon; confirm Google Drive is enabled" | pv -qL 100
+echo "4. In the query bar, click the Connectors icon; confirm Google Drive is enabled" | pv -qL 100
 echo "   Click Enable actions for both Google Calendar and Google Drive and complete the OAuth handshakes" | pv -qL 100
 echo "   Test with: Create a 1-hour meeting in 1 hour called \"1 hour in 1 hour\"" | pv -qL 100
-echo "4. Under Agents, prompt Deep Research with:" | pv -qL 100
+echo "5. Under Agents, prompt Deep Research with:" | pv -qL 100
 echo "   What are some examples of technological innovations in pools and spas?" | pv -qL 100
 echo "   Confirm it generates a research plan and run it" | pv -qL 100
 if [[ "$SDP_POLICY" != "NOT_SET" ]] && [[ -n "$SDP_POLICY" ]]; then
     echo
-    echo "5. Test the Sensitive Data Protection content policy created in option (12):" | pv -qL 100
+    echo "6. Test the Sensitive Data Protection content policy created in option (12):" | pv -qL 100
     if [ $MODE -eq 2 ]; then
         echo "I need customer support. My card number is 4111-1111-1111-1111." > $PROJDIR/sensitive.txt
         echo "I appreciate all the work from the team." > $PROJDIR/not-sensitive.txt
@@ -756,10 +792,10 @@ if [[ "$SDP_POLICY" != "NOT_SET" ]] && [[ -n "$SDP_POLICY" ]]; then
         echo "   echo \"I need customer support. My card number is 4111-1111-1111-1111.\" > \$PROJDIR/sensitive.txt" | pv -qL 100
         echo "   echo \"I appreciate all the work from the team.\" > \$PROJDIR/not-sensitive.txt" | pv -qL 100
     fi
-    echo "6. In the app, use the Add files tool (+ icon under the prompt) > Upload files and upload sensitive.txt" | pv -qL 100
+    echo "7. In the app, use the Add files tool (+ icon under the prompt) > Upload files and upload sensitive.txt" | pv -qL 100
     echo "   -- this should be blocked with a governance-policy message (it contains a credit card number)" | pv -qL 100
-    echo "7. Upload not-sensitive.txt the same way -- this should upload successfully with no restriction" | pv -qL 100
-    echo "8. Also upload both files to Google Drive at https://drive.google.com (the data store connected in" | pv -qL 100
+    echo "8. Upload not-sensitive.txt the same way -- this should upload successfully with no restriction" | pv -qL 100
+    echo "9. Also upload both files to Google Drive at https://drive.google.com (the data store connected in" | pv -qL 100
     echo "   option 5), then in the app's Add files dropdown use Add from Drive on each -- confirm the data" | pv -qL 100
     echo "   store's Content policy (applied in option 12) blocks/allows the same way as the direct upload" | pv -qL 100
 fi
