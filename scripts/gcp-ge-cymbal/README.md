@@ -49,10 +49,12 @@ see step `7`'s notes.
 
 ## Prerequisites
 
-- Google Cloud project with Gemini Enterprise, Vertex AI, and Discovery
-  Engine available, and a project bucket (`<project>-bucket`) preloaded with
-  the demo documents, a `pool party.png` image, and the `adk_to_ge/` agent
-  source (as provisioned by the Qwiklabs environment).
+- Google Cloud project with Vertex AI and Discovery Engine available, and a
+  project bucket (`<project>-bucket`) preloaded with the demo documents, a
+  `pool party.png` image, and the `adk_to_ge/` agent source (as provisioned by
+  the Qwiklabs environment). Gemini Enterprise itself does not need to be
+  pre-activated — step `3` prompts you to start its free trial in the console
+  if this is the project's first use of it.
 - `gcloud` CLI authenticated as a project Owner or Editor.
 - `python3` and `pip` available (Cloud Shell has both); the Agent Development
   Kit (`adk`) CLI is installed by step `6` into `requirements.txt`'s target
@@ -92,7 +94,7 @@ as you complete each step:
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `GCP_PROJECT` | current `gcloud` project | Target project ID. |
-| `GCP_REGION` | `us-east4` | Region the ADK agent is deployed to on Agent Engine. |
+| `GCP_REGION` | `us-central1` | Region the ADK agent is deployed to on Agent Engine. |
 | `GCS_BUCKET` | `<project>-bucket` | Bucket holding demo docs, the announcement image, and `adk_to_ge/`. |
 | `APP_NAME` | `Cymbal Pools GE` | Gemini Enterprise app display name. |
 | `APP_ID` | `cymbal-pools-ge` | Gemini Enterprise engine/app resource ID used by `engines.create`. |
@@ -121,19 +123,28 @@ depend on them, per this repo's API-enablement convention.
 ### `(2) Prepare demo content`
 Downloads the demo PDF/DOCX from `$GCS_BUCKET` and pauses with instructions to
 upload them to Google Drive by hand (Drive upload needs a user OAuth grant,
-not a service account).
+not a service account), plus create a "Astronomers Lunch Planning Meeting"
+event on `calendar.google.com` starting at least 1 hour out — seed content
+for the Calendar connector created in step `5`.
 
 ### `(3) Create Gemini Enterprise app & identity provider`
-Calls `engines.create` (`appType: APP_TYPE_INTRANET`) at `$GE_LOCATION` (not
+First prints a reminder and pauses: if this project has never used Gemini
+Enterprise before, opening it in the console and clicking **Start 30-day free
+trial > Continue** is a one-time activation that is separate from enabling
+the `discoveryengine.googleapis.com` API in step 1 — `engines.create` below
+fails on a project where this hasn't been done yet. Then calls
+`engines.create` (`appType: APP_TYPE_INTRANET`) at `$GE_LOCATION` (not
 `global`) to create the app with `$APP_NAME`/`$APP_ID`/`$COMPANY_NAME` and no
-data stores attached yet, then prints the Identity Provider steps, which have
-no API: go to **Settings > Authentication** and confirm Google Identity for
-the **`$GE_LOCATION`** row (the page lists a row per location — `global`,
-`us`, `eu`, ...). ACLed connectors (Drive/Calendar) check the IdP for
+data stores attached yet, then prints two more no-API console steps and
+pauses for each: (1) **Settings > Authentication** — confirm Google Identity
+for the **`$GE_LOCATION`** row (the page lists a row per location — `global`,
+`us`, `eu`, ...); ACLed connectors (Drive/Calendar) check the IdP for
 whichever location the data store actually lands in, so this must match
-where step 5 creates its data stores. Skipping this produces
+where step 5 creates its data stores, and skipping it produces
 `FAILED_PRECONDITION: IdP must be selected before creating an ACLed Data
-Connector`. Delete mode calls `engines.delete`.
+Connector`; (2) on the app itself, **Integration > Use Google Identity >
+Confirm Workforce Identity** — a separate, app-level confirmation required
+once before the app's web URL will work. Delete mode calls `engines.delete`.
 
 ### `(4) Create OAuth consent screen & OAuth client`
 Console-only — custom redirect URIs on a Web-application OAuth client still
@@ -154,10 +165,11 @@ store/content steps with `Start Time`/`End Time` computed as today/tomorrow.
 ### `(6) Deploy custom ADK agent to Agent Engine`
 Fully automated: downloads `$AGENT_DIR` from the bucket, installs
 `requirements.txt`, writes `bigquery_agent/.env`, and runs
-`adk deploy agent_engine` (~5–10 minutes). Parses the `reasoningEngines`
-resource name out of the deploy log into `.env`. Delete mode deletes it via
-the Vertex AI Python SDK (`vertexai.agent_engines.delete`) — there is no
-`gcloud ai reasoning-engines`/`agent-engines` command group.
+`adk deploy agent_engine ... --staging_bucket gs://$GCS_BUCKET` (~5–10
+minutes). Parses the `reasoningEngines` resource name out of the deploy log
+into `.env`. Delete mode deletes it via the Vertex AI Python SDK
+(`vertexai.agent_engines.delete`) — there is no `gcloud ai
+reasoning-engines`/`agent-engines` command group.
 
 ### `(7) Construct auth URI & register agent in Gemini Enterprise`
 Patches `OAUTH_CLIENT_ID` into `construct_auth_uri.py` and runs it to build
@@ -188,7 +200,9 @@ Google-provided grants** and grant it manually.
 
 ### `(9) Validate the setup`
 Manual by design. Prints the Feature Management, app preview, connector, and
-Deep Research checks from the lab's validation task.
+Deep Research checks from the lab's validation task, plus a reminder to
+confirm Workforce Identity on the Integration tab (step `3`) if that was
+skipped.
 
 ### `(10) Configure Feature Management & Model Armor`
 Console-only. Prints the Feature Management toggles and the Model Armor
