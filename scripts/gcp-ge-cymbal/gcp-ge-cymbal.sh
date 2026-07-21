@@ -373,6 +373,10 @@ if [ $MODE -eq 1 ]; then
     echo
     echo "$ curl -X POST -H \"Authorization: Bearer \$(gcloud auth print-access-token)\" \"https://\$GE_HOST/v1/projects/\$GCP_PROJECT/locations/\$GE_LOCATION/collections/default_collection/engines?engineId=\$APP_ID\" -d '{\"displayName\":\"'\$APP_NAME'\",\"dataStoreIds\":[],\"solutionType\":\"SOLUTION_TYPE_SEARCH\",\"industryVertical\":\"GENERIC\",\"appType\":\"APP_TYPE_INTRANET\",\"commonConfig\":{\"companyName\":\"'\$COMPANY_NAME'\"}}' # to create the Gemini Enterprise app" | pv -qL 100
     echo
+    echo "*** The app is created at location '\$GE_LOCATION', not 'global' -- in the Gemini Enterprise / AI" | pv -qL 100
+    echo "*** Applications console's Apps list, set the location filter to '\$GE_LOCATION' (or 'All locations')" | pv -qL 100
+    echo "*** if the app you just created doesn't appear ***" | pv -qL 100
+    echo
     echo "*** Identity provider confirmation has no API yet -- complete it in the console for the '\$GE_LOCATION' location specifically ***" | pv -qL 100
     echo
     echo "*** Also on the app itself: Integration (left nav) > select Use Google Identity > Confirm Workforce" | pv -qL 100
@@ -399,6 +403,10 @@ elif [ $MODE -eq 2 ]; then
       -H "X-Goog-User-Project: $GCP_PROJECT" \
       "https://$GE_HOST/v1/projects/$GCP_PROJECT/locations/$GE_LOCATION/collections/default_collection/engines?engineId=$APP_ID" \
       -d "{\"displayName\":\"$APP_NAME\",\"dataStoreIds\":[],\"solutionType\":\"SOLUTION_TYPE_SEARCH\",\"industryVertical\":\"GENERIC\",\"appType\":\"APP_TYPE_INTRANET\",\"commonConfig\":{\"companyName\":\"$COMPANY_NAME\"}}" | tee $PROJDIR/engine_create.json
+    echo
+    echo "*** The app is created at location '$GE_LOCATION', not 'global' -- in the Gemini Enterprise / AI" | pv -qL 100
+    echo "*** Applications console's Apps list, set the location filter to '$GE_LOCATION' (or 'All locations')" | pv -qL 100
+    echo "*** if '$APP_NAME' doesn't appear ***" | pv -qL 100
     echo
     echo "1. In the Gemini Enterprise / AI Applications console, go to Settings > Authentication" | pv -qL 100
     echo "2. The Identity provider list is per-location. Confirm Google Identity for the '$GE_LOCATION' row --" | pv -qL 100
@@ -924,7 +932,7 @@ if [ $MODE -eq 1 ]; then
     echo "*** BigQuery agent demo already asks the assistant to record a real-looking phone number and email" | pv -qL 100
     echo "*** address, and the source lab's broader 'basic' SDP detection type would flag that legitimate prompt ***" | pv -qL 100
     echo
-    echo "$ curl -X POST \"https://dlp.googleapis.com/v2/projects/\$GCP_PROJECT/inspectTemplates\" -d '{\"inspectTemplate\":{\"displayName\":\"Credit Card Only\",\"inspectConfig\":{\"infoTypes\":[{\"name\":\"CREDIT_CARD_NUMBER\"}]}}}' # to create the SDP inspect template" | pv -qL 100
+    echo "$ curl -X POST \"https://dlp.googleapis.com/v2/projects/\$GCP_PROJECT/locations/\$GE_LOCATION/inspectTemplates\" -d '{\"inspectTemplate\":{\"displayName\":\"Credit Card Only\",\"inspectConfig\":{\"infoTypes\":[{\"name\":\"CREDIT_CARD_NUMBER\"}]}}}' # to create the SDP inspect template, at \$GE_LOCATION so Model Armor accepts it" | pv -qL 100
     echo
     echo "$ gcloud model-armor templates create \$MA_TEMPLATE_1_ID --location=\$GE_LOCATION --malicious-uri-filter-settings-enforcement=enabled --pi-and-jailbreak-filter-settings-enforcement=enabled --pi-and-jailbreak-filter-settings-confidence-level=high --advanced-config-inspect-template=\$SDP_INSPECT_TEMPLATE # prompt-side template: malicious URLs + prompt injection/jailbreak + scoped SDP" | pv -qL 100
     echo
@@ -948,19 +956,28 @@ elif [ $MODE -eq 2 ]; then
     echo "*** Broaden the inspect template's infoTypes yourself if you want the wider basic-detection coverage. ***" | pv -qL 100
 
     echo
-    echo "$ curl -X POST \"https://dlp.googleapis.com/v2/projects/$GCP_PROJECT/inspectTemplates\" -d '{\"inspectTemplate\":{\"displayName\":\"Credit Card Only\",\"inspectConfig\":{\"infoTypes\":[{\"name\":\"CREDIT_CARD_NUMBER\"}]}}}' # to create the SDP inspect template" | pv -qL 100
+    echo "$ curl -X POST \"https://dlp.googleapis.com/v2/projects/$GCP_PROJECT/locations/$GE_LOCATION/inspectTemplates\" -d '{\"inspectTemplate\":{\"displayName\":\"Credit Card Only\",\"inspectConfig\":{\"infoTypes\":[{\"name\":\"CREDIT_CARD_NUMBER\"}]}}}' # to create the SDP inspect template, at $GE_LOCATION so Model Armor accepts it" | pv -qL 100
+    echo "*** Confirmed by testing: creating this template WITHOUT /locations/$GE_LOCATION/ in the URL produces a" | pv -qL 100
+    echo "*** projects/*/inspectTemplates/* name with no location, which gcloud model-armor then rejects below" | pv -qL 100
+    echo "*** with INVALID_SDP_TEMPLATE -- the inspect template's location must match the Model Armor template's ***" | pv -qL 100
     curl -s -X POST \
       -H "Authorization: Bearer $(gcloud auth print-access-token)" \
       -H "Content-Type: application/json" \
       -H "X-Goog-User-Project: $GCP_PROJECT" \
-      "https://dlp.googleapis.com/v2/projects/$GCP_PROJECT/inspectTemplates" \
+      "https://dlp.googleapis.com/v2/projects/$GCP_PROJECT/locations/$GE_LOCATION/inspectTemplates" \
       -d "{\"inspectTemplate\":{\"displayName\":\"Credit Card Only\",\"inspectConfig\":{\"infoTypes\":[{\"name\":\"CREDIT_CARD_NUMBER\"}]}}}" | tee $PROJDIR/sdp_inspect_template.json
-    export SDP_INSPECT_TEMPLATE=$(grep -o '"name": *"[^"]*"' $PROJDIR/sdp_inspect_template.json | head -1 | sed -E 's/.*"([^"]+)"$/\1/')
-    sed -i '/^export SDP_INSPECT_TEMPLATE=/d' $PROJDIR/.env
-    echo "export SDP_INSPECT_TEMPLATE='$SDP_INSPECT_TEMPLATE'" >> $PROJDIR/.env
-    source $PROJDIR/.env
-    echo
-    echo "*** DLP inspect template captured: $SDP_INSPECT_TEMPLATE ***" | pv -qL 100
+    export SDP_INSPECT_TEMPLATE=$(grep -o '"name": *"projects/[^"]*/locations/[^"]*/inspectTemplates/[^"]*"' $PROJDIR/sdp_inspect_template.json | head -1 | sed -E 's/.*"([^"]+)"$/\1/')
+    if [[ -n "$SDP_INSPECT_TEMPLATE" ]]; then
+        sed -i '/^export SDP_INSPECT_TEMPLATE=/d' $PROJDIR/.env
+        echo "export SDP_INSPECT_TEMPLATE='$SDP_INSPECT_TEMPLATE'" >> $PROJDIR/.env
+        source $PROJDIR/.env
+        echo
+        echo "*** DLP inspect template captured: $SDP_INSPECT_TEMPLATE ***" | pv -qL 100
+    else
+        echo
+        echo "*** Could not parse a regional inspectTemplates name from the response above -- see" | pv -qL 100
+        echo "*** $PROJDIR/sdp_inspect_template.json, fix the call, then re-select option (12) ***" | pv -qL 100
+    fi
 
     echo
     echo "$ gcloud model-armor templates create $MA_TEMPLATE_1_ID --location=$GE_LOCATION --malicious-uri-filter-settings-enforcement=enabled --pi-and-jailbreak-filter-settings-enforcement=enabled --pi-and-jailbreak-filter-settings-confidence-level=high --advanced-config-inspect-template=$SDP_INSPECT_TEMPLATE # prompt-side template" | pv -qL 100
@@ -973,9 +990,16 @@ elif [ $MODE -eq 2 ]; then
       --pi-and-jailbreak-filter-settings-confidence-level=high \
       --advanced-config-inspect-template=$SDP_INSPECT_TEMPLATE \
       --quiet 2>&1 | tee $PROJDIR/model_armor_template_1.log
-    export MODEL_ARMOR_TEMPLATE_1=projects/$GCP_PROJECT/locations/$GE_LOCATION/templates/$MA_TEMPLATE_1_ID
-    sed -i '/^export MODEL_ARMOR_TEMPLATE_1=/d' $PROJDIR/.env
-    echo "export MODEL_ARMOR_TEMPLATE_1='$MODEL_ARMOR_TEMPLATE_1'" >> $PROJDIR/.env
+    MA1_STATUS=${PIPESTATUS[0]}
+    if [ $MA1_STATUS -eq 0 ]; then
+        export MODEL_ARMOR_TEMPLATE_1=projects/$GCP_PROJECT/locations/$GE_LOCATION/templates/$MA_TEMPLATE_1_ID
+        sed -i '/^export MODEL_ARMOR_TEMPLATE_1=/d' $PROJDIR/.env
+        echo "export MODEL_ARMOR_TEMPLATE_1='$MODEL_ARMOR_TEMPLATE_1'" >> $PROJDIR/.env
+    else
+        echo
+        echo "*** $MA_TEMPLATE_1_ID creation failed (see $PROJDIR/model_armor_template_1.log) -- leaving" | pv -qL 100
+        echo "*** MODEL_ARMOR_TEMPLATE_1 unset in .env rather than recording a template that doesn't exist ***" | pv -qL 100
+    fi
 
     echo
     echo "$ gcloud model-armor templates create $MA_TEMPLATE_2_ID --location=$GE_LOCATION --pi-and-jailbreak-filter-settings-enforcement=disabled --rai-settings-filters=... --advanced-config-inspect-template=$SDP_INSPECT_TEMPLATE # response-side template" | pv -qL 100
@@ -988,14 +1012,24 @@ elif [ $MODE -eq 2 ]; then
       --rai-settings-filters=filterType=harassment,confidenceLevel=high \
       --advanced-config-inspect-template=$SDP_INSPECT_TEMPLATE \
       --quiet 2>&1 | tee $PROJDIR/model_armor_template_2.log
-    export MODEL_ARMOR_TEMPLATE_2=projects/$GCP_PROJECT/locations/$GE_LOCATION/templates/$MA_TEMPLATE_2_ID
-    sed -i '/^export MODEL_ARMOR_TEMPLATE_2=/d' $PROJDIR/.env
-    echo "export MODEL_ARMOR_TEMPLATE_2='$MODEL_ARMOR_TEMPLATE_2'" >> $PROJDIR/.env
+    MA2_STATUS=${PIPESTATUS[0]}
+    if [ $MA2_STATUS -eq 0 ]; then
+        export MODEL_ARMOR_TEMPLATE_2=projects/$GCP_PROJECT/locations/$GE_LOCATION/templates/$MA_TEMPLATE_2_ID
+        sed -i '/^export MODEL_ARMOR_TEMPLATE_2=/d' $PROJDIR/.env
+        echo "export MODEL_ARMOR_TEMPLATE_2='$MODEL_ARMOR_TEMPLATE_2'" >> $PROJDIR/.env
+    else
+        echo
+        echo "*** $MA_TEMPLATE_2_ID creation failed (see $PROJDIR/model_armor_template_2.log) -- leaving" | pv -qL 100
+        echo "*** MODEL_ARMOR_TEMPLATE_2 unset in .env rather than recording a template that doesn't exist ***" | pv -qL 100
+    fi
     source $PROJDIR/.env
     echo
-    echo "*** Model Armor templates captured: $MODEL_ARMOR_TEMPLATE_1 / $MODEL_ARMOR_TEMPLATE_2 ***" | pv -qL 100
-    echo "*** If either 'create' call above failed on a flag name, re-run with corrected flags then re-select" | pv -qL 100
-    echo "*** option (12) -- it is safe to re-run; gcloud will report the template already exists and continue ***" | pv -qL 100
+    if [ $MA1_STATUS -eq 0 ] && [ $MA2_STATUS -eq 0 ]; then
+        echo "*** Model Armor templates captured: $MODEL_ARMOR_TEMPLATE_1 / $MODEL_ARMOR_TEMPLATE_2 ***" | pv -qL 100
+    fi
+    echo "*** If either 'create' call above failed, fix the cause (often SDP_INSPECT_TEMPLATE missing/invalid" | pv -qL 100
+    echo "*** above, or a changed flag name) then re-select option (12) -- it is safe to re-run; gcloud will" | pv -qL 100
+    echo "*** report an already-existing template and continue ***" | pv -qL 100
 
     echo
     echo "$ curl -X POST \"https://$GE_HOST/v1alpha/projects/$GCP_PROJECT/locations/$GE_LOCATION/contentPolicies?contentPolicyId=sdp-policy\" -d '{...CREDIT_CARD_NUMBER Block rule...}' # to create the standalone SDP content policy" | pv -qL 100
@@ -1007,26 +1041,44 @@ elif [ $MODE -eq 2 ]; then
       -H "X-Goog-User-Project: $GCP_PROJECT" \
       "https://$GE_HOST/v1alpha/projects/$GCP_PROJECT/locations/$GE_LOCATION/contentPolicies?contentPolicyId=sdp-policy" \
       -d "{\"sensitiveDataProtectionConfig\":{\"infoTypes\":[\"CREDIT_CARD_NUMBER\"],\"defaultAction\":\"ALLOW\",\"ruleActions\":[{\"action\":\"BLOCK\"}],\"unsupportedFileTypeAction\":\"BLOCK\",\"inputTooLargeAction\":\"BLOCK\",\"scanningFailedAction\":\"BLOCK\"}}" | tee $PROJDIR/sdp_content_policy.json
-    export SDP_POLICY=projects/$GCP_PROJECT/locations/$GE_LOCATION/contentPolicies/sdp-policy
-    sed -i '/^export SDP_POLICY=/d' $PROJDIR/.env
-    echo "export SDP_POLICY='$SDP_POLICY'" >> $PROJDIR/.env
-    source $PROJDIR/.env
-    echo
-    echo "*** SDP content policy captured: $SDP_POLICY ***" | pv -qL 100
+    if grep -q '"name": *"projects/[^"]*/locations/[^"]*/contentPolicies/' $PROJDIR/sdp_content_policy.json 2>/dev/null; then
+        export SDP_POLICY=projects/$GCP_PROJECT/locations/$GE_LOCATION/contentPolicies/sdp-policy
+        sed -i '/^export SDP_POLICY=/d' $PROJDIR/.env
+        echo "export SDP_POLICY='$SDP_POLICY'" >> $PROJDIR/.env
+        source $PROJDIR/.env
+        echo
+        echo "*** SDP content policy captured: $SDP_POLICY ***" | pv -qL 100
+    else
+        echo
+        echo "*** contentPolicies create failed or returned an unexpected body (see" | pv -qL 100
+        echo "*** $PROJDIR/sdp_content_policy.json) -- leaving SDP_POLICY unset in .env rather than recording a" | pv -qL 100
+        echo "*** policy that doesn't exist. Create it manually in Security > Sensitive Data Protection, then" | pv -qL 100
+        echo "*** paste its resource name into SDP_POLICY in $PROJDIR/.env. Step (9)'s validation and this step's" | pv -qL 100
+        echo "*** own PATCH calls below both key off SDP_POLICY being set, so they will otherwise be skipped ***" | pv -qL 100
+    fi
 
     echo
-    echo "$ curl -X PATCH \".../assistants/default_assistant\" -d '{...modelArmorConfig, sensitiveDataProtectionConfig...}' # to enable Model Armor + SDP on the app's Assistant" | pv -qL 100
-    curl -s -X PATCH \
-      -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-      -H "Content-Type: application/json" \
-      -H "X-Goog-User-Project: $GCP_PROJECT" \
-      "https://$GE_HOST/v1alpha/projects/$GCP_PROJECT/locations/$GE_LOCATION/collections/default_collection/engines/$APP_ID/assistants/default_assistant?updateMask=generationConfig.modelArmorConfig,generationConfig.sensitiveDataProtectionConfig" \
-      -d "{\"generationConfig\":{\"modelArmorConfig\":{\"userPromptTemplate\":\"$MODEL_ARMOR_TEMPLATE_1\",\"responseTemplate\":\"$MODEL_ARMOR_TEMPLATE_2\"},\"sensitiveDataProtectionConfig\":{\"enableSensitiveDataProtection\":true,\"sensitiveDataProtectionPolicy\":\"$SDP_POLICY\"}}}" | tee $PROJDIR/assistant_security_patch.json
-    echo
-    echo "*** If the PATCH above returned an error about unknown fields, apply it manually instead:" | pv -qL 100
-    echo "*** In Gemini Enterprise, open $APP_ID > Configurations > Assistant > Enable Model Armor -- paste" | pv -qL 100
-    echo "*** $MODEL_ARMOR_TEMPLATE_1 for user prompts and $MODEL_ARMOR_TEMPLATE_2 for response outputs. Then" | pv -qL 100
-    echo "*** open Security > Configuration > Sensitive Data Protection and select/paste $SDP_POLICY. Save and publish." | pv -qL 100
+    if [[ "$MODEL_ARMOR_TEMPLATE_1" != "NOT_SET" ]] && [[ -n "$MODEL_ARMOR_TEMPLATE_1" ]] && \
+       [[ "$MODEL_ARMOR_TEMPLATE_2" != "NOT_SET" ]] && [[ -n "$MODEL_ARMOR_TEMPLATE_2" ]] && \
+       [[ "$SDP_POLICY" != "NOT_SET" ]] && [[ -n "$SDP_POLICY" ]]; then
+        echo "$ curl -X PATCH \".../assistants/default_assistant\" -d '{...modelArmorConfig, sensitiveDataProtectionConfig...}' # to enable Model Armor + SDP on the app's Assistant" | pv -qL 100
+        curl -s -X PATCH \
+          -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+          -H "Content-Type: application/json" \
+          -H "X-Goog-User-Project: $GCP_PROJECT" \
+          "https://$GE_HOST/v1alpha/projects/$GCP_PROJECT/locations/$GE_LOCATION/collections/default_collection/engines/$APP_ID/assistants/default_assistant?updateMask=generationConfig.modelArmorConfig,generationConfig.sensitiveDataProtectionConfig" \
+          -d "{\"generationConfig\":{\"modelArmorConfig\":{\"userPromptTemplate\":\"$MODEL_ARMOR_TEMPLATE_1\",\"responseTemplate\":\"$MODEL_ARMOR_TEMPLATE_2\"},\"sensitiveDataProtectionConfig\":{\"enableSensitiveDataProtection\":true,\"sensitiveDataProtectionPolicy\":\"$SDP_POLICY\"}}}" | tee $PROJDIR/assistant_security_patch.json
+        echo
+        echo "*** If the PATCH above returned an error about unknown fields, apply it manually instead:" | pv -qL 100
+        echo "*** In Gemini Enterprise, open $APP_ID > Configurations > Assistant > Enable Model Armor -- paste" | pv -qL 100
+        echo "*** $MODEL_ARMOR_TEMPLATE_1 for user prompts and $MODEL_ARMOR_TEMPLATE_2 for response outputs. Then" | pv -qL 100
+        echo "*** open Security > Configuration > Sensitive Data Protection and select/paste $SDP_POLICY. Save and publish." | pv -qL 100
+    else
+        echo "*** Skipping the Assistant PATCH -- one of MODEL_ARMOR_TEMPLATE_1/2 or SDP_POLICY is not set in" | pv -qL 100
+        echo "*** $PROJDIR/.env (a create call above failed). Fix that value, then re-select option (12), or" | pv -qL 100
+        echo "*** apply whatever did succeed manually via $APP_ID > Configurations > Assistant > Enable Model Armor" | pv -qL 100
+        echo "*** and Security > Configuration > Sensitive Data Protection ***" | pv -qL 100
+    fi
 
     echo
     echo "$ curl -X GET \".../dataStores\" # to find the Google Drive data store created in option (5)" | pv -qL 100
@@ -1034,7 +1086,12 @@ elif [ $MODE -eq 2 ]; then
       -H "Authorization: Bearer $(gcloud auth print-access-token)" \
       -H "X-Goog-User-Project: $GCP_PROJECT" \
       "https://$GE_HOST/v1alpha/projects/$GCP_PROJECT/locations/$GE_LOCATION/collections/default_collection/dataStores" | grep -o '"name": *"[^"]*google-drive[^"]*"' | head -1 | sed -E 's/.*"(projects\/[^"]+)"$/\1/')
-    if [[ -n "$DRIVE_DATASTORE" ]]; then
+    if [[ "$SDP_POLICY" == "NOT_SET" ]] || [[ -z "$SDP_POLICY" ]]; then
+        echo
+        echo "*** Skipping the Drive data store PATCH -- SDP_POLICY is not set in $PROJDIR/.env (the contentPolicies" | pv -qL 100
+        echo "*** create call above failed). Create the policy manually, then paste its resource name into the" | pv -qL 100
+        echo "*** data store's Data page > Edit pencil icon next to Content policy ***" | pv -qL 100
+    elif [[ -n "$DRIVE_DATASTORE" ]]; then
         echo "$ curl -X PATCH \"https://$GE_HOST/v1alpha/$DRIVE_DATASTORE\" -d '{...contentPolicy: $SDP_POLICY...}' # to apply the SDP policy to the Drive data store" | pv -qL 100
         curl -s -X PATCH \
           -H "Authorization: Bearer $(gcloud auth print-access-token)" \
