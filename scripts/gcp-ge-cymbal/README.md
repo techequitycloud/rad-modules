@@ -135,8 +135,12 @@ the `discoveryengine.googleapis.com` API in step 1 — `engines.create` below
 fails on a project where this hasn't been done yet. Then calls
 `engines.create` (`appType: APP_TYPE_INTRANET`) at `$GE_LOCATION` (not
 `global`) to create the app with `$APP_NAME`/`$APP_ID`/`$COMPANY_NAME` and no
-data stores attached yet, then prints two more no-API console steps and
-pauses for each: (1) **Settings > Authentication** — confirm Google Identity
+data stores attached yet. Also prints a reminder that the Apps list in the
+console has its own location filter — since the app was created at
+`$GE_LOCATION` rather than the console wizard's `global` default, it won't
+appear there unless the filter is set to `$GE_LOCATION` (or "All locations").
+Then prints two more no-API console steps and pauses for each: (1)
+**Settings > Authentication** — confirm Google Identity
 for the **`$GE_LOCATION`** row (the page lists a row per location — `global`,
 `us`, `eu`, ...); ACLed connectors (Drive/Calendar) check the IdP for
 whichever location the data store actually lands in, so this must match
@@ -214,6 +218,26 @@ Demos" section (general queries, enterprise search, Deep Research, Agent
 Designer, the BigQuery agent conversation, and the Model Armor / harassment /
 prompt-injection test prompts) so you can read and copy-paste them live
 without switching back to the PDF.
+
+### `(12) Deploy Model Armor & Sensitive Data Protection`
+Fully automated, with fail-fast checks at each stage so a failed call can't
+poison later ones: creates a DLP inspect template scoped to
+`CREDIT_CARD_NUMBER` (at `$GE_LOCATION` — creating it without a location
+segment produces a `projects/*/inspectTemplates/*` name that `gcloud
+model-armor` rejects with `INVALID_SDP_TEMPLATE`, since the inspect
+template's location must match the Model Armor template's, confirmed by
+testing), then two Model Armor templates (prompt-side: malicious-URL +
+prompt-injection/jailbreak detection; response-side: RAI content filters),
+then a standalone SDP content policy, then PATCHes both onto the app's
+Assistant and the Drive data store from step `5`. Each create step only
+writes its resource name into `.env` if the call actually succeeded
+(`gcloud`'s exit code via `PIPESTATUS`, or a regex match on the expected
+resource-name shape in the response body) — a failed step instead leaves its
+`.env` variable unset/`NOT_SET`, prints where to look (the saved
+`*.json`/`*.log` file) and how to apply that piece manually, and the later
+PATCH steps and step `9`'s validation checklist skip themselves accordingly
+rather than firing with a resource that doesn't exist. Also grants the
+Discovery Engine service agent DLP User and Service Usage Consumer roles.
 
 ### `(R)` / `(G)` / `(Q)`
 - `R` — show maintainer credits.
