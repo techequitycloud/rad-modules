@@ -454,7 +454,7 @@ echo "*** OAuth consent screen and Web-application client redirect URIs are cons
 echo
 echo "1. Search for Google Auth Platform in the Cloud Console" | pv -qL 100
 echo "2. Click Get started" | pv -qL 100
-echo "3. App Name: $APP_NAME Gemini Enterprise" | pv -qL 100
+echo "3. App Name: $COMPANY_NAME Gemini Enterprise" | pv -qL 100
 echo "4. User support email: select your Qwiklabs account" | pv -qL 100
 echo "5. Audience: select Internal" | pv -qL 100
 echo "6. Contact Information: enter your Qwiklabs email address again, agree to the Terms, and click Create" | pv -qL 100
