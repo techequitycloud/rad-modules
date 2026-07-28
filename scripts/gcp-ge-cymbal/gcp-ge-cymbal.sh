@@ -379,8 +379,8 @@ if [ $MODE -eq 1 ]; then
     echo
     echo "*** Identity provider confirmation has no API yet -- complete it in the console for the '\$GE_LOCATION' location specifically ***" | pv -qL 100
     echo
-    echo "*** Also on the app itself: Integration (left nav) > select Use Google Identity > Confirm Workforce" | pv -qL 100
-    echo "*** Identity -- this app-level confirmation is separate from the per-location IdP row above and is" | pv -qL 100
+    echo "*** Also on Overview (left nav) > select Workforce identity setup complete > View settings" | pv -qL 100
+    echo "*** Ensure Google Identity is selected for '\$GE_LOCATION' location" | pv -qL 100
     echo "*** required once before the app's web URL will work ***" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},3"
@@ -416,8 +416,8 @@ elif [ $MODE -eq 2 ]; then
     read -n 1 -s -r -p $'*** Press the Enter key once Google Identity is confirmed for the '"$GE_LOCATION"' location ***'
     echo
     echo
-    echo "3. On the app itself, click Integration in the left-hand navigation pane" | pv -qL 100
-    echo "4. Select Use Google Identity as the identity provider, then click Confirm Workforce Identity --" | pv -qL 100
+    echo "3. Overview (left nav) > select Workforce identity setup complete > View settings" | pv -qL 100
+    echo "4. Ensure Google Identity is selected as the identity provider for '$GE_LOCATION' location --" | pv -qL 100
     echo "   this app-level confirmation is separate from the per-location IdP row above and is required" | pv -qL 100
     echo "   once before the app's web URL will work" | pv -qL 100
     read -n 1 -s -r -p $'*** Press the Enter key once Workforce Identity is confirmed on the Integration tab ***'
