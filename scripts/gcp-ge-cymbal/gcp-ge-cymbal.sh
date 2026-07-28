@@ -283,13 +283,13 @@ source $PROJDIR/.env
 if [ $MODE -eq 1 ]; then
     export STEP="${STEP},1i"
     echo
-    echo "$ gcloud --project \$GCP_PROJECT services enable discoveryengine.googleapis.com aiplatform.googleapis.com iap.googleapis.com bigquery.googleapis.com storage.googleapis.com iam.googleapis.com cloudresourcemanager.googleapis.com apphub.googleapis.com modelarmor.googleapis.com dlp.googleapis.com # to enable APIs" | pv -qL 100
+    echo "$ gcloud --project \$GCP_PROJECT services enable agentregistry.googleapis.com discoveryengine.googleapis.com aiplatform.googleapis.com iap.googleapis.com bigquery.googleapis.com storage.googleapis.com iam.googleapis.com cloudresourcemanager.googleapis.com apphub.googleapis.com modelarmor.googleapis.com dlp.googleapis.com # to enable APIs" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},1"
     gcloud config set project $GCP_PROJECT > /dev/null 2>&1
     echo
-    echo "$ gcloud --project $GCP_PROJECT services enable discoveryengine.googleapis.com aiplatform.googleapis.com iap.googleapis.com bigquery.googleapis.com storage.googleapis.com iam.googleapis.com cloudresourcemanager.googleapis.com apphub.googleapis.com modelarmor.googleapis.com dlp.googleapis.com # to enable APIs" | pv -qL 100
-    gcloud --project $GCP_PROJECT services enable discoveryengine.googleapis.com aiplatform.googleapis.com iap.googleapis.com bigquery.googleapis.com storage.googleapis.com iam.googleapis.com cloudresourcemanager.googleapis.com apphub.googleapis.com modelarmor.googleapis.com dlp.googleapis.com
+    echo "$ gcloud --project $GCP_PROJECT services enable agentregistry.googleapis.com discoveryengine.googleapis.com aiplatform.googleapis.com iap.googleapis.com bigquery.googleapis.com storage.googleapis.com iam.googleapis.com cloudresourcemanager.googleapis.com apphub.googleapis.com modelarmor.googleapis.com dlp.googleapis.com # to enable APIs" | pv -qL 100
+    gcloud --project $GCP_PROJECT services enable agentregistry.googleapis.com discoveryengine.googleapis.com aiplatform.googleapis.com iap.googleapis.com bigquery.googleapis.com storage.googleapis.com iam.googleapis.com cloudresourcemanager.googleapis.com apphub.googleapis.com modelarmor.googleapis.com dlp.googleapis.com
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},1x"
     echo
