@@ -77,7 +77,7 @@ export GCP_REGION=us-central1
 export GCS_BUCKET=${GCP_PROJECT}-bucket
 export APP_NAME="Cymbal Pools GE"
 export APP_ID=cymbal-pools-ge
-export GE_LOCATION=us
+export GE_LOCATION=global
 export COMPANY_NAME="Cymbal Pools"
 export AGENT_DIR=adk_to_ge
 export MODEL=gemini-3.5-flash
@@ -396,7 +396,8 @@ elif [ $MODE -eq 2 ]; then
     echo "$ curl -X POST -H \"Authorization: Bearer \$(gcloud auth print-access-token)\" \"https://$GE_HOST/v1/projects/$GCP_PROJECT/locations/$GE_LOCATION/collections/default_collection/engines?engineId=$APP_ID\" -d '{\"displayName\":\"$APP_NAME\",\"dataStoreIds\":[],\"solutionType\":\"SOLUTION_TYPE_SEARCH\",\"industryVertical\":\"GENERIC\",\"appType\":\"APP_TYPE_INTRANET\",\"commonConfig\":{\"companyName\":\"$COMPANY_NAME\"}}' # to create the Gemini Enterprise app" | pv -qL 100
     echo "*** engines.create is a v1 API that is still evolving -- verify field names in the console if this call fails ***" | pv -qL 100
     echo "*** Confirmed by testing: the 'global' location's custom-agent-creation quota is 0 on some sandbox" | pv -qL 100
-    echo "*** projects, so this creates the app at '$GE_LOCATION' instead of 'global' ***" | pv -qL 100
+    echo "*** projects -- if step 7 later fails with FAILED_PRECONDITION, set GE_LOCATION to a regional value" | pv -qL 100
+    echo "*** (e.g. 'us' or 'eu') in $PROJDIR/.env and re-run steps 3-7 with a new APP_ID/AUTH_ID ***" | pv -qL 100
     curl -s -X POST \
       -H "Authorization: Bearer $(gcloud auth print-access-token)" \
       -H "Content-Type: application/json" \
@@ -410,9 +411,8 @@ elif [ $MODE -eq 2 ]; then
     echo
     echo "1. In the Gemini Enterprise / AI Applications console, go to Settings > Authentication" | pv -qL 100
     echo "2. The Identity provider list is per-location. Confirm Google Identity for the '$GE_LOCATION' row --" | pv -qL 100
-    echo "   this app and step 5's data stores must be created at '$GE_LOCATION' (not the console wizard's" | pv -qL 100
-    echo "   'global' default) to avoid the agent-creation quota gap, and ACLed connectors (Drive/Calendar)" | pv -qL 100
-    echo "   check the IdP for whichever location they land in" | pv -qL 100
+    echo "   this app and step 5's data stores must be created at the SAME location ('$GE_LOCATION'), and ACLed" | pv -qL 100
+    echo "   connectors (Drive/Calendar) check the IdP for whichever location they land in" | pv -qL 100
     read -n 1 -s -r -p $'*** Press the Enter key once Google Identity is confirmed for the '"$GE_LOCATION"' location ***'
     echo
     echo
@@ -518,8 +518,7 @@ elif [ $MODE -eq 2 ]; then
     echo "   (unchecked = My Drive only); optionally scope with Shared Drive IDs / Folder IDs, then Continue" | pv -qL 100
     echo "5. Actions: leave 'Select all actions' checked, then Continue" | pv -qL 100
     echo "6. Configuration: Location should show '$GE_LOCATION' since this data store is Connected to that app; if" | pv -qL 100
-    echo "   the field is editable, select '$GE_LOCATION' explicitly rather than leaving the wizard's 'global'" | pv -qL 100
-    echo "   default -- confirmed by testing: 'global' can hit a zero custom-agent-creation quota later in step 7" | pv -qL 100
+    echo "   the field is editable, select '$GE_LOCATION' explicitly rather than leaving a different wizard default" | pv -qL 100
     echo "   Data connector name: google-drive (or google-calendar), then Create" | pv -qL 100
     echo
     echo "For Announcements:" | pv -qL 100
@@ -670,8 +669,7 @@ elif [ $MODE -eq 2 ]; then
     echo "*** projects.locations.authorizations and assistants.agents are v1alpha APIs that are still evolving -- verify field names in the console if a call fails ***" | pv -qL 100
     echo
     echo "*** Confirmed by testing: the app's engine (step 3), this Authorization, and the agent below must all" | pv -qL 100
-    echo "*** live at the SAME Discovery Engine location -- using '$GE_LOCATION' throughout, not 'global', also" | pv -qL 100
-    echo "*** avoids a custom-agent-creation quota gap seen at 'global' on some sandbox projects ***" | pv -qL 100
+    echo "*** live at the SAME Discovery Engine location -- using '$GE_LOCATION' throughout ***" | pv -qL 100
     echo "$ curl -X POST .../authorizations?authorizationId=$AUTH_ID # to register the OAuth client with Gemini Enterprise" | pv -qL 100
     curl -s -X POST \
       -H "Authorization: Bearer $(gcloud auth print-access-token)" \
