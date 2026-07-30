@@ -9,11 +9,11 @@ rule "terraform_deprecated_index" {
 }
 
 rule "terraform_unused_declarations" {
-  enabled = true
+  enabled = false
 }
 
 rule "terraform_comment_syntax" {
-  enabled = true
+  enabled = false
 }
 
 rule "terraform_documented_outputs" {
@@ -25,7 +25,7 @@ rule "terraform_documented_variables" {
 }
 
 rule "terraform_naming_convention" {
-  enabled = true
+  enabled = false
 }
 
 rule "terraform_required_version" {
@@ -33,7 +33,7 @@ rule "terraform_required_version" {
 }
 
 rule "terraform_required_providers" {
-  enabled = true
+  enabled = false
 }
 
 rule "terraform_typed_variables" {

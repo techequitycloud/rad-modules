@@ -25,12 +25,12 @@ resource "null_resource" "install_ambient_mesh" {
     project_id                = local.project.project_id
     istio_release             = regex("^(\\d+\\.\\d+)", var.istio_version)[0]
     istio_version             = var.istio_version
-    resource_creator_identity = var.resource_creator_identity # Added for destroy provisioner
+    resource_creator_identity = var.resource_creator_identity  # Added for destroy provisioner
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command     = <<-EOF
+    command = <<-EOF
     set -eo pipefail
     echo "=== Installing Istio ${var.istio_version} (Ambient Mode) ==="
     
@@ -181,14 +181,14 @@ EOS
     EOF
 
     environment = {
-      KUBECONFIG = "" # Use default kubeconfig location
+      KUBECONFIG = ""  # Use default kubeconfig location
     }
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    when        = destroy
-    command     = <<-EOF
+    when    = destroy
+    command = <<-EOF
       set +e  # Disable exit-on-error globally for this script
       echo "=== Uninstalling Istio Ambient Mesh (Graceful Mode) ==="
       
@@ -264,7 +264,7 @@ resource "null_resource" "get_ambient_istio_ingress_ip" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command     = <<-EOT
+    command = <<-EOT
       echo "Waiting for Istio ingress gateway external IP..."
       export PATH=$HOME/.local/bin:$PATH
       
