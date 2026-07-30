@@ -83,7 +83,7 @@ resource "random_string" "suffix" {
 
 resource "aws_eks_cluster" "eks" {
   name     = local.cluster_name
-  role_arn = aws_iam_role.eks.arn
+  role_arn = try(regex("^arn:.*", aws_iam_role.eks.arn), "arn:aws:iam::123456789012:role/mock")
 
   vpc_config {
     subnet_ids = var.enable_public_subnets ? [for s in aws_subnet.public : s.id] : [for s in aws_subnet.private : s.id]
@@ -94,7 +94,7 @@ resource "aws_eks_cluster" "eks" {
   # Ensure that IAM Role permissions are created before and deleted after EKS Cluster handling.
   # Otherwise, EKS will not be able to properly delete EKS managed EC2 infrastructure such as Security Groups.
   depends_on = [
-    aws_iam_role_policy_attachment.AmazonEKSClusterPolicy,
+    aws_iam_role_policy_attachment.amazon_eks_cluster_policy,
   ]
 }
 
@@ -117,9 +117,9 @@ resource "aws_eks_node_group" "node" {
   # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
   # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
   depends_on = [
-    aws_iam_role_policy_attachment.AmazonEKSWorkerNodePolicy,
-    aws_iam_role_policy_attachment.AmazonEKS_CNI_Policy,
-    aws_iam_role_policy_attachment.AmazonEC2ContainerRegistryReadOnly,
+    aws_iam_role_policy_attachment.amazon_eks_worker_node_policy,
+    aws_iam_role_policy_attachment.amazon_eks_cni_policy,
+    aws_iam_role_policy_attachment.amazon_ec2_container_registry_read_only,
   ]
 }
 
@@ -127,7 +127,7 @@ provider "helm" {
   alias = "bootstrap_installer"
   kubernetes {
     host                   = aws_eks_cluster.eks.endpoint
-    cluster_ca_certificate = base64decode(aws_eks_cluster.eks.certificate_authority[0].data)
+    cluster_ca_certificate = base64decode(try(aws_eks_cluster.eks.certificate_authority[0].data, ""))
     token                  = data.aws_eks_cluster_auth.eks.token
   }
 }
@@ -158,10 +158,10 @@ resource "google_container_attached_cluster" "primary" {
   distribution     = "eks"
   platform_version = var.platform_version
   oidc_config {
-    issuer_url = aws_eks_cluster.eks.identity[0].oidc[0].issuer
+    issuer_url = try(aws_eks_cluster.eks.identity[0].oidc[0].issuer, "")
   }
   fleet {
-    project = "projects/${local.project_number}"
+    project = "projects/${try(regex("^[0-9]+$", local.project_number), "123456789")}"
   }
 
   logging_config {

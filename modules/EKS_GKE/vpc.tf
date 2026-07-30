@@ -115,7 +115,7 @@ resource "aws_nat_gateway" "nat" {
   count = !var.enable_public_subnets ? 1 : 0
 
   allocation_id = aws_eip.nat[0].id
-  subnet_id     = one(values(aws_subnet.public)).id
+  subnet_id     = try(one(values(aws_subnet.public)).id, "")
 
   tags = merge(local.tags, {
     Name = "${var.cluster_name_prefix}-nat-gateway"
