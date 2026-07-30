@@ -1,18 +1,18 @@
-#
-# Copyright 2025 Tech Equity Ltd
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#/
+/**
+ * Copyright 2025 Tech Equity Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 # ============================================
 # Verify GKE Hub API Activation
@@ -24,7 +24,7 @@ resource "null_resource" "verify_gke_hub_api_activation" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command     = <<-EOT
+    command = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       
@@ -65,7 +65,7 @@ resource "null_resource" "verify_mesh_api_activation" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command     = <<-EOT
+    command = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       
@@ -137,7 +137,7 @@ resource "null_resource" "verify_mesh_feature_active" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command     = <<-EOT
+    command = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       
@@ -170,8 +170,8 @@ resource "null_resource" "verify_mesh_feature_active" {
   }
 
   triggers = {
-    project_id = local.project.project_id
-    feature_id = google_gke_hub_feature.service_mesh[0].name
+    project_id  = local.project.project_id
+    feature_id  = google_gke_hub_feature.service_mesh[0].name
   }
 }
 
@@ -208,7 +208,7 @@ resource "null_resource" "verify_hub_membership" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command     = <<-EOT
+    command = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       CLUSTER_NAME="${var.gke_cluster}"
@@ -246,8 +246,8 @@ resource "null_resource" "verify_hub_membership" {
   }
 
   triggers = {
-    project_id    = local.project.project_id
-    cluster_name  = var.gke_cluster
+    project_id   = local.project.project_id
+    cluster_name = var.gke_cluster
     membership_id = google_gke_hub_membership.gke_cluster.membership_id
   }
 }
@@ -265,7 +265,7 @@ resource "null_resource" "verify_mesh_status" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command     = <<-EOT
+    command = <<-EOT
       set -e
       PROJECT_ID="${local.project.project_id}"
       PROJECT_NUMBER="${local.project_number}"
@@ -352,12 +352,12 @@ resource "null_resource" "wait_for_service_mesh" {
 
   depends_on = [
     null_resource.verify_mesh_status,
-    kubernetes_namespace_v1.bank_of_anthos,
+    kubernetes_namespace.bank_of_anthos,
   ]
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command     = <<-EOT
+    command = <<-EOT
       set -e
       
       PROJECT_ID="${local.project.project_id}"
@@ -437,6 +437,6 @@ resource "null_resource" "wait_for_service_mesh" {
     project_number = local.project_number
     region         = var.region
     cluster_name   = var.gke_cluster
-    namespace      = kubernetes_namespace_v1.bank_of_anthos[0].metadata[0].name
+    namespace      = kubernetes_namespace.bank_of_anthos[0].metadata[0].name
   }
 }
