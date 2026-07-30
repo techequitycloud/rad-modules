@@ -6,7 +6,7 @@ run "defaults_produce_valid_plan" {
   command = plan
 
   variables {
-    project_id    = "test-project-123"
+    project_id     = "test-project-123"
     aws_access_key = "AKIAIOSFODNN7EXAMPLE"
     aws_secret_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
     trusted_users  = []
@@ -88,10 +88,10 @@ run "private_subnets_config" {
   command = plan
 
   variables {
-    project_id          = "test-project-123"
-    aws_access_key      = "AKIAIOSFODNN7EXAMPLE"
-    aws_secret_key      = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-    trusted_users       = []
+    project_id            = "test-project-123"
+    aws_access_key        = "AKIAIOSFODNN7EXAMPLE"
+    aws_secret_key        = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    trusted_users         = []
     enable_public_subnets = false
   }
 
