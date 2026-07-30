@@ -2,6 +2,13 @@ mock_provider "aws" {}
 mock_provider "google" {}
 mock_provider "helm" {}
 
+override_data {
+  target = aws_iam_policy_document.assume_role
+  values = {
+    json = "{\"Statement\": []}"
+  }
+}
+
 run "defaults_produce_valid_plan" {
   command = plan
 
