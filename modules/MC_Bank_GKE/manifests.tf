@@ -39,15 +39,15 @@ resource "local_file" "frontend_config_yaml_output" {
 
 resource "local_file" "ingress_yaml_output" {
   content = templatefile("${path.module}/templates/ingress.yaml.tpl", {
-    INGRESS_NAME              = "boa-ingress",
-    CERTIFICATE_NAME          = "boa-certificate",
-    FRONTEND_SERVICE_NAME     = "frontend",
-    FRONTEND_SERVICE_PORT     = "80",
-    BACKEND_CONFIG_NAME       = "iap-backendconfig",
-    APPLICATION_REGION        = local.cluster_configs["cluster1"].region,
-    APPLICATION_NAME          = "bank-of-anthos",
-    APPLICATION_NAMESPACE     = "bank-of-anthos",
-    APPLICATION_DOMAIN        = "boa.${google_compute_global_address.glb.address}.sslip.io"
+    INGRESS_NAME          = "boa-ingress",
+    CERTIFICATE_NAME      = "boa-certificate",
+    FRONTEND_SERVICE_NAME = "frontend",
+    FRONTEND_SERVICE_PORT = "80",
+    BACKEND_CONFIG_NAME   = "iap-backendconfig",
+    APPLICATION_REGION    = local.cluster_configs["cluster1"].region,
+    APPLICATION_NAME      = "bank-of-anthos",
+    APPLICATION_NAMESPACE = "bank-of-anthos",
+    APPLICATION_DOMAIN    = "boa.${google_compute_global_address.glb.address}.sslip.io"
   })
   filename = "${path.module}/manifests/ingress.yaml"
 
@@ -71,24 +71,24 @@ resource "local_file" "managed_certificate_yaml_output" {
 
 resource "local_file" "multicluster_service_yaml_output" {
   content = templatefile("${path.module}/templates/multicluster_service.yaml.tpl", {
-    clusters               = values(local.cluster_configs),
-    APPLICATION_NAME       = "bank-of-anthos",
-    APPLICATION_NAMESPACE  = "bank-of-anthos"
+    clusters              = values(local.cluster_configs),
+    APPLICATION_NAME      = "bank-of-anthos",
+    APPLICATION_NAMESPACE = "bank-of-anthos"
   })
   filename = "${path.module}/manifests/multicluster_service.yaml"
 }
 
 resource "local_file" "multicluster_ingress_yaml_output" {
   content = templatefile("${path.module}/templates/multicluster_ingress.yaml.tpl", {
-    INGRESS_NAME              = "boa-ingress",
-    CERTIFICATE_NAME          = "boa-certificate",
-    FRONTEND_SERVICE_NAME     = "frontend",
-    FRONTEND_SERVICE_PORT     = "80",
-    BACKEND_CONFIG_NAME       = "iap-backendconfig",
-    APPLICATION_REGION        = local.cluster_configs["cluster1"].region,
-    APPLICATION_NAME          = "bank-of-anthos",
-    APPLICATION_NAMESPACE     = "bank-of-anthos",
-    APPLICATION_DOMAIN        = "boa.${google_compute_global_address.glb.address}.sslip.io"
+    INGRESS_NAME          = "boa-ingress",
+    CERTIFICATE_NAME      = "boa-certificate",
+    FRONTEND_SERVICE_NAME = "frontend",
+    FRONTEND_SERVICE_PORT = "80",
+    BACKEND_CONFIG_NAME   = "iap-backendconfig",
+    APPLICATION_REGION    = local.cluster_configs["cluster1"].region,
+    APPLICATION_NAME      = "bank-of-anthos",
+    APPLICATION_NAMESPACE = "bank-of-anthos",
+    APPLICATION_DOMAIN    = "boa.${google_compute_global_address.glb.address}.sslip.io"
   })
   filename = "${path.module}/manifests/multicluster_ingress.yaml"
 
