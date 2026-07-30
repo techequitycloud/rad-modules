@@ -1,4 +1,13 @@
-mock_provider "azurerm" {}
+mock_provider "azurerm" {
+  mock_data "azurerm_client_config" {
+    defaults = {
+      tenant_id       = "00000000-0000-0000-0000-000000000000"
+      object_id       = "00000000-0000-0000-0000-000000000000"
+      client_id       = "00000000-0000-0000-0000-000000000000"
+      subscription_id = "00000000-0000-0000-0000-000000000000"
+    }
+  }
+}
 mock_provider "google" {}
 mock_provider "helm" {}
 mock_provider "random" {}
@@ -8,10 +17,10 @@ run "defaults_produce_valid_plan" {
 
   variables {
     project_id      = "test-project-123"
-    client_id       = "00000000-0000-0000-0000-000000000001"
-    client_secret   = "test-secret"
-    tenant_id       = "00000000-0000-0000-0000-000000000002"
-    subscription_id = "00000000-0000-0000-0000-000000000003"
+    client_id       = "test"
+    client_secret   = "test"
+    tenant_id       = "test"
+    subscription_id = "test"
     trusted_users   = []
   }
 
@@ -52,10 +61,10 @@ run "empty_trusted_user_rejected" {
 
   variables {
     project_id      = "test-project-123"
-    client_id       = "00000000-0000-0000-0000-000000000001"
-    client_secret   = "test-secret"
-    tenant_id       = "00000000-0000-0000-0000-000000000002"
-    subscription_id = "00000000-0000-0000-0000-000000000003"
+    client_id       = "test"
+    client_secret   = "test"
+    tenant_id       = "test"
+    subscription_id = "test"
     trusted_users   = [""]
   }
 
@@ -67,10 +76,10 @@ run "duplicate_trusted_users_rejected" {
 
   variables {
     project_id      = "test-project-123"
-    client_id       = "00000000-0000-0000-0000-000000000001"
-    client_secret   = "test-secret"
-    tenant_id       = "00000000-0000-0000-0000-000000000002"
-    subscription_id = "00000000-0000-0000-0000-000000000003"
+    client_id       = "test"
+    client_secret   = "test"
+    tenant_id       = "test"
+    subscription_id = "test"
     trusted_users   = ["user@example.com", "user@example.com"]
   }
 
@@ -82,10 +91,10 @@ run "valid_trusted_users_accepted" {
 
   variables {
     project_id      = "test-project-123"
-    client_id       = "00000000-0000-0000-0000-000000000001"
-    client_secret   = "test-secret"
-    tenant_id       = "00000000-0000-0000-0000-000000000002"
-    subscription_id = "00000000-0000-0000-0000-000000000003"
+    client_id       = "test"
+    client_secret   = "test"
+    tenant_id       = "test"
+    subscription_id = "test"
     trusted_users   = ["alice@example.com", "bob@example.com"]
   }
 

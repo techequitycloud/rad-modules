@@ -40,7 +40,7 @@ locals {
   }
 }
 
-// SECTION 1: Provider
+# SECTION 1: Provider
 
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
@@ -120,7 +120,7 @@ variable "enable_services" {
   default     = true
 }
 
-// SECTION 2: Main
+# SECTION 2: Main
 
 variable "project_id" {
   description = "GCP project ID of the destination project where the GKE clusters and banking application will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=101 updatesafe }}"
@@ -133,7 +133,7 @@ variable "available_regions" {
   default     = ["us-west1", "us-east1"]
 }
 
-// SECTION 2: Network
+# SECTION 2: Network
 
 variable "create_network" {
   description = "Set to true (default) to create a new shared VPC network for all GKE clusters. Set to false to use an existing network identified by network_name. Each cluster receives its own subnet automatically derived from the cluster index. {{UIMeta group=2 order=201 }}"
@@ -153,7 +153,7 @@ variable "subnet_name" {
   default     = "vpc-subnet"
 }
 
-// SECTION 3: GKE
+# SECTION 3: GKE
 
 variable "create_autopilot_cluster" {
   description = "Set to true (default) to create GKE Autopilot clusters, where node provisioning and scaling are fully managed by Google. Set to false to create Standard clusters where node pools are manually configured. Applies to all clusters in this deployment. Autopilot is recommended for most workloads; Standard offers more control over node configuration. {{UIMeta group=3 order=301 }}"
@@ -173,7 +173,7 @@ variable "cluster_size" {
   default     = 2
 }
 
-// SECTION 4: Services
+# SECTION 4: Services
 
 variable "enable_cloud_service_mesh" {
   description = "Set to true (default) to install and configure Cloud Service Mesh (Google-managed Istio) across all clusters, enabling mTLS encryption, cross-cluster traffic management, and unified observability. Requires the mesh.googleapis.com API. Set to false to skip service mesh installation. {{UIMeta group=4 order=401 }}"
@@ -187,7 +187,7 @@ variable "cloud_service_mesh_version" {
   default     = "1.23.4-asm.1"
 }
 
-// SECTION 5: Application
+# SECTION 5: Application
 
 variable "deploy_application" {
   description = "Set to true (default) to deploy the Bank of Anthos microservices banking demo application across all GKE clusters after they are created. Set to false to provision only the cluster infrastructure without deploying the application. {{UIMeta group=5 order=501 }}"

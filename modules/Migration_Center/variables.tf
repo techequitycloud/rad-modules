@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// SECTION 1: Provider
+# SECTION 1: Provider
 
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. {{UIMeta group=0 order=100 }}"
@@ -82,7 +82,7 @@ variable "deployment_id" {
   default     = null
 }
 
-// SECTION 2: Main
+# SECTION 2: Main
 
 variable "project_id" {
   description = "GCP project ID where Migration Center resources will be deployed. Must already exist and the service account must hold roles/owner. {{UIMeta group=1 order=101 updatesafe }}"
@@ -102,7 +102,7 @@ variable "zone" {
   default     = "us-central1-a"
 }
 
-// SECTION 2: Networking
+# SECTION 2: Networking
 
 variable "create_vpc" {
   description = "Set to true (default) to create a dedicated VPC network for this lab. Set to false to use an existing VPC. {{UIMeta group=2 order=201 }}"
@@ -122,7 +122,7 @@ variable "internal_traffic_cidr" {
   default     = "10.128.0.0/9"
 }
 
-// SECTION 3: Compute Engine
+# SECTION 3: Compute Engine
 
 variable "create_windows_vm" {
   description = "Set to true (default) to deploy the Windows Server 2022 VM that hosts the MC Discovery Client. The startup script automatically installs MCDCv6. {{UIMeta group=3 order=301 }}"
@@ -160,7 +160,7 @@ variable "linux_vm_boot_disk_size_gb" {
   default     = 20
 }
 
-// SECTION 7: SSH Key Storage
+# SECTION 7: SSH Key Storage
 
 variable "create_ssh_key_bucket" {
   description = "Set to true (default) to create a Cloud Storage bucket and store the generated SSH private key. The bucket name is surfaced in Terraform outputs for easy retrieval. {{UIMeta group=7 order=701 }}"
@@ -168,7 +168,7 @@ variable "create_ssh_key_bucket" {
   default     = true
 }
 
-// SECTION 8: Migration Center
+# SECTION 8: Migration Center
 
 variable "initialize_migration_center" {
   description = "Set to true (default) to automatically initialize the Migration Center service and register the MCDCv6 discovery source. AWS EC2 inventory is also imported when aws_access_key_id is provided. Asset groups, preferences, and reports are created as lab exercises. {{UIMeta group=8 order=801 }}"

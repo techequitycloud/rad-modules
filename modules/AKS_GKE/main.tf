@@ -24,7 +24,7 @@ locals {
     "owner" = local.trusted_users[0]
   }
 
-  random_id = var.deployment_id != null ? var.deployment_id : random_id.default.hex
+  random_id = var.deployment_id != null ? var.deployment_id : lower(random_id.default.hex)
 
   # Use the existing project data source directly
   project_id     = data.google_project.existing_project.project_id

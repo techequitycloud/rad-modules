@@ -25,7 +25,7 @@ locals {
     "owner" = local.trusted_users[0]
   }
 
-  random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
+  random_id = var.deployment_id != null ? var.deployment_id : lower(random_id.default[0].hex)
 
   # Use the existing project data source directly
   project_id     = data.google_project.existing_project.project_id
@@ -91,7 +91,7 @@ resource "aws_eks_cluster" "eks" {
   # Ensure that IAM Role permissions are created before and deleted after EKS Cluster handling.
   # Otherwise, EKS will not be able to properly delete EKS managed EC2 infrastructure such as Security Groups.
   depends_on = [
-    aws_iam_role_policy_attachment.AmazonEKSClusterPolicy,
+    aws_iam_role_policy_attachment.amazon_eks_cluster_policy,
   ]
 }
 
@@ -114,9 +114,9 @@ resource "aws_eks_node_group" "node" {
   # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
   # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
   depends_on = [
-    aws_iam_role_policy_attachment.AmazonEKSWorkerNodePolicy,
-    aws_iam_role_policy_attachment.AmazonEKS_CNI_Policy,
-    aws_iam_role_policy_attachment.AmazonEC2ContainerRegistryReadOnly,
+    aws_iam_role_policy_attachment.amazon_eks_worker_node_policy,
+    aws_iam_role_policy_attachment.amazon_eks_cni_policy,
+    aws_iam_role_policy_attachment.amazon_ec2_container_registry_read_only,
   ]
 }
 
