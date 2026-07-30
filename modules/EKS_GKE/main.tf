@@ -25,13 +25,9 @@ locals {
     "owner" = local.trusted_users[0]
   }
 
-  random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
-
   # Use the existing project data source directly
   project_id     = data.google_project.existing_project.project_id
   project_number = data.google_project.existing_project.number
-
-  cluster_name_prefix = "${var.cluster_name_prefix}-${random_string.suffix.result}"
 
   # List of default APIs to enable on the Google Cloud project
   default_apis = [

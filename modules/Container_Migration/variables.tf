@@ -16,59 +16,6 @@
 
 // SECTION 1: Provider
 
-variable "module_description" {
-  description = "Human-readable description of this module displayed to users in the platform UI. {{UIMeta group=0 order=100 }}"
-  type        = string
-  default     = "This module provisions the complete Google Cloud infrastructure required to run a Migrate to Containers (M2C) lab — the automated path for replatforming VM-based Linux workloads to containers on Google Kubernetes Engine (GKE) without manual application refactoring. Migrate to Containers analyses running Linux VMs using the mcdc CLI, auto-generates production-ready Dockerfiles and Kubernetes manifests, and migrates persistent data volumes to GKE PersistentVolumes. This module deploys two Ubuntu source VMs (PostgreSQL 14 and Apache Tomcat 10 running the Spring PetClinic application), a Migrate to Containers CLI workstation pre-installed with the m2c toolchain, Docker, kubectl, and Skaffold, and a three-node GKE cluster ready to receive migrated workloads — providing a complete, hands-on environment to practise the full container migration lifecycle from workload assessment through to GKE deployment and horizontal pod autoscaling."
-}
-
-variable "module_documentation" {
-  description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. {{UIMeta group=0 order=1 }}"
-  type        = string
-  default     = "https://github.com/techequitycloud/rad-modules/blob/main/docs/labs/Container_Migration.md"
-}
-
-variable "module_dependency" {
-  description = "Ordered list of module names that must be fully deployed before this module can be deployed. {{UIMeta group=0 order=101 }}"
-  type        = list(string)
-  default     = ["GCP Project"]
-}
-
-variable "module_services" {
-  description = "List of cloud service tags associated with this module. {{UIMeta group=0 order=102 }}"
-  type        = list(string)
-  default     = ["GCP", "GKE", "Migrate to Containers", "Cloud Compute", "Cloud Networking", "Cloud IAM"]
-}
-
-variable "credit_cost" {
-  description = "Number of platform credits consumed when this module is deployed. {{UIMeta group=0 order=103 }}"
-  type        = number
-  default     = 200
-}
-
-variable "require_credit_purchases" {
-  description = "Set to true to require users to hold a credit balance before deploying this module. {{UIMeta group=0 order=104 }}"
-  type        = bool
-  default     = false
-}
-
-variable "enable_purge" {
-  description = "Set to true (default) to allow platform administrators to permanently delete all resources created by this module. {{UIMeta group=0 order=105 }}"
-  type        = bool
-  default     = true
-}
-
-variable "public_access" {
-  description = "Set to false (default) to restrict this module to platform administrators only. Set to true to make it visible and deployable by all platform users. {{UIMeta group=0 order=106 }}"
-  type        = bool
-  default     = false
-}
-
-variable "shared_users" {
-  description = "List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }}"
-  type        = list(string)
-  default     = []
-}
 
 variable "resource_creator_identity" {
   description = "Email of the Terraform service account used to provision resources (format: name@project-id.iam.gserviceaccount.com). Must hold roles/owner in the destination project. {{UIMeta group=0 order=107 updatesafe }}"
@@ -94,12 +41,6 @@ variable "project_id" {
   description = "GCP project ID where Container Migration resources will be deployed. Must already exist and the service account must hold roles/owner. {{UIMeta group=1 order=101 updatesafe }}"
   type        = string
   default     = null
-}
-
-variable "region" {
-  description = "GCP region where the GKE cluster and VMs will be deployed (e.g. 'us-central1'). {{UIMeta group=1 order=103 }}"
-  type        = string
-  default     = "us-central1"
 }
 
 variable "zone" {

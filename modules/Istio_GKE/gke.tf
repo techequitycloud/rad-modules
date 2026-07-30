@@ -18,37 +18,18 @@
 # Data source — look up existing cluster when create_cluster = false
 #########################################################################
 
-data "google_container_cluster" "existing_cluster" {
-  count    = var.create_cluster ? 0 : 1
-  project  = local.project.project_id
-  name     = var.gke_cluster
-  location = var.region
-}
 
 #########################################################################
 # Locals — unified cluster reference regardless of create_cluster
 #########################################################################
 
 locals {
-  cluster          = var.create_cluster ? google_container_cluster.gke_standard_cluster[0] : data.google_container_cluster.existing_cluster[0]
-  cluster_name     = local.cluster.name
-  cluster_location = local.cluster.location
 }
 
 #########################################################################
 # Kubernetes provider
 #########################################################################
 
-data "google_client_config" "gke_cluster" {}
-
-provider "kubernetes" {
-  alias = "primary"
-  host  = "https://${local.cluster.endpoint}"
-  token = data.google_client_config.gke_cluster.access_token
-  cluster_ca_certificate = base64decode(
-    local.cluster.master_auth[0].cluster_ca_certificate
-  )
-}
 
 locals {
   k8s_credentials_cmd = "gcloud container clusters get-credentials ${var.gke_cluster} --region ${var.region} --project ${local.project.project_id}"

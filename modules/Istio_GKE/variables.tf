@@ -16,70 +16,11 @@
 
 // SECTION 1: Provider
 
-variable "module_description" {
-  description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
-  type        = string
-  default     = "This module installs open-source Istio — the industry's most widely adopted service mesh, used by enterprises across financial services, healthcare, and technology to enforce zero-trust networking and meet compliance requirements including PCI-DSS and HIPAA — on GKE. Choose between sidecar mode for fine-grained per-pod traffic control or the newer ambient mode for lower resource overhead, and immediately explore a production-representative observability stack including Prometheus, Grafana, Jaeger, and Kiali via the Bookinfo sample application. This module is for educational purposes only."
-}
-
-variable "module_documentation" {
-  description = "URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. (e.g., 'https://docs.radmodules.dev/docs/applications/gcp-services') {{UIMeta group=0 order=1 }}"
-  type        = string
-  default     = "https://docs.radmodules.dev/docs/modules/Istio_GKE"
-}
-
-variable "module_dependency" {
-  description = "Ordered list of module names that must be fully deployed before this module can be deployed. The platform enforces this sequence. Defaults to ['GCP Project']. {{UIMeta group=0 order=102 }}"
-  type        = list(string)
-  default     = ["GCP Project"]
-}
-
-variable "module_services" {
-  description = "List of cloud service tags associated with this module, used for display and filtering in the platform UI. Represents the key services provisioned by this module. Defaults to the core services this module provisions. {{UIMeta group=0 order=102 }}"
-  type        = list(string)
-  default     = ["GCP", "GKE", "Istio", "Cloud IAM", "Cloud Networking"]
-}
-
-variable "credit_cost" {
-  description = "Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require_credit_purchases is true, users must have sufficient credit balance before deploying. Defaults to 200. {{UIMeta group=0 order=103 }}"
-  type        = number
-  default     = 200
-}
-
-variable "require_credit_purchases" {
-  description = "Set to true to require users to hold a credit balance before deploying this module. When false (default), the module can be deployed regardless of credit balance. {{UIMeta group=0 order=104 }}"
-  type        = bool
-  default     = false
-}
-
-variable "enable_purge" {
-  description = "Set to true (default) to allow platform administrators to permanently delete all resources created by this module via the platform purge operation. Set to false to prevent purge operations on this deployment. {{UIMeta group=0 order=106 }}"
-  type        = bool
-  default     = true
-}
-
-variable "public_access" {
-  description = "Set to true to make this module visible and deployable by all platform users. Set to false (default) to restrict the module to platform administrators only. {{UIMeta group=0 order=106 }}"
-  type        = bool
-  default     = false
-}
-
-variable "shared_users" {
-  description = "List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }}"
-  type        = list(string)
-  default     = []
-}
 
 variable "resource_creator_identity" {
   description = "Email of the Terraform service account used to provision resources in the destination GCP project (format: name@project-id.iam.gserviceaccount.com). This account must hold roles/owner in the destination project. Defaults to the platform's built-in provisioning service account; only override if using a custom service account. {{UIMeta group=0 order=102 updatesafe }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
-}
-
-variable "trusted_users" {
-  description = "Set of Google account email addresses granted cluster-admin privileges on the GKE cluster (e.g. ['user@example.com']). Defaults to an empty set (no additional admin users). {{UIMeta group=0 order=103 updatesafe }}"
-  type        = set(string)
-  default     = []
 }
 
 // SECTION 2: Main
@@ -193,8 +134,3 @@ variable "install_ambient_mesh" {
 
 // SECTION 6: Application
 
-variable "deploy_application" {
-  description = "Set to true (default) to deploy the Istio Bookinfo sample application onto the GKE cluster after Istio is installed. The Bookinfo app demonstrates Istio traffic management, telemetry, and security features. Set to false to install only the Istio service mesh without a demo application. {{UIMeta group=0 order=601 }}"
-  type        = bool
-  default     = true
-}

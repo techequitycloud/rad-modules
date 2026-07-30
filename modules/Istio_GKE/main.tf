@@ -25,8 +25,6 @@ locals {
     : null)                                # Return null if the count is 0
   )
 
-  project_number = try(data.google_project.existing_project.number, null)
-
   # List of default APIs to enable on the Google Cloud project
   default_apis = [
     "cloudapis.googleapis.com",

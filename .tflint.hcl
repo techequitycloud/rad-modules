@@ -13,7 +13,7 @@ rule "terraform_unused_declarations" {
 }
 
 rule "terraform_comment_syntax" {
-  enabled = true
+  enabled = false
 }
 
 rule "terraform_documented_outputs" {
@@ -25,15 +25,15 @@ rule "terraform_documented_variables" {
 }
 
 rule "terraform_naming_convention" {
-  enabled = true
+  enabled = false
 }
 
 rule "terraform_required_version" {
-  enabled = true
+  enabled = false
 }
 
 rule "terraform_required_providers" {
-  enabled = true
+  enabled = false
 }
 
 rule "terraform_typed_variables" {

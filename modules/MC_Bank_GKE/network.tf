@@ -25,7 +25,6 @@ data "google_compute_network" "existing_vpc" {
 }
 
 locals {
-  network_name = var.create_network ? "${var.network_name}-${local.random_id}" : var.network_name
 }
 
 # ============================================
