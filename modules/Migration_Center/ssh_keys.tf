@@ -46,6 +46,6 @@ resource "google_storage_bucket_object" "ssh_private_key" {
 # The SSH key user that MCDCv6 uses to authenticate against the Linux VMs.
 # This value is surfaced in outputs and referenced in the lab guide at docs/labs/Migration_Center.md.
 locals {
-  ssh_key_user = "migrationcenter"
+  ssh_key_user         = "migrationcenter"
   ssh_public_key_entry = "${local.ssh_key_user}:${tls_private_key.ssh_key.public_key_openssh}"
 }

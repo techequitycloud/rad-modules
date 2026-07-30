@@ -137,7 +137,7 @@ resource "null_resource" "mc_aws_import" {
     region      = var.region
     aws_region  = var.aws_region
     # Trigger re-import when the scoped IAM key changes (e.g. key rotation).
-    aws_key_id  = aws_iam_access_key.mc_discovery_key[0].id
+    aws_key_id = aws_iam_access_key.mc_discovery_key[0].id
   }
 
   provisioner "local-exec" {

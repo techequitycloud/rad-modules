@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 #########################################################################
 # Configure resources
 #########################################################################
@@ -21,7 +21,7 @@
 # Reserve a global IP address for the load balancer
 resource "google_compute_global_address" "glb" {
   project = local.project.project_id
-  name = "bank-of-anthos"
+  name    = "bank-of-anthos"
 }
 
 

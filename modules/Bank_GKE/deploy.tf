@@ -94,7 +94,7 @@ resource "null_resource" "download_bank_of_anthos" {
 # NAMESPACE
 # ============================================
 
-resource "kubernetes_namespace" "bank_of_anthos" {
+resource "kubernetes_namespace_v1" "bank_of_anthos" {
   count    = var.deploy_application ? 1 : 0
   provider = kubernetes.primary
 
@@ -347,7 +347,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
 
   depends_on = [
     null_resource.download_bank_of_anthos,
-    kubernetes_namespace.bank_of_anthos,
+    kubernetes_namespace_v1.bank_of_anthos,
     null_resource.wait_for_service_mesh,
   ]
 }

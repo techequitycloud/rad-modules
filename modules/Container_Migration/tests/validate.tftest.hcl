@@ -74,7 +74,7 @@ run "larger_m2c_disk" {
   command = plan
 
   variables {
-    project_id      = "test-project-123"
+    project_id       = "test-project-123"
     m2c_disk_size_gb = 500
   }
 

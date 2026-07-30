@@ -49,9 +49,9 @@ resource "local_file" "bootstrap_manifests" {
 
 # Apply the helm chart to the cluster.
 resource "helm_release" "local" {
-  name    = local.helm_chart_name
-  chart   = local.helm_chart_dir
+  name       = local.helm_chart_name
+  chart      = local.helm_chart_dir
   depends_on = [local_file.bootstrap_helm_chart, local_file.bootstrap_manifests]
-  timeout = var.helm_timeout
+  timeout    = var.helm_timeout
 }
 

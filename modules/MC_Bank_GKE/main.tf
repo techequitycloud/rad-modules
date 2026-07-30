@@ -19,10 +19,10 @@ locals {
   # Choose a deployment ID based on whether the user provides one or generate a new random ID
   random_id = var.deployment_id != null ? var.deployment_id : random_id.default[0].hex
 
-  project = ((length(data.google_project.existing_project) > 0 
-        ? data.google_project.existing_project  # Return the first object if it exists
-        : null) # Return null if the count is 0
-  ) 
+  project = ((length(data.google_project.existing_project) > 0
+    ? data.google_project.existing_project # Return the first object if it exists
+    : null)                                # Return null if the count is 0
+  )
 
   project_number = try(data.google_project.existing_project.number, null)
 
@@ -61,7 +61,7 @@ locals {
     "trafficdirector.googleapis.com",
     "dns.googleapis.com",
     # "kubernetesmetadata.googleapis.com"
- ]
+  ]
 
   # Determine the list of APIs to enable based on whether additional services are requested
   project_services = var.enable_services ? local.default_apis : []
@@ -70,7 +70,7 @@ locals {
 # Generate a random ID if a deployment ID is not provided
 resource "random_id" "default" {
   count       = var.deployment_id == null ? 1 : 0 # Only create if no deployment ID is given
-  byte_length = 2 # The length of the random byte sequence to generate
+  byte_length = 2                                 # The length of the random byte sequence to generate
 }
 
 # Data source to fetch information about an existing Google Cloud project, if not creating a new one
@@ -83,8 +83,8 @@ resource "google_project_service" "enabled_services" {
   for_each = toset(local.project_services) # Iterate over each service in the set
   project  = local.project.project_id      # Apply to the selected project
   service  = each.value                    # The API service to enable
-  
+
   # ✅ CRITICAL: Prevent APIs from being disabled during terraform destroy
-  disable_dependent_services = false  # Changed from true
-  disable_on_destroy         = false  # Changed from true
+  disable_dependent_services = false # Changed from true
+  disable_on_destroy         = false # Changed from true
 }

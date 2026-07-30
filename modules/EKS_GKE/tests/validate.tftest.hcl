@@ -1,12 +1,29 @@
-mock_provider "aws" {}
-mock_provider "google" {}
+mock_provider "aws" {
+  mock_resource "aws_iam_role" {
+    defaults = {
+      arn = "arn:aws:iam::123456789012:role/eks-role"
+    }
+  }
+  mock_data "aws_iam_policy_document" {
+    defaults = {
+      json = "{}"
+    }
+  }
+}
+mock_provider "google" {
+  mock_data "google_project" {
+    defaults = {
+      number = "123456789012"
+    }
+  }
+}
 mock_provider "helm" {}
 
 run "defaults_produce_valid_plan" {
   command = plan
 
   variables {
-    project_id    = "test-project-123"
+    project_id     = "test-project-123"
     aws_access_key = "AKIAIOSFODNN7EXAMPLE"
     aws_secret_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
     trusted_users  = []
@@ -88,10 +105,10 @@ run "private_subnets_config" {
   command = plan
 
   variables {
-    project_id          = "test-project-123"
-    aws_access_key      = "AKIAIOSFODNN7EXAMPLE"
-    aws_secret_key      = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-    trusted_users       = []
+    project_id            = "test-project-123"
+    aws_access_key        = "AKIAIOSFODNN7EXAMPLE"
+    aws_secret_key        = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    trusted_users         = []
     enable_public_subnets = false
   }
 

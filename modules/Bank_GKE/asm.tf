@@ -352,7 +352,7 @@ resource "null_resource" "wait_for_service_mesh" {
 
   depends_on = [
     null_resource.verify_mesh_status,
-    kubernetes_namespace.bank_of_anthos,
+    kubernetes_namespace_v1.bank_of_anthos,
   ]
 
   provisioner "local-exec" {
@@ -437,6 +437,6 @@ resource "null_resource" "wait_for_service_mesh" {
     project_number = local.project_number
     region         = var.region
     cluster_name   = var.gke_cluster
-    namespace      = kubernetes_namespace.bank_of_anthos[0].metadata[0].name
+    namespace      = kubernetes_namespace_v1.bank_of_anthos[0].metadata[0].name
   }
 }

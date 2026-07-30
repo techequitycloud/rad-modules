@@ -1,4 +1,3 @@
-mock_provider "azurerm" {}
 mock_provider "google" {}
 mock_provider "helm" {}
 mock_provider "random" {}
@@ -92,5 +91,14 @@ run "valid_trusted_users_accepted" {
   assert {
     condition     = length(var.trusted_users) == 2
     error_message = "Two distinct trusted users should be accepted"
+  }
+}
+
+mock_provider "azurerm" {
+  mock_data "azurerm_client_config" {
+    defaults = {
+      tenant_id = "00000000-0000-0000-0000-000000000002"
+      client_id = "00000000-0000-0000-0000-000000000001"
+    }
   }
 }

@@ -42,7 +42,7 @@ resource "google_compute_instance" "linux_vm" {
   # Creates the migrationcenter OS user and authorises the generated SSH public
   # key so MCDCv6 can authenticate during the discovery scan.
   metadata = {
-    ssh-keys = local.ssh_public_key_entry
+    ssh-keys       = local.ssh_public_key_entry
     startup-script = <<-SCRIPT
       #!/bin/bash
       set -e

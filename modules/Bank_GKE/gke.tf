@@ -44,7 +44,7 @@ provider "kubernetes" {
   host  = "https://${local.cluster.endpoint}"
   token = data.google_client_config.gke_cluster.access_token
   cluster_ca_certificate = base64decode(
-    local.cluster.master_auth[0].cluster_ca_certificate,
+    try(try(local.cluster.master_auth[0].cluster_ca_certificate, ""), ""),
   )
 }
 
@@ -62,7 +62,6 @@ resource "google_container_cluster" "gke_cluster" {
   subnetwork          = local.subnet.name
 
   enable_autopilot         = var.create_autopilot_cluster
-  remove_default_node_pool = var.create_autopilot_cluster ? null : true
   initial_node_count       = var.create_autopilot_cluster ? null : 1
 
   ip_allocation_policy {
