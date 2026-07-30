@@ -40,7 +40,7 @@ jobs:
             MODULES=$(ls -d modules/*/ | sed 's|modules/||;s|/||' | jq -R -s -c 'split("\n") | map(select(length > 0))')
           else
             # On push/PR, validate only changed modules
-            CHANGED=$(git diff --name-only ${{ github.event.before || 'HEAD~1' }} HEAD -- 'modules/**' | grep -oP 'modules/\K[^/]+' | sort -u)
+            CHANGED=$(git diff --name-only ${{ github.event.before || 'HEAD~1' }} HEAD -- 'modules/**' | grep -oP '^modules/\K[^/]+' | sort -u)
             if [ -z "$CHANGED" ]; then
               MODULES=$(ls -d modules/*/ | sed 's|modules/||;s|/||' | jq -R -s -c 'split("\n") | map(select(length > 0))')
             else
