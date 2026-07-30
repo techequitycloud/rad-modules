@@ -1,18 +1,18 @@
-#
-# Copyright 2024 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 # Windows Server 2022 VM that hosts the MC Discovery Client (MCDCv6).
 # The sysprep startup script runs on first boot and:
@@ -25,9 +25,12 @@
 resource "random_password" "rdp_password" {
   length           = 16
   special          = true
-  override_special = "!#%&*()-_=+[]{}<>:?"
+  override_special = "!#%#   1. Creates the migrationcenter local user with the lab RDP password*()-_=+[]{}<>:?"
 }
-
+#   2. Enables RDP and adds the user to Remote Desktop Users
+#   3. Silently downloads and installs MCDCv6
+#   4. Pre-downloads the AWS sample import zip to the Downloads folder
+#   5. Installs Google Chrome (required by MCDCv6 OAuth browser flow)
 resource "google_compute_instance" "windows_vm" {
   count        = var.create_windows_vm ? 1 : 0
   project      = local.project.project_id
