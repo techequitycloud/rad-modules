@@ -104,7 +104,7 @@ Anything that can't be expressed as a Terraform resource (installing Istio via `
 
 ### UIMeta Variable Annotations
 
-Every `variable` description ends with a `{{UIMeta group=N order=M }}` tag that drives the RAD platform UI. Groups follow this convention: 0=Provider/Metadata, 1=Main, 2=Network, 3=GKE, 4=Features, 6=Application. The `updatesafe` flag marks variables that can change without forcing resource replacement. `enable_services` always lives in group 0 order 109.
+Every `variable` description ends with a `{{UIMeta group=N order=M }}` tag that drives the RAD platform UI. Groups are module-defined UI sections, not a fixed repo-wide numbering — group values 0 through 9 are in use across the 8 modules (e.g. 0=Provider/Metadata, 1=Main, 2=Network in most modules), but higher numbers (5, 7, 8, 9) are used by modules with extra sizing/jump-host/vCenter-credential sections (Bank_GKE, Container_Migration, Migration_Center, VMware_Engine) beyond the canonical Istio_GKE module's 0-4 range. The `updatesafe` flag marks variables that can change without forcing resource replacement. `enable_services` always lives in group 0 order 109.
 
 ### API Enablement Invariant
 

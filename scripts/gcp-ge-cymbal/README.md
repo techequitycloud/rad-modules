@@ -41,11 +41,13 @@ Engine location — confirmed by testing, `assistants.agents.create` rejects a
 mismatch outright. Worse, on at least one Qwiklabs sandbox project the
 custom-agent-creation quota at the `global` location was `0` while `us` had
 headroom (`Failed to allocate quota for agent creation`, reproducible even
-through the console, not just the API). This script standardizes everything
-on `$GE_LOCATION` (`us` by default) instead of the `global` default the
-console wizards fall back to, specifically to avoid that gap. If you still
-hit the quota error at `us`, it's a genuine per-project limit, not a bug —
-see step `7`'s notes.
+through the console, not just the API) — a genuine per-project limit, not a
+bug. This script standardizes steps `3`, `5`, and `7` on whatever
+`$GE_LOCATION` is set to (`global` by default, matching the console
+wizards' own default) rather than defaulting away from it. If step `7`'s
+agent registration hits that quota, change `GE_LOCATION` in `.env` to a
+regional value (e.g. `us` or `eu`) and re-run steps `3`-`7` with a new
+`APP_ID`/`AUTH_ID` — see step `7`'s notes.
 
 ## Prerequisites
 
@@ -98,7 +100,7 @@ as you complete each step:
 | `GCS_BUCKET` | `<project>-bucket` | Bucket holding demo docs, the announcement image, and `adk_to_ge/`. |
 | `APP_NAME` | `Cymbal Pools GE` | Gemini Enterprise app display name. |
 | `APP_ID` | `cymbal-pools-ge` | Gemini Enterprise engine/app resource ID used by `engines.create`. |
-| `GE_LOCATION` | `us` | Discovery Engine location used consistently by the app (`engines.create`), the Authorization resource, and the agent registration — must match across all three, and avoids a `global`-location custom-agent quota gap seen on some sandbox projects. |
+| `GE_LOCATION` | `global` | Discovery Engine location used consistently by the app (`engines.create`), the Authorization resource, and the agent registration — must match across all three. If step `7`'s agent registration hits a `global`-location custom-agent quota gap seen on some sandbox projects, switch to a regional value (e.g. `us` or `eu`) and re-run steps `3`-`7` with a new `APP_ID`/`AUTH_ID`. |
 | `COMPANY_NAME` | `Cymbal Pools` | Company name for the app's Advanced Options. |
 | `AGENT_DIR` | `adk_to_ge` | Local/bucket directory holding the ADK agent source. |
 | `MODEL` | `gemini-3.5-flash` | Model used by the BigQuery agent's `.env`. |
@@ -133,12 +135,13 @@ Enterprise before, opening it in the console and clicking **Start 30-day free
 trial > Continue** is a one-time activation that is separate from enabling
 the `discoveryengine.googleapis.com` API in step 1 — `engines.create` below
 fails on a project where this hasn't been done yet. Then calls
-`engines.create` (`appType: APP_TYPE_INTRANET`) at `$GE_LOCATION` (not
-`global`) to create the app with `$APP_NAME`/`$APP_ID`/`$COMPANY_NAME` and no
-data stores attached yet. Also prints a reminder that the Apps list in the
-console has its own location filter — since the app was created at
-`$GE_LOCATION` rather than the console wizard's `global` default, it won't
-appear there unless the filter is set to `$GE_LOCATION` (or "All locations").
+`engines.create` (`appType: APP_TYPE_INTRANET`) at `$GE_LOCATION` to create
+the app with `$APP_NAME`/`$APP_ID`/`$COMPANY_NAME` and no data stores
+attached yet. Also prints a reminder that the Apps list in the console has
+its own location filter — since the app was created at whichever location
+`$GE_LOCATION` is set to (`global` by default, matching the console
+wizard's own default), the filter must be set to `$GE_LOCATION` (or "All
+locations") to find it.
 Then prints two more no-API console steps and pauses for each: (1)
 **Settings > Authentication** — confirm Google Identity
 for the **`$GE_LOCATION`** row (the page lists a row per location — `global`,
@@ -162,8 +165,9 @@ wizard steps for Drive and Calendar — Source (search and pick the first-party
 card) → Data/Authentication settings (Client ID/Secret from step `4`, Verify
 Auth, complete the OAuth popup) → Advanced options ("Supports All Drives" for
 Drive) → Actions (select all) → Configuration (select **`$GE_LOCATION`**
-explicitly if the Location field is editable, rather than leaving the
-wizard's `global` default, name the connector) — then the Announcements data
+explicitly if the Location field is editable — this matches the wizard's own
+`global` default unless `GE_LOCATION` has been changed to a region — name
+the connector) — then the Announcements data
 store/content steps with `Start Time`/`End Time` computed as today/tomorrow.
 
 ### `(6) Deploy custom ADK agent to Agent Engine`
