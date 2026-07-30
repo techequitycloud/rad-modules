@@ -29,6 +29,8 @@ jobs:
       modules: ${{ steps.set-modules.outputs.modules }}
     steps:
       - uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           fetch-depth: 0
 
@@ -55,8 +57,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - uses: hashicorp/setup-terraform@v3
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           terraform_version: "~1.9"
 
@@ -76,8 +82,12 @@ jobs:
         module: ${{ fromJson(needs.detect-changes.outputs.modules) }}
     steps:
       - uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - uses: hashicorp/setup-terraform@v3
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           terraform_version: "~1.9"
 
@@ -100,8 +110,12 @@ jobs:
         module: ${{ fromJson(needs.detect-changes.outputs.modules) }}
     steps:
       - uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - uses: terraform-linters/setup-tflint@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           tflint_version: latest
 
@@ -124,8 +138,12 @@ jobs:
         module: ${{ fromJson(needs.detect-changes.outputs.modules) }}
     steps:
       - uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - uses: hashicorp/setup-terraform@v3
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           terraform_version: "~1.9"
 
@@ -148,6 +166,8 @@ jobs:
         module: ${{ fromJson(needs.detect-changes.outputs.modules) }}
     steps:
       - uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - name: Run Trivy
         uses: aquasecurity/trivy-action@master

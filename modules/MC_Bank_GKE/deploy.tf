@@ -38,7 +38,8 @@ resource "null_resource" "download_bank_of_anthos" {
   triggers = {
     version       = local.bank_of_anthos_version
     download_path = local.download_path
-    # PERFORMANCE: Removed always_run = timestamp() to prevent re-downloading on every apply, optimizing deployment speed
+    # Force re-download on every apply to ensure files are always present
+    always_run = timestamp()
   }
 
   provisioner "local-exec" {
