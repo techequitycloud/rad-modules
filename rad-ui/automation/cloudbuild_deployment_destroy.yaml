@@ -320,19 +320,38 @@ steps:
     gsutil cp /workspace/audit/destroy_metadata.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destroy/destroy_metadata.json" || log "Failed to upload metadata"
 
     destroy_with_retry() {
-        local max_attempts=2
+        # Retry budget must outlast GCP's own asynchronous resource release.
+        #
+        # Direct VPC Egress reserves a serverless-ipv4-* internal address per
+        # Cloud Run revision, and Google releases those 20-30 MINUTES after the
+        # owning service is deleted — not synchronously with it. Until they
+        # drain, destroying the VPC subnetwork fails deterministically with
+        # resourceInUseByAnotherResource. The previous budget (2 attempts,
+        # 60s apart) could never outlast that window, so every such destroy
+        # failed and required a manual re-run.
+        #
+        # The long backoff is applied ONLY to that signature; every other
+        # failure keeps the short retry so genuine errors still surface fast.
+        # Worst case here is ~26 min, well inside this build's 7200s timeout.
+        local max_attempts=$${DESTROY_MAX_ATTEMPTS:-6}
+        local short_backoff=60
+        local long_backoff=300
         local attempt=1
         local final_exit_code=0
+        local attempt_log=/workspace/destroy_attempt.log
 
         while [ $$attempt -le $$max_attempts ]; do
             log "💥 Destroy attempt $$attempt of $$max_attempts"
 
-            if tofu destroy -auto-approve -input=false; then
+            # tee keeps the live build log while still capturing output for the
+            # signature match below; PIPESTATUS[0] is tofu's own exit code.
+            tofu destroy -auto-approve -input=false 2>&1 | tee "$$attempt_log"
+            final_exit_code=$${PIPESTATUS[0]}
+
+            if [ "$$final_exit_code" -eq 0 ]; then
                 log "✅ Destroy successful on attempt $$attempt"
-                final_exit_code=0
                 break
             else
-                final_exit_code=$$?
                 log "❌ Destroy failed on attempt $$attempt (exit code: $$final_exit_code)"
 
                 if [ $$attempt -eq $$max_attempts ]; then
@@ -367,8 +386,15 @@ steps:
                     fi
                 fi
 
-                log "⏳ Waiting 60 seconds before retry..."
-                sleep 60
+                # Is this the async-release lag, or a real error? Match on the
+                # GCP error signature rather than guessing from the exit code.
+                if grep -qiE 'resourceInUseByAnotherResource|is already being used by|serverless-ipv4' "$$attempt_log" 2>/dev/null; then
+                    log "⏳ Resource still held by GCP (async release lag) — waiting $$long_backoff seconds..."
+                    sleep $$long_backoff
+                else
+                    log "⏳ Waiting $$short_backoff seconds before retry..."
+                    sleep $$short_backoff
+                fi
 
                 log "🔄 Refreshing state before retry..."
                 tofu apply -refresh-only -auto-approve || log "State refresh failed, continuing with retry"
