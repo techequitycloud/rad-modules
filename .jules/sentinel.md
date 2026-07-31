@@ -1,0 +1,4 @@
+## 2024-05-24 - Injecting Terraform secrets into PowerShell safely
+**Vulnerability:** A hardcoded RDP password existed in the `Migration_Center` module's `windows_vm.tf` startup script.
+**Learning:** When injecting a dynamically generated `random_password` into a PowerShell script inside Terraform, if the password contains special characters (like `$`), PowerShell will attempt to evaluate it as a variable if it is wrapped in double quotes (e.g., `"$password"`). By wrapping the Terraform interpolation in single quotes (`'${random_password.password.result}'`) and omitting the single quote (`'`) character from the `random_password`'s `override_special` string, we prevent both PowerShell evaluation errors and script injection attacks.
+**Prevention:** Always use single quotes when injecting Terraform variables into PowerShell scripts, and ensure the injected string does not contain unescaped single quotes.
