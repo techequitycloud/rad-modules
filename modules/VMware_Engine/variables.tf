@@ -96,6 +96,16 @@ variable "project_id" {
   default     = null
 }
 
+variable "tenant_deployment_id" {
+  description = "Unique identifier for this deployment, used in resource naming (1-20 lowercase alphanumeric characters and hyphens, e.g. 'tenant-1'). {{UIMeta group=1 order=102 updatesafe }}"
+  type        = string
+  default     = "demo"
+  validation {
+    condition     = can(regex("^[a-z0-9-]{1,20}$", var.tenant_deployment_id))
+    error_message = "Tenant ID must be 1-20 characters, lowercase letters, numbers, and hyphens only."
+  }
+}
+
 variable "region" {
   description = "GCP region where the private cloud and network policy will be deployed (e.g. 'us-west2'). {{UIMeta group=1 order=103 }}"
   type        = string
