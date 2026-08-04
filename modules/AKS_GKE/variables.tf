@@ -160,7 +160,7 @@ variable "client_secret" {
   sensitive   = true
 }
 
-variable "tenant_id" {
+variable "azure_tenant_id" {
   description = "Azure Active Directory Tenant ID for the Azure account (UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Required; no default. Find this in Azure Portal > Azure Active Directory > Overview > Tenant ID. Stored as sensitive and never shown in logs. {{UIMeta group=1 order=106 updatesafe }}"
   type        = string
   sensitive   = true

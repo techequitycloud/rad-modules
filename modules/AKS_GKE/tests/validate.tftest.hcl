@@ -10,7 +10,7 @@ run "defaults_produce_valid_plan" {
     project_id      = "test-project-123"
     client_id       = "00000000-0000-0000-0000-000000000001"
     client_secret   = "test-secret"
-    tenant_id       = "00000000-0000-0000-0000-000000000002"
+    azure_tenant_id = "00000000-0000-0000-0000-000000000002"
     subscription_id = "00000000-0000-0000-0000-000000000003"
     trusted_users   = []
   }
@@ -54,7 +54,7 @@ run "empty_trusted_user_rejected" {
     project_id      = "test-project-123"
     client_id       = "00000000-0000-0000-0000-000000000001"
     client_secret   = "test-secret"
-    tenant_id       = "00000000-0000-0000-0000-000000000002"
+    azure_tenant_id = "00000000-0000-0000-0000-000000000002"
     subscription_id = "00000000-0000-0000-0000-000000000003"
     trusted_users   = [""]
   }
@@ -69,7 +69,7 @@ run "duplicate_trusted_users_rejected" {
     project_id      = "test-project-123"
     client_id       = "00000000-0000-0000-0000-000000000001"
     client_secret   = "test-secret"
-    tenant_id       = "00000000-0000-0000-0000-000000000002"
+    azure_tenant_id = "00000000-0000-0000-0000-000000000002"
     subscription_id = "00000000-0000-0000-0000-000000000003"
     trusted_users   = ["user@example.com", "user@example.com"]
   }
@@ -84,7 +84,7 @@ run "valid_trusted_users_accepted" {
     project_id      = "test-project-123"
     client_id       = "00000000-0000-0000-0000-000000000001"
     client_secret   = "test-secret"
-    tenant_id       = "00000000-0000-0000-0000-000000000002"
+    azure_tenant_id = "00000000-0000-0000-0000-000000000002"
     subscription_id = "00000000-0000-0000-0000-000000000003"
     trusted_users   = ["alice@example.com", "bob@example.com"]
   }
