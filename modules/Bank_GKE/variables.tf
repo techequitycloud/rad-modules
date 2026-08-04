@@ -102,8 +102,18 @@ variable "project_id" {
   default     = null
 }
 
+variable "tenant_deployment_id" {
+  description = "Unique identifier for this deployment, used in resource naming (1-20 lowercase alphanumeric characters and hyphens, e.g. 'tenant-1'). {{UIMeta group=1 order=102 updatesafe }}"
+  type        = string
+  default     = "demo"
+  validation {
+    condition     = can(regex("^[a-z0-9-]{1,20}$", var.tenant_deployment_id))
+    error_message = "Tenant ID must be 1-20 characters, lowercase letters, numbers, and hyphens only."
+  }
+}
+
 variable "region" {
-  description = "GCP region where the GKE cluster, VPC, and all supporting resources will be deployed (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Deployment may fail if sufficient resource quota is not available in the selected region. {{UIMeta group=1 order=102 }}"
+  description = "GCP region where the GKE cluster, VPC, and all supporting resources will be deployed (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Deployment may fail if sufficient resource quota is not available in the selected region. {{UIMeta group=1 order=103 }}"
   type        = string
   default     = "us-central1"
 }

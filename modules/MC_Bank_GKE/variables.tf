@@ -127,8 +127,18 @@ variable "project_id" {
   type        = string
 }
 
+variable "tenant_deployment_id" {
+  description = "Unique identifier for this deployment, used in resource naming (1-20 lowercase alphanumeric characters and hyphens, e.g. 'tenant-1'). {{UIMeta group=1 order=102 updatesafe }}"
+  type        = string
+  default     = "demo"
+  validation {
+    condition     = can(regex("^[a-z0-9-]{1,20}$", var.tenant_deployment_id))
+    error_message = "Tenant ID must be 1-20 characters, lowercase letters, numbers, and hyphens only."
+  }
+}
+
 variable "available_regions" {
-  description = "List of GCP regions available for cluster deployment (e.g. ['us-west1', 'us-east1']). Clusters are assigned to regions in round-robin order based on their index; if fewer regions than clusters are specified, regions are cycled (e.g. 2 regions for 4 clusters: cluster1=us-west1, cluster2=us-east1, cluster3=us-west1, cluster4=us-east1). Must contain at least one entry. Defaults to ['us-west1', 'us-east1']. {{UIMeta group=1 order=102 }}"
+  description = "List of GCP regions available for cluster deployment (e.g. ['us-west1', 'us-east1']). Clusters are assigned to regions in round-robin order based on their index; if fewer regions than clusters are specified, regions are cycled (e.g. 2 regions for 4 clusters: cluster1=us-west1, cluster2=us-east1, cluster3=us-west1, cluster4=us-east1). Must contain at least one entry. Defaults to ['us-west1', 'us-east1']. {{UIMeta group=1 order=103 }}"
   type        = list(string)
   default     = ["us-west1", "us-east1"]
 }
