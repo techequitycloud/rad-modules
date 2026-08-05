@@ -59,67 +59,49 @@ steps:
     FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
 
     if ! gsutil ls "$$FILES_PATH/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
-        # No archive. That is EITHER "this deployment never got far enough to
-        # upload one" (a member that failed early, or was CANCELLED because a
-        # prerequisite failed — routine for solution members) OR "the archive was
-        # lost while real infrastructure still exists". Only the first is safe to
-        # treat as a no-op; the second would silently orphan resources.
-        #
-        # The two are distinguished by what the Terraform STATE CONTAINS — not by
-        # which files are present. `backend.tf` and an empty state object are both
-        # written during preparation, BEFORE anything is applied, so their mere
-        # existence proves nothing. A failed first apply leaves serial=1 with
-        # `resources: []`. Only a state holding at least one resource means real
-        # infrastructure exists.
-        log "⚠️  No deployment archive at: $$FILES_PATH/${_MODULE_NAME}.tar.gz"
+        # No archive: either nothing was ever applied (member failed early or
+        # was CANCELLED), or the archive was lost while real infra exists.
+        # Decided by what the STATE CONTAINS — backend.tf and an empty state are
+        # both written during prepare, so file existence proves nothing.
+        log "⚠️  No archive: $$FILES_PATH/${_MODULE_NAME}.tar.gz"
         log "🔍 Inspecting Terraform state for real resources..."
 
         RESOURCE_COUNT=""
-        # Derive the state path from backend.tf's own prefix rather than assuming
-        # the layout, so this keeps working if the prefix convention changes.
-        if gsutil cp "$$FILES_PATH/backend.tf" /tmp/backend_probe.tf 2>/dev/null; then
-            STATE_PREFIX=$$(sed -n 's/.*prefix[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' /tmp/backend_probe.tf | head -1)
-            STATE_BUCKET=$$(sed -n 's/.*bucket[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' /tmp/backend_probe.tf | head -1)
-            if [ -n "$$STATE_PREFIX" ] && [ -n "$$STATE_BUCKET" ]; then
-                STATE_OBJ="gs://$${STATE_BUCKET}/$${STATE_PREFIX}default.tfstate"
-                log "   State object: $$STATE_OBJ"
-                if gsutil cp "$$STATE_OBJ" /tmp/probe.tfstate 2>/dev/null; then
+        if gsutil cp "$$FILES_PATH/backend.tf" /tmp/be.tf 2>/dev/null; then
+            # Path derived from backend.tf, not assumed, so a prefix change is safe.
+            SP=$$(sed -n 's/.*prefix[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' /tmp/be.tf | head -1)
+            SB=$$(sed -n 's/.*bucket[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' /tmp/be.tf | head -1)
+            if [ -n "$$SP" ] && [ -n "$$SB" ]; then
+                if gsutil cp "gs://$${SB}/$${SP}default.tfstate" /tmp/probe.tfstate 2>/dev/null; then
                     RESOURCE_COUNT=$$(jq '(.resources // []) | length' /tmp/probe.tfstate 2>/dev/null)
-                    log "   Resources recorded in state: $${RESOURCE_COUNT:-unreadable}"
+                    log "   Resources in state: $${RESOURCE_COUNT:-unreadable}"
                 else
-                    log "   No state object — nothing was ever applied."
+                    log "   No state object — nothing applied."
                     RESOURCE_COUNT=0
                 fi
             fi
         else
-            log "   No backend.tf — nothing was ever applied."
+            log "   No backend.tf — nothing applied."
             RESOURCE_COUNT=0
         fi
 
         if [ -z "$$RESOURCE_COUNT" ]; then
-            log "❌ ERROR: could not read the Terraform state to determine whether"
-            log "   infrastructure exists. Refusing to proceed rather than risk"
-            log "   orphaning resources. Inspect the state manually."
+            log "❌ Cannot read state to prove nothing exists — refusing."
             exit 1
         fi
-
         if [ "$$RESOURCE_COUNT" -gt 0 ] 2>/dev/null; then
-            log "❌ ERROR: state records $$RESOURCE_COUNT resource(s) but the module"
-            log "   archive is missing. Destroying without the module source risks"
-            log "   leaving real infrastructure orphaned and untracked."
-            log "   Restore the archive, or remove the resources manually and then"
-            log "   delete gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+            log "❌ State records $$RESOURCE_COUNT resource(s) but the archive is"
+            log "   missing. Destroying without module source risks orphaning them."
+            log "   Restore the archive, or remove resources manually then delete"
+            log "   gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
             exit 1
         fi
 
-        log "✅ State holds no resources — this deployment never applied any"
-        log "   infrastructure. Nothing to destroy; proceeding to cleanup."
+        log "✅ State holds no resources — nothing to destroy; cleaning up."
         touch /workspace/NOTHING_TO_DESTROY
     fi
 
-    # Every later step that shells out to tofu needs the module source and state
-    # this step would have unpacked. When there is nothing to destroy, they must
-    # be skipped rather than run against an empty directory.
+    # Later tofu steps need the source/state this step unpacks — skip them.
     if [ -f /workspace/NOTHING_TO_DESTROY ]; then
         log "⏭️  Skipping the remainder of environment preparation."
         exit 0
