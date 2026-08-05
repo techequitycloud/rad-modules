@@ -59,9 +59,48 @@ steps:
     FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
 
     if ! gsutil ls "$$FILES_PATH/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
-        log "❌ ERROR: No deployment archive found!"
-        log "   Expected: $$FILES_PATH/${_MODULE_NAME}.tar.gz"
-        exit 1
+        # No archive. That is EITHER "this deployment never got far enough to
+        # upload one" (a member that failed early, or was CANCELLED because a
+        # prerequisite failed — common for solution members) OR "the archive was
+        # lost while real infrastructure still exists". Only the first is safe to
+        # treat as a no-op, and the two are distinguished by whether any Terraform
+        # STATE was ever written: no archive AND no state means nothing was ever
+        # applied, so there is nothing to destroy.
+        #
+        # Previously this exited 1 unconditionally, which left every such member
+        # permanently undeletable — the whole failed solution could not be cleaned
+        # up, and the user had no route to retry.
+        log "⚠️  No deployment archive at: $$FILES_PATH/${_MODULE_NAME}.tar.gz"
+        log "🔍 Checking whether any Terraform state was ever written..."
+
+        STATE_FOUND=false
+        for CANDIDATE in "$$FILES_PATH/terraform.tfstate" "$$FILES_PATH/backend.tf"; do
+            if gsutil ls "$$CANDIDATE" > /dev/null 2>&1; then
+                STATE_FOUND=true
+                log "   Found: $$CANDIDATE"
+            fi
+        done
+
+        if [ "$$STATE_FOUND" = "true" ]; then
+            log "❌ ERROR: state exists but the module archive is missing."
+            log "   Refusing to proceed — destroying without the module source risks"
+            log "   leaving real infrastructure orphaned and untracked."
+            log "   Restore the archive, or remove the resources manually and then"
+            log "   delete gs://$${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
+            exit 1
+        fi
+
+        log "✅ No archive and no state — this deployment never applied any"
+        log "   infrastructure. Nothing to destroy; proceeding to cleanup."
+        touch /workspace/NOTHING_TO_DESTROY
+    fi
+
+    # Every later step that shells out to tofu needs the module source and state
+    # this step would have unpacked. When there is nothing to destroy, they must
+    # be skipped rather than run against an empty directory.
+    if [ -f /workspace/NOTHING_TO_DESTROY ]; then
+        log "⏭️  Skipping the remainder of environment preparation."
+        exit 0
     fi
 
     log "📦 Downloading deployment metadata..."
@@ -222,6 +261,11 @@ steps:
         echo "[$(date +'%H:%M:%S')] $$1"
     }
 
+    if [ -f /workspace/NOTHING_TO_DESTROY ]; then
+        echo "⏭️  Nothing was ever applied — skipping."
+        exit 0
+    fi
+
     log "🔧 Initializing Terraform/Tofu for destroy..."
 
     # Restore Terraform provider cache from GCS to avoid re-downloading binaries
@@ -301,6 +345,11 @@ steps:
     log() {
         echo "[$(date +'%H:%M:%S')] $$1"
     }
+
+    if [ -f /workspace/NOTHING_TO_DESTROY ]; then
+        echo "⏭️  Nothing was ever applied — skipping."
+        exit 0
+    fi
 
     log "🔥 Starting infrastructure destroy..."
 
@@ -458,7 +507,12 @@ steps:
     VERIFICATION_STATUS="success"
     VERIFICATION_MESSAGE="All resources successfully destroyed"
 
-    if tofu show -json > /workspace/audit/post_destroy_state.json 2>/dev/null; then
+    # Nothing was ever applied, so there is no state to verify — but the
+    # GCS cleanup below MUST still run, otherwise the deployment folder
+    # lingers and the deployment cannot be cleared.
+    if [ -f /workspace/NOTHING_TO_DESTROY ]; then
+        log "⏭️  No infrastructure was applied — skipping state verification."
+    elif tofu show -json > /workspace/audit/post_destroy_state.json 2>/dev/null; then
         REMAINING_COUNT=$$(jq -r '.values.root_module.resources // [] | length' /workspace/audit/post_destroy_state.json 2>/dev/null || echo "0")
 
         if [ "$$REMAINING_COUNT" = "0" ]; then
