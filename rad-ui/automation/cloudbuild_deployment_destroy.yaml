@@ -373,25 +373,22 @@ steps:
     gsutil cp /workspace/audit/destroy_metadata.json "gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/destroy/destroy_metadata.json" || log "Failed to upload metadata"
 
     destroy_with_retry() {
-        # Retry budget must outlast GCP's own asynchronous resource release.
+        # ONE attempt. Do not raise this to "wait out" a blocked destroy.
         #
         # Direct VPC Egress reserves a serverless-ipv4-* internal address per
-        # Cloud Run revision, and Google releases those 20-30 MINUTES after the
-        # owning service is deleted — not synchronously with it. Until they
-        # drain, destroying the VPC subnetwork fails deterministically with
-        # resourceInUseByAnotherResource. The previous budget (2 attempts,
-        # 60s apart) could never outlast that window, so every such destroy
-        # failed and required a manual re-run.
-        #
-        # The long backoff is applied ONLY to that signature; every other
-        # failure keeps the short retry so genuine errors still surface fast.
-        # Worst case here is ~26 min, well inside this build's 7200s timeout.
-        local max_attempts=$${DESTROY_MAX_ATTEMPTS:-6}
+        # Cloud Run revision, and GCP releases them 20-30 MINUTES after the
+        # owning service is deleted. A previous 6-attempt budget tried to
+        # outlast that window and could not: one real destroy burned 39m3s of
+        # build time and still failed. Build minutes are billed; an operator
+        # re-running the delete once the addresses have drained costs nothing.
+        # So fail immediately and hand the retry back to the operator.
+        local max_attempts=$${DESTROY_MAX_ATTEMPTS:-1}
         local short_backoff=60
         local long_backoff=300
         local attempt=1
         local final_exit_code=0
         local attempt_log=/workspace/destroy_attempt.log
+        local state_repaired=false
 
         while [ $$attempt -le $$max_attempts ]; do
             log "💥 Destroy attempt $$attempt of $$max_attempts"
@@ -404,25 +401,21 @@ steps:
             if [ "$$final_exit_code" -eq 0 ]; then
                 log "✅ Destroy successful on attempt $$attempt"
                 break
-            else
-                log "❌ Destroy failed on attempt $$attempt (exit code: $$final_exit_code)"
+            fi
 
-                if [ $$attempt -eq $$max_attempts ]; then
-                    log "💥 All destroy attempts failed"
-                    log "🔍 Checking for remaining resources..."
-                    tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || log "Unable to list remaining resources"
-                    break
-                fi
+            log "❌ Destroy failed on attempt $$attempt (exit code: $$final_exit_code)"
 
-                # GKE bootstrap destroy race condition:
-                # When google_container_cluster is deleted before kubernetes_namespace_v1
-                # (which can happen in older state without the depends_on fix), the
-                # Kubernetes provider loses its API endpoint. check_inline_cluster_exists
-                # returns exists=false, so cluster_endpoint="" and the provider defaults
-                # to localhost:80. All subsequent destroy attempts for kubernetes_*
-                # resources fail with "connection refused".
-                # Detect this and remove the stuck resources from state so destroy
-                # can complete cleanly on the next attempt.
+            # GKE bootstrap destroy race: when google_container_cluster is deleted
+            # before kubernetes_namespace_v1, the Kubernetes provider loses its API
+            # endpoint and defaults to localhost:80, so every kubernetes_* destroy
+            # fails with "connection refused" — permanently. Re-running the delete
+            # hits the identical state, so handing this back to the operator would
+            # loop forever. It is therefore repaired here and retried ONCE.
+            #
+            # Exempt from max_attempts on purpose: it repairs state and waits for
+            # NOTHING, so it costs no build time and is not what the 1-attempt
+            # budget above is guarding against.
+            if [ "$$state_repaired" = "false" ]; then
                 REMAINING_K8S=$$(tofu state list 2>/dev/null | grep "^kubernetes_" || true)
                 if [ -n "$$REMAINING_K8S" ]; then
                     CLUSTER_IN_STATE=$$(tofu state list 2>/dev/null | grep "^google_container_cluster\." || true)
@@ -433,25 +426,36 @@ steps:
                             log "   Removing from state: $$resource"
                             tofu state rm "$$resource" || log "   ⚠️ Could not remove $$resource"
                         done
-                        log "✅ Stuck Kubernetes resources removed — retrying destroy immediately"
-                        ((attempt++))
+                        state_repaired=true
+                        log "✅ Stuck Kubernetes resources removed — retrying once, immediately"
                         continue
                     fi
                 fi
-
-                # Is this the async-release lag, or a real error? Match on the
-                # GCP error signature rather than guessing from the exit code.
-                if grep -qiE 'resourceInUseByAnotherResource|is already being used by|serverless-ipv4' "$$attempt_log" 2>/dev/null; then
-                    log "⏳ Resource still held by GCP (async release lag) — waiting $$long_backoff seconds..."
-                    sleep $$long_backoff
-                else
-                    log "⏳ Waiting $$short_backoff seconds before retry..."
-                    sleep $$short_backoff
-                fi
-
-                log "🔄 Refreshing state before retry..."
-                tofu apply -refresh-only -auto-approve || log "State refresh failed, continuing with retry"
             fi
+
+            if [ $$attempt -ge $$max_attempts ]; then
+                log "💥 Destroy failed — not retrying (max_attempts=$$max_attempts)"
+                if grep -qiE 'resourceInUseByAnotherResource|is already being used by|serverless-ipv4' "$$attempt_log" 2>/dev/null; then
+                    log "   Cause: GCP has not yet released resources this destroy needs."
+                    log "   serverless-ipv4-* addresses are freed 20-30 min AFTER the Cloud Run"
+                    log "   services using them are deleted. Wait for that, then delete again."
+                fi
+                log "🔍 Checking for remaining resources..."
+                tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || log "Unable to list remaining resources"
+                break
+            fi
+
+            # Only reachable when DESTROY_MAX_ATTEMPTS is raised deliberately.
+            if grep -qiE 'resourceInUseByAnotherResource|is already being used by|serverless-ipv4' "$$attempt_log" 2>/dev/null; then
+                log "⏳ Resource still held by GCP (async release lag) — waiting $$long_backoff seconds..."
+                sleep $$long_backoff
+            else
+                log "⏳ Waiting $$short_backoff seconds before retry..."
+                sleep $$short_backoff
+            fi
+
+            log "🔄 Refreshing state before retry..."
+            tofu apply -refresh-only -auto-approve || log "State refresh failed, continuing with retry"
 
             ((attempt++))
         done
