@@ -137,6 +137,51 @@ The GitHub Actions workflow (`.github/workflows/terraform-ci.yml`) runs on chang
 
 CI uses `terraform` (Terraform ~1.9) not `tofu`, but they are interchangeable for `init`/`validate`/`fmt`/`test`.
 
+## Deployment Pipelines (`rad-ui/automation/`)
+
+The RAD platform's Cloud Build pipelines live here, not just the module catalog:
+`cloudbuild_deployment_{create,update,destroy,purge}.yaml`. They are driven by
+Cloud Build triggers that read the YAML from `main` at trigger time
+(`git_file_source` in `rad-automation`'s `cloudbuild.tf`), so a merge to `main`
+takes effect on the next run — there is no separate deploy step.
+
+**A Cloud Build step's inline script is capped at 10,000 characters, and exceeding
+it means the build never starts.** The failure is `invalid build: invalid .steps
+field: build step 0 arg 1 too long (max: 10000)` — not a step failure, so there is
+no step output to read and the message names nothing you were working on. Adding an
+explanatory comment block to the destroy pipeline's first step took it to 10,164 and
+broke every destroy on the platform until trimmed. Run
+`python3 rad-ui/automation/check_step_arg_limits.py` after touching any
+`cloudbuild_*.yaml`; it fails over the limit and warns above 9,000. The largest
+steps already sit at 8–9k, so the margin is thinner than it looks. Keep long
+rationale in the commit message, not in the step.
+
+**An invalid build produces no logs.** `gcloud builds log <id>` shows nothing;
+the reason is in `statusDetail` on the build record — use
+`gcloud builds describe <id> --format="value(status,statusDetail)"`.
+
+**The destroy pipeline decides "nothing to destroy" from state CONTENTS, never file
+existence.** `backend.tf` and an empty state object are both written during
+preparation, before anything is applied, so their presence proves nothing — an
+earlier guard keyed on `backend.tf` refused a deployment whose state held
+`serial: 1, resources: []`. It now derives the state path from `backend.tf`'s own
+bucket/prefix and counts `.resources`: unreadable → refuse, 0 or absent → skip
+Terraform and run the GCS cleanup, 1+ → refuse and name the orphaning risk.
+
+**Destroy runs ONE attempt by default (`DESTROY_MAX_ATTEMPTS`, default 1) — do not
+raise it to wait out a blocked destroy.** GCP frees Direct VPC Egress's
+`serverless-ipv4-*` addresses 20–30 minutes after the owning Cloud Run services are
+deleted, and a previous 6-attempt/300s-backoff budget sized to outlast that window
+could not: one real destroy burned 39m3s of billed build time and still failed. Build
+minutes cost money; an operator re-running the delete once the addresses have drained
+does not. On that error signature the failure now names the cause and the wait.
+The **GKE state repair is deliberately exempt** from the budget — when
+`google_container_cluster` is destroyed before `kubernetes_namespace_v1`, the
+provider falls back to `localhost:80` and every `kubernetes_*` destroy fails
+`connection refused` *permanently*, so re-running would loop forever; it repairs
+state and retries once, waiting for nothing. Fail-fast is right for what time fixes,
+wrong for corrupted state.
+
 ## Agent Workflows
 
 `AGENTS.md` defines slash-command workflows to context-switch into specific module modes: `/istio`, `/bank`, `/multicluster`, `/attached`, `/troubleshoot`, `/maintain`, `/security`. Read `SKILLS.md` for the detailed implementation guide before making structural changes to any module.
