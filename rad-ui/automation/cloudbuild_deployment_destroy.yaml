@@ -13,17 +13,20 @@
 # limitations under the License.
 
 steps:
-- id: 'Prepare Destroy Environment'
+- id: 'Stage Pipeline Scripts'
   name: '${_TERRAFORM_IMAGE_NAME}:latest'
   entrypoint: 'bash'
-  secretEnv: ['GIT_TOKEN']
+  # A separate step for two reasons, both load-bearing:
+  #
+  #  1. Cloud Build REJECTS a build whose volume is declared by only one step
+  #     ("Volume ... is used only once, need twice or more"). A volume is a
+  #     between-steps mechanism, so the copy and the use must be different
+  #     steps. Doing both inside 'Prepare Destroy Environment' invalidated the
+  #     build and broke every destroy in the platform.
+  #  2. The script being staged wipes /workspace. Running it from there would
+  #     have bash reading a file the script itself deletes partway through.
   args:
   - '-c'
-  # Kept inline deliberately and kept tiny: this preamble must run BEFORE the
-  # script it launches, because that script wipes /workspace. Copy the pipeline's
-  # own scripts to the shared volume, then exec from there — running the script
-  # directly out of /workspace would have bash reading a file that the script
-  # itself deletes partway through.
   - |
     set -e
     mkdir -p /pipeline
@@ -33,7 +36,18 @@ steps:
     fi
     cp -a rad-ui/automation/scripts/. /pipeline/
     chmod +x /pipeline/*.sh
-    exec bash /pipeline/prepare_destroy.sh
+    echo "✅ Pipeline scripts staged to /pipeline"
+  volumes:
+  - name: 'pipeline-scripts'
+    path: '/pipeline'
+  dir: /workspace
+
+- id: 'Prepare Destroy Environment'
+  name: '${_TERRAFORM_IMAGE_NAME}:latest'
+  entrypoint: 'bash'
+  secretEnv: ['GIT_TOKEN']
+  args:
+  - '/pipeline/prepare_destroy.sh'
   # Cloud Build expands substitutions in this file, never inside a script file.
   env:
   - 'MODULE_NAME=${_MODULE_NAME}'

@@ -15,6 +15,7 @@ every destroy in the platform until it was trimmed back.
 The scripts here are large and edited by hand, so the limit is easy to cross
 without noticing. Run this after touching any cloudbuild_*.yaml.
 """
+import collections
 import glob
 import os
 import sys
@@ -55,8 +56,32 @@ def main() -> int:
                         f"({LIMIT - size} left)"
                     )
 
+        # A volume shares data BETWEEN steps, so Cloud Build rejects a build
+        # that declares one in only a single step:
+        #
+        #   invalid build: Volume "x" is used only once, need twice or more
+        #
+        # Same class of failure as the arg limit — the build never starts, and
+        # the deployment reports a generic error naming no cause. It happened
+        # for real: staging a script into a volume and consuming it within the
+        # SAME step invalidated the destroy pipeline and broke every destroy in
+        # the platform until it was split into two steps.
+        counts = collections.Counter(
+            vol.get("name")
+            for step in (doc.get("steps", []) or [])
+            for vol in (step.get("volumes") or [])
+        )
+        for name, count in sorted(counts.items()):
+            if count < 2:
+                failed = True
+                print(
+                    f"VOLUME {os.path.basename(path)}: volume {name!r} is "
+                    f"declared by {count} step; Cloud Build needs 2 or more"
+                )
+
     if failed:
-        print("\nBuilds with an over-limit step are rejected before they start.")
+        print("\nBuilds with an over-limit step or a single-use volume are "
+              "rejected before they start.")
         return 1
     print("All Cloud Build step args are within the 10,000-character limit."
           + (" Some are close — see TIGHT above." if warned else ""))
