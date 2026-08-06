@@ -19,238 +19,31 @@ steps:
   secretEnv: ['GIT_TOKEN']
   args:
   - '-c'
+  # Kept inline deliberately and kept tiny: this preamble must run BEFORE the
+  # script it launches, because that script wipes /workspace. Copy the pipeline's
+  # own scripts to the shared volume, then exec from there — running the script
+  # directly out of /workspace would have bash reading a file that the script
+  # itself deletes partway through.
   - |
     set -e
-
-    echo "🔥 INFRASTRUCTURE DESTROY INITIATED"
-    echo "========================================"
-    echo "Module: ${_MODULE_NAME}"
-    echo "Deployment ID: ${_DEPLOYMENT_ID}"
-    echo "Project: ${PROJECT_ID}"
-    echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
-    echo "Timestamp: $(date)"
-    echo "========================================"
-    echo "⚠️  WARNING: This will DESTROY all infrastructure!"
-    echo "========================================"
-
-    log() {
-        echo "[$(date +'%H:%M:%S')] $$1"
-    }
-
-    # Safety guard: this build runs `tofu destroy` and a recursive
-    # `gsutil rm -r` of the deployment folder. ALLOW_LOOSE permits empty /
-    # sentinel substitutions, which would collapse the GCS path and risk
-    # deleting far more than one deployment. Refuse to run unless both the
-    # module name and deployment ID are set to real values.
-    if [ -z "${_DEPLOYMENT_ID}" ] || [ "${_DEPLOYMENT_ID}" = "none" ] || \
-       [ -z "${_MODULE_NAME}" ] || [ "${_MODULE_NAME}" = "unknown" ]; then
-        log "❌ Refusing to destroy: _MODULE_NAME and _DEPLOYMENT_ID must be set to real values"
-        log "   _MODULE_NAME='${_MODULE_NAME}'  _DEPLOYMENT_ID='${_DEPLOYMENT_ID}'"
+    mkdir -p /pipeline
+    if [ ! -d rad-ui/automation/scripts ]; then
+        echo "❌ rad-ui/automation/scripts not found in the initial workspace"
         exit 1
     fi
-
-    log "🧹 Preparing environment..."
-
-    mkdir -p /tmp/deployment_files
-    cd /tmp/deployment_files
-
-    log "🔍 Checking for deployment files..."
-
-    FILES_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/files"
-
-    if ! gsutil ls "$$FILES_PATH/${_MODULE_NAME}.tar.gz" > /dev/null 2>&1; then
-        # No archive: either nothing was ever applied (member failed early or
-        # was CANCELLED), or the archive was lost while real infra exists.
-        # Decided by what the STATE CONTAINS — backend.tf and an empty state are
-        # both written during prepare, so file existence proves nothing.
-        log "⚠️  No archive: $$FILES_PATH/${_MODULE_NAME}.tar.gz"
-        log "🔍 Inspecting Terraform state for real resources..."
-
-        RESOURCE_COUNT=""
-        if gsutil cp "$$FILES_PATH/backend.tf" /tmp/be.tf 2>/dev/null; then
-            # Path derived from backend.tf, not assumed, so a prefix change is safe.
-            SP=$$(sed -n 's/.*prefix[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' /tmp/be.tf | head -1)
-            SB=$$(sed -n 's/.*bucket[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' /tmp/be.tf | head -1)
-            if [ -n "$$SP" ] && [ -n "$$SB" ]; then
-                if gsutil cp "gs://$${SB}/$${SP}default.tfstate" /tmp/probe.tfstate 2>/dev/null; then
-                    RESOURCE_COUNT=$$(jq '(.resources // []) | length' /tmp/probe.tfstate 2>/dev/null)
-                    log "   Resources in state: $${RESOURCE_COUNT:-unreadable}"
-                else
-                    log "   No state object — nothing applied."
-                    RESOURCE_COUNT=0
-                fi
-            fi
-        else
-            log "   No backend.tf — nothing applied."
-            RESOURCE_COUNT=0
-        fi
-
-        if [ -z "$$RESOURCE_COUNT" ]; then
-            log "❌ Cannot read state to prove nothing exists — refusing."
-            exit 1
-        fi
-        if [ "$$RESOURCE_COUNT" -gt 0 ] 2>/dev/null; then
-            log "❌ State records $$RESOURCE_COUNT resource(s) but the archive is"
-            log "   missing. Destroying without module source risks orphaning them."
-            log "   Restore the archive, or remove resources manually then delete"
-            log "   gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
-            exit 1
-        fi
-
-        log "✅ State holds no resources — nothing to destroy; cleaning up."
-        touch /workspace/NOTHING_TO_DESTROY
-    fi
-
-    # Later tofu steps need the source/state this step unpacks — skip them.
-    if [ -f /workspace/NOTHING_TO_DESTROY ]; then
-        log "⏭️  Skipping the remainder of environment preparation."
-        exit 0
-    fi
-
-    log "📦 Downloading deployment metadata..."
-
-    gsutil cp "$$FILES_PATH/repo_url.txt" . 2>/dev/null || true
-    gsutil cp "$$FILES_PATH/commit_hash.txt" . 2>/dev/null || true
-
-    STORED_REPO_URL=""
-    COMMIT_HASH=""
-    if [ -f "repo_url.txt" ] && [ -s "repo_url.txt" ]; then
-        STORED_REPO_URL=$$(cat repo_url.txt)
-        log "ℹ️  Stored repository URL: $$STORED_REPO_URL"
-    fi
-    if [ -f "commit_hash.txt" ] && [ -s "commit_hash.txt" ]; then
-        COMMIT_HASH=$$(cat commit_hash.txt)
-        log "ℹ️  Deployment commit hash (audit only): $$COMMIT_HASH"
-        log "ℹ️  Destroy always uses HEAD to pick up the latest cleanup logic"
-    fi
-
-    try_clone() {
-        local repo="$$1"
-        if [ -z "$$repo" ] || [ "$$repo" = "none" ]; then return 1; fi
-        log "📥 Trying to clone: $$repo (HEAD)"
-        find /workspace -mindepth 1 -delete 2>/dev/null || true
-        if ! git clone "https://$$GIT_TOKEN@github.com/$$repo.git" /workspace 2>&1; then
-            log "⚠️  Clone failed for $$repo (token may lack read access)"
-            return 1
-        fi
-        if [ ! -d "/workspace/modules/${_MODULE_NAME}" ]; then
-            log "⚠️  Cloned $$repo but module ${_MODULE_NAME} not found — skipping"
-            return 1
-        fi
-        log "✅ Successfully cloned $$repo at HEAD (module ${_MODULE_NAME} found)"
-        return 0
-    }
-
-    CLONE_SUCCESS=false
-
-    if [ -n "${_MODULE_GIT_REPO_URL}" ] && [ "${_MODULE_GIT_REPO_URL}" != "none" ] && [ "${_MODULE_GIT_REPO_URL}" != "" ]; then
-        if try_clone "${_MODULE_GIT_REPO_URL}"; then
-            CLONE_SUCCESS=true
-        fi
-    fi
-
-    if [ "$$CLONE_SUCCESS" != "true" ] && [ -n "$$STORED_REPO_URL" ]; then
-        if try_clone "$$STORED_REPO_URL"; then
-            CLONE_SUCCESS=true
-        fi
-    fi
-
-    if [ "$$CLONE_SUCCESS" != "true" ] && [ -n "${_GIT_REPO_URL}" ] && [ "${_GIT_REPO_URL}" != "none" ] && [ "${_GIT_REPO_URL}" != "" ]; then
-        if try_clone "${_GIT_REPO_URL}"; then
-            CLONE_SUCCESS=true
-        fi
-    fi
-
-    if [ "$$CLONE_SUCCESS" != "true" ]; then
-        if try_clone "techequitycloud/rad-modules"; then
-            CLONE_SUCCESS=true
-        fi
-    fi
-
-    if [ "$$CLONE_SUCCESS" != "true" ]; then
-        log "⚠️  All clone attempts failed for module ${_MODULE_NAME}"
-        log "   Repos tried (in order):"
-        log "     _MODULE_GIT_REPO_URL : ${_MODULE_GIT_REPO_URL:-<not set>}"
-        log "     Stored repo_url.txt  : $${STORED_REPO_URL:-<not found in GCS>}"
-        log "     _GIT_REPO_URL        : ${_GIT_REPO_URL:-<not set>}"
-        log "     Default              : techequitycloud/rad-modules"
-        log "🔄 Attempting GCS archive fallback for module ${_MODULE_NAME}..."
-
-        ARCHIVE_PATH="$$FILES_PATH/${_MODULE_NAME}.tar.gz"
-        if gsutil ls "$$ARCHIVE_PATH" > /dev/null 2>&1; then
-            log "📦 Found deployment archive in GCS — restoring module source code..."
-            find /workspace -mindepth 1 -delete 2>/dev/null || true
-            mkdir -p "/workspace/modules/${_MODULE_NAME}"
-            gsutil cp "$$ARCHIVE_PATH" /tmp/fallback.tar.gz
-            tar -xzf /tmp/fallback.tar.gz -C "/workspace/modules/${_MODULE_NAME}"
-            rm -f /tmp/fallback.tar.gz
-            if [ -d "/workspace/modules/${_MODULE_NAME}" ] && \
-               ls /workspace/modules/${_MODULE_NAME}/*.tf > /dev/null 2>&1; then
-                log "✅ Module source code restored from GCS archive (module was removed from git)"
-                CLONE_SUCCESS=true
-            else
-                log "❌ GCS archive did not contain valid Terraform source for ${_MODULE_NAME}"
-            fi
-        else
-            log "❌ No deployment archive found in GCS at: $$ARCHIVE_PATH"
-        fi
-    fi
-
-    if [ "$$CLONE_SUCCESS" != "true" ]; then
-        log "❌ All recovery attempts failed for module ${_MODULE_NAME}"
-        log "   Could not obtain module source from git or GCS archive."
-        log "   Ensure the 'git-access-token' secret has read access to a repo"
-        log "   containing modules/${_MODULE_NAME}/. For partner repos, pass"
-        log "   _MODULE_GIT_REPO_URL=<org/repo> when triggering the destroy build."
-        exit 1
-    fi
-
-    log "📦 Downloading and extracting state files..."
-    cd /tmp/deployment_files
-
-    gsutil cp "$$FILES_PATH/${_MODULE_NAME}.tar.gz" .
-
-    mkdir -p /tmp/deployment_files/extracted
-    tar -xzf "${_MODULE_NAME}.tar.gz" -C /tmp/deployment_files/extracted
-
-    log "📂 Restoring state configuration to /workspace/modules/${_MODULE_NAME}..."
-    cd /tmp/deployment_files/extracted
-
-    TARGET_DIR="/workspace/modules/${_MODULE_NAME}"
-
-    if [ -f "backend.tf" ]; then
-        cp backend.tf "$$TARGET_DIR/"
-        log "   Restored backend.tf"
-    else
-        log "⚠️  backend.tf not found in archive - attempting download from GCS..."
-        if gsutil cp "$$FILES_PATH/backend.tf" "$$TARGET_DIR/" 2>/dev/null; then
-            log "✅ Downloaded backend.tf fallback"
-        else
-            log "⚠️  backend.tf not found in GCS either"
-        fi
-    fi
-
-    if [ -f "terraform.tfvars.json" ]; then
-        cp terraform.tfvars.json "$$TARGET_DIR/"
-        log "   Restored terraform.tfvars.json"
-    else
-        log "⚠️  terraform.tfvars.json not found in archive - attempting download from GCS..."
-        if gsutil cp "$$FILES_PATH/terraform.tfvars.json" "$$TARGET_DIR/" 2>/dev/null; then
-            log "✅ Downloaded terraform.tfvars.json fallback"
-        else
-            log "⚠️  terraform.tfvars.json not found in GCS either"
-        fi
-    fi
-
-    if [ -f "terraform.tfstate" ]; then
-        cp terraform.tfstate "$$TARGET_DIR/"
-        log "   Restored terraform.tfstate"
-    fi
-
-    log "📋 Workspace contents prepared:"
-    ls -la "$$TARGET_DIR" || true
-
-    log "✅ Destroy environment prepared"
+    cp -a rad-ui/automation/scripts/. /pipeline/
+    chmod +x /pipeline/*.sh
+    exec bash /pipeline/prepare_destroy.sh
+  # Cloud Build expands substitutions in this file, never inside a script file.
+  env:
+  - 'MODULE_NAME=${_MODULE_NAME}'
+  - 'DEPLOYMENT_ID=${_DEPLOYMENT_ID}'
+  - 'DEPLOYMENT_BUCKET_ID=${_DEPLOYMENT_BUCKET_ID}'
+  - 'GIT_REPO_URL=${_GIT_REPO_URL}'
+  - 'MODULE_GIT_REPO_URL=${_MODULE_GIT_REPO_URL}'
+  volumes:
+  - name: 'pipeline-scripts'
+    path: '/pipeline'
   dir: /workspace
 
 - id: 'Initialize and Validate State'
