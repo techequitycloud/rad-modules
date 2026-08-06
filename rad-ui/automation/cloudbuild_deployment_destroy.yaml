@@ -50,6 +50,11 @@ steps:
   - '/pipeline/prepare_destroy.sh'
   # Cloud Build expands substitutions in this file, never inside a script file.
   env:
+  # PROJECT_ID is a Cloud Build BUILT-IN substitution, not a _-prefixed one, so
+  # the extraction's \${_VAR} rename did not catch it and the script printed an
+  # empty project in its banner. Built-ins are just as absent inside a script
+  # file as custom ones.
+  - 'PROJECT_ID=${PROJECT_ID}'
   - 'MODULE_NAME=${_MODULE_NAME}'
   - 'DEPLOYMENT_ID=${_DEPLOYMENT_ID}'
   - 'DEPLOYMENT_BUCKET_ID=${_DEPLOYMENT_BUCKET_ID}'
