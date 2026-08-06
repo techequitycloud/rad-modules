@@ -215,6 +215,28 @@ steps:
         exit 1
     fi
 
+    # Clear a state lock left behind by a previous build for THIS deployment
+    # that was hard-killed (Cloud Build timeout, OOM, manual cancellation)
+    # before it could release it — GCS backend locking has no automatic
+    # staleness expiry, so an orphaned lock silently blocks every future
+    # build for this deployment (including a user's own retry) indefinitely.
+    # Safe unconditionally: the webapp's own idempotency claim
+    # (S6-style, updateDeployment) only lets a new build start for this
+    # deployment once the previous one has already reached a terminal
+    # Firestore status, itself only set after Cloud Build reports that build
+    # as finished — so any process that could still legitimately hold this
+    # lock is already gone by the time this build starts. Confirmed live
+    # 2026-08-06: a Medusa_CloudRun build's Cloud Build timeout orphaned
+    # this exact lock and blocked every subsequent retry until manually
+    # cleared (found on the update pipeline; applied here too since create
+    # shares the identical GCS-backend-locking exposure — e.g. a create
+    # retried after a Services_GCP/Project_GCP chain failure).
+    LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/state/default.tflock"
+    if gsutil stat "$$LOCK_PATH" >/dev/null 2>&1; then
+        log "⚠️  Found a leftover state lock from a previous build — clearing it"
+        gsutil rm "$$LOCK_PATH" || log "⚠️  Failed to clear stale lock (may have already cleared itself)"
+    fi
+
     log "📋 Planning infrastructure changes..."
 
     # Generate and review plan
