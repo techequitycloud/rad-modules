@@ -231,7 +231,7 @@ Each module has one markdown file kept in sync with `variables.tf`, plus a share
 Follow the exact table shape used by existing modules:
 
 1. One-paragraph overview, including the `mig-{deployment_id}-*` resource naming convention.
-2. Link to the lab guide at `docs/labs/<Module_Name>.md` (e.g. `[Container_Migration.md](../../docs/labs/Container_Migration.md)`). **Never** link to a `LAB_GUIDE.md` inside the module directory — that file does not exist.
+2. Link to the lab guide at `docs/labs/<Module_Name>.md` (e.g. `[Container_Migration.md](../../../docs/labs/Container_Migration.md)`). **Never** link to a `LAB_GUIDE.md` inside the module directory — that file does not exist.
 3. `## Usage` — a minimal `module "name" { source = "..." ... }` block.
 4. `## Requirements` — provider versions table.
 5. `## Providers` — same table, lightly different.
