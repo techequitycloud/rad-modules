@@ -317,77 +317,59 @@ steps:
     }
     trap persist_state_to_gcs EXIT
 
-    # Apply with retry logic for transient errors.
-    #
-    # After each failed attempt we:
-    #   1. Sleep (with exponential back-off) to let transient GCP/K8s issues settle.
-    #   2. Run `tofu refresh` to bring state in sync (e.g. picks up the new CA
-    #      certificate after a cluster recreation so the kubernetes provider
-    #      config is correct on the next plan).
-    #   3. Re-plan against the refreshed state — the old tfplan is stale after
-    #      a refresh and cannot be re-applied safely.
-    apply_with_retry() {
-        local max_attempts=2
-        local attempt=1
-        local sleep_seconds=60
+    # Single-attempt apply — no automatic retry. A failed apply (e.g. a
+    # transient external dependency like an npm/PyPI registry rate limit
+    # during a container image build) used to trigger a second full attempt
+    # here (sleep + state refresh + re-plan + re-apply), which only prolongs
+    # a build that is often going to fail the same way again — confirmed live
+    # 2026-08-06: a Medusa_CloudRun update spent ~13 minutes retrying a Kaniko
+    # build inside attempt 1 (App_Common/scripts/build-container.sh's own
+    # retry loop, separately also now single-attempt), failed, then spent
+    # another ~13 minutes retrying the whole apply here for attempt 2 before
+    # finally failing — over 25 minutes to report a failure the first attempt
+    # already had. Matches cloudbuild_deployment_create.yaml's and
+    # cloudbuild_deployment_destroy.yaml's already-adopted single-attempt
+    # convention (both max_attempts=1). Retry from the RAD dashboard instead,
+    # once whatever was transient has had a chance to clear.
+    apply_once() {
+        log "🔄 Applying Terraform changes..."
 
-        while [ $$attempt -le $$max_attempts ]; do
-            log "🔄 Apply attempt $$attempt of $$max_attempts"
+        set +e
+        tofu apply -auto-approve tfplan 2>&1 | tee /tmp/apply_output.txt
+        APPLY_EXIT_CODE=$${PIPESTATUS[0]}
+        set -e
 
-            set +e
-            tofu apply -auto-approve tfplan 2>&1 | tee /tmp/apply_output.txt
-            APPLY_EXIT_CODE=$${PIPESTATUS[0]}
-            set -e
+        if [ $$APPLY_EXIT_CODE -eq 0 ]; then
+            log "✅ Apply succeeded"
+            return 0
+        fi
 
-            if [ $$APPLY_EXIT_CODE -eq 0 ]; then
-                log "✅ Apply succeeded on attempt $$attempt"
-                return 0
-            fi
+        log "❌ Apply failed (exit code: $$APPLY_EXIT_CODE)"
 
-            log "❌ Apply failed on attempt $$attempt (exit code: $$APPLY_EXIT_CODE)"
+        # If the failure is a Kubernetes rollout timeout, infrastructure and
+        # Kubernetes objects are already provisioned — the kubelet will keep
+        # retrying the pods independently. Treat this as a partial success so
+        # the build does not fail over a transient pod health-check window.
+        # Not a retry — no second apply attempt happens either way.
+        if grep -qiE "(timed out waiting for the condition|Deployment.*timed out|StatefulSet.*timed out|rollout.*timed out|timed out.*[Dd]eployment|timed out.*[Ss]tateful[Ss]et|timed out.*rollout)" /tmp/apply_output.txt 2>/dev/null; then
+            log "⚠️  Kubernetes rollout timeout detected — infrastructure is provisioned"
+            log "ℹ️  Pods will continue health checks independently; treating as partial success"
+            return 0
+        fi
 
-            # If the failure is a Kubernetes rollout timeout, infrastructure and
-            # Kubernetes objects are already provisioned — the kubelet will keep
-            # retrying the pods independently. Treat this as a partial success so
-            # the build does not fail over a transient pod health-check window.
-            if grep -qiE "(timed out waiting for the condition|Deployment.*timed out|StatefulSet.*timed out|rollout.*timed out|timed out.*[Dd]eployment|timed out.*[Ss]tateful[Ss]et|timed out.*rollout)" /tmp/apply_output.txt 2>/dev/null; then
-                log "⚠️  Kubernetes rollout timeout detected — infrastructure is provisioned"
-                log "ℹ️  Pods will continue health checks independently; treating as partial success"
-                return 0
-            fi
+        log "💥 Apply failed — not retrying automatically. Retry the deployment from the RAD dashboard."
 
-            if [ $$attempt -eq $$max_attempts ]; then
-                log "💥 All apply attempts failed"
-                return $$APPLY_EXIT_CODE
-            fi
+        # Show current state for debugging
+        log "🔍 Current state summary:"
+        tofu show -json 2>/dev/null \
+            | jq -r '.values.root_module.resources[]?.address // empty' \
+            | head -10 \
+            || log "Unable to show state"
 
-            log "⏳ Waiting $${sleep_seconds}s before retry..."
-            sleep $$sleep_seconds
-            sleep_seconds=$$((sleep_seconds * 2))
-
-            # Bring state in sync with resources created during the failed apply.
-            log "🔄 Refreshing state before retry..."
-            tofu apply -refresh-only -auto-approve || log "⚠️  State refresh failed, continuing with retry"
-
-            # The saved tfplan is now stale — generate a fresh one.
-            log "🔄 Re-planning with refreshed state..."
-            set +e
-            tofu plan -out=tfplan -detailed-exitcode
-            REPLAN_EXIT_CODE=$$?
-            set -e
-
-            if [ $$REPLAN_EXIT_CODE -eq 1 ]; then
-                log "❌ Re-plan failed before retry attempt $$((attempt + 1))"
-                return 1
-            fi
-
-            log "✅ Re-plan complete (exit code: $$REPLAN_EXIT_CODE — 0=no-changes, 2=changes)"
-
-            attempt=$$((attempt + 1))
-        done
+        return $$APPLY_EXIT_CODE
     }
 
-    apply_with_retry
+    apply_once
 
     log "🎯 Infrastructure changes applied successfully"
   dir: /workspace/modules/${_MODULE_NAME}
@@ -489,65 +471,37 @@ steps:
             2)
                 log "📊 Kubernetes resources pending — applying..."
 
-                k8s_apply_with_retry() {
+                k8s_apply_once() {
                     local plan_file="tfplan-k8s"
-                    local max_attempts=2
-                    local attempt=1
-                    local sleep_seconds=60
 
-                    while [ $$attempt -le $$max_attempts ]; do
-                        log "🔄 K8s apply attempt $$attempt of $$max_attempts"
+                    log "🔄 Applying Kubernetes resources..."
 
-                        set +e
-                        tofu apply -auto-approve $$plan_file 2>&1 | tee /tmp/k8s_apply_output.txt
-                        K8S_APPLY_EXIT_CODE=$${PIPESTATUS[0]}
-                        set -e
+                    set +e
+                    tofu apply -auto-approve $$plan_file 2>&1 | tee /tmp/k8s_apply_output.txt
+                    K8S_APPLY_EXIT_CODE=$${PIPESTATUS[0]}
+                    set -e
 
-                        if [ $$K8S_APPLY_EXIT_CODE -eq 0 ]; then
-                            log "✅ K8s apply succeeded on attempt $$attempt"
-                            return 0
-                        fi
+                    if [ $$K8S_APPLY_EXIT_CODE -eq 0 ]; then
+                        log "✅ K8s apply succeeded"
+                        return 0
+                    fi
 
-                        log "❌ K8s apply failed on attempt $$attempt (exit code: $$K8S_APPLY_EXIT_CODE)"
+                    log "❌ K8s apply failed (exit code: $$K8S_APPLY_EXIT_CODE)"
 
-                        # Kubernetes rollout timeouts mean the objects exist and pods are
-                        # being retried by the kubelet — not a true infrastructure failure.
-                        if grep -qiE "(timed out waiting for the condition|Deployment.*timed out|StatefulSet.*timed out|rollout.*timed out|timed out.*[Dd]eployment|timed out.*[Ss]tateful[Ss]et|timed out.*rollout)" /tmp/k8s_apply_output.txt 2>/dev/null; then
-                            log "⚠️  Kubernetes rollout timeout detected — infrastructure is provisioned"
-                            log "ℹ️  Pods will continue health checks independently; treating as partial success"
-                            return 0
-                        fi
+                    # Kubernetes rollout timeouts mean the objects exist and pods are
+                    # being retried by the kubelet — not a true infrastructure failure.
+                    # Not a retry — no second apply attempt happens either way.
+                    if grep -qiE "(timed out waiting for the condition|Deployment.*timed out|StatefulSet.*timed out|rollout.*timed out|timed out.*[Dd]eployment|timed out.*[Ss]tateful[Ss]et|timed out.*rollout)" /tmp/k8s_apply_output.txt 2>/dev/null; then
+                        log "⚠️  Kubernetes rollout timeout detected — infrastructure is provisioned"
+                        log "ℹ️  Pods will continue health checks independently; treating as partial success"
+                        return 0
+                    fi
 
-                        if [ $$attempt -eq $$max_attempts ]; then
-                            log "💥 All K8s apply attempts failed"
-                            return $$K8S_APPLY_EXIT_CODE
-                        fi
-
-                        log "⏳ Waiting $${sleep_seconds}s before K8s retry..."
-                        sleep $$sleep_seconds
-                        sleep_seconds=$$((sleep_seconds * 2))
-
-                        log "🔄 Refreshing state before K8s retry..."
-                        tofu apply -refresh-only -auto-approve || log "⚠️  State refresh failed, continuing with retry"
-
-                        log "🔄 Re-planning K8s resources with refreshed state..."
-                        set +e
-                        tofu plan -out=$$plan_file -detailed-exitcode
-                        K8S_REPLAN_EXIT_CODE=$$?
-                        set -e
-
-                        if [ $$K8S_REPLAN_EXIT_CODE -eq 1 ]; then
-                            log "❌ K8s re-plan failed before retry attempt $$((attempt + 1))"
-                            return 1
-                        fi
-
-                        log "✅ K8s re-plan complete (exit code: $$K8S_REPLAN_EXIT_CODE)"
-
-                        attempt=$$((attempt + 1))
-                    done
+                    log "💥 K8s apply failed — not retrying automatically. Retry the deployment from the RAD dashboard."
+                    return $$K8S_APPLY_EXIT_CODE
                 }
 
-                if k8s_apply_with_retry; then
+                if k8s_apply_once; then
                     log "✅ Kubernetes resources deployed successfully"
                 else
                     log "❌ Second apply failed — Kubernetes resources were not deployed"
