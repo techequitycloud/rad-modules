@@ -25,7 +25,7 @@ The module provisions infrastructure across both clouds. On apply it (1) creates
 
 **Things to know up front:**
 
-- **Azure credentials are required.** Four sensitive inputs — `client_id`, `client_secret`, `tenant_id`, and `subscription_id` — identify an Azure AD service principal with at least Contributor rights on the target subscription. Without them the module cannot create the AKS cluster. They are marked sensitive and never appear in logs or plan output.
+- **Azure credentials are required.** Four sensitive inputs — `client_id`, `client_secret`, `azure_tenant_id`, and `subscription_id` — identify an Azure AD service principal with at least Contributor rights on the target subscription. Without them the module cannot create the AKS cluster. They are marked sensitive and never appear in logs or plan output.
 - **This is a two-cloud module.** You need both a Google Cloud project (billing enabled) and an Azure subscription. Costs accrue on both sides — Azure for the AKS nodes, Google Cloud for fleet management and observability ingestion.
 - **The AKS cluster runs in Azure.** The control plane, nodes, and networking all live in Azure (`westus2` by default). Google Cloud only stores the attached-cluster record and fleet membership (in `us-central1` by default).
 - **Platform version must match the Kubernetes version.** `platform_version` (the GKE Connect agent / attached-component version, e.g. `1.34.0-gke.1`) must be compatible with `k8s_version` (the AKS Kubernetes minor, e.g. `1.34`).
@@ -146,7 +146,7 @@ Variables are grouped exactly as they appear on the deployment platform.
 | `trusted_users` | `[]` | Google account emails granted cluster-admin on the AKS cluster via the Connect gateway. The deploying identity is always included automatically. Entries must be non-blank and unique. |
 | `client_id` | _(required, sensitive)_ | Azure AD application (client) ID of the service principal used to create and manage the AKS resources. |
 | `client_secret` | _(required, sensitive)_ | Client secret for the Azure AD service principal. |
-| `tenant_id` | _(required, sensitive)_ | Azure AD tenant (directory) ID for the Azure account. |
+| `azure_tenant_id` | _(required, sensitive)_ | Azure AD tenant (directory) ID for the Azure account. |
 | `subscription_id` | _(required, sensitive)_ | Azure subscription ID where the AKS resources are provisioned. |
 
 ### Group 4 — Cluster
@@ -163,7 +163,14 @@ Variables are grouped exactly as they appear on the deployment platform.
 
 ## 5. Outputs
 
-This module declares **no outputs** — there is no outputs definition, and no output values are surfaced by the deployment. The identifiers you need to operate the cluster must be derived or recorded manually:
+The deployment surfaces two output values:
+
+| Output | Description |
+|---|---|
+| `deployment_id` | The resolved deployment ID — the supplied `deployment_id`, or an auto-generated random hex when none was provided. |
+| `project_id` | The destination Google Cloud project ID. |
+
+Neither identifies the cluster, so the identifiers you need to operate it must still be derived or recorded manually:
 
 - **Attached-cluster / membership name** — the value of `cluster_name_prefix` (default `azure-aks-cluster`). Confirm the exact name with `gcloud container fleet memberships list --project "$PROJECT"`. This name is required for `get-credentials`, `describe`, and most other commands.
 - **Fleet location** — the value of `gcp_location` (default `us-central1`), needed for `gcloud container attached clusters` commands.
@@ -180,7 +187,7 @@ Record the membership name immediately after deployment; every Day-2 and teardow
 
 | Setting | Sensible value | Risk | Consequence if wrong |
 |---|---|---|---|
-| `client_id` / `client_secret` / `tenant_id` / `subscription_id` | valid service-principal credentials, Contributor on the subscription | Critical | Missing or wrong credentials fail the apply at AKS creation; an under-privileged principal partially provisions and leaves orphaned Azure resources. The service principal needs subscription-level Contributor because the module creates the Resource Group itself. |
+| `client_id` / `client_secret` / `azure_tenant_id` / `subscription_id` | valid service-principal credentials, Contributor on the subscription | Critical | Missing or wrong credentials fail the apply at AKS creation; an under-privileged principal partially provisions and leaves orphaned Azure resources. The service principal needs subscription-level Contributor because the module creates the Resource Group itself. |
 | `platform_version` ↔ `k8s_version` | keep major.minor compatible (e.g. `1.34.0-gke.1` with `1.34`) | High | An incompatible pairing fails attachment or leaves the Connect agent unhealthy, so the cluster never becomes manageable from Google Cloud. |
 | `cluster_name_prefix` | set once, unique per project/subscription | High | Changing after first deploy recreates the cluster across both clouds, destroying the Azure AKS cluster and any workloads on it. Reusing a prefix for a second deployment causes resource conflicts. |
 | `trusted_users` | the operators who need access | High | Omitting an operator leaves them unable to reach the cluster via the gateway; remember the deploying identity is always admin, and entries cannot be blank or duplicated. |

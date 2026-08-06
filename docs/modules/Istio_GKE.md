@@ -181,6 +181,7 @@ Grouped exactly as they appear on the deployment platform. Module-metadata setti
 | Variable | Default | Description |
 |---|---|---|
 | `project_id` | _(required)_ | Destination GCP project where the cluster and mesh are deployed. Must already exist. |
+| `tenant_id` | `demo` | Tenant identifier for the deployment. Must be 1–20 lowercase alphanumeric characters or hyphens. |
 | `region` | `us-central1` | Region for the cluster, VPC, and all regional resources. Ensure sufficient quota. |
 
 ### Group 2 — Network

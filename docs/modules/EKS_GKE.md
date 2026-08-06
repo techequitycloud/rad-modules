@@ -38,7 +38,7 @@ The module creates two sets of resources — one on Google Cloud, one on AWS —
 - **Outbound-only connectivity.** The Connect Agent dials out to Google Cloud on port 443; no inbound AWS firewall rules are required. This works in both public and private subnet topologies.
 - **The deployer is always a cluster admin.** The Google identity running the deployment is automatically granted Kubernetes `cluster-admin`, in addition to anyone listed in `trusted_users`.
 - **Kubernetes and platform versions must match.** `k8s_version` (the EKS minor version) and `platform_version` (the GKE Attached Clusters version) must correspond — Google Cloud validates this at registration.
-- **The Fleet/console name is exactly `cluster_name_prefix`.** AWS resources also get a short random suffix, but the attached-cluster registration and Fleet membership use the prefix verbatim — so two deployments sharing a prefix in the same project will collide on the Google Cloud side.
+- **Names come straight from `cluster_name_prefix`.** The AWS resources and the attached-cluster registration and Fleet membership all use the prefix verbatim, with no random suffix — so two deployments sharing a prefix in the same project will collide on the Google Cloud side.
 - **No managed database, storage, or secrets.** Unlike application modules, this module provisions only the cluster, its networking, and its Fleet registration.
 
 ---
@@ -218,7 +218,7 @@ Variables are grouped exactly as they appear on the deployment platform.
 
 ## 5. Outputs
 
-**This module defines no outputs.** There is no outputs definition in the module, and its published input/output reference confirms "No outputs." Record the following identifiers after a successful deploy so you can locate and operate the cluster:
+The module's Terraform outputs are `deployment_id` (the resolved deployment ID — the value you supplied, or an auto-generated hex when none was given) and `project_id` (the Google Cloud project the cluster is registered in). Neither locates the cluster itself, so record the following identifiers after a successful deploy so you can locate and operate it:
 
 | Identifier | How to obtain |
 |---|---|
