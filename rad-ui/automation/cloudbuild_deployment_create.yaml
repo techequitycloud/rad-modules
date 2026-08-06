@@ -299,6 +299,90 @@ steps:
     }
     trap persist_state_to_gcs EXIT
 
+    # ── Self-heal orphaned creates ────────────────────────────────────────
+    # terraform-provider-google's Create() for several resource types (Cloud
+    # SQL instances, GKE clusters, GCS buckets) doesn't call SetId() until
+    # its own post-create wait succeeds. If that wait errors on a
+    # transient/flaky poll — confirmed live 2026-08-06: a Cloud SQL instance
+    # apply failed with "Error waiting for Create Instance:" and a BLANK
+    # message body only ~2 minutes in, while the instance itself kept
+    # provisioning in the background and became RUNNABLE a few minutes later
+    # — the resource is left running in GCP with NO entry in Terraform state
+    # at all. Every retry after that hits "already exists" forever, since
+    # nothing is there to update — until someone manually diagnoses it and
+    # runs `tofu import` by hand (done 3x by hand in one sitting before this
+    # fix, across a GCS bucket, a GKE cluster, and this Cloud SQL instance).
+    #
+    # This only ever imports an already-real, already-running live resource
+    # into state — it never creates, deletes, or otherwise mutates anything
+    # — so it's safe to run unconditionally whenever this exact error
+    # signature appears. It is orthogonal to max_attempts below (pinned to 1
+    # to avoid blindly re-running a doomed apply, per the Medusa incident):
+    # this only retries once actual orphaned state has been found and
+    # fixed, which changes what the next apply will do.
+    self_heal_orphaned_creates() {
+        if ! grep -qiE "Error waiting for (creating|Create)" /tmp/apply_output.txt 2>/dev/null; then
+            return 1
+        fi
+
+        log "🔎 'Create wait' failure detected — checking whether the resource actually finished live before giving up..."
+
+        local healed=false
+        local addr name project location
+        for addr in $$(tofu show -json tfplan | jq -r '.resource_changes[]? | select(.change.actions == ["create"]) | .address'); do
+            case "$$addr" in
+                google_sql_database_instance.*)
+                    name=$$(tofu show -json tfplan | jq -r --arg a "$$addr" '.resource_changes[] | select(.address==$$a) | .change.after.name')
+                    project=$$(tofu show -json tfplan | jq -r --arg a "$$addr" '.resource_changes[] | select(.address==$$a) | .change.after.project')
+                    if [ -n "$$name" ] && [ "$$name" != "null" ] && [ -n "$$project" ] && [ "$$project" != "null" ]; then
+                        log "   Trying import: $$addr <- $$project/$$name"
+                        if tofu import "$$addr" "$$project/$$name" >/tmp/self_heal_import.txt 2>&1; then
+                            log "   ✅ Imported $$addr — it already existed live"
+                            healed=true
+                        else
+                            log "   ℹ️  $$addr not found live (real failure, not orphaned) — leaving as-is"
+                        fi
+                    fi
+                    ;;
+                google_container_cluster.*)
+                    name=$$(tofu show -json tfplan | jq -r --arg a "$$addr" '.resource_changes[] | select(.address==$$a) | .change.after.name')
+                    project=$$(tofu show -json tfplan | jq -r --arg a "$$addr" '.resource_changes[] | select(.address==$$a) | .change.after.project')
+                    location=$$(tofu show -json tfplan | jq -r --arg a "$$addr" '.resource_changes[] | select(.address==$$a) | .change.after.location')
+                    if [ -n "$$name" ] && [ "$$name" != "null" ] && [ -n "$$project" ] && [ "$$project" != "null" ] && [ -n "$$location" ] && [ "$$location" != "null" ]; then
+                        log "   Trying import: $$addr <- $$project/$$location/$$name"
+                        if tofu import "$$addr" "$$project/$$location/$$name" >/tmp/self_heal_import.txt 2>&1; then
+                            log "   ✅ Imported $$addr — it already existed live"
+                            healed=true
+                        else
+                            log "   ℹ️  $$addr not found live (real failure, not orphaned) — leaving as-is"
+                        fi
+                    fi
+                    ;;
+                google_storage_bucket.*)
+                    name=$$(tofu show -json tfplan | jq -r --arg a "$$addr" '.resource_changes[] | select(.address==$$a) | .change.after.name')
+                    if [ -n "$$name" ] && [ "$$name" != "null" ]; then
+                        log "   Trying import: $$addr <- $$name"
+                        if tofu import "$$addr" "$$name" >/tmp/self_heal_import.txt 2>&1; then
+                            log "   ✅ Imported $$addr — it already existed live"
+                            healed=true
+                        else
+                            log "   ℹ️  $$addr not found live (real failure, not orphaned) — leaving as-is"
+                        fi
+                    fi
+                    ;;
+            esac
+        done
+
+        if [ "$$healed" = "true" ]; then
+            log "🔄 Re-planning with the imported resource(s) before retrying apply..."
+            set +e
+            tofu plan -input=false -out=tfplan -detailed-exitcode
+            set -e
+            return 0
+        fi
+        return 1
+    }
+
     # Apply with retry logic for transient errors.
     #
     # After each failed attempt we:
@@ -343,6 +427,20 @@ steps:
             fi
 
             if [ $$attempt -eq $$max_attempts ]; then
+                if self_heal_orphaned_creates; then
+                    log "🔄 Retrying apply once now that the orphaned resource is tracked in state..."
+                    set +e
+                    tofu apply -auto-approve tfplan 2>&1 | tee /tmp/apply_output_retry.txt
+                    RETRY_EXIT_CODE=$${PIPESTATUS[0]}
+                    set -e
+                    if [ $$RETRY_EXIT_CODE -eq 0 ]; then
+                        log "✅ Apply succeeded after self-heal"
+                        return 0
+                    fi
+                    log "❌ Apply still failed after self-heal (exit code: $$RETRY_EXIT_CODE) — not retrying again"
+                    APPLY_EXIT_CODE=$$RETRY_EXIT_CODE
+                fi
+
                 log "💥 All apply attempts failed"
 
                 # Show current state for debugging
