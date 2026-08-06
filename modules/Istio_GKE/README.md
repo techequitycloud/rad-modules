@@ -13,7 +13,7 @@ Istio is the de facto standard service mesh, adopted inside platforms at enterpr
 - **Full observability stack in one deployment** — Prometheus metrics, Jaeger distributed traces, Grafana dashboards, and Kiali topology maps installed out of the box, demonstrating the observability baseline that SRE teams expect from a production mesh
 - **Bookinfo reference workload** — a live microservices application provides real traffic for exploring Istio features without building a demo app from scratch
 
-For a detailed technical walkthrough of the full implementation, see [Istio\_GKE.md](Istio_GKE.md).
+For a detailed technical walkthrough of the full implementation, see [Istio\_GKE.md](../../docs/modules/Istio_GKE.md).
 
 ## Deployment Options
 
@@ -73,14 +73,13 @@ limitations under the License.
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 0.13 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
 | <a name="provider_google"></a> [google](#provider\_google) | 7.30.0 |
-| <a name="provider_google.impersonated"></a> [google.impersonated](#provider\_google.impersonated) | 7.30.0 |
 | <a name="provider_null"></a> [null](#provider\_null) | 3.2.4 |
 | <a name="provider_random"></a> [random](#provider\_random) | 3.8.1 |
 
@@ -119,7 +118,6 @@ No modules.
 | [google_compute_zones.available_zones](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/compute_zones) | data source |
 | [google_container_cluster.existing_cluster](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/container_cluster) | data source |
 | [google_project.existing_project](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/project) | data source |
-| [google_service_account_access_token.default](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/service_account_access_token) | data source |
 
 ## Inputs
 
@@ -127,7 +125,7 @@ No modules.
 |------|-------------|------|---------|:--------:|
 | <a name="input_create_cluster"></a> [create\_cluster](#input\_create\_cluster) | Set to true (default) to create a new GKE cluster. Set to false to install Istio onto an existing cluster identified by gke\_cluster. | `bool` | `true` | no |
 | <a name="input_create_network"></a> [create\_network](#input\_create\_network) | Set to true (default) to create a new VPC network and subnet for the GKE cluster. Set to false to use an existing network and subnet identified by network\_name and subnet\_name. | `bool` | `true` | no |
-| <a name="input_credit_cost"></a> [credit\_cost](#input\_credit\_cost) | Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require\_credit\_purchases is true, users must have sufficient credit balance before deploying. Defaults to 100. | `number` | `100` | no |
+| <a name="input_credit_cost"></a> [credit\_cost](#input\_credit\_cost) | Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require\_credit\_purchases is true, users must have sufficient credit balance before deploying. Defaults to 100. | `number` | `0` | no |
 | <a name="input_deploy_application"></a> [deploy\_application](#input\_deploy\_application) | Set to true (default) to deploy the Istio Bookinfo sample application onto the GKE cluster after Istio is installed. The Bookinfo app demonstrates Istio traffic management, telemetry, and security features. Set to false to install only the Istio service mesh without a demo application. | `bool` | `true` | no |
 | <a name="input_deployment_id"></a> [deployment\_id](#input\_deployment\_id) | Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources. | `string` | `null` | no |
 | <a name="input_enable_purge"></a> [enable\_purge](#input\_enable\_purge) | Set to true (default) to allow platform administrators to permanently delete all resources created by this module via the platform purge operation. Set to false to prevent purge operations on this deployment. | `bool` | `true` | no |

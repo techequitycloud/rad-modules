@@ -82,8 +82,7 @@ modules/<Module_Name>/
 ├── manifests/           # Raw Kubernetes manifests
 ├── templates/           # Kubernetes manifests rendered via templatefile()
 ├── tests/               # *.tftest.hcl using mock providers
-├── README.md            # Short overview + inputs/outputs tables
-└── <Module_Name>.md     # Long-form educational deep dive
+└── README.md            # Short overview + inputs/outputs tables
 ```
 
 Lab guides live at `docs/labs/<Module_Name>.md`, **not** inside the module directory.

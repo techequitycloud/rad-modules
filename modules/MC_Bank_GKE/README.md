@@ -13,7 +13,7 @@ Global financial institutions, payment networks, and insurance companies cannot 
 - **Data residency and sovereignty compliance** — deploying clusters in specific GCP regions demonstrates how organizations satisfy requirements to keep financial data within defined geographic boundaries
 - **Multi-cluster platform engineering reference** — Terraform provisions the entire multi-cluster topology from a single configuration, the operational model for platform teams managing global infrastructure as code
 
-For a detailed technical walkthrough of the full implementation, see [MC\_Bank\_GKE.md](MC_Bank_GKE.md).
+For a detailed technical walkthrough of the full implementation, see [MC\_Bank\_GKE.md](../../docs/modules/MC_Bank_GKE.md).
 
 ## Deployment Options
 
@@ -75,14 +75,13 @@ limitations under the License.
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 0.13 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
 | <a name="provider_google"></a> [google](#provider\_google) | 7.30.0 |
-| <a name="provider_google.impersonated"></a> [google.impersonated](#provider\_google.impersonated) | 7.30.0 |
 | <a name="provider_google-beta"></a> [google-beta](#provider\_google-beta) | 7.30.0 |
 | <a name="provider_kubernetes.cluster1"></a> [kubernetes.cluster1](#provider\_kubernetes.cluster1) | 3.1.0 |
 | <a name="provider_kubernetes.cluster2"></a> [kubernetes.cluster2](#provider\_kubernetes.cluster2) | 3.1.0 |
@@ -145,7 +144,6 @@ No modules.
 | [google_compute_network.existing_vpc](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/compute_network) | data source |
 | [google_compute_zones.available_zones](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/compute_zones) | data source |
 | [google_project.existing_project](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/project) | data source |
-| [google_service_account_access_token.default](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/service_account_access_token) | data source |
 
 ## Inputs
 
@@ -156,13 +154,13 @@ No modules.
 | <a name="input_cluster_size"></a> [cluster\_size](#input\_cluster\_size) | Number of GKE clusters to create for the multi-cluster banking application deployment. Minimum 2 for meaningful multi-cluster demonstration; maximum is limited by the available quota in the selected regions. Regions are assigned from available\_regions in round-robin order. Defaults to 2. | `number` | `2` | no |
 | <a name="input_create_autopilot_cluster"></a> [create\_autopilot\_cluster](#input\_create\_autopilot\_cluster) | Set to true (default) to create GKE Autopilot clusters, where node provisioning and scaling are fully managed by Google. Set to false to create Standard clusters where node pools are manually configured. Applies to all clusters in this deployment. Autopilot is recommended for most workloads; Standard offers more control over node configuration. | `bool` | `true` | no |
 | <a name="input_create_network"></a> [create\_network](#input\_create\_network) | Set to true (default) to create a new shared VPC network for all GKE clusters. Set to false to use an existing network identified by network\_name. Each cluster receives its own subnet automatically derived from the cluster index. | `bool` | `true` | no |
-| <a name="input_credit_cost"></a> [credit\_cost](#input\_credit\_cost) | Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require\_credit\_purchases is true, users must have sufficient credit balance before deploying. Defaults to 150. | `number` | `150` | no |
+| <a name="input_credit_cost"></a> [credit\_cost](#input\_credit\_cost) | Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require\_credit\_purchases is true, users must have sufficient credit balance before deploying. Defaults to 150. | `number` | `0` | no |
 | <a name="input_deploy_application"></a> [deploy\_application](#input\_deploy\_application) | Set to true (default) to deploy the Bank of Anthos microservices banking demo application across all GKE clusters after they are created. Set to false to provision only the cluster infrastructure without deploying the application. | `bool` | `true` | no |
 | <a name="input_deployment_id"></a> [deployment\_id](#input\_deployment\_id) | Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources. | `string` | `null` | no |
 | <a name="input_enable_cloud_service_mesh"></a> [enable\_cloud\_service\_mesh](#input\_enable\_cloud\_service\_mesh) | Set to true (default) to install and configure Cloud Service Mesh (Google-managed Istio) across all clusters, enabling mTLS encryption, cross-cluster traffic management, and unified observability. Requires the mesh.googleapis.com API. Set to false to skip service mesh installation. | `bool` | `true` | no |
 | <a name="input_enable_purge"></a> [enable\_purge](#input\_enable\_purge) | Set to true (default) to allow platform administrators to permanently delete all resources created by this module via the platform purge operation. Set to false to prevent purge operations on this deployment. | `bool` | `true` | no |
 | <a name="input_enable_services"></a> [enable\_services](#input\_enable\_services) | Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com, mesh.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. | `bool` | `true` | no |
-| <a name="input_project_id"></a> [existing\_project\_id](#input\_existing\_project\_id) | GCP project ID of the destination project where the GKE clusters and banking application will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource\_creator\_identity service account must hold roles/owner in it. Required; no default. | `string` | n/a | yes |
+| <a name="input_project_id"></a> [project\_id](#input\_project\_id) | GCP project ID of the destination project where the GKE clusters and banking application will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource\_creator\_identity service account must hold roles/owner in it. Required; no default. | `string` | n/a | yes |
 | <a name="input_module_dependency"></a> [module\_dependency](#input\_module\_dependency) | Ordered list of module names that must be fully deployed before this module can be deployed. The platform enforces this sequence. Defaults to ['GCP Project']. | `list(string)` | <pre>[<br>  "GCP Project"<br>]</pre> | no |
 | <a name="input_module_description"></a> [module\_description](#input\_module\_description) | Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. | `string` | `"This module deploys the Bank of Anthos banking application across multiple GKE clusters in multiple GCP regions — demonstrating the active-active, geo-redundant architecture that regulated financial institutions and global payment processors require for 99.99%+ availability SLAs. By combining Multi-Cluster Ingress, fleet-wide Cloud Service Mesh, and GKE Fleet management, it shows engineering teams how to eliminate single-region failure risk and satisfy data residency requirements simultaneously — a pattern directly applicable to core banking, payments, and insurance platforms. This module is for educational purposes only."` | no |
 | <a name="input_module_services"></a> [module\_services](#input\_module\_services) | List of cloud service tags associated with this module, used for display and filtering in the platform UI. Represents the key services provisioned by this module. Defaults to the core services this module provisions. | `list(string)` | <pre>[<br>  "GCP",<br>  "GKE",<br>  "Cloud Service Mesh",<br>  "Cloud IAM",<br>  "Cloud Networking",<br>  "VPC Network",<br>  "GKE Fleet",<br>  "Workload Identity"<br>]</pre> | no |

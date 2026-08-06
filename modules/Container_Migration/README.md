@@ -112,7 +112,7 @@ module "container_migration" {
 | create\_vpc | Create a new VPC for the lab. | `bool` | `true` | no |
 | create\_default\_firewall\_rules | Create default firewall rules on the VPC. | `bool` | `true` | no |
 | deployment\_id | Alphanumeric suffix for resource names. | `string` | `null` | no |
-| resource\_creator\_identity | Terraform service account email. | `string` | `""` | no |
+| resource\_creator\_identity | Terraform service account email. | `string` | `"rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"` | no |
 
 ## Outputs
 

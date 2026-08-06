@@ -36,7 +36,7 @@ modules/Istio_GKE/
 ├── main.tf              # Project bootstrap, API enablement, random_id
 ├── provider-auth.tf     # google + google-beta providers with SA impersonation
 ├── versions.tf          # required_providers + required_version
-├── variables.tf         # UIMeta-annotated inputs (groups 0–6)
+├── variables.tf         # UIMeta-annotated inputs (groups 0–4)
 ├── outputs.tf           # deployment_id, project_id, cluster_credentials_cmd, external_ip
 ├── network.tf           # VPC, subnet with secondary ranges, firewall, Cloud Router + NAT
 ├── gke.tf               # GKE cluster, node pool, cluster SA, IAM, kubernetes provider
@@ -82,8 +82,8 @@ Open-source Istio service mesh on a GKE Standard cluster. The user selects eithe
 **Key files and their roles:**
 - `main.tf` — project data source, `random_id`, API enablement (`container.googleapis.com`, `cloudapis.googleapis.com`), `null_resource.wait_for_container_api` polling loop.
 - `provider-auth.tf` — impersonated `google` provider; configures `google-beta` block (currently unused by resources).
-- `versions.tf` — pins `google` and `kubernetes`; requires `>= 0.13`.
-- `variables.tf` — UIMeta groups: 0=Provider/Metadata, 1=Main (project/region), 2=Network, 3=GKE, 4=Features (istio_version, install_ambient_mesh, enable_services), 6=Application (deploy_application).
+- `versions.tf` — pins `google`, `google-beta` and `kubernetes`; requires `>= 1.3`.
+- `variables.tf` — UIMeta groups: 0=Provider/Metadata (also `enable_services` and `deploy_application`), 1=Main (project/region), 2=Network, 3=GKE, 4=Features (istio_version, install_ambient_mesh).
 - `network.tf` — VPC, subnet with secondary IP ranges for pods/services, firewall rules, Cloud Router + NAT.
 - `gke.tf` — GKE Standard cluster and node pool, cluster service account with minimum IAM roles, `kubernetes` provider (alias `primary`), local `k8s_credentials_cmd`.
 - `istiosidecar.tf` — `null_resource.install_sidecar_mesh` (count=1 when `install_ambient_mesh=false`): installs `kubectl` and `istioctl` into `$HOME/.local/bin`, fetches cluster credentials, runs `istioctl install` with a custom IstioOperator YAML to fix HPA naming, then installs the observability add-ons and optional Bookinfo.
@@ -101,7 +101,7 @@ Open-source Istio service mesh on a GKE Standard cluster. The user selects eithe
 **Common tasks:**
 - **Upgrade Istio version**: Update the `istio_version` variable default in `variables.tf`. Verify the new version is available on `github.com/istio/istio/releases`.
 - **Add a new Kubernetes manifest**: Add the YAML to `manifests/` and reference it with a `null_resource` local-exec `kubectl apply -f` call in `istiosidecar.tf` or `istioambient.tf`.
-- **Add a new variable**: Add it to `variables.tf` with a `{{UIMeta group=N order=M }}` annotation. Choose the correct group (4 for mesh features, 6 for application options).
+- **Add a new variable**: Add it to `variables.tf` with a `{{UIMeta group=N order=M }}` annotation. Choose the correct group (4 for mesh features, 0 for application options).
 - **Extend observability stack**: Add installation steps inside the existing `null_resource` provisioner create block, after the mesh install steps. Add corresponding removal steps in the destroy block.
 
 **Task:**
@@ -120,8 +120,8 @@ You are now in **Bank_GKE Module Mode**, working on `modules/Bank_GKE`.
 A GKE cluster (Autopilot or Standard, controlled by `create_cluster`) with Cloud Service Mesh (managed Istio via GKE Hub/Fleet), the Bank of Anthos v0.6.7 demo application, optional Anthos Config Management, and Cloud Monitoring SLOs.
 
 **Key files and their roles:**
-- `main.tf` — project data source, `random_id`, API enablement (container, gkehub, mesh, monitoring APIs), `null_resource.wait_for_container_api`.
-- `provider-auth.tf` — same impersonation pattern as Istio_GKE; token lifetime is `3600s` (vs 1800s in Istio_GKE).
+- `main.tf` — project data source, `random_id`, API enablement (container, gkehub, mesh, monitoring APIs).
+- `provider-auth.tf` — same impersonation pattern as Istio_GKE (`impersonate_service_account` on the `google` and `google-beta` providers).
 - `versions.tf` — pins `google` (>= 5.0), `kubernetes` (>= 2.23), `kubectl` (gavinbunney/kubectl >= 1.14), `time` (>= 0.9), `http` (>= 3.0); requires `>= 1.3`.
 - `variables.tf` — same UIMeta group convention; adds groups for ASM, ACM, monitoring.
 - `network.tf` — VPC, subnet, secondary ranges, Cloud Router + NAT (same pattern as Istio_GKE).
@@ -162,9 +162,9 @@ You are now in **MC_Bank_GKE Module Mode**, working on `modules/MC_Bank_GKE`.
 Multiple GKE clusters (up to four, keyed by `cluster1`–`cluster4` in `local.cluster_configs`) spread across GCP regions, connected via fleet-wide Cloud Service Mesh, with Multi-Cluster Ingress (MCI) and Multi-Cluster Services (MCS) routing traffic to Bank of Anthos running on all clusters behind a single global HTTPS load balancer.
 
 **Key files and their roles:**
-- `main.tf` — project data source, `random_id`, API enablement, `null_resource.wait_for_container_api`.
+- `main.tf` — project data source, `random_id`, API enablement.
 - `provider-auth.tf` — same impersonation pattern as the other GKE modules.
-- `versions.tf` — pins `google` and `kubernetes`; requires `>= 0.13`.
+- `versions.tf` — pins `google`, `google-beta` and `kubernetes`; requires `>= 1.3`.
 - `variables.tf` — variables for cluster count, regions, network CIDRs per cluster, ASM/MCI/MCS feature flags.
 - `network.tf` — VPC shared across all clusters; one subnet with secondary ranges per cluster, iterated with `for_each`.
 - `gke.tf` — `google_container_cluster.gke_cluster` is a `for_each` resource over `local.cluster_configs`. Four `kubernetes` provider aliases (`cluster1`–`cluster4`) are statically configured, each pointing to the corresponding cluster endpoint.
@@ -235,8 +235,8 @@ There is no top-level `versions.tf`; provider version constraints live in the ne
 - `attached-install-manifest` — fetches the GKE Attached Cluster bootstrap manifest via `data "google_container_attached_install_manifest"`, writes it as a Helm chart (`local_file`), and applies it to the attached cluster via the `helm_release` resource. This submodule is invoked automatically by the parent module after the cluster is registered.
 - `attached-install-mesh` — optional ASM installer. **Not invoked by the parent module automatically.** Invoke it from your own root module if you want ASM on the attached cluster.
 
-**No Terraform outputs at the top level:**
-These modules expose no `output` blocks. The equivalent of `get-credentials` is documented in the module README: `gcloud container attached clusters get-credentials <cluster-name> --location=<region> --project=<project-id>`.
+**Terraform outputs at the top level:**
+These modules expose only `deployment_id` and `project_id` in `outputs.tf`. There is no credentials output; use `gcloud container attached clusters get-credentials <cluster-name> --location=<region> --project=<project-id>`.
 
 **Critical implementation rules:**
 1. **Credentials via environment variables**: Azure credentials are set via `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID`. AWS credentials are set via `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`. Never add these as Terraform variable defaults.
@@ -386,7 +386,7 @@ You are now in **Maintenance Mode**, performing updates or configuration changes
 - Review the Bank of Anthos release notes for breaking changes to the manifest structure.
 
 ### 4. Adding or removing clusters (MC_Bank_GKE)
-- Update `local.cluster_configs` in `main.tf` to add or remove a cluster key (`cluster1`–`cluster4`).
+- Update `local.cluster_configs` in `variables.tf` to add or remove a cluster key (`cluster1`–`cluster4`).
 - Add or remove the corresponding static `kubernetes` provider alias in `gke.tf`.
 - Run `tofu plan` and review the diff carefully — changes to the cluster map may trigger replacement of dependent resources (Hub memberships, ASM feature memberships).
 - **Warning**: Removing a cluster key from `local.cluster_configs` will cause `tofu destroy` to attempt removal of that cluster's Hub membership and ASM feature membership. Ensure the cluster's workloads are drained first.
@@ -435,7 +435,7 @@ You are now in **Security Audit Mode**, reviewing and hardening the GKE and mesh
 - [ ] No secrets or private keys in `variables.tf` defaults — especially `client_secret` (AKS_GKE) and `aws_secret_key` (EKS_GKE).
 - [ ] Azure and AWS credentials are sourced from environment variables (`ARM_CLIENT_SECRET`, `AWS_SECRET_ACCESS_KEY`), not from Terraform state or `.tfvars` files committed to the repo.
 - [ ] `resource_creator_identity` is a service account email, not a key file path or private key value.
-- [ ] Impersonation token lifetime is appropriately short (`1800s` for Istio_GKE; `3600s` for Bank_GKE). Do not extend unnecessarily.
+- [ ] Impersonation is configured via the provider's `impersonate_service_account` attribute in `provider-auth.tf` — no service account key files or long-lived tokens in the module.
 
 ### 3. Network security
 - [ ] GKE clusters use VPC-native networking (IP alias ranges). Verify `ip_allocation_policy` is set in `gke.tf`.
