@@ -14,9 +14,9 @@
 
 steps:
   # ============================================
-  # STEP 1: Delete Cloud Storage Bucket Content
+  # STEP 1: Report Cloud Storage Retention
   # ============================================
-  - id: 'Delete Cloud Storage Bucket'
+  - id: 'Report Cloud Storage Retention'
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:alpine'
     entrypoint: 'bash'
     args:
@@ -24,7 +24,7 @@ steps:
       - |
         set -e
         
-        echo "🗑️  CLOUD STORAGE PURGE INITIATED"
+        echo "🗑️  DEPLOYMENT PURGE INITIATED"
         echo "========================================"
         echo "Module: ${_MODULE_NAME}"
         echo "Deployment ID: ${_DEPLOYMENT_ID}"
@@ -32,7 +32,7 @@ steps:
         echo "Bucket: ${_DEPLOYMENT_BUCKET_ID}"
         echo "Timestamp: $(date)"
         echo "========================================"
-        echo "⚠️  WARNING: This will DELETE all deployment files!"
+        echo "ℹ️  Deployment files are RETAINED for the soft-delete grace period."
         echo "========================================"
         
         log() {
@@ -54,8 +54,23 @@ steps:
         fi
 
         # ============================================
-        # Clean up deployment folder from GCS
+        # Report on the deployment folder — do NOT delete it
         # ============================================
+        # This step used to run `gsutil -m rm -r` on the deployment path,
+        # destroying the Terraform state the moment a purge ran.
+        #
+        # A purge is now a SOFT delete on the RAD side: notification_status
+        # marks the deployment `purgedAt` and leaves the record in place, and
+        # deployment_cleanup Phase 3 removes the GCS folder AND the Firestore
+        # document together once `softDeleteGracePeriod` days have passed since
+        # `deletedAt`. Deleting the state here would have defeated that — the
+        # record would survive its grace period pointing at state that was
+        # already gone, so an administrator restoring it would recover a
+        # deployment that could no longer be planned, updated or destroyed.
+        #
+        # Phase 3 is now the single place anything is irreversibly removed.
+        # This step reports what is being retained, which is what the audit
+        # record below is for.
         log "🔍 Checking for deployment folder..."
         
         DEPLOYMENT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/"
@@ -63,40 +78,22 @@ steps:
         if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
             log "📁 Found deployment folder: $$DEPLOYMENT_PATH"
             
-            # List contents before deletion (for audit)
             log "📋 Calculating folder size..."
             FOLDER_SIZE=$$(gsutil du -sh "$$DEPLOYMENT_PATH" 2>/dev/null | awk '{print $$1 " " $$2}' || echo "unknown")
             log "   Size: $$FOLDER_SIZE"
             
-            # Count files
             FILE_COUNT=$$(gsutil ls -r "$$DEPLOYMENT_PATH" 2>/dev/null | grep -v ':$$' | wc -l || echo "0")
             log "   Files: $$FILE_COUNT"
             
-            # Remove the entire deployment folder
-            log "🗑️  Removing deployment folder..."
-            if gsutil -m rm -r "$$DEPLOYMENT_PATH" 2>&1; then
-                log "✅ Successfully removed deployment folder from Cloud Storage"
-                
-                # Verify deletion
-                if gsutil ls "$$DEPLOYMENT_PATH" > /dev/null 2>&1; then
-                    log "❌ ERROR: Deployment folder still exists after deletion attempt"
-                    exit 1
-                else
-                    log "✅ Verified: Deployment folder has been removed"
-                fi
-            else
-                EXIT_CODE=$$?
-                log "❌ ERROR: Failed to remove deployment folder (exit code: $$EXIT_CODE)"
-                log "   Path: $$DEPLOYMENT_PATH"
-                log "   This may require manual cleanup"
-                exit $$EXIT_CODE
-            fi
+            log "🛡️  Retaining deployment folder for the soft-delete grace period"
+            log "   Path: $$DEPLOYMENT_PATH"
+            log "   deployment_cleanup removes this folder and the Firestore"
+            log "   record together once the grace period expires."
         else
             log "ℹ️  Deployment folder not found"
             log "   Path: $$DEPLOYMENT_PATH"
             log "   The folder may have been already removed or never existed"
             
-            # This is not an error - the goal is achieved (folder doesn't exist)
             log "✅ No action needed - folder does not exist"
         fi
         
@@ -136,7 +133,9 @@ steps:
         
         log "📤 Uploading audit record to build logs..."
         
-        # Upload to build logs bucket (since deployment folder is deleted)
+        # Upload to the build-logs bucket rather than the deployment folder:
+        # that folder is retained until deployment_cleanup removes it, and the
+        # audit record must outlive it.
         AUDIT_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/purge/${_MODULE_NAME}/${_DEPLOYMENT_ID}/purge_audit.json"
         
         if gsutil cp /tmp/purge_audit.json "$$AUDIT_PATH"; then
