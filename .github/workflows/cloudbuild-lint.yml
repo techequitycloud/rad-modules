@@ -1,0 +1,60 @@
+name: Cloud Build Pipeline Lint
+
+# Guards two Cloud Build constraints that fail the build OUTRIGHT rather than at
+# runtime, so nothing in terraform-ci.yml or convention-check.yml can catch them
+# — the build never starts, and the error names a step index and a byte count
+# with no indication of what changed:
+#
+#   1. A single step arg over 10,000 characters:
+#      "invalid build: invalid .steps field: build step 0 arg 1 too long"
+#      Hit for real — an explanatory comment block pushed the destroy
+#      pipeline's first step to 10,164 chars and broke every destroy in the
+#      platform until it was trimmed.
+#
+#   2. A volume referenced by only one step. Volumes exist to share data
+#      BETWEEN steps, so Cloud Build rejects a single-use one. Also hit for
+#      real, while splitting a script-staging step out of a pipeline.
+#
+# These pipelines are large and hand-edited, which is exactly the shape of file
+# where a limit gets crossed without noticing. The checker is offline and
+# deterministic; it takes seconds.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'rad-ui/automation/cloudbuild*.yaml'
+      - 'rad-ui/automation/check_step_arg_limits.py'
+      - '.github/workflows/cloudbuild-lint.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'rad-ui/automation/cloudbuild*.yaml'
+      - 'rad-ui/automation/check_step_arg_limits.py'
+      - '.github/workflows/cloudbuild-lint.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  step-arg-limits:
+    name: Cloud Build step arg limits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # The checker's only dependency. Installed explicitly rather than via a
+      # requirements file — this repo has no Python packaging, and pinning one
+      # transitive dep here is cheaper than introducing one.
+      - name: Install PyYAML
+        run: pip install --quiet pyyaml
+
+      # The script locates its own cloudbuild*.yaml siblings, so it needs no
+      # arguments and no working-directory juggling.
+      - name: Check Cloud Build step arg limits and volume usage
+        run: python3 rad-ui/automation/check_step_arg_limits.py
