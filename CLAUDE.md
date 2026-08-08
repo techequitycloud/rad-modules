@@ -151,13 +151,51 @@ no step output to read and the message names nothing you were working on. Adding
 explanatory comment block to the destroy pipeline's first step took it to 10,164 and
 broke every destroy on the platform until trimmed. Run
 `python3 rad-ui/automation/check_step_arg_limits.py` after touching any
-`cloudbuild_*.yaml`; it fails over the limit and warns above 9,000. The largest
-steps already sit at 8–9k, so the margin is thinner than it looks. Keep long
-rationale in the commit message, not in the step.
+`cloudbuild_*.yaml`; it fails over the limit and warns above 9,000. **This is now also
+enforced automatically** by `.github/workflows/cloudbuild-lint.yml` on any push/PR
+touching `cloudbuild*.yaml` or the checker itself — a red CI check on this workflow
+means one of the limits below was crossed, not a real pipeline bug. The largest
+steps already sit at 8–9k, so the margin is thinner than it looks.
+
+**The real fix for a step approaching the limit is to extract its script to a file
+under `rad-ui/automation/scripts/`, not to trim comments.** The create, update, and
+destroy pipelines' Apply/prepare steps now live in
+`scripts/apply_infrastructure.sh`, `scripts/apply_infrastructure_update.sh`, and
+`scripts/prepare_destroy.sh` respectively — the YAML step just stages and sources
+the script. (The destroy pipeline's separate `Destroy Infrastructure` step, holding
+`DESTROY_MAX_ATTEMPTS` and the GKE state-repair logic below, is still inline —
+extraction is per-step, not all-or-nothing per pipeline.) `check_step_arg_limits.py`
+also enforces a **second, unrelated rule**: any Cloud Build `volumes:` name must be
+used by two or more steps, or the build is rejected outright
+(`invalid build: Volume "X" is used only once, need twice or more`) — the shared
+`pipeline-scripts` volume that stages extracted scripts must be mounted by both the
+staging step and every step that sources from it, or this fires. Confirmed live
+2026-08-06: an extraction that staged the script but only referenced the volume in
+one step broke every destroy in production (7 failed deployments) until fixed.
 
 **An invalid build produces no logs.** `gcloud builds log <id>` shows nothing;
 the reason is in `statusDetail` on the build record — use
 `gcloud builds describe <id> --format="value(status,statusDetail)"`.
+
+**Create/update applies self-heal an orphaned resource instead of failing outright
+on a flaky creation-wait.** `self_heal_orphaned_creates()` (in the extracted apply
+scripts) triggers on `Error waiting for (creating|Create)`: the Terraform provider's
+`Create()` doesn't call `SetId()` until its own wait-for-ready poll succeeds, so a
+resource that was genuinely created in GCP but whose poll flaked leaves state with
+no entry for it — the next apply then tries to create it again and hits `409 already
+exists`. The self-heal `tofu import`s any planned-create
+`google_sql_database_instance`/`google_container_cluster`/`google_storage_bucket` by
+its live resource ID, re-plans, and retries the apply once if anything imported.
+Scoped to those three resource types only — a different resource type failing the
+same way still needs a manual `tofu import`.
+
+**Purge no longer deletes the GCS deployment folder outright.** `cloudbuild_deployment_purge.yaml`
+now reports the folder's size/file count and **retains** the Terraform state and
+deployment files instead of `gsutil -m rm -r`-ing them — actual deletion moved to
+`rad-automation`'s `deployment_cleanup` Phase 3, which runs after a soft-delete grace
+period. This changes what "purge" means operationally: it no longer immediately frees
+the GCS prefix, and a purge followed immediately by a re-deploy to the same
+deployment ID will still find the old state/files present.
 
 **The destroy pipeline decides "nothing to destroy" from state CONTENTS, never file
 existence.** `backend.tf` and an empty state object are both written during
