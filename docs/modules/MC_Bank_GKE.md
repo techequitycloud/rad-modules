@@ -24,7 +24,7 @@ The module stands up an entire multi-cluster platform from nothing and then depl
 | TLS | Google-managed certificate | Auto-provisioned for an `sslip.io` domain derived from the global IP |
 | Networking | Shared VPC, per-cluster subnets, Cloud Router + Cloud NAT, firewall rules | Global-routing VPC; private nodes with NAT egress |
 | Observability | Cloud Logging, Cloud Monitoring, Managed Service for Prometheus, Cloud Trace | Aggregated across the whole fleet |
-| Application | Bank of Anthos (v0.6.7) | 9 microservices (Python + Java) plus two in-cluster PostgreSQL databases |
+| Application | Bank of Anthos (v0.6.10) | 9 microservices (Python + Java) plus two in-cluster PostgreSQL databases |
 
 **Things to know up front:**
 
@@ -175,7 +175,7 @@ Bank of Anthos is a retail-banking simulation: sign up, log in, view balances, a
 
 **What gets deployed on apply.** The module enables the required project APIs, creates (or reuses) the shared VPC and per-cluster subnets/NAT/firewalls, then creates `cluster_size` GKE clusters across the chosen regions. Each cluster is registered into the fleet and the module waits for every membership to reach `READY` (polled up to ~10 minutes) before continuing. If the mesh is enabled, it is turned on at the fleet level and per membership in automatic-management mode, and the module waits for the mesh to configure on each cluster.
 
-**Application rollout across clusters.** With `deploy_application = true`, the module downloads the pinned Bank of Anthos release (v0.6.7), creates the `bank-of-anthos` namespace (labelled for sidecar injection) on each cluster, applies the JWT secret, and applies the workload manifests:
+**Application rollout across clusters.** With `deploy_application = true`, the module downloads the pinned Bank of Anthos release (v0.6.10), creates the `bank-of-anthos` namespace (labelled for sidecar injection) on each cluster, applies the JWT secret, and applies the workload manifests:
 
 - On the **primary cluster** (`cluster1`) the full manifest set is applied, **including** the `accounts-db` and `ledger-db` StatefulSets.
 - On **every other cluster** the same manifests are applied but the database StatefulSets are stripped out — the stateless services and the database Services/ConfigMaps are still created so other pods can resolve them, and they are designed to use the databases on the primary cluster across the fleet. Any pre-existing DB StatefulSets on non-primary clusters are removed.
@@ -223,8 +223,7 @@ Variables are grouped exactly as they appear on the deployment platform.
 
 | Variable | Default | Description |
 |---|---|---|
-| `enable_cloud_service_mesh` | `true` | Install and configure Cloud Service Mesh (managed Istio) fleet-wide for mTLS, cross-cluster traffic, and unified observability. |
-| `cloud_service_mesh_version` | `1.23.4-asm.1` | Mesh version to install (`major.minor.patch-asm.N`). Used only when the mesh is enabled; must be compatible with the cluster versions/channel. |
+| `enable_cloud_service_mesh` | `true` | Install and configure Cloud Service Mesh (managed Istio) fleet-wide for mTLS, cross-cluster traffic, and unified observability. Google selects the mesh version from the clusters' `release_channel`; there is no version input. |
 
 ### Group 5 — Application
 
@@ -256,7 +255,7 @@ Variables are grouped exactly as they appear on the deployment platform.
 | `available_regions` | ≥ 2 distinct regions | High | A single region removes geo-redundancy; all clusters share one region's failure domain. |
 | Primary cluster (`cluster1`) | treat as the data tier | Critical | The `accounts-db` / `ledger-db` databases run only on the primary cluster. Losing its region, or scaling it to zero, takes the data tier offline for every cluster. |
 | `deployment_id` | set once, then leave | Critical | Changing it after first deploy forces recreation of named resources (VPC, clusters), destroying running state. |
-| `cloud_service_mesh_version` | a version matching the cluster channel | High | An incompatible mesh version can leave the managed control plane unconfigured and sidecars uninjected. |
+| `release_channel` | leave at `REGULAR` unless you have a reason | High | The managed CSM revision label (`asm-managed`/`-rapid`/`-stable`) and the `istio-<revision>` mesh-config ConfigMap are both derived from this. Changing the channel after first deploy does **not** move the mesh — CSM keeps the channel it was provisioned with. |
 | `create_network` / `network_name` | `true` for a fresh project | Medium | Pointing at a non-existent or overlapping existing network (when `false`) breaks subnet and cluster creation. |
 | Managed certificate wait | allow 10–60 min | Medium | Browsing `https://boa.<IP>.sslip.io` before the certificate is `Active` shows TLS warnings or failures — expected during provisioning, not a deployment error. |
 | `create_autopilot_cluster` | `true` | Low | Standard clusters add node-pool management and per-node cost; Autopilot is simpler and cheaper for this demo. |

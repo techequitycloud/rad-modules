@@ -36,8 +36,8 @@ run "defaults_produce_valid_plan" {
   }
 
   assert {
-    condition     = var.k8s_version == "1.34"
-    error_message = "Default Kubernetes version should be 1.34"
+    condition     = var.k8s_version == "1.35"
+    error_message = "Default Kubernetes version should be 1.35"
   }
 
   assert {

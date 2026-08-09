@@ -131,15 +131,15 @@ variable "node_count" {
 }
 
 variable "k8s_version" {
-  description = "Kubernetes version to deploy on the AKS cluster, specified as major.minor (e.g. '1.34'). Must be a version currently supported by AKS in the selected azure_region. The patch version is managed automatically by AKS. Defaults to '1.34'. {{UIMeta group=4 order=403 updatesafe }}"
+  description = "Kubernetes version to deploy on the AKS cluster, specified as major.minor (e.g. '1.35'). Must be a version currently supported by AKS in the selected azure_region. The patch version is managed automatically by AKS. Defaults to '1.35' (AKS GA March 2026, end of life March 2027). {{UIMeta group=4 order=403 updatesafe }}"
   type        = string
-  default     = "1.34"
+  default     = "1.35"
 }
 
 variable "platform_version" {
-  description = "GKE Hub Attached Clusters platform version for the managed components installed onto the AKS cluster (format: major.minor.patch-gke.N, e.g. '1.34.0-gke.1'). Must be compatible with the selected k8s_version. Defaults to '1.34.0-gke.1'. {{UIMeta group=4 order=404 updatesafe }}"
+  description = "GKE Hub Attached Clusters platform version for the managed components installed onto the AKS cluster (format: major.minor.patch-gke.N, e.g. '1.35.0-gke.1'). Its minor version must equal k8s_version or be exactly one below it. Defaults to '1.35.0-gke.1'. Run 'gcloud container attached get-server-config --location=<gcp_location>' for the versions currently offered. {{UIMeta group=4 order=404 updatesafe }}"
   type        = string
-  default     = "1.34.0-gke.1"
+  default     = "1.35.0-gke.1"
 }
 
 variable "vm_size" {

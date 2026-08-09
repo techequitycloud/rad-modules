@@ -61,7 +61,7 @@ export NS="bank-of-anthos"           # the application namespace
    **Deploy**, which opens the deployment status page with real-time logs.
 
 2. The platform creates a dedicated VPC and subnet, a GKE Autopilot cluster, registers the
-   cluster in the fleet, enables Cloud Service Mesh, then deploys the Bank of Anthos `v0.6.7`
+   cluster in the fleet, enables Cloud Service Mesh, then deploys the Bank of Anthos `v0.6.10`
    workloads into the `bank-of-anthos` namespace and configures Cloud Monitoring services and
    SLOs. Because the apply waits for the mesh control plane to become active before deploying
    the application, first deploys take roughly **30–45 minutes**.

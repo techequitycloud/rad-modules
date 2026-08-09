@@ -39,6 +39,11 @@ locals {
     "cloudtrace.googleapis.com",
     "anthos.googleapis.com",
     "mesh.googleapis.com",
+    # asm.tf's verify_mesh_api_activation guard polls for BOTH mesh and
+    # meshconfig and exits 1 after 300s if either is missing, so meshconfig
+    # must be enabled explicitly rather than left to implicit dependency
+    # activation. MC_Bank_GKE has always listed it; Bank_GKE had not.
+    "meshconfig.googleapis.com",
     "gkeconnect.googleapis.com",
     "gkehub.googleapis.com",
     "anthospolicycontroller.googleapis.com",
@@ -49,6 +54,17 @@ locals {
 
   # Determine the list of APIs to enable based on whether additional services are requested
   project_services = var.enable_services ? local.default_apis : []
+
+  # Managed Cloud Service Mesh revision labels are channel-specific, and the
+  # CSM channel is taken from the cluster's GKE release channel at provision
+  # time. Labelling a namespace with a revision the control plane is not
+  # serving does not error -- injection is simply skipped -- so derive the
+  # label from release_channel instead of hardcoding the REGULAR one.
+  asm_revision = lookup({
+    RAPID   = "asm-managed-rapid"
+    REGULAR = "asm-managed"
+    STABLE  = "asm-managed-stable"
+  }, var.release_channel, "asm-managed")
 }
 
 # Data source to fetch the list of available compute zones in the region

@@ -190,9 +190,9 @@ variable "service_cidr_block" {
 // SECTION 5: Features
 
 variable "istio_version" {
-  description = "Version of open source Istio to install on the GKE cluster (format: major.minor.patch, e.g. '1.24.2'). Must be a version supported by the selected GKE release channel. Defaults to '1.24.2'. Refer to the Istio release page for available versions. {{UIMeta group=4 order=402 }}"
+  description = "Version of open source Istio to install on the GKE cluster (format: major.minor.patch, e.g. '1.30.3'). Must be a supported Istio release whose Kubernetes compatibility range covers the version served by the selected GKE release channel. Defaults to '1.30.3', which supports Kubernetes 1.32-1.36 and therefore covers the STABLE, REGULAR and RAPID channels. Refer to https://istio.io/latest/docs/releases/supported-releases/ for available versions. {{UIMeta group=4 order=402 }}"
   type        = string
-  default     = "1.24.2"
+  default     = "1.30.3"
 }
 
 variable "install_ambient_mesh" {

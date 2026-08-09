@@ -22,7 +22,7 @@ The module wires together a focused set of Google Cloud services around the Bank
 | Fleet | GKE Hub / Fleet membership | The cluster is registered in the fleet, which is required to enable the mesh feature |
 | Ingress | Cloud Load Balancing (external L4) | The frontend is exposed via the upstream `frontend` Service of type LoadBalancer; a global static IP is also reserved |
 | Observability | Cloud Monitoring, Managed Service for Prometheus, Cloud Logging, Cloud Trace | Managed Prometheus on the cluster; one monitored service + CPU-utilisation SLO per workload |
-| Application | Bank of Anthos `v0.6.7` workloads | Nine microservices + two PostgreSQL StatefulSets in the `bank-of-anthos` namespace |
+| Application | Bank of Anthos `v0.6.10` workloads | Nine microservices + two PostgreSQL StatefulSets in the `bank-of-anthos` namespace |
 
 **Things to know up front:**
 
@@ -32,7 +32,7 @@ The module wires together a focused set of Google Cloud services around the Bank
 - **The mesh control plane is fully managed.** With `enable_cloud_service_mesh = true`, Google runs the Istio control plane — no `istiod` pods run in your cluster. The `bank-of-anthos` namespace is labelled `istio.io/rev=asm-managed`, which triggers automatic Envoy sidecar injection so every pod runs `2/2`.
 - **Apply waits for the mesh to be ready.** Provisioning verifies the fleet membership and mesh control plane reach `ACTIVE` before deploying the application, so first deploys take a while (roughly 30–45 minutes).
 - **Config Management inputs are present but not active.** `enable_config_management` and its related inputs exist for forward compatibility, but this module does **not** currently provision Anthos Config Management / Config Sync resources. Leave it at the default.
-- **The application manifests are fetched from GitHub at apply time.** The module downloads the Bank of Anthos `v0.6.7` release archive and applies its Kubernetes manifests with `kubectl`. Outbound internet access from the deployment runner is required.
+- **The application manifests are fetched from GitHub at apply time.** The module downloads the Bank of Anthos `v0.6.10` release archive and applies its Kubernetes manifests with `kubectl`. Outbound internet access from the deployment runner is required.
 
 ---
 
@@ -127,7 +127,7 @@ Nine services in three tiers: `frontend` (Python web UI); `userservice`, `contac
 - **Standalone provisioning.** A successful apply creates the VPC and subnet (with pod/service secondary ranges), Cloud Router + NAT, firewall rules, the GKE cluster, the fleet membership, the Cloud Service Mesh feature, the monitored services and SLOs, a reserved global static IP, and the Bank of Anthos workloads.
 - **The Bank of Anthos components.** With `deploy_application = true` the module deploys nine microservices — `frontend`, `userservice`, `contacts`, `ledgerwriter`, `balancereader`, `transactionhistory`, `loadgenerator`, and the `accounts-db` and `ledger-db` PostgreSQL databases — into the `bank-of-anthos` namespace, along with the JWT signing/verification secret.
 - **Mesh-first ordering.** The apply enables the GKE Hub and mesh APIs, grants the GKE Hub service agent the roles it needs, registers the fleet membership, enables the mesh feature, and then **waits** (via polling) for the membership and mesh control plane to report `ACTIVE` before deploying the application. This is why first deploys take roughly 30–45 minutes.
-- **Application deployment.** The module downloads the Bank of Anthos `v0.6.7` release archive from GitHub, creates the `bank-of-anthos` namespace labelled `istio.io/rev=asm-managed`, applies the JWT secret and the Kubernetes manifests with `kubectl`, and waits for all deployments to become available.
+- **Application deployment.** The module downloads the Bank of Anthos `v0.6.10` release archive from GitHub, creates the `bank-of-anthos` namespace labelled with the channel-matching CSM revision (`istio.io/rev=asm-managed` for `REGULAR`, `-rapid`/`-stable` for the other channels), applies the JWT secret and the Kubernetes manifests with `kubectl`, and waits for all deployments to become available.
 - **Mesh injection.** Because the namespace carries the `asm-managed` revision label, every pod is injected with an Envoy sidecar at admission and runs `2/2`. All in-namespace traffic is mTLS-encrypted by default.
 - **How the app is exposed.** The upstream `frontend` Service is type `LoadBalancer`, so Google Cloud assigns it an external IP serving plain HTTP on port 80. The reserved global static IP and the Gateway API add-on are available for advanced exposure patterns but are not wired into an HTTPS load balancer by this module.
 - **Monitoring & SLOs.** When `enable_monitoring = true`, one Cloud Monitoring service and one CPU-limit-utilisation SLO (95% goal, daily calendar period, 5-minute windows) are created per workload, giving a ready-made SLO framework to explore.
@@ -175,10 +175,8 @@ Variables are grouped exactly as they appear on the deployment platform.
 | Variable | Default | Description |
 |---|---|---|
 | `enable_monitoring` | `true` | Enable Managed Prometheus and create the per-workload Cloud Monitoring services and SLOs. |
-| `enable_cloud_service_mesh` | `true` | Install and configure Cloud Service Mesh (managed Istio) with `MANAGEMENT_AUTOMATIC` — provides mTLS and mesh telemetry. |
-| `cloud_service_mesh_version` | `1.23.4-asm.1` | Mesh version to target. Used only when the mesh is enabled; must be compatible with the cluster version. |
+| `enable_cloud_service_mesh` | `true` | Install and configure Cloud Service Mesh (managed Istio) with `MANAGEMENT_AUTOMATIC` — provides mTLS and mesh telemetry. Google selects the mesh version from the cluster's `release_channel`; there is no version input. |
 | `enable_config_management` | `false` | Reserved for Anthos Config Management. Not currently wired to any resource in this module — leave at default. |
-| `config_management_version` | `1.22.0` | Reserved ACM feature version (inactive — see above). |
 | `config_sync_repo` | _(GCP ACM samples repo)_ | Reserved Config Sync Git repository URL (inactive — see above). |
 | `config_sync_policy_dir` | _(quickstart multi-repo root)_ | Reserved Config Sync policy directory within the repo (inactive — see above). |
 
@@ -186,7 +184,7 @@ Variables are grouped exactly as they appear on the deployment platform.
 
 | Variable | Default | Description |
 |---|---|---|
-| `deploy_application` | `true` | Deploy the Bank of Anthos `v0.6.7` microservices onto the cluster. Set `false` to provision the cluster and infrastructure only. |
+| `deploy_application` | `true` | Deploy the Bank of Anthos `v0.6.10` microservices onto the cluster. Set `false` to provision the cluster and infrastructure only. |
 
 ---
 

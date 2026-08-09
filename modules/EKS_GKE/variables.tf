@@ -165,15 +165,15 @@ variable "cluster_name_prefix" {
 }
 
 variable "platform_version" {
-  description = "GKE Hub Attached Clusters platform version for the managed components installed onto the EKS cluster (format: major.minor.patch-gke.N, e.g. '1.34.0-gke.1'). Must be compatible with the selected k8s_version. Defaults to '1.34.0-gke.1'. {{UIMeta group=3 order=402 updatesafe }}"
+  description = "GKE Hub Attached Clusters platform version for the managed components installed onto the EKS cluster (format: major.minor.patch-gke.N, e.g. '1.35.0-gke.1'). Its minor version must equal k8s_version or be exactly one below it. Defaults to '1.35.0-gke.1'. Run 'gcloud container attached get-server-config --location=<gcp_location>' for the versions currently offered. {{UIMeta group=3 order=402 updatesafe }}"
   type        = string
-  default     = "1.34.0-gke.1"
+  default     = "1.35.0-gke.1"
 }
 
 variable "k8s_version" {
-  description = "Kubernetes version to deploy on the EKS cluster, specified as major.minor (e.g. '1.34'). Must be a version currently supported by EKS in the selected aws_region. The patch version is managed automatically by EKS. Defaults to '1.34'. {{UIMeta group=3 order=403 updatesafe }}"
+  description = "Kubernetes version to deploy on the EKS cluster, specified as major.minor (e.g. '1.35'). Must be a version currently supported by EKS in the selected aws_region. The patch version is managed automatically by EKS. Defaults to '1.35' (EKS standard support). {{UIMeta group=3 order=403 updatesafe }}"
   type        = string
-  default     = "1.34"
+  default     = "1.35"
 }
 
 variable "node_group_desired_size" {
