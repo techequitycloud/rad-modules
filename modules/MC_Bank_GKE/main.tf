@@ -65,6 +65,19 @@ locals {
 
   # Determine the list of APIs to enable based on whether additional services are requested
   project_services = var.enable_services ? local.default_apis : []
+
+  # Managed Cloud Service Mesh revision labels are channel-specific, and the
+  # CSM channel is taken from the cluster's GKE release channel at provision
+  # time. Labelling a namespace with a revision the control plane is not
+  # serving does not error -- injection is simply skipped -- so derive the
+  # label from release_channel instead of hardcoding the REGULAR one. The
+  # mesh-config ConfigMap in istio-system is named istio-<revision> and is
+  # derived from the same value.
+  asm_revision = lookup({
+    RAPID   = "asm-managed-rapid"
+    REGULAR = "asm-managed"
+    STABLE  = "asm-managed-stable"
+  }, var.release_channel, "asm-managed")
 }
 
 # Generate a random ID if a deployment ID is not provided

@@ -26,7 +26,7 @@ variable "gcp_location" {
 }
 
 variable "platform_version" {
-  description = "GKE Hub Attached Clusters platform version for the managed components to install on the external cluster (format: major.minor.patch-gke.N, e.g. '1.34.0-gke.1'). Must be compatible with the Kubernetes version running on the target cluster. Required; no default."
+  description = "GKE Hub Attached Clusters platform version for the managed components to install on the external cluster (format: major.minor.patch-gke.N, e.g. '1.35.0-gke.1'). Must be compatible with the Kubernetes version running on the target cluster. Required; no default."
   type        = string
 }
 

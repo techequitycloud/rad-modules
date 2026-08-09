@@ -15,8 +15,8 @@ run "defaults_produce_valid_plan" {
   }
 
   assert {
-    condition     = var.istio_version == "1.24.2"
-    error_message = "Default Istio version should be 1.24.2"
+    condition     = var.istio_version == "1.30.3"
+    error_message = "Default Istio version should be 1.30.3"
   }
 
   assert {

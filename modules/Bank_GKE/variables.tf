@@ -208,22 +208,10 @@ variable "enable_cloud_service_mesh" {
   default     = true
 }
 
-variable "cloud_service_mesh_version" {
-  description = "Version of Cloud Service Mesh to install (format: major.minor.patch-asm.N, e.g. '1.23.4-asm.1'). Only used when enable_cloud_service_mesh is true. Defaults to '1.23.4-asm.1'. Must be a version compatible with the GKE cluster version and release channel. {{UIMeta group=6 order=603 }}"
-  type        = string
-  default     = "1.23.4-asm.1"
-}
-
 variable "enable_config_management" {
   description = "Set to true to install Anthos Config Management (ACM), which syncs Kubernetes configuration from a Git repository specified by config_sync_repo and config_sync_policy_dir. Defaults to false. Requires enable_cloud_service_mesh to also be true for full functionality. {{UIMeta group=6 order=604 }}"
   type        = bool
   default     = false
-}
-
-variable "config_management_version" {
-  description = "Version of Anthos Config Management to install (format: major.minor.patch, e.g. '1.22.0'). Only used when enable_config_management is true. Defaults to '1.22.0'. Must be compatible with the GKE cluster version. {{UIMeta group=6 order=605 }}"
-  type        = string
-  default     = "1.22.0"
 }
 
 variable "config_sync_repo" {

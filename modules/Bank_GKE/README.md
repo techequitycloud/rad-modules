@@ -1,6 +1,6 @@
 # Bank\_GKE Module
 
-This module deploys the **Bank of Anthos** microservices banking demo application (v0.6.7) on a single Google Kubernetes Engine (GKE) cluster. It provisions the GKE cluster, configures Cloud Service Mesh, registers the cluster with a GKE Fleet, and optionally enables Anthos Config Management and Cloud Monitoring SLOs.
+This module deploys the **Bank of Anthos** microservices banking demo application (v0.6.10) on a single Google Kubernetes Engine (GKE) cluster. It provisions the GKE cluster, configures Cloud Service Mesh, registers the cluster with a GKE Fleet, and optionally enables Anthos Config Management and Cloud Monitoring SLOs.
 
 ## Industry Value & Use Cases
 
@@ -143,8 +143,6 @@ No modules.
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_cloud_service_mesh_version"></a> [cloud\_service\_mesh\_version](#input\_cloud\_service\_mesh\_version) | Version of Cloud Service Mesh to install (format: major.minor.patch-asm.N, e.g. '1.23.4-asm.1'). Only used when enable\_cloud\_service\_mesh is true. Defaults to '1.23.4-asm.1'. Must be a version compatible with the GKE cluster version and release channel. | `string` | `"1.23.4-asm.1"` | no |
-| <a name="input_config_management_version"></a> [config\_management\_version](#input\_config\_management\_version) | Version of Anthos Config Management to install (format: major.minor.patch, e.g. '1.22.0'). Only used when enable\_config\_management is true. Defaults to '1.22.0'. Must be compatible with the GKE cluster version. | `string` | `"1.22.0"` | no |
 | <a name="input_config_sync_policy_dir"></a> [config\_sync\_policy\_dir](#input\_config\_sync\_policy\_dir) | Path within the config\_sync\_repo Git repository containing the root Kubernetes configuration to sync (e.g. 'config-sync-quickstart/multirepo/root'). Only used when enable\_config\_management is true. Defaults to the quickstart multi-repo root directory. | `string` | `"config-sync-quickstart/multirepo/root"` | no |
 | <a name="input_config_sync_repo"></a> [config\_sync\_repo](#input\_config\_sync\_repo) | URL of the Git repository from which Anthos Config Sync will pull Kubernetes manifests (e.g. 'https://github.com/org/repo'). Only used when enable\_config\_management is true. Defaults to the Google Cloud Platform ACM samples repository. The repository must be publicly accessible or credentials must be configured separately. | `string` | `"https://github.com/GoogleCloudPlatform/anthos-config-management-samples"` | no |
 | <a name="input_create_autopilot_cluster"></a> [create\_autopilot\_cluster](#input\_create\_autopilot\_cluster) | Set to true (default) to create a GKE Autopilot cluster, where node provisioning and scaling are fully managed by Google. Set to false to create a Standard cluster where node pools are manually configured. Autopilot is recommended for most workloads; Standard offers more control over node configuration. | `bool` | `true` | no |

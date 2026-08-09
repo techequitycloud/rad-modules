@@ -24,7 +24,9 @@ resource "local_file" "backend_config_yaml_output" {
 
 resource "local_file" "configmap_yaml_output" {
   content = templatefile("${path.module}/templates/configmap.yaml.tpl", {
-    # No variables needed for this template
+    # The managed CSM mesh-config ConfigMap is named istio-<revision>; the
+    # revision tracks the cluster's release channel (see local.asm_revision).
+    ASM_REVISION = local.asm_revision
   })
   filename = "${path.module}/manifests/configmap.yaml"
 }

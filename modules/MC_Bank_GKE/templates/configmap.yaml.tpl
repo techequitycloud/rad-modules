@@ -6,5 +6,5 @@ data:
           stackdriver: {}
 kind: ConfigMap
 metadata:
-   name: istio-asm-managed
+   name: istio-${ASM_REVISION}
    namespace: istio-system

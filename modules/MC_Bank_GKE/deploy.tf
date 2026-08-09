@@ -19,7 +19,7 @@
 # ============================================
 
 locals {
-  bank_of_anthos_version = "v0.6.7"
+  bank_of_anthos_version = "v0.6.10"
   release_url            = "https://github.com/GoogleCloudPlatform/bank-of-anthos/archive/refs/tags/${local.bank_of_anthos_version}.tar.gz"
   download_path          = "${path.module}/.terraform/bank-of-anthos"
   extracted_path         = "${local.download_path}/bank-of-anthos-${trimprefix(local.bank_of_anthos_version, "v")}"
@@ -114,7 +114,7 @@ resource "kubernetes_namespace" "bank_of_anthos_cluster1" {
   metadata {
     name = "bank-of-anthos"
     labels = {
-      "istio.io/rev" = "asm-managed"
+      "istio.io/rev" = local.asm_revision
     }
   }
 
@@ -141,7 +141,7 @@ resource "kubernetes_namespace" "bank_of_anthos_cluster2" {
   metadata {
     name = "bank-of-anthos"
     labels = {
-      "istio.io/rev" = "asm-managed"
+      "istio.io/rev" = local.asm_revision
     }
   }
 
@@ -243,7 +243,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
       # (its download_id trigger changes because download_bank_of_anthos uses
       # always_run = timestamp()). Recreate the namespace idempotently here
       # rather than only verifying it — which previously failed with "Failed to
-      # verify namespace". The istio.io/rev=asm-managed label keeps Cloud
+      # verify namespace". The istio.io/rev label keeps Cloud
       # Service Mesh sidecar injection enabled.
       echo ""
       echo "Ensuring namespace '$NAMESPACE' exists..."
@@ -252,7 +252,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
         --dry-run=client -o yaml | kubectl apply --context="$CONTEXT_NAME" -f -
       kubectl label namespace "$NAMESPACE" \
         --context="$CONTEXT_NAME" \
-        istio.io/rev=asm-managed --overwrite
+        istio.io/rev=${local.asm_revision} --overwrite
       echo "✓ Namespace '$NAMESPACE' is ready"
 
       # Verify ASM injection label

@@ -191,12 +191,6 @@ variable "enable_cloud_service_mesh" {
   default     = true
 }
 
-variable "cloud_service_mesh_version" {
-  description = "Version of Cloud Service Mesh to install across all clusters (format: major.minor.patch-asm.N, e.g. '1.23.4-asm.1'). Only used when enable_cloud_service_mesh is true. Defaults to '1.23.4-asm.1'. Must be compatible with the GKE cluster versions and release channel. {{UIMeta group=4 order=402 }}"
-  type        = string
-  default     = "1.23.4-asm.1"
-}
-
 // SECTION 5: Application
 
 variable "deploy_application" {

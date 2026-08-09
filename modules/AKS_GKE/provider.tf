@@ -17,8 +17,12 @@
 terraform {
   required_providers {
     azurerm = {
-      source  = "hashicorp/azurerm"
-      version = ">=3.17.0"
+      source = "hashicorp/azurerm"
+      # Upper-bounded deliberately. azurerm 5.0 made node_provisioning_profile
+      # a required block on azurerm_kubernetes_cluster, so an unbounded
+      # ">=3.17.0" lets a fresh init pull 5.x and fail schema validation before
+      # reaching Azure. Moving to 5.x needs a matching change in main.tf.
+      version = "~> 4.0"
     }
     google = {
       source  = "hashicorp/google"

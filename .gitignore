@@ -56,6 +56,10 @@ terraform.tfvars
 *.tfstate.*
 *.lock.hcl
 *.out
+*.tfplan
+# Attached-cluster bootstrap Helm chart rendered at apply time by
+# modules/{AKS,EKS}_GKE/modules/attached-install-manifest (var.temp_dir).
+**/.tmp/
 
 venv
 crash.log

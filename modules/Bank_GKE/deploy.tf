@@ -19,7 +19,7 @@
 # ============================================
 
 locals {
-  bank_of_anthos_version = "v0.6.7"
+  bank_of_anthos_version = "v0.6.10"
   release_url            = "https://github.com/GoogleCloudPlatform/bank-of-anthos/archive/refs/tags/${local.bank_of_anthos_version}.tar.gz"
   download_path          = "${path.module}/.terraform/bank-of-anthos"
   extracted_path         = "${local.download_path}/bank-of-anthos-${trimprefix(local.bank_of_anthos_version, "v")}"
@@ -94,7 +94,7 @@ resource "null_resource" "download_bank_of_anthos" {
 # WORKLOAD IDENTITY — LOCAL GSA FOR BANK OF ANTHOS
 # ============================================
 #
-# Bank of Anthos v0.6.7 manifests ship with:
+# Bank of Anthos v0.6.10 manifests ship with:
 #   iam.gke.io/gcp-service-account: gke-workload-development@bank-of-anthos-ci.iam.gserviceaccount.com
 # That GSA belongs to Google's CI project and is inaccessible in any other project.
 # Without a valid Workload Identity binding the metadata server cannot return a project ID,
@@ -187,7 +187,7 @@ resource "kubernetes_namespace" "bank_of_anthos" {
   metadata {
     name = "bank-of-anthos"
     labels = {
-      "istio.io/rev" = "asm-managed"
+      "istio.io/rev" = local.asm_revision
     }
   }
 
@@ -293,7 +293,7 @@ resource "null_resource" "deploy_bank_of_anthos" {
         --dry-run=client -o yaml | kubectl apply --context="$CONTEXT_NAME" -f -
       kubectl label namespace "$NAMESPACE" \
         --context="$CONTEXT_NAME" \
-        istio.io/rev=asm-managed --overwrite
+        istio.io/rev=${local.asm_revision} --overwrite
       echo "✓ Namespace '$NAMESPACE' is ready"
       
       # Check ASM injection
