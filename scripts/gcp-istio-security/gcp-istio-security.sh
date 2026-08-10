@@ -67,6 +67,7 @@ export GCP_PROJECT=$GCP_PROJECT
 export ISTIO_VERSION=1.24.2
 export GCP_REGION=us-central1
 export GCP_CLUSTER=gke-cluster
+export ISTIO_MODE=sidecar
 EOF
 source $PROJDIR/.env
 fi
@@ -83,14 +84,16 @@ cat<<EOF
 Menu for exploring Istio Resiliency and Security Features
 --------------------------------------------------------------
 Please enter number to select your choice:
- (1) Install tools 
+ (1) Install tools
  (2) Enable APIs
  (3) Create Kubernetes cluster
- (4) Install Istio
- (5) Configure namespace for automatic sidecar injection
- (6) Explore traffic mirroring 
- (7) Explore circuit breaking 
- (8) Explore security 
+ (4A) Install Istio - sidecar mode
+ (4B) Install Istio - ambient mode
+ (5) Configure namespace for mesh dataplane (sidecar or ambient)
+ (6) Explore traffic mirroring (Gateway API)
+ (7) Explore circuit breaking
+ (8) Explore security
+ (9) Explore ambient L7 policy attachment (Gateway API)
  (Q) Quit
 --------------------------------------------------------------
 EOF
@@ -137,6 +140,7 @@ export GCP_PROJECT=$GCP_PROJECT
 export ISTIO_VERSION=$ISTIO_VERSION
 export GCP_REGION=$GCP_REGION
 export GCP_CLUSTER=$GCP_CLUSTER
+export ISTIO_MODE=${ISTIO_MODE:-sidecar}
 EOF
         gsutil cp $PROJDIR/.env gs://${GCP_PROJECT}/${SCRIPTNAME}.env > /dev/null 2>&1
         echo
@@ -215,6 +219,7 @@ export GCP_PROJECT=$GCP_PROJECT
 export ISTIO_VERSION=1.24.2
 export GCP_REGION=us-central1
 export GCP_CLUSTER=gke-cluster
+export ISTIO_MODE=${ISTIO_MODE:-sidecar}
 EOF
                 gsutil cp $PROJDIR/.env gs://${GCP_PROJECT}/${SCRIPTNAME}.env > /dev/null 2>&1
                 echo
@@ -371,38 +376,91 @@ echo
 read -n 1 -s -r -p "$ "
 ;;
 
-"4")
+"4A")
 start=`date +%s`
 source $PROJDIR/.env
 if [ $MODE -eq 1 ]; then
-    export STEP="${STEP},4i"
+    export STEP="${STEP},4Ai"
     echo
-    echo "$ \$HOME/istio-\${ISTIO_VERSION}/bin/istioctl install --set profile=default -y # to install Istio with the Demo profile" | pv -qL 100
+    echo "$ \$HOME/istio-\${ISTIO_VERSION}/bin/istioctl install --set profile=default -y # to install Istio in sidecar mode" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
-    export STEP="${STEP},4"   
-    gcloud config set project $GCP_PROJECT > /dev/null 2>&1 
-    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1 
-    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1 
-    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1 
+    export STEP="${STEP},4A"
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1
     echo
-    echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl install --set profile=default -y # to install Istio with the Demo profile" | pv -qL 100
+    echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl install --set profile=default -y # to install Istio in sidecar mode" | pv -qL 100
     $HOME/istio-${ISTIO_VERSION}/bin/istioctl install --set profile=default -y
-elif [ $MODE -eq 3 ]; then
-    export STEP="${STEP},4"   
-    gcloud config set project $GCP_PROJECT > /dev/null 2>&1 
-    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1 
-    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1 
-    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1 
     echo
-    echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl uninstall --purge # to uninstall Istio" | pv -qL 100
-    $HOME/istio-${ISTIO_VERSION}/bin/istioctl uninstall --purge 
+    echo "$ sed -i '/^export ISTIO_MODE=/d' $PROJDIR/.env && echo 'export ISTIO_MODE=sidecar' >> $PROJDIR/.env # to record the installed mode" | pv -qL 100
+    sed -i '/^export ISTIO_MODE=/d' $PROJDIR/.env
+    echo "export ISTIO_MODE=sidecar" >> $PROJDIR/.env
+    source $PROJDIR/.env
+elif [ $MODE -eq 3 ]; then
+    export STEP="${STEP},4A"
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1
+    echo
+    echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl uninstall --purge -y # to uninstall Istio" | pv -qL 100
+    $HOME/istio-${ISTIO_VERSION}/bin/istioctl uninstall --purge -y
     echo && echo
     echo "$  kubectl delete namespace istio-system --ignore-not-found=true # to remove namespace" | pv -qL 100
     kubectl delete namespace istio-system --ignore-not-found=true
 else
-    export STEP="${STEP},4i"
+    export STEP="${STEP},4Ai"
     echo
-    echo "1. Install Istio" | pv -qL 100
+    echo "1. Install Istio (sidecar profile)" | pv -qL 100
+fi
+echo
+read -n 1 -s -r -p "$ "
+;;
+
+"4B")
+start=`date +%s`
+source $PROJDIR/.env
+if [ $MODE -eq 1 ]; then
+    export STEP="${STEP},4Bi"
+    echo
+    echo "$ \$HOME/istio-\${ISTIO_VERSION}/bin/istioctl install -y --set profile=ambient --set \"components.ingressGateways[0].enabled=true\" --set \"components.ingressGateways[0].name=istio-ingressgateway\" --set \"components.ingressGateways[0].k8s.service.type=LoadBalancer\" --skip-confirmation # to install Istio in ambient mode" | pv -qL 100
+    echo
+    echo "$ kubectl get pods -n istio-system -l app=ztunnel # to verify ztunnel is running on every node" | pv -qL 100
+elif [ $MODE -eq 2 ]; then
+    export STEP="${STEP},4B"
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1
+    echo
+    echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl install -y --set profile=ambient --set \"components.ingressGateways[0].enabled=true\" --set \"components.ingressGateways[0].name=istio-ingressgateway\" --set \"components.ingressGateways[0].k8s.service.type=LoadBalancer\" --skip-confirmation # to install Istio in ambient mode" | pv -qL 100
+    $HOME/istio-${ISTIO_VERSION}/bin/istioctl install -y --set profile=ambient --set "components.ingressGateways[0].enabled=true" --set "components.ingressGateways[0].name=istio-ingressgateway" --set "components.ingressGateways[0].k8s.service.type=LoadBalancer" --skip-confirmation
+    echo
+    echo "$ kubectl get pods -n istio-system -l app=ztunnel # to verify ztunnel is running on every node" | pv -qL 100
+    kubectl get pods -n istio-system -l app=ztunnel || echo "Warning: No ztunnel pods found"
+    echo
+    echo "$ sed -i '/^export ISTIO_MODE=/d' $PROJDIR/.env && echo 'export ISTIO_MODE=ambient' >> $PROJDIR/.env # to record the installed mode" | pv -qL 100
+    sed -i '/^export ISTIO_MODE=/d' $PROJDIR/.env
+    echo "export ISTIO_MODE=ambient" >> $PROJDIR/.env
+    source $PROJDIR/.env
+elif [ $MODE -eq 3 ]; then
+    export STEP="${STEP},4B"
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1
+    echo
+    echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl uninstall --purge -y # to uninstall Istio" | pv -qL 100
+    $HOME/istio-${ISTIO_VERSION}/bin/istioctl uninstall --purge -y
+    echo && echo
+    echo "$  kubectl delete namespace istio-system --ignore-not-found=true # to remove namespace" | pv -qL 100
+    kubectl delete namespace istio-system --ignore-not-found=true
+else
+    export STEP="${STEP},4Bi"
+    echo
+    echo "1. Install Istio (ambient profile)" | pv -qL 100
+    echo "2. Verify ztunnel" | pv -qL 100
 fi
 echo
 read -n 1 -s -r -p "$ "
@@ -411,12 +469,20 @@ read -n 1 -s -r -p "$ "
 "5")
 start=`date +%s`
 source $PROJDIR/.env
+export ISTIO_MODE=${ISTIO_MODE:-sidecar}
 if [ $MODE -eq 1 ]; then
     export STEP="${STEP},5i"
     echo
     echo "$ kubectl create namespace \$APPLICATION_NAMESPACE # to create namespace" | pv -qL 100
-    echo
-    echo "$ kubectl label namespace \$APPLICATION_NAMESPACE istio-injection=enabled # to label namespaces for automatic sidecar injection" | pv -qL 100
+    if [ "$ISTIO_MODE" == "ambient" ]; then
+        echo
+        echo "$ kubectl label namespace \$APPLICATION_NAMESPACE istio.io/dataplane-mode=ambient --overwrite # to enroll the namespace in ambient mesh" | pv -qL 100
+        echo
+        echo "$ \$HOME/istio-\${ISTIO_VERSION}/bin/istioctl waypoint apply --namespace \$APPLICATION_NAMESPACE # to deploy a waypoint proxy so L7 features (mirroring, circuit breaking, policy) keep working" | pv -qL 100
+    else
+        echo
+        echo "$ kubectl label namespace \$APPLICATION_NAMESPACE istio-injection=enabled # to label namespaces for automatic sidecar injection" | pv -qL 100
+    fi
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},5"
     gcloud config set project $GCP_PROJECT > /dev/null 2>&1
@@ -425,22 +491,39 @@ elif [ $MODE -eq 2 ]; then
     echo
     echo "$ kubectl create namespace $APPLICATION_NAMESPACE # to create namespace" | pv -qL 100
     kubectl create namespace $APPLICATION_NAMESPACE
-    echo
-    echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled # to label namespaces for automatic sidecar injection" | pv -qL 100
-    kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled
+    if [ "$ISTIO_MODE" == "ambient" ]; then
+        echo
+        echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio.io/dataplane-mode=ambient --overwrite # to enroll the namespace in ambient mesh" | pv -qL 100
+        kubectl label namespace $APPLICATION_NAMESPACE istio.io/dataplane-mode=ambient --overwrite
+        echo
+        echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl waypoint apply --namespace $APPLICATION_NAMESPACE # to deploy a waypoint proxy so L7 features (mirroring, circuit breaking, policy) keep working" | pv -qL 100
+        $HOME/istio-${ISTIO_VERSION}/bin/istioctl waypoint apply --namespace $APPLICATION_NAMESPACE || echo "Warning: waypoint apply failed"
+    else
+        echo
+        echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled # to label namespaces for automatic sidecar injection" | pv -qL 100
+        kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled
+    fi
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},5x"
-    gcloud config set project $GCP_PROJECT > /dev/null 2>&1 
-    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1 
-    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1 
-    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1 
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1
+    if [ "$ISTIO_MODE" == "ambient" ]; then
+        echo
+        echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl waypoint delete --all -n $APPLICATION_NAMESPACE # to remove the waypoint proxy" | pv -qL 100
+        $HOME/istio-${ISTIO_VERSION}/bin/istioctl waypoint delete --all -n $APPLICATION_NAMESPACE 2> /dev/null
+        echo
+        echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio.io/dataplane-mode- istio.io/use-waypoint- --overwrite --ignore-not-found # to remove ambient labels" | pv -qL 100
+        kubectl label namespace $APPLICATION_NAMESPACE istio.io/dataplane-mode- istio.io/use-waypoint- --overwrite --ignore-not-found
+    fi
     echo
     echo "$ kubectl delete namespace $APPLICATION_NAMESPACE # to delete namespace" | pv -qL 100
-    kubectl create namespace $APPLICATION_NAMESPACE 2> /dev/null
+    kubectl delete namespace $APPLICATION_NAMESPACE 2> /dev/null
 else
     export STEP="${STEP},5i"
     echo
-    echo "1. Create and label namespace" | pv -qL 100
+    echo "1. Create and label namespace for sidecar injection or ambient mesh, deploying a waypoint proxy in ambient mode" | pv -qL 100
 fi
 end=`date +%s`
 echo
@@ -454,8 +537,6 @@ start=`date +%s`
 source $PROJDIR/.env
 if [ $MODE -eq 1 ]; then
     export STEP="${STEP},6i"
-    echo
-    echo "$ kubectl -n \$APPLICATION_NAMESPACE apply -f samples/httpbin/httpbin-gateway.yaml # to create ingress" | pv -qL 100
     echo
     echo "$ kubectl apply -n \$APPLICATION_NAMESPACE -f - <<EOF
 apiVersion: apps/v1
@@ -525,8 +606,40 @@ spec:
     targetPort: 80
   selector:
     app: httpbin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin-v1
+  labels:
+    app: httpbin
+    version: v1
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+    version: v1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin-v2
+  labels:
+    app: httpbin
+    version: v2
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+    version: v2
 EOF" | pv -qL 100
-    echo 
+    echo
     echo "$ kubectl apply -n \$APPLICATION_NAMESPACE -f - <<EOF
 apiVersion: apps/v1
 kind: Deployment
@@ -552,32 +665,20 @@ EOF" | pv -qL 100
     echo "$ kubectl wait --for=condition=available --timeout=600s deployment --all -n \$APPLICATION_NAMESPACE # to wait for the deployment to finish" | pv -qL 100
     echo
     echo "$ kubectl apply -n \$APPLICATION_NAMESPACE -f - <<EOF
-apiVersion: networking.istio.io/v1alpha3
-kind: DestinationRule
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
 metadata:
   name: httpbin
 spec:
-  host: httpbin
-  subsets:
-  - name: v1
-    labels:
-      version: v1
-  - name: v2
-    labels:
-      version: v2
----
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: httpbin
-spec:
-  hosts:
-    - httpbin
-  http:
-  - route:
-    - destination:
-        host: httpbin
-        subset: v1
+  parentRefs:
+  - group: \"\"
+    kind: Service
+    name: httpbin
+    port: 8000
+  rules:
+  - backendRefs:
+    - name: httpbin-v1
+      port: 8000
       weight: 100
 EOF" | pv -qL 100
     echo
@@ -588,24 +689,28 @@ EOF" | pv -qL 100
     echo "$ kubectl -n \$APPLICATION_NAMESPACE logs \$V2_POD -c httpbin # to tail logs for v2 of the httpbin pods" | pv -qL 100
     echo
     echo "$ kubectl apply -n \$APPLICATION_NAMESPACE -f - <<EOF
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
 metadata:
   name: httpbin
 spec:
-  hosts:
-    - httpbin
-  http:
-  - route:
-    - destination:
-        host: httpbin
-        subset: v1
+  parentRefs:
+  - group: \"\"
+    kind: Service
+    name: httpbin
+    port: 8000
+  rules:
+  - backendRefs:
+    - name: httpbin-v1
+      port: 8000
       weight: 100
-    mirror:
-      host: httpbin
-      subset: v2
-    mirrorPercentage:
-      value: 100.0
+    filters:
+    - type: RequestMirror
+      requestMirror:
+        backendRef:
+          name: httpbin-v2
+          port: 8000
+        percent: 100
 EOF" | pv -qL 100
     echo
     echo "$ kubectl -n \$APPLICATION_NAMESPACE exec -it \$SLEEP_POD -c sleep -- sh -c 'for i in \`seq 1 5\`; do curl http://httpbin:8000/headers; done' # to send 5x traffic to the service" | pv -qL 100
@@ -669,17 +774,7 @@ elif [ $MODE -eq 2 ]; then
     gcloud config set project $GCP_PROJECT > /dev/null 2>&1
     kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
     gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER > /dev/null 2>&1
-    export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
     echo
-    cd $HOME/istio-${ISTIO_VERSION} > /dev/null 2>&1 # change to istio directory
-    echo "$ cat samples/httpbin/httpbin-gateway.yaml # to view gateway and virtual service" | pv -qL 100
-    cat samples/httpbin/httpbin-gateway.yaml
-    echo
-    echo "$ kubectl -n $APPLICATION_NAMESPACE apply -f samples/httpbin/httpbin-gateway.yaml # to create ingress" | pv -qL 100
-    kubectl -n $APPLICATION_NAMESPACE apply -f samples/httpbin/httpbin-gateway.yaml
-    echo
-    read -n 1 -s -r -p $'*** Press the Enter key to continue ***'
-    echo && echo
     echo "$ kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF
 apiVersion: apps/v1
 kind: Deployment
@@ -801,6 +896,38 @@ spec:
     targetPort: 80
   selector:
     app: httpbin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin-v1
+  labels:
+    app: httpbin
+    version: v1
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+    version: v1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin-v2
+  labels:
+    app: httpbin
+    version: v2
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+    version: v2
 EOF" | pv -qL 100
 kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF
 apiVersion: v1
@@ -816,6 +943,38 @@ spec:
     targetPort: 80
   selector:
     app: httpbin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin-v1
+  labels:
+    app: httpbin
+    version: v1
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+    version: v1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin-v2
+  labels:
+    app: httpbin
+    version: v2
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+    version: v2
 EOF
     echo 
     echo "$ kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF
@@ -867,64 +1026,40 @@ EOF
     read -n 1 -s -r -p $'*** Press the Enter key to continue ***'
     echo && echo
     echo "$ kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF
-apiVersion: networking.istio.io/v1alpha3
-kind: DestinationRule
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
 metadata:
   name: httpbin
 spec:
-  host: httpbin
-  subsets:
-  - name: v1
-    labels:
-      version: v1
-  - name: v2
-    labels:
-      version: v2
----
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: httpbin
-spec:
-  hosts:
-    - httpbin
-  http:
-  - route:
-    - destination:
-        host: httpbin
-        subset: v1
+  parentRefs:
+  - group: \"\"
+    kind: Service
+    name: httpbin
+    port: 8000
+  rules:
+  - backendRefs:
+    - name: httpbin-v1
+      port: 8000
       weight: 100
 EOF" | pv -qL 100
 kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF
-apiVersion: networking.istio.io/v1alpha3
-kind: DestinationRule
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
 metadata:
   name: httpbin
 spec:
-  host: httpbin
-  subsets:
-  - name: v1
-    labels:
-      version: v1
-  - name: v2
-    labels:
-      version: v2
----
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
-metadata:
-  name: httpbin
-spec:
-  hosts:
-    - httpbin
-  http:
-  - route:
-    - destination:
-        host: httpbin
-        subset: v1
+  parentRefs:
+  - group: ""
+    kind: Service
+    name: httpbin
+    port: 8000
+  rules:
+  - backendRefs:
+    - name: httpbin-v1
+      port: 8000
       weight: 100
 EOF
-    export SLEEP_POD=$(kubectl -n $APPLICATION_NAMESPACE get pod -l app=sleep -o jsonpath={.items..metadata.name}) 
+    export SLEEP_POD=$(kubectl -n $APPLICATION_NAMESPACE get pod -l app=sleep -o jsonpath={.items..metadata.name})
     echo
     read -n 1 -s -r -p $'*** Press the Enter key to continue ***'
     echo && echo
@@ -947,44 +1082,52 @@ EOF
     read -n 1 -s -r -p $'*** Press the Enter key to continue ***'
     echo && echo
     echo "$ kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
 metadata:
   name: httpbin
 spec:
-  hosts:
-    - httpbin
-  http:
-  - route:
-    - destination:
-        host: httpbin
-        subset: v1
+  parentRefs:
+  - group: \"\"
+    kind: Service
+    name: httpbin
+    port: 8000
+  rules:
+  - backendRefs:
+    - name: httpbin-v1
+      port: 8000
       weight: 100
-    mirror:
-      host: httpbin
-      subset: v2
-    mirrorPercentage:
-      value: 100.0
+    filters:
+    - type: RequestMirror
+      requestMirror:
+        backendRef:
+          name: httpbin-v2
+          port: 8000
+        percent: 100
 EOF" | pv -qL 100
 kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF
-apiVersion: networking.istio.io/v1alpha3
-kind: VirtualService
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
 metadata:
   name: httpbin
 spec:
-  hosts:
-    - httpbin
-  http:
-  - route:
-    - destination:
-        host: httpbin
-        subset: v1
+  parentRefs:
+  - group: ""
+    kind: Service
+    name: httpbin
+    port: 8000
+  rules:
+  - backendRefs:
+    - name: httpbin-v1
+      port: 8000
       weight: 100
-    mirror:
-      host: httpbin
-      subset: v2
-    mirrorPercentage:
-      value: 100.0
+    filters:
+    - type: RequestMirror
+      requestMirror:
+        backendRef:
+          name: httpbin-v2
+          port: 8000
+        percent: 100
 EOF
     sleep 15
     echo
@@ -1010,11 +1153,20 @@ EOF
     echo
     echo "$ kubectl create namespace $APPLICATION_NAMESPACE # to create namespace" | pv -qL 100
     kubectl create namespace $APPLICATION_NAMESPACE
-    echo
-    echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled # to label namespaces for automatic sidecar injection" | pv -qL 100
-    kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled
+    if [ "${ISTIO_MODE:-sidecar}" == "ambient" ]; then
+        echo
+        echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio.io/dataplane-mode=ambient --overwrite # to re-enroll the namespace in ambient mesh" | pv -qL 100
+        kubectl label namespace $APPLICATION_NAMESPACE istio.io/dataplane-mode=ambient --overwrite
+        echo
+        echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl waypoint apply --namespace $APPLICATION_NAMESPACE # to redeploy the waypoint proxy (the namespace recreate above removed it)" | pv -qL 100
+        $HOME/istio-${ISTIO_VERSION}/bin/istioctl waypoint apply --namespace $APPLICATION_NAMESPACE || echo "Warning: waypoint apply failed"
+    else
+        echo
+        echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled # to label namespaces for automatic sidecar injection" | pv -qL 100
+        kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled
+    fi
 elif [ $MODE -eq 3 ]; then
-    export STEP="${STEP},6x"        
+    export STEP="${STEP},6x"
     echo
     echo "*** Nothing to delete ***" | pv -qL 100
 else
@@ -2107,17 +2259,388 @@ EOF" | pv -qL 100
     echo
     echo "$ kubectl create namespace $APPLICATION_NAMESPACE # to create namespace" | pv -qL 100
     kubectl create namespace $APPLICATION_NAMESPACE
-    echo
-    echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled # to label namespaces for automatic sidecar injection" | pv -qL 100
-    kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled
+    if [ "${ISTIO_MODE:-sidecar}" == "ambient" ]; then
+        echo
+        echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio.io/dataplane-mode=ambient --overwrite # to re-enroll the namespace in ambient mesh" | pv -qL 100
+        kubectl label namespace $APPLICATION_NAMESPACE istio.io/dataplane-mode=ambient --overwrite
+        echo
+        echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl waypoint apply --namespace $APPLICATION_NAMESPACE # to redeploy the waypoint proxy (the namespace recreate above removed it)" | pv -qL 100
+        $HOME/istio-${ISTIO_VERSION}/bin/istioctl waypoint apply --namespace $APPLICATION_NAMESPACE || echo "Warning: waypoint apply failed"
+    else
+        echo
+        echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled # to label namespaces for automatic sidecar injection" | pv -qL 100
+        kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled
+    fi
 elif [ $MODE -eq 3 ]; then
-    export STEP="${STEP},8x"        
+    export STEP="${STEP},8x"
     echo
     echo "*** Nothing to delete ***" | pv -qL 100
 else
     export STEP="${STEP},8i"
     echo
     echo "1. Explore security" | pv -qL 100
+fi
+end=`date +%s`
+echo
+echo Execution time was `expr $end - $start` seconds.
+echo
+read -n 1 -s -r -p "$ "
+;;
+
+"9")
+start=`date +%s`
+source $PROJDIR/.env
+export ISTIO_MODE=${ISTIO_MODE:-sidecar}
+if [ $MODE -eq 1 ]; then
+    export STEP="${STEP},9i"
+    echo
+    if [ "$ISTIO_MODE" == "ambient" ]; then
+        echo "*** \$APPLICATION_NAMESPACE is running in ambient mode. Step 8's AuthorizationPolicy examples all use 'selector' - under ztunnel, an L7 selector-attached policy fails CLOSED (deny-everything), not open. This step applies the same rule twice: once with 'selector' (broken under ambient) and once with 'targetRefs' pointing at the waypoint-fronted Service (correct under ambient). ***" | pv -qL 100
+    else
+        echo "*** \$APPLICATION_NAMESPACE is running in sidecar mode, where 'selector' and 'targetRefs' both work identically. This step applies the same rule both ways so the contrast is ready to see the moment you switch to ambient mode (4B). ***" | pv -qL 100
+    fi
+    echo
+    echo "$ kubectl apply -n \$APPLICATION_NAMESPACE -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+  template:
+    metadata:
+      labels:
+        app: httpbin
+    spec:
+      containers:
+      - image: docker.io/kennethreitz/httpbin
+        imagePullPolicy: IfNotPresent
+        name: httpbin
+        command: [\"gunicorn\", \"--access-logfile\", \"-\", \"-b\", \"0.0.0.0:80\", \"httpbin:app\"]
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  labels:
+    app: httpbin
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sleep
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sleep
+  template:
+    metadata:
+      labels:
+        app: sleep
+    spec:
+      containers:
+      - name: sleep
+        image: curlimages/curl
+        command: [\"/bin/sleep\",\"3650d\"]
+        imagePullPolicy: IfNotPresent
+EOF" | pv -qL 100
+    echo
+    echo "$ kubectl wait --for=condition=available --timeout=600s deployment --all -n \$APPLICATION_NAMESPACE # to wait for the deployment to finish" | pv -qL 100
+    echo
+    echo "$ kubectl apply -n \$APPLICATION_NAMESPACE -f - <<EOF # selector-attached - the idiom used throughout step 8
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: httpbin-allow-get-ip
+spec:
+  selector:
+    matchLabels:
+      app: httpbin
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        methods: [\"GET\"]
+        paths: [\"/ip\"]
+EOF" | pv -qL 100
+    echo
+    echo "$ kubectl -n \$APPLICATION_NAMESPACE exec \$SLEEP_POD -c sleep -- curl -s -o /dev/null -w '%{http_code}\\n' http://httpbin:8000/ip # expect 200 under sidecar; expect it to fail under ambient even though the rule says ALLOW" | pv -qL 100
+    echo
+    echo "$ kubectl -n \$APPLICATION_NAMESPACE exec \$SLEEP_POD -c sleep -- curl -s -o /dev/null -w '%{http_code}\\n' http://httpbin:8000/headers # expect 403 - only GET /ip is allowed" | pv -qL 100
+    echo
+    echo "$ kubectl -n \$APPLICATION_NAMESPACE delete authorizationpolicy httpbin-allow-get-ip # to remove the selector-attached policy" | pv -qL 100
+    echo
+    echo "$ kubectl apply -n \$APPLICATION_NAMESPACE -f - <<EOF # targetRefs-attached - required for L7 enforcement under ambient
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: httpbin-allow-get-ip
+spec:
+  targetRefs:
+  - kind: Service
+    group: \"\"
+    name: httpbin
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        methods: [\"GET\"]
+        paths: [\"/ip\"]
+EOF" | pv -qL 100
+    echo
+    echo "$ kubectl -n \$APPLICATION_NAMESPACE exec \$SLEEP_POD -c sleep -- curl -s -o /dev/null -w '%{http_code}\\n' http://httpbin:8000/ip # expect 200 in both modes" | pv -qL 100
+    echo
+    echo "$ kubectl -n \$APPLICATION_NAMESPACE exec \$SLEEP_POD -c sleep -- curl -s -o /dev/null -w '%{http_code}\\n' http://httpbin:8000/headers # expect 403 in both modes - only GET /ip is allowed" | pv -qL 100
+elif [ $MODE -eq 2 ]; then
+    export STEP="${STEP},9"
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER > /dev/null 2>&1
+    echo
+    if [ "$ISTIO_MODE" == "ambient" ]; then
+        echo "*** $APPLICATION_NAMESPACE is running in ambient mode. Step 8's AuthorizationPolicy examples all use 'selector' - under ztunnel, an L7 selector-attached policy fails CLOSED (deny-everything), not open. This step applies the same rule twice: once with 'selector' (broken under ambient) and once with 'targetRefs' pointing at the waypoint-fronted Service (correct under ambient). ***" | pv -qL 100
+    else
+        echo "*** $APPLICATION_NAMESPACE is running in sidecar mode, where 'selector' and 'targetRefs' both work identically. This step applies the same rule both ways so the contrast is ready to see the moment you switch to ambient mode (4B). ***" | pv -qL 100
+    fi
+    echo
+    echo "$ kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+  template:
+    metadata:
+      labels:
+        app: httpbin
+    spec:
+      containers:
+      - image: docker.io/kennethreitz/httpbin
+        imagePullPolicy: IfNotPresent
+        name: httpbin
+        command: [\"gunicorn\", \"--access-logfile\", \"-\", \"-b\", \"0.0.0.0:80\", \"httpbin:app\"]
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  labels:
+    app: httpbin
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sleep
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sleep
+  template:
+    metadata:
+      labels:
+        app: sleep
+    spec:
+      containers:
+      - name: sleep
+        image: curlimages/curl
+        command: [\"/bin/sleep\",\"3650d\"]
+        imagePullPolicy: IfNotPresent
+EOF" | pv -qL 100
+    kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+  template:
+    metadata:
+      labels:
+        app: httpbin
+    spec:
+      containers:
+      - image: docker.io/kennethreitz/httpbin
+        imagePullPolicy: IfNotPresent
+        name: httpbin
+        command: ["gunicorn", "--access-logfile", "-", "-b", "0.0.0.0:80", "httpbin:app"]
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  labels:
+    app: httpbin
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 80
+  selector:
+    app: httpbin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sleep
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sleep
+  template:
+    metadata:
+      labels:
+        app: sleep
+    spec:
+      containers:
+      - name: sleep
+        image: curlimages/curl
+        command: ["/bin/sleep","3650d"]
+        imagePullPolicy: IfNotPresent
+EOF
+    echo
+    echo "$ kubectl wait --for=condition=available --timeout=600s deployment --all -n $APPLICATION_NAMESPACE # to wait for the deployment to finish" | pv -qL 100
+    kubectl wait --for=condition=available --timeout=600s deployment --all -n $APPLICATION_NAMESPACE
+    export SLEEP_POD=$(kubectl -n $APPLICATION_NAMESPACE get pod -l app=sleep -o jsonpath={.items..metadata.name})
+    echo
+    read -n 1 -s -r -p $'*** Press the Enter key to continue ***'
+    echo && echo
+    echo "$ kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF # selector-attached - the idiom used throughout step 8
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: httpbin-allow-get-ip
+spec:
+  selector:
+    matchLabels:
+      app: httpbin
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        methods: [\"GET\"]
+        paths: [\"/ip\"]
+EOF" | pv -qL 100
+    kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: httpbin-allow-get-ip
+spec:
+  selector:
+    matchLabels:
+      app: httpbin
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/ip"]
+EOF
+    sleep 5
+    echo
+    read -n 1 -s -r -p $'*** Press the Enter key to continue ***'
+    echo && echo
+    echo "$ kubectl -n $APPLICATION_NAMESPACE exec $SLEEP_POD -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://httpbin:8000/ip # expect 200 under sidecar; expect it to fail under ambient even though the rule says ALLOW" | pv -qL 100
+    kubectl -n $APPLICATION_NAMESPACE exec $SLEEP_POD -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://httpbin:8000/ip
+    echo
+    echo "$ kubectl -n $APPLICATION_NAMESPACE exec $SLEEP_POD -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://httpbin:8000/headers # expect 403 - only GET /ip is allowed" | pv -qL 100
+    kubectl -n $APPLICATION_NAMESPACE exec $SLEEP_POD -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://httpbin:8000/headers
+    echo
+    read -n 1 -s -r -p $'*** Press the Enter key to continue ***'
+    echo && echo
+    echo "$ kubectl -n $APPLICATION_NAMESPACE delete authorizationpolicy httpbin-allow-get-ip # to remove the selector-attached policy" | pv -qL 100
+    kubectl -n $APPLICATION_NAMESPACE delete authorizationpolicy httpbin-allow-get-ip
+    echo
+    echo "$ kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF # targetRefs-attached - required for L7 enforcement under ambient
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: httpbin-allow-get-ip
+spec:
+  targetRefs:
+  - kind: Service
+    group: \"\"
+    name: httpbin
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        methods: [\"GET\"]
+        paths: [\"/ip\"]
+EOF" | pv -qL 100
+    kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: httpbin-allow-get-ip
+spec:
+  targetRefs:
+  - kind: Service
+    group: ""
+    name: httpbin
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/ip"]
+EOF
+    sleep 5
+    echo
+    read -n 1 -s -r -p $'*** Press the Enter key to continue ***'
+    echo && echo
+    echo "$ kubectl -n $APPLICATION_NAMESPACE exec $SLEEP_POD -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://httpbin:8000/ip # expect 200 in both modes" | pv -qL 100
+    kubectl -n $APPLICATION_NAMESPACE exec $SLEEP_POD -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://httpbin:8000/ip
+    echo
+    echo "$ kubectl -n $APPLICATION_NAMESPACE exec $SLEEP_POD -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://httpbin:8000/headers # expect 403 in both modes - only GET /ip is allowed" | pv -qL 100
+    kubectl -n $APPLICATION_NAMESPACE exec $SLEEP_POD -c sleep -- curl -s -o /dev/null -w '%{http_code}\n' http://httpbin:8000/headers
+elif [ $MODE -eq 3 ]; then
+    export STEP="${STEP},9x"
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER > /dev/null 2>&1
+    echo
+    echo "$ kubectl -n $APPLICATION_NAMESPACE delete authorizationpolicy httpbin-allow-get-ip deployment/httpbin deployment/sleep service/httpbin --ignore-not-found # to remove this step's resources" | pv -qL 100
+    kubectl -n $APPLICATION_NAMESPACE delete authorizationpolicy httpbin-allow-get-ip deployment/httpbin deployment/sleep service/httpbin --ignore-not-found
+else
+    export STEP="${STEP},9i"
+    echo
+    echo "1. Deploy httpbin and sleep" | pv -qL 100
+    echo "2. Apply a selector-attached AuthorizationPolicy and test it" | pv -qL 100
+    echo "3. Replace it with a targetRefs-attached AuthorizationPolicy and test it" | pv -qL 100
 fi
 end=`date +%s`
 echo

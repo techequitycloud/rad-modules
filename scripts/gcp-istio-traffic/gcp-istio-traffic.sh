@@ -67,6 +67,7 @@ export GCP_CLUSTER=gke-cluster
 export ISTIO_VERSION=1.24.2
 export ISTIO_RELEASE_VERSION=1.24
 export GCP_REGION=us-central1
+export ISTIO_MODE=sidecar
 EOF
 source $PROJDIR/.env
 fi
@@ -85,10 +86,11 @@ Explore Traffic Management, Resiliency and Telemetry Features using Istio
  (1) Install tools
  (2) Enable APIs
  (3) Create Kubernetes cluster
- (4) Install Istio
- (5) Configure namespace for automatic sidecar injection
+ (4A) Install Istio - sidecar mode
+ (4B) Install Istio - ambient mode
+ (5) Configure namespace for mesh dataplane (sidecar or ambient)
  (6) Configure service and deployment
- (7) Configure gateway and virtualservice
+ (7) Configure Gateway API ingress
  (8) Configure subsets
  (9) Explore Istio traffic management
  (Q) Quit
@@ -138,6 +140,7 @@ export GCP_CLUSTER=$GCP_CLUSTER
 export ISTIO_VERSION=$ISTIO_VERSION
 export ISTIO_RELEASE_VERSION=$ISTIO_RELEASE_VERSION
 export GCP_REGION=$GCP_REGION
+export ISTIO_MODE=${ISTIO_MODE:-sidecar}
 EOF
         gsutil cp $PROJDIR/.env gs://${GCP_PROJECT}/${SCRIPTNAME}.env > /dev/null 2>&1
         echo
@@ -218,6 +221,7 @@ export GCP_CLUSTER=$GCP_CLUSTER
 export ISTIO_VERSION=$ISTIO_VERSION
 export ISTIO_RELEASE_VERSION=$ISTIO_RELEASE_VERSION
 export GCP_REGION=$GCP_REGION
+export ISTIO_MODE=${ISTIO_MODE:-sidecar}
 EOF
                 gsutil cp $PROJDIR/.env gs://${GCP_PROJECT}/${SCRIPTNAME}.env > /dev/null 2>&1
                 echo
@@ -373,35 +377,15 @@ echo
 read -n 1 -s -r -p "$ "
 ;;
 
-"4")
+"4A")
 start=`date +%s`
 source $PROJDIR/.env
 if [ $MODE -eq 1 ]; then
-    export STEP="${STEP},4i"
+    export STEP="${STEP},4Ai"
     echo
-    echo "$ \$HOME/istio-\${ISTIO_VERSION}/bin/istioctl install --set profile=default -y # to install Istio" | pv -qL 100
+    echo "$ \$HOME/istio-\${ISTIO_VERSION}/bin/istioctl install --set profile=default -y # to install Istio in sidecar mode" | pv -qL 100
     echo
     echo "$ kubectl create namespace \$APPLICATION_NAMESPACE # to create namespace" | pv -qL 100
-    echo
-    echo "$ cat > \$PROJDIR/ingress.yaml <<EOF
-apiVersion: install.istio.io/v1alpha1
-kind: IstioOperator
-metadata:
-  name: ingress
-spec:
-  profile: empty # Do not install CRDs or the control plane
-  components:
-    ingressGateways:
-    - name: ingressgateway
-      namespace: \$APPLICATION_NAMESPACE
-      enabled: true
-      label:
-        # Set a unique label for the gateway. This is required to ensure Gateways
-        # can select this workload
-        istio: ingressgateway
-EOF" | pv -qL 100
-    echo
-    echo "$ \$HOME/istio-\${ISTIO_VERSION}/bin/istioctl install -f \$PROJDIR/ingress.yaml # to install Istio with the Demo profile" | pv -qL 100
     echo
     echo "$ kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-\${ISTIO_RELEASE_VERSION}/samples/addons/prometheus.yaml # to install addon" | pv -qL 100
     echo
@@ -411,55 +395,17 @@ EOF" | pv -qL 100
     echo
     echo "$ kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-\${ISTIO_RELEASE_VERSION}/samples/addons/kiali.yaml # to install addon" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
-    export STEP="${STEP},4"   
-    gcloud config set project $GCP_PROJECT > /dev/null 2>&1 
-    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1 
-    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1 
-    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1 
+    export STEP="${STEP},4A"
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1
     echo
-    echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl install --set profile=default -y # to install Istio" | pv -qL 100
+    echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl install --set profile=default -y # to install Istio in sidecar mode" | pv -qL 100
     $HOME/istio-${ISTIO_VERSION}/bin/istioctl install --set profile=default -y
     echo
     echo "$ kubectl create namespace $APPLICATION_NAMESPACE # to create namespace" | pv -qL 100
     kubectl create namespace $APPLICATION_NAMESPACE 2> /dev/null
-    echo
-    echo "$ cat > $PROJDIR/ingress.yaml <<EOF
-apiVersion: install.istio.io/v1alpha1
-kind: IstioOperator
-metadata:
-  name: ingress
-spec:
-  profile: empty # Do not install CRDs or the control plane
-  components:
-    ingressGateways:
-    - name: ingressgateway
-      namespace: $APPLICATION_NAMESPACE
-      enabled: true
-      label:
-        # Set a unique label for the gateway. This is required to ensure Gateways
-        # can select this workload
-        istio: ingressgateway
-EOF" | pv -qL 100
-cat > $PROJDIR/ingress.yaml <<EOF
-apiVersion: install.istio.io/v1alpha1
-kind: IstioOperator
-metadata:
-  name: ingress
-spec:
-  profile: empty # Do not install CRDs or the control plane
-  components:
-    ingressGateways:
-    - name: ingressgateway
-      namespace: $APPLICATION_NAMESPACE
-      enabled: true
-      label:
-        # Set a unique label for the gateway. This is required to ensure Gateways
-        # can select this workload
-        istio: ingressgateway
-EOF
-    echo
-    echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl install -f $PROJDIR/ingress.yaml -y # to install Istio with the Demo profile" | pv -qL 100
-    $HOME/istio-${ISTIO_VERSION}/bin/istioctl install -f $PROJDIR/ingress.yaml -y
     echo && echo
     echo "$ kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/prometheus.yaml # to install addon" | pv -qL 100
     kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/prometheus.yaml
@@ -472,17 +418,22 @@ EOF
     echo
     echo "$ kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/kiali.yaml # to install addon" | pv -qL 100
     kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/kiali.yaml
-elif [ $MODE -eq 3 ]; then
-    export STEP="${STEP},4x"   
-    gcloud config set project $GCP_PROJECT > /dev/null 2>&1 
-    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1 
-    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1 
-    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1 
     echo
-    echo "$ $PROJDIR/istio-$ASM_VERSION/bin/istioctl uninstall --purge # to remove istio" | pv -qL 100
-    $PROJDIR/istio-$ASM_VERSION/bin/istioctl uninstall --purge
+    echo "$ sed -i '/^export ISTIO_MODE=/d' $PROJDIR/.env && echo 'export ISTIO_MODE=sidecar' >> $PROJDIR/.env # to record the installed mode" | pv -qL 100
+    sed -i '/^export ISTIO_MODE=/d' $PROJDIR/.env
+    echo "export ISTIO_MODE=sidecar" >> $PROJDIR/.env
+    source $PROJDIR/.env
+elif [ $MODE -eq 3 ]; then
+    export STEP="${STEP},4Ax"
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1
+    echo
+    echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl uninstall --purge -y # to remove istio" | pv -qL 100
+    $HOME/istio-${ISTIO_VERSION}/bin/istioctl uninstall --purge -y
     echo && echo
-    echo "$  kubectl delete namespace istio-system asm-system --ignore-not-found=true # to remove namespace" | pv -qL 100
+    echo "$ kubectl delete namespace istio-system --ignore-not-found=true # to remove namespace" | pv -qL 100
     kubectl delete namespace istio-system --ignore-not-found=true
     echo
     echo "$ kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/prometheus.yaml # to delete addon" | pv -qL 100
@@ -497,11 +448,100 @@ elif [ $MODE -eq 3 ]; then
     echo "$ kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/kiali.yaml # to delete addon" | pv -qL 100
     kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/kiali.yaml
 else
-    export STEP="${STEP},4i"   
+    export STEP="${STEP},4Ai"
     echo
-    echo "1. Install Istio" | pv -qL 100
+    echo "1. Install Istio (sidecar profile)" | pv -qL 100
     echo "2. Create namespace" | pv -qL 100
-    echo "3. Create istio operator" | pv -qL 100
+    echo "3. Configure addons" | pv -qL 100
+fi
+end=`date +%s`
+echo
+echo Execution time was `expr $end - $start` seconds.
+echo
+read -n 1 -s -r -p "$ "
+;;
+
+"4B")
+start=`date +%s`
+source $PROJDIR/.env
+if [ $MODE -eq 1 ]; then
+    export STEP="${STEP},4Bi"
+    echo
+    echo "$ \$HOME/istio-\${ISTIO_VERSION}/bin/istioctl install -y --set profile=ambient --set \"components.ingressGateways[0].enabled=true\" --set \"components.ingressGateways[0].name=istio-ingressgateway\" --set \"components.ingressGateways[0].k8s.service.type=LoadBalancer\" --skip-confirmation # to install Istio in ambient mode" | pv -qL 100
+    echo
+    echo "$ kubectl get pods -n istio-system -l app=ztunnel # to verify ztunnel is running on every node" | pv -qL 100
+    echo
+    echo "$ kubectl create namespace \$APPLICATION_NAMESPACE # to create namespace" | pv -qL 100
+    echo
+    echo "$ kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-\${ISTIO_RELEASE_VERSION}/samples/addons/prometheus.yaml # to install addon" | pv -qL 100
+    echo
+    echo "$ kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-\${ISTIO_RELEASE_VERSION}/samples/addons/jaeger.yaml # to install addon" | pv -qL 100
+    echo
+    echo "$ kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-\${ISTIO_RELEASE_VERSION}/samples/addons/grafana.yaml # to install addon" | pv -qL 100
+    echo
+    echo "$ kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-\${ISTIO_RELEASE_VERSION}/samples/addons/kiali.yaml # to install addon" | pv -qL 100
+elif [ $MODE -eq 2 ]; then
+    export STEP="${STEP},4B"
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1
+    echo
+    echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl install -y --set profile=ambient --set \"components.ingressGateways[0].enabled=true\" --set \"components.ingressGateways[0].name=istio-ingressgateway\" --set \"components.ingressGateways[0].k8s.service.type=LoadBalancer\" --skip-confirmation # to install Istio in ambient mode" | pv -qL 100
+    $HOME/istio-${ISTIO_VERSION}/bin/istioctl install -y --set profile=ambient --set "components.ingressGateways[0].enabled=true" --set "components.ingressGateways[0].name=istio-ingressgateway" --set "components.ingressGateways[0].k8s.service.type=LoadBalancer" --skip-confirmation
+    echo
+    echo "$ kubectl get pods -n istio-system -l app=ztunnel # to verify ztunnel is running on every node" | pv -qL 100
+    kubectl get pods -n istio-system -l app=ztunnel || echo "Warning: No ztunnel pods found"
+    echo
+    echo "$ kubectl create namespace $APPLICATION_NAMESPACE # to create namespace" | pv -qL 100
+    kubectl create namespace $APPLICATION_NAMESPACE 2> /dev/null
+    echo && echo
+    echo "$ kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/prometheus.yaml # to install addon" | pv -qL 100
+    kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/prometheus.yaml
+    echo
+    echo "$ kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/jaeger.yaml # to install addon" | pv -qL 100
+    kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/jaeger.yaml
+    echo
+    echo "$ kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/grafana.yaml # to install addon" | pv -qL 100
+    kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/grafana.yaml
+    echo
+    echo "$ kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/kiali.yaml # to install addon" | pv -qL 100
+    kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/kiali.yaml
+    echo
+    echo "$ sed -i '/^export ISTIO_MODE=/d' $PROJDIR/.env && echo 'export ISTIO_MODE=ambient' >> $PROJDIR/.env # to record the installed mode" | pv -qL 100
+    sed -i '/^export ISTIO_MODE=/d' $PROJDIR/.env
+    echo "export ISTIO_MODE=ambient" >> $PROJDIR/.env
+    source $PROJDIR/.env
+elif [ $MODE -eq 3 ]; then
+    export STEP="${STEP},4Bx"
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1
+    echo
+    echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl uninstall --purge -y # to remove istio" | pv -qL 100
+    $HOME/istio-${ISTIO_VERSION}/bin/istioctl uninstall --purge -y
+    echo && echo
+    echo "$ kubectl delete namespace istio-system --ignore-not-found=true # to remove namespace" | pv -qL 100
+    kubectl delete namespace istio-system --ignore-not-found=true
+    echo
+    echo "$ kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/prometheus.yaml # to delete addon" | pv -qL 100
+    kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/prometheus.yaml
+    echo
+    echo "$ kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/jaeger.yaml # to delete addon" | pv -qL 100
+    kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/jaeger.yaml
+    echo
+    echo "$ kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/grafana.yaml # to delete addon" | pv -qL 100
+    kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/grafana.yaml
+    echo
+    echo "$ kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/kiali.yaml # to delete addon" | pv -qL 100
+    kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-${ISTIO_RELEASE_VERSION}/samples/addons/kiali.yaml
+else
+    export STEP="${STEP},4Bi"
+    echo
+    echo "1. Install Istio (ambient profile)" | pv -qL 100
+    echo "2. Verify ztunnel" | pv -qL 100
+    echo "3. Create namespace" | pv -qL 100
     echo "4. Configure addons" | pv -qL 100
 fi
 end=`date +%s`
@@ -514,41 +554,67 @@ read -n 1 -s -r -p "$ "
 "5")
 start=`date +%s`
 source $PROJDIR/.env
+export ISTIO_MODE=${ISTIO_MODE:-sidecar}
 if [ $MODE -eq 1 ]; then
     export STEP="${STEP},5i"
     echo
     echo "$ kubectl create namespace \$APPLICATION_NAMESPACE # to create namespace" | pv -qL 100
-    echo
-    echo "$ kubectl label namespace \$APPLICATION_NAMESPACE istio-injection=enabled --overwrite # to label namespaces for automatic sidecar injection" | pv -qL 100
+    if [ "$ISTIO_MODE" == "ambient" ]; then
+        echo
+        echo "$ kubectl label namespace \$APPLICATION_NAMESPACE istio.io/dataplane-mode=ambient --overwrite # to enroll the namespace in ambient mesh" | pv -qL 100
+        echo
+        echo "$ \$HOME/istio-\${ISTIO_VERSION}/bin/istioctl waypoint apply --namespace \$APPLICATION_NAMESPACE # to deploy a waypoint proxy so L7 features (routing, fault injection, policy) keep working" | pv -qL 100
+    else
+        echo
+        echo "$ kubectl label namespace \$APPLICATION_NAMESPACE istio-injection=enabled --overwrite # to label namespaces for automatic sidecar injection" | pv -qL 100
+    fi
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},5"
-    gcloud config set project $GCP_PROJECT > /dev/null 2>&1 
-    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1 
-    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1 
-    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1 
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1
     echo
     echo "$ kubectl create namespace $APPLICATION_NAMESPACE # to create namespace" | pv -qL 100
     kubectl create namespace $APPLICATION_NAMESPACE 2> /dev/null
-    echo
-    echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled --overwrite # to label namespaces for automatic sidecar injection" | pv -qL 100
-    kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled --overwrite
+    if [ "$ISTIO_MODE" == "ambient" ]; then
+        echo
+        echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio.io/dataplane-mode=ambient --overwrite # to enroll the namespace in ambient mesh" | pv -qL 100
+        kubectl label namespace $APPLICATION_NAMESPACE istio.io/dataplane-mode=ambient --overwrite
+        echo
+        echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl waypoint apply --namespace $APPLICATION_NAMESPACE # to deploy a waypoint proxy so L7 features (routing, fault injection, policy) keep working" | pv -qL 100
+        $HOME/istio-${ISTIO_VERSION}/bin/istioctl waypoint apply --namespace $APPLICATION_NAMESPACE || echo "Warning: waypoint apply failed"
+    else
+        echo
+        echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled --overwrite # to label namespaces for automatic sidecar injection" | pv -qL 100
+        kubectl label namespace $APPLICATION_NAMESPACE istio-injection=enabled --overwrite
+    fi
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},5x"
-    gcloud config set project $GCP_PROJECT > /dev/null 2>&1 
-    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1 
-    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1 
-    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1 
-    echo
-    echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio-injection- # to delete label" | pv -qL 100
-    kubectl label namespace $APPLICATION_NAMESPACE istio-injection- 
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1
+    if [ "$ISTIO_MODE" == "ambient" ]; then
+        echo
+        echo "$ $HOME/istio-${ISTIO_VERSION}/bin/istioctl waypoint delete --all -n $APPLICATION_NAMESPACE # to remove the waypoint proxy" | pv -qL 100
+        $HOME/istio-${ISTIO_VERSION}/bin/istioctl waypoint delete --all -n $APPLICATION_NAMESPACE 2> /dev/null
+        echo
+        echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio.io/dataplane-mode- istio.io/use-waypoint- --overwrite --ignore-not-found # to remove ambient labels" | pv -qL 100
+        kubectl label namespace $APPLICATION_NAMESPACE istio.io/dataplane-mode- istio.io/use-waypoint- --overwrite --ignore-not-found
+    else
+        echo
+        echo "$ kubectl label namespace $APPLICATION_NAMESPACE istio-injection- # to delete label" | pv -qL 100
+        kubectl label namespace $APPLICATION_NAMESPACE istio-injection-
+    fi
     echo
     echo "$ kubectl delete namespace $APPLICATION_NAMESPACE # to delete namespace" | pv -qL 100
     kubectl delete namespace $APPLICATION_NAMESPACE 2> /dev/null
 else
-    export STEP="${STEP},5i"   
+    export STEP="${STEP},5i"
     echo
     echo "1. Create namespace" | pv -qL 100
-    echo "2. Label namespace" | pv -qL 100
+    echo "2. Label namespace for sidecar injection or ambient mesh, deploying a waypoint proxy in ambient mode" | pv -qL 100
 fi
 end=`date +%s`
 echo
@@ -603,29 +669,163 @@ source $PROJDIR/.env
 if [ $MODE -eq 1 ]; then
     export STEP="${STEP},7i"
     echo
-    echo "$ kubectl -n \$APPLICATION_NAMESPACE apply -f \$HOME/istio-\${ISTIO_VERSION}/samples/bookinfo/networking/bookinfo-gateway.yaml # to create ingress" | pv -qL 100
+    echo "$ kubectl apply -n \$APPLICATION_NAMESPACE -f - <<EOF # to create a Gateway API ingress
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: bookinfo-gateway
+spec:
+  gatewayClassName: istio
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: Same
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: bookinfo
+spec:
+  parentRefs:
+  - name: bookinfo-gateway
+  rules:
+  - matches:
+    - path:
+        type: Exact
+        value: /productpage
+    - path:
+        type: PathPrefix
+        value: /static
+    - path:
+        type: Exact
+        value: /login
+    - path:
+        type: Exact
+        value: /logout
+    - path:
+        type: PathPrefix
+        value: /api/v1/products
+    backendRefs:
+    - name: productpage
+      port: 9080
+EOF" | pv -qL 100
+    echo
+    echo "$ kubectl get gateway bookinfo-gateway -n \$APPLICATION_NAMESPACE -o jsonpath='{.status.addresses[0].value}' # to retrieve the auto-provisioned ingress address" | pv -qL 100
 elif [ $MODE -eq 2 ]; then
     export STEP="${STEP},7"
-    gcloud config set project $GCP_PROJECT > /dev/null 2>&1 
-    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1 
-    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1 
-    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1 
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1
     echo
-    echo "$ kubectl -n $APPLICATION_NAMESPACE apply -f $HOME/istio-${ISTIO_VERSION}/samples/bookinfo/networking/bookinfo-gateway.yaml # to create ingress" | pv -qL 100
-    kubectl -n $APPLICATION_NAMESPACE apply -f $HOME/istio-${ISTIO_VERSION}/samples/bookinfo/networking/bookinfo-gateway.yaml 
+    echo "$ kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF # to create a Gateway API ingress
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: bookinfo-gateway
+spec:
+  gatewayClassName: istio
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: Same
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: bookinfo
+spec:
+  parentRefs:
+  - name: bookinfo-gateway
+  rules:
+  - matches:
+    - path:
+        type: Exact
+        value: /productpage
+    - path:
+        type: PathPrefix
+        value: /static
+    - path:
+        type: Exact
+        value: /login
+    - path:
+        type: Exact
+        value: /logout
+    - path:
+        type: PathPrefix
+        value: /api/v1/products
+    backendRefs:
+    - name: productpage
+      port: 9080
+EOF" | pv -qL 100
+    kubectl apply -n $APPLICATION_NAMESPACE -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: bookinfo-gateway
+spec:
+  gatewayClassName: istio
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: Same
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: bookinfo
+spec:
+  parentRefs:
+  - name: bookinfo-gateway
+  rules:
+  - matches:
+    - path:
+        type: Exact
+        value: /productpage
+    - path:
+        type: PathPrefix
+        value: /static
+    - path:
+        type: Exact
+        value: /login
+    - path:
+        type: Exact
+        value: /logout
+    - path:
+        type: PathPrefix
+        value: /api/v1/products
+    backendRefs:
+    - name: productpage
+      port: 9080
+EOF
+    echo
+    echo "$ kubectl wait --for=condition=Programmed gateway/bookinfo-gateway -n $APPLICATION_NAMESPACE --timeout=180s # to wait for the auto-provisioned proxy" | pv -qL 100
+    kubectl wait --for=condition=Programmed gateway/bookinfo-gateway -n $APPLICATION_NAMESPACE --timeout=180s
+    echo
+    echo "$ kubectl get gateway bookinfo-gateway -n $APPLICATION_NAMESPACE -o jsonpath='{.status.addresses[0].value}' # to retrieve the auto-provisioned ingress address" | pv -qL 100
+    kubectl get gateway bookinfo-gateway -n $APPLICATION_NAMESPACE -o jsonpath='{.status.addresses[0].value}'
 elif [ $MODE -eq 3 ]; then
     export STEP="${STEP},7x"
-    gcloud config set project $GCP_PROJECT > /dev/null 2>&1 
-    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1 
-    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1 
-    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1 
+    gcloud config set project $GCP_PROJECT > /dev/null 2>&1
+    gcloud config set compute/region $GCP_REGION > /dev/null 2>&1
+    kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER} > /dev/null 2>&1
+    gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER --region $GCP_REGION > /dev/null 2>&1
     echo
-    echo "$ kubectl -n $APPLICATION_NAMESPACE delete -f $HOME/istio-${ISTIO_VERSION}/samples/bookinfo/networking/bookinfo-gateway.yaml # to delete ingress" | pv -qL 100
-    kubectl -n $APPLICATION_NAMESPACE delete -f $HOME/istio-${ISTIO_VERSION}/samples/bookinfo/networking/bookinfo-gateway.yaml 
+    echo "$ kubectl delete httproute bookinfo gateway bookinfo-gateway -n $APPLICATION_NAMESPACE --ignore-not-found # to delete ingress (the auto-provisioned proxy is garbage-collected with the Gateway)" | pv -qL 100
+    kubectl delete httproute bookinfo gateway bookinfo-gateway -n $APPLICATION_NAMESPACE --ignore-not-found
 else
-    export STEP="${STEP},7i"   
+    export STEP="${STEP},7i"
     echo
-    echo "1. Configure gateway and virtualservice" | pv -qL 100
+    echo "1. Configure Gateway API ingress (Gateway + HTTPRoute)" | pv -qL 100
 fi
 end=`date +%s`
 echo
@@ -676,8 +876,14 @@ read -n 1 -s -r -p "$ "
 "9")
 start=`date +%s`
 source $PROJDIR/.env
+if [ "${ISTIO_MODE:-sidecar}" == "ambient" ]; then
+    echo
+    echo "*** Ambient mode: these VirtualService/DestinationRule/Sidecar rules are all L7, so they're enforced by the waypoint proxy deployed for \$APPLICATION_NAMESPACE in step 5 - there is no sidecar here to enforce them directly ***" | pv -qL 100
+fi
 if [ $MODE -eq 1 ]; then
     export STEP="${STEP},9i"
+    echo
+    echo "$ export INGRESS_HOST=\$(kubectl get gateway bookinfo-gateway -n \$APPLICATION_NAMESPACE -o jsonpath='{.status.addresses[0].value}') # to get the Gateway API ingress address" | pv -qL 100
     echo
     echo "$ while true; do curl -s -o /dev/null http://\${INGRESS_HOST}/productpage ; sleep 1; done & # to generate traffic" | pv -qL 100
     echo
@@ -780,8 +986,8 @@ elif [ $MODE -eq 2 ]; then
     kubectl config use-context gke_${GCP_PROJECT}_${GCP_REGION}_${GCP_CLUSTER}  > /dev/null 2>&1
     gcloud --project $GCP_PROJECT container clusters get-credentials $GCP_CLUSTER  > /dev/null 2>&1
     echo
-    echo "$ export INGRESS_HOST=\$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}') # to get ingress IP" | pv -qL 100
-    export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+    echo "$ export INGRESS_HOST=\$(kubectl get gateway bookinfo-gateway -n $APPLICATION_NAMESPACE -o jsonpath='{.status.addresses[0].value}') # to get the Gateway API ingress address" | pv -qL 100
+    export INGRESS_HOST=$(kubectl get gateway bookinfo-gateway -n $APPLICATION_NAMESPACE -o jsonpath='{.status.addresses[0].value}')
     export CFILE=$HOME/istio-${ISTIO_VERSION}/samples/bookinfo/networking/virtual-service-all-v1.yaml
     echo
     echo "$ while true; do curl -s -o /dev/null http://${INGRESS_HOST}/productpage ; sleep 1; done & # to generate traffic" | pv -qL 100
