@@ -284,13 +284,24 @@ resource "null_resource" "enable_asm" {
 # ============================================
 # Wait for Service Mesh to be Ready
 # ============================================
+# NOTE: this must poll controlPlaneManagement.state and wait for ACTIVE, not
+# merely check that a membershipStates entry exists. Google creates that
+# entry (in PROVISIONING state) within seconds of the membership spec being
+# set, long before the managed control plane and sidecar injector webhook
+# are actually live. An existence check therefore returns success ~20
+# minutes early, deploy.tf then creates the Bank of Anthos namespace/pods
+# immediately, and every pod comes up with zero istio-proxy sidecars because
+# the injector wasn't ready at admission time -- and since Deployments are
+# only created once, they never retroactively gain a sidecar. Mirrors the
+# working check in Bank_GKE/asm.tf's wait_for_service_mesh.
 resource "null_resource" "wait_for_service_mesh" {
   for_each = var.enable_cloud_service_mesh ? local.cluster_configs : {}
 
   triggers = {
-    cluster_name = each.value.gke_cluster_name
-    project_id   = local.project.project_id
-    asm_trigger  = null_resource.enable_asm[each.key].id
+    cluster_name   = each.value.gke_cluster_name
+    project_id     = local.project.project_id
+    project_number = local.project_number
+    asm_trigger    = null_resource.enable_asm[each.key].id
   }
 
   provisioner "local-exec" {
@@ -299,41 +310,37 @@ resource "null_resource" "wait_for_service_mesh" {
       set -e
 
       PROJECT_ID="${self.triggers.project_id}"
+      PROJECT_NUMBER="${self.triggers.project_number}"
       CLUSTER_NAME="${self.triggers.cluster_name}"
-      MAX_ATTEMPTS=60
+      MEMBERSHIP_PATH="projects/$PROJECT_NUMBER/locations/global/memberships/$CLUSTER_NAME"
+      end_time=$((SECONDS + 1500))  # 25 minutes
 
       echo "=========================================="
-      echo "Waiting for ASM to be configured on cluster: $CLUSTER_NAME"
+      echo "Waiting for ASM control plane to be ACTIVE on cluster: $CLUSTER_NAME"
+      echo "Membership Path: $MEMBERSHIP_PATH"
       echo "=========================================="
 
-      for ((i=1; i<=MAX_ATTEMPTS; i++)); do
-        # Check if mesh is enabled and membership is configured
-        MESH_ENABLED=$(gcloud container fleet mesh describe \
+      while [ $SECONDS -lt $end_time ]; do
+        CONTROL_PLANE_STATE=$(gcloud container fleet mesh describe \
           --project="$PROJECT_ID" \
-          --format='get(membershipStates)' 2>/dev/null | grep -c "$CLUSTER_NAME" || echo "0")
+          --format="value(membershipStates['$MEMBERSHIP_PATH'].servicemesh.controlPlaneManagement.state)" \
+          2>/dev/null || echo "UNKNOWN")
 
-        if [ "$MESH_ENABLED" != "0" ]; then
-          echo "✓ ASM is configured for cluster '$CLUSTER_NAME'"
-          
-          # Get the actual state for logging
-          gcloud container fleet mesh describe \
-            --project="$PROJECT_ID" \
-            --format=json 2>/dev/null | \
-            jq -r --arg cluster "$CLUSTER_NAME" \
-            '.membershipStates | to_entries[] | select(.key | contains($cluster)) | 
-            "State: \(.value.servicemesh.controlPlaneManagement.state // "N/A")"' || true
-          
+        echo "⏳ Control plane state: $CONTROL_PLANE_STATE"
+
+        if [ "$CONTROL_PLANE_STATE" = "ACTIVE" ]; then
+          echo "✓ ASM control plane is ACTIVE for cluster '$CLUSTER_NAME'"
           exit 0
         fi
 
-        echo "⏳ Attempt $i/$MAX_ATTEMPTS: Waiting for ASM configuration..."
-        sleep 15
+        sleep 20
       done
 
-      echo "⚠ ASM configuration not detected for cluster '$CLUSTER_NAME' within timeout."
-      echo "   This may be normal if ASM takes longer to provision."
-      echo "   Continuing anyway - verify ASM status manually if needed."
-      exit 0
+      echo "❌ ASM control plane did not reach ACTIVE for '$CLUSTER_NAME' within 25 minutes."
+      echo "   Refusing to continue -- deploying now would create pods with no sidecar injected."
+      echo "=== Full Feature Description ==="
+      gcloud container fleet mesh describe --project="$PROJECT_ID" --format=json 2>/dev/null || true
+      exit 1
     EOT
   }
 
