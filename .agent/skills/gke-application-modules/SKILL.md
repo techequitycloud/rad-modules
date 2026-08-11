@@ -9,8 +9,8 @@ Three modules provision Google-native GKE clusters and install a full Kubernetes
 
 | Module | Clusters | Service Mesh | Workload |
 |---|---|---|---|
-| `Bank_GKE` | 1 GKE (Autopilot or Standard) | Cloud Service Mesh (managed) | Bank of Anthos v0.6.7 |
-| `MC_Bank_GKE` | N GKE (2–4 typical), multi-region | CSM fleet-wide + MCI + MCS | Bank of Anthos v0.6.7 across clusters |
+| `Bank_GKE` | 1 GKE (Autopilot or Standard) | Cloud Service Mesh (managed) | Bank of Anthos v0.6.10 |
+| `MC_Bank_GKE` | N GKE (2–4 typical), multi-region | CSM fleet-wide + MCI + MCS | Bank of Anthos v0.6.10 across clusters |
 | `Istio_GKE` | 1 GKE Standard | Open-source Istio (sidecar or ambient) | Istio Bookinfo sample |
 
 They all use provider-auth Pattern B (impersonated Google provider in `provider-auth.tf`) and share the same `main.tf` boilerplate described in the `module-conventions` skill.
@@ -128,7 +128,7 @@ Both shell scripts install `kubectl` and `istioctl` locally if missing and write
 
 ```hcl
 locals {
-  bank_of_anthos_version = "v0.6.7"
+  bank_of_anthos_version = "v0.6.10"
   release_url            = "https://github.com/GoogleCloudPlatform/bank-of-anthos/archive/refs/tags/${local.bank_of_anthos_version}.tar.gz"
   download_path          = "${path.module}/.terraform/bank-of-anthos"
   extracted_path         = "${local.download_path}/bank-of-anthos-${trimprefix(local.bank_of_anthos_version, "v")}"
@@ -214,7 +214,7 @@ Keep `disable_dependent_services = false` and `disable_on_destroy = false` — s
 
 - **Kubernetes provider alias cap (MC_Bank_GKE)**: The explicit `cluster1`..`cluster4` aliases limit the module to 4 clusters. `var.cluster_size > 4` will fail at plan time.
 - **Verification `null_resource` blocks**: `verify_gke_hub_api_activation`, `verify_mesh_api_activation`, `wait_for_container_api` exist to defeat API-readiness races. Deleting them to "simplify" the code will cause intermittent apply failures.
-- **Bank of Anthos version pin**: Hard-coded to `v0.6.7` in `deploy.tf`. Bumping it may require new fields in the rendered template files; test end-to-end.
+- **Bank of Anthos version pin**: Hard-coded to `v0.6.10` in `deploy.tf` (both `Bank_GKE` and `MC_Bank_GKE` keep their own copy — update both). Bumping it may require new fields in the rendered template files; test end-to-end. Before assuming a bump is a drop-in swap, diff the release tarball's `kubernetes-manifests/`/`extras/jwt/` listing against the pinned version and check whether the `bank-of-anthos` KSA's `iam.gke.io/gcp-service-account` annotation still points at the upstream `bank-of-anthos-ci` SA — if so, `deploy.tf`'s Workload Identity re-annotation step is still required as-is.
 - **Primary cluster is always `cluster1` (MC_Bank_GKE)**: The DB StatefulSets are applied to the cluster whose `local.cluster_configs` key is `"cluster1"`. This is not driven by a variable. If you rename cluster keys, the primary cluster assignment silently changes; always keep the first/main cluster as `cluster1`.
 - **`path.module/.terraform/...` staging**: `deploy.tf` writes into `.terraform/` under each module. Do not put this path in `.gitignore` at module scope — the root-level `.gitignore` already covers it.
 - **`always_run = timestamp()`**: Used deliberately on download resources to force a re-run. Changing it to a stable trigger (e.g. a version string) will leave stale tarballs in place.

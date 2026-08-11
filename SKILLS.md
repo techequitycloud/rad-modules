@@ -16,7 +16,7 @@ The eight modules in the repository today:
 | Module | What it provisions | Target audience |
 |---|---|---|
 | `Istio_GKE` | GKE Standard cluster + open-source Istio (sidecar **or** ambient mode) + Prometheus/Jaeger/Grafana/Kiali (no demo app — `deploy_application` is dead code; see §8) | Platform engineers learning upstream Istio |
-| `Bank_GKE` | Single GKE cluster (Autopilot or Standard) + Cloud Service Mesh (managed Istio) + Bank of Anthos v0.6.7 + optional Anthos Config Management + Cloud Monitoring SLOs | Engineers exploring ASM on a single cluster |
+| `Bank_GKE` | Single GKE cluster (Autopilot or Standard) + Cloud Service Mesh (managed Istio) + Bank of Anthos v0.6.10 + optional Anthos Config Management + Cloud Monitoring SLOs | Engineers exploring ASM on a single cluster |
 | `MC_Bank_GKE` | Multiple GKE clusters across multiple regions + fleet-wide Cloud Service Mesh + Multi-Cluster Ingress (MCI) + Multi-Cluster Services (MCS) + Bank of Anthos across all clusters behind a global HTTPS load balancer | Engineers exploring multi-cluster mesh and traffic |
 | `AKS_GKE` | Microsoft Azure AKS cluster registered with GCP as a **GKE Attached Cluster** via Fleet, with the GKE Connect agent installed via Helm | Engineers exploring multi-cloud fleet management |
 | `EKS_GKE` | AWS EKS cluster registered with GCP as a **GKE Attached Cluster** via Fleet, with the GKE Connect agent installed via Helm | Engineers exploring multi-cloud fleet management |

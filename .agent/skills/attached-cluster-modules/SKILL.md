@@ -50,7 +50,7 @@ resource "aws_eks_cluster"           "eks" { version = var.k8s_version ... }
 resource "aws_eks_node_group"        "node" { scaling_config { ... } }
 ```
 
-Both modules honour `var.k8s_version` (e.g. `"1.34"`) as a minor version and let the foreign cloud manage the patch level.
+Both modules honour `var.k8s_version` (e.g. `"1.35"`) as a minor version and let the foreign cloud manage the patch level.
 
 ### Phase 2 — GKE Connect Bootstrap via Helm
 
@@ -176,6 +176,6 @@ They are consumed directly in `provider "azurerm"` / `provider "aws"` in `provid
 - **`google_container_attached_cluster` has no `project_number` attribute exposed before creation.** Always source it from `data.google_project.existing_project.number` in locals; never hard-code.
 - **Helm provider `alias`**: the bootstrap helm provider must be passed into the nested submodule via `providers = { helm = helm.bootstrap_installer }`. Forgetting this causes the helm release to use the default (unconfigured) provider and fail silently.
 - **Destroy order**: `depends_on = [aws_eks_node_group.node, aws_route...]` on `module.attached_install_manifest` is present for a reason — during `destroy`, the helm release must run before the VPC routes are torn down, or `helm uninstall` can't reach the cluster. Preserve these dependencies when refactoring.
-- **Platform-version compatibility**: `k8s_version = "1.34"` pairs with `platform_version = "1.34.0-gke.1"`. Bumping the Kubernetes version requires a matching bump of the GKE platform version. Discover valid combinations with `gcloud alpha container attached get-server-config --location=<gcp_location>`.
+- **Platform-version compatibility**: `k8s_version = "1.35"` pairs with `platform_version = "1.35.0-gke.1"`. Its minor must equal `k8s_version`'s minor or be exactly one below it — that's an attached-clusters requirement, not just a convention. Discover valid combinations with `gcloud container attached get-server-config --location=<gcp_location>` (no `alpha` needed).
 - **`azurerm_role_assignment.aks_network_contributor`**: needed so AKS can manage its own load balancers. Don't remove it unless you are also changing the AKS networking mode.
 - **Random suffix in EKS_GKE**: `random_string.suffix` is added to the cluster name prefix but the attached-cluster resource uses `var.cluster_name_prefix` directly. Be careful when changing one to not break the other.

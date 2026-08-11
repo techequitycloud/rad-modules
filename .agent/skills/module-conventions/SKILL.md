@@ -120,7 +120,7 @@ Single `provider.tf` with all required providers and a direct `provider "google"
 terraform {
   required_providers {
     google  = { source = "hashicorp/google",  version = ">=5.0.0" }
-    azurerm = { source = "hashicorp/azurerm", version = ">=3.17.0" }
+    azurerm = { source = "hashicorp/azurerm", version = "~> 4.0" }
     helm    = { source = "hashicorp/helm",    version = "~> 2.0" }
     random  = { source = "hashicorp/random",  version = "3.6.2" }
   }
@@ -260,3 +260,4 @@ Long-form hands-on lab guide shared across the repo. Lives at `docs/labs/<Module
 8. Rewrite `README.md` tables against the final `variables.tf`, and write the lab guide at `docs/labs/<Module_Name>.md`. Update `module_documentation` default in `variables.tf` to point to its GitHub URL.
 9. Run `tofu fmt -recursive` and `tofu validate` in the module directory before committing.
 10. Smoke test via `rad-launcher` with a minimal `--varfile` before declaring done.
+11. Give every `required_providers` entry an upper bound (`~> N.0`, not a bare `>= N.0.0`). `.terraform.lock.hcl` is gitignored repo-wide, so an unbounded constraint lets a fresh `tofu init` silently resolve a new major version and break the module before it reaches the cloud provider — confirmed live when `AKS_GKE`'s unbounded `azurerm` constraint resolved 5.0.1 and failed on a newly-required `node_provisioning_profile` block.

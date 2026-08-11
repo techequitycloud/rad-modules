@@ -129,7 +129,7 @@ Work within `modules/Istio_GKE/`. If the change requires modifying the provision
 You are now in **Bank_GKE Module Mode**, working on `modules/Bank_GKE`.
 
 **What this module provisions:**
-A GKE cluster (Autopilot or Standard, controlled by `create_cluster`) with Cloud Service Mesh (managed Istio via GKE Hub/Fleet), the Bank of Anthos v0.6.7 demo application, optional Anthos Config Management, and Cloud Monitoring SLOs.
+A GKE cluster (Autopilot or Standard, controlled by `create_cluster`) with Cloud Service Mesh (managed Istio via GKE Hub/Fleet), the Bank of Anthos v0.6.10 demo application, optional Anthos Config Management, and Cloud Monitoring SLOs.
 
 **Key files and their roles:**
 - `main.tf` — project data source, `random_id`, API enablement (container, gkehub, mesh, monitoring APIs).
