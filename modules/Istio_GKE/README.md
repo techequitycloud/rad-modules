@@ -1,6 +1,6 @@
 # Istio\_GKE Module
 
-This module provisions a GKE Standard cluster and installs **open-source Istio** onto it using `istioctl`. Engineers choose between two Istio data plane architectures at deployment time: **sidecar mode** (an Envoy proxy injected into each pod) or **ambient mode** (a shared per-node ztunnel proxy). The full open-source observability stack — Prometheus, Jaeger, Grafana, and Kiali — is installed alongside Istio. Optionally, the Istio Bookinfo sample application is deployed to provide a live traffic source for exploring mesh features.
+This module provisions a GKE Standard cluster and installs **open-source Istio** onto it using `istioctl`. Engineers choose between two Istio data plane architectures at deployment time: **sidecar mode** (an Envoy proxy injected into each pod) or **ambient mode** (a shared per-node ztunnel proxy). The full open-source observability stack — Prometheus, Jaeger, Grafana, and Kiali — is installed alongside Istio. No demo application is provisioned by the module; deploy your own workloads, or the Istio Bookinfo sample, manually into the already-labelled `default` namespace to provide a live traffic source for exploring mesh features.
 
 ## Industry Value & Use Cases
 
@@ -11,7 +11,7 @@ Istio is the de facto standard service mesh, adopted inside platforms at enterpr
 - **Sidecar vs. ambient mode evaluation** — compare the operational trade-offs of per-pod Envoy sidecars (maximum per-service control) against ambient mode's node-level ztunnel (30–50% lower resource overhead, simpler pod lifecycle), a decision every platform team faces when adopting a mesh
 - **Progressive delivery and traffic management** — canary releases, A/B testing, and weighted traffic splits using Istio VirtualServices are the standard deployment pattern for risk-averse enterprises rolling out changes to production services
 - **Full observability stack in one deployment** — Prometheus metrics, Jaeger distributed traces, Grafana dashboards, and Kiali topology maps installed out of the box, demonstrating the observability baseline that SRE teams expect from a production mesh
-- **Bookinfo reference workload** — a live microservices application provides real traffic for exploring Istio features without building a demo app from scratch
+- **Bookinfo reference workload** — deploy the Istio Bookinfo sample manually (one `kubectl apply`, see the lab guide) into the already-labelled `default` namespace for real traffic without building a demo app from scratch
 
 For a detailed technical walkthrough of the full implementation, see [Istio\_GKE.md](../../docs/modules/Istio_GKE.md).
 
@@ -46,13 +46,18 @@ Choose this option if you need custom variable overrides, automated pipelines, o
 module "istio_gke" {
   source = "./modules/Istio_GKE"
 
-  project_id  = "my-gcp-project"
+  project_id           = "my-gcp-project"
   region               = "us-central1"
   istio_version        = "1.30.3"
   install_ambient_mesh = false   # true for ambient mode
-  deploy_application   = true
 }
 ```
+
+> **Note:** No sample application is provisioned by this module — `deploy_application`
+> is currently unwired and has no effect either way. The mesh and observability stack
+> are installed, but you deploy your own workloads (or the Istio Bookinfo sample) into
+> the already-labelled `default` namespace yourself; see
+> [`docs/labs/Istio_GKE.md`](../../docs/labs/Istio_GKE.md) for the exact command.
 
 <!-- BEGIN_TF_DOCS -->
 Copyright 2023 Google LLC
@@ -126,7 +131,7 @@ No modules.
 | <a name="input_create_cluster"></a> [create\_cluster](#input\_create\_cluster) | Set to true (default) to create a new GKE cluster. Set to false to install Istio onto an existing cluster identified by gke\_cluster. | `bool` | `true` | no |
 | <a name="input_create_network"></a> [create\_network](#input\_create\_network) | Set to true (default) to create a new VPC network and subnet for the GKE cluster. Set to false to use an existing network and subnet identified by network\_name and subnet\_name. | `bool` | `true` | no |
 | <a name="input_credit_cost"></a> [credit\_cost](#input\_credit\_cost) | Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require\_credit\_purchases is true, users must have sufficient credit balance before deploying. Defaults to 100. | `number` | `0` | no |
-| <a name="input_deploy_application"></a> [deploy\_application](#input\_deploy\_application) | Set to true (default) to deploy the Istio Bookinfo sample application onto the GKE cluster after Istio is installed. The Bookinfo app demonstrates Istio traffic management, telemetry, and security features. Set to false to install only the Istio service mesh without a demo application. | `bool` | `true` | no |
+| <a name="input_deploy_application"></a> [deploy\_application](#input\_deploy\_application) | Currently has no effect — not wired into this module's install scripts, so the Bookinfo sample application is never deployed regardless of this value (tracked as a known gap). Deploy Bookinfo manually into the pre-labelled 'default' namespace after Istio is installed; see docs/labs/Istio\_GKE.md for the exact command. | `bool` | `true` | no |
 | <a name="input_deployment_id"></a> [deployment\_id](#input\_deployment\_id) | Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources. | `string` | `null` | no |
 | <a name="input_enable_purge"></a> [enable\_purge](#input\_enable\_purge) | Set to true (default) to allow platform administrators to permanently delete all resources created by this module via the platform purge operation. Set to false to prevent purge operations on this deployment. | `bool` | `true` | no |
 | <a name="input_enable_services"></a> [enable\_services](#input\_enable\_services) | Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. | `bool` | `true` | no |
@@ -137,7 +142,7 @@ No modules.
 | <a name="input_ip_cidr_ranges"></a> [ip\_cidr\_ranges](#input\_ip\_cidr\_ranges) | Set of IPv4 CIDR blocks for the subnet primary and secondary ranges (e.g. ['10.132.0.0/16', '192.168.1.0/24']). Only used when create\_network is true. The first CIDR is the primary node range; additional CIDRs are secondary ranges for pods and services. Defaults to ['10.132.0.0/16', '192.168.1.0/24']. | `set(string)` | <pre>[<br>  "10.132.0.0/16",<br>  "192.168.1.0/24"<br>]</pre> | no |
 | <a name="input_istio_version"></a> [istio\_version](#input\_istio\_version) | Version of open source Istio to install on the GKE cluster (format: major.minor.patch, e.g. '1.30.3'). Must be a supported Istio release whose Kubernetes compatibility range covers the version served by the selected GKE release channel. Defaults to '1.30.3', which supports Kubernetes 1.32-1.36 and therefore covers the STABLE, REGULAR and RAPID channels. Refer to https://istio.io/latest/docs/releases/supported-releases/ for available versions. | `string` | `"1.30.3"` | no |
 | <a name="input_module_dependency"></a> [module\_dependency](#input\_module\_dependency) | Ordered list of module names that must be fully deployed before this module can be deployed. The platform enforces this sequence. Defaults to ['GCP Project']. | `list(string)` | <pre>[<br>  "GCP Project"<br>]</pre> | no |
-| <a name="input_module_description"></a> [module\_description](#input\_module\_description) | Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. | `string` | `"This module installs open-source Istio — the industry's most widely adopted service mesh, used by enterprises across financial services, healthcare, and technology to enforce zero-trust networking and meet compliance requirements including PCI-DSS and HIPAA — on GKE. Choose between sidecar mode for fine-grained per-pod traffic control or the newer ambient mode for lower resource overhead, and immediately explore a production-representative observability stack including Prometheus, Grafana, Jaeger, and Kiali via the Bookinfo sample application. This module is for educational purposes only."` | no |
+| <a name="input_module_description"></a> [module\_description](#input\_module\_description) | Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. | `string` | `"This module installs open-source Istio — the industry's most widely adopted service mesh, used by enterprises across financial services, healthcare, and technology to enforce zero-trust networking and meet compliance requirements including PCI-DSS and HIPAA — on GKE. Choose between sidecar mode for fine-grained per-pod traffic control or the newer ambient mode for lower resource overhead, and get a production-representative observability stack — Prometheus, Grafana, Jaeger, and Kiali — ready to explore with your own workloads or the Istio Bookinfo sample, deployed manually per the lab guide. This module is for educational purposes only."` | no |
 | <a name="input_module_services"></a> [module\_services](#input\_module\_services) | List of cloud service tags associated with this module, used for display and filtering in the platform UI. Represents the key services provisioned by this module. Defaults to the core services this module provisions. | `list(string)` | <pre>[<br>  "GCP",<br>  "GKE",<br>  "Istio",<br>  "Cloud IAM",<br>  "Cloud Networking",<br>  "VPC Network",<br>  "Workload Identity"<br>]</pre> | no |
 | <a name="input_network_name"></a> [network\_name](#input\_network\_name) | Name of the VPC network. When create\_network is true, this is the name given to the newly created network. When create\_network is false, this identifies the existing network to use. Defaults to 'vpc-network'. | `string` | `"vpc-network"` | no |
 | <a name="input_pod_cidr_block"></a> [pod\_cidr\_block](#input\_pod\_cidr\_block) | IPv4 CIDR block assigned to Pods running in the GKE cluster (e.g. '10.62.128.0/17'). Must be large enough to accommodate all pods across all nodes; a /17 supports up to 32,768 pod IPs. Must not overlap with the node or service CIDR ranges. Defaults to '10.62.128.0/17'. | `string` | `"10.62.128.0/17"` | no |

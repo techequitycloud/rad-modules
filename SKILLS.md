@@ -15,7 +15,7 @@ The eight modules in the repository today:
 
 | Module | What it provisions | Target audience |
 |---|---|---|
-| `Istio_GKE` | GKE Standard cluster + open-source Istio (sidecar **or** ambient mode) + Prometheus/Jaeger/Grafana/Kiali + optional Bookinfo sample | Platform engineers learning upstream Istio |
+| `Istio_GKE` | GKE Standard cluster + open-source Istio (sidecar **or** ambient mode) + Prometheus/Jaeger/Grafana/Kiali (no demo app — `deploy_application` is dead code; see §8) | Platform engineers learning upstream Istio |
 | `Bank_GKE` | Single GKE cluster (Autopilot or Standard) + Cloud Service Mesh (managed Istio) + Bank of Anthos v0.6.7 + optional Anthos Config Management + Cloud Monitoring SLOs | Engineers exploring ASM on a single cluster |
 | `MC_Bank_GKE` | Multiple GKE clusters across multiple regions + fleet-wide Cloud Service Mesh + Multi-Cluster Ingress (MCI) + Multi-Cluster Services (MCS) + Bank of Anthos across all clusters behind a global HTTPS load balancer | Engineers exploring multi-cluster mesh and traffic |
 | `AKS_GKE` | Microsoft Azure AKS cluster registered with GCP as a **GKE Attached Cluster** via Fleet, with the GKE Connect agent installed via Helm | Engineers exploring multi-cloud fleet management |
@@ -138,10 +138,12 @@ Pins required providers and `required_version`. The set of pinned providers diff
 | `VMware_Engine` | `google` (>= 5.0), `random` (>= 3.0), `null` (>= 3.0), `external` (>= 2.0) | `>= 1.3` |
 | `Container_Migration` | `google` (>= 5.0, < 6.0), `random` (>= 3.0), `null` (>= 3.0) | `>= 1.3` |
 | `Migration_Center` | `google` (>= 5.0, < 6.0), `aws` (>= 5.0, < 6.0), `random` (>= 3.0), `null` (>= 3.0), `tls` (>= 4.0) | `>= 1.3` |
-| `AKS_GKE` | No top-level `versions.tf`; the nested submodules have their own | — |
-| `EKS_GKE` | No top-level `versions.tf`; the nested submodules have their own | — |
+| `AKS_GKE` | No top-level `versions.tf` — pinned instead in `provider.tf`: `azurerm` (~> 4.0), `google` (>= 5.0.0), `helm` (~> 2.0), `random` (3.6.2) | `>= 0.13` |
+| `EKS_GKE` | No top-level `versions.tf` — pinned instead in `provider.tf`: `aws` (>= 4.5.0), `google` (>= 5.0.0), `helm` (~> 2.0), `time` (~> 0.9) | `>= 1.3` |
 
 Providers that are used but not explicitly pinned (e.g. `random`, `null`) are downloaded at the version OpenTofu/Terraform selects automatically. `Istio_GKE`, `MC_Bank_GKE`, `Bank_GKE`, `VMware_Engine`, `Container_Migration`, and `Migration_Center` configure a `google-beta` provider block in `provider-auth.tf`, but none currently assign resources to it explicitly. `Istio_GKE` and `MC_Bank_GKE` explicitly pin `google-beta` in `versions.tf` (alongside `google`) even though no resources use it.
+
+**An unbounded lower-bound constraint (`>= X.Y.Z` with no upper bound) is not equivalent to "pinned" — it's a live risk, not a hypothetical one.** `.terraform.lock.hcl` is gitignored repo-wide (`*.lock.hcl` in the root `.gitignore`), so every `tofu init` — CI, the Cloud Build pipelines, and any manual run — re-resolves providers fresh from the constraint string alone. `AKS_GKE`'s `azurerm` was `">=3.17.0"` until this was found to have resolved 5.0.1 on a routine re-init: azurerm 5.0 made `node_provisioning_profile` a required block on `azurerm_kubernetes_cluster`, so `tofu validate`/`plan` failed before ever reaching Azure. Fixed by pinning `"~> 4.0"` (now shown in the table above). The identical unbounded shape is still live in `EKS_GKE`'s `aws = ">=4.5.0"` and in `google = ">=5.0.0"` across every module in this table — currently resolving 7.43.0, two majors past when most of these modules were written. When adding or reviewing a `required_providers` block, use `~>` (or an explicit `< N.0.0`) rather than a bare `>=`, and match it to the major version the module's resource blocks were actually written against — not to "whatever's current" at pin time.
 
 ### 3.4 `variables.tf` — UIMeta Annotations
 
@@ -212,6 +214,7 @@ Anything that cannot be expressed as a Terraform resource — installing Istio v
 2. **Create provisioner**: `set -eo pipefail`, install missing CLIs (`kubectl`, `istioctl`) into `$HOME/.local/bin`, run `gcloud container clusters get-credentials ... --impersonate-service-account=...`, then perform the actual install.
 3. **Destroy provisioner**: `set +e` to make cleanup best-effort — failures during destroy should never block Terraform from removing infrastructure. Uses `--ignore-not-found` on kubectl calls and `|| echo "Warning: ..."` on each step.
 4. **Explicit `depends_on`** against the cluster and node pool, so Terraform does not attempt the install until Kubernetes is actually ready.
+5. **Waiting on a GCP-managed async feature must poll the actual status field, not object existence.** GKE Hub/Fleet features (Cloud Service Mesh, MCI, ACM) create their `membershipStates` entry in `PROVISIONING` state within seconds of a spec update — long before the managed control plane is actually live. A wait loop that treats entry existence as "ready" (e.g. `grep -c` on the raw `membershipStates` describe output) returns success prematurely, and a downstream `null_resource` that deploys workloads immediately after will create pods with no sidecar injected, since the injector webhook isn't there yet and Deployments don't retroactively pick one up. Poll `membershipStates['<membership-path>'].servicemesh.controlPlaneManagement.state` until it equals `ACTIVE` instead — see `Bank_GKE/asm.tf`'s `wait_for_service_mesh` for the canonical pattern, and size the timeout well above the ~20-25 minutes first-time control-plane provisioning can take in a fresh project.
 
 ## 4. Documentation Pattern
 
@@ -271,6 +274,15 @@ tofu plan  -var="project_id=my-gcp-project"
 tofu apply -var="project_id=my-gcp-project"
 tofu destroy -var="project_id=my-gcp-project"
 ```
+
+Before running any of the above against an unfamiliar/managed project (e.g. a Qwiklabs
+lab): (1) if using an isolated `CLOUDSDK_CONFIG=<dir>` for this identity, also export
+`GOOGLE_APPLICATION_CREDENTIALS="<dir>/application_default_credentials.json"` — `tofu`
+does not honor `CLOUDSDK_CONFIG` itself (§8, "`PERMISSION_DENIED` on a project you can
+definitely access"); (2) check `gcloud org-policies describe
+constraints/gcp.resourceLocations --project=<id> --effective` before assuming the
+module's default `region` is deployable there (§8, "Regional resource creation fails
+with `violates constraint constraints/gcp.resourceLocations`").
 
 ### Via the RAD Modules Launcher
 
@@ -357,6 +369,34 @@ The GKE Connect agent must be installed on the attached cluster. In `AKS_GKE` an
 
 The `deploy.tf` `null_resource` downloads the release tarball into `.terraform/bank-of-anthos` on the machine running `apply`. If the download or extract fails, the manifests are never applied. Check the `local-exec` output; the download is forced fresh on every apply via `always_run = timestamp()` (see `modules/Bank_GKE/deploy.tf:40`).
 
+### Bank_GKE's mesh API guard times out after exactly 300s
+
+`asm.tf`'s `verify_mesh_api_activation` polls for both `mesh.googleapis.com` and `meshconfig.googleapis.com` and `exit 1`s if either is missing after 300s. Enabling only `mesh.googleapis.com` in `default_apis` (`main.tf`) reproduces this every time — `meshconfig.googleapis.com` must be listed alongside it.
+
+### CSM sidecar injection silently no-ops even though the control plane is `ACTIVE`
+
+The namespace label `istio.io/rev` selects the CSM revision (`asm-managed`=REGULAR, `asm-managed-rapid`=RAPID, `asm-managed-stable`=STABLE), and it must match the cluster's `release_channel`. A mismatch does not error — injection is skipped for that namespace, silently. `Bank_GKE`/`MC_Bank_GKE` compute the correct label once as `local.asm_revision` (`main.tf`) and reference it everywhere the label is set; don't hardcode `asm-managed` if extending this pattern to another module. Diagnose with `gcloud container hub features describe servicemesh --project=<p> --format="value(membershipStates)"` compared against `kubectl get namespace <ns> -o jsonpath='{.metadata.labels.istio\.io/rev}'`.
+
+### MC_Bank_GKE: Bank of Anthos pods have zero sidecars, and `gcloud container fleet mesh describe` shows `PROVISIONING` not `ACTIVE`
+
+Distinct from the label-mismatch case above — here the label is correct, but `deploy.tf` ran before the managed control plane finished rolling out, so no injector webhook was present when the pods were created. This is the §3.6.5 pattern: `hub.tf`'s `wait_for_service_mesh` must poll `controlPlaneManagement.state` rather than merely checking that a `membershipStates` entry exists. For a deployment already in this state, waiting for `state` to reach `ACTIVE` and then running `kubectl rollout restart deployment,statefulset -n bank-of-anthos` forces pod recreation so the injector can act — the control plane finishing later does not retroactively touch existing pods.
+
+### Regional resource creation fails with `violates constraint constraints/gcp.resourceLocations`
+
+Not a quota or permission error, despite looking like one — the destination project enforces an org policy allowlisting specific regions/locations (common on ephemeral training/lab projects). Check `gcloud org-policies describe constraints/gcp.resourceLocations --project=<id> --effective` (enable `orgpolicy.googleapis.com` first if that itself 403s) before assuming a module's default region works. `MC_Bank_GKE` assigns clusters to regions round-robin via `i % length(var.available_regions)`, so a single allowed region still deploys the full `cluster_size` count of clusters, just co-located rather than spread across regions — the multi-cluster fleet/mesh/MCI demo still works, only geo-redundancy is lost. Single-region modules just need `region` changed to an allowed value.
+
+### `PERMISSION_DENIED` on a project you can definitely access
+
+Application Default Credentials (`~/.config/gcloud/application_default_credentials.json`) are one file, shared by every process on the machine — a `gcloud auth application-default login` run for a *different* task overwrites it for a `tofu apply` already in flight. `gcloud config configurations` does not isolate this; those config files live in the same shared, globally-overwritable directory. Confirm the identity actually behind ADC with `curl -s "https://oauth2.googleapis.com/tokeninfo?access_token=$(gcloud auth application-default print-access-token)"` before assuming an IAM or code problem. To run two identities/projects on one machine concurrently without this clash, each session needs its own `CLOUDSDK_CONFIG=<dir>`; `CLOUDSDK_CORE_ACCOUNT`/`CLOUDSDK_CORE_PROJECT` only scope a script's own `gcloud` calls, not ADC. **`CLOUDSDK_CONFIG` alone does not redirect `tofu`/`terraform` itself** — the Go-based `google` provider hardcodes `~/.config/gcloud/application_default_credentials.json` (or `GOOGLE_APPLICATION_CREDENTIALS` if set) and has no knowledge of `CLOUDSDK_CONFIG`, unlike `gcloud`'s own Python code. After isolating a session, also export `GOOGLE_APPLICATION_CREDENTIALS="$CLOUDSDK_CONFIG/application_default_credentials.json"` before running any `tofu` command, or it silently reads whichever ADC file happens to be at the shared default path.
+
+### GKE cluster or node pool creation fails with `GCE_STOCKOUT`
+
+`Error waiting for creating GKE cluster: ... does not have enough resources available to fulfill the request` is a transient capacity error, not a config or quota problem — but it can recur in a *different* zone on the next retry within the same region, which looks like bad luck but may be a genuine sustained shortage. GKE always provisions a transient "default" node pool as part of `google_container_cluster` creation itself, even with `remove_default_node_pool = true`; a stockout there fails the whole cluster resource before Terraform reaches any node pool you defined. `Istio_GKE`'s `google_container_node_pool.preemptible_nodes` compounds the exposure: `node_locations` is set to *every* zone in the region (`data.google_compute_zones.available_zones.names` in `gke.tf`), and for a regional pool `node_count` applies per zone — `node_count = 2` across 4 zones provisions 8 nodes, and a stockout in any single zone fails the whole pool. Killing/interrupting `tofu apply` does not cancel the GCP-side operation; check `gcloud container clusters describe <cluster> --region=<region> --format="value(status,statusMessage)"` directly after an interrupt rather than trusting local state. If the cluster lands in `ERROR`, it is very likely not yet in `tofu state list` (`Create()` doesn't call `SetId()` until its ready-wait succeeds), so `tofu destroy` won't find it — delete it directly with `gcloud container clusters delete` before re-`apply`ing. If the project is also org-policy-restricted to one region (previous entry), there is no fallback region — only retry or wait.
+
+### `deploy_application` (Istio_GKE) does nothing
+
+`variables.tf` declares `deploy_application` (default `true`) and describes it as deploying the Istio Bookinfo sample, but no `.tf` file, script, or manifest in the module reads `var.deploy_application` — toggling it has no effect in either direction. `docs/modules/Istio_GKE.md` and `docs/labs/Istio_GKE.md` already document the real behavior (no demo app is provisioned; deploy Bookinfo yourself into the pre-labelled `default` namespace). If you wire this variable up for real or remove it, update `variables.tf`'s `module_description` too — it previously implied Bookinfo came free with the module — and check the RAD platform UI form definition and any saved deployment tfvars for references before removing the variable outright.
+
 ### VMware Engine `prevent_destroy` blocks `tofu destroy`
 
 The `google_project_iam_member.vmmigration_sa_user` resource has `lifecycle { prevent_destroy = true }`. This is intentional — the VM Migration service agent binding must not be removed during a partial destroy. To fully decommission the module, remove the `prevent_destroy` block from `main.tf` before running `tofu destroy`.
@@ -389,6 +429,16 @@ output "external_ip" {
 }
 ```
 
+### CSM revision label ↔ GKE release channel (Bank_GKE, MC_Bank_GKE)
+
+| `release_channel` | `istio.io/rev` label | 
+|---|---|
+| `REGULAR` (default) | `asm-managed` |
+| `RAPID` | `asm-managed-rapid` |
+| `STABLE` | `asm-managed-stable` |
+
+Always derive this from `local.asm_revision`, never hardcode `asm-managed` — see §8's CSM entries for the failure mode.
+
 ### Common providers
 
 The table shows which providers each module actively uses. GKE-based modules, `VMware_Engine`, `Container_Migration`, and `Migration_Center` also configure a `google-beta` provider block in `provider-auth.tf` as a convenience (for future use), but no resources are currently assigned to it.
@@ -403,3 +453,165 @@ The table shows which providers each module actively uses. GKE-based modules, `V
 | VMware_Engine | ✓ | | | | | | | ✓ | ✓ | ✓ | |
 | Container_Migration | ✓ | | | | | | | ✓ | ✓ | | |
 | Migration_Center | ✓ | | | | | ✓ | ✓ | ✓ | ✓ | | |
+
+## 10. Standalone Lab Scripts (`scripts/`)
+
+The scripts under `scripts/gcp-istio-traffic/` and `scripts/gcp-istio-security/`
+are self-contained bash demos of Istio, independent of `modules/Istio_GKE` —
+neither is invoked by the Terraform module and neither shares its lifecycle.
+They exist to teach Istio concepts interactively (menu-driven, step-numbered)
+rather than to operate a specific deployment. This section documents the
+conventions both scripts share, and the mistakes that are easy to make when
+extending them.
+
+### 10.1 The menu/`.env`/`MODE` mechanism
+
+Both scripts share one structure:
+
+- A `while :` loop prints a numbered menu and reads a **full line** (plain
+  `read`, not `read -n 1`) into `$REPLY`, then dispatches on
+  `case "${REPLY^^}" in`. Because it reads a full line, multi-character
+  replies work — this is what makes the lettered sub-step pattern in §10.2
+  possible without any input-handling changes.
+- Option `0` selects one of three modes, stored in `$MODE` for the rest of
+  the process: `1` = preview (echo commands, run nothing), `2` = create
+  (actually run them), `3` = delete (tear down). Every other step's `case`
+  block branches on `$MODE`, and in preview mode the echoed command must
+  match the real one printed in create mode — verify this by hand when
+  editing a step; it is the most common place for drift (e.g. an escaped
+  `\$VAR` in the preview echo not matching an unescaped `$VAR` in the
+  real command it's supposed to preview).
+- Persistent configuration lives in `./<script-dir>/.env`, sourced with
+  `source $PROJDIR/.env` at the top of every step and re-exported as shell
+  vars. **`.env` is not append-only** — it gets fully rewritten via
+  `cat <<EOF > $PROJDIR/.env` at several points (the initial bootstrap
+  before the menu loop starts, and inside option `0`'s create/delete
+  branches, once per script). **Any new variable you want to persist across
+  a restart or a re-run of option `0` must be added to every one of those
+  heredocs**, not just wherever it's first set — otherwise the next time a
+  user runs option `0` (a normal, expected action per each script's own
+  README: "run option 0 again ... to switch projects later"), the rewrite
+  silently drops the variable back to unset. `ISTIO_MODE` (§10.3) is a
+  concrete example: it's set by step `4A`/`4B`, but also has to appear in
+  all three `.env`-rewrite heredocs, each pinned to `${ISTIO_MODE:-sidecar}`
+  so a rewrite preserves whatever the current shell value is instead of
+  discarding it.
+- A `STEP` string accumulates every step executed this session (e.g.
+  `,0,1,4A,5`) and is printed in the menu header purely for the user's own
+  orientation — it is not read by the script itself.
+
+### 10.2 Adding a mode choice: lettered sub-steps, not new step numbers
+
+When `gcp-istio-security.sh` and `gcp-istio-traffic.sh` needed a
+sidecar-vs-ambient choice at install time, the install step became `4A`
+(sidecar) / `4B` (ambient) instead of either renumbering every later step or
+re-asking the choice at each one. The pattern, if you need it again:
+
+1. Split the single step into lettered variants covering only the command
+   that actually differs (the `istioctl install` invocation).
+2. Have each variant persist its choice to `.env` as its own variable
+   (`ISTIO_MODE`), following the rewrite rule in §10.1.
+3. Every *later* step reads that variable and branches **internally** where
+   its behavior genuinely differs — it does not get its own lettered
+   variant unless its command, not just a parameter, diverges. Step `5`
+   (namespace configuration) is a single step with an `if`/`else` on
+   `$ISTIO_MODE`, not `5A`/`5B`.
+4. Only add a new step when the divergent behavior doesn't fit as a branch
+   in an existing one — `gcp-istio-security.sh`'s step `9` (ambient L7
+   policy attachment, §10.5) is a full new step because it demonstrates a
+   contrast, not a mode-conditional variant of existing content.
+
+### 10.3 Gotcha: steps that reset the namespace must respect the active mode
+
+Some steps intentionally delete and recreate the application namespace at
+their end, to hand the next step a clean slate (`gcp-istio-security.sh`
+steps `6` and `8` both do this). Before ambient mode existed, that reset
+could safely hardcode `kubectl label namespace ... istio-injection=enabled`
+— there was only one mode. Once a step earlier in the flow (`4B`/`5`) can
+put the namespace in ambient mode, a reset that still hardcodes sidecar
+labeling **silently reverts ambient mode** the moment the user runs the next
+step, with no error — the namespace still exists, it's just wrong, and
+nothing downstream fails loudly. The fix is the same `if [ "$ISTIO_MODE" ==
+"ambient" ]` branch used in step `5`, reapplying the
+`istio.io/dataplane-mode=ambient` label **and** redeploying the waypoint
+(`istioctl waypoint apply`) — the recreate also destroyed the waypoint,
+since it's a namespaced resource. When adding any new "clean slate" reset to
+either script, check whether it re-establishes mode state, not just the
+workloads.
+
+### 10.4 Gateway API vs legacy Istio API: what each one can and can't express
+
+Both scripts now use the Kubernetes Gateway API (`gateway.networking.k8s.io`
+`Gateway`/`HTTPRoute`) for ingress and for traffic mirroring, and keep the
+legacy `networking.istio.io` API (`VirtualService`/`DestinationRule`) for
+everything else. This isn't a stylistic choice — Gateway API genuinely
+cannot express some of what these demos need:
+
+| Feature | Gateway API | Legacy Istio API |
+|---|---|---|
+| Ingress routing (host/path → Service) | `Gateway` + `HTTPRoute`; the `Gateway` resource auto-provisions its own proxy Deployment/Service | `Gateway` + `VirtualService` (proxy must be provisioned separately) |
+| Traffic mirroring | `HTTPRoute` `RequestMirror` filter, including `percent` — native, and can attach directly to a `Service` via `parentRefs` for east-west routing with no `Gateway`/waypoint involved | `VirtualService.mirror`/`mirrorPercentage` |
+| Weighted/version-based (subset) routing | `backendRefs` point at distinct **Services**, not label-selected subsets of one Service — there is no Gateway API equivalent of `DestinationRule.subsets` | `VirtualService` + `DestinationRule.subsets` |
+| Fault injection (delay/abort) | **Not supported.** No core filter exists, and upstream declined to add one (istio/istio#54196) | `VirtualService.http[].fault` |
+| Circuit breaking / connection pool / outlier detection | Not supported | `DestinationRule.trafficPolicy` |
+| Egress TLS to external services | Not supported | `DestinationRule.trafficPolicy.tls` + `ServiceEntry` |
+
+Consequence for anyone converting a VirtualService-based mirroring or
+subset-routing example to Gateway API: if the resource being mirrored/routed
+is defined as one Service with version labels (the `DestinationRule.subsets`
+pattern), it has to be split into one real Service per version first —
+`backendRefs` cannot select by label. `gcp-istio-security.sh`'s mirroring
+step does exactly this (added `httpbin-v1`/`httpbin-v2` Services alongside
+the pre-existing shared `httpbin` Service).
+
+### 10.5 Ambient mode: L7 needs a waypoint, and `AuthorizationPolicy` needs `targetRefs`
+
+Ambient mode's per-node `ztunnel` proxy is **L4-only** — mTLS, L4
+authorization (principal/namespace/port), and telemetry. Any L7 feature
+(HTTP routing, header matching, fault injection, `RequestAuthentication`,
+method/path-scoped `AuthorizationPolicy` rules) is only enforced once a
+**waypoint proxy** exists for the destination — deploy one with
+`istioctl waypoint apply --namespace <ns>` (§10.1's mode-choice step does
+this once, up front, so every later L7 feature in both scripts keeps
+working without further changes). A waypoint is itself a Gateway API
+`Gateway` object (`gatewayClassName: istio-waypoint`) — `kubectl get gateway`
+in the namespace will show it.
+
+The one landmine a waypoint alone does **not** fix: `AuthorizationPolicy`
+resources that select their target workload with `selector` (the idiom used
+throughout `gcp-istio-security.sh`'s step `8`) rather than `targetRefs`
+pointing at a `Service`/`Gateway`. Under ambient, an L7 rule attached with
+`selector` **fails closed** — ztunnel can't evaluate it, so it's treated as
+a deny-everything policy, not skipped or left permissive. This is silent:
+nothing in `kubectl get authorizationpolicy` flags it as broken. Step `8`'s
+examples are deliberately left as `selector`-based (they're correct for
+their own always-sidecar `foo`/`bar`/`legacy` namespaces); step `9` exists
+specifically to demonstrate the `selector` failure and the `targetRefs` fix
+side by side, rather than silently rewriting step `8`.
+
+### 10.6 Keep standalone scripts consistent with the Terraform module
+
+When either script needs an `istioctl install`/`waypoint`/label command for
+ambient or sidecar mode, copy it from `modules/Istio_GKE/istioambient.tf` /
+`istiosidecar.tf` rather than inventing new flags — those files are the
+canonical, already-tested source for these commands. Note one deliberate
+divergence: the Terraform module's ambient install explicitly enables a
+`components.ingressGateways[0]` component (a classic Istio-managed ingress
+deployment), because the module doesn't use Gateway API for ingress. The
+standalone scripts do use Gateway API for ingress (§10.4), so they omit that
+component — the `Gateway` resource created in a later step provisions its
+own proxy. Don't "fix" this by adding it back for consistency; it would
+leave two competing ingress proxies.
+
+### 10.7 `ISTIO_VERSION` is tracked in three places, independently
+
+`modules/Istio_GKE/variables.tf`'s `istio_version` default,
+`scripts/gcp-istio-traffic/gcp-istio-traffic.sh`'s hardcoded
+`ISTIO_VERSION=...` in its `.env` bootstrap, and the equivalent line in
+`scripts/gcp-istio-security/gcp-istio-security.sh` are three independent
+defaults with no shared source of truth. Bumping one does not bump the
+others — this repo has already shipped that drift once (the module moved to
+a current release while both scripts stayed on an EOL version until a
+follow-up commit synced them). When updating the default Istio version
+repo-wide, grep for `ISTIO_VERSION=` and `istio_version` and update every
+hit, including the two `docs/` files that quote the version in prose.

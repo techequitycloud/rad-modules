@@ -15,6 +15,19 @@ Global financial institutions, payment networks, and insurance companies cannot 
 
 For a detailed technical walkthrough of the full implementation, see [MC\_Bank\_GKE.md](../../docs/modules/MC_Bank_GKE.md).
 
+## A Note on `available_regions` in Restricted Projects
+
+Some GCP projects — notably ephemeral training/lab projects — enforce an org policy
+(`constraints/gcp.resourceLocations`) that allowlists only specific regions. If the
+default `available_regions = ["us-west1", "us-east1"]` isn't on that allowlist, every
+regional resource (subnets, routers, NAT, addresses) fails with `Error 412: ... violates
+constraint constraints/gcp.resourceLocations`, not a quota or permission error. Check
+first with `gcloud org-policies describe constraints/gcp.resourceLocations --project=<id>
+--effective`. If only one region is allowed, set `available_regions` to just that region —
+clusters are assigned round-robin, so you still get the full `cluster_size` count of
+clusters (multi-cluster fleet, mesh, and MCI/MCS all still work); you only lose the
+multi-region geo-redundancy story.
+
 ## Deployment Options
 
 Deploy this module from the **[RAD Modules platform UI](https://radmodules.dev)** — the recommended path, with **no command line or local toolchain required**. Advanced/automation users can alternatively use the Launcher CLI or call the Terraform module directly (see **Advanced** below).

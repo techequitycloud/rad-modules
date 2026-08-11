@@ -19,7 +19,7 @@
 variable "module_description" {
   description = "Human-readable description of this module displayed to users in the platform UI. Changing this will update the description shown in the module catalog. Defaults to the module's built-in description. {{UIMeta group=0 order=100 }}"
   type        = string
-  default     = "This module installs open-source Istio — the industry's most widely adopted service mesh, used by enterprises across financial services, healthcare, and technology to enforce zero-trust networking and meet compliance requirements including PCI-DSS and HIPAA — on GKE. Choose between sidecar mode for fine-grained per-pod traffic control or the newer ambient mode for lower resource overhead, and immediately explore a production-representative observability stack including Prometheus, Grafana, Jaeger, and Kiali via the Bookinfo sample application. This module is for educational purposes only."
+  default     = "This module installs open-source Istio — the industry's most widely adopted service mesh, used by enterprises across financial services, healthcare, and technology to enforce zero-trust networking and meet compliance requirements including PCI-DSS and HIPAA — on GKE. Choose between sidecar mode for fine-grained per-pod traffic control or the newer ambient mode for lower resource overhead, and get a production-representative observability stack — Prometheus, Grafana, Jaeger, and Kiali — ready to explore with your own workloads or the Istio Bookinfo sample, deployed manually per the lab guide. This module is for educational purposes only."
 }
 
 variable "module_documentation" {
@@ -204,7 +204,7 @@ variable "install_ambient_mesh" {
 // SECTION 6: Application
 
 variable "deploy_application" {
-  description = "Set to true (default) to deploy the Istio Bookinfo sample application onto the GKE cluster after Istio is installed. The Bookinfo app demonstrates Istio traffic management, telemetry, and security features. Set to false to install only the Istio service mesh without a demo application. {{UIMeta group=0 order=601 }}"
+  description = "Currently has no effect — not wired into this module's install scripts, so the Bookinfo sample application is never deployed regardless of this value (tracked as a known gap). Deploy Bookinfo manually into the pre-labelled 'default' namespace after Istio is installed; see docs/labs/Istio_GKE.md for the exact command. {{UIMeta group=0 order=601 }}"
   type        = bool
   default     = true
 }
