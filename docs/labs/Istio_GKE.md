@@ -92,7 +92,7 @@ export CLUSTER="gke-cluster"          # matches the gke_cluster input
 
    ```bash
    kubectl apply -n default \
-     -f https://raw.githubusercontent.com/istio/istio/release-1.24/samples/bookinfo/platform/kube/bookinfo.yaml
+     -f https://raw.githubusercontent.com/istio/istio/release-1.30/samples/bookinfo/platform/kube/bookinfo.yaml
 
    # Sidecar mode: pods show 2/2 (app + istio-proxy). Ambient mode: pods show 1/1.
    kubectl get pods -n default

@@ -207,7 +207,7 @@ Grouped exactly as they appear on the deployment platform. Module-metadata setti
 
 | Variable | Default | Description |
 |---|---|---|
-| `istio_version` | `1.24.2` | Open-source Istio version to install (major.minor.patch). Must be supported by the chosen release channel. |
+| `istio_version` | `1.30.3` | Open-source Istio version to install (major.minor.patch). Must be supported by the chosen release channel. |
 | `install_ambient_mesh` | `false` | `false` installs sidecar mode (Envoy per pod); `true` installs ambient mode (per-node ztunnel + optional waypoints). |
 
 ---
@@ -232,7 +232,7 @@ Grouped exactly as they appear on the deployment platform. Module-metadata setti
 |---|---|---|---|
 | `pod_cidr_block` / `service_cidr_block` / `ip_cidr_ranges` | non-overlapping ranges | Critical | Overlapping secondary ranges (with each other or peered/on-prem networks) break cluster creation or cause routing conflicts that are hard to undo. |
 | `install_ambient_mesh` | chosen once at deploy | High | The mode is fixed at install time; switching between sidecar and ambient after deploy requires tearing the mesh down and reinstalling. |
-| `istio_version` | a real released tag (e.g. `1.24.2`) | High | An unavailable or unsupported version fails the `istioctl` download/install, leaving the cluster without a mesh. |
+| `istio_version` | a real released tag (e.g. `1.30.3`) | High | An unavailable or unsupported version fails the `istioctl` download/install, leaving the cluster without a mesh. |
 | `create_cluster` / `gke_cluster` | match the real target | High | With `create_cluster = false`, an incorrect `gke_cluster` name fails the existing-cluster lookup and the install aborts. |
 | `create_network` with existing network | correct `network_name` / `subnet_name` | High | A wrong existing network/subnet name fails the lookup, or places the cluster in an unintended network. |
 | Ingress IP expectations | read from the Service, not `external_ip` | Medium | Relying on the `external_ip` output (often `IP not available`) causes confusion; the LoadBalancer IP is always on the `istio-ingressgateway` Service. |

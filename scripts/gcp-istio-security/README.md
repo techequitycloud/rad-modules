@@ -49,7 +49,7 @@ numbered steps:
 | `GCP_PROJECT` | current `gcloud` project | Target project ID. |
 | `GCP_REGION` | `us-central1` | Region for the GKE cluster. |
 | `GCP_CLUSTER` | `gke-cluster` | GKE cluster name. |
-| `ISTIO_VERSION` | `1.24.2` | Istio release downloaded by step 1. |
+| `ISTIO_VERSION` | `1.30.3` | Istio release downloaded by step 1. |
 | `APPLICATION_NAMESPACE` | `httpbin` | Namespace for the demo workloads. |
 | `APPLICATION_NAME` | `httpbin` | Demo application name. |
 | `ISTIO_MODE` | `sidecar` | Set by step `4A`/`4B`; read by every later step. |
