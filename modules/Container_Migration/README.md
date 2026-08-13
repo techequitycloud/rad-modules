@@ -62,75 +62,104 @@ module "container_migration" {
 ```
 
 <!-- BEGIN_TF_DOCS -->
+Copyright 2024 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
 ## Requirements
 
 | Name | Version |
 |------|---------|
-| terraform | >= 1.3 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 5.0, < 6.0 |
+| <a name="requirement_null"></a> [null](#requirement\_null) | >= 3.0 |
+| <a name="requirement_random"></a> [random](#requirement\_random) | >= 3.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| google | >= 5.0, < 6.0 |
-| null | >= 3.0 |
-| random | >= 3.0 |
+| <a name="provider_google"></a> [google](#provider\_google) | 5.45.2 |
+| <a name="provider_random"></a> [random](#provider\_random) | 3.9.0 |
+
+## Modules
+
+No modules.
 
 ## Resources
 
 | Name | Type |
 |------|------|
-| google_compute_firewall.allow_icmp | resource |
-| google_compute_firewall.allow_internal | resource |
-| google_compute_firewall.allow_ssh | resource |
-| google_compute_firewall.allow_tomcat | resource |
-| google_compute_instance.m2c_cli | resource |
-| google_compute_instance.petclinic_postgres | resource |
-| google_compute_instance.tomcat_petclinic | resource |
-| google_compute_network.vpc | resource |
-| google_container_cluster.m2c_guide | resource |
-| google_container_node_pool.default_pool | resource |
-| google_project_service.enabled_services | resource |
-| random_id.default | resource |
-| google_compute_network.vpc | data source |
-| google_project.existing_project | data source |
+| [google_compute_firewall.allow_icmp](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_firewall) | resource |
+| [google_compute_firewall.allow_internal](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_firewall) | resource |
+| [google_compute_firewall.allow_ssh](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_firewall) | resource |
+| [google_compute_firewall.allow_tomcat](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_firewall) | resource |
+| [google_compute_instance.m2c_cli](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance) | resource |
+| [google_compute_instance.petclinic_postgres](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance) | resource |
+| [google_compute_instance.tomcat_petclinic](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_instance) | resource |
+| [google_compute_network.vpc](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/compute_network) | resource |
+| [google_container_cluster.m2c_guide](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/container_cluster) | resource |
+| [google_container_node_pool.default_pool](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/container_node_pool) | resource |
+| [google_project_service.enabled_services](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/project_service) | resource |
+| [random_id.default](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/id) | resource |
+| [google_compute_network.vpc](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/compute_network) | data source |
+| [google_project.existing_project](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/project) | data source |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| project\_id | GCP project ID where Container Migration resources will be deployed. | `string` | `null` | yes |
-| tenant\_id | Tenant identifier. Metadata only — validated but not referenced by any resource in this module. | `string` | `"demo"` | no |
-| region | GCP region (e.g. 'us-central1'). | `string` | `"us-central1"` | no |
-| zone | GCP zone (e.g. 'us-central1-a'). | `string` | `"us-central1-a"` | no |
-| gke\_node\_machine\_type | Machine type for GKE worker nodes. | `string` | `"e2-medium"` | no |
-| gke\_node\_count | Number of GKE worker nodes. | `number` | `3` | no |
-| postgres\_machine\_type | Machine type for the PostgreSQL source VM. | `string` | `"e2-medium"` | no |
-| postgres\_disk\_size\_gb | Boot disk size in GB for the PostgreSQL source VM. | `number` | `20` | no |
-| tomcat\_machine\_type | Machine type for the Tomcat source VM. | `string` | `"e2-medium"` | no |
-| tomcat\_disk\_size\_gb | Boot disk size in GB for the Tomcat source VM. | `number` | `20` | no |
-| m2c\_machine\_type | Machine type for the m2c-cli VM. | `string` | `"e2-standard-4"` | no |
-| m2c\_disk\_size\_gb | Boot disk size in GB for the m2c-cli VM. | `number` | `200` | no |
-| enable\_services | Automatically enable required GCP APIs. | `bool` | `true` | no |
-| create\_vpc | Create a new VPC for the lab. | `bool` | `true` | no |
-| create\_default\_firewall\_rules | Create default firewall rules on the VPC. | `bool` | `true` | no |
-| internal\_traffic\_cidr | Source range for the allow-internal firewall rule. | `string` | `"10.128.0.0/9"` | no |
-| deployment\_id | Alphanumeric suffix for resource names. | `string` | `null` | no |
-| resource\_creator\_identity | Terraform service account email. | `string` | `"rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"` | no |
+| <a name="input_create_default_firewall_rules"></a> [create\_default\_firewall\_rules](#input\_create\_default\_firewall\_rules) | Set to true (default) to create default firewall rules (allow-internal, allow-ssh, allow-icmp) on the VPC. Set to false if these rules already exist on the target network. {{UIMeta group=3 order=302 }} | `bool` | `true` | no |
+| <a name="input_create_vpc"></a> [create\_vpc](#input\_create\_vpc) | Set to true (default) to create a new auto-mode VPC network for the lab. Set to false to use an existing VPC. {{UIMeta group=3 order=301 }} | `bool` | `true` | no |
+| <a name="input_credit_cost"></a> [credit\_cost](#input\_credit\_cost) | Number of platform credits consumed when this module is deployed. {{UIMeta group=0 order=103 }} | `number` | `0` | no |
+| <a name="input_deployment_id"></a> [deployment\_id](#input\_deployment\_id) | Short alphanumeric suffix appended to resource names to ensure uniqueness within the project. Set by the platform; leave blank to use no suffix. {{UIMeta group=0 order=108 }} | `string` | `null` | no |
+| <a name="input_enable_purge"></a> [enable\_purge](#input\_enable\_purge) | Set to true (default) to allow platform administrators to permanently delete all resources created by this module. {{UIMeta group=0 order=105 }} | `bool` | `true` | no |
+| <a name="input_enable_services"></a> [enable\_services](#input\_enable\_services) | Set to true (default) to automatically enable required GCP project APIs. Set to false when APIs are already enabled. {{UIMeta group=0 order=109 }} | `bool` | `true` | no |
+| <a name="input_gke_node_count"></a> [gke\_node\_count](#input\_gke\_node\_count) | Number of nodes in the GKE default node pool. Minimum 3 recommended to support StatefulSet and Deployment scheduling during the lab. {{UIMeta group=6 order=602 }} | `number` | `3` | no |
+| <a name="input_gke_node_machine_type"></a> [gke\_node\_machine\_type](#input\_gke\_node\_machine\_type) | Machine type for GKE worker nodes (e.g. 'e2-medium'). Used for the default node pool that runs migrated container workloads. {{UIMeta group=6 order=601 }} | `string` | `"e2-medium"` | no |
+| <a name="input_internal_traffic_cidr"></a> [internal\_traffic\_cidr](#input\_internal\_traffic\_cidr) | CIDR block used as the source range for the allow-internal firewall rule. Matches the default VPC auto-mode subnet range. Override if using a custom-mode VPC. {{UIMeta group=3 order=303 }} | `string` | `"10.128.0.0/9"` | no |
+| <a name="input_m2c_disk_size_gb"></a> [m2c\_disk\_size\_gb](#input\_m2c\_disk\_size\_gb) | Boot disk size in GB for the m2c-cli VM. Must be large enough to hold a copy of the source VM filesystems (minimum 200 GB recommended). {{UIMeta group=5 order=502 }} | `number` | `200` | no |
+| <a name="input_m2c_machine_type"></a> [m2c\_machine\_type](#input\_m2c\_machine\_type) | Machine type for the Migrate to Containers CLI VM (e.g. 'e2-standard-4'). This VM requires sufficient CPU and memory to copy and analyse source VM filesystems. {{UIMeta group=5 order=501 }} | `string` | `"e2-standard-4"` | no |
+| <a name="input_module_dependency"></a> [module\_dependency](#input\_module\_dependency) | Ordered list of module names that must be fully deployed before this module can be deployed. {{UIMeta group=0 order=101 }} | `list(string)` | <pre>[<br>  "GCP Project"<br>]</pre> | no |
+| <a name="input_module_description"></a> [module\_description](#input\_module\_description) | Human-readable description of this module displayed to users in the platform UI. {{UIMeta group=0 order=100 }} | `string` | `"This module provisions the complete Google Cloud infrastructure required to run a Migrate to Containers (M2C) lab — the automated path for replatforming VM-based Linux workloads to containers on Google Kubernetes Engine (GKE) without manual application refactoring. Migrate to Containers analyses running Linux VMs using the mcdc CLI, auto-generates production-ready Dockerfiles and Kubernetes manifests, and migrates persistent data volumes to GKE PersistentVolumes. This module deploys two Ubuntu source VMs (PostgreSQL 14 and Apache Tomcat 10 running the Spring PetClinic application), a Migrate to Containers CLI workstation pre-installed with the m2c toolchain, Docker, kubectl, and Skaffold, and a three-node GKE cluster ready to receive migrated workloads — providing a complete, hands-on environment to practise the full container migration lifecycle from workload assessment through to GKE deployment and horizontal pod autoscaling."` | no |
+| <a name="input_module_documentation"></a> [module\_documentation](#input\_module\_documentation) | URL linking to the external documentation for this module. Displayed in the platform UI as a help reference. Metadata only. {{UIMeta group=0 order=1 }} | `string` | `"https://github.com/techequitycloud/rad-modules/blob/main/docs/labs/Container_Migration.md"` | no |
+| <a name="input_module_services"></a> [module\_services](#input\_module\_services) | List of cloud service tags associated with this module. {{UIMeta group=0 order=102 }} | `list(string)` | <pre>[<br>  "GCP",<br>  "GKE",<br>  "Migrate to Containers",<br>  "Cloud Compute",<br>  "Cloud Networking",<br>  "Cloud IAM",<br>  "VPC Network",<br>  "Compute Engine"<br>]</pre> | no |
+| <a name="input_postgres_disk_size_gb"></a> [postgres\_disk\_size\_gb](#input\_postgres\_disk\_size\_gb) | Boot disk size in GB for the PostgreSQL source VM. Minimum 20 GB recommended. {{UIMeta group=4 order=402 }} | `number` | `20` | no |
+| <a name="input_postgres_machine_type"></a> [postgres\_machine\_type](#input\_postgres\_machine\_type) | Machine type for the PostgreSQL source VM (e.g. 'e2-medium'). This VM runs PostgreSQL 14 and serves as the database migration source. {{UIMeta group=4 order=401 }} | `string` | `"e2-medium"` | no |
+| <a name="input_project_id"></a> [project\_id](#input\_project\_id) | GCP project ID where Container Migration resources will be deployed. Must already exist and the service account must hold roles/owner. {{UIMeta group=1 order=101 updatesafe }} | `string` | `null` | no |
+| <a name="input_public_access"></a> [public\_access](#input\_public\_access) | Set to false to restrict this module to platform administrators only. Set to true (the default) to make it visible and deployable by all platform users. {{UIMeta group=0 order=106 }} | `bool` | `true` | no |
+| <a name="input_region"></a> [region](#input\_region) | GCP region where the GKE cluster and VMs will be deployed (e.g. 'us-central1'). {{UIMeta group=1 order=103 }} | `string` | `"us-central1"` | no |
+| <a name="input_require_credit_purchases"></a> [require\_credit\_purchases](#input\_require\_credit\_purchases) | Set to true to require users to hold a credit balance before deploying this module. {{UIMeta group=0 order=104 }} | `bool` | `false` | no |
+| <a name="input_resource_creator_identity"></a> [resource\_creator\_identity](#input\_resource\_creator\_identity) | Email of the Terraform service account used to provision resources (format: name@project-id.iam.gserviceaccount.com). Must hold roles/owner in the destination project. {{UIMeta group=0 order=107 updatesafe }} | `string` | `"rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"` | no |
+| <a name="input_shared_users"></a> [shared\_users](#input\_shared\_users) | List of users who can view and deploy this module regardless of the public\_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }} | `list(string)` | `[]` | no |
+| <a name="input_tenant_id"></a> [tenant\_id](#input\_tenant\_id) | Tenant identifier used in resource naming. Shared by every module deployed to the same tenant in this project — reuse it to share that tenant VPC, service accounts and Artifact Registry, or change it to create a separate namespace. Must be 1-20 lowercase alphanumeric characters and hyphens (e.g. prod, dev, tenant-1). {{UIMeta group=1 order=102 updatesafe }} | `string` | `"demo"` | no |
+| <a name="input_tomcat_disk_size_gb"></a> [tomcat\_disk\_size\_gb](#input\_tomcat\_disk\_size\_gb) | Boot disk size in GB for the Tomcat source VM. Minimum 20 GB recommended. {{UIMeta group=4 order=404 }} | `number` | `20` | no |
+| <a name="input_tomcat_machine_type"></a> [tomcat\_machine\_type](#input\_tomcat\_machine\_type) | Machine type for the Tomcat source VM (e.g. 'e2-medium'). This VM runs Apache Tomcat 10 with the Spring PetClinic application. {{UIMeta group=4 order=403 }} | `string` | `"e2-medium"` | no |
+| <a name="input_zone"></a> [zone](#input\_zone) | GCP zone where the GKE cluster and VMs will be deployed (e.g. 'us-central1-a'). {{UIMeta group=1 order=104 }} | `string` | `"us-central1-a"` | no |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| deployment\_id | Module Deployment ID |
-| project\_id | GCP Project ID |
-| gke\_cluster\_name | GKE cluster name |
-| gke\_cluster\_location | GKE cluster zone |
-| postgres\_vm\_name | PostgreSQL source VM name |
-| postgres\_vm\_internal\_ip | PostgreSQL VM internal IP |
-| tomcat\_vm\_name | Tomcat source VM name |
-| tomcat\_vm\_external\_ip | Tomcat VM external IP |
-| m2c\_cli\_vm\_name | m2c CLI VM name |
-| petclinic\_url | PetClinic application URL |
-| vpc\_name | VPC network name |
+| <a name="output_deployment_id"></a> [deployment\_id](#output\_deployment\_id) | Module Deployment ID |
+| <a name="output_gke_cluster_location"></a> [gke\_cluster\_location](#output\_gke\_cluster\_location) | Zone where the GKE cluster is deployed |
+| <a name="output_gke_cluster_name"></a> [gke\_cluster\_name](#output\_gke\_cluster\_name) | Name of the GKE cluster that receives migrated container workloads |
+| <a name="output_m2c_cli_vm_name"></a> [m2c\_cli\_vm\_name](#output\_m2c\_cli\_vm\_name) | Instance name of the Migrate to Containers CLI VM |
+| <a name="output_petclinic_url"></a> [petclinic\_url](#output\_petclinic\_url) | Browser URL for the PetClinic application running on Tomcat |
+| <a name="output_postgres_vm_internal_ip"></a> [postgres\_vm\_internal\_ip](#output\_postgres\_vm\_internal\_ip) | Internal IP address of the PostgreSQL source VM |
+| <a name="output_postgres_vm_name"></a> [postgres\_vm\_name](#output\_postgres\_vm\_name) | Instance name of the PostgreSQL source VM |
+| <a name="output_project_id"></a> [project\_id](#output\_project\_id) | GCP Project ID |
+| <a name="output_tomcat_vm_external_ip"></a> [tomcat\_vm\_external\_ip](#output\_tomcat\_vm\_external\_ip) | External IP address of the Tomcat VM — use this to browse the PetClinic app |
+| <a name="output_tomcat_vm_name"></a> [tomcat\_vm\_name](#output\_tomcat\_vm\_name) | Instance name of the Tomcat source VM |
+| <a name="output_vpc_name"></a> [vpc\_name](#output\_vpc\_name) | Name of the VPC network created for the lab |
 <!-- END_TF_DOCS -->
