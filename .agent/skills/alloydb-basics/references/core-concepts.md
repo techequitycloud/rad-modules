@@ -40,8 +40,12 @@ When connecting to AlloyDB, you can use either a Private IP or a Public IP:
 
 ## Connection Pooling
 
-For production workloads, use connection poolers like **PgBouncer** (integrated
-in AlloyDB) to manage high numbers of concurrent connections efficiently.
+For production workloads, enable AlloyDB's built-in **managed connection
+pooling** (`gcloud alloydb instances create|update ... --enable-connection-pooling`)
+to manage high numbers of concurrent connections efficiently. The pooler runs
+inside the AlloyDB service, so there is no separate pooling tier to deploy or
+patch; its monitoring `SHOW` commands are PgBouncer-compatible, but PgBouncer
+itself is an external alternative you would have to run yourself.
 
 ## Pricing
 

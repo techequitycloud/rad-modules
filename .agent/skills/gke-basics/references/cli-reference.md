@@ -67,7 +67,9 @@ gcloud container clusters create-auto <CLUSTER_NAME> \
   --region <REGION> --project <PROJECT_ID> \
   --enable-private-nodes --enable-master-authorized-networks \
   --enable-dns-access --release-channel regular \
-  --enable-secret-manager --scoped-rbs-bindings
+  --enable-secret-manager \
+  --no-enable-insecure-binding-system-authenticated \
+  --no-enable-insecure-binding-system-unauthenticated
 
 # Get credentials (CLI-only)
 gcloud container clusters get-credentials <CLUSTER_NAME> --region <REGION> --project <PROJECT_ID>

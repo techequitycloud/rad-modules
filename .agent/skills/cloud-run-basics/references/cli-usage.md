@@ -64,7 +64,7 @@ gcloud run [GROUP] [COMMAND] [FLAGS]
 -   **List job executions:**
 
     ```bash
-    gcloud run executions list --job my-job
+    gcloud run jobs executions list --job my-job
     ```
 
 ### Cloud Run worker pools

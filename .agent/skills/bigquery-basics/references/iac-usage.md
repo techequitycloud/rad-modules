@@ -64,7 +64,9 @@ EOF
 
 ## YAML Samples
 
-BigQuery resources can also be managed via Deployment Manager or other tools
-using YAML configurations.
+BigQuery resources can also be managed with YAML through Infrastructure
+Manager, which uses Terraform configurations under the hood. (Deployment
+Manager reached end of support on March 31, 2026 and is scheduled for
+turndown on June 30, 2027 — don't use it for new work.)
 
 - [BigQuery YAML Samples](https://docs.cloud.google.com/docs/samples?language=yaml&text=bigquery)

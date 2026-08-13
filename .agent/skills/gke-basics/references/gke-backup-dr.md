@@ -17,7 +17,7 @@ gcloud container clusters describe <CLUSTER_NAME> --region <REGION> \
 
 # Enable (Day-1 change)
 gcloud container clusters update <CLUSTER_NAME> \
-  --enable-gke-backup \
+  --update-addons=BackupRestore=ENABLED \
   --region <REGION>
 ```
 
@@ -26,18 +26,18 @@ gcloud container clusters update <CLUSTER_NAME> \
 A Backup Plan defines what to back up, when, and for how long.
 
 ```bash
-gcloud container backup-restore backup-plans create <PLAN_NAME> \
+gcloud beta container backup-restore backup-plans create <PLAN_NAME> \
   --cluster=<CLUSTER_NAME> \
   --location=<REGION> \
-  --retention-days=<DAYS> \
+  --backup-retain-days=<DAYS> \
   --cron-schedule="<CRON>" \
   --all-namespaces
 ```
 
 **Options:**
 - `--all-namespaces` — back up everything
-- `--included-namespaces=<ns1>,<ns2>` — back up specific namespaces
-- `--backup-encryption-key=<KEY>` — encrypt with Customer-Managed Encryption Key (CMEK)
+- `--selected-namespaces=<ns1>,<ns2>` — back up specific namespaces
+- `--encryption-key=<KEY>` — encrypt with Customer-Managed Encryption Key (CMEK)
 
 ### 3. Create a Manual Backup
 

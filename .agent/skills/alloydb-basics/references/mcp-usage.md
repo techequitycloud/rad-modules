@@ -5,8 +5,10 @@ applications to interact with AlloyDB resources.
 
 ## Endpoint
 
-The AlloyDB MCP server endpoint is regional:
-`https://alloydb.REGION.rep.googleapis.com/mcp`
+The AlloyDB MCP server offers a global endpoint and regional endpoints:
+
+-   **Global (Generally Available):** `https://alloydb.googleapis.com/mcp`
+-   **Regional (Preview):** `https://alloydb.REGION.rep.googleapis.com/mcp`
 
 Replace `REGION` with the regional location of the endpoint (e.g.,
 `us-central1`).

@@ -5,7 +5,10 @@ like Terraform.
 
 ## Terraform configuration
 
-Use the `google` or `google-beta` providers to manage Firebase resources.
+You must use the `google-beta` provider to manage Firebase resources — using
+Firebase with Terraform is a beta release, and the Firebase-specific resources
+(e.g. `google_firebase_project`, `google_firebase_web_app`) are not available in
+the GA `google` provider.
 
 ### Example: Firebase project setup
 

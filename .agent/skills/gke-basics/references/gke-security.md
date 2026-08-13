@@ -123,7 +123,8 @@ For running untrusted workloads in an isolated sandbox:
 
 ```bash
 # Enable on cluster (Standard clusters)
-gcloud container clusters update <CLUSTER_NAME> --region <REGION> --enable-gke-sandbox
+# Create a gVisor-sandboxed node pool (Standard clusters)
+gcloud container node-pools create <POOL_NAME> --cluster <CLUSTER_NAME> --region <REGION> --sandbox="type=gvisor"
 
 # Use in pod spec
 # Add: runtimeClassName: gvisor
@@ -165,7 +166,8 @@ With Dataplane V2 (golden path), you can enable logging for Network Policy decis
 
 ```bash
 gcloud container clusters update <CLUSTER_NAME> --region <REGION> \
-  --enable-network-policy-logging
+kubectl edit networklogging default
+# then set spec.cluster.allow.log / spec.cluster.deny.log to true
 ```
 
 This logs allowed and denied connections, useful for troubleshooting Network Policy rules and auditing traffic flows.

@@ -53,7 +53,7 @@ spec:
 spec:
   template:
     spec:
-      terminationGracePeriodSeconds: 25  # Must be < 30s for Spot
+      terminationGracePeriodSeconds: 15  # Regular Pods only get 15s of the 30s Spot shutdown window
       containers:
       - name: app
         lifecycle:

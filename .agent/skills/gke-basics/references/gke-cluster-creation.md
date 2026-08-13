@@ -46,7 +46,8 @@ gcloud container clusters create-auto <CLUSTER_NAME> \
   --enable-dns-access \
   --enable-secret-manager \
   --secret-manager-rotation-interval=120s \
-  --scoped-rbs-bindings \
+  --no-enable-insecure-binding-system-authenticated \
+  --no-enable-insecure-binding-system-unauthenticated \
   --monitoring=SYSTEM,API_SERVER,SCHEDULER,CONTROLLER_MANAGER,STORAGE,POD,DEPLOYMENT,STATEFULSET,DAEMONSET,HPA,CADVISOR,KUBELET,DCGM
 ```
 
@@ -98,7 +99,7 @@ gcloud container clusters create <CLUSTER_NAME> \
   --machine-type e2-standard-4 \
   --disk-type pd-balanced \
   --enable-autoscaling --min-nodes 1 --max-nodes 10 \
-  --enable-shielded-nodes --enable-secure-boot \
+  --enable-shielded-nodes --shielded-secure-boot --shielded-integrity-monitoring \
   --workload-pool=<PROJECT_ID>.svc.id.goog \
   --enable-private-nodes \
   --enable-master-authorized-networks \
@@ -116,7 +117,9 @@ Create a golden path Autopilot cluster, then apply a ComputeClass for GPU worklo
 gcloud container clusters create-auto <CLUSTER_NAME> \
   --region <REGION> --project <PROJECT_ID> \
   --enable-private-nodes --enable-master-authorized-networks \
-  --enable-dns-access --enable-secret-manager --scoped-rbs-bindings
+  --enable-dns-access --enable-secret-manager \
+  --no-enable-insecure-binding-system-authenticated \
+  --no-enable-insecure-binding-system-unauthenticated
 
 # 2. Apply GPU ComputeClass (see gke-compute-classes.md)
 kubectl apply -f gpu-compute-class.yaml

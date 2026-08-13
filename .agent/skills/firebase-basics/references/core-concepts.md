@@ -13,8 +13,8 @@ Here are some popular Firebase products:
   secure, all-in-one identity platform.
 - **Firestore**: Store and sync data using a secure, scalable NoSQL cloud
   database with rich data models and queryability.
-- **Firebase Data Connect**: Build and scale your apps using a fully-managed
-  PostgreSQL relational database service.
+- **Firebase SQL Connect** (formerly Firebase Data Connect): Build and scale
+  your apps using a fully-managed PostgreSQL relational database service.
 - **Cloud Storage for Firebase**: Store and serve unstructured content like
   images, audio, video with a secure cloud-hosted solution.
 - **Firebase App Hosting**: Deploy modern, full-stack web apps that require

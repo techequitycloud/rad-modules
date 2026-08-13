@@ -24,7 +24,7 @@ GKE provides built-in StorageClasses:
 
 | StorageClass | Disk Type | Use Case |
 |-------------|-----------|----------|
-| `standard-rwo` | `pd-standard` | Cost-effective, low IOPS |
+| `standard-rwo` | `pd-balanced` | Default StorageClass; balanced cost/performance |
 | `premium-rwo` | `pd-ssd` | High IOPS, databases |
 | `standard-rwx` | Filestore (Basic HDD) | Shared NFS |
 | `premium-rwx` | Filestore (Basic SSD) | Shared NFS, higher performance |

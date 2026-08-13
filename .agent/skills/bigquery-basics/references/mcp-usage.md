@@ -9,10 +9,14 @@ provides a set of tools for automated data management and analysis.
 - **get_dataset_info:** Get metadata information about a BigQuery dataset.
 - **list_table_ids:** List table ids in a BigQuery dataset.
 - **get_table_info:** Get metadata information about a BigQuery table.
+- **execute_sql_readonly:** Run a read-only SQL query and return the result.
+Mutations such as DML statements, DDL statements, and Python UDFs aren't
+supported. Like `execute_sql`, its queries carry the `goog-mcp-server: true`
+label and are charged to the project in the `project_id` field.
 - **execute_sql:** Run a SQL query in the project and return the result. This
-tool is restricted to only `SELECT` statements. `INSERT`, `UPDATE`, and
-`DELETE` statements and stored procedures aren't allowed. If the query
-doesn't include a `SELECT` statement, an error is returned. For information
+tool is the only BigQuery MCP tool that isn't read-only: it accepts DML and
+DDL statements in addition to `SELECT` queries. Use `execute_sql_readonly`
+when mutations must be blocked. For information
 on creating queries, see the GoogleSQL documentation. The `execute_sql` tool
 can also have side effects if the query invokes remote functions or Python
 UDFs. All queries that are run using the `execute_sql` tool have a label that

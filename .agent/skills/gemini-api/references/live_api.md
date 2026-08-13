@@ -12,7 +12,7 @@ async def generate_content():
     model_id = "gemini-live-2.5-flash-native-audio"
 
     config = types.LiveConnectConfig(
-        response_modalities=[types.LiveModality.TEXT], # Change to AUDIO for voice responses
+        response_modalities=[types.Modality.TEXT], # Change to AUDIO for voice responses
     )
 
     async with client.aio.live.connect(model=model_id, config=config) as session:

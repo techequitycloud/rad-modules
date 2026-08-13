@@ -38,7 +38,8 @@ Unity, and C++.
 ## Server-side Admin SDKs
 
 The Firebase Admin SDKs provide privileged access to Firebase services from a
-server environment. These SDKs are available for Node.js, Java, Python, and Go.
+server environment. These SDKs are available for Node.js, Java, Python, Go, and
+C#/.NET, with experimental support for Dart.
 
 For details about Firebase Admin SDKs and getting started, see
 https://firebase.google.com/docs/reference/admin.md.txt and

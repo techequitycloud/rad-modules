@@ -8,7 +8,7 @@ This reference covers high availability and reliability configuration for GKE cl
 
 | Setting | Golden Path Value | Notes |
 |---------|-------------------|-------|
-| Cluster type | Regional (4 zones: us-central1-a/b/c/f) | Control plane replicated across zones |
+| Cluster type | Regional (control plane + nodes across 3 zones of the region by default) | Survives a single-zone outage |
 | Upgrade strategy | SURGE (`maxSurge: 1`) | Rolling upgrades with extra capacity |
 | Auto-repair | `true` | Unhealthy nodes replaced automatically |
 | Auto-upgrade | `true` | Nodes follow control plane version |
