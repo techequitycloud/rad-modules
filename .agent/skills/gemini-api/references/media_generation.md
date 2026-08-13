@@ -1,7 +1,7 @@
 # Media Generation
 
 ## Image Generation
-Generate images using `gemini-2.5-flash-image`.
+Generate images using `gemini-3.1-flash-image`.
 
 ```python
 from google import genai
@@ -10,7 +10,7 @@ from google.genai import types
 client = genai.Client()
 
 response = client.models.generate_content(
-    model="gemini-2.5-flash-image",
+    model="gemini-3.1-flash-image",
     contents="A dog reading a newspaper",
 )
 
@@ -22,7 +22,7 @@ for part in response.parts:
         image.save("generated_image.png")
 ```
 
-For high-resolution images or using the Search tool, use `gemini-3-pro-image-preview`.
+For high-resolution images or using the Search tool, use `gemini-3-pro-image`.
 
 ```python
 from google import genai
@@ -31,7 +31,7 @@ from google.genai import types
 client = genai.Client()
 
 response = client.models.generate_content(
-    model="gemini-3-pro-image-preview",
+    model="gemini-3-pro-image",
     contents="A dog reading a newspaper",
     config=types.GenerateContentConfig(
         image_config=types.ImageConfig(
@@ -62,7 +62,7 @@ prompt = "A small white ceramic bowl with lemons and limes"
 image = Image.open('fruit.png')
 
 # Create the chat
-chat = client.chats.create(model='gemini-2.5-flash-image')
+chat = client.chats.create(model='gemini-3.1-flash-image')
 
 # Send the image and ask for it to be edited
 response = chat.send_message([prompt, image])
@@ -101,7 +101,7 @@ operation = client.models.generate_videos(
         person_generation="dont_allow",
         aspect_ratio="16:9",
         number_of_videos=1,
-        duration_seconds=5,
+        duration_seconds=8,
         output_gcs_uri="gs://your-bucket/your-prefix",
     ),
 )

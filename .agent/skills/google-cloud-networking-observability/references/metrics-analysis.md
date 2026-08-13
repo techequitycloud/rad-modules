@@ -2,8 +2,8 @@
 
 ## Common Troubleshooting Metrics
 
--   **RTT (Latency)**:
-    `networking.googleapis.com/cloud_netslo/active_probing/rtt`
+-   **RTT (Latency)**: `networking.googleapis.com/vm_flow/rtt` (VM-to-VM) and
+    `networking.googleapis.com/vm_flow/external_rtt` (VM-to-internet)
 -   **Packet Loss**:
     `networking.googleapis.com/cloud_netslo/active_probing/probe_count`
 -   **VM Throughput**:

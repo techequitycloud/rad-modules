@@ -37,9 +37,9 @@ resource.type="gce_subnetwork"
 
 ```sql
 SELECT timestamp,
-JSON_VALUE(jsonPayload.connection.src_ip) AS src_ip,
-JSON_VALUE(jsonPayload.connection.dest_ip) AS dest_ip,
-CAST(JSON_VALUE(jsonPayload.bytes_sent) AS INT64) AS bytes_sent FROM
+JSON_VALUE(json_payload.connection.src_ip) AS src_ip,
+JSON_VALUE(json_payload.connection.dest_ip) AS dest_ip,
+CAST(JSON_VALUE(json_payload.bytes_sent) AS INT64) AS bytes_sent FROM
 `{project_id}.{dataset_id}._AllLogs` WHERE log_name IN (
 'projects/{project_id}/logs/compute.googleapis.com%2Fvpc_flows',
 'projects/{project_id}/logs/networkmanagement.googleapis.com%2Fvpc_flows' ) AND
@@ -105,8 +105,8 @@ It allows you to:
 
     ```sql
     SELECT
-      AVG(json_payload.rtt_msec) AS average_rtt_msec,
-      MAX(json_payload.rtt_msec) AS max_rtt_msec
+      AVG(CAST(JSON_VALUE(json_payload.rtt_msec) AS INT64)) AS average_rtt_msec,
+      MAX(CAST(JSON_VALUE(json_payload.rtt_msec) AS INT64)) AS max_rtt_msec
     FROM ...
     ```
 
@@ -121,4 +121,4 @@ It allows you to:
     milliseconds. Populated only for TCP traffic. Generally,
     `round_trip_time.median_msec` is preferred due to higher precision and
     broader coverage.
--   **reporter**: Usually `src` or `dest` indicating which side logged the flow.
+-   **reporter**: `SRC` or `DEST` (uppercase) for VMs and serverless endpoints, or `SRC_GATEWAY` / `DEST_GATEWAY` for gateways such as VLAN attachments and Cloud VPN tunnels, indicating which side logged the flow.

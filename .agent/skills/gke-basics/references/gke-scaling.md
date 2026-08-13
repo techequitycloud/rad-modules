@@ -128,7 +128,7 @@ gcloud container clusters update <CLUSTER_NAME> --region <REGION> \
 2. **Avoid metric conflicts**: Do not use HPA and VPA on the same metric. Typical pattern: HPA on CPU, VPA on memory.
 3. **Pod Disruption Budgets**: Define PDBs for all production workloads to ensure availability during scaling events.
 4. **HPA stabilization**: HPA has a default 5-minute stabilization window. Tune `behavior` for faster response if needed.
-5. **VPA "Auto" caution**: Auto mode restarts pods. Ensure your app handles SIGTERM gracefully. VPA requires at least 2 replicas for evictions by default.
+5. **VPA "Auto" caution**: Auto mode restarts pods. Ensure your app handles SIGTERM gracefully. VPA's default minimum replicas for eviction is 1 in GKE 1.35.2 and later (2 in earlier versions); override it with `updatePolicy.minReplicas`.
 6. **Use ComputeClasses**: For workload-specific node targeting (Spot fallback, GPU, specific machine families), use ComputeClasses instead of node selectors.
 
 ## Rightsizing Workflow

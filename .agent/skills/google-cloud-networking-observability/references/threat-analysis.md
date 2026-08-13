@@ -30,12 +30,12 @@ logName:(
 "projects/{project_id}/logs/networksecurity.googleapis.com%2Ffirewall_threat" OR
 "projects/{project_id}/logs/ids.googleapis.com%2Fthreat")
 jsonPayload.threatDetails.severity=("HIGH" OR "CRITICAL")
-jsonPayload.action="DENY"
+jsonPayload.action="DROP"
 ```
 
 ### 2. Aggregate Threat Trends ([BigQuery MCP](mcp-usage.md#bigquery-mcp))
 
-**Tool**: `query_sql`
+**Tool**: `execute_sql`
 
 **SQL Pattern**: **Note**: In BigQuery, the top-level column name is
 `json_payload` (snake_case). However, fields extracted from inside the JSON
@@ -89,7 +89,7 @@ gcloud logging read 'logName:("projects/{project_id}/logs/networksecurity.google
 To filter for high-severity blocked threats:
 
 ```bash
-gcloud logging read 'logName:("projects/{project_id}/logs/networksecurity.googleapis.com%2Ffirewall_threat" OR "projects/{project_id}/logs/ids.googleapis.com%2Fthreat") AND jsonPayload.threatDetails.severity=("HIGH" OR "CRITICAL") AND jsonPayload.action="DENY"' --project {project_id} --limit 10 --format json
+gcloud logging read 'logName:("projects/{project_id}/logs/networksecurity.googleapis.com%2Ffirewall_threat" OR "projects/{project_id}/logs/ids.googleapis.com%2Fthreat") AND jsonPayload.threatDetails.severity=("HIGH" OR "CRITICAL") AND jsonPayload.action="DROP"' --project {project_id} --limit 10 --format json
 ```
 
 **Aggregate Threat Trends (bq)**
@@ -139,12 +139,25 @@ LIMIT 10
 
 ### Key Fields (Cloud Logging Filter Names)
 
+**These field names apply to Cloud NGFW threat logs
+(`networksecurity.googleapis.com/firewall_threat`) only.** Cloud IDS threat logs
+(`ids.googleapis.com/threat`) use a different, flat schema with no
+`threatDetails` or `connection` object: `jsonPayload.name`,
+`jsonPayload.threat_id`, `jsonPayload.alert_severity`, `jsonPayload.category`,
+`jsonPayload.type`, `jsonPayload.source_ip_address`, and
+`jsonPayload.destination_ip_address`. A filter that spans both log sources must
+test both spellings (for example
+`(jsonPayload.threatDetails.severity=("HIGH" OR "CRITICAL") OR
+jsonPayload.alert_severity=("HIGH" OR "CRITICAL"))`), otherwise every Cloud IDS
+entry is silently excluded.
+
 -   **jsonPayload.threatDetails.threat**: Human-readable name of the threat.
 -   **jsonPayload.threatDetails.severity**: Severity level (CRITICAL, HIGH,
     MEDIUM, LOW, INFORMATIONAL).
 -   **jsonPayload.threatDetails.category**: The category of threat.
--   **jsonPayload.action**: Action taken (for example, "ALLOW", "DENY",
-    "ALERT").
+-   **jsonPayload.action**: Action performed on the packet (for example,
+    "ALLOW", "DROP", "ALERT", "reset-server"). A `DENY` override action is
+    recorded as `DROP`; the literal value "DENY" never appears.
 -   **jsonPayload.connection.clientIp**: The true source IP.
 -   **jsonPayload.connection.serverIp**: The destination IP.
 -   **jsonPayload.threatDetails.cves**: List of CVE IDs.

@@ -169,4 +169,4 @@ nodeSelector:
 
 - Do not mix ComputeClass selection with other hard node selectors (like `cloud.google.com/gke-spot`) — this causes scheduling conflicts.
 - When using `activeMigration`, workloads will be evicted and rescheduled — ensure PDBs are in place.
-- Spot VMs can be evicted with 30-second notice. Set `terminationGracePeriodSeconds < 30` for Spot workloads.
+- Spot VMs get a 30-second graceful termination period, but that is split — regular Pods get 15 seconds and critical system Pods get the remaining 15. Set `terminationGracePeriodSeconds` to 15 or less for Spot workloads; larger values are not honoured.

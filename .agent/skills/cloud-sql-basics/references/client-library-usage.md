@@ -43,27 +43,11 @@ certificates.
 
 -   **Maven Dependencies:**
 
-    The recommended method is to use the Cloud SQL JDBC Socket Factory. Add the
-    BOM to your `<dependencyManagement>` section:
-
-    ```xml
-    <dependencyManagement>
-      <dependencies>
-        <dependency>
-          <groupId>com.google.cloud.sql</groupId>
-          <artifactId>jdbc-socket-factory-bom</artifactId>
-          <version>1.18.0</version>
-          <type>pom</type>
-          <scope>import</scope>
-        </dependency>
-      </dependencies>
-    </dependencyManagement>
-    ```
-
-    Then add dependencies for your database:
+    The recommended method is to use the Cloud SQL JDBC Socket Factory. There is
+    no BOM for these artifacts — add each dependency with an explicit version:
 
     *   **PostgreSQL:**
-        ```xml  
+        ```xml
         <dependencies>
           <dependency>
             <groupId>org.postgresql</groupId>
@@ -73,12 +57,13 @@ certificates.
           <dependency>
             <groupId>com.google.cloud.sql</groupId>
             <artifactId>postgres-socket-factory</artifactId>
+            <version>1.29.0</version>
           </dependency>
         </dependencies>
         ```
 
     *   **MySQL:**
-        ```xml 
+        ```xml
         <dependencies>
           <dependency>
             <groupId>com.mysql</groupId>
@@ -88,6 +73,7 @@ certificates.
           <dependency>
             <groupId>com.google.cloud.sql</groupId>
             <artifactId>mysql-socket-factory-connector-j-8</artifactId>
+            <version>1.29.0</version>
           </dependency>
         </dependencies>
         ```

@@ -18,7 +18,7 @@ response = client.models.generate_content(
     contents="List a few popular cookie recipes.",
     config=types.GenerateContentConfig(
         response_mime_type="application/json",
-        response_json_schema=list[Recipe],
+        response_schema=list[Recipe],
     ),
 )
 # response.text is guaranteed to be valid JSON matching the schema

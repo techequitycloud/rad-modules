@@ -28,13 +28,13 @@ jsonPayload.allocation_status="DROPPED"
 
 ### 2. Aggregate Trends ([BigQuery MCP](mcp-usage.md#bigquery-mcp))
 
-**Tool**: `query_sql`
+**Tool**: `execute_sql`
 
 **SQL Pattern**:
 
 ```sql
 SELECT
-JSON_VALUE(json_payload.gateway_details.internal_ip) AS internal_ip, COUNT(*) AS
+JSON_VALUE(json_payload.connection.src_ip) AS internal_ip, COUNT(*) AS
 drop_count FROM `{project_id}.{dataset_id}._AllLogs` WHERE log_name LIKE
 '%nat_flows%' AND JSON_VALUE(json_payload.allocation_status) = 'DROPPED' GROUP BY
 1 ORDER BY drop_count DESC LIMIT 10
@@ -61,7 +61,7 @@ gcloud logging read 'resource.type="nat_gateway" AND logName="projects/{project_
 ```bash
 bq query --use_legacy_sql=false --project_id {project_id} '
 SELECT
-  JSON_VALUE(json_payload.gateway_details.internal_ip) AS internal_ip,
+  JSON_VALUE(json_payload.connection.src_ip) AS internal_ip,
   COUNT(*) AS drop_count
 FROM `{project_id}.{dataset_id}._AllLogs`
 WHERE
@@ -78,14 +78,13 @@ LIMIT 10
 To get the status of the router used by the NAT gateway:
 
 ```bash
-gcloud compute
-routers get-status {router_name} --region {region}
+gcloud compute routers get-status {router_name} --region {region}
 ```
 
 ## Key Fields
 
--   `jsonPayload.gateway_details.external_ip` / `external_port`: NAT exit point.
--   `jsonPayload.gateway_details.internal_ip` / `internal_port`: Source VM.
+-   `jsonPayload.connection.nat_ip` / `nat_port`: NAT exit point.
+-   `jsonPayload.connection.src_ip` / `src_port`: Source VM.
 -   `jsonPayload.allocation_status`: `DROPPED` indicates failure to allocate a
     NAT port.
 

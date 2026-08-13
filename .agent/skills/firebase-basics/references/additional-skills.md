@@ -2,38 +2,28 @@
 
 The following skills and reference files are published in the [Firebase Agent Skills repository](https://github.com/firebase/agent-skills/tree/main/skills):
 
-### `developing-genkit-dart`
+### `extension-to-functions-codebase`
 
-- [`SKILL.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-dart/SKILL.md)
-- [`references/genkit.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-dart/references/genkit.md)
-- [`references/genkit_anthropic.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-dart/references/genkit_anthropic.md)
-- [`references/genkit_chrome.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-dart/references/genkit_chrome.md)
-- [`references/genkit_firebase_ai.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-dart/references/genkit_firebase_ai.md)
-- [`references/genkit_google_genai.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-dart/references/genkit_google_genai.md)
-- [`references/genkit_mcp.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-dart/references/genkit_mcp.md)
-- [`references/genkit_middleware.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-dart/references/genkit_middleware.md)
-- [`references/genkit_openai.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-dart/references/genkit_openai.md)
-- [`references/genkit_shelf.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-dart/references/genkit_shelf.md)
-- [`references/schemantic.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-dart/references/schemantic.md)
+- [`SKILL.md`](https://github.com/firebase/agent-skills/blob/main/skills/extension-to-functions-codebase/SKILL.md)
+- [`references/configuration-migration.md`](https://github.com/firebase/agent-skills/blob/main/skills/extension-to-functions-codebase/references/configuration-migration.md)
+- [`references/destructuring-shim.md`](https://github.com/firebase/agent-skills/blob/main/skills/extension-to-functions-codebase/references/destructuring-shim.md)
+- [`references/signature-mapping.md`](https://github.com/firebase/agent-skills/blob/main/skills/extension-to-functions-codebase/references/signature-mapping.md)
 
-### `developing-genkit-go`
+### `firebase-crashlytics`
 
-- [`SKILL.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-go/SKILL.md)
-- [`references/flows-and-http.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-go/references/flows-and-http.md)
-- [`references/generation.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-go/references/generation.md)
-- [`references/getting-started.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-go/references/getting-started.md)
-- [`references/prompts.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-go/references/prompts.md)
-- [`references/providers.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-go/references/providers.md)
-- [`references/tools.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-go/references/tools.md)
+- [`SKILL.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-crashlytics/SKILL.md)
+- [`references/android_setup.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-crashlytics/references/android_setup.md)
+- [`references/ios_setup.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-crashlytics/references/ios_setup.md)
 
-### `developing-genkit-js`
+### `firebase-remote-config-basics`
 
-- [`SKILL.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-js/SKILL.md)
-- [`references/best-practices.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-js/references/best-practices.md)
-- [`references/common-errors.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-js/references/common-errors.md)
-- [`references/docs-and-cli.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-js/references/docs-and-cli.md)
-- [`references/examples.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-js/references/examples.md)
-- [`references/setup.md`](https://github.com/firebase/agent-skills/blob/main/skills/developing-genkit-js/references/setup.md)
+- [`SKILL.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-remote-config-basics/SKILL.md)
+- [`references/android_setup.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-remote-config-basics/references/android_setup.md)
+- [`references/ios_setup.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-remote-config-basics/references/ios_setup.md)
+
+### `xcode-project-setup`
+
+- [`SKILL.md`](https://github.com/firebase/agent-skills/blob/main/skills/xcode-project-setup/SKILL.md)
 
 ### `firebase-ai-logic-basics`
 
@@ -84,23 +74,25 @@ The following skills and reference files are published in the [Firebase Agent Sk
 - [`reference/sdks.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-data-connect-basics/reference/sdks.md)
 - [`reference/security.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-data-connect-basics/reference/security.md)
 
-### `firebase-firestore-enterprise-native-mode`
+### `firebase-firestore`
 
-- [`SKILL.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore-enterprise-native-mode/SKILL.md)
-- [`references/data_model.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore-enterprise-native-mode/references/data_model.md)
-- [`references/indexes.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore-enterprise-native-mode/references/indexes.md)
-- [`references/provisioning.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore-enterprise-native-mode/references/provisioning.md)
-- [`references/python_sdk_usage.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore-enterprise-native-mode/references/python_sdk_usage.md)
-- [`references/security_rules.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore-enterprise-native-mode/references/security_rules.md)
-- [`references/web_sdk_usage.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore-enterprise-native-mode/references/web_sdk_usage.md)
-
-### `firebase-firestore-standard`
-
-- [`SKILL.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore-standard/SKILL.md)
-- [`references/indexes.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore-standard/references/indexes.md)
-- [`references/provisioning.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore-standard/references/provisioning.md)
-- [`references/security_rules.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore-standard/references/security_rules.md)
-- [`references/web_sdk_usage.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore-standard/references/web_sdk_usage.md)
+- [`SKILL.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/SKILL.md)
+- [`references/enterprise/android_sdk_usage.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/enterprise/android_sdk_usage.md)
+- [`references/enterprise/data_model.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/enterprise/data_model.md)
+- [`references/enterprise/flutter_setup.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/enterprise/flutter_setup.md)
+- [`references/enterprise/indexes.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/enterprise/indexes.md)
+- [`references/enterprise/ios_setup.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/enterprise/ios_setup.md)
+- [`references/enterprise/provisioning.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/enterprise/provisioning.md)
+- [`references/enterprise/python_sdk_usage.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/enterprise/python_sdk_usage.md)
+- [`references/enterprise/security_rules.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/enterprise/security_rules.md)
+- [`references/enterprise/web_sdk_usage.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/enterprise/web_sdk_usage.md)
+- [`references/standard/android_sdk_usage.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/standard/android_sdk_usage.md)
+- [`references/standard/flutter_setup.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/standard/flutter_setup.md)
+- [`references/standard/indexes.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/standard/indexes.md)
+- [`references/standard/ios_setup.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/standard/ios_setup.md)
+- [`references/standard/provisioning.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/standard/provisioning.md)
+- [`references/standard/security_rules.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/standard/security_rules.md)
+- [`references/standard/web_sdk_usage.md`](https://github.com/firebase/agent-skills/blob/main/skills/firebase-firestore/references/standard/web_sdk_usage.md)
 
 ### `firebase-hosting-basics`
 

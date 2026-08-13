@@ -48,7 +48,7 @@ GKE is available in all Google Cloud regions. Autopilot clusters are regional by
 ## Pricing
 
 GKE pricing depends on the cluster mode:
-- **Autopilot**: Pay for pod resource requests (vCPU, memory, ephemeral storage). No cluster management fee.
+- **Autopilot**: Pay for pod resource requests (vCPU, memory, ephemeral storage), plus the flat $0.10/cluster/hour cluster management fee that applies to every GKE cluster regardless of mode (offset by the GKE free tier credit of $74.40/month per billing account).
 - **Standard**: Pay for underlying Compute Engine VMs plus a per-cluster management fee.
 
 For current pricing, see https://cloud.google.com/kubernetes-engine/pricing.
