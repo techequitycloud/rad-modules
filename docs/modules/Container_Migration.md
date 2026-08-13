@@ -51,7 +51,7 @@ Migrate to Containers is delivered as two command-line tools rather than a manag
   sudo /install_container_tools.sh        # checks m2c, kubectl, skaffold, docker, auth plugin
   m2c version
   # Core migration commands (see the Lab Guide for the full sequence):
-  m2c copy gcloud -p "$PROJECT" -z "$ZONE" -n <source-vm> -o <out-dir> --filters ~/filters.txt
+  m2c copy gcloud -p "$PROJECT" -z "$ZONE" -n <source-vm> -o <out-dir> --filters /root/filters.txt
   m2c analyze -s <copied-fs> -p linux-vm-container -o ./migration
   m2c migrate-data -i migration -n default
   m2c generate -i ./migration -o ./artifacts
@@ -137,8 +137,9 @@ Variables are grouped exactly as they appear on the deployment platform.
 | Variable | Default | Description |
 |---|---|---|
 | `project_id` | _(required)_ | Target Google Cloud project. Must already exist. |
-| `region` | `us-central1` | Region used for API calls and data lookups. |
-| `zone` | `us-central1-a` | Zone for the VMs and the GKE cluster. Must lie within `region`. |
+| `tenant_id` | `demo` | Metadata only — accepted and validated (1-20 lowercase letters, numbers, hyphens) but not referenced by any resource in this module. Resource names use `deployment_id`, not `tenant_id`. |
+| `region` | `us-central1` | Metadata only — no resource in this module references `region`. Every resource is placed by `zone`. |
+| `zone` | `us-central1-a` | Zone for the VMs and the GKE cluster. This is the only location input that has any effect. |
 
 ### Group 3 — Network
 
@@ -202,7 +203,7 @@ These values are returned on a successful deployment and are the quickest way to
 |---|---|---|---|
 | `deployment_id` | set once | Critical | Embedded in every resource name. Changing it after deploy forces recreation of the VPC, VMs, and GKE cluster. |
 | `create_vpc` | `true` | High | Setting `false` requires a pre-existing VPC named exactly `mig-<id>-vpc` — there is no variable to point at a differently named network, so the apply fails if it is absent. |
-| `zone` within `region` | matched pair | High | The cluster and VMs deploy to `zone`; a zone outside `region` (or an unavailable zone) fails the apply. |
+| `zone` | valid, available zone | High | Every VM and the GKE cluster deploy to `zone`; an invalid or capacity-constrained zone fails the apply. `region` is inert, so a `zone` outside `region` is harmless. |
 | `m2c_disk_size_gb` | `200` | High | Too small a workstation disk cannot hold the copied source filesystems, and `m2c copy` fails partway through. |
 | `enable_services` | `true` | High | If the required APIs are not already enabled and this is `false`, resource creation fails immediately. Only disable when all required APIs are confirmed enabled. |
 | `gke_node_count` | `3` | Medium | Fewer than 3 nodes can leave a migrated StatefulSet and Deployment unable to schedule together during the lab. |

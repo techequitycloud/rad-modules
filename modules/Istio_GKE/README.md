@@ -84,7 +84,7 @@ limitations under the License.
 
 | Name | Version |
 |------|---------|
-| <a name="provider_google"></a> [google](#provider\_google) | 7.30.0 |
+| <a name="provider_google"></a> [google](#provider\_google) | 7.42.0 |
 | <a name="provider_null"></a> [null](#provider\_null) | 3.2.4 |
 | <a name="provider_random"></a> [random](#provider\_random) | 3.8.1 |
 
@@ -130,7 +130,7 @@ No modules.
 |------|-------------|------|---------|:--------:|
 | <a name="input_create_cluster"></a> [create\_cluster](#input\_create\_cluster) | Set to true (default) to create a new GKE cluster. Set to false to install Istio onto an existing cluster identified by gke\_cluster. | `bool` | `true` | no |
 | <a name="input_create_network"></a> [create\_network](#input\_create\_network) | Set to true (default) to create a new VPC network and subnet for the GKE cluster. Set to false to use an existing network and subnet identified by network\_name and subnet\_name. | `bool` | `true` | no |
-| <a name="input_credit_cost"></a> [credit\_cost](#input\_credit\_cost) | Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require\_credit\_purchases is true, users must have sufficient credit balance before deploying. Defaults to 100. | `number` | `0` | no |
+| <a name="input_credit_cost"></a> [credit\_cost](#input\_credit\_cost) | Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require\_credit\_purchases is true, users must have sufficient credit balance before deploying. Defaults to 0 (this module currently consumes no credits). | `number` | `0` | no |
 | <a name="input_deploy_application"></a> [deploy\_application](#input\_deploy\_application) | Currently has no effect — not wired into this module's install scripts, so the Bookinfo sample application is never deployed regardless of this value (tracked as a known gap). Deploy Bookinfo manually into the pre-labelled 'default' namespace after Istio is installed; see docs/labs/Istio\_GKE.md for the exact command. | `bool` | `true` | no |
 | <a name="input_deployment_id"></a> [deployment\_id](#input\_deployment\_id) | Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources. | `string` | `null` | no |
 | <a name="input_enable_purge"></a> [enable\_purge](#input\_enable\_purge) | Set to true (default) to allow platform administrators to permanently delete all resources created by this module via the platform purge operation. Set to false to prevent purge operations on this deployment. | `bool` | `true` | no |
@@ -154,7 +154,8 @@ No modules.
 | <a name="input_service_cidr_block"></a> [service\_cidr\_block](#input\_service\_cidr\_block) | IPv4 CIDR block assigned to Kubernetes Services (ClusterIP) in the GKE cluster (e.g. '10.64.128.0/20'). A /20 supports up to 4,096 service IPs. Must not overlap with the node or pod CIDR ranges. Defaults to '10.64.128.0/20'. | `string` | `"10.64.128.0/20"` | no |
 | <a name="input_service_ip_range"></a> [service\_ip\_range](#input\_service\_ip\_range) | Alias name for the secondary IP range used to assign IP addresses to Kubernetes Services (ClusterIP) in the GKE cluster. This name is referenced when creating the subnet secondary range. Defaults to 'service-ip-range'. Must be unique within the subnet. | `string` | `"service-ip-range"` | no |
 | <a name="input_subnet_name"></a> [subnet\_name](#input\_subnet\_name) | Name of the subnet within the VPC network. When create\_network is true, this is the name given to the newly created subnet. When create\_network is false, this identifies the existing subnet to use. Defaults to 'vpc-subnet'. | `string` | `"vpc-subnet"` | no |
-| <a name="input_trusted_users"></a> [trusted\_users](#input\_trusted\_users) | Set of Google account email addresses granted cluster-admin privileges on the GKE cluster (e.g. ['user@example.com']). Defaults to an empty set (no additional admin users). | `set(string)` | `[]` | no |
+| <a name="input_tenant_id"></a> [tenant\_id](#input\_tenant\_id) | Tenant identifier used in resource naming. Must be 1-20 lowercase alphanumeric characters and hyphens (e.g. prod, dev, tenant-1); a malformed value fails validation at plan time. Currently not referenced by any resource in this module. | `string` | `"demo"` | no |
+| <a name="input_trusted_users"></a> [trusted\_users](#input\_trusted\_users) | Currently has no effect — declared but not wired into any IAM or RBAC resource, so no cluster-admin privileges are granted regardless of this value (tracked as a known gap). Grant cluster access manually with `gcloud projects add-iam-policy-binding` / a Kubernetes ClusterRoleBinding after deployment. | `set(string)` | `[]` | no |
 
 ## Outputs
 

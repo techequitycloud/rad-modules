@@ -335,11 +335,11 @@ pasted conversation, and extend the guardrail to also catch bank/routing
 numbers. Pauses, then lints and pushes.
 
 ### `(17) Run local simulations`
-`cxas evals report --run --app-name ... --output-dir eval-reports
---sim-parallel 5` — runs every golden, tool test, callback test, and Local
-Simulation together (the default `--include` is already `sims,goldens,tools,
-callbacks`; passing `--include sims` explicitly would *narrow* the report to
-sims only, so it's deliberately omitted). Simulations use an AI-powered user
+`cxas evals report --run --include sims --app-name ... --output-dir
+eval-reports --sim-parallel 5` — the `--include sims` filter narrows the
+report to Local Simulations only. Drop the flag (the default `--include` is
+`sims,goldens,tools,callbacks`) if you want the goldens, tool tests and
+callback tests reported in the same run. Simulations use an AI-powered user
 simulator (Gemini) that tries to reach a goal, then Gemini judges whether the
 agent met it.
 

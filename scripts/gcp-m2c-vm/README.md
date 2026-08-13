@@ -43,9 +43,10 @@ VM name.
 | `d` | **Delete** | Tears down resources created by each step. |
 
 In Create / Delete mode the script runs `gcloud auth login`, asks for the
-project ID and source VM name, derives the VM zone and region from
-`gcloud compute instances list`, and creates a `gs://<project>` bucket for
-backing up `.env`. Just run option `0` again with a different project ID to
+project ID, the source VM name and the container name, and creates a
+`gs://<project>` bucket for backing up `.env`. The VM zone (and, in step 4,
+the region) are derived from `gcloud compute instances list` at the start of
+each numbered step, not here. Just run option `0` again with a different project ID to
 switch projects.
 
 ## Configuration (`.env`)
@@ -57,8 +58,11 @@ Created at `./gcp-m2c-vm/.env`. Edit values before running the numbered steps:
 | `GCP_PROJECT` | current `gcloud` project | Target project ID. |
 | `VM_NAME` | `NOT_SET` | Source Compute Engine instance name. |
 | `CONTAINER_NAME` | `NOT_SET` | Name used for the generated container and Cloud Run service. |
-| `VM_ZONE` | discovered from VM_NAME | Zone of the source VM. |
-| `GCP_REGION` | derived from VM_ZONE | Region for Cloud Run deployment. |
+| `CONTAINER_NAME` | `NOT_SET` | Name used for the generated container and Cloud Run service. |
+
+`VM_ZONE` and `GCP_REGION` are **not** stored in `.env` — steps 2, 3 and 4
+recompute them at run time from `gcloud compute instances list` filtered on
+`$VM_NAME`, so they cannot be overridden by editing the file.
 
 ## Menu walkthrough
 
@@ -68,7 +72,8 @@ checkpoints — don't skip them.
 ### `(1) Enable APIs`
 Enables the APIs required by the migration pipeline:
 `servicemanagement`, `servicecontrol`, `cloudresourcemanager`, `compute`,
-`container`, `artifactregistry`, `cloudbuild`, `containeranalysis`, and `run`.
+`container`, `artifactregistry`, `cloudbuild`, `clouddeploy`,
+`containeranalysis`, and `run`.
 
 ### `(2) Analyze virtual machine`
 1. Starts `$VM_NAME` if it's stopped.
@@ -113,14 +118,17 @@ In delete mode this step deletes the source VM with
    - build the image with **Cloud Build**,
    - push it to **Artifact Registry** under `eu.gcr.io/${GCP_PROJECT}`,
    - deploy it as the Cloud Run service `${CONTAINER_NAME}` in `${GCP_REGION}`.
-4. Optionally runs `skaffold run -f artifacts/skaffold.yaml` to also deploy
-   to a connected GKE cluster.
+4. Pre-creates the `gs://${GCP_PROJECT}_cloudbuild` staging bucket, then
+   always runs `skaffold run -f artifacts/skaffold.yaml` to also deploy to
+   whichever cluster `kubectl`'s current context points at. There is no
+   prompt — if you don't want the GKE deploy, interrupt the step.
 
 In delete mode it removes the Cloud Run service and the GKE deployment.
 
 ### `(R)` / `(G)` / `(Q)`
 - `R` — show maintainer credits.
-- `G` — launch the bundled Cloud Shell tutorial (Cloud Shell only).
+- `G` — runs `cloudshell launch-tutorial .tutorial.md` (Cloud Shell only).
+  No `.tutorial.md` ships here, so this fails unless you add one yourself.
 - `Q` — quit.
 
 ## Working files
@@ -129,7 +137,7 @@ In delete mode it removes the Cloud Run service and the GKE deployment.
 ./gcp-m2c-vm/
 ├── .env                                # current configuration
 ├── m2c                                 # Migrate to Containers CLI
-├── mcdc                                # local copy of the discovery CLI
+├── m2c                                 # Migrate to Containers CLI
 ├── filters.txt                         # rsync exclusion list (edit before sync)
 ├── analyzevm.sh                        # helper copied to the source VM
 ├── <VM_NAME>-mcdc-report.json          # JSON discovery report
@@ -141,6 +149,7 @@ In delete mode it removes the Cloud Run service and the GKE deployment.
     ├── Dockerfile
     ├── deployment_spec.yaml
     ├── service_spec.yaml
+    ├── deployment_cloudrun.yaml        # Knative Service written by step 4
     ├── skaffold.yaml                   # GKE deployment
     └── skaffold_cloudrun.yaml          # Cloud Run deployment
 ```

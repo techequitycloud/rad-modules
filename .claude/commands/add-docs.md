@@ -31,7 +31,7 @@ The Inputs/Outputs tables must be exhaustive and exact — they are the module's
 
 ---
 
-**ARTIFACT 2 — `<Module>.md` (long-form deep dive, in the module directory)**
+**ARTIFACT 2 — `docs/modules/<Module>.md` (long-form deep dive, published to the docs site)**
 
 An educational deep dive into how the module works: the architecture it provisions, the
 provider-auth pattern it uses and why, the post-provisioning `null_resource` flow, key design
@@ -44,7 +44,7 @@ gotchas. This is narrative prose with code excerpts, not a table dump.
 
 A hands-on lab guide. Structure: Overview & Architecture → Lab Setup (prereqs, project,
 bucket, varfile) → numbered Exercises (deploy via rad-launcher, explore, modify) → Cleanup
-(`radlab.py -m <Module> -a destroy ...`) → Reference. If this file already exists, update it
+(`radlab.py -m <Module> -a delete ...`) → Reference. If this file already exists, update it
 rather than overwriting hand-written exercises.
 
 ---
@@ -53,6 +53,6 @@ rather than overwriting hand-written exercises.
 
   - Set/verify `module_documentation` default in variables.tf points to the GitHub URL of
     `docs/labs/<Module>.md`.
-  - Add the module to the "Module Families" table in CLAUDE.md and the README module list if
-    missing.
+  - Add the module to the "Module Families" table in CLAUDE.md if missing. Do NOT add it to
+    README.md — that file is the upstream OpenTofu project README and has no module list.
   - Report what was written/updated per module. Do not commit unless asked.

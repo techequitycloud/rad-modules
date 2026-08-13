@@ -97,7 +97,7 @@ export NS="bank-of-anthos"           # the application namespace
    ```
 
    Open `http://${FRONTEND_IP}` and sign in with the built-in demo credentials
-   (`testuser` / `password`), then view a balance, make a deposit, and transfer funds.
+   (`testuser` / `bankofanthos`), then view a balance, make a deposit, and transfer funds.
 
 3. Confirm the managed mesh is active for the cluster:
 

@@ -1,3 +1,5 @@
+> **Note:** This file is the upstream **OpenTofu** project README, retained from the fork this repository started as. It does **not** describe `rad-modules`. For this repository, start with `CLAUDE.md` (repo orientation, commands, conventions), `SKILLS.md` (module implementation guide), `AGENTS.md` (agent workflows), `docs/modules/` (per-module reference) and `docs/labs/` (lab guides). Links below (including `CONTRIBUTING.md`) point at the upstream project, not at anything in this checkout.
+
 # OpenTofu
 
 - [HomePage](https://opentofu.org/)

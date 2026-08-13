@@ -20,8 +20,9 @@ modules/AKS_GKE/ (or EKS_GKE/)
 ├── modules/
 │   ├── attached-install-manifest/   # Helm install of the GKE Connect bootstrap
 │   └── attached-install-mesh/       # Optional: runs asmcli to install ASM (NOT invoked by main.tf)
-├── README.md
-└── <MODULE>.md
+├── outputs.tf            # deployment_id (local.random_id) + project_id (local.project_id)
+├── tests/                # module test fixtures
+└── README.md             # deep dive lives at docs/modules/<Module>.md, not in the module directory
 ```
 
 ## The Three Phases
@@ -159,11 +160,11 @@ So the deploying user is always included — callers pass `trusted_users = []` s
 
 ## Foreign-Cloud Credentials
 
-Credentials are declared as `sensitive = true` variables in `SECTION 5: IAM`:
+Credentials are declared as `sensitive = true` variables at the end of `SECTION 4` (`# SECTION 4: Cluster` in `AKS_GKE`, `# SECTION 4: Platform` in `EKS_GKE`) and tagged `{{UIMeta group=1 ... }}` so the RAD UI renders them in the Project panel:
 
 | AKS_GKE | EKS_GKE |
 |---|---|
-| `client_id`, `client_secret`, `tenant_id`, `subscription_id` | `aws_access_key`, `aws_secret_key` |
+| `client_id`, `client_secret`, `azure_tenant_id`, `subscription_id` | `aws_access_key`, `aws_secret_key` |
 
 They are consumed directly in `provider "azurerm"` / `provider "aws"` in `provider.tf`. The RAD UI and `rad-launcher` must redact these from logs — they are already marked `sensitive` at the variable level.
 
@@ -178,4 +179,4 @@ They are consumed directly in `provider "azurerm"` / `provider "aws"` in `provid
 - **Destroy order**: `depends_on = [aws_eks_node_group.node, aws_route...]` on `module.attached_install_manifest` is present for a reason — during `destroy`, the helm release must run before the VPC routes are torn down, or `helm uninstall` can't reach the cluster. Preserve these dependencies when refactoring.
 - **Platform-version compatibility**: `k8s_version = "1.35"` pairs with `platform_version = "1.35.0-gke.1"`. Its minor must equal `k8s_version`'s minor or be exactly one below it — that's an attached-clusters requirement, not just a convention. Discover valid combinations with `gcloud container attached get-server-config --location=<gcp_location>` (no `alpha` needed).
 - **`azurerm_role_assignment.aks_network_contributor`**: needed so AKS can manage its own load balancers. Don't remove it unless you are also changing the AKS networking mode.
-- **Random suffix in EKS_GKE**: `random_string.suffix` is added to the cluster name prefix but the attached-cluster resource uses `var.cluster_name_prefix` directly. Be careful when changing one to not break the other.
+- **Random suffix in EKS_GKE is dead code**: `random_string.suffix` feeds `local.cluster_name_prefix` (`main.tf:34`), but nothing reads that local. The EKS cluster (`main.tf:82`) and the VPC subnet tags (`vpc.tf:51,64`) both use `local.cluster_name`, which is a bare alias for `var.cluster_name_prefix`, and `google_container_attached_cluster` uses `var.cluster_name_prefix` directly. If you wire the suffix in, wire it into all three at once or the attached-cluster registration will no longer match the AWS cluster name.

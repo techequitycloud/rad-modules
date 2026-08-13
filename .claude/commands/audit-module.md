@@ -19,8 +19,9 @@ correct names: module_description, module_dependency, module_services, credit_co
 require_credit_purchases, enable_purge, public_access, deployment_id,
 resource_creator_identity, trusted_users. Also verify enable_services is declared.
 
-Note legitimate exceptions: attached-cluster modules (AKS_GKE, EKS_GKE) may omit
-enable_services; migration modules without a cluster may omit trusted_users. Report
+Note legitimate exceptions: AKS_GKE, EKS_GKE and Migration_Center omit enable_services (they
+enable `local.default_apis` unconditionally); Container_Migration, Migration_Center and
+VMware_Engine omit trusted_users. Report
 omissions, but classify these as informational for those module types.
 
 ---
@@ -45,9 +46,9 @@ hardcoded default (no default, or `default = ""`). Report violations.
 
 Determine which pattern the module uses and confirm it is internally consistent:
   - Pattern A (direct): a single `provider.tf`, no impersonation. Used by AKS_GKE, EKS_GKE.
-  - Pattern B (impersonated): `versions.tf` (requirements) + `provider-auth.tf` with the
-    `google_service_account_access_token` data source gated on
-    `length(var.resource_creator_identity) != 0`, feeding both `google` and `google-beta`.
+  - Pattern B (impersonated): `versions.tf` (requirements) + `provider-auth.tf` declaring both
+    the `google` and `google-beta` providers with
+    `impersonate_service_account = length(var.resource_creator_identity) != 0 ? var.resource_creator_identity : null`.
 
 Flag: both provider.tf and provider-auth.tf present (should be one or the other); a module
 using `google-beta` under Pattern A (must be Pattern B); a hardcoded `access_token`.

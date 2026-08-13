@@ -15,8 +15,15 @@ rad-modules/
 │   ├── AKS_GKE/        # Azure AKS registered as a GKE Attached Cluster
 │   ├── Bank_GKE/       # Bank of Anthos on a single GKE cluster
 │   ├── EKS_GKE/        # AWS EKS registered as a GKE Attached Cluster
+│   ├── Container_Migration/ # Migrate-to-Containers: source VMs → GKE
 │   ├── Istio_GKE/      # GKE + open-source Istio (sidecar or ambient)
-│   └── MC_Bank_GKE/    # Bank of Anthos across multiple GKE clusters (MCI/MCS)
+│   ├── MC_Bank_GKE/    # Bank of Anthos across multiple GKE clusters (MCI/MCS)
+│   ├── Migration_Center/   # Migration Center discovery over GCE + AWS source VMs
+│   └── VMware_Engine/  # Google Cloud VMware Engine private cloud + jump host
+├── docs/
+│   ├── labs/           # Per-module hands-on lab guides (one per module)
+│   └── modules/        # Per-module long-form technical deep dives (one per module)
+├── scripts/            # check_conventions.py, validate_all_modules.sh, standalone shell/Python demos
 ├── rad-launcher/       # Python CLI that drives `tofu` + GCS state for modules
 └── rad-ui/
     └── automation/     # Cloud Build YAMLs invoked by the RAD platform UI
@@ -34,7 +41,10 @@ Each top-level `modules/<Name>/` directory is an independent OpenTofu root modul
 | `EKS_GKE` | Create EKS in AWS, attach to a GKE Fleet | `aws`, `google`, `helm` |
 | `Bank_GKE` | GKE (Autopilot/Standard) + Cloud Service Mesh + Bank of Anthos | `google`, `google-beta`, `kubernetes`, `null` |
 | `MC_Bank_GKE` | Multi-cluster GKE + fleet-wide CSM + MCI/MCS + Bank of Anthos | `google`, `google-beta`, `kubernetes` (per-cluster aliases), `null` |
-| `Istio_GKE` | GKE Standard + open-source Istio (sidecar or ambient) + Bookinfo | `google`, `null` |
+| `Istio_GKE` | GKE Standard + open-source Istio (sidecar or ambient); Bookinfo is deployed manually per the lab guide | `google`, `google-beta`, `kubernetes`, `null` |
+| `Container_Migration` | Source VMs + Migrate-to-Containers CLI VM + GKE target cluster | `google`, `random`, `null` |
+| `Migration_Center` | Migration Center discovery over Linux/Windows GCE VMs plus AWS source VMs | `google`, `aws`, `random`, `null`, `tls` |
+| `VMware_Engine` | GCVE private cloud + network peering/policy + jump host | `google`, `random`, `null`, `external` |
 
 ### Shared Module Patterns
 
@@ -84,10 +94,10 @@ The UI reads variable metadata (grouping, ordering, whether update-safe) from th
 ## Governance
 
 - **Naming**: Module directory names are `PascalCase` with underscores separating clouds/scenarios (e.g. `AKS_GKE`, `MC_Bank_GKE`). TF file names are lowercase (`gke.tf`, `network.tf`, `provider-auth.tf`).
-- **License headers**: Every `.tf` file begins with an Apache 2.0 block-comment header referencing Google LLC and the year.
+- **License headers**: Nearly every `.tf` file begins with an Apache 2.0 block-comment header referencing Google LLC and the year. Three `versions.tf` files (`Bank_GKE`, `Migration_Center`, `VMware_Engine`) currently lack one, which is why `scripts/check_conventions.py` treats a missing header as WARN rather than FAIL.
 - **State**: State is never stored in the repo. The launcher and `rad-ui` automation put it in GCS.
 - **No shared code**: Modules do **not** symlink to each other. If two modules need the same behavior, each has its own copy. The `modules/<Name>/modules/` subdirectories are module-local helpers (e.g. `attached-install-manifest`, `attached-install-mesh`) and do not cross module boundaries.
-- **Documentation**: Each module has both a short `README.md` (summary, usage, inputs/outputs tables) and a long `<MODULE_NAME>.md` (educational deep dive). Both are kept in sync with `variables.tf`.
+- **Documentation**: Each module has a short `README.md` inside the module directory (summary, usage, inputs/outputs tables) plus two repo-root files — a long educational deep dive at `docs/modules/<Module_Name>.md` and a hands-on lab guide at `docs/labs/<Module_Name>.md`. The README links out to them with a `../../docs/...` path. All three are kept in sync with `variables.tf`.
 
 ## Where to Look for Specific Concerns
 

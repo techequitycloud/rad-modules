@@ -88,7 +88,8 @@ Ensure every new .tf begins with the Apache 2.0 license header (copy from a neig
   b) Write the lab guide at `docs/labs/<New_Name>.md` (Overview & Architecture → Lab Setup →
      Exercises → Cleanup → Reference). Do NOT create a LAB_GUIDE.md inside the module.
   c) Set `module_documentation` default in variables.tf to that lab guide's GitHub URL.
-  d) Add the module to the "Module Families" table in CLAUDE.md and the README module list.
+  d) Add the module to the "Module Families" table in CLAUDE.md. Leave README.md alone — it is
+     the upstream OpenTofu project README and carries no module list.
 
 ---
 

@@ -86,7 +86,7 @@ Open-source Istio service mesh on a GKE Standard cluster. The user selects eithe
 - `variables.tf` — UIMeta groups: 0=Provider/Metadata (also `enable_services` and `deploy_application`), 1=Main (project/region), 2=Network, 3=GKE, 4=Features (istio_version, install_ambient_mesh).
 - `network.tf` — VPC, subnet with secondary IP ranges for pods/services, firewall rules, Cloud Router + NAT.
 - `gke.tf` — GKE Standard cluster and node pool, cluster service account with minimum IAM roles, `kubernetes` provider (alias `primary`), local `k8s_credentials_cmd`.
-- `istiosidecar.tf` — `null_resource.install_sidecar_mesh` (count=1 when `install_ambient_mesh=false`): installs `kubectl` and `istioctl` into `$HOME/.local/bin`, fetches cluster credentials, runs `istioctl install` with a custom IstioOperator YAML to fix HPA naming, then installs the observability add-ons and optional Bookinfo.
+- `istiosidecar.tf` — `null_resource.install_sidecar_mesh` (count=1 when `install_ambient_mesh=false`): installs `kubectl` and `istioctl` into `$HOME/.local/bin`, fetches cluster credentials, runs `istioctl install` with a custom IstioOperator YAML to fix HPA naming, then installs the observability add-ons (prometheus, jaeger, grafana, kiali). It does **not** install Bookinfo — no install step exists and `var.deploy_application` is read nowhere in the module.
 - `istioambient.tf` — `null_resource.install_ambient_mesh` (count=1 when `install_ambient_mesh=true`): same install pattern but uses ambient mode flags.
 - `manifests/` and `templates/` — Kubernetes manifests for the Bookinfo Ingress, BackendConfig, FrontendConfig, managed certificate, nodeport service, and configmap.
 - `outputs.tf` — exposes `deployment_id`, `project_id`, `cluster_credentials_cmd` (from `local.k8s_credentials_cmd`), and `external_ip` (read from the runtime-generated `${path.module}/scripts/app/external_ip.txt`).
@@ -199,7 +199,7 @@ Multiple GKE clusters (up to four, keyed by `cluster1`–`cluster4` in `local.cl
 7. **`wait_for_service_mesh` must poll actual control-plane state, not entry existence**: `hub.tf`'s `wait_for_service_mesh` gates `deploy.tf` on ASM being ready. It must poll `membershipStates['<membership-path>'].servicemesh.controlPlaneManagement.state` until `ACTIVE` — a version that only checks whether a `membershipStates` entry exists (e.g. `grep -c $CLUSTER_NAME` on the raw describe output) returns success within seconds, long before the managed control plane and its injector webhook are actually live, so `deploy.tf` creates pods with zero `istio-proxy` sidecars and Terraform reports success. Bank_GKE's `asm.tf` has always had the correct pattern; use it as the reference if this regresses. First-time control-plane provisioning in a fresh project can take ~20-25 minutes, so the poll's own timeout must be sized well above that, not just correct in what it checks.
 
 **Common tasks:**
-- **Change cluster count or regions**: Update `local.cluster_configs` in `main.tf` (or wherever it is defined) and add/remove the corresponding `kubernetes` provider alias in `gke.tf`.
+- **Change cluster count or regions**: Update `local.cluster_configs` in `variables.tf` (`modules/MC_Bank_GKE/variables.tf:24`) and add/remove the corresponding `kubernetes` provider alias in `gke.tf`.
 - **Add a new template**: Add the `.yaml.tpl` to `templates/` and a corresponding `local_file` resource in `manifests.tf`. Reference the rendered file in the apply step.
 - **Update Bank of Anthos version**: Same as Bank_GKE — update the tarball URL in `deploy.tf`.
 - **Toggle MCI/MCS**: Controlled by a feature flag variable. Guard the `mcs.tf` resources with `count` or `for_each` on that flag, following the existing pattern.
@@ -238,9 +238,9 @@ modules/AKS_GKE/               modules/EKS_GKE/
 **Provider configuration (`provider.tf`):**
 Unlike the GKE-based modules, attached-cluster modules use a direct `provider.tf` (not `provider-auth.tf`) and do **not** impersonate a service account for GCP calls. Providers configured:
 - `AKS_GKE`: `google`, `azurerm` (Azure credentials via environment variables), `helm` (pointing at the AKS cluster), `random`.
-- `EKS_GKE`: `google`, `aws` (AWS credentials via environment variables), `helm` (pointing at the EKS cluster), `random`.
+- `EKS_GKE`: `google`, `aws` (credentials from the `aws_access_key`/`aws_secret_key` variables), `helm` (pointing at the EKS cluster), `time`.
 
-There is no top-level `versions.tf`; provider version constraints live in the nested submodule `versions.tf` files.
+There is no top-level `versions.tf`; the provider version constraints live in the top-level `provider.tf`'s own `terraform { required_providers { … } }` block (`modules/AKS_GKE/provider.tf:17-41`, `modules/EKS_GKE/provider.tf:17-37`). Only the `attached-install-mesh` submodule has its own `versions.tf`.
 
 **GCP APIs enabled (in `main.tf`):**
 `gkemulticloud.googleapis.com`, `gkeconnect.googleapis.com`, `connectgateway.googleapis.com`, `cloudresourcemanager.googleapis.com`, `anthos.googleapis.com`, `monitoring.googleapis.com`, `logging.googleapis.com`, `gkehub.googleapis.com`, `opsconfigmonitoring.googleapis.com`, `kubernetesmetadata.googleapis.com`.
@@ -253,8 +253,8 @@ There is no top-level `versions.tf`; provider version constraints live in the ne
 These modules expose only `deployment_id` and `project_id` in `outputs.tf`. There is no credentials output; use `gcloud container attached clusters get-credentials <cluster-name> --location=<region> --project=<project-id>`.
 
 **Critical implementation rules:**
-1. **Credentials via environment variables**: Azure credentials are set via `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID`. AWS credentials are set via `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`. Never add these as Terraform variable defaults.
-2. **AKS VNet inline**: The Azure Virtual Network and subnet are created directly in `main.tf`, not in a separate `network.tf`. Follow this pattern when adding Azure networking resources.
+1. **Credentials as sensitive variables**: Azure credentials are passed as the `client_id`, `client_secret`, `azure_tenant_id` and `subscription_id` variables, AWS credentials as `aws_access_key`/`aws_secret_key`; `provider.tf` wires them into the provider blocks directly (`modules/AKS_GKE/provider.tf:43-49`, `modules/EKS_GKE/provider.tf:39-42`). All are `sensitive` and required — no `ARM_*`/`AWS_*` env var is read by either module. Never add defaults for them; source them from a secret store at call time.
+2. **AKS has no explicit VNet**: The module creates no Azure Virtual Network or subnet — `azurerm_kubernetes_cluster.aks` (`main.tf:80`) relies on AKS-managed default networking, which is why there is no `network.tf`. If you add explicit Azure networking, create the `azurerm_virtual_network`/`azurerm_subnet` resources and wire them through the cluster's `network_profile`.
 3. **EKS VPC and IAM**: AWS VPC resources live in `vpc.tf` and IAM roles/policies for EKS in `iam.tf`. Keep these files separate.
 4. **Helm provider target**: The `helm` provider must point at the newly created cluster's kubeconfig, not at any GCP endpoint. Ensure the `helm` provider configuration reads the cluster's API endpoint and certificate from the cluster resource outputs.
 5. **`always_run = timestamp()` is banned on attached clusters**: The install manifest submodule must only run once on create. Do not add `always_run` to the Helm install resource.

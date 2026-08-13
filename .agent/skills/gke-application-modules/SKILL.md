@@ -11,7 +11,7 @@ Three modules provision Google-native GKE clusters and install a full Kubernetes
 |---|---|---|---|
 | `Bank_GKE` | 1 GKE (Autopilot or Standard) | Cloud Service Mesh (managed) | Bank of Anthos v0.6.10 |
 | `MC_Bank_GKE` | N GKE (2–4 typical), multi-region | CSM fleet-wide + MCI + MCS | Bank of Anthos v0.6.10 across clusters |
-| `Istio_GKE` | 1 GKE Standard | Open-source Istio (sidecar or ambient) | Istio Bookinfo sample |
+| `Istio_GKE` | 1 GKE Standard | Open-source Istio (sidecar or ambient) | None — `deploy_application` is inert; Bookinfo is deployed by hand per the lab guide |
 
 They all use provider-auth Pattern B (impersonated Google provider in `provider-auth.tf`) and share the same `main.tf` boilerplate described in the `module-conventions` skill.
 
@@ -35,7 +35,7 @@ modules/Bank_GKE/          modules/MC_Bank_GKE/        modules/Istio_GKE/
 └── ...                    └── templates/*.tpl
 ```
 
-`templates/*.yaml.tpl` files (rendered via `templatefile(...)`) hold Kubernetes manifests with variable substitution. `Istio_GKE` uses `manifests/*.yaml` instead (no substitution).
+`templates/*.yaml.tpl` files hold Kubernetes manifests with variable substitution. In `MC_Bank_GKE` they are rendered by `manifests.tf` via `templatefile(...)` and written out to `manifests/`, so that directory is generated build output rather than hand-authored source — do not edit it. `Istio_GKE` ships both directories but references neither from any `.tf` file: its Kubernetes objects are applied inline from heredocs in `istiosidecar.tf` / `istioambient.tf`, leaving `templates/` and `manifests/` there as unused leftovers.
 
 ## Cluster Creation (`gke.tf`)
 
@@ -46,7 +46,7 @@ resource "google_container_cluster" "gke_cluster" {
   count                    = var.create_cluster ? 1 : 0
   project                  = local.project.project_id
   name                     = var.gke_cluster
-  location                 = var.gcp_region
+  location                 = var.region
   deletion_protection      = false
   network                  = local.network.name
   subnetwork               = local.subnet.name
@@ -107,7 +107,7 @@ resource "google_gke_hub_feature_membership" "cluster" {
 }
 ```
 
-Both modules wrap these with `null_resource` polling blocks (`verify_gke_hub_api_activation`, `verify_mesh_api_activation`) that shell out to `gcloud services list` until the API is ready. This is deliberate — `google_project_service` returns before the API is actually usable, and downstream `google_gke_hub_feature` calls race ahead otherwise. Preserve these verification resources when refactoring.
+Both modules wrap these with `null_resource` polling blocks that shell out to `gcloud` until the API/feature is actually usable — `google_project_service` returns before it is, and downstream `google_gke_hub_feature` calls race ahead otherwise. The names differ per module: `Bank_GKE` uses `verify_gke_hub_api_activation` / `verify_mesh_api_activation` / `verify_mesh_feature_active` / `verify_hub_membership` / `verify_mesh_status` / `wait_for_service_mesh` (`asm.tf`) plus `verify_gke_hub_api_activation_hub` / `wait_for_api_propagation` / `wait_for_iam_propagation` (`hub.tf`); `MC_Bank_GKE` uses `wait_for_fleet_registration` / `enable_asm` / `wait_for_service_mesh` (`hub.tf`). Note the real resource labels are `google_gke_hub_membership.gke_cluster` (Bank_GKE) / `.hub_membership` (MC_Bank_GKE), `google_gke_hub_feature.service_mesh` / `.service_mesh_feature`, and `google_gke_hub_feature_membership.service_mesh_feature_member`. Preserve these verification resources when refactoring.
 
 `MC_Bank_GKE` additionally creates `google_gke_hub_feature.multiclusteringress_feature` to enable MCI at fleet level (see `deploy.tf`). MCS resources (MultiClusterService manifests) are applied via `null_resource.app_multicluster_ingress` in `deploy.tf`. `mcs.tf` contains only the destroy-time cleanup resource (`null_resource.cleanup_mci_resources`).
 
@@ -118,7 +118,7 @@ Installed via `null_resource` that runs `istioctl install` locally against the c
 - `istiosidecar.tf` — `count = var.install_ambient_mesh ? 0 : 1`, installs sidecar-mode Istio + observability addons (Prometheus, Jaeger, Grafana, Kiali).
 - `istioambient.tf` — `count = var.install_ambient_mesh ? 1 : 0`, installs ambient-mode Istio + ztunnel/waypoint.
 
-Both shell scripts install `kubectl` and `istioctl` locally if missing and write an `external_ip.txt` file for the Ingress Gateway address (exposed via the `external_ip` output). When editing these, remember the **destroy** provisioner also needs to reference `var.resource_creator_identity` — it is pulled through `triggers` precisely so the `local-exec` on destroy has access to it.
+Both shell scripts install `kubectl` and `istioctl` locally if missing. Note the `external_ip` output is currently inert: it reads `${path.module}/scripts/app/external_ip.txt`, but no `scripts/` directory exists in the module and neither install script ever writes that file, so the output always returns `"IP not available"`. When editing these, remember the **destroy** provisioner also needs to reference `var.resource_creator_identity` — it is pulled through `triggers` precisely so the `local-exec` on destroy has access to it.
 
 ## Application Deployment (`deploy.tf`, `manifests.tf`)
 
@@ -169,7 +169,7 @@ Templates in `templates/*.yaml.tpl` (ingress, nodeport service, managed cert, fr
 
 ### Bookinfo (Istio_GKE)
 
-Installed inline in the istio install scripts (`istiosidecar.tf` / `istioambient.tf`), gated on `var.deploy_application`. The script `kubectl apply`s the Bookinfo manifests that ship with the Istio release tarball.
+**Not installed by the module.** `var.deploy_application` exists but is not wired into `istiosidecar.tf` / `istioambient.tf`, so Bookinfo is never deployed regardless of its value (a known gap, recorded in the variable's own description). What the scripts do is label the `default` namespace `istio-injection=enabled` (sidecar mode) and install the observability addons; Bookinfo is then deployed by hand into that pre-labelled namespace per `docs/labs/Istio_GKE.md`. Do not assume the flag works when composing this module into a lab.
 
 ## Networking (`network.tf`)
 
@@ -185,7 +185,7 @@ resource "google_compute_router_nat" "nat"      { }
 
 Both single-cluster modules support `var.create_network = false` with a data-source fallback pattern; preserve this when adding a new variant. `MC_Bank_GKE` creates one router + NAT per region via `for_each`.
 
-A module-level `google_compute_global_address.bank_of_anthos` (Bank_GKE / MC_Bank_GKE) reserves a global IP for the Ingress in the GCLB created by `glb.tf`.
+A module-level `google_compute_global_address.glb` (Bank_GKE / MC_Bank_GKE, both in `glb.tf:22`) reserves a global IP for the Ingress in the GCLB created by `glb.tf`.
 
 ## Required GCP APIs
 
@@ -196,7 +196,8 @@ iap.googleapis.com               container.googleapis.com        compute.googlea
 monitoring.googleapis.com        logging.googleapis.com          servicenetworking.googleapis.com
 containersecurity.googleapis.com iamcredentials.googleapis.com   iam.googleapis.com
 artifactregistry.googleapis.com  storage.googleapis.com          cloudtrace.googleapis.com
-anthos.googleapis.com            mesh.googleapis.com             gkeconnect.googleapis.com
+anthos.googleapis.com            mesh.googleapis.com             meshconfig.googleapis.com
+gkeconnect.googleapis.com
 gkehub.googleapis.com            anthospolicycontroller.googleapis.com
 anthosconfigmanagement.googleapis.com  websecurityscanner.googleapis.com
 billingbudgets.googleapis.com

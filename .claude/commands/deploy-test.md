@@ -27,7 +27,9 @@ Campaign parameters
   Creator SA:    $RESOURCE_CREATOR_IDENTITY (blank = caller ADC)
 ```
 
-Confirm prerequisites are installed once: `python3 rad-launcher/installer_prereq.py`.
+Confirm prerequisites are installed once: `cd rad-launcher && python3 installer_prereq.py`.
+It must run from inside `rad-launcher/` — it invokes `requirements.txt`, `opentofu_installer.py`
+and `cloudsdk_kubectl_installer.py` by CWD-relative path.
 
 ---
 
@@ -38,9 +40,10 @@ filter; report "Unknown module: <name>" for any token without a directory.
 
 For each selected module, read variables.tf for REQUIRED inputs (declared type, no default)
 beyond the standard set, and for any cloud credentials it needs:
-  - AKS_GKE: Azure `client_id`, `client_secret`, `tenant_id`, `subscription_id` (via tfvars
+  - AKS_GKE: Azure `client_id`, `client_secret`, `azure_tenant_id`, `subscription_id` (via tfvars
     or `ARM_*` env vars — never hardcode).
-  - EKS_GKE / Migration_Center: AWS `aws_access_key` / `aws_secret_key` (via tfvars or
+  - EKS_GKE: AWS `aws_access_key` / `aws_secret_key`; Migration_Center: `aws_access_key_id` /
+    `aws_secret_access_key` (via tfvars or
     `AWS_*` env vars).
 For each module, prepare a minimal tfvars file capturing project_id, deployment_id (optional),
 and any required inputs. Report any input you cannot fill so the user can supply it.
@@ -79,7 +82,7 @@ Record PASS/FAIL per module with the evidence (the failing pod, the HTTP status)
 
 ```bash
 python3 rad-launcher/radlab.py \
-  -m <Module> -a destroy \
+  -m <Module> -a delete \
   -p "$PROJECT_ID" -b "$STATE_BUCKET" \
   -f /path/to/<module>.tfvars
 ```

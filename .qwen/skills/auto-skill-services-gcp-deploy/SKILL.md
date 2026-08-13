@@ -49,7 +49,7 @@ rm -f .terraform.tfstate.lock.info plan.tfplan plan-output.tfplan
 ```hcl
 resource_creator_identity = ""
 project_id                = "<target-project-id>"
-tenant_deployment_id      = "demo"
+tenant_id                 = "demo"
 
 module_dependency = []   # platform is root of stack
 
@@ -65,9 +65,10 @@ Key points:
 - `resource_creator_identity = ""` — use caller identity (no SA impersonation).
   Only set it to an SA email when deploying via the RAD platform Cloud Build,
   which needs to impersonate.
-- `tenant_deployment_id` — short prefix applied to all resource names.
-  Must be `[a-z0-9]+` only. Every app module deployed on top must use the
-  **same** tenant ID.
+- `tenant_id` (named `tenant_deployment_id` before 2026-08-04) — short prefix
+  applied to all resource names. Defaults to `demo`; a `validation` block
+  enforces `^[a-z0-9]+$` (no hyphens, underscores or uppercase). Every app
+  module deployed on top must use the **same** tenant ID.
 - `module_dependency = []` — Services_GCP is the root module; it has no
   upstream.
 

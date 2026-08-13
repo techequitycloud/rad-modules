@@ -164,6 +164,7 @@ Variables are grouped exactly as they appear on the deployment platform.
 | `project_id` | _(required)_ | Target Google Cloud project. Must already exist; the provisioning service account needs Owner. |
 | `region` | `us-central1` | Region for all resources. **Permanently** sets the Migration Center assessment region. |
 | `zone` | `us-central1-a` | Zone for the Compute Engine VMs (must be within `region`). |
+| `tenant_id` | `demo` | Platform namespacing field (1–20 lowercase letters, digits, hyphens). Accepted by the form but **not used by this module** — every resource name is derived from the deployment ID (`migcenter-<id>-…`), so changing it has no effect on what is created. |
 
 ### Group 2 — Networking
 

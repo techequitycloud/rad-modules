@@ -22,7 +22,7 @@ The module stands up an entire multi-cluster platform from nothing and then depl
 | Cross-cluster discovery | Multi-Cluster Services (MCS) | Fleet feature for cross-cluster service backends |
 | Global ingress | Multi-Cluster Ingress + global external Application Load Balancer | One anycast IP routes to the nearest healthy cluster |
 | TLS | Google-managed certificate | Auto-provisioned for an `sslip.io` domain derived from the global IP |
-| Networking | Shared VPC, per-cluster subnets, Cloud Router + Cloud NAT, firewall rules | Global-routing VPC; private nodes with NAT egress |
+| Networking | Shared VPC, per-cluster subnets, Cloud Router + Cloud NAT, firewall rules | Global-routing VPC; a Cloud Router + Cloud NAT per cluster region. Clusters are **not** private — the module declares no `private_cluster_config`, so nodes and the control-plane endpoint use GKE's default public configuration |
 | Observability | Cloud Logging, Cloud Monitoring, Managed Service for Prometheus, Cloud Trace | Aggregated across the whole fleet |
 | Application | Bank of Anthos (v0.6.10) | 9 microservices (Python + Java) plus two in-cluster PostgreSQL databases |
 
@@ -115,7 +115,7 @@ The mesh is enabled fleet-wide with automatic management — Google runs the Ist
 
 ### E. Multi-cluster gateway & global load balancing
 
-A single global IP is reserved and a `MultiClusterIngress` (`bank-of-anthos-mci`) on the config cluster provisions a global external Application Load Balancer whose backends span every cluster. Google's network routes each user to the nearest healthy cluster. TLS is terminated at the load balancer using a Google-managed certificate for `boa.<GLOBAL_IP>.sslip.io`, and an HTTP→HTTPS (301) redirect is enforced.
+A single global IP (`bank-of-anthos`) is reserved and a `MultiClusterIngress` (`bank-of-anthos-mci`) on the config cluster provisions a global external Application Load Balancer whose backends span every cluster. Google's network routes each user to the nearest healthy cluster. Note that the `MultiClusterIngress` manifest carries no `networking.gke.io/static-ip` or `networking.gke.io/pre-shared-certs` annotation, so the load balancer does **not** adopt the reserved global address, and the `ManagedCertificate` and `FrontendConfig` (HTTP→HTTPS 301) objects applied to the config cluster are not referenced by it — the single-cluster `Ingress` manifest that would bind them (`manifests/ingress.yaml`) is generated but never applied. Read the load balancer's actual address from the `MultiClusterIngress` status (`kubectl get mci -n bank-of-anthos -o jsonpath='{.items[0].status.VIP}'`).
 
 - **Console:** Network Services → Load balancing shows the global load balancer, its frontends, the backend service, and the health of each per-cluster Network Endpoint Group.
 - **CLI:**
@@ -132,7 +132,7 @@ A single global IP is reserved and a `MultiClusterIngress` (`bank-of-anthos-mci`
 
 ### F. Networking (VPC, NAT, firewall)
 
-All clusters share one global-routing VPC. Each cluster gets its own subnet with secondary ranges for pods and services, a Cloud Router + Cloud NAT for private egress, a reserved static external IP, and a set of firewall rules (internal traffic, the GKE control plane, load-balancer health checks, and the ASM webhook ports).
+All clusters share one global-routing VPC. Each cluster gets its own subnet with secondary ranges for pods and services, a Cloud Router + Cloud NAT for private egress, a reserved static external IP, and a set of firewall rules (internal traffic, the GKE control plane, load-balancer health checks, and the ASM webhook ports). Note that the module also creates an `allow-ssh-<deployment_id>` rule opening **TCP/22 to the whole VPC from `0.0.0.0/0`** — narrow or delete it if you keep the deployment beyond a demo.
 
 - **Console:** VPC network → VPC networks → the deployment's network; VPC network → Firewall.
 - **CLI:**
@@ -201,6 +201,7 @@ Variables are grouped exactly as they appear on the deployment platform.
 | Variable | Default | Description |
 |---|---|---|
 | `project_id` | _(required)_ | Target Google Cloud project. Must already exist. |
+| `tenant_id` | `demo` | Tenant identifier. Must be 1–20 lowercase letters, numbers and hyphens — other values fail validation. Present on the form but not referenced by any resource in this module. |
 | `available_regions` | `["us-west1", "us-east1"]` | Regions clusters are placed into, round-robin by cluster index. If fewer regions than clusters, regions are cycled. Must have at least one entry. |
 
 ### Group 2 — Network

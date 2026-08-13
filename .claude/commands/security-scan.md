@@ -27,9 +27,11 @@ env vars or tfvars, never baked into the module. Severity: HIGH.
 
 **CHECK 2 — SENSITIVE FLAGS**
 
-Every credential variable (client_secret, tenant_id, subscription_id, client_id,
-aws_secret_key, aws_access_key, and any *_secret / *_key / *password*) must set
-`sensitive = true` so the value is redacted in plan output and logs. Report any that don't.
+Every credential variable (client_secret, azure_tenant_id, subscription_id, client_id,
+aws_secret_key, aws_access_key, aws_secret_access_key, and any *_secret / *_key / *password*)
+must set `sensitive = true` so the value is redacted in plan output and logs. Report any that
+don't. Do NOT flag `tenant_id` — that is a resource-naming identifier (default `"demo"`), not a
+credential.
 Severity: MEDIUM.
 
 ---
@@ -54,11 +56,12 @@ Report the SA/binding, the broad role, and a narrower alternative.
 **CHECK 4 — IMPERSONATION SAFETY**
 
 For Pattern B modules (provider-auth.tf present):
-  a) The `google_service_account_access_token` data source must be gated on
-     `length(var.resource_creator_identity) != 0` (count or conditional), so the module
-     still works under plain ADC when no SA is supplied.
-  b) `access_token` must never be hardcoded.
-  c) Token `lifetime` should be bounded (≤ "3600s"). Flag anything longer.
+  a) Both the `google` and `google-beta` providers must set
+     `impersonate_service_account = length(var.resource_creator_identity) != 0 ? var.resource_creator_identity : null`,
+     so the module still works under plain ADC when no SA is supplied.
+  b) No provider or resource may carry a hardcoded `access_token`.
+  c) No module currently mints its own token via `google_service_account_access_token`; if one
+     is introduced, its `lifetime` must be bounded (≤ "3600s").
 
 ---
 
