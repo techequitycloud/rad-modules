@@ -29,7 +29,7 @@ By the end of this lab you will be able to:
 - A Google Cloud project with **billing enabled**.
 - **gcloud CLI** and **kubectl** installed; `gcloud auth login` and `gcloud auth application-default login` completed.
 - **istioctl** installed locally (or use the copy the module downloads to the deploy host) — `curl -L https://istio.io/downloadIstio | sh -`.
-- **Project Owner** (or `container.admin` + `compute.networkAdmin` + `iam.serviceAccountAdmin`) IAM on the project.
+- **Project Owner** (or `container.admin` + `compute.networkAdmin` + `iam.serviceAccountAdmin` + `resourcemanager.projectIamAdmin` + `serviceusage.serviceUsageAdmin` — the last two are required because the module enables project APIs and creates project-level IAM bindings for the node service account) IAM on the project.
 - **RAD platform access** with permission to deploy modules into the project.
 
 Set these shell variables once; every task below reuses them:
@@ -46,7 +46,7 @@ export CLUSTER="gke-cluster"          # matches the gke_cluster input
 
 1. Click **Deploy** in the RAD platform top navigation, open **Istio (GKE)** from the **Platform Modules** list to start configuration, set `project_id`, and review the inputs. The key choices are `install_ambient_mesh` (`false` for sidecar mode, `true` for ambient mode) and `istio_version`. Configure only what you need — the [Configuration Guide](https://docs.radmodules.dev/docs/modules/Istio_GKE) documents every input by group, with defaults. Review the estimated cost (if credits are enabled) and click **Deploy**, which opens the deployment status page with real-time logs.
 
-2. The platform creates a VPC and Cloud NAT, provisions a GKE Standard cluster (2 preemptible nodes), then runs the Istio installation step: it downloads `istioctl`, installs Istio with the selected profile, labels the `default` namespace for mesh enrolment, and installs the Prometheus, Grafana, Jaeger, and Kiali add-ons. First deploys take roughly **15–25 minutes** (cluster creation and the mesh install dominate).
+2. The platform creates a VPC and Cloud NAT, provisions a GKE Standard cluster (a regional node pool of 2 preemptible `e2-standard-2` nodes **per zone** — 8 nodes in a 4-zone region such as `us-central1`), then runs the Istio installation step: it downloads `istioctl`, installs Istio with the selected profile, labels the `default` namespace for mesh enrolment, and installs the Prometheus, Grafana, Jaeger, and Kiali add-ons. First deploys take roughly **15–25 minutes** (cluster creation and the mesh install dominate).
 
 3. Connect to the cluster (the `cluster_credentials_cmd` output gives you the exact command):
 

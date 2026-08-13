@@ -17,8 +17,8 @@ fix per module-conventions SKILL.md.
 
 CHECK 2 — STANDARD VARIABLES & UIMETA
 For changed variables.tf files: are the ten standard variables intact (allowing the
-documented exceptions — AKS/EKS may omit enable_services; non-cluster modules may omit
-trusted_users)? Does every variable description carry a {{UIMeta group=N order=M}} tag?
+documented exceptions — AKS_GKE, EKS_GKE and Migration_Center omit enable_services;
+Container_Migration, Migration_Center and VMware_Engine omit trusted_users)? Does every variable description carry a {{UIMeta group=N order=M}} tag?
 
 CHECK 3 — API ENABLEMENT INVARIANT
 For changed .tf with google_project_service: confirm disable_dependent_services = false and

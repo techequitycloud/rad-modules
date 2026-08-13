@@ -31,7 +31,7 @@ Supporting directories:
 - `scripts/` — standalone helper shell scripts grouped by topic (`gcp-istio-security/`, `gcp-istio-traffic/`, `gcp-cr-mesh/`, `gcp-m2c-vm/`, `gcp-ge-cymbal/`). Each subdirectory contains a single `.sh` script and a `README.md`. These are not called by any Terraform module; they are hand-run by engineers for lab exercises or operational tasks.
 - `docs/labs/` — centralized lab guides for all modules (e.g. `docs/labs/Istio_GKE.md`). This is the canonical location for all step-by-step lab guides; there are no `LAB_GUIDE.md` files inside module directories.
 - `docs/modules/` — reference documentation for GKE-based modules.
-- `docs/capabilities/`, `docs/practices/` — cross-cutting capability and practice guides.
+- `docs/` contains only `labs/` and `modules/` — there are no `docs/capabilities/` or `docs/practices/` directories.
 - Top-level `README.md` and `CHANGELOG.md` are upstream OpenTofu documents, not project documentation.
 
 ## 2. Standard Module Layout
@@ -53,7 +53,7 @@ modules/Istio_GKE/
 ├── templates/           # Kubernetes manifest templates rendered by Terraform
 ├── tests/               # *.tftest.hcl — mock-provider plan tests (no GCP credentials needed)
 ├── README.md            # Short overview + usage + Requirements/Providers/Resources/Inputs/Outputs tables
-└── Istio_GKE.md         # Long technical walkthrough (≈1,400 lines)
+# Technical walkthrough lives at: docs/modules/Istio_GKE.md (≈245 lines)
 # Lab guide lives at: docs/labs/Istio_GKE.md
 ```
 
@@ -135,7 +135,7 @@ Pins required providers and `required_version`. The set of pinned providers diff
 | `Istio_GKE` | `google` (>= 5.0), `google-beta` (>= 5.0), `kubernetes` (>= 2.23) | `>= 1.3` |
 | `Bank_GKE` | `google` (>= 5.0), `kubernetes` (>= 2.23), `kubectl` (gavinbunney/kubectl >= 1.14), `time` (>= 0.9), `http` (>= 3.0) | `>= 1.3` |
 | `MC_Bank_GKE` | `google` (>= 5.0), `google-beta` (>= 5.0), `kubernetes` (>= 2.23) | `>= 1.3` |
-| `VMware_Engine` | `google` (>= 5.0), `random` (>= 3.0), `null` (>= 3.0), `external` (>= 2.0) | `>= 1.3` |
+| `VMware_Engine` | `google` (>= 5.0, < 6.0), `random` (>= 3.0), `null` (>= 3.0), `external` (>= 2.0) | `>= 1.3` |
 | `Container_Migration` | `google` (>= 5.0, < 6.0), `random` (>= 3.0), `null` (>= 3.0) | `>= 1.3` |
 | `Migration_Center` | `google` (>= 5.0, < 6.0), `aws` (>= 5.0, < 6.0), `random` (>= 3.0), `null` (>= 3.0), `tls` (>= 4.0) | `>= 1.3` |
 | `AKS_GKE` | No top-level `versions.tf` — pinned instead in `provider.tf`: `azurerm` (~> 4.0), `google` (>= 5.0.0), `helm` (~> 2.0), `random` (3.6.2) | `>= 0.13` |
@@ -156,7 +156,7 @@ All input variables carry a `{{UIMeta group=N order=M }}` annotation at the end 
 | 2 | Network | `create_network`, `network_name`, `subnet_name`, `ip_cidr_ranges` |
 | 3 | GKE | `create_cluster`, `gke_cluster`, `release_channel`, `pod_ip_range`, `pod_cidr_block`, `service_ip_range`, `service_cidr_block` |
 | 4 | Features | `istio_version`, `install_ambient_mesh` |
-| 6 | Application | `deploy_application` |
+| 0 | Application (source comment says `// SECTION 6`, but the UIMeta tag is group 0) | `deploy_application` (`{{UIMeta group=0 order=601 }}`) |
 
 `VMware_Engine` uses a different group structure reflecting its domain:
 
@@ -171,7 +171,7 @@ All input variables carry a `{{UIMeta group=N order=M }}` annotation at the end 
 | 8 | Jump Host | `create_jump_host`, `jump_host_machine_type`, `jump_host_boot_disk_size_gb`, `jump_host_subnetwork` |
 | 9 | vCenter Credentials | `reset_vcenter_credentials`, `vcenter_solution_user` |
 
-`AKS_GKE` and `EKS_GKE` consolidate their main configuration (project, cloud credentials, region/location) into group 1, and cluster-specific settings into group 4. There is no group 2 or 3 for these modules.
+`AKS_GKE` consolidates its main configuration (project, Azure credentials, region/location) into group 1 and cluster-specific settings into group 4; it has no group 2 or 3. `EKS_GKE` does not follow that shape — it uses groups 0, 1, 2 and 3, with no group 4.
 
 Example variable:
 
@@ -204,7 +204,7 @@ Standard outputs present in every GKE-based module (compare `modules/Istio_GKE/o
 - `network_peering_state` — current state of the VPC ↔ VMware Engine Network peering.
 - `network_policy_id` — full resource ID of the network policy.
 
-Attached-cluster modules (`AKS_GKE`, `EKS_GKE`) expose no Terraform outputs; they document the equivalent `gcloud container attached clusters get-credentials` command in their README.
+Attached-cluster modules (`AKS_GKE`, `EKS_GKE`) expose only `deployment_id` and `project_id` (`modules/AKS_GKE/outputs.tf:19,25`); there is no credentials output — they document the equivalent `gcloud container attached clusters get-credentials` command in their README.
 
 ### 3.6 Post-Provisioning with `null_resource`
 
@@ -218,10 +218,10 @@ Anything that cannot be expressed as a Terraform resource — installing Istio v
 
 ## 4. Documentation Pattern
 
-Each module ships two markdown files inside the module directory, plus one in `docs/labs/`:
+Each module ships one markdown file inside the module directory, plus two under `docs/`:
 
-- **`README.md`** (≈90–100 lines): short prose intro, a copy-pastable `module "..." { source = ... }` usage block, and standard tables for Requirements, Providers, Modules (if any), Resources, Inputs, Outputs.
-- **`<Module_Name>.md`** (≈1,100–2,600 lines): long-form technical walkthrough covering the architecture diagram, every resource the module creates, the networking layout, security model, and operational guidance. These are meant as learning material — `Istio_GKE.md` explains VPC-native networking, secondary IP ranges, iptables-based traffic interception, and the sidecar-vs-ambient trade-off in enough depth to teach the technology, not just operate it.
+- **`README.md`** (≈130–195 lines, inside the module directory): short prose intro, a copy-pastable `module "..." { source = ... }` usage block, and standard tables for Requirements, Providers, Modules (if any), Resources, Inputs, Outputs.
+- **`docs/modules/<Module_Name>.md`** (≈200–270 lines): technical walkthrough covering the architecture, the resources the module creates, the networking layout, security model, and operational guidance. `docs/modules/Istio_GKE.md` is the reference example. Most modules point `module_documentation` at the published form of this file (`https://docs.radmodules.dev/docs/modules/<Module_Name>`); `Container_Migration`, `Migration_Center` and `VMware_Engine` instead point at the GitHub URL of their `docs/labs/` guide.
 - **`docs/labs/<Module_Name>.md`**: step-by-step hands-on lab guide for engineers walking through the module's use cases. Covers prerequisites, deployment steps, lab exercises, and cleanup. This file is referenced from `README.md` and is the target of the `module_documentation` URL in `variables.tf`. **Do not create a `LAB_GUIDE.md` inside the module directory.**
 
 When writing these files for a new module, match the tone and depth of `modules/Istio_GKE/README.md`, `modules/Istio_GKE/Istio_GKE.md`, and `docs/labs/Istio_GKE.md`.
@@ -239,7 +239,7 @@ There is no scaffolding script. Create a new module by copying the layout from t
 3. Edit `variables.tf` — update `module_description`, `module_documentation`, `module_services`, `module_dependency`, any feature flags, and default values. Keep the UIMeta annotations; renumber `order` values if you add new variables in an existing group.
 4. Replace the provisioning logic in the domain-specific `.tf` files. If you need post-provisioning steps, follow the `null_resource` pattern in `istiosidecar.tf`.
 5. Update `outputs.tf` — always expose `deployment_id`, `project_id`, and (for GKE modules) `cluster_credentials_cmd`.
-6. Write `README.md` and `<Module_Name>.md` inside the module directory. Write the step-by-step lab guide as `docs/labs/<Module_Name>.md`. Set the `module_documentation` variable default in `variables.tf` to the GitHub URL of the `docs/labs/<Module_Name>.md` file.
+6. Write `README.md` inside the module directory, the technical walkthrough as `docs/modules/<Module_Name>.md`, and the step-by-step lab guide as `docs/labs/<Module_Name>.md`. Set the `module_documentation` variable default in `variables.tf` to the published docs URL `https://docs.radmodules.dev/docs/modules/<Module_Name>` (the convention in 5 of 8 modules; `Container_Migration`, `Migration_Center` and `VMware_Engine` instead link the GitHub URL of their `docs/labs/` guide).
 7. Validate:
 
    ```bash
@@ -258,7 +258,7 @@ There is no scaffolding script. Create a new module by copying the layout from t
 - **Destroy safety**: Any `null_resource` with a meaningful create-time effect **must** have a matching `when = destroy` provisioner that cleans up, and that provisioner must tolerate missing resources (`--ignore-not-found`, `|| true`, etc.).
 - **Impersonation**: Only fetch an impersonation access token when `length(var.resource_creator_identity) != 0`; otherwise let the provider use ADC.
 - **No secrets in variables**: Credentials like `client_secret`, `aws_secret_key` are module inputs but must never be given default values. The caller is responsible for sourcing them from a secret store.
-- **`prevent_destroy` on critical IAM bindings**: IAM bindings that must outlive a `tofu destroy` (e.g. `VMware_Engine`'s `google_project_iam_member.vmmigration_sa_user`) use `lifecycle { prevent_destroy = true }`. This protects service agent permissions that are expensive or impossible to re-grant automatically.
+- **No `prevent_destroy` in the modules today**: the only `lifecycle { prevent_destroy = … }` block anywhere under `modules/` is on `VMware_Engine`'s `google_project_iam_member.vmmigration_sa_user`, and it is set to `false` (`modules/VMware_Engine/main.tf:68`) so a full `tofu destroy` is never blocked. If you ever need an IAM binding to outlive a destroy, flipping that flag is the mechanism — but confirm the platform destroy pipeline can still complete first.
 - **`project_id` variable name**: All modules use `project_id` (not `existing_project_id` or any other alias) for the GCP project input.
 - **Region variable name**: All modules use `region` (not `gcp_region`) for the GCP region input. The `AKS_GKE` module additionally exposes `gcp_location` (the GKE Hub registration region) and `azure_region`; `EKS_GKE` exposes `gcp_location` and `aws_region`.
 - **MC_Bank_GKE ConfigMaps**: ConfigMaps and Services are applied to every cluster in the fleet. Only database StatefulSets are restricted to the primary cluster. Applying ConfigMaps to all clusters ensures non-primary application pods can resolve backend service addresses via MCS.
@@ -298,9 +298,9 @@ python3 radlab.py
 
 The platform invokes Cloud Build with the YAML files in `rad-ui/automation/`:
 
-- `cloudbuild_deployment_create.yaml` — `tofu apply`; **timeout: 10800s**
-- `cloudbuild_deployment_update.yaml` — re-apply with changed variables; **timeout: 10800s**
-- `cloudbuild_deployment_destroy.yaml` — `tofu destroy`; **timeout: 10800s**
+- `cloudbuild_deployment_create.yaml` — `tofu apply`; **timeout: 3600s**
+- `cloudbuild_deployment_update.yaml` — re-apply with changed variables; **timeout: 3600s**
+- `cloudbuild_deployment_destroy.yaml` — `tofu destroy`; **timeout: 3600s**
 - `cloudbuild_deployment_purge.yaml` — destroy plus post-cleanup for any resources Terraform could not remove; **timeout: 600s**
 
 **Provider caching**: The create, update, and destroy pipelines cache the downloaded Terraform provider binaries in GCS between builds. Before each `tofu init` the pipeline restores the cache from `gs://${_DEPLOYMENT_BUCKET_ID}/terraform-provider-cache/${_MODULE_NAME}/providers.tar.gz` into `/workspace/.terraform-plugin-cache/` (via `TF_PLUGIN_CACHE_DIR`) and saves it back after a successful init. A missing cache is non-fatal; providers are downloaded fresh on the first run for a given module.
@@ -329,7 +329,7 @@ A `null_resource` destroy provisioner is failing hard. Every destroy provisioner
 
 **Root cause**: A `google_project_service` resource had `disable_on_destroy = true` (or the flag was omitted, which defaults to `true` in older provider versions), and/or was missing `lifecycle { prevent_destroy = true }`. When the resource was destroyed, Terraform issued an API disable call that affected the whole project.
 
-**Fix on the destroyed module**: Open `main.tf` and confirm the resource matches the canonical pattern from §3.1 — all three protections must be present:
+**Fix on the destroyed module**: Open `main.tf` and confirm the resource matches the canonical pattern from §3.1 — both protections must be present, and there must be **no** `lifecycle` block (see §3.1: `prevent_destroy = true` here breaks the platform destroy pipeline):
 
 ```hcl
 resource "google_project_service" "enabled_services" {
@@ -338,10 +338,6 @@ resource "google_project_service" "enabled_services" {
   service                    = each.value
   disable_dependent_services = false
   disable_on_destroy         = false
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 ```
 
@@ -355,7 +351,7 @@ Correct the flags **before** running another destroy. Changing the flags does no
 grep -n "disable_on_destroy\|disable_dependent_services\|prevent_destroy" modules/*/main.tf
 ```
 
-Every block must show all three settings. Absence of any line is a defect — add them explicitly rather than relying on defaults.
+Every block must show both `disable_dependent_services = false` and `disable_on_destroy = false`. A missing line is a defect — add it explicitly rather than relying on defaults. A `prevent_destroy` line inside a `google_project_service` block is itself the defect (§3.1): remove it.
 
 ### API `prevent_destroy` blocks `tofu destroy`
 
@@ -399,7 +395,7 @@ Application Default Credentials (`~/.config/gcloud/application_default_credentia
 
 ### VMware Engine `prevent_destroy` blocks `tofu destroy`
 
-The `google_project_iam_member.vmmigration_sa_user` resource has `lifecycle { prevent_destroy = true }`. This is intentional — the VM Migration service agent binding must not be removed during a partial destroy. To fully decommission the module, remove the `prevent_destroy` block from `main.tf` before running `tofu destroy`.
+The `google_project_iam_member.vmmigration_sa_user` resource carries a `lifecycle` block, but it is set to `prevent_destroy = false` (`modules/VMware_Engine/main.tf:68`) — it does **not** block `tofu destroy`, and nothing needs removing before decommissioning. If a destroy is blocked, the cause is elsewhere. Only flip that flag to `true` if the VM Migration service agent binding genuinely must survive a partial destroy, and expect the platform destroy pipeline to fail with "Instance cannot be destroyed" once you do.
 
 ## 9. Quick Reference
 

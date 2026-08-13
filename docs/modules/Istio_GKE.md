@@ -19,9 +19,9 @@ This module is intended for **educational and evaluation purposes**.
 
 | Capability | Google Cloud service | Notes |
 |---|---|---|
-| Compute | GKE Standard cluster | 2 × preemptible `e2-standard-2` nodes in a single node pool; you manage node configuration directly (not Autopilot) |
+| Compute | GKE Standard cluster | Single node pool with `node_count = 2` **per zone** across every UP zone in the region — 8 preemptible `e2-standard-2` nodes (16 vCPU) in a 4-zone region such as `us-central1`; you manage node configuration directly (not Autopilot) |
 | Networking | VPC network + subnet | Custom-mode VPC, global routing, VPC-native (alias IP) with secondary ranges for pods and services |
-| Egress | Cloud Router + Cloud NAT | Private nodes reach the internet (GitHub, container registries) through NAT during the Istio install |
+| Egress | Cloud Router + Cloud NAT | Provisioned for the VPC, but the cluster is **not** private (no `private_cluster_config`), so nodes have external IPs and egress directly; the Istio install itself runs `local-exec` on the Terraform host, not on the nodes |
 | Identity | Workload Identity + dedicated node service account | Least-privilege node SA; pods get a GCP identity without key files |
 | Service mesh | Open-source Istio (via `istioctl`) | Sidecar **or** ambient mode, plus an Istio Ingress Gateway exposed via an external LoadBalancer |
 | Observability | Prometheus, Jaeger, Grafana, Kiali | In-cluster open-source add-ons installed into `istio-system`; GKE Managed Prometheus also enabled at the cluster level |
@@ -48,7 +48,7 @@ gcloud container clusters get-credentials <gke_cluster> --region <region> --proj
 
 ### A. GKE Standard cluster
 
-The cluster runs a single node pool of two preemptible `e2-standard-2` nodes with VPC-native networking, Workload Identity, GKE Security Posture (BASIC), Managed Prometheus, and the Gateway API standard channel enabled.
+The cluster runs a single regional node pool of two preemptible `e2-standard-2` nodes **per zone** — 8 nodes in a 4-zone region such as `us-central1` — with VPC-native networking, Workload Identity, GKE Security Posture (BASIC), Managed Prometheus, and the Gateway API standard channel enabled. Check your regional CPU quota (16 vCPU for `e2-standard-2` × 8) before deploying.
 
 - **Console:** Kubernetes Engine → Clusters → select the cluster → Details (release channel, version), Nodes (node pool), Security (Workload Identity, Security Posture).
 - **CLI:**
@@ -181,7 +181,7 @@ Grouped exactly as they appear on the deployment platform. Module-metadata setti
 | Variable | Default | Description |
 |---|---|---|
 | `project_id` | _(required)_ | Destination GCP project where the cluster and mesh are deployed. Must already exist. |
-| `tenant_id` | `demo` | Tenant identifier for the deployment. Must be 1–20 lowercase alphanumeric characters or hyphens. |
+| `tenant_id` | `demo` | Tenant identifier. Must be 1–20 lowercase alphanumeric characters or hyphens. **Currently has no effect** — it is validated but never referenced by any resource in this module; resource names use the deployment-id suffix instead. |
 | `region` | `us-central1` | Region for the cluster, VPC, and all regional resources. Ensure sufficient quota. |
 
 ### Group 2 — Network
@@ -189,7 +189,7 @@ Grouped exactly as they appear on the deployment platform. Module-metadata setti
 | Variable | Default | Description |
 |---|---|---|
 | `create_network` | `true` | Create a new VPC and subnet. Set `false` to install into an existing network/subnet. |
-| `network_name` | `vpc-network` | Name of the VPC — created when `create_network = true`, otherwise the existing network to use. |
+| `network_name` | `vpc-network` | Base name of the VPC. When `create_network = true` the VPC is created as `<network_name>-<deployment_id>` (a random suffix is appended); when `create_network = false` this is matched verbatim against the existing network. |
 | `subnet_name` | `vpc-subnet` | Name of the subnet — created or referenced depending on `create_network`. |
 | `ip_cidr_ranges` | `["10.132.0.0/16", "192.168.1.0/24"]` | CIDR blocks for the subnet ranges (only used when creating a network). The first is the primary node range. |
 
@@ -216,10 +216,10 @@ Grouped exactly as they appear on the deployment platform. Module-metadata setti
 
 | Output | Description |
 |---|---|
-| `deployment_id` | The deployment ID (random suffix) used to make resource names unique. |
+| `deployment_id` | Echoes the `deployment_id` **input**, not the generated suffix. When the input is left at its default (`null`) this output is empty even though resources are still named with an auto-generated random suffix. |
 | `project_id` | The destination project ID. |
 | `cluster_credentials_cmd` | Ready-to-run `gcloud container clusters get-credentials` command for the cluster. |
-| `external_ip` | Best-effort Istio Ingress Gateway external IP. Frequently reports `IP not available` — read the IP from the `istio-ingressgateway` Service instead. |
+| `external_ip` | **Always** reports `IP not available` — it reads `scripts/app/external_ip.txt`, a file this module never creates. Read the IP from the `istio-ingressgateway` Service (or the deploy logs) instead. |
 
 ---
 

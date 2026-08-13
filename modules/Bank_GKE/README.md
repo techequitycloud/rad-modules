@@ -1,6 +1,6 @@
 # Bank\_GKE Module
 
-This module deploys the **Bank of Anthos** microservices banking demo application (v0.6.10) on a single Google Kubernetes Engine (GKE) cluster. It provisions the GKE cluster, configures Cloud Service Mesh, registers the cluster with a GKE Fleet, and optionally enables Anthos Config Management and Cloud Monitoring SLOs.
+This module deploys the **Bank of Anthos** microservices banking demo application (v0.6.10) on a single Google Kubernetes Engine (GKE) cluster. It provisions the GKE cluster, configures Cloud Service Mesh, registers the cluster with a GKE Fleet, and optionally enables Cloud Monitoring SLOs. (Anthos Config Management inputs exist for forward compatibility but are not wired to any resource — see docs/modules/Bank_GKE.md.)
 
 ## Industry Value & Use Cases
 
@@ -8,7 +8,7 @@ Financial services is one of the most demanding environments for cloud-native in
 
 **Key use cases this module demonstrates:**
 - **PCI-DSS relevant microservices architecture** — mTLS-encrypted east-west traffic via Cloud Service Mesh satisfies network isolation requirements without application changes
-- **GitOps-driven operations** — Anthos Config Management (optional) syncs Kubernetes policies from Git, the operational model banks use for audit-ready change management
+- **GitOps-ready foundation** — the cluster is fleet-registered, which is the prerequisite for layering Anthos Config Management on top; the module itself does not provision Config Sync (its `enable_config_management`/`config_sync_*` inputs are reserved and currently inert)
 - **Cloud-native financial services platform validation** — used by solution architects to benchmark GKE Autopilot, Cloud Service Mesh, and Cloud Monitoring SLOs for core banking workloads
 - **SRE practice for regulated industries** — Cloud Monitoring SLOs and dashboards provide hands-on experience with availability targets applicable to payment system uptime requirements
 
@@ -120,7 +120,12 @@ No modules.
 | [google_project_service.enabled_services](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/project_service) | resource |
 | [google_service_account.gke_standard](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/service_account) | resource |
 | [kubernetes_namespace.bank_of_anthos](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/namespace) | resource |
+| [google_project_iam_member.bank_of_anthos_metrics](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/project_iam_member) | resource |
+| [google_project_iam_member.bank_of_anthos_trace](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/project_iam_member) | resource |
+| [google_service_account_iam_member.bank_of_anthos_workload_identity](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/service_account_iam_member) | resource |
+| [null_resource.create_bank_of_anthos_gsa](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
 | [null_resource.deploy_bank_of_anthos](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
+| [time_sleep.wait_for_wi_pool](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) | resource |
 | [null_resource.download_bank_of_anthos](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
 | [null_resource.verify_gke_hub_api_activation](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
 | [null_resource.verify_gke_hub_api_activation_hub](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
@@ -148,7 +153,7 @@ No modules.
 | <a name="input_create_autopilot_cluster"></a> [create\_autopilot\_cluster](#input\_create\_autopilot\_cluster) | Set to true (default) to create a GKE Autopilot cluster, where node provisioning and scaling are fully managed by Google. Set to false to create a Standard cluster where node pools are manually configured. Autopilot is recommended for most workloads; Standard offers more control over node configuration. | `bool` | `true` | no |
 | <a name="input_create_cluster"></a> [create\_cluster](#input\_create\_cluster) | Set to true (default) to create a new GKE cluster. Set to false to deploy the banking application onto an existing cluster identified by gke\_cluster. | `bool` | `true` | no |
 | <a name="input_create_network"></a> [create\_network](#input\_create\_network) | Set to true (default) to create a new VPC network and subnet for the GKE cluster. Set to false to use an existing network and subnet identified by network\_name and subnet\_name. | `bool` | `true` | no |
-| <a name="input_credit_cost"></a> [credit\_cost](#input\_credit\_cost) | Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require\_credit\_purchases is true, users must have sufficient credit balance before deploying. Defaults to 200. | `number` | `0` | no |
+| <a name="input_credit_cost"></a> [credit\_cost](#input\_credit\_cost) | Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require\_credit\_purchases is true, users must have sufficient credit balance before deploying. Defaults to 0. | `number` | `0` | no |
 | <a name="input_deploy_application"></a> [deploy\_application](#input\_deploy\_application) | Set to true (default) to deploy the Bank of Anthos microservices banking demo application onto the GKE cluster after it is created. Set to false to provision only the cluster infrastructure without deploying the application. | `bool` | `true` | no |
 | <a name="input_deployment_id"></a> [deployment\_id](#input\_deployment\_id) | Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources. | `string` | `null` | no |
 | <a name="input_enable_cloud_service_mesh"></a> [enable\_cloud\_service\_mesh](#input\_enable\_cloud\_service\_mesh) | Set to true (default) to install and configure Cloud Service Mesh (Google-managed Istio), which provides mTLS encryption, traffic management, and observability between microservices. Requires the mesh.googleapis.com API. Set to false to skip service mesh installation. | `bool` | `true` | no |
@@ -158,6 +163,7 @@ No modules.
 | <a name="input_enable_services"></a> [enable\_services](#input\_enable\_services) | Set to true (default) to automatically enable the required GCP project APIs (e.g. container.googleapis.com, mesh.googleapis.com). Set to false when deploying into an existing project where APIs are already enabled to avoid permission errors. | `bool` | `true` | no |
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | GCP project ID of the destination project where the GKE cluster and banking application will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource\_creator\_identity service account must hold roles/owner in it. Leave blank to use the default project. | `string` | `null` | no |
 | <a name="input_region"></a> [region](#input\_region) | GCP region where the GKE cluster, VPC, and all supporting resources will be deployed (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Deployment may fail if sufficient resource quota is not available in the selected region. | `string` | `"us-central1"` | no |
+| <a name="input_tenant_id"></a> [tenant\_id](#input\_tenant\_id) | Tenant identifier used in resource naming. Shared by every module deployed to the same tenant in this project. Must be 1-20 lowercase alphanumeric characters and hyphens (e.g. prod, dev, tenant-1). | `string` | `"demo"` | no |
 | <a name="input_gke_cluster"></a> [gke\_cluster](#input\_gke\_cluster) | Name of the GKE cluster. When create\_cluster is true, this is the name given to the newly created cluster. When create\_cluster is false, this identifies the existing cluster to use. Defaults to 'gke-cluster'. | `string` | `"gke-cluster"` | no |
 | <a name="input_ip_cidr_ranges"></a> [ip\_cidr\_ranges](#input\_ip\_cidr\_ranges) | Set of IPv4 CIDR blocks for the subnet primary and secondary ranges (e.g. ['10.132.0.0/16', '192.168.1.0/24']). Only used when create\_network is true. The first CIDR is the primary node range; additional CIDRs are secondary ranges for pods and services. Defaults to ['10.132.0.0/16', '192.168.1.0/24']. | `set(string)` | <pre>[<br>  "10.132.0.0/16",<br>  "192.168.1.0/24"<br>]</pre> | no |
 | <a name="input_module_dependency"></a> [module\_dependency](#input\_module\_dependency) | Ordered list of module names that must be fully deployed before this module can be deployed. The platform enforces this sequence. Defaults to ['GCP Project']. | `list(string)` | <pre>[<br>  "GCP Project"<br>]</pre> | no |

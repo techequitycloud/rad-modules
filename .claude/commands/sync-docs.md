@@ -11,7 +11,8 @@ Run every check below and apply fixes directly.
 List every directory under `modules/` that is a real module (has main.tf or variables.tf;
 PascalCase_WithUnderscores name). Compare against:
   a) The "Module Families" table in CLAUDE.md.
-  b) The module list/table in README.md.
+  b) (Nothing in README.md — it is the upstream OpenTofu project README and carries no module
+     list. Do not add one.)
   c) Any module enumeration in SKILLS.md and AGENTS.md.
 Add missing modules; remove entries whose directory no longer exists. Keep the
 "what it deploys" one-liners accurate.
@@ -33,8 +34,11 @@ and `## Providers` tables against versions.tf / provider.tf.
 **CHECK 3 — LAB GUIDE LINKS**
 
 For each module:
-  a) `module_documentation` default in variables.tf must be the GitHub URL of
-     `docs/labs/<Module>.md`. Fix if it points elsewhere (especially a LAB_GUIDE.md).
+  a) `module_documentation` default in variables.tf must point at that module's published
+     documentation — `https://docs.radmodules.dev/docs/modules/<Module>` (the preferred form,
+     used by AKS_GKE/Bank_GKE/EKS_GKE/Istio_GKE/MC_Bank_GKE) or the GitHub URL of
+     `docs/labs/<Module>.md` (still used by Container_Migration/Migration_Center/VMware_Engine).
+     Fix only if it points at neither — especially a LAB_GUIDE.md.
   b) README.md links the lab guide as `../../docs/labs/<Module>.md`. Fix broken links.
   c) Confirm `docs/labs/<Module>.md` exists; if a module has none, report it.
   d) Report (do not auto-delete) any `LAB_GUIDE.md` found inside a module directory — that

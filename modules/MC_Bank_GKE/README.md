@@ -89,18 +89,21 @@ limitations under the License.
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 5.0 |
+| <a name="requirement_google-beta"></a> [google-beta](#requirement\_google-beta) | >= 5.0 |
+| <a name="requirement_kubernetes"></a> [kubernetes](#requirement\_kubernetes) | >= 2.23 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_google"></a> [google](#provider\_google) | 7.30.0 |
-| <a name="provider_google-beta"></a> [google-beta](#provider\_google-beta) | 7.30.0 |
-| <a name="provider_kubernetes.cluster1"></a> [kubernetes.cluster1](#provider\_kubernetes.cluster1) | 3.1.0 |
-| <a name="provider_kubernetes.cluster2"></a> [kubernetes.cluster2](#provider\_kubernetes.cluster2) | 3.1.0 |
-| <a name="provider_local"></a> [local](#provider\_local) | 2.8.0 |
-| <a name="provider_null"></a> [null](#provider\_null) | 3.2.4 |
-| <a name="provider_random"></a> [random](#provider\_random) | 3.8.1 |
+| <a name="provider_google"></a> [google](#provider\_google) | 7.37.0 |
+| <a name="provider_google-beta"></a> [google-beta](#provider\_google-beta) | 7.37.0 |
+| <a name="provider_kubernetes.cluster1"></a> [kubernetes.cluster1](#provider\_kubernetes.cluster1) | 3.2.0 |
+| <a name="provider_kubernetes.cluster2"></a> [kubernetes.cluster2](#provider\_kubernetes.cluster2) | 3.2.0 |
+| <a name="provider_local"></a> [local](#provider\_local) | 2.9.0 |
+| <a name="provider_null"></a> [null](#provider\_null) | 3.3.0 |
+| <a name="provider_random"></a> [random](#provider\_random) | 3.9.0 |
 
 ## Modules
 
@@ -166,7 +169,7 @@ No modules.
 | <a name="input_cluster_size"></a> [cluster\_size](#input\_cluster\_size) | Number of GKE clusters to create for the multi-cluster banking application deployment. Minimum 2 for meaningful multi-cluster demonstration; maximum is limited by the available quota in the selected regions. Regions are assigned from available\_regions in round-robin order. Defaults to 2. | `number` | `2` | no |
 | <a name="input_create_autopilot_cluster"></a> [create\_autopilot\_cluster](#input\_create\_autopilot\_cluster) | Set to true (default) to create GKE Autopilot clusters, where node provisioning and scaling are fully managed by Google. Set to false to create Standard clusters where node pools are manually configured. Applies to all clusters in this deployment. Autopilot is recommended for most workloads; Standard offers more control over node configuration. | `bool` | `true` | no |
 | <a name="input_create_network"></a> [create\_network](#input\_create\_network) | Set to true (default) to create a new shared VPC network for all GKE clusters. Set to false to use an existing network identified by network\_name. Each cluster receives its own subnet automatically derived from the cluster index. | `bool` | `true` | no |
-| <a name="input_credit_cost"></a> [credit\_cost](#input\_credit\_cost) | Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require\_credit\_purchases is true, users must have sufficient credit balance before deploying. Defaults to 150. | `number` | `0` | no |
+| <a name="input_credit_cost"></a> [credit\_cost](#input\_credit\_cost) | Number of platform credits consumed when this module is deployed. Credits are purchased separately; if require\_credit\_purchases is true, users must have sufficient credit balance before deploying. Defaults to 0 (no credits charged). | `number` | `0` | no |
 | <a name="input_deploy_application"></a> [deploy\_application](#input\_deploy\_application) | Set to true (default) to deploy the Bank of Anthos microservices banking demo application across all GKE clusters after they are created. Set to false to provision only the cluster infrastructure without deploying the application. | `bool` | `true` | no |
 | <a name="input_deployment_id"></a> [deployment\_id](#input\_deployment\_id) | Short alphanumeric suffix appended to resource names to ensure uniqueness across deployments (e.g. 'abc123'). Leave blank (default null) to have the platform automatically generate a random suffix. Modifying this after initial deployment will force recreation of all named resources. | `string` | `null` | no |
 | <a name="input_enable_cloud_service_mesh"></a> [enable\_cloud\_service\_mesh](#input\_enable\_cloud\_service\_mesh) | Set to true (default) to install and configure Cloud Service Mesh (Google-managed Istio) across all clusters, enabling mTLS encryption, cross-cluster traffic management, and unified observability. Requires the mesh.googleapis.com API. Set to false to skip service mesh installation. | `bool` | `true` | no |
@@ -182,7 +185,8 @@ No modules.
 | <a name="input_require_credit_purchases"></a> [require\_credit\_purchases](#input\_require\_credit\_purchases) | Set to true to require users to hold a credit balance before deploying this module. When false (default), the module can be deployed regardless of credit balance. | `bool` | `false` | no |
 | <a name="input_resource_creator_identity"></a> [resource\_creator\_identity](#input\_resource\_creator\_identity) | Email of the Terraform service account used to provision resources in the destination GCP project (format: name@project-id.iam.gserviceaccount.com). This account must hold roles/owner in the destination project. Defaults to the platform's built-in provisioning service account; only override if using a custom service account. | `string` | `"rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"` | no |
 | <a name="input_subnet_name"></a> [subnet\_name](#input\_subnet\_name) | Base name for per-cluster subnets. Each cluster receives a subnet named '<subnet\_name>-cluster<N>' (e.g. 'vpc-subnet-cluster1', 'vpc-subnet-cluster2'). Only used when create\_network is true. Defaults to 'vpc-subnet'. | `string` | `"vpc-subnet"` | no |
-| <a name="input_trusted_users"></a> [trusted\_users](#input\_trusted\_users) | List of Google account email addresses granted cluster-admin privileges on all GKE clusters in this deployment (e.g. ['user@example.com']). Defaults to an empty list (no additional admin users). | `list(string)` | `[]` | no |
+| <a name="input_tenant_id"></a> [tenant\_id](#input\_tenant\_id) | Tenant identifier. Must be 1-20 lowercase letters, numbers and hyphens (e.g. prod, dev, tenant-1) — values outside that pattern fail validation. Shown on the platform form but not referenced by any resource in this module. Defaults to 'demo'. | `string` | `"demo"` | no |
+| <a name="input_trusted_users"></a> [trusted\_users](#input\_trusted\_users) | Platform metadata only — list of Google account email addresses. Declared for the deployment platform but not referenced anywhere in this module's Terraform, so it does **not** grant cluster-admin or any other privilege on the GKE clusters. Defaults to an empty list. | `list(string)` | `[]` | no |
 
 ## Outputs
 

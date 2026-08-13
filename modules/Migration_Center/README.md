@@ -26,9 +26,8 @@ asset data.
 | VPC + Firewall Rules | Auto-mode VPC with SSH, RDP, ICMP, and internal rules |
 | Cloud Storage Bucket | Holds the generated SSH private key (lab-ssh-key.pem) |
 | Migration Center Source | Discovery client registration |
-| AWS Sample Data Import | 4-file AWS CSV export imported into the asset inventory |
-| Asset Groups | All Assets · windows-only · linux-only |
-| Migration Preferences | Aggressive 3-year · Moderate 1-year CUD |
+| AWS EC2 Import (optional) | Only when `aws_access_key_id` is supplied: live EC2 inventory queried under an auto-created scoped IAM user and imported as 4 CSVs (vmInfo, diskInfo, tagInfo, perfInfo). Otherwise a sample AWS CSV zip is pre-staged on the Windows VM for manual import. |
+| Asset Groups & Migration Preferences | Not pre-created — built as hands-on lab exercises in the Migration Center console after discovery data arrives |
 
 ## Deployment Options
 
@@ -87,7 +86,7 @@ The only manual steps are:
 2. Complete the Google OAuth login in MCDCv6 (browser-based)
 3. Add OS credentials and SSH key in MCDCv6 UI
 4. Run the IP scan
-5. Generate a TCO report from the Migration Center console (asset groups and preference sets are pre-created and ready)
+5. Create asset groups and migration preference sets in the Migration Center console, then generate a TCO report from them
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
@@ -95,7 +94,7 @@ The only manual steps are:
 | Name | Version |
 |------|---------|
 | terraform | >= 1.3 |
-| aws | >= 5.0 |
+| aws | >= 5.0, < 6.0 |
 | google | >= 5.0, < 6.0 |
 | null | >= 3.0 |
 | random | >= 3.0 |
@@ -105,7 +104,7 @@ The only manual steps are:
 
 | Name | Version |
 |------|---------|
-| aws | >= 5.0 |
+| aws | >= 5.0, < 6.0 |
 | google | >= 5.0, < 6.0 |
 | null | >= 3.0 |
 | random | >= 3.0 |
@@ -157,6 +156,7 @@ The only manual steps are:
 | project_id | GCP project ID | `string` | `null` |
 | region | GCP region | `string` | `"us-central1"` |
 | resource_creator_identity | Terraform service account email | `string` | `"rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"` |
+| tenant_id | Platform namespacing field (1–20 lowercase alphanumerics/hyphens). Declared but not referenced by any resource in this module — resource names derive from the deployment ID | `string` | `"demo"` |
 | windows_vm_boot_disk_size_gb | Boot disk size in GB for the Windows VM | `number` | `50` |
 | windows_vm_machine_type | Machine type for the Windows VM | `string` | `"e2-medium"` |
 | zone | GCP zone | `string` | `"us-central1-a"` |

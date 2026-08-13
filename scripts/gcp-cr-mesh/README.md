@@ -107,7 +107,9 @@ to the backend.
 
 ### `(R)` / `(G)` / `(Q)`
 - `R` — print the maintainer credits.
-- `G` — launch the bundled Cloud Shell tutorial (only works inside Cloud Shell).
+- `G` — runs `cloudshell launch-tutorial .tutorial.md` (Cloud Shell only). No
+  `.tutorial.md` ships in this directory, so this fails unless you add one
+  next to the script yourself.
 - `Q` — quit.
 
 ## Working files

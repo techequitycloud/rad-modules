@@ -100,17 +100,21 @@ module "container_migration" {
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | project\_id | GCP project ID where Container Migration resources will be deployed. | `string` | `null` | yes |
+| tenant\_id | Tenant identifier. Metadata only — validated but not referenced by any resource in this module. | `string` | `"demo"` | no |
 | region | GCP region (e.g. 'us-central1'). | `string` | `"us-central1"` | no |
 | zone | GCP zone (e.g. 'us-central1-a'). | `string` | `"us-central1-a"` | no |
 | gke\_node\_machine\_type | Machine type for GKE worker nodes. | `string` | `"e2-medium"` | no |
 | gke\_node\_count | Number of GKE worker nodes. | `number` | `3` | no |
 | postgres\_machine\_type | Machine type for the PostgreSQL source VM. | `string` | `"e2-medium"` | no |
+| postgres\_disk\_size\_gb | Boot disk size in GB for the PostgreSQL source VM. | `number` | `20` | no |
 | tomcat\_machine\_type | Machine type for the Tomcat source VM. | `string` | `"e2-medium"` | no |
+| tomcat\_disk\_size\_gb | Boot disk size in GB for the Tomcat source VM. | `number` | `20` | no |
 | m2c\_machine\_type | Machine type for the m2c-cli VM. | `string` | `"e2-standard-4"` | no |
 | m2c\_disk\_size\_gb | Boot disk size in GB for the m2c-cli VM. | `number` | `200` | no |
 | enable\_services | Automatically enable required GCP APIs. | `bool` | `true` | no |
 | create\_vpc | Create a new VPC for the lab. | `bool` | `true` | no |
 | create\_default\_firewall\_rules | Create default firewall rules on the VPC. | `bool` | `true` | no |
+| internal\_traffic\_cidr | Source range for the allow-internal firewall rule. | `string` | `"10.128.0.0/9"` | no |
 | deployment\_id | Alphanumeric suffix for resource names. | `string` | `null` | no |
 | resource\_creator\_identity | Terraform service account email. | `string` | `"rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"` | no |
 

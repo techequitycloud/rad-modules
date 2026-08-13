@@ -65,7 +65,8 @@ gcloud config set project "$PROJECT"
    credits are enabled) and click **Deploy**, which opens the deployment status page with
    real-time logs.
 
-2. The platform creates the shared VPC, one GKE cluster per region, registers every cluster into
+2. The platform creates the shared VPC, `cluster_size` GKE clusters (default 2) assigned to
+   `available_regions` round-robin, registers every cluster into
    a GKE Fleet, enables a fleet-wide multi-primary Cloud Service Mesh, deploys Bank of Anthos to
    all clusters, and provisions a global external load balancer with a Google-managed certificate.
    First deploys take roughly **40–60 minutes** — multi-cluster + fleet + managed mesh + global

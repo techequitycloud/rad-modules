@@ -50,8 +50,11 @@ numbered steps:
 | `GCP_REGION` | `us-central1` | Region for the GKE cluster. |
 | `GCP_CLUSTER` | `gke-cluster` | GKE cluster name. |
 | `ISTIO_VERSION` | `1.30.3` | Istio release downloaded by step 1. |
-| `APPLICATION_NAMESPACE` | `httpbin` | Namespace for the demo workloads. |
-| `APPLICATION_NAME` | `httpbin` | Demo application name. |
+| `ISTIO_MODE` | `sidecar` | Set by step `4A`/`4B`; read by every later step. |
+
+`APPLICATION_NAMESPACE`/`APPLICATION_NAME` are hardcoded to `httpbin` in the
+script body and are not written to `.env`; add them to the file by hand if you
+want to override them (every step re-`source`s `.env`, so an added line wins).
 | `ISTIO_MODE` | `sidecar` | Set by step `4A`/`4B`; read by every later step. |
 
 ## Menu walkthrough
@@ -66,7 +69,7 @@ are used by later steps. Delete mode removes the directory.
 
 ### `(2) Enable APIs`
 Enables `cloudapis.googleapis.com` and `container.googleapis.com`. Delete mode
-disables them.
+does nothing — the APIs are deliberately left enabled.
 
 ### `(3) Create Kubernetes cluster`
 Creates `$GCP_CLUSTER` in `$GCP_REGION` with three `n1-standard-2` Spot nodes,
@@ -88,8 +91,9 @@ Creates `$APPLICATION_NAMESPACE` and, based on `ISTIO_MODE`, either labels it
 `istio.io/dataplane-mode=ambient` and deploys a waypoint proxy with
 `istioctl waypoint apply` (ambient) — the waypoint is what lets steps `6`-`9`'s
 L7 features (mirroring, circuit breaking, `AuthorizationPolicy`) keep working
-without sidecars. Delete mode tears down the waypoint (ambient) or removes the
-label (sidecar), then deletes the namespace.
+without sidecars. Delete mode tears down the waypoint and removes the ambient labels when
+`ISTIO_MODE` is `ambient` (the sidecar path has no label-removal branch),
+then deletes the namespace either way.
 
 ### `(6) Explore traffic mirroring (Gateway API)`
 Deploys `httpbin` v1 and v2 behind three Services (a shared `httpbin` plus
@@ -103,10 +107,14 @@ resets `$APPLICATION_NAMESPACE` at the end** (delete + recreate) to hand step
 including redeploying the waypoint under ambient.
 
 ### `(7) Explore circuit breaking`
-Applies a `DestinationRule` with connection-pool limits and outlier detection,
-then drives the service with concurrent Fortio requests to trigger the
-breaker. The script prints the Envoy stats command to view rejected requests
-(`upstream_rq_pending_overflow`).
+Deploys `httpbin` and a Fortio client, applies a `DestinationRule` with
+connection-pool limits and outlier detection, then drives the service with
+concurrent Fortio requests to trigger the breaker. The script prints the
+Envoy stats command to view rejected requests
+(`upstream_rq_pending_overflow`). **This step also resets
+`$APPLICATION_NAMESPACE`** at the end — and unlike step `6`'s reset it always
+re-applies `istio-injection=enabled`, so after running it under ambient mode
+you must re-run step `5` to restore the ambient label and waypoint.
 
 ### `(8) Explore security`
 The largest scenario. Creates `foo`, `bar`, and `legacy` namespaces (always
@@ -144,7 +152,8 @@ workloads.
 
 ### `(R)` / `(G)` / `(Q)`
 - `R` — show maintainer credits.
-- `G` — launch the bundled Cloud Shell tutorial (Cloud Shell only).
+- `G` — runs `cloudshell launch-tutorial .tutorial.md` (Cloud Shell only).
+  No `.tutorial.md` ships here, so this fails unless you add one yourself.
 - `Q` — quit.
 
 ## Working files

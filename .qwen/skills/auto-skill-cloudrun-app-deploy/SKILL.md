@@ -19,8 +19,9 @@ in apply — two simultaneous grants collide).
 
 ### 1. Platform must exist
 
-Every app module binds to `Services_GCP` via `tenant_deployment_id`. Confirm
-the platform is healthy before deploying apps:
+Every app module binds to `Services_GCP` via `tenant_id` (this variable was
+named `tenant_deployment_id` before 2026-08-04 — rename it everywhere it still
+appears below). Confirm the platform is healthy before deploying apps:
 
 ```bash
 gcloud compute networks list --project=$P --format='value(name)'
@@ -37,8 +38,12 @@ present and healthy.
 with no Cloud Build. **Custom-build** apps (Cloud Build from a source
 registry) take 8-15 min and consume build minutes + a build worker slot.
 
-Prebuilt examples: UptimeKuma, Changedetection, Matomo, SnipeIT, Appsmith,
-Gitea (with `container_image_source = "prebuilt"`).
+Prebuilt examples: UptimeKuma, Changedetection, Matomo, SnipeIT, StirlingPDF
+(set `container_image_source = "prebuilt"` in tfvars). **Not** Gitea — its
+`variables.tf` defaults to `"custom"` and warns "Prebuilt will not work on
+Cloud Run (no $(VAR) env interpolation)"; see the Gitea gotcha below.
+`Appsmith_CloudRun` and `LobeChat_CloudRun` have been retired from
+`partner-modules` and are no longer deployable.
 
 Check whether an app is prebuilt-capable:
 
@@ -153,7 +158,7 @@ Create or update `modules/<App>_CloudRun/config/deploy.tfvars`:
 ```hcl
 resource_creator_identity = ""
 project_id                = "<target-project-id>"
-tenant_deployment_id      = "demo"       # MUST match the deployed Services_GCP platform
+tenant_id                 = "demo"       # MUST match the deployed Services_GCP platform
 
 # If the app supports prebuilt image (check variables.tf):
 container_image_source    = "prebuilt"
@@ -747,10 +752,11 @@ and are among the fastest-deploying apps (~3-5 min).
 
 ### Docmost: `prebuilt` works but image is custom-built
 
-Docmost is listed as prebuilt-capable (`container_image_source` default
-`"prebuilt"`) and deploys successfully with that setting. Its Cloud Build
-builds a thin wrapper (from `Docmost_Common/scripts/docmost/`). For new
-Docmost deploys, `"prebuilt"` is the correct and fastest choice.
+Docmost's `container_image_source` defaults to `"custom"`, not `"prebuilt"` —
+leave it unset and Cloud Build builds the thin wrapper from
+`Docmost_Common/scripts/` (there is no `scripts/docmost/` subdirectory). Set
+`container_image_source = "prebuilt"` explicitly to skip that build; Docmost
+deploys successfully either way.
 
 ### CodeServer: root returns 404 — normal behavior
 

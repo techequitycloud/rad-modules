@@ -75,7 +75,7 @@ are used by later steps. Delete mode removes the directory.
 
 ### `(2) Enable APIs`
 Enables `cloudapis.googleapis.com` and `container.googleapis.com`. Delete mode
-disables them.
+does nothing — the APIs are deliberately left enabled.
 
 ### `(3) Create Kubernetes cluster`
 Creates `$GCP_CLUSTER` in `$GCP_REGION` with two `n1-standard-2` Spot nodes and
@@ -131,7 +131,8 @@ are enforced by the waypoint deployed in step `5`.
 
 ### `(R)` / `(G)` / `(Q)`
 - `R` — show maintainer credits.
-- `G` — launch the bundled Cloud Shell tutorial (Cloud Shell only).
+- `G` — runs `cloudshell launch-tutorial .tutorial.md` (Cloud Shell only).
+  No `.tutorial.md` ships here, so this fails unless you add one yourself.
 - `Q` — quit.
 
 ## Working files

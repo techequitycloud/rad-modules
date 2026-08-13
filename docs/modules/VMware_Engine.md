@@ -31,7 +31,7 @@ The module wires together VMware Engine and a handful of supporting Compute and 
 
 **Things to know up front:**
 
-- **Provisioning is slow by design.** Google must allocate and configure bare-metal servers before the SDDC software is installed. A single-node `TIME_LIMITED` private cloud typically reaches `ACTIVE` in **30–90 minutes**; `STANDARD` private clouds (3+ nodes) can take **2–4 hours**. The private-cloud resource carries 180-minute create/update/delete timeouts to accommodate this. The deployment appears to "hang" during this window — that is expected; do not interrupt it.
+- **Provisioning is slow by design.** Google must allocate and configure bare-metal servers before the SDDC software is installed. A single-node `TIME_LIMITED` private cloud typically reaches `ACTIVE` in **30–90 minutes**; `STANDARD` private clouds (3+ nodes) take longer, up to roughly **2 hours**. The private-cloud resource carries 180-minute create/update/delete timeouts, so provisioning that runs past three hours fails the apply on timeout rather than continuing to wait. The deployment appears to "hang" during this window — that is expected; do not interrupt it.
 - **A VMware Engine node is expensive.** GCVE bills per bare-metal node and a single node is a substantial hourly cost. Use `TIME_LIMITED` (one node) for labs and demos, and tear the environment down promptly when you are done.
 - **The management consoles are private.** vCenter, NSX-T, and HCX are only reachable from inside the VMware Engine network or a peered VPC — never directly from the public internet. The jump host exists precisely to bridge that gap.
 - **vCenter credentials are reset, not stored.** After the private cloud is `ACTIVE`, the module resets the vCenter solution-user password and prints the new credentials to the deployment logs. They are **not** exposed as a Terraform output — capture them from the logs or re-run the describe command (see §2.E).
@@ -158,6 +158,7 @@ Variables are grouped exactly as they appear on the deployment platform.
 | Variable | Default | Description |
 |---|---|---|
 | `project_id` | _(required)_ | Target Google Cloud project; must already exist and the deploying identity must hold `roles/owner`. |
+| `tenant_id` | `demo` | Tenant identifier (1–20 lowercase letters, digits, hyphens). Declared for platform consistency only — this module does not reference it in any resource name. |
 | `region` | `us-west2` | Region for the private cloud and the network policy. |
 | `zone` | `us-west2-a` | Zone for the private cloud and jump host. Must lie within `region`. |
 

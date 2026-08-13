@@ -22,12 +22,12 @@ The module wires together a focused set of Google Cloud services around the Bank
 | Fleet | GKE Hub / Fleet membership | The cluster is registered in the fleet, which is required to enable the mesh feature |
 | Ingress | Cloud Load Balancing (external L4) | The frontend is exposed via the upstream `frontend` Service of type LoadBalancer; a global static IP is also reserved |
 | Observability | Cloud Monitoring, Managed Service for Prometheus, Cloud Logging, Cloud Trace | Managed Prometheus on the cluster; one monitored service + CPU-utilisation SLO per workload |
-| Application | Bank of Anthos `v0.6.10` workloads | Nine microservices + two PostgreSQL StatefulSets in the `bank-of-anthos` namespace |
+| Application | Bank of Anthos `v0.6.10` workloads | Nine workloads — seven microservice Deployments plus two PostgreSQL StatefulSets — in the `bank-of-anthos` namespace |
 
 **Things to know up front:**
 
 - **This is a standalone module.** It creates its own VPC, GKE cluster, and supporting infrastructure. There is no separate platform/foundation module to deploy first — only a GCP project with billing enabled.
-- **Autopilot is the default.** `create_autopilot_cluster = true` gives a fully Google-managed cluster. Set it to `false` for a Standard cluster, in which case the module provisions a 2-node Spot node pool (`e2-standard-2`) and a dedicated node service account with Workload Identity.
+- **Autopilot is the default.** `create_autopilot_cluster = true` gives a fully Google-managed cluster. Set it to `false` for a Standard cluster, in which case the module provisions a Spot node pool (`e2-standard-2`) with 2 nodes per zone in every available zone of the region, and a dedicated node service account with Workload Identity.
 - **The application is exposed over plain HTTP (L4).** The Bank of Anthos `frontend` Service is type `LoadBalancer`, so it receives a regular external IP serving HTTP. The module also reserves a global static IP named `bank-of-anthos`, but the demo does not provision an HTTPS load balancer, managed TLS certificate, or custom domain.
 - **The mesh control plane is fully managed.** With `enable_cloud_service_mesh = true`, Google runs the Istio control plane — no `istiod` pods run in your cluster. The `bank-of-anthos` namespace is labelled `istio.io/rev=asm-managed`, which triggers automatic Envoy sidecar injection so every pod runs `2/2`.
 - **Apply waits for the mesh to be ready.** Provisioning verifies the fleet membership and mesh control plane reach `ACTIVE` before deploying the application, so first deploys take a while (roughly 30–45 minutes).
@@ -44,7 +44,7 @@ and that `PROJECT` and `REGION` are set. The cluster name defaults to `gke-clust
 
 ### A. GKE — the cluster and the banking workload
 
-The cluster runs all nine Bank of Anthos microservices and two PostgreSQL StatefulSets in the `bank-of-anthos` namespace. On Autopilot, nodes are provisioned and scaled automatically; on Standard, a 2-node Spot node pool is created. Managed Prometheus, the GCS FUSE CSI driver, the Gateway API, GKE cost management, and BASIC security posture (with workload vulnerability scanning) are all enabled on the cluster.
+The cluster runs all nine Bank of Anthos workloads — seven microservice Deployments plus the `accounts-db` and `ledger-db` PostgreSQL StatefulSets — in the `bank-of-anthos` namespace. On Autopilot, nodes are provisioned and scaled automatically; on Standard, a 2-node Spot node pool is created. Managed Prometheus, the GCS FUSE CSI driver, the Gateway API, GKE cost management, and BASIC security posture (with workload vulnerability scanning) are all enabled on the cluster.
 
 - **Console:** Kubernetes Engine → Clusters (mode, version, add-ons); Workloads (the nine services); Security Posture (vulnerability and misconfiguration findings).
 - **CLI:**
@@ -127,12 +127,12 @@ Nine services in three tiers: `frontend` (Python web UI); `userservice`, `contac
 - **Standalone provisioning.** A successful apply creates the VPC and subnet (with pod/service secondary ranges), Cloud Router + NAT, firewall rules, the GKE cluster, the fleet membership, the Cloud Service Mesh feature, the monitored services and SLOs, a reserved global static IP, and the Bank of Anthos workloads.
 - **The Bank of Anthos components.** With `deploy_application = true` the module deploys nine microservices — `frontend`, `userservice`, `contacts`, `ledgerwriter`, `balancereader`, `transactionhistory`, `loadgenerator`, and the `accounts-db` and `ledger-db` PostgreSQL databases — into the `bank-of-anthos` namespace, along with the JWT signing/verification secret.
 - **Mesh-first ordering.** The apply enables the GKE Hub and mesh APIs, grants the GKE Hub service agent the roles it needs, registers the fleet membership, enables the mesh feature, and then **waits** (via polling) for the membership and mesh control plane to report `ACTIVE` before deploying the application. This is why first deploys take roughly 30–45 minutes.
-- **Application deployment.** The module downloads the Bank of Anthos `v0.6.10` release archive from GitHub, creates the `bank-of-anthos` namespace labelled with the channel-matching CSM revision (`istio.io/rev=asm-managed` for `REGULAR`, `-rapid`/`-stable` for the other channels), applies the JWT secret and the Kubernetes manifests with `kubectl`, and waits for all deployments to become available.
+- **Application deployment.** The module downloads the Bank of Anthos `v0.6.10` release archive from GitHub, creates the `bank-of-anthos` namespace labelled with the channel-matching CSM revision (`istio.io/rev=asm-managed` for `REGULAR`, `-rapid`/`-stable` for the other channels), applies the JWT secret and the Kubernetes manifests with `kubectl`, and waits for all deployments to become available. It also creates a project-local Workload Identity service account (`bank-of-anthos@<project>.iam.gserviceaccount.com`), grants it `roles/cloudtrace.agent` and `roles/monitoring.metricWriter`, binds it to the `bank-of-anthos` Kubernetes service account, and re-annotates that KSA — the upstream v0.6.10 manifests hardcode a service account in Google's own CI project, which otherwise crashes the Java services at startup.
 - **Mesh injection.** Because the namespace carries the `asm-managed` revision label, every pod is injected with an Envoy sidecar at admission and runs `2/2`. All in-namespace traffic is mTLS-encrypted by default.
 - **How the app is exposed.** The upstream `frontend` Service is type `LoadBalancer`, so Google Cloud assigns it an external IP serving plain HTTP on port 80. The reserved global static IP and the Gateway API add-on are available for advanced exposure patterns but are not wired into an HTTPS load balancer by this module.
 - **Monitoring & SLOs.** When `enable_monitoring = true`, one Cloud Monitoring service and one CPU-limit-utilisation SLO (95% goal, daily calendar period, 5-minute windows) are created per workload, giving a ready-made SLO framework to explore.
 - **Manual follow-up.** TLS/HTTPS, a custom domain, IAP in front of the frontend, traffic-management policies (VirtualService/DestinationRule), and any GitOps/Config Sync setup are not provisioned by the module and must be configured manually after deploy if desired.
-- **Standard-mode extras.** With `create_autopilot_cluster = false`, the module additionally creates a node service account, a 2-node Spot node pool (`e2-standard-2`, 50 GB SSD), and the IAM bindings and Workload Identity pool that Autopilot would otherwise provide automatically.
+- **Standard-mode extras.** With `create_autopilot_cluster = false`, the module additionally creates a node service account, a Spot node pool (`e2-standard-2`, 50 GB pd-ssd) sized at **2 nodes per zone across every available zone in the region** (8 nodes in a four-zone region such as `us-central1`), and the IAM bindings and Workload Identity pool that Autopilot would otherwise provide automatically.
 - **Runtime notes.** The release archive is re-downloaded on every apply, so updates re-fetch the manifests; the demo databases (`accounts-db`, `ledger-db`) hold all account and transaction data and are deleted with the cluster on teardown.
 
 ---
@@ -147,6 +147,7 @@ Variables are grouped exactly as they appear on the deployment platform.
 |---|---|---|
 | `project_id` | _(uses default project)_ | Destination GCP project where the cluster and application are deployed. The provisioning service account must hold `roles/owner` in it. |
 | `region` | `us-central1` | Region for the cluster, VPC, and all regional resources. Ensure quota is available. |
+| `tenant_id` | `demo` | Tenant identifier used in resource naming. Must be 1–20 characters, lowercase letters, digits and hyphens only — anything else fails validation at plan time. |
 
 ### Group 2 — Network
 

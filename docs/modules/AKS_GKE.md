@@ -28,7 +28,7 @@ The module provisions infrastructure across both clouds. On apply it (1) creates
 - **Azure credentials are required.** Four sensitive inputs — `client_id`, `client_secret`, `azure_tenant_id`, and `subscription_id` — identify an Azure AD service principal with at least Contributor rights on the target subscription. Without them the module cannot create the AKS cluster. They are marked sensitive and never appear in logs or plan output.
 - **This is a two-cloud module.** You need both a Google Cloud project (billing enabled) and an Azure subscription. Costs accrue on both sides — Azure for the AKS nodes, Google Cloud for fleet management and observability ingestion.
 - **The AKS cluster runs in Azure.** The control plane, nodes, and networking all live in Azure (`westus2` by default). Google Cloud only stores the attached-cluster record and fleet membership (in `us-central1` by default).
-- **Platform version must match the Kubernetes version.** `platform_version` (the GKE Connect agent / attached-component version, e.g. `1.34.0-gke.1`) must be compatible with `k8s_version` (the AKS Kubernetes minor, e.g. `1.34`).
+- **Platform version must be compatible with the Kubernetes version.** `platform_version` (the attached-component version, e.g. `1.35.0-gke.1`) must have a minor version equal to `k8s_version` (the AKS Kubernetes minor, e.g. `1.35`) or exactly one below it.
 - **The deploying user is always an admin.** The identity running the deployment is automatically added to the cluster admin list, in addition to any `trusted_users`.
 - **APIs are enabled non-destructively.** The module enables several Google Cloud APIs (GKE Multi-Cloud, GKE Connect, Connect Gateway, GKE Hub, Anthos, Logging, Monitoring, and related metadata APIs). These are left enabled on teardown so other workloads in the project are not disrupted.
 
@@ -143,7 +143,7 @@ Variables are grouped exactly as they appear on the deployment platform.
 | `project_id` | _(required)_ | Destination Google Cloud project where the cluster is registered and the fleet membership is created. Must already exist. |
 | `gcp_location` | `us-central1` | Google Cloud region where the attached-cluster record and fleet membership are stored and shown in the Console. Must support attached clusters. |
 | `azure_region` | `westus2` | Azure region where the AKS cluster and its Resource Group are created. Feature and VM SKU availability varies by region. |
-| `trusted_users` | `[]` | Google account emails granted cluster-admin on the AKS cluster via the Connect gateway. The deploying identity is always included automatically. Entries must be non-blank and unique. |
+| `trusted_users` | _(required)_ | Google account emails granted cluster-admin on the AKS cluster via the Connect gateway. Has no default — supply an empty list `[]` if no additional admins are needed. The deploying identity is always included automatically. Entries must be non-blank and unique. |
 | `client_id` | _(required, sensitive)_ | Azure AD application (client) ID of the service principal used to create and manage the AKS resources. |
 | `client_secret` | _(required, sensitive)_ | Client secret for the Azure AD service principal. |
 | `azure_tenant_id` | _(required, sensitive)_ | Azure AD tenant (directory) ID for the Azure account. |
@@ -155,8 +155,8 @@ Variables are grouped exactly as they appear on the deployment platform.
 |---|---|---|
 | `cluster_name_prefix` | `azure-aks-cluster` | Prefix for the cluster and associated resource names (lowercase letters, digits, hyphens). Used verbatim as the cluster name in both Azure and Google Cloud, and to derive the Resource Group (`<prefix>-rg`) and DNS prefix (`<prefix>-dns`). |
 | `node_count` | `3` | Number of nodes in the AKS default node pool. A minimum of 2 is recommended for high availability; higher counts raise Azure compute cost proportionally. |
-| `k8s_version` | `1.34` | Kubernetes minor version (`major.minor`) for the AKS cluster. Must be supported by AKS in `azure_region`; the patch version is managed by AKS. |
-| `platform_version` | `1.34.0-gke.1` | Attached-cluster platform version (the Connect agent / managed components installed on AKS). Its major.minor must match `k8s_version`. |
+| `k8s_version` | `1.35` | Kubernetes minor version (`major.minor`) for the AKS cluster. Must be supported by AKS in `azure_region`; the patch version is managed by AKS. |
+| `platform_version` | `1.35.0-gke.1` | Attached-cluster platform version (the Connect agent / managed components installed on AKS). Its minor version must equal `k8s_version` or be exactly one below it. Run `gcloud container attached get-server-config --location=<gcp_location>` for the versions currently offered. |
 | `vm_size` | `Standard_D2s_v3` | Azure VM SKU for the node pool (e.g. `Standard_D2s_v3` = 2 vCPU / 8 GB). Larger SKUs raise Azure cost; availability varies by region. |
 
 ---
@@ -188,7 +188,7 @@ Record the membership name immediately after deployment; every Day-2 and teardow
 | Setting | Sensible value | Risk | Consequence if wrong |
 |---|---|---|---|
 | `client_id` / `client_secret` / `azure_tenant_id` / `subscription_id` | valid service-principal credentials, Contributor on the subscription | Critical | Missing or wrong credentials fail the apply at AKS creation; an under-privileged principal partially provisions and leaves orphaned Azure resources. The service principal needs subscription-level Contributor because the module creates the Resource Group itself. |
-| `platform_version` ↔ `k8s_version` | keep major.minor compatible (e.g. `1.34.0-gke.1` with `1.34`) | High | An incompatible pairing fails attachment or leaves the Connect agent unhealthy, so the cluster never becomes manageable from Google Cloud. |
+| `platform_version` ↔ `k8s_version` | keep the minors compatible (e.g. `1.35.0-gke.1` with `1.35`; the platform minor may also be one below) | High | An incompatible pairing fails attachment or leaves the Connect agent unhealthy, so the cluster never becomes manageable from Google Cloud. |
 | `cluster_name_prefix` | set once, unique per project/subscription | High | Changing after first deploy recreates the cluster across both clouds, destroying the Azure AKS cluster and any workloads on it. Reusing a prefix for a second deployment causes resource conflicts. |
 | `trusted_users` | the operators who need access | High | Omitting an operator leaves them unable to reach the cluster via the gateway; remember the deploying identity is always admin, and entries cannot be blank or duplicated. |
 | `node_count` | `3` (≥2 for HA) | Medium | `1` removes high availability — a single node failure or drain takes the cluster's workloads down and can interrupt the fleet connection; very high counts inflate Azure cost. |

@@ -14,7 +14,7 @@ A module directory looks like this (`Bank_GKE` shown as the canonical multi-file
 ```
 modules/<Module_Name>/
 ├── README.md              # Short summary + Usage + Requirements/Providers/Resources/Inputs/Outputs tables
-├── <MODULE_NAME>.md       # Long-form educational deep dive
+├── tests/                 # Module test fixtures (the long-form deep dive lives at docs/modules/<Module_Name>.md, NOT inside the module)
 ├── main.tf                # Locals, random_id, data.google_project, google_project_service.enabled_services
 ├── variables.tf           # All inputs, annotated with UIMeta tags (see below)
 ├── versions.tf            # OR provider.tf — required_providers + required_version
@@ -35,7 +35,7 @@ Rules:
 - **No symlinks.** Modules do not share TF files. If `Bank_GKE` and `MC_Bank_GKE` need similar `asm.tf`, each has its own copy.
 - **Nested modules** (e.g. `modules/AKS_GKE/modules/attached-install-manifest/`) are scoped to one parent module only; they must not be referenced from other modules in the repo.
 - **Kubernetes templates** live under `manifests/` (raw YAML) or `templates/` (Go-template `.yaml.tpl` rendered by `templatefile(...)`). Pick one per module based on whether any values are substituted.
-- **License header**: every `.tf` file begins with the Apache 2.0 block-comment header. Copy it from a neighbouring file when creating a new one.
+- **License header**: every `.tf` file should begin with the Apache 2.0 block-comment header. Copy it from a neighbouring file when creating a new one. Three existing `versions.tf` files (`Bank_GKE`, `Migration_Center`, `VMware_Engine`) currently lack it, which is why `scripts/check_conventions.py` reports a missing header as WARN rather than FAIL.
 - **Naming**: files are lowercase with hyphens (`provider-auth.tf`), module directory names are `PascalCase_WithUnderscores`, HCL resource names are `snake_case`.
 
 ## variables.tf Structure
@@ -61,14 +61,14 @@ Not every module needs every section — `AKS_GKE` has no dedicated network sect
 
 ### Every Module Ships These Ten Standard Variables
 
-The variables below exist in **every** module and must keep their exact names, types, and defaults. `rad-launcher` looks for them; the RAD UI renders them in a standard panel.
+The variables below exist in nearly every module and must keep their exact names, types, and defaults. `rad-launcher` looks for them; the RAD UI renders them in a standard panel. Two carry documented exceptions: `trusted_users` is Kubernetes-specific and is deliberately omitted by `Container_Migration`, `Migration_Center` and `VMware_Engine`, and `enable_services` is omitted by `AKS_GKE`, `EKS_GKE` and `Migration_Center`. Two further variables — `module_documentation` (docs URL) and `shared_users` (platform-only visibility list) — are declared by all eight modules and belong in the same group-0 panel. `scripts/check_conventions.py` enforces this list at WARN level; run it before opening a PR.
 
 | Variable | Type | Default | Notes |
 |---|---|---|---|
 | `module_description` | `string` | module-specific text | Shown in catalog |
 | `module_dependency` | `list(string)` | e.g. `["GCP Project"]` | Deploy order |
 | `module_services` | `list(string)` | e.g. `["GCP","GKE",...]` | UI tags |
-| `credit_cost` | `number` | `100` or `200` | Platform credits |
+| `credit_cost` | `number` | `0` | Platform credits; every module in this repo currently ships `0` |
 | `require_credit_purchases` | `bool` | `false` | |
 | `enable_purge` | `bool` | `true` | |
 | `public_access` | `bool` | `true` | Catalog visibility |
@@ -137,34 +137,18 @@ provider "azurerm" {
 }
 ```
 
-### Pattern B — Impersonated provider (used by `Bank_GKE`, `MC_Bank_GKE`, `Istio_GKE`)
+### Pattern B — Impersonated provider (used by `Bank_GKE`, `MC_Bank_GKE`, `Istio_GKE`, `Container_Migration`, `Migration_Center`, `VMware_Engine`)
 
 Split `versions.tf` (provider requirements only) + `provider-auth.tf` (runtime auth via service-account impersonation). This is required when the module provisions GCP resources that require a specific owner.
 
 ```hcl
 # provider-auth.tf — impersonation pattern, copy verbatim
 provider "google" {
-  alias = "impersonated"
-  scopes = [
-    "https://www.googleapis.com/auth/cloud-platform",
-    "https://www.googleapis.com/auth/userinfo.email",
-  ]
-}
-
-data "google_service_account_access_token" "default" {
-  count                  = length(var.resource_creator_identity) != 0 ? 1 : 0
-  provider               = google.impersonated
-  scopes                 = ["userinfo-email", "cloud-platform"]
-  target_service_account = var.resource_creator_identity
-  lifetime               = "3600s"  # Bank_GKE and MC_Bank_GKE; Istio_GKE uses "1800s"
-}
-
-provider "google" {
-  access_token = length(var.resource_creator_identity) != 0 ? data.google_service_account_access_token.default[0].access_token : null
+  impersonate_service_account = length(var.resource_creator_identity) != 0 ? var.resource_creator_identity : null
 }
 
 provider "google-beta" {
-  access_token = length(var.resource_creator_identity) != 0 ? data.google_service_account_access_token.default[0].access_token : null
+  impersonate_service_account = length(var.resource_creator_identity) != 0 ? var.resource_creator_identity : null
 }
 ```
 
@@ -231,7 +215,7 @@ Each module has one markdown file kept in sync with `variables.tf`, plus a share
 Follow the exact table shape used by existing modules:
 
 1. One-paragraph overview, including the `mig-{deployment_id}-*` resource naming convention.
-2. Link to the lab guide at `docs/labs/<Module_Name>.md` (e.g. `[Container_Migration.md](../../../docs/labs/Container_Migration.md)`). **Never** link to a `LAB_GUIDE.md` inside the module directory — that file does not exist.
+2. Link out to the module's documentation with a two-level relative path — the deep dive at `docs/modules/<Module_Name>.md` (e.g. `[Bank_GKE.md](../../docs/modules/Bank_GKE.md)`) and/or the lab guide at `docs/labs/<Module_Name>.md` (e.g. `[Container_Migration.md](../../docs/labs/Container_Migration.md)`). **Never** link to a `LAB_GUIDE.md` inside the module directory — that file does not exist.
 3. `## Usage` — a minimal `module "name" { source = "..." ... }` block.
 4. `## Requirements` — provider versions table.
 5. `## Providers` — same table, lightly different.
@@ -244,7 +228,7 @@ The README's Inputs table must reflect defaults and descriptions from `variables
 
 ### Lab guide — `docs/labs/<Module_Name>.md`
 
-Long-form hands-on lab guide shared across the repo. Lives at `docs/labs/<Module_Name>.md` (e.g. `docs/labs/Container_Migration.md`). Covers: Overview & Architecture → Lab Setup → numbered Exercises → Cleanup → Reference. The `module_documentation` variable default in `variables.tf` must point to the GitHub URL of this file, **not** to a `LAB_GUIDE.md` inside the module.
+Long-form hands-on lab guide shared across the repo. Lives at `docs/labs/<Module_Name>.md` (e.g. `docs/labs/Container_Migration.md`). Covers: Overview & Architecture → Lab Setup → numbered Exercises → Cleanup → Reference. The `module_documentation` variable default in `variables.tf` must point at published documentation for the module, **not** at a `LAB_GUIDE.md` inside the module. Two forms are in use today: the docs site (`https://docs.radmodules.dev/docs/modules/<Module_Name>` — `AKS_GKE`, `Bank_GKE`, `EKS_GKE`, `Istio_GKE`, `MC_Bank_GKE`) and the raw GitHub lab-guide URL (`https://github.com/techequitycloud/rad-modules/blob/main/docs/labs/<Module_Name>.md` — `Container_Migration`, `Migration_Center`, `VMware_Engine`). Match whichever form the module you copied from uses.
 
 > **Do not create `LAB_GUIDE.md` inside a module directory.** The lab guide is always at `docs/labs/<Module_Name>.md`.
 

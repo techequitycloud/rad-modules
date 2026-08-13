@@ -99,7 +99,7 @@ Lab guides live at `docs/labs/<Module_Name>.md`, **not** inside the module direc
 
 **Impersonation (`provider-auth.tf`)** — used by `Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE`, `VMware_Engine`, `Container_Migration`, `Migration_Center`. Fetches a short-lived access token for `var.resource_creator_identity` (a service account) when that variable is non-empty; otherwise falls back to ADC.
 
-**Direct (`provider.tf`)** — used by `AKS_GKE`, `EKS_GKE`. Configures `azurerm`/`aws`/`helm` providers directly. Azure credentials via `ARM_*` env vars; AWS credentials via `AWS_*` env vars — never hardcode these as defaults.
+**Direct (`provider.tf`)** — used by `AKS_GKE`, `EKS_GKE`. Configures `azurerm`/`aws`/`helm` providers directly. Azure credentials come from the `client_id`/`client_secret`/`azure_tenant_id`/`subscription_id` variables and AWS credentials from `aws_access_key`/`aws_secret_key` — `provider.tf` wires them straight into the provider blocks (`modules/AKS_GKE/provider.tf:43-49`, `modules/EKS_GKE/provider.tf:39-42`). They are `sensitive` and have no defaults; no `ARM_*`/`AWS_*` env var is read anywhere in either module — never give them defaults.
 
 ### Post-Provisioning via `null_resource`
 
@@ -237,7 +237,7 @@ UI form definition and any existing deployments' saved tfvars for references fir
 - The `Istio_GKE` sidecar installer pipes a custom `IstioOperator` YAML into `istioctl install -y -f -` to set `hpaSpec.scaleTargetRef.name = istio-ingressgateway` — do not remove this block (it prevents known HPA naming conflicts).
 - `external_ip` output reads from a file written by post-provisioning `null_resource` and falls back to `"IP not available"` via `fileexists()`.
 - State is never stored in the repo — the launcher and `rad-ui` pipelines store it in GCS.
-- **Provider version constraints must have an upper bound.** An unbounded `">=X.Y.Z"` lets a fresh `tofu init` silently resolve a new major version and break the module before it ever reaches the cloud provider. Confirmed live: `AKS_GKE`'s `azurerm = ">=3.17.0"` resolved 5.0.1, which made `node_provisioning_profile` a required block on `azurerm_kubernetes_cluster` and failed `tofu validate`/`plan` outright; pinning `"~> 4.0"` (resolving 4.81.0) fixed it with no code change. The same unbounded shape is still present in `EKS_GKE`'s `aws = ">=4.5.0"` and in every module's `google = ">=5.0.0"` (currently resolving 7.43.0, two majors past when most of these modules were written) — treat those as latent, not merely theoretical. Lock files (`.terraform.lock.hcl`) are gitignored repo-wide, so the `~>` constraint in `versions.tf`/`provider.tf` is the *only* thing preventing this in CI and on the Cloud Build pipelines, which both run a fresh `init`.
+- **Provider version constraints must have an upper bound.** An unbounded `">=X.Y.Z"` lets a fresh `tofu init` silently resolve a new major version and break the module before it ever reaches the cloud provider. Confirmed live: `AKS_GKE`'s `azurerm = ">=3.17.0"` resolved 5.0.1, which made `node_provisioning_profile` a required block on `azurerm_kubernetes_cluster` and failed `tofu validate`/`plan` outright; pinning `"~> 4.0"` (resolving 4.81.0) fixed it with no code change. The same unbounded shape is still present in `EKS_GKE`'s `aws = ">=4.5.0"` and in the `google` constraint of five modules — `Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE` (`>= 5.0`) and `AKS_GKE`, `EKS_GKE` (`>=5.0.0`) — currently resolving 7.43.0, two majors past when most of these modules were written; `Container_Migration`, `Migration_Center` and `VMware_Engine` already bound theirs at `>= 5.0, < 6.0`. Treat the unbounded five as latent, not merely theoretical. Lock files (`.terraform.lock.hcl`) are gitignored repo-wide, so the `~>` constraint in `versions.tf`/`provider.tf` is the *only* thing preventing this in CI and on the Cloud Build pipelines, which both run a fresh `init`.
 
 ## CI Pipeline
 
@@ -246,7 +246,7 @@ The GitHub Actions workflow (`.github/workflows/terraform-ci.yml`) runs on chang
 1. **format** — `terraform fmt -check -recursive modules/`
 2. **validate** — `terraform init -backend=false && terraform validate` per changed module
 3. **tflint** — Google ruleset via `.tflint.hcl`
-4. **test** — `terraform test` per module (mock providers, no GCP credentials)
+4. **test** — `terraform test` per module (mock providers, no GCP credentials). **Only 4 of 8 modules run here**: `AKS_GKE`, `Bank_GKE`, `EKS_GKE` and `MC_Bank_GKE` are excluded from the matrix (`.github/workflows/terraform-ci.yml:143-149`) because their plan-run configures the kubernetes/helm providers from computed nested blocks that `mock_provider` cannot override — `tofu test` fails locally on those four for the same reason.
 5. **security** — Trivy config scan (HIGH/CRITICAL, non-blocking)
 
 CI uses `terraform` (Terraform ~1.9) not `tofu`, but they are interchangeable for `init`/`validate`/`fmt`/`test`.

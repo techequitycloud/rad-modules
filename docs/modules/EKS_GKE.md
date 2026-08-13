@@ -191,7 +191,7 @@ Variables are grouped exactly as they appear on the deployment platform.
 | `aws_region` | `us-west-2` | AWS region for the EKS cluster, VPC, and supporting resources. `subnet_availability_zones` must be valid AZs in this region. |
 | `aws_access_key` | _(required, sensitive)_ | AWS Access Key ID for the IAM principal that provisions EKS resources. Stored sensitively. |
 | `aws_secret_key` | _(required, sensitive)_ | AWS Secret Access Key paired with `aws_access_key`. Stored sensitively; obtain it at key-creation time (it is not retrievable afterwards). |
-| `trusted_users` | `[]` | Google account emails granted Kubernetes `cluster-admin` via the Connect gateway. The deployer is always included automatically. Entries must be non-blank and unique. |
+| `trusted_users` | _(required)_ | Google account emails granted Kubernetes `cluster-admin` via the Connect gateway. There is no default — supply an empty list `[]` to grant cluster-admin to the deployer only (the deployer is always included automatically). Entries must be non-blank and unique. |
 
 ### Group 2 — Network
 
@@ -201,15 +201,15 @@ Variables are grouped exactly as they appear on the deployment platform.
 | `public_subnet_cidr_blocks` | `10.0.101.0/24`, `10.0.102.0/24`, `10.0.103.0/24` | CIDRs for the public subnets, one per AZ. Used when `enable_public_subnets = true`. Must be subsets of `vpc_cidr_block`. |
 | `private_subnet_cidr_blocks` | `10.0.1.0/24`, `10.0.2.0/24`, `10.0.3.0/24` | CIDRs for the private subnets, one per AZ. Used when `enable_public_subnets = false`. Must be subsets of `vpc_cidr_block`. |
 | `subnet_availability_zones` | `us-west-2a`, `us-west-2b`, `us-west-2c` | AWS Availability Zones to create subnets in. The count must match both CIDR lists, and the AZs must belong to `aws_region`. |
-| `enable_public_subnets` | `true` | `true`: nodes in public subnets behind an Internet Gateway (simpler, cheaper — good for labs). `false`: nodes in private subnets with egress via a NAT Gateway (recommended for production). |
+| `enable_public_subnets` | `true` | `true`: nodes in public subnets behind an Internet Gateway (simpler, cheaper — good for labs). `false` (private subnets with NAT Gateway egress) is **not currently usable**: the NAT Gateway is placed in a public subnet, but no public subnets are created when this flag is `false`, so the apply fails. Leave it at `true`. |
 
 ### Group 3 — Platform
 
 | Variable | Default | Description |
 |---|---|---|
 | `cluster_name_prefix` | `aws-eks-cluster` | Prefix for generated names; also used verbatim as the attached-cluster and Fleet-membership name. Lowercase letters, digits, and hyphens only. |
-| `platform_version` | `1.34.0-gke.1` | GKE Attached Clusters platform version (governs the Connect Agent). Must match the `k8s_version` minor. |
-| `k8s_version` | `1.34` | Kubernetes minor version on EKS. Must be EKS-supported in `aws_region`; the patch level is managed by EKS. |
+| `platform_version` | `1.35.0-gke.1` | GKE Attached Clusters platform version (governs the Connect Agent). Must match the `k8s_version` minor. |
+| `k8s_version` | `1.35` | Kubernetes minor version on EKS. Must be EKS-supported in `aws_region`; the patch level is managed by EKS. |
 | `node_group_desired_size` | `2` | Worker nodes at deploy time. Must be within min/max. |
 | `node_group_max_size` | `5` | Autoscaling ceiling for the node group (requires a cluster autoscaler to actually scale out). |
 | `node_group_min_size` | `2` | Floor for the node group; 2 is recommended for high availability. |
@@ -239,12 +239,12 @@ The module's Terraform outputs are `deployment_id` (the resolved deployment ID �
 | Setting | Sensible value | Risk | Consequence if wrong |
 |---|---|---|---|
 | `aws_access_key` / `aws_secret_key` | valid keys with EKS + VPC + IAM rights | Critical | Missing or under-privileged credentials fail the apply partway, potentially leaving partial AWS resources to clean up by hand. |
-| `k8s_version` + `platform_version` | matching minors (`1.34` / `1.34.0-gke.1`) | Critical | A mismatch is rejected at registration; the EKS cluster is created on AWS but never attaches to the Fleet. |
+| `k8s_version` + `platform_version` | matching minors (`1.35` / `1.35.0-gke.1`) | Critical | A mismatch is rejected at registration; the EKS cluster is created on AWS but never attaches to the Fleet. |
 | `cluster_name_prefix` (uniqueness) | unique per project | Critical | The Fleet membership uses the prefix verbatim — two deployments sharing a prefix in the same project collide on the Google Cloud side. |
 | `deployment_id` / `cluster_name_prefix` | set once | Critical | Changing after first deploy forces recreation of named resources — the cluster is destroyed and rebuilt. |
 | `trusted_users` | real Google emails | High | Wrong or empty list means only the deployer can reach the cluster via the gateway; others are locked out until RBAC is added by hand. |
 | `subnet_availability_zones` vs CIDR lists | equal lengths, AZs within `aws_region` | High | Mismatched counts or out-of-region AZs fail subnet creation and block the EKS cluster. |
-| `enable_public_subnets` | `false` for production | High | Public subnets give worker nodes public IPs — convenient for labs, but a larger attack surface for production. |
+| `enable_public_subnets` | `true` (only supported value today) | High | Public subnets give worker nodes public IPs — a larger attack surface. `false` is the safer topology but is currently broken: the NAT Gateway is placed in a public subnet that is not created in that mode, so the apply fails. |
 | `vpc_cidr_block` | non-overlapping `/16` | High | Overlap with a peered VPC breaks routing if peering is later introduced. |
 | Teardown network path | same path as deploy | High | Destroy must reach the EKS API server to uninstall the Connect Agent; if the cluster is unreachable, teardown stalls. |
 | `node_group_min_size` | `2`+ | Medium | A single node removes HA; node maintenance can take the whole cluster's capacity offline. |

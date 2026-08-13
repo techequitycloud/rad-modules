@@ -109,6 +109,9 @@ as you complete each step:
 | `AUTH_ID` | `bq-auth` | Resource ID for the Discovery Engine `Authorization` created in step `7`. |
 | `AUTH_URI` | `NOT_SET` | Captured by step `7` from `construct_auth_uri.py`. |
 | `AUTHORIZATION` | `NOT_SET` | Full resource name of the `Authorization` created by step `7`, referenced by the agent. |
+| `SDP_INSPECT_TEMPLATE` | `NOT_SET` | DLP inspect template name, captured by step `12`. |
+| `MODEL_ARMOR_TEMPLATE_1` / `MODEL_ARMOR_TEMPLATE_2` | `NOT_SET` | Prompt-side / response-side Model Armor template names, captured by step `12`. |
+| `SDP_POLICY` | `NOT_SET` | Standalone SDP content-policy name, captured by step `12`. |
 
 ## Menu walkthrough
 
@@ -116,9 +119,10 @@ Run options `1` → `8` once, in order, to stand up the environment, then use
 `9` to validate and `11` any time during the live class as a prompt cue card.
 
 ### `(1) Enable APIs`
-Enables `discoveryengine`, `aiplatform`, `iap`, `bigquery`, `storage`, `iam`,
-`cloudresourcemanager`, and `apphub` (needed for the Agent Runtime deployment
-dashboard's telemetry widgets under Agent Platform > Deployments). Delete
+Enables `agentregistry`, `discoveryengine`, `aiplatform`, `iap`, `bigquery`,
+`storage`, `iam`, `cloudresourcemanager`, `apphub` (needed for the Agent
+Runtime deployment dashboard's telemetry widgets under Agent Platform >
+Deployments), plus `modelarmor` and `dlp` for step `12`. Delete
 mode leaves APIs enabled — other modules or labs in the same project may
 depend on them, per this repo's API-enablement convention.
 

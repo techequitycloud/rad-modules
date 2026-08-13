@@ -14,8 +14,8 @@ trusted_users).
 
 CHECK 2 — MODULE LIST
 List every directory under modules/ that is a real module. Compare against the "Module
-Families" table in CLAUDE.md and the module list in README.md. Report modules missing from
-either doc, or doc entries with no directory.
+Families" table in CLAUDE.md. Report modules missing from it, or table entries with no
+directory. Skip README.md — it is the upstream OpenTofu project README and has no module list.
 
 CHECK 3 — README TABLE ACCURACY
 For each module, compare its README.md Inputs table against variables.tf (every variable a

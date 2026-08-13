@@ -164,10 +164,11 @@ Run options `1` through `15` once, roughly in order, to stand up a working
 demo. Steps within a module (e.g. 7-9 for M5) are independent of each other
 but do assume steps 1-2 have already run. Steps 18-21 (M1) are independent
 of the technical steps and closer to a facilitator's discovery toolkit than
-a deployment sequence — 18, 20, and 21 work in preview mode (`MODE=1`, the
-default) without needing option `0` first, though step 19's readiness check
-needs option `0` run first so `$ORG_ID`, `$GCP_PROJECT`, and `$IAM_PRINCIPAL`
-are populated.
+a deployment sequence — only 21 runs identically in every mode; 18 and 20
+just describe themselves in preview mode and need option `0` → `n` before
+they actually write `scoping_questionnaire.md` / `use_case_rubric.csv`. Step
+19's readiness check likewise needs option `0` (for `$ORG_ID` and
+`$GCP_PROJECT`) and step `1` (which is what populates `$IAM_PRINCIPAL`).
 
 ### `(1) [M2] Enable APIs & grant baseline IAM roles`
 Enables `discoveryengine.googleapis.com` (the API underlying Gemini
