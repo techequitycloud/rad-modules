@@ -90,6 +90,12 @@ variable "public_access" {
   default     = true
 }
 
+variable "enable_rad_gcpproject" {
+  description = "Set to false to hide the \"GCP Project on RAD\" option for this module -- it may only be deployed into a customer's own GCP project. This module enables 15 APIs the RAD-managed tier policies deny (anthos, anthosgke, anthosconfigmanagement, anthospolicycontroller, gkehub, gkeconnect, mesh, meshconfig, multiclusteringress, multiclusterservicediscovery, trafficdirector, kubernetesmetadata, containerscanning, containersecurity, websecurityscanner), and a multi-cluster Anthos estate is a poor fit for a self-serve sandbox regardless. {{UIMeta group=0 order=110 }}"
+  type        = bool
+  default     = false
+}
+
 variable "shared_users" {
   description = "List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }}"
   type        = list(string)
