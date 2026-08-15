@@ -128,7 +128,7 @@ variable "project_id" {
 }
 
 variable "tenant_id" {
-  description = "Tenant identifier used in resource naming. Shared by every module deployed to the same tenant in this project — reuse it to share that tenant VPC, service accounts and Artifact Registry, or change it to create a separate namespace. Must be 1-20 lowercase alphanumeric characters and hyphens (e.g. prod, dev, tenant-1). {{UIMeta group=1 order=102 updatesafe }}"
+  description = "Tenant identifier used in resource naming. Shared by every module deployed to the same tenant in this project — reuse it to share that tenant's cloud resources, or change it to create a separate namespace. Must be 1-20 lowercase alphanumeric characters and hyphens (e.g. prod, dev, tenant-1). {{UIMeta group=1 order=102 updatesafe }}"
   type        = string
   default     = "demo"
   validation {
