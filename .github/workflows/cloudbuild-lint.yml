@@ -25,12 +25,14 @@ on:
     paths:
       - 'rad-ui/automation/cloudbuild*.yaml'
       - 'rad-ui/automation/check_step_arg_limits.py'
+      - 'rad-ui/automation/scripts/*.sh'
       - '.github/workflows/cloudbuild-lint.yml'
   pull_request:
     branches: [main]
     paths:
       - 'rad-ui/automation/cloudbuild*.yaml'
       - 'rad-ui/automation/check_step_arg_limits.py'
+      - 'rad-ui/automation/scripts/*.sh'
       - '.github/workflows/cloudbuild-lint.yml'
   workflow_dispatch:
 
@@ -58,3 +60,27 @@ jobs:
       # arguments and no working-directory juggling.
       - name: Check Cloud Build step arg limits and volume usage
         run: python3 rad-ui/automation/check_step_arg_limits.py
+
+  pipeline-scripts:
+    name: Pipeline shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # These run inside Cloud Build, where a syntax error fails the deploy at
+      # runtime with a bare non-zero exit and no indication of which line.
+      - name: Syntax-check every pipeline script
+        run: |
+          for f in rad-ui/automation/scripts/*.sh; do
+            bash -n "$f" || exit 1
+          done
+
+      # wait_for_sql_instance_ready is a polling loop with a timeout that runs
+      # only in the rare Cloud SQL self-heal path — it cannot be exercised by a
+      # normal staging deploy, so it is tested directly.
+      - name: Run pipeline script tests
+        run: |
+          chmod +x rad-ui/automation/scripts/*_test.sh
+          for t in rad-ui/automation/scripts/*_test.sh; do
+            "$t" || exit 1
+          done

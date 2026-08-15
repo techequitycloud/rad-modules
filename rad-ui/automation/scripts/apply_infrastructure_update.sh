@@ -69,6 +69,65 @@ trap persist_state_to_gcs EXIT
 # behavior removed below for the Medusa incident: it only retries once
 # actual orphaned state has been found and fixed, which changes what the
 # next apply will do.
+# Cloud SQL exists long before it is USABLE. An instance reports back to
+# `tofu import` the moment it appears, but stays PENDING_CREATE for minutes
+# afterwards and rejects every mutation until it reaches RUNNABLE:
+#
+#   Error: failed to update root_password : googleapi: Error 400:
+#   Invalid request since instance is not running., invalid
+#
+# That is exactly what happened on 2026-08-15 to Services_GCP a24f4c5c. The
+# import above worked perfectly — the orphan was found and adopted — and the
+# immediate re-plan/apply then died on the root_password update because the
+# instance it had just adopted was ~2 minutes old. Its twin fbd3f59f, created
+# THREE SECONDS earlier in another project from identical config, succeeded;
+# the only difference was how long Cloud SQL took to report ready.
+#
+# So the import fixed the state problem and inherited the timing problem. For
+# a bucket or a service account "exists" and "usable" are the same instant;
+# for Cloud SQL they are not, and this is the one resource the self-heal
+# adopts where that gap is minutes wide.
+#
+# Refreshed through OpenTofu rather than `gcloud sql instances describe`: the
+# provider authenticates by impersonating rad-module-creator into the tenant
+# project (see each module's provider-auth.tf), and the build's own identity
+# has no standing access there. `-refresh-only` reuses that same credential
+# and needs no gcloud in the image — which this script otherwise never calls.
+#
+# Best-effort by design: on timeout it logs and proceeds to the retry anyway,
+# because a slow-but-eventually-ready instance and a genuinely broken one look
+# identical from here, and hanging the build helps neither.
+SQL_READY_TIMEOUT_SECONDS=${SQL_READY_TIMEOUT_SECONDS:-900}
+SQL_READY_POLL_SECONDS=${SQL_READY_POLL_SECONDS:-30}
+
+wait_for_sql_instance_ready() {
+    local addr="$1"
+    local started=$SECONDS
+    local state=""
+
+    while [ $(( SECONDS - started )) -lt "$SQL_READY_TIMEOUT_SECONDS" ]; do
+        # Re-read the live resource with the provider's own (impersonated)
+        # credentials. Failures are non-fatal: a transient read must not turn
+        # a recoverable wait into a hard stop.
+        tofu apply -refresh-only -auto-approve -input=false -target="$addr" \
+            >/tmp/sql_ready_refresh.txt 2>&1 || true
+
+        state=$(tofu state show -no-color "$addr" 2>/dev/null \
+            | awk -F'"' '/^[[:space:]]*state[[:space:]]*=/ { print $2; exit }')
+
+        if [ "$state" = "RUNNABLE" ]; then
+            log "   ✅ $addr is RUNNABLE after $(( SECONDS - started ))s"
+            return 0
+        fi
+
+        log "   ⏳ $addr is ${state:-unknown} — waiting for RUNNABLE ($(( SECONDS - started ))s elapsed)"
+        sleep "$SQL_READY_POLL_SECONDS"
+    done
+
+    log "   ⚠️  $addr still ${state:-unknown} after ${SQL_READY_TIMEOUT_SECONDS}s — retrying the apply anyway"
+    return 1
+}
+
 self_heal_orphaned_creates() {
     if ! grep -qiE "Error waiting for (creating|Create)" /tmp/apply_output.txt 2>/dev/null; then
         return 1
@@ -78,6 +137,9 @@ self_heal_orphaned_creates() {
 
     local healed=false
     local addr name project location
+    # Addresses adopted this round that need a readiness wait before the
+    # re-apply touches them. Only Cloud SQL: see wait_for_sql_instance_ready.
+    local sql_imported=
     for addr in $(tofu show -json tfplan | jq -r '.resource_changes[]? | select(.change.actions == ["create"]) | .address'); do
         case "$addr" in
             google_sql_database_instance.*)
@@ -88,6 +150,7 @@ self_heal_orphaned_creates() {
                     if tofu import "$addr" "$project/$name" >/tmp/self_heal_import.txt 2>&1; then
                         log "   ✅ Imported $addr — it already existed live"
                         healed=true
+                        sql_imported="$sql_imported $addr"
                     else
                         log "   ℹ️  $addr not found live (real failure, not orphaned) — leaving as-is"
                     fi
@@ -123,6 +186,15 @@ self_heal_orphaned_creates() {
     done
 
     if [ "$healed" = "true" ]; then
+        # Adopted Cloud SQL instances must be RUNNABLE before the retry, or the
+        # apply fails on the first mutation it attempts against them.
+        if [ -n "$sql_imported" ]; then
+            log "⏳ Waiting for adopted Cloud SQL instance(s) to become RUNNABLE before retrying..."
+            for addr in $sql_imported; do
+                wait_for_sql_instance_ready "$addr" || true
+            done
+        fi
+
         log "🔄 Re-planning with the imported resource(s) before retrying apply..."
         set +e
         tofu plan -input=false -out=tfplan -detailed-exitcode
