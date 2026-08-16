@@ -223,6 +223,41 @@ steps:
         local attempt_log=/workspace/destroy_attempt.log
         local state_repaired=false
 
+        # Reconcile state with reality BEFORE the first attempt, not only before
+        # a retry.
+        #
+        # A resource that GCP has already removed but state still lists is
+        # planned for deletion, and the provider answers 404. That is an error,
+        # not a no-op, so the destroy fails — and because the failure changes
+        # nothing, every subsequent attempt fails identically. The deployment
+        # can never be deleted, and each try bills a full build.
+        #
+        # Confirmed live 2026-08-17 on Odoo_CloudRun 32cb8424: its three buckets
+        # were deleted at 23:29 during the destroy itself, then the same destroy
+        # ended at 23:32 with three
+        #   "Error 404: The specified bucket does not exist., notFound"
+        # and left all three in state at serial 18. The only managed resources
+        # left were those buckets and some null_resources, so the deployment was
+        # wedged on three objects that no longer existed anywhere.
+        #
+        # A refresh is the right instrument precisely because it is the
+        # PROVIDER's own read that decides. The alternative — matching the 404
+        # text and running `tofu state rm` — would have this build's bash decide
+        # that a resource is gone, and being wrong in that direction orphans live
+        # infrastructure with no record of it. Terraform drops a resource on a
+        # confirmed not-found and FAILS the refresh on an ambiguous error, which
+        # is the conservative half of the choice, made by the component that
+        # actually knows.
+        #
+        # There was already a refresh here — but only on the path before a
+        # RETRY, and max_attempts is 1, so it had never once run. Non-fatal on
+        # purpose: with a GKE cluster already gone the Kubernetes provider cannot
+        # be reached, and refusing to destroy because the refresh was incomplete
+        # would block the very cleanup that resolves it.
+        log "🔄 Reconciling state with live infrastructure before destroying..."
+        tofu apply -refresh-only -auto-approve \
+            || log "⚠️  State refresh incomplete — continuing; destroy will report anything genuinely stuck"
+
         while [ $$attempt -le $$max_attempts ]; do
             log "💥 Destroy attempt $$attempt of $$max_attempts"
 
@@ -272,6 +307,17 @@ steps:
                     log "   Cause: GCP has not yet released resources this destroy needs."
                     log "   serverless-ipv4-* addresses are freed 20-30 min AFTER the Cloud Run"
                     log "   services using them are deleted. Wait for that, then delete again."
+                fi
+                # Should now be unreachable — the pre-destroy refresh above drops
+                # anything the provider reports as already gone. If it still
+                # appears, the refresh did not cover this resource, and saying so
+                # is what stops the next reader diagnosing a GCP fault: retrying
+                # cannot help, because nothing about the situation changes.
+                if grep -qiE 'Error 404: The specified bucket does not exist|404.*notFound' "$$attempt_log" 2>/dev/null; then
+                    log "   Cause: state lists a resource that no longer exists in GCP, so its"
+                    log "   deletion returns 404. Retrying will fail identically. The pre-destroy"
+                    log "   refresh should have reconciled this — check whether it reported an"
+                    log "   incomplete refresh above, or contact support for assistance."
                 fi
                 log "🔍 Checking for remaining resources..."
                 tofu show -json 2>/dev/null | jq -r '.values.root_module.resources[]?.address // empty' | head -10 || log "Unable to list remaining resources"
