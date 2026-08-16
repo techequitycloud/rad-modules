@@ -128,11 +128,21 @@ wait_for_sql_instance_ready() {
 }
 
 self_heal_orphaned_creates() {
-    if ! grep -qiE "Error waiting for (creating|Create)" /tmp/apply_output.txt 2>/dev/null; then
+    # ONE orphan, TWO symptoms, in two different applies -- and this gate used
+    # to recognise only the first. See the matching comment in
+    # apply_infrastructure_update.sh for the full account; kept in sync here
+    # because the CREATE path can hit the same 409 on a retry of a create that
+    # partially succeeded.
+    #
+    #   apply N    create wait times out AFTER the resource is already live
+    #              -> "Error waiting for Create"        (orphan is CREATED)
+    #   apply N+1  config plans a create for a resource that already exists
+    #              -> "Error 409: ... already own it"   (orphan is REDISCOVERED)
+    if ! grep -qiE "Error waiting for (creating|Create)|already own it|Error 409:.*already exists" /tmp/apply_output.txt 2>/dev/null; then
         return 1
     fi
 
-    log "🔎 'Create wait' failure detected — checking whether the resource actually finished live before giving up..."
+    log "🔎 Orphaned-create signature detected (create-wait timeout or 409 conflict) — checking whether the resource actually exists live before giving up..."
 
     local healed=false
     local addr name project location

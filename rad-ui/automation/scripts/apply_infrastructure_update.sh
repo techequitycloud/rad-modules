@@ -129,11 +129,41 @@ wait_for_sql_instance_ready() {
 }
 
 self_heal_orphaned_creates() {
-    if ! grep -qiE "Error waiting for (creating|Create)" /tmp/apply_output.txt 2>/dev/null; then
+    # ONE orphan, TWO symptoms, in two different applies -- and this gate used
+    # to recognise only the first.
+    #
+    #   apply N    the create wait times out AFTER the resource is already live
+    #              -> "Error waiting for Create"        (orphan is CREATED)
+    #   apply N+1  the config plans a create for a resource that already exists
+    #              -> "Error 409: ... already own it"   (orphan is REDISCOVERED)
+    #
+    # The remedy is identical in both cases -- import the live resource -- and
+    # the import branches below already cover bucket, cluster and SQL instance.
+    # But an orphan that survived into a LATER apply could never reach them,
+    # because the second symptom never matched. So the self-heal could only fix
+    # an orphan in the same apply that produced it, which is the one case where
+    # a human is least likely to be waiting.
+    #
+    # Confirmed live 2026-08-16 on Odoo_CloudRun a0b84a92 (gcp-rad-dev-c005ec73):
+    # all three of its buckets were created at 22:26:49-50, but only
+    # gcs-odoodemodfbf1ea1-addons was missing from state -- state serial 10 held
+    # buckets["data"] and backup_bucket[0] and nothing else. A later apply
+    # therefore planned a create for a bucket that existed, failed 409, and the
+    # google_storage_bucket import branch twenty lines below -- the exact fix --
+    # was never reached.
+    #
+    # The 409 texts are matched specifically rather than by a bare
+    # "already exists": GCS bucket names are GLOBALLY unique, so
+    # "you already own it" is the storage API stating ownership, not a name
+    # collision with another tenant. Where ownership is not asserted, the import
+    # itself is still the safety net -- it only ever adopts a resource this
+    # config planned to create and that tofu can actually read, and a resource
+    # belonging to someone else fails the import and is left alone.
+    if ! grep -qiE "Error waiting for (creating|Create)|already own it|Error 409:.*already exists" /tmp/apply_output.txt 2>/dev/null; then
         return 1
     fi
 
-    log "🔎 'Create wait' failure detected — checking whether the resource actually finished live before giving up..."
+    log "🔎 Orphaned-create signature detected (create-wait timeout or 409 conflict) — checking whether the resource actually exists live before giving up..."
 
     local healed=false
     local addr name project location
