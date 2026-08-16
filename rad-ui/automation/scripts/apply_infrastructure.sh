@@ -149,9 +149,26 @@ self_heal_orphaned_creates() {
     # Addresses adopted this round that need a readiness wait before the
     # re-apply touches them. Only Cloud SQL: see wait_for_sql_instance_ready.
     local sql_imported=
+    # `set -f` because a plan address for a for_each resource carries brackets --
+    # buckets["addons"] -- and an unquoted $(...) expansion is subject to pathname
+    # expansion, where [...] is a character class. A stray matching filename would
+    # silently rewrite the address.
+    set -f
     for addr in $(tofu show -json tfplan | jq -r '.resource_changes[]? | select(.change.actions == ["create"]) | .address'); do
+        # Leading * because these are MODULE-RELATIVE addresses. The patterns were
+        # anchored at the root, e.g. `google_storage_bucket.*`, but nothing in this
+        # catalogue is declared at the root: the real address is
+        #   module.app_cloudrun.module.app_storage.module.app_storage.google_storage_bucket.buckets["addons"]
+        # so no case arm ever matched and the self-heal returned having healed
+        # nothing -- while logging that it was checking. Confirmed live 2026-08-17
+        # on Odoo_CloudRun a0b84a92: the gate opened, the loop ran, and the apply
+        # still failed 4s later with the bucket sitting there live.
+        #
+        # `*google_storage_bucket.*` cannot over-match a sibling type: it requires
+        # the type name followed by a literal dot, so google_storage_bucket_object
+        # and google_storage_bucket_iam_member are still correctly ignored.
         case "$addr" in
-            google_sql_database_instance.*)
+            *google_sql_database_instance.*)
                 name=$(tofu show -json tfplan | jq -r --arg a "$addr" '.resource_changes[] | select(.address==$a) | .change.after.name')
                 project=$(tofu show -json tfplan | jq -r --arg a "$addr" '.resource_changes[] | select(.address==$a) | .change.after.project')
                 if [ -n "$name" ] && [ "$name" != "null" ] && [ -n "$project" ] && [ "$project" != "null" ]; then
@@ -165,7 +182,7 @@ self_heal_orphaned_creates() {
                     fi
                 fi
                 ;;
-            google_container_cluster.*)
+            *google_container_cluster.*)
                 name=$(tofu show -json tfplan | jq -r --arg a "$addr" '.resource_changes[] | select(.address==$a) | .change.after.name')
                 project=$(tofu show -json tfplan | jq -r --arg a "$addr" '.resource_changes[] | select(.address==$a) | .change.after.project')
                 location=$(tofu show -json tfplan | jq -r --arg a "$addr" '.resource_changes[] | select(.address==$a) | .change.after.location')
@@ -179,7 +196,7 @@ self_heal_orphaned_creates() {
                     fi
                 fi
                 ;;
-            google_storage_bucket.*)
+            *google_storage_bucket.*)
                 name=$(tofu show -json tfplan | jq -r --arg a "$addr" '.resource_changes[] | select(.address==$a) | .change.after.name')
                 if [ -n "$name" ] && [ "$name" != "null" ]; then
                     log "   Trying import: $addr <- $name"
@@ -193,6 +210,8 @@ self_heal_orphaned_creates() {
                 ;;
         esac
     done
+    # Globbing stays off through the sql_imported loop below, which iterates the
+    # same bracket-bearing addresses, and is restored once both are done.
 
     if [ "$healed" = "true" ]; then
         # Adopted Cloud SQL instances must be RUNNABLE before the retry, or the
@@ -204,12 +223,14 @@ self_heal_orphaned_creates() {
             done
         fi
 
+        set +f
         log "🔄 Re-planning with the imported resource(s) before retrying apply..."
         set +e
         tofu plan -input=false -out=tfplan -detailed-exitcode
         set -e
         return 0
     fi
+    set +f
     return 1
 }
 
