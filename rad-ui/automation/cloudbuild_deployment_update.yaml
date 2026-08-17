@@ -311,65 +311,48 @@ steps:
         *)
             log "❌ Planning failed with exit code: $$PLAN_EXIT_CODE"
 
-            # A dependency cycle names its MEMBERS but never the EDGE that
-            # closed it, and with 200+ members that is not enough to act on.
-            # Terraform will say which edges it added -- but only at core debug,
-            # which is far too noisy to run on every deployment. So it runs only
-            # here, only after a cycle has already been reported, and costs a
-            # normal deployment nothing.
+            # Cycle diagnosis and two-phase recovery live in
+            # /pipeline/handle_plan_cycle.sh, NOT here. Cloud Build caps a step
+            # arg at 10,000 chars and rejects the whole build config above it --
+            # no build is created at all, the deployment just reads
+            # INTERNAL_ERROR with nothing in the console to inspect. Inlining
+            # this logic took the step to 12,429 chars and broke UPDATE for
+            # every module until it was reverted (#977 -> #978). Keep it thin.
             #
-            # TF_LOG_CORE, deliberately, NOT TF_LOG. Plain TF_LOG=debug also
-            # enables PROVIDER logging, which writes request and response bodies
-            # -- that is how secret values end up in a build log. The graph is
-            # built by core; the providers have nothing to say about it.
-            #
-            # The full log is uploaded rather than only printed: the useful part
-            # is the reference graph, which is far larger than a sensible number
-            # of inline lines. It lands beside this deployment's existing
-            # terraform.tfvars.json, i.e. inside a trust boundary that already
-            # holds this deployment's variables, so it introduces no new
-            # exposure.
-            # Strip ANSI before matching. Terraform colourises the word "Error:"
-            # SEPARATELY from the message that follows, so the raw bytes read
+            # Strip ANSI first: Terraform colourises "Error:" SEPARATELY from the
+            # message after it, so raw bytes read
             #   ESC[31mError: ESC[0mESC[1mCycle: module...
-            # and a grep for the literal "Error: Cycle" matches NOTHING. That is
-            # not a hypothesis: this block silently failed to fire on build
-            # c0216e05 for exactly that reason, and `grep -c "Error: Cycle"` over
-            # the raw 953KB log returns 0 while `grep "Cycle:"` matches.
-            #
-            # -a because the escape bytes make grep treat the log as binary and
-            # suppress output.
+            # and a grep for the literal "Error: Cycle" matches NOTHING. This
+            # silently failed to fire on build c0216e05 for exactly that reason.
             sed -e 's/\x1b\[[0-9;]*m//g' /workspace/plan_output.log \
                 > /workspace/plan_output.clean.log 2>/dev/null || true
-            if grep -qa "Error: Cycle" /workspace/plan_output.clean.log 2>/dev/null; then
-                log "🔎 Dependency cycle reported — re-running the plan with core debug to capture the EDGES..."
+
+            # Exit 0 means it recovered and rewrote tfplan; anything else means
+            # fail the build as before.
+            RECOVERED=0
+            if [ -x /pipeline/handle_plan_cycle.sh ]; then
                 set +e
-                TF_LOG_CORE=debug \
-                TF_LOG_PROVIDER=off \
-                TF_LOG_PATH=/workspace/tf_cycle_debug.log \
-                    tofu plan -input=false -out=tfplan-cycle-debug >/dev/null 2>&1
+                /pipeline/handle_plan_cycle.sh \
+                    /workspace/plan_output.clean.log \
+                    "${_MODULE_NAME}" "${_DEPLOYMENT_ID}" "${_DEPLOYMENT_BUCKET_ID}"
+                [ $$? -eq 0 ] && RECOVERED=1
                 set -e
-
-                if [ -s /workspace/tf_cycle_debug.log ]; then
-                    DEBUG_URI="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/update/${_MODULE_NAME}/${_DEPLOYMENT_ID}/tf_cycle_debug.log"
-                    gsutil -q cp /workspace/tf_cycle_debug.log "$$DEBUG_URI" \
-                        && log "   Full graph log: $$DEBUG_URI" \
-                        || log "   ⚠️  Could not upload the graph log; the inline extract below is all there is."
-
-                    log "   --- edges referencing the cycle (last 80) ---"
-                    grep -E "ReferenceTransformer|adding edge" /workspace/tf_cycle_debug.log \
-                        | tail -80 || true
-                    log "   --- end extract ---"
-                else
-                    log "   ⚠️  Core debug produced no log; the cycle may have been reported before graph construction."
-                fi
             fi
 
-            exit 1
+            if [ "$$RECOVERED" -eq 1 ]; then
+                PLAN_EXIT_CODE=2
+            else
+                exit 1
+            fi
             ;;
     esac
 
     log "✅ Initialization and planning completed"
+  # Step 0 wipes /workspace, so handle_plan_cycle.sh is read from this shared
+  # volume, which step 0 copied the whole scripts directory into.
+  volumes:
+  - name: 'pipeline-scripts'
+    path: '/pipeline'
   dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Apply Infrastructure Changes'
