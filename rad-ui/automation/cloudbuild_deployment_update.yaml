@@ -329,7 +329,19 @@ steps:
             # terraform.tfvars.json, i.e. inside a trust boundary that already
             # holds this deployment's variables, so it introduces no new
             # exposure.
-            if grep -q "Error: Cycle" /workspace/plan_output.log 2>/dev/null; then
+            # Strip ANSI before matching. Terraform colourises the word "Error:"
+            # SEPARATELY from the message that follows, so the raw bytes read
+            #   ESC[31mError: ESC[0mESC[1mCycle: module...
+            # and a grep for the literal "Error: Cycle" matches NOTHING. That is
+            # not a hypothesis: this block silently failed to fire on build
+            # c0216e05 for exactly that reason, and `grep -c "Error: Cycle"` over
+            # the raw 953KB log returns 0 while `grep "Cycle:"` matches.
+            #
+            # -a because the escape bytes make grep treat the log as binary and
+            # suppress output.
+            sed -e 's/\x1b\[[0-9;]*m//g' /workspace/plan_output.log \
+                > /workspace/plan_output.clean.log 2>/dev/null || true
+            if grep -qa "Error: Cycle" /workspace/plan_output.clean.log 2>/dev/null; then
                 log "🔎 Dependency cycle reported — re-running the plan with core debug to capture the EDGES..."
                 set +e
                 TF_LOG_CORE=debug \
