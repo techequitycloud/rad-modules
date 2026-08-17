@@ -172,6 +172,10 @@ if [ "$TARGET_COUNT" -gt 40 ]; then
     exit 1
 fi
 
+# The authorised set, written where the safety gate below can read it. This is
+# what "destroys nothing the successful apply would not have" is checked against.
+printf '%s\n' "$DELETE_TARGETS" > /workspace/allowed_targets.txt
+
 log "   🔁 Applying $TARGET_COUNT target(s) first, then re-planning."
 log "      Deletions the full apply had already planned, plus the prior"
 log "      address of any moved instance (which a targeted plan must cover):"
@@ -182,7 +186,55 @@ while IFS= read -r ADDR; do
     [ -n "$ADDR" ] && TARGET_ARGS+=("-target=$ADDR")
 done <<< "$DELETE_TARGETS"
 
-tofu apply -input=false -auto-approve "${TARGET_ARGS[@]}" 2>&1 | tail -40
+# `tofu plan -destroy`, NOT `tofu apply -target`. This is the whole point and it
+# is easy to get wrong: `apply -target=X` means "do whatever is needed to make X
+# correct", which INCLUDES CREATING X's dependencies. Targeting the deletions
+# therefore pulled the CI/CD creates back into the graph and rebuilt the very
+# cycle this exists to avoid — observed on build 2ab1f6a0, where the targeted
+# apply produced a 30-node cycle whose members were the two base-job destroys
+# plus module.app_iam/app_secrets/app_build CREATE nodes.
+#
+# `plan -destroy` builds a destroy-ONLY graph. Every node in that cycle except
+# the two destroys was a create, so it cannot form here.
+log "   Planning the teardown (destroy-only graph)..."
+tofu plan -destroy -input=false -out=teardown.tfplan "${TARGET_ARGS[@]}" >/dev/null 2>&1
+PLAN_D_EXIT=$?
+
+if [ "$PLAN_D_EXIT" -ne 0 ]; then
+    log "   ❌ Teardown plan failed (exit $PLAN_D_EXIT); nothing has been destroyed."
+    exit 1
+fi
+
+# SAFETY GATE. `-target` on a destroy also takes everything DEPENDING on the
+# target, so the destroy set can legitimately be larger than what was asked for.
+# Anything outside the set the full apply had already planned to delete is a
+# resource we were never authorised to destroy, so refuse rather than widen.
+# Nothing has been destroyed at this point — this runs against the PLAN.
+tofu show -json teardown.tfplan > /workspace/teardown.json 2>/dev/null || true
+UNEXPECTED=$(python3 - <<'PY' 2>/dev/null || true
+import json
+try:
+    plan = json.load(open("/workspace/teardown.json"))
+    allowed = set(l.strip() for l in open("/workspace/allowed_targets.txt") if l.strip())
+except Exception:
+    raise SystemExit(0)
+for rc in plan.get("resource_changes", []):
+    if "delete" in rc.get("change", {}).get("actions", []):
+        addr = rc["address"]
+        if addr not in allowed and rc.get("previous_address") not in allowed:
+            print(addr)
+PY
+)
+
+if [ -n "$UNEXPECTED" ]; then
+    log "   ⛔ The teardown plan would destroy resources the full apply had NOT"
+    log "      planned to delete. Refusing — nothing has been destroyed:"
+    printf '%s\n' "$UNEXPECTED" | sed 's/^/        ! /'
+    exit 1
+fi
+
+log "   Teardown plan verified: it destroys only already-planned deletions."
+tofu apply -input=false -auto-approve teardown.tfplan 2>&1 | tail -40
 PHASE1_EXIT=${PIPESTATUS[0]}
 
 if [ "$PHASE1_EXIT" -ne 0 ]; then
