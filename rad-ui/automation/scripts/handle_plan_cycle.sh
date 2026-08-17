@@ -121,15 +121,43 @@ try:
     plan = json.load(open("/workspace/tfplan.json"))
 except Exception:
     raise SystemExit(0)
+
+targets = []
 for rc in plan.get("resource_changes", []):
     if rc.get("change", {}).get("actions") == ["delete"]:
-        print(rc["address"])
+        targets.append(rc["address"])
+
+    # A `moved` block renames an instance, and a TARGETED plan must cover BOTH
+    # addresses or OpenTofu refuses outright:
+    #
+    #   Error: Moved resource instances excluded by targeting
+    #     ... add the following additional target options:
+    #       -target="module.app_cloudrun.terraform_data.mirror_image"
+    #
+    # Hit for real on build 174df703: partner-modules #2755 gave
+    # terraform_data.mirror_image a count, so state carries the un-indexed
+    # address while the plan carries [0]. Targeting only the new one aborted
+    # the teardown before it destroyed anything.
+    #
+    # Taken from the plan rather than hardcoded, so this needs no maintenance
+    # as `moved` blocks come and go. Every moved instance is covered, not only
+    # the deleted ones — the requirement is about the MOVE, not the action.
+    prev = rc.get("previous_address")
+    if prev and prev != rc.get("address"):
+        targets.append(prev)
+
+# Deduplicate but keep order stable, so the logged list reads predictably.
+seen = set()
+for t in targets:
+    if t not in seen:
+        seen.add(t)
+        print(t)
 PY
 )
 
-DELETE_COUNT=$(printf '%s\n' "$DELETE_TARGETS" | grep -c . || true)
+TARGET_COUNT=$(printf '%s\n' "$DELETE_TARGETS" | grep -c . || true)
 
-if [ "$DELETE_COUNT" -eq 0 ]; then
+if [ "$TARGET_COUNT" -eq 0 ]; then
     log "   ℹ️  No pure deletions in the plan, so this cycle is not a topology"
     log "      swap and this recovery does not apply."
     exit 1
@@ -138,14 +166,15 @@ fi
 # A runaway guard. The transition this was written for destroys 13; a different
 # order of magnitude means the plan is not the one this handles, and a human
 # should look before anything is destroyed automatically.
-if [ "$DELETE_COUNT" -gt 40 ]; then
-    log "   ⛔ $DELETE_COUNT deletions is beyond the expected range for a feature"
+if [ "$TARGET_COUNT" -gt 40 ]; then
+    log "   ⛔ $TARGET_COUNT targets is beyond the expected range for a feature"
     log "      toggle. Refusing to auto-recover — please review the plan."
     exit 1
 fi
 
-log "   🔁 Applying $DELETE_COUNT deletion(s) first, then re-planning."
-log "      These are deletions the full apply had already planned:"
+log "   🔁 Applying $TARGET_COUNT target(s) first, then re-planning."
+log "      Deletions the full apply had already planned, plus the prior"
+log "      address of any moved instance (which a targeted plan must cover):"
 printf '%s\n' "$DELETE_TARGETS" | sed 's/^/        - /'
 
 TARGET_ARGS=()
