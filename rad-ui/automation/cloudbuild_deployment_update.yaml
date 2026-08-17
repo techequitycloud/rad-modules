@@ -293,10 +293,12 @@ steps:
 
     log "📋 Generating execution plan..."
 
-    # Generate plan with detailed exit code
+    # Generate plan with detailed exit code.
+    # tee so the output can be inspected for the cycle signature below;
+    # PIPESTATUS[0] because $$? would be tee's status, not tofu's.
     set +e
-    tofu plan -input=false -out=tfplan -detailed-exitcode
-    PLAN_EXIT_CODE=$$?
+    tofu plan -input=false -out=tfplan -detailed-exitcode 2>&1 | tee /workspace/plan_output.log
+    PLAN_EXIT_CODE=$${PIPESTATUS[0]}
     set -e
 
     case $$PLAN_EXIT_CODE in
@@ -308,6 +310,49 @@ steps:
             ;;
         *)
             log "❌ Planning failed with exit code: $$PLAN_EXIT_CODE"
+
+            # A dependency cycle names its MEMBERS but never the EDGE that
+            # closed it, and with 200+ members that is not enough to act on.
+            # Terraform will say which edges it added -- but only at core debug,
+            # which is far too noisy to run on every deployment. So it runs only
+            # here, only after a cycle has already been reported, and costs a
+            # normal deployment nothing.
+            #
+            # TF_LOG_CORE, deliberately, NOT TF_LOG. Plain TF_LOG=debug also
+            # enables PROVIDER logging, which writes request and response bodies
+            # -- that is how secret values end up in a build log. The graph is
+            # built by core; the providers have nothing to say about it.
+            #
+            # The full log is uploaded rather than only printed: the useful part
+            # is the reference graph, which is far larger than a sensible number
+            # of inline lines. It lands beside this deployment's existing
+            # terraform.tfvars.json, i.e. inside a trust boundary that already
+            # holds this deployment's variables, so it introduces no new
+            # exposure.
+            if grep -q "Error: Cycle" /workspace/plan_output.log 2>/dev/null; then
+                log "🔎 Dependency cycle reported — re-running the plan with core debug to capture the EDGES..."
+                set +e
+                TF_LOG_CORE=debug \
+                TF_LOG_PROVIDER=off \
+                TF_LOG_PATH=/workspace/tf_cycle_debug.log \
+                    tofu plan -input=false -out=tfplan-cycle-debug >/dev/null 2>&1
+                set -e
+
+                if [ -s /workspace/tf_cycle_debug.log ]; then
+                    DEBUG_URI="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/update/${_MODULE_NAME}/${_DEPLOYMENT_ID}/tf_cycle_debug.log"
+                    gsutil -q cp /workspace/tf_cycle_debug.log "$$DEBUG_URI" \
+                        && log "   Full graph log: $$DEBUG_URI" \
+                        || log "   ⚠️  Could not upload the graph log; the inline extract below is all there is."
+
+                    log "   --- edges referencing the cycle (last 80) ---"
+                    grep -E "ReferenceTransformer|adding edge" /workspace/tf_cycle_debug.log \
+                        | tail -80 || true
+                    log "   --- end extract ---"
+                else
+                    log "   ⚠️  Core debug produced no log; the cycle may have been reported before graph construction."
+                fi
+            fi
+
             exit 1
             ;;
     esac
