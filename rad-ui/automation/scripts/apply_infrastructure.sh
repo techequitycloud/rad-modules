@@ -196,6 +196,54 @@ self_heal_orphaned_creates() {
                     fi
                 fi
                 ;;
+            *google_cloud_quotas_quota_preference.*)
+                # DIFFERENT IN KIND from the three above, and that is the whole
+                # reason it needs its own arm rather than another name lookup.
+                #
+                # A quota preference's name is SERVER-GENERATED (a UUID), so the
+                # plan cannot supply it: `.change.after.name` is null for a
+                # create. The import id therefore has to be DISCOVERED, by
+                # listing the container's preferences and matching the identity
+                # the config does know -- service + quota_id + dimensions.
+                #
+                # It also cannot be fixed the way every earlier orphan was. The
+                # Cloud Quotas API has NO DELETE, so "remove it and let Terraform
+                # recreate it" is unavailable: an orphan here is permanent until
+                # imported, and every subsequent apply of that project fails on
+                # it. Confirmed live 2026-08-18 on gcp-rad-prod-8070009f, where
+                # 7 of 8 CPUS-per-project-region preferences were in state and
+                # northamerica-south1 was live-but-orphaned, blocking the whole
+                # Project_GCP apply with "Quota Preference with dimension '{}'
+                # already exist".
+                #
+                # Location is always `global` in the import id even for a
+                # region-dimensioned preference -- the region lives in
+                # dimensions, not in the path. The provider accepts only
+                # `<parent>/locations/global/quotaPreferences/<name>`.
+                qp_parent=$(tofu show -json tfplan | jq -r --arg a "$addr" '.resource_changes[] | select(.address==$a) | .change.after.parent')
+                qp_service=$(tofu show -json tfplan | jq -r --arg a "$addr" '.resource_changes[] | select(.address==$a) | .change.after.service')
+                qp_quota=$(tofu show -json tfplan | jq -r --arg a "$addr" '.resource_changes[] | select(.address==$a) | .change.after.quota_id')
+                qp_dims=$(tofu show -json tfplan | jq -c --arg a "$addr" '.resource_changes[] | select(.address==$a) | (.change.after.dimensions // {})')
+                if [ -n "$qp_parent" ] && [ "$qp_parent" != "null" ] && [ -n "$qp_quota" ] && [ "$qp_quota" != "null" ]; then
+                    qp_token=$(gcloud auth print-access-token 2>/dev/null)
+                    qp_name=$(curl -s -H "Authorization: Bearer $qp_token" \
+                        "https://cloudquotas.googleapis.com/v1/$qp_parent/locations/global/quotaPreferences?pageSize=500" \
+                        | jq -r --arg s "$qp_service" --arg q "$qp_quota" --argjson d "$qp_dims" \
+                          '[.quotaPreferences[]? | select(.service==$s and .quotaId==$q and ((.dimensions // {}) == $d))][0].name // empty' \
+                        | awk -F/ '{print $NF}')
+                    if [ -n "$qp_name" ]; then
+                        log "   Trying import: $addr <- $qp_parent/locations/global/quotaPreferences/$qp_name"
+                        if tofu import "$addr" "$qp_parent/locations/global/quotaPreferences/$qp_name" >/tmp/self_heal_import.txt 2>&1; then
+                            log "   ✅ Imported $addr — it already existed live"
+                            healed=true
+                        else
+                            log "   ℹ️  $addr could not be imported — leaving as-is"
+                        fi
+                    else
+                        log "   ℹ️  No live quota preference matches $qp_quota $qp_dims (real failure, not orphaned) — leaving as-is"
+                    fi
+                fi
+                ;;
             *google_storage_bucket.*)
                 name=$(tofu show -json tfplan | jq -r --arg a "$addr" '.resource_changes[] | select(.address==$a) | .change.after.name')
                 if [ -n "$name" ] && [ "$name" != "null" ]; then
