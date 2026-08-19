@@ -184,6 +184,12 @@ variable "project_id" {
 
 The `updatesafe` tag marks variables whose value can change on an in-place `terraform apply` without forcing resource replacement.
 
+**Its absence is what the platform acts on (2026-08-19).** An unflagged field raises a *"this update will destroy project resources"* confirmation when edited on an existing deployment, and is read-only when the admin setting **Enforce Update Safe** is on. The webapp's matcher previously looked for a token no module writes, so the flag had never been read and wrong ones accumulated — `region` carried it in 422 modules catalogue-wide.
+
+An over-generous flag is a **silent data-loss path**; a missing one merely warns. **When in doubt, leave it off**, and check with `rad-automation/scripts/check_updatesafe_flags.py`. Beyond "forces replacement", two traps: a variable in a resource's `count`/`for_each` **condition** gates that resource's existence (turning it off destroys it), and a comparison against a **literal** is a mode switch that destroys on any change, while a comparison against **emptiness** only destroys when the value is cleared.
+
+The sibling `notradmanaged` tag **removes** the variable from the form in a RAD-managed project and reverts it server-side — for settings that reach past the tenant's own project into RAD's organisation (VPC Service Controls, Security Command Center, Workload Identity Federation). Its module default must be benign, because that is what the server reverts to.
+
 The `module_documentation` variable (group 0, order 1) holds a URL to the module's external documentation and is displayed in the platform UI as a help reference. Every module must include it.
 
 ### 3.5 `outputs.tf`

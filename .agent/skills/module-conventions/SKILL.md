@@ -80,7 +80,7 @@ The variables below exist in nearly every module and must keep their exact names
 
 ### UIMeta Tags
 
-Every variable description ends with a `{{UIMeta ...}}` tag (inside the description string, not a comment) that drives UI rendering:
+Every variable description ends with a `{{UIMeta ...}}` tag (inside the description string, not a comment) that drives UI rendering. **A variable with no tag at all has no group and renders VISIBLE** — group 0 is stripped and everything else is shown, so missing metadata fails open rather than closed. Platform-injected values need an explicit `group=0`.
 
 ```hcl
 variable "gcp_region" {
@@ -94,6 +94,12 @@ Parameters:
 - `group=N` — UI panel grouping, corresponding loosely to SECTION (0=Deployment, 1=Project, 2=Network, etc.).
 - `order=NNN` — sort order within the group. Gaps are fine; leave room to insert new variables.
 - `updatesafe` — **presence flag**, not a key=value. Include it for variables that can change in place without recreating the module (e.g. `trusted_users`, `resource_creator_identity`, region-pinned lookups). Omit it for variables that force replacement (e.g. cluster names, network CIDRs).
+
+  **Its ABSENCE is what the platform acts on, as of 2026-08-19.** An unflagged field raises a *"this update will destroy project resources"* confirmation when edited on an existing deployment, and is rendered read-only when the admin setting **Enforce Update Safe** is on. Until then the webapp's matcher looked for a token no module writes, so the flag had never been read by anything and wrong flags accumulated unchecked — `region` carried it in 422 modules across the catalogue.
+
+  The asymmetry settles any doubtful case: an over-generous flag is a **silent data-loss path** (it tells the user an edit is safe when it will replace the resource), while omitting it costs a needless warning. **When in doubt, leave it off.** Two traps beyond "forces replacement": a variable that appears in a resource's `count`/`for_each` **condition** gates that resource's existence, so turning it off destroys it; and a comparison against a **literal** (`var.mode == "custom"`) is a mode switch that destroys on any change, whereas a comparison against **emptiness** (`!= ""`, `!= null`, `length(...) > 0`) only destroys when the value is cleared — the latter keeps the flag. Verify with `rad-automation/scripts/check_updatesafe_flags.py`.
+
+- `notradmanaged` — presence flag. **Removes the variable from the deploy form** when the deployment lands in a RAD-managed project (RAD's own organisation, tier folders, RAD's billing account), and reverts it server-side on update; a customer's own project keeps it. Tag anything that lets the tenant reach past their own project into RAD's organisation — writing an org-scoped resource (`google_access_context_manager_*` has one access policy per ORG; `google_scc_notification_config`), or federating an external identity inward (Workload Identity Federation is project-scoped yet grants an arbitrary external CI system a standing foothold). **The module default must be benign**, because the server reverts a tagged variable to it: a `true` default switches the feature on for every RAD-managed deployment.
 
 Sensitive credentials (`client_secret`, `aws_secret_key`, etc.) must also set `sensitive = true` on the variable itself — the UIMeta tag alone does not mark them secret.
 
