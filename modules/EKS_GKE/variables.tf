@@ -117,7 +117,7 @@ variable "gcp_location" {
 }
 
 variable "aws_region" {
-  description = "AWS region where the EKS cluster, VPC, and supporting resources will be created (e.g. 'us-west-2', 'us-east-1', 'eu-west-1'). Defaults to 'us-west-2'. The subnet_availability_zones must be valid AZs within this region. {{UIMeta group=1 order=103 updatesafe }}"
+  description = "AWS region where the EKS cluster, VPC, and supporting resources will be created (e.g. 'us-west-2', 'us-east-1', 'eu-west-1'). Defaults to 'us-west-2'. The subnet_availability_zones must be valid AZs within this region. {{UIMeta group=1 order=103 }}"
   type        = string
   default     = "us-west-2"
 }
