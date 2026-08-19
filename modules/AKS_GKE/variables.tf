@@ -106,7 +106,7 @@ variable "trusted_users" {
 }
 
 variable "project_id" {
-  description = "GCP project ID of the destination project where the AKS cluster will be registered via GKE Hub (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=100 updatesafe }}"
+  description = "GCP project ID of the destination project where the AKS cluster will be registered via GKE Hub (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=100 }}"
   type        = string
 }
 
