@@ -231,6 +231,40 @@ steps:
         exit 1
     fi
 
+    # A concurrent build for THIS deployment is the one case the lock clear
+    # below must not paper over. Ask Cloud Build directly rather than trusting
+    # the caller-side claim: on 2026-08-19 a solution update published an
+    # UPDATE for four members whose CREATE (released moments earlier by
+    # resolveWaitingDependents when Services_GCP succeeded) was still applying.
+    # Both builds then ran against one state file, the second cleared the
+    # first's lock as "stale", and BOTH failed -- the update on "Saved plan is
+    # stale", the create on "Error releasing the state lock: object doesn't
+    # exist" -- after the create had already built 46 real resources.
+    #
+    # Refusing is better than queueing here: the deployment is left in a
+    # terminal state the operator can retry, rather than two applies silently
+    # interleaving on one state.
+    # `--ongoing` (WORKING + QUEUED) and match the deployment id CLIENT-side.
+    # Filtering server-side on substitutions._DEPLOYMENT_ID scans the whole
+    # build history and times out — measured >150s on this project, which
+    # inside a build step is a hang, not a check. `--ongoing` returns in ~1s
+    # because live builds are few.
+    OTHER_BUILDS=$$(gcloud builds list \
+        --project="${PROJECT_ID}" \
+        --ongoing \
+        --format="value(id,substitutions._DEPLOYMENT_ID)" \
+        --limit=100 2>/dev/null \
+        | awk -v d="${_DEPLOYMENT_ID}" -v self="${BUILD_ID}" '$$2 == d && $$1 != self { print $$1 }' \
+        || true)
+    if [ -n "$$OTHER_BUILDS" ]; then
+        log "❌ Another build for deployment ${_DEPLOYMENT_ID} is already running:"
+        for b in $$OTHER_BUILDS; do log "     $$b"; done
+        log "   Two builds share one Terraform state file, so running both corrupts"
+        log "   the lock and fails them BOTH. Wait for that build to finish, then"
+        log "   retry this deployment from the RAD dashboard."
+        exit 1
+    fi
+
     # Clear a state lock left behind by a previous build for THIS deployment
     # that was hard-killed (Cloud Build timeout, OOM, manual cancellation)
     # before it could release it — GCS backend locking has no automatic
@@ -241,7 +275,9 @@ steps:
     # deployment once the previous one has already reached a terminal
     # Firestore status, itself only set after Cloud Build reports that build
     # as finished — so any process that could still legitimately hold this
-    # lock is already gone by the time this build starts. Confirmed live
+    # lock is already gone by the time this build starts. That premise was
+    # FALSIFIED on 2026-08-19 (see the concurrency check above, which now
+    # verifies it instead of assuming it). Confirmed live
     # 2026-08-06: a Medusa_CloudRun build's Cloud Build timeout orphaned
     # this exact lock and blocked every subsequent retry until manually
     # cleared (found on the update pipeline; applied here too since create
