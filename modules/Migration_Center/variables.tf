@@ -213,7 +213,7 @@ variable "aws_secret_access_key" {
 }
 
 variable "aws_region" {
-  description = "AWS region to discover EC2 instances from (e.g. 'us-east-1'). {{UIMeta group=8 order=805 updatesafe }}"
+  description = "AWS region to discover EC2 instances from (e.g. 'us-east-1'). {{UIMeta group=8 order=805 }}"
   type        = string
   default     = "us-east-1"
 }
