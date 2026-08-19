@@ -111,13 +111,13 @@ variable "project_id" {
 }
 
 variable "gcp_location" {
-  description = "GCP region where the AKS cluster will be registered in GKE Hub and appear in the Google Cloud console (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Must be a region that supports GKE Hub Attached Clusters. {{UIMeta group=1 order=102 updatesafe }}"
+  description = "GCP region where the AKS cluster will be registered in GKE Hub and appear in the Google Cloud console (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Must be a region that supports GKE Hub Attached Clusters. {{UIMeta group=1 order=102 }}"
   type        = string
   default     = "us-central1"
 }
 
 variable "azure_region" {
-  description = "Azure region where the AKS cluster and its supporting resources (Resource Group, Virtual Network) will be created (e.g. 'westus2', 'eastus', 'westeurope'). Defaults to 'westus2'. Availability of AKS features and VM SKUs varies by region. {{UIMeta group=1 order=103 updatesafe }}"
+  description = "Azure region where the AKS cluster and its supporting resources (Resource Group, Virtual Network) will be created (e.g. 'westus2', 'eastus', 'westeurope'). Defaults to 'westus2'. Availability of AKS features and VM SKUs varies by region. {{UIMeta group=1 order=103 }}"
   type        = string
   default     = "westus2"
 }
@@ -125,7 +125,7 @@ variable "azure_region" {
 # SECTION 4: Cluster
 
 variable "cluster_name_prefix" {
-  description = "Prefix prepended to all generated cluster and resource names (e.g. 'azure-aks-cluster' produces names like 'azure-aks-cluster-<deployment_id>'). Use lowercase letters, digits, and hyphens only. Defaults to 'azure-aks-cluster'. {{UIMeta group=4 order=401 updatesafe }}"
+  description = "Prefix prepended to all generated cluster and resource names (e.g. 'azure-aks-cluster' produces names like 'azure-aks-cluster-<deployment_id>'). Use lowercase letters, digits, and hyphens only. Defaults to 'azure-aks-cluster'. {{UIMeta group=4 order=401 }}"
   type        = string
   default     = "azure-aks-cluster"
 }

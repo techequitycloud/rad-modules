@@ -111,7 +111,7 @@ variable "project_id" {
 }
 
 variable "gcp_location" {
-  description = "GCP region where the EKS cluster will be registered in GKE Hub and appear in the Google Cloud console (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Must be a region that supports GKE Hub Attached Clusters. {{UIMeta group=1 order=102 updatesafe }}"
+  description = "GCP region where the EKS cluster will be registered in GKE Hub and appear in the Google Cloud console (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Must be a region that supports GKE Hub Attached Clusters. {{UIMeta group=1 order=102 }}"
   type        = string
   default     = "us-central1"
 }
@@ -157,7 +157,7 @@ variable "subnet_availability_zones" {
 }
 
 variable "enable_public_subnets" {
-  description = "Set to true (default) to place EKS worker nodes in public subnets with direct internet access. Set to false to place nodes in private subnets with internet access via NAT Gateway (recommended for production workloads for improved security). {{UIMeta group=2 order=307 updatesafe }}"
+  description = "Set to true (default) to place EKS worker nodes in public subnets with direct internet access. Set to false to place nodes in private subnets with internet access via NAT Gateway (recommended for production workloads for improved security). {{UIMeta group=2 order=307 }}"
   type        = bool
   default     = true
 }
@@ -165,7 +165,7 @@ variable "enable_public_subnets" {
 # SECTION 4: Platform
 
 variable "cluster_name_prefix" {
-  description = "Prefix prepended to all generated cluster and resource names (e.g. 'aws-eks-cluster' produces names like 'aws-eks-cluster-<deployment_id>'). Use lowercase letters, digits, and hyphens only. Defaults to 'aws-eks-cluster'. {{UIMeta group=3 order=401 updatesafe }}"
+  description = "Prefix prepended to all generated cluster and resource names (e.g. 'aws-eks-cluster' produces names like 'aws-eks-cluster-<deployment_id>'). Use lowercase letters, digits, and hyphens only. Defaults to 'aws-eks-cluster'. {{UIMeta group=3 order=401 }}"
   type        = string
   default     = "aws-eks-cluster"
 }
