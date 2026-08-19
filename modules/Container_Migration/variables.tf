@@ -97,7 +97,7 @@ variable "enable_services" {
 // SECTION 2: Main
 
 variable "project_id" {
-  description = "GCP project ID where Container Migration resources will be deployed. Must already exist and the service account must hold roles/owner. {{UIMeta group=1 order=101 updatesafe }}"
+  description = "GCP project ID where Container Migration resources will be deployed. Must already exist and the service account must hold roles/owner. {{UIMeta group=1 order=101 }}"
   type        = string
   default     = null
 }
