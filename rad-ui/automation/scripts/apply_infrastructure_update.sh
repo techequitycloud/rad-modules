@@ -159,7 +159,21 @@ self_heal_orphaned_creates() {
     # itself is still the safety net -- it only ever adopts a resource this
     # config planned to create and that tofu can actually read, and a resource
     # belonging to someone else fails the import and is left alone.
-    if ! grep -qiE "Error waiting for (creating|Create)|already own it|Error 409:.*already exists" /tmp/apply_output.txt 2>/dev/null; then
+    #   apply N    Cloud Quotas create returns without the id reaching state
+    #              -> "Error 400: ... already exist for container"  on the NEXT
+    #                 apply, because that API has no delete and the orphan is
+    #                 permanent.
+    #
+    # THE QUOTA SIGNATURE IS NOT A 409 AND NOT "existS". This gate listed only
+    # the two shapes seen when it was written (GCS bucket, GKE cluster -- both
+    # 409s), so the google_cloud_quotas_quota_preference arm BELOW, which was
+    # written specifically for this failure and quotes its message verbatim,
+    # could never be reached: the function returned here first. Cost a live
+    # Project_GCP CREATE on gcp-rad-prod-d7181716 (2026-08-19, build 1ff48b63)
+    # after 8 minutes of apply. When adding a handler, widen this gate in the
+    # same change -- a special case behind a door that does not open is not a
+    # special case.
+    if ! grep -qiE "Error waiting for (creating|Create)|already own it|Error 409:.*already exists|Quota Preference with dimension.*already exist" /tmp/apply_output.txt 2>/dev/null; then
         return 1
     fi
 
