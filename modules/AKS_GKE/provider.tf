@@ -22,7 +22,7 @@ terraform {
       # a required block on azurerm_kubernetes_cluster, so an unbounded
       # ">=3.17.0" lets a fresh init pull 5.x and fail schema validation before
       # reaching Azure. Moving to 5.x needs a matching change in main.tf.
-      version = "~> 4.0"
+      version = "~> 5.1"
     }
     google = {
       source  = "hashicorp/google"
