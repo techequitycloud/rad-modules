@@ -617,3 +617,19 @@ a current release while both scripts stayed on an EOL version until a
 follow-up commit synced them). When updating the default Istio version
 repo-wide, grep for `ISTIO_VERSION=` and `istio_version` and update every
 hit, including the two `docs/` files that quote the version in prose.
+
+## Naming limits and shared-resource races (2026-08-20)
+
+**A length rule must be derived from the TIGHTEST consumer of the name, not the most visible one (2026-08-20).** `tenant_id` was validated at 1-20 characters and failed MID-APPLY with `INVALID_ARGUMENT: The account ID "..." does not have a length between 6 and 30`, from a local-exec provisioner, after the project and its IAM already existed. A precondition guarding Cloud Run service names at 63 characters already existed, was correct, and would have admitted every value that failed.
+
+Every service account is named `<role>-sa-<tenant_id><8-char tenant hash>`. The longest role prefix is `clouddeploy-sa-` (15 chars, `Services_GCP/sa.tf`, `count = 1`, so it exists for every tenant), against GCP's 30-character `account_id` cap:
+
+```
+15 + len(tenant_id) + 8 <= 30   =>   len(tenant_id) <= 7
+```
+
+Same omission found in `gke_cluster_name_prefix` — character class present, length absent, against GKE's 40-char cluster name (`prefix-<i>-<tenant><hash>`, so <= 21) — and in `Project_GCP.project_id`, which had NO validation while its own description stated the rule verbatim. **When adding a name-shaped variable, find every attribute the name reaches and take the smallest limit.** Deliberately NOT bounded: `sql_instance_name`, `nfs_volume_name`, `static_ip_name`, `firestore_database_id` all land in 63-character sinks behind short prefixes, and a speculative rule on a field nobody has broken is a future false refusal.
+
+**Anything TENANT-SHARED is created concurrently, so create it idempotently.** `cloudrun-sa-`/`cloudbuild-sa-`/`gke-sa-` are named from the tenant prefix and shared by every module deployed into that tenant. The provisioner was `describe && exit 0` then `create` — a TOCTOU. Three CloudRun apps launched into one tenant within a second of each other on 2026-08-20; one won and the other two died on "already exists", having done nothing wrong. **"Already exists" IS the desired end state**: let the create fail and treat only a STILL-ABSENT resource as fatal, the same resolution `App_Common/modules/app_db_clients` already used for its shared staging bucket.
+
+**A `count`/`for_each` gate that is UNKNOWN at plan is a different failure from one that is `false`.** `App_GKE` gates its Kubernetes resources on data sources readable only once the cluster exists, documented as a two-apply pattern — which works when the gate resolves to `false` and the first apply merely skips them. When the cluster does not exist at all the gate is *unknown*, Terraform refuses to plan `count` on it, and the build dies in PLAN having created nothing — so a retry reproduces it exactly and it cannot self-heal. Open as at 2026-08-20; deploy `Services_GCP` into the target project first.
