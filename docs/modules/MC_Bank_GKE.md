@@ -97,7 +97,7 @@ MCS is enabled as a fleet feature so services can have backends across clusters.
 
 ### D. Cloud Service Mesh (multi-primary)
 
-The mesh is enabled fleet-wide with automatic management — Google runs the Istio control plane for each cluster. The `bank-of-anthos` namespace carries `istio.io/rev=asm-managed`, so every pod gets an Envoy sidecar (each app pod shows `2/2` ready). All clusters share one trust domain, so the mesh is multi-primary and traffic between clusters is mutually authenticated.
+The mesh is enabled fleet-wide with automatic management — Google runs the Istio control plane for each cluster. The `bank-of-anthos` namespace carries the CSM revision label matching the cluster's release channel — `istio.io/rev=asm-managed` for `REGULAR`, `-rapid`/`-stable` for the other two — so every pod gets an Envoy sidecar (each app pod shows `2/2` ready). A label naming a revision the channel isn't serving does not error; injection is silently skipped and pods come up with no sidecar. All clusters share one trust domain, so the mesh is multi-primary and traffic between clusters is mutually authenticated.
 
 - **Console:** Kubernetes Engine → Service Mesh shows the combined topology, golden signals, and mTLS status across all clusters.
 - **CLI:**

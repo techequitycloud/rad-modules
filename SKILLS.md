@@ -27,7 +27,7 @@ The eight modules in the repository today:
 Supporting directories:
 
 - `rad-launcher/` — `radlab.py` is a Python CLI that wraps OpenTofu/Terraform for interactive module deployment from a workstation or Cloud Shell.
-- `rad-ui/automation/` — Cloud Build YAML files (`cloudbuild_deployment_{create,destroy,purge,update}.yaml`) used by the RAD platform UI to run module deployments remotely.
+- `rad-ui/automation/` — Cloud Build YAML files (`cloudbuild_deployment_{create,destroy,purge,update}.yaml`) used by the RAD platform UI to run module deployments remotely, plus `check_step_arg_limits.py` (a linter enforcing Cloud Build's 10,000-character step-arg cap and its two-or-more-steps rule for named volumes, wired into `.github/workflows/cloudbuild-lint.yml`) and `scripts/` — step logic extracted out of the YAML to stay under that cap: `apply_infrastructure.sh`, `apply_infrastructure_update.sh`, `prepare_destroy.sh`, `handle_plan_cycle.sh`, and the two self-tests `self_heal_address_match_test.sh` and `wait_for_sql_ready_test.sh`.
 - `scripts/` — standalone helper shell scripts grouped by topic (`gcp-istio-security/`, `gcp-istio-traffic/`, `gcp-cr-mesh/`, `gcp-m2c-vm/`, `gcp-ge-cymbal/`). Each subdirectory contains a single `.sh` script and a `README.md`. These are not called by any Terraform module; they are hand-run by engineers for lab exercises or operational tasks.
 - `docs/labs/` — centralized lab guides for all modules (e.g. `docs/labs/Istio_GKE.md`). This is the canonical location for all step-by-step lab guides; there are no `LAB_GUIDE.md` files inside module directories.
 - `docs/modules/` — reference documentation for GKE-based modules.
@@ -49,19 +49,32 @@ modules/Istio_GKE/
 ├── gke.tf               # GKE cluster, node pool, cluster service account, IAM
 ├── istiosidecar.tf      # null_resource installing Istio in sidecar mode (conditional)
 ├── istioambient.tf      # null_resource installing Istio in ambient mode (conditional)
-├── manifests/           # Raw Kubernetes manifests applied as-is
-├── templates/           # Kubernetes manifest templates rendered by Terraform
+├── manifests/           # Raw Kubernetes manifests — UNREFERENCED in this module (see below)
+├── templates/           # Manifest templates — UNREFERENCED in this module (see below)
 ├── tests/               # *.tftest.hcl — mock-provider plan tests (no GCP credentials needed)
 ├── README.md            # Short overview + usage + Requirements/Providers/Resources/Inputs/Outputs tables
 # Technical walkthrough lives at: docs/modules/Istio_GKE.md (≈245 lines)
 # Lab guide lives at: docs/labs/Istio_GKE.md
 ```
 
+> **`Istio_GKE`'s `templates/` and `manifests/` are dead directories.** No `.tf` file in
+> the module calls `templatefile()`, globs them with `fileset()`, or otherwise names any
+> file under either — both have sat untouched since the module's initial commit. The
+> mesh is installed entirely by `istiosidecar.tf`/`istioambient.tf` shelling out to
+> `istioctl`, and the observability addons by `kubectl apply -f` against upstream
+> `raw.githubusercontent.com` URLs. `Bank_GKE`'s seven `templates/*.yaml.tpl` are dead in
+> the same way; in `MC_Bank_GKE`, which genuinely renders its templates through
+> `manifests.tf`, only `templates/deployment.yaml.tpl` is unreferenced — note that it
+> carries a **hardcoded** `istio-asm-managed` ConfigMap name, exactly the thing
+> `configmap.yaml.tpl` uses `istio-${ASM_REVISION}` to avoid. Do not treat any of these
+> files as a live reference when copying a pattern, and do not "fix" the orphan's
+> hardcoded revision into use without first wiring the file up deliberately.
+
 Other modules introduce their own domain-specific files alongside this skeleton:
 
 | Module | Additional/replacement files |
 |---|---|
-| `Bank_GKE` | `asm.tf` (Cloud Service Mesh via GKE Hub), `deploy.tf` (downloads Bank of Anthos tarball and applies manifests), `hub.tf` (fleet membership), `glb.tf` (global load balancer IP), `monitoring.tf` (SLOs), `templates/*.yaml.tpl` |
+| `Bank_GKE` | `asm.tf` (Cloud Service Mesh via GKE Hub), `deploy.tf` (downloads Bank of Anthos tarball and applies manifests), `hub.tf` (fleet membership), `glb.tf` (global load balancer IP), `monitoring.tf` (SLOs). Its `templates/*.yaml.tpl` are present but unreferenced — see the note above |
 | `MC_Bank_GKE` | `asm.tf`, `deploy.tf`, `hub.tf`, `glb.tf`, `mcs.tf` (MCI/MCS destroy cleanup), `manifests.tf` (renders templates → `manifests/`), `manifests/`; `deploy.tf` uses `for_each` over all clusters — ConfigMaps and Services are applied to every cluster, while DB StatefulSets (`accounts-db.yaml`, `ledger-db.yaml`) are applied to `cluster1` (primary) only; non-primary clusters connect to the databases via MCS |
 | `AKS_GKE` | `provider.tf` (direct provider config, no impersonation wrapper), no `versions.tf`, no `network.tf` (Azure VNet is created inline in `main.tf`), nested `modules/attached-install-manifest/` and `modules/attached-install-mesh/` (Helm-based installers) |
 | `EKS_GKE` | `provider.tf`, `vpc.tf` (AWS VPC), `iam.tf` (AWS IAM roles for EKS), same nested `modules/` as AKS_GKE |
@@ -151,12 +164,21 @@ All input variables carry a `{{UIMeta group=N order=M }}` annotation at the end 
 
 | Group | Section | Variables |
 |---|---|---|
-| 0 | Provider / Metadata | `module_description`, `module_documentation`, `module_dependency`, `module_services`, `credit_cost`, `require_credit_purchases`, `enable_purge`, `public_access`, `resource_creator_identity`, `trusted_users`, `deployment_id`, `enable_services` |
-| 1 | Main | `project_id`, `region` |
+| 0 | Provider / Metadata | `module_description`, `module_documentation`, `module_dependency`, `module_services`, `credit_cost`, `require_credit_purchases`, `enable_purge`, `public_access`, `shared_users`, `resource_creator_identity`, `trusted_users`, `deployment_id`, `enable_services`, and — in the seven modules that declare it — `enable_rad_gcpproject` (order 110) |
+| 1 | Main | `project_id`, `tenant_id`, `region` |
 | 2 | Network | `create_network`, `network_name`, `subnet_name`, `ip_cidr_ranges` |
-| 3 | GKE | `create_cluster`, `gke_cluster`, `release_channel`, `pod_ip_range`, `pod_cidr_block`, `service_ip_range`, `service_cidr_block` |
+| 3 | GKE | `create_cluster`, `gke_cluster`, `release_channel`, `pod_cidr_block`, `service_cidr_block` |
 | 4 | Features | `istio_version`, `install_ambient_mesh` |
 | 0 | Application (source comment says `// SECTION 6`, but the UIMeta tag is group 0) | `deploy_application` (`{{UIMeta group=0 order=601 }}`) |
+
+Two variables in the same `// SECTION 3` block are tagged **group 0**, not group 3:
+`pod_ip_range` (`order=304`) and `service_ip_range` (`order=306`), while their
+immediate neighbours `pod_cidr_block` (305) and `service_cidr_block` (307) are tagged
+group 3. Nothing marks the two as metadata; the pairing with their own CIDR variables
+makes this look like a typo rather than intent, and the effect is that the platform
+renders the two secondary-range *alias names* in the metadata panel, away from the
+CIDRs they name. Recorded as observed, not corrected — changing a UIMeta group moves a
+field on the deploy form for every existing deployment.
 
 `VMware_Engine` uses a different group structure reflecting its domain:
 
@@ -177,16 +199,29 @@ Example variable:
 
 ```hcl
 variable "project_id" {
-  description = "GCP project ID of the destination project where the GKE cluster and Istio service mesh will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=101 updatesafe }}"
+  description = "GCP project ID of the destination project where the GKE cluster and Istio service mesh will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=101 }}"
   type        = string
 }
 ```
 
-The `updatesafe` tag marks variables whose value can change on an in-place `terraform apply` without forcing resource replacement.
+The `updatesafe` tag marks variables whose value can change on an in-place `terraform apply` without forcing resource replacement. `project_id` above deliberately does **not** carry it — changing the destination project moves every resource, and the flag was stripped from `project_id` in all eight modules once the webapp began reading it.
+
+As of 2026-08-19 only these variables carry `updatesafe`, and the list is the reference for what "safe" means in practice:
+
+| Variable | Modules |
+|---|---|
+| `resource_creator_identity` | all 8 |
+| `trusted_users` | the 5 that declare it (`AKS_GKE`, `Bank_GKE`, `EKS_GKE`, `Istio_GKE`, `MC_Bank_GKE`) |
+| `tenant_id` | the 6 that declare it |
+| Azure credentials + sizing (`client_id`, `client_secret`, `azure_tenant_id`, `subscription_id`, `node_count`, `k8s_version`, `platform_version`, `vm_size`) | `AKS_GKE` |
+| AWS credentials, CIDRs, AZs and node-group sizing (`aws_access_key`, `aws_secret_key`, `vpc_cidr_block`, `public_subnet_cidr_blocks`, `private_subnet_cidr_blocks`, `subnet_availability_zones`, `platform_version`, `k8s_version`, `node_group_{desired,max,min}_size`) | `EKS_GKE` |
+| `aws_access_key_id`, `aws_secret_access_key` | `Migration_Center` |
+
+**No `region`-family variable carries it any more** — `region`, `gcp_location`, `azure_region` and `aws_region` were all stripped, along with `cluster_name_prefix` and `enable_public_subnets`. A region change relocates every regional resource.
 
 **Its absence is what the platform acts on (2026-08-19).** An unflagged field raises a *"this update will destroy project resources"* confirmation when edited on an existing deployment, and is read-only when the admin setting **Enforce Update Safe** is on. The webapp's matcher previously looked for a token no module writes, so the flag had never been read and wrong ones accumulated — `region` carried it in 422 modules catalogue-wide.
 
-An over-generous flag is a **silent data-loss path**; a missing one merely warns. **When in doubt, leave it off**, and check with `rad-automation/scripts/check_updatesafe_flags.py`. Beyond "forces replacement", two traps: a variable in a resource's `count`/`for_each` **condition** gates that resource's existence (turning it off destroys it), and a comparison against a **literal** is a mode switch that destroys on any change, while a comparison against **emptiness** only destroys when the value is cleared.
+An over-generous flag is a **silent data-loss path**; a missing one merely warns. **When in doubt, leave it off**, and check with `../rad-automation/scripts/check_updatesafe_flags.py` (sibling repo). Beyond "forces replacement", two traps: a variable in a resource's `count`/`for_each` **condition** gates that resource's existence (turning it off destroys it), and a comparison against a **literal** is a mode switch that destroys on any change, while a comparison against **emptiness** only destroys when the value is cleared.
 
 The sibling `notradmanaged` tag **removes** the variable from the form in a RAD-managed project and reverts it server-side — for settings that reach past the tenant's own project into RAD's organisation (VPC Service Controls, Security Command Center, Workload Identity Federation). Its module default must be benign, because that is what the server reverts to.
 
@@ -230,7 +265,7 @@ Each module ships one markdown file inside the module directory, plus two under 
 - **`docs/modules/<Module_Name>.md`** (≈200–270 lines): technical walkthrough covering the architecture, the resources the module creates, the networking layout, security model, and operational guidance. `docs/modules/Istio_GKE.md` is the reference example. Most modules point `module_documentation` at the published form of this file (`https://docs.radmodules.dev/docs/modules/<Module_Name>`); `Container_Migration`, `Migration_Center` and `VMware_Engine` instead point at the GitHub URL of their `docs/labs/` guide.
 - **`docs/labs/<Module_Name>.md`**: step-by-step hands-on lab guide for engineers walking through the module's use cases. Covers prerequisites, deployment steps, lab exercises, and cleanup. This file is referenced from `README.md` and is the target of the `module_documentation` URL in `variables.tf`. **Do not create a `LAB_GUIDE.md` inside the module directory.**
 
-When writing these files for a new module, match the tone and depth of `modules/Istio_GKE/README.md`, `modules/Istio_GKE/Istio_GKE.md`, and `docs/labs/Istio_GKE.md`.
+When writing these files for a new module, match the tone and depth of `modules/Istio_GKE/README.md`, `docs/modules/Istio_GKE.md`, and `docs/labs/Istio_GKE.md`. (The deep dive lives under `docs/modules/`, never inside the module directory.)
 
 ## 5. Creating a New Module
 
@@ -312,6 +347,17 @@ The platform invokes Cloud Build with the YAML files in `rad-ui/automation/`:
 **Provider caching**: The create, update, and destroy pipelines cache the downloaded Terraform provider binaries in GCS between builds. Before each `tofu init` the pipeline restores the cache from `gs://${_DEPLOYMENT_BUCKET_ID}/terraform-provider-cache/${_MODULE_NAME}/providers.tar.gz` into `/workspace/.terraform-plugin-cache/` (via `TF_PLUGIN_CACHE_DIR`) and saves it back after a successful init. A missing cache is non-fatal; providers are downloaded fresh on the first run for a given module.
 
 **Kubernetes rollout timeout handling**: When `tofu apply` exits non-zero because a `kubectl rollout status` wait timed out (matched by patterns like `timed out waiting for the condition`, `Deployment.*timed out`, `StatefulSet.*timed out`), both the create and update pipelines treat this as a **partial success** rather than a failure. The infrastructure and Kubernetes objects are fully provisioned; pods continue their own health checks independently. This prevents spurious deployment failures caused by slow image pulls or node scheduling delays.
+
+**The heavy step logic no longer lives in the YAML.** Cloud Build rejects an entire build config — before it runs, with no step output to read — when any single step arg exceeds 10,000 characters. Four steps have been extracted to `rad-ui/automation/scripts/` and are staged onto a shared `pipeline-scripts` volume, then sourced from `/pipeline/`:
+
+| Script | Used by | What it holds |
+|---|---|---|
+| `apply_infrastructure.sh` | create | the apply loop and `self_heal_orphaned_creates()` |
+| `apply_infrastructure_update.sh` | update | the same, for in-place updates |
+| `prepare_destroy.sh` | destroy | state-contents inspection and the "nothing to destroy" decision |
+| `handle_plan_cycle.sh` | update | dependency-cycle diagnosis and two-phase (`plan -destroy` first) recovery |
+
+`self_heal_address_match_test.sh` and `wait_for_sql_ready_test.sh` are self-tests for two of the trickier helpers and are not part of any pipeline. `check_step_arg_limits.py` enforces both the 10,000-character cap and Cloud Build's rule that a named `volumes:` entry must be referenced by two or more steps; `.github/workflows/cloudbuild-lint.yml` runs it on any push touching `cloudbuild*.yaml`. Run it after editing any pipeline YAML. The operational detail behind each of these — self-heal scope, the concurrent-build guard, `DESTROY_MAX_ATTEMPTS` — is in CLAUDE.md § Deployment Pipelines.
 
 These pipelines are invoked by the platform, not by module developers directly.
 
@@ -619,6 +665,13 @@ repo-wide, grep for `ISTIO_VERSION=` and `istio_version` and update every
 hit, including the two `docs/` files that quote the version in prose.
 
 ## Naming limits and shared-resource races (2026-08-20)
+
+> **Scope: these incidents happened in the sibling `partner-modules` catalogue, not
+> here.** `Services_GCP`, `Project_GCP`, `App_GKE` and `App_Common` are modules of that
+> repo; none exists under this repo's `modules/`. The lessons generalise — the concrete
+> limits do not. `tenant_id` in this repo is platform metadata declared by six modules
+> and read by no resource in any of them, so its `1-20` validation is not the bug
+> described below.
 
 **A length rule must be derived from the TIGHTEST consumer of the name, not the most visible one (2026-08-20).** `tenant_id` was validated at 1-20 characters and failed MID-APPLY with `INVALID_ARGUMENT: The account ID "..." does not have a length between 6 and 30`, from a local-exec provisioner, after the project and its IAM already existed. A precondition guarding Cloud Run service names at 63 characters already existed, was correct, and would have admitted every value that failed.
 

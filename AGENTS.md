@@ -26,7 +26,7 @@ The repository is organized around eight independent modules under `modules/`. T
 
 **Supporting directories:**
 - `rad-launcher/` — `radlab.py` Python CLI that wraps `tofu`/`terraform` for interactive deployment from a workstation or Cloud Shell.
-- `rad-ui/automation/` — Cloud Build YAML files (`cloudbuild_deployment_{create,destroy,purge,update}.yaml`) invoked by the RAD platform UI.
+- `rad-ui/automation/` — Cloud Build YAML files (`cloudbuild_deployment_{create,destroy,purge,update}.yaml`) invoked by the RAD platform UI, plus `check_step_arg_limits.py` and `scripts/` (step logic extracted out of the YAML to stay under Cloud Build's 10,000-character step-arg cap: `apply_infrastructure.sh`, `apply_infrastructure_update.sh`, `prepare_destroy.sh`, `handle_plan_cycle.sh`, and two self-tests). See CLAUDE.md § Deployment Pipelines before editing any of them.
 - `scripts/` — standalone helper shell scripts (`gcp-istio-security/`, `gcp-istio-traffic/`, `gcp-cr-mesh/`, `gcp-m2c-vm/`, `gcp-ge-cymbal/`) for lab exercises; not called by any module.
 - `SKILLS.md` — detailed implementation guide; read this before making structural changes.
 
@@ -454,7 +454,9 @@ You are now in **Maintenance Mode**, performing updates or configuration changes
 ### 5. Updating UIMeta variable annotations
 - Change `group=N` or `order=M` in the variable description to reorganize the RAD platform UI.
 - Order values are compared numerically within a group; gaps are allowed (e.g. order 101, 103, 105 is fine).
-- The `updatesafe` tag marks variables safe to change on an in-place apply. Do not add `updatesafe` to variables that force resource replacement (e.g. `gcp_region`, `project_id`).
+- The `updatesafe` tag marks variables safe to change on an in-place apply. Do not add `updatesafe` to variables that force resource replacement — `project_id`, `cluster_name_prefix`, and every region variable (`region`, `gcp_location`, `azure_region`, `aws_region`) were all stripped of it on 2026-08-19 and must stay unflagged. Its **absence** is what the platform acts on, so an over-generous flag is a silent data-loss path while a missing one only costs a warning: when in doubt, leave it off.
+- The sibling `notradmanaged` tag removes a variable from the deploy form in a RAD-managed project and reverts it server-side, so its module default must be benign.
+- `enable_rad_gcpproject` (`{{UIMeta group=0 order=110 }}`, `bool`, default `false`) is declared by seven of the eight modules — every one except `Istio_GKE` — and hides the "GCP Project on RAD" option for modules that enable APIs the RAD-managed tier policies deny. Its description names the specific APIs; keep that list in step with the module's `default_apis` if you change either.
 
 ### 6. Updating the RAD platform service account default
 - The `resource_creator_identity` variable defaults to the platform SA email. If the platform SA changes, update the default in `variables.tf` for each affected module.

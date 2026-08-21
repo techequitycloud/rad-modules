@@ -34,7 +34,7 @@ Rules:
 
 - **No symlinks.** Modules do not share TF files. If `Bank_GKE` and `MC_Bank_GKE` need similar `asm.tf`, each has its own copy.
 - **Nested modules** (e.g. `modules/AKS_GKE/modules/attached-install-manifest/`) are scoped to one parent module only; they must not be referenced from other modules in the repo.
-- **Kubernetes templates** live under `manifests/` (raw YAML) or `templates/` (Go-template `.yaml.tpl` rendered by `templatefile(...)`). Pick one per module based on whether any values are substituted.
+- **Kubernetes templates** live under `manifests/` (raw YAML) or `templates/` (Go-template `.yaml.tpl` rendered by `templatefile(...)`). Pick one per module based on whether any values are substituted. `MC_Bank_GKE` is the only module that actually renders templates (`manifests.tf` writes `templates/*.yaml.tpl` out to `manifests/` via `local_file`); the `templates/` and `manifests/` directories in `Istio_GKE` and the `templates/` directory in `Bank_GKE` are **unreferenced by any `.tf` file** and have been since those modules' initial commits. Don't copy a pattern out of them assuming it is live.
 - **License header**: every `.tf` file should begin with the Apache 2.0 block-comment header. Copy it from a neighbouring file when creating a new one. Three existing `versions.tf` files (`Bank_GKE`, `Migration_Center`, `VMware_Engine`) currently lack it, which is why `scripts/check_conventions.py` reports a missing header as WARN rather than FAIL.
 - **Naming**: files are lowercase with hyphens (`provider-auth.tf`), module directory names are `PascalCase_WithUnderscores`, HCL resource names are `snake_case`.
 
@@ -61,7 +61,7 @@ Not every module needs every section — `AKS_GKE` has no dedicated network sect
 
 ### Every Module Ships These Ten Standard Variables
 
-The variables below exist in nearly every module and must keep their exact names, types, and defaults. `rad-launcher` looks for them; the RAD UI renders them in a standard panel. Two carry documented exceptions: `trusted_users` is Kubernetes-specific and is deliberately omitted by `Container_Migration`, `Migration_Center` and `VMware_Engine`, and `enable_services` is omitted by `AKS_GKE`, `EKS_GKE` and `Migration_Center`. Two further variables — `module_documentation` (docs URL) and `shared_users` (platform-only visibility list) — are declared by all eight modules and belong in the same group-0 panel. `scripts/check_conventions.py` enforces this list at WARN level; run it before opening a PR.
+The variables below exist in nearly every module and must keep their exact names, types, and defaults. `rad-launcher` looks for them; the RAD UI renders them in a standard panel. Two carry documented exceptions: `trusted_users` is Kubernetes-specific and is deliberately omitted by `Container_Migration`, `Migration_Center` and `VMware_Engine`, and `enable_services` is omitted by `AKS_GKE`, `EKS_GKE` and `Migration_Center`. Three further variables belong in the same group-0 panel: `module_documentation` (docs URL) and `shared_users` (platform-only visibility list), declared by all eight modules, and `enable_rad_gcpproject` (`bool`, default `false`, `{{UIMeta group=0 order=110 }}`), declared by seven — every module except `Istio_GKE`. Setting it `false` hides the "GCP Project on RAD" option so the module can only be deployed into a customer's own GCP project; each module's description names the specific APIs the RAD-managed tier policies deny that make it necessary (e.g. `vmwareengine`/`vmmigration` for `VMware_Engine`, fifteen Anthos/mesh/multi-cluster APIs for `MC_Bank_GKE`). Keep that list in step with the module's `default_apis`. `scripts/check_conventions.py` enforces this list at WARN level; run it before opening a PR.
 
 | Variable | Type | Default | Notes |
 |---|---|---|---|
@@ -83,21 +83,23 @@ The variables below exist in nearly every module and must keep their exact names
 Every variable description ends with a `{{UIMeta ...}}` tag (inside the description string, not a comment) that drives UI rendering. **A variable with no tag at all has no group and renders VISIBLE** — group 0 is stripped and everything else is shown, so missing metadata fails open rather than closed. Platform-injected values need an explicit `group=0`.
 
 ```hcl
-variable "gcp_region" {
-  description = "GCP region where the GKE cluster ... Defaults to 'us-central1'. {{UIMeta group=2 order=302 updatesafe }}"
+variable "region" {
+  description = "GCP region where the GKE cluster ... Defaults to 'us-central1'. {{UIMeta group=1 order=103 }}"
   type        = string
   default     = "us-central1"
 }
 ```
 
+(The input is named `region`, never `gcp_region` — see the standard-variable list above. And it carries **no** `updatesafe`: changing the region relocates every regional resource.)
+
 Parameters:
 - `group=N` — UI panel grouping, corresponding loosely to SECTION (0=Deployment, 1=Project, 2=Network, etc.).
 - `order=NNN` — sort order within the group. Gaps are fine; leave room to insert new variables.
-- `updatesafe` — **presence flag**, not a key=value. Include it for variables that can change in place without recreating the module (e.g. `trusted_users`, `resource_creator_identity`, region-pinned lookups). Omit it for variables that force replacement (e.g. cluster names, network CIDRs).
+- `updatesafe` — **presence flag**, not a key=value. Include it for variables that can change in place without recreating the module (e.g. `trusted_users`, `resource_creator_identity`, `tenant_id`, cloud credentials, node-pool sizing). Omit it for variables that force replacement (e.g. cluster names, name prefixes, network CIDRs, `project_id`, and every region variable — `region`, `gcp_location`, `azure_region`, `aws_region`).
 
   **Its ABSENCE is what the platform acts on, as of 2026-08-19.** An unflagged field raises a *"this update will destroy project resources"* confirmation when edited on an existing deployment, and is rendered read-only when the admin setting **Enforce Update Safe** is on. Until then the webapp's matcher looked for a token no module writes, so the flag had never been read by anything and wrong flags accumulated unchecked — `region` carried it in 422 modules across the catalogue.
 
-  The asymmetry settles any doubtful case: an over-generous flag is a **silent data-loss path** (it tells the user an edit is safe when it will replace the resource), while omitting it costs a needless warning. **When in doubt, leave it off.** Two traps beyond "forces replacement": a variable that appears in a resource's `count`/`for_each` **condition** gates that resource's existence, so turning it off destroys it; and a comparison against a **literal** (`var.mode == "custom"`) is a mode switch that destroys on any change, whereas a comparison against **emptiness** (`!= ""`, `!= null`, `length(...) > 0`) only destroys when the value is cleared — the latter keeps the flag. Verify with `rad-automation/scripts/check_updatesafe_flags.py`.
+  The asymmetry settles any doubtful case: an over-generous flag is a **silent data-loss path** (it tells the user an edit is safe when it will replace the resource), while omitting it costs a needless warning. **When in doubt, leave it off.** Two traps beyond "forces replacement": a variable that appears in a resource's `count`/`for_each` **condition** gates that resource's existence, so turning it off destroys it; and a comparison against a **literal** (`var.mode == "custom"`) is a mode switch that destroys on any change, whereas a comparison against **emptiness** (`!= ""`, `!= null`, `length(...) > 0`) only destroys when the value is cleared — the latter keeps the flag. Verify with `../rad-automation/scripts/check_updatesafe_flags.py` (sibling repo).
 
 - `notradmanaged` — presence flag. **Removes the variable from the deploy form** when the deployment lands in a RAD-managed project (RAD's own organisation, tier folders, RAD's billing account), and reverts it server-side on update; a customer's own project keeps it. Tag anything that lets the tenant reach past their own project into RAD's organisation — writing an org-scoped resource (`google_access_context_manager_*` has one access policy per ORG; `google_scc_notification_config`), or federating an external identity inward (Workload Identity Federation is project-scoped yet grants an arbitrary external CI system a standing foothold). **The module default must be benign**, because the server reverts a tagged variable to it: a `true` default switches the feature on for every RAD-managed deployment.
 
