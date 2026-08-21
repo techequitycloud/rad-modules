@@ -201,6 +201,8 @@ Every `variable` description ends with a `{{UIMeta group=N order=M }}` tag that 
 
 `notradmanaged` **removes** the variable from the form in a RAD-managed project and reverts it server-side — for settings reaching past the tenant's project into RAD's organisation (VPC Service Controls, Security Command Center, Workload Identity Federation). Its module default must be benign, since that is what the server reverts to. See `.agent/skills/module-conventions/SKILL.md`.
 
+**`enable_rad_gcpproject` (group 0, order 110, `bool`, default `false`) opts a module out of RAD-managed projects entirely.** Seven of the eight modules declare it — every one except `Istio_GKE` — and all default it to `false`, which hides the "GCP Project on RAD" option so the module can only be deployed into a customer's own GCP project. The reason is always the same shape: the module enables APIs the RAD-managed tier policies deny, and the variable's description names them (`containerregistry` for `Container_Migration`; `migrationcenter` for `Migration_Center`; `vmwareengine`/`vmmigration` for `VMware_Engine`; 7 Anthos/fleet APIs for `AKS_GKE` and `EKS_GKE`; 9 for `Bank_GKE`; 15 for `MC_Bank_GKE`). If you change a module's `default_apis`, re-check that description — it is the only place the denial reason is recorded.
+
 **A variable with no `{{UIMeta}}` tag at all has no group and renders VISIBLE** — group 0 is stripped, everything else shown, so missing metadata fails open.
 
 ### API Enablement Invariant
@@ -283,7 +285,11 @@ under `rad-ui/automation/scripts/`, not to trim comments.** The create, update, 
 destroy pipelines' Apply/prepare steps now live in
 `scripts/apply_infrastructure.sh`, `scripts/apply_infrastructure_update.sh`, and
 `scripts/prepare_destroy.sh` respectively — the YAML step just stages and sources
-the script. (The destroy pipeline's separate `Destroy Infrastructure` step, holding
+the script. The update pipeline's dependency-cycle recovery is a fourth extracted
+script, `scripts/handle_plan_cycle.sh`, invoked as `/pipeline/handle_plan_cycle.sh`
+from the plan step; it first shipped inline at 12,429 characters and broke every
+UPDATE for every module until it was reverted and extracted. (The destroy
+pipeline's separate `Destroy Infrastructure` step, holding
 `DESTROY_MAX_ATTEMPTS` and the GKE state-repair logic below, is still inline —
 extraction is per-step, not all-or-nothing per pipeline.) `check_step_arg_limits.py`
 also enforces a **second, unrelated rule**: any Cloud Build `volumes:` name must be
@@ -300,15 +306,55 @@ the reason is in `statusDetail` on the build record — use
 
 **Create/update applies self-heal an orphaned resource instead of failing outright
 on a flaky creation-wait.** `self_heal_orphaned_creates()` (in the extracted apply
-scripts) triggers on `Error waiting for (creating|Create)`: the Terraform provider's
+scripts) triggers on `Error waiting for (creating|Create)`, `already own it`,
+`Error 409:.*already exists`, or `Quota Preference with dimension.*already exist`:
+the Terraform provider's
 `Create()` doesn't call `SetId()` until its own wait-for-ready poll succeeds, so a
 resource that was genuinely created in GCP but whose poll flaked leaves state with
 no entry for it — the next apply then tries to create it again and hits `409 already
 exists`. The self-heal `tofu import`s any planned-create
-`google_sql_database_instance`/`google_container_cluster`/`google_storage_bucket` by
-its live resource ID, re-plans, and retries the apply once if anything imported.
-Scoped to those three resource types only — a different resource type failing the
+`google_sql_database_instance`/`google_container_cluster`/`google_storage_bucket`/`google_cloud_quotas_quota_preference`
+by its live resource ID, re-plans, and retries the apply once if anything imported.
+Scoped to those four resource types only — a different resource type failing the
 same way still needs a manual `tofu import`.
+
+Two details of that self-heal are load-bearing and easy to undo:
+- **Addresses are matched inside nested modules, not just at the root.** The glob is
+  `*google_storage_bucket.*` (leading wildcard), because a real address looks like
+  `module.app_cloudrun.module.app_storage.google_storage_bucket.buckets["addons"]`.
+  The required trailing dot is what keeps `google_storage_bucket_object` and
+  `google_storage_bucket_iam_member` from over-matching.
+- **`google_cloud_quotas_quota_preference` cannot be healed any other way.** Its name
+  is a server-generated UUID that the config never knows, and the Cloud Quotas API has
+  **no delete** — so "remove it and let Terraform recreate it" is not available. The
+  self-heal instead lists live preferences under the parent and matches on
+  `service` + `quota_id` + exact `dimensions` to recover the name, then imports
+  `<parent>/locations/global/quotaPreferences/<name>`. No match means a real failure,
+  not an orphan, and it is left alone.
+
+**A topology swap that cycles the plan graph is recovered by a two-phase apply.**
+`scripts/handle_plan_cycle.sh` runs only when the plan log contains `Error: Cycle`
+(grep with `-a`, and against an ANSI-stripped log — Terraform colourises `Error:`
+separately from the message, so a plain grep for the literal string matches nothing).
+It re-plans once under `TF_LOG_CORE=debug` — deliberately **not** `TF_LOG=debug`, which
+would also turn on provider logging and write secrets into the build log — to capture
+the cycle's *edges*, since the error names only its members. It then applies the plan's
+deletions first with `-target`, re-plans, and hands a now-acyclic plan back to the
+caller. Two safety properties: only resource changes whose action is exactly
+`["delete"]` are targeted (a replace, `["delete","create"]`, is excluded, so this
+changes *when* something is destroyed, never *what*), and a `moved` instance must have
+**both** its prior and new addresses targeted or OpenTofu refuses the targeted plan
+outright. Phase 1 is `plan -destroy`, not `apply -target`.
+
+**Create and update refuse to start when another build is already running for the same
+deployment.** Two builds share one Terraform state file; the second clears the first's
+lock as "stale" and both fail — confirmed live 2026-08-19, after the first had already
+built 46 real resources. The guard asks Cloud Build directly with `gcloud builds list
+--ongoing` and matches the deployment id **client-side** in `awk`: filtering
+server-side on `substitutions._DEPLOYMENT_ID` scans the whole build history and was
+measured at >150s, which inside a build step is a hang, not a check. It refuses rather
+than queues, leaving the deployment in a terminal state the operator can retry. This
+check must stay *above* the stale-lock clear, which would otherwise paper over it.
 
 **Purge no longer deletes the GCS deployment folder outright.** `cloudbuild_deployment_purge.yaml`
 now reports the folder's size/file count and **retains** the Terraform state and
@@ -339,6 +385,16 @@ provider falls back to `localhost:80` and every `kubernetes_*` destroy fails
 `connection refused` *permanently*, so re-running would loop forever; it repairs
 state and retries once, waiting for nothing. Fail-fast is right for what time fixes,
 wrong for corrupted state.
+
+**Because there is only one attempt, state is reconciled with reality BEFORE it — not
+only before a retry.** A resource GCP has already removed but state still lists is
+planned for deletion, and the provider answers 404. That is an error, not a no-op, so
+the destroy fails; and because the failure changes nothing, every later attempt fails
+identically and the deployment can never be deleted, billing a full build each time.
+Confirmed live 2026-08-17: a destroy deleted three buckets at 23:29 and then ended at
+23:32 on three `Error 404: The specified bucket does not exist., notFound` for those
+same buckets. Reconciling only before a *retry* was dead code once the budget dropped
+to one attempt.
 
 ## Standalone Lab Scripts (`scripts/gcp-istio-*`)
 
@@ -417,6 +473,17 @@ next `Edit`/`Write` call.
 `AGENTS.md` defines slash-command workflows to context-switch into specific module modes: `/istio`, `/bank`, `/multicluster`, `/attached`, `/troubleshoot`, `/maintain`, `/security`. Read `SKILLS.md` for the detailed implementation guide before making structural changes to any module.
 
 ## Naming limits and shared-resource races (2026-08-20)
+
+> **Scope: these incidents happened in the sibling `partner-modules` catalogue, not
+> here.** `Services_GCP`, `Project_GCP`, `App_GKE` and `App_Common` are modules of that
+> repo (`../partner-modules/modules/`); none exists under this repo's `modules/`. The
+> *lessons* are repo-agnostic and are recorded here because both catalogues are worked
+> on together — but do not act on the concrete limits below as if they bound this repo.
+> In particular, `tenant_id` here is declared by six modules (`Bank_GKE`,
+> `Container_Migration`, `Istio_GKE`, `MC_Bank_GKE`, `Migration_Center`,
+> `VMware_Engine`) as platform metadata and is **read by no resource in any of them**,
+> so its `1-20` validation is not the bug described below. rad-modules' own service
+> accounts use fixed `account_id`s (`gke-sa`, `gke-standard-sa`) that no variable feeds.
 
 **A length rule must be derived from the TIGHTEST consumer of the name, not the most visible one (2026-08-20).** `tenant_id` was validated at 1-20 characters and failed MID-APPLY with `INVALID_ARGUMENT: The account ID "..." does not have a length between 6 and 30`, from a local-exec provisioner, after the project and its IAM already existed. A precondition guarding Cloud Run service names at 63 characters already existed, was correct, and would have admitted every value that failed.
 

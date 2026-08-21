@@ -27,6 +27,8 @@ rad-modules/
 ├── rad-launcher/       # Python CLI that drives `tofu` + GCS state for modules
 └── rad-ui/
     └── automation/     # Cloud Build YAMLs invoked by the RAD platform UI
+        ├── check_step_arg_limits.py  # lints the 10k step-arg cap + volume reuse rule
+        └── scripts/    # step logic extracted out of the YAML to stay under that cap
 ```
 
 The root `README.md`, `CHANGELOG.md`, and `LICENSE` come from the OpenTofu project and are not module-specific.
@@ -52,7 +54,7 @@ Two broad families exist:
 
 1.  **GKE Attached Cluster modules** (`AKS_GKE`, `EKS_GKE`) — provision a Kubernetes cluster in Azure or AWS, install the GKE Connect bootstrap manifests via a `modules/attached-install-manifest` submodule, then create a `google_container_attached_cluster` to register the cluster in a GKE Fleet. See the `attached-cluster-modules` skill.
 
-2.  **Native GKE + workload modules** (`Bank_GKE`, `MC_Bank_GKE`, `Istio_GKE`) — provision GKE cluster(s), enable a service mesh (Cloud Service Mesh or open-source Istio), and deploy a demo application (Bank of Anthos or Bookinfo) via `null_resource` + `kubectl`/`helm` scripts. See the `gke-application-modules` skill.
+2.  **Native GKE + workload modules** (`Bank_GKE`, `MC_Bank_GKE`, `Istio_GKE`) — provision GKE cluster(s), enable a service mesh (Cloud Service Mesh or open-source Istio), and — for `Bank_GKE` and `MC_Bank_GKE` — deploy Bank of Anthos via `null_resource` + `kubectl`/`helm` scripts. `Istio_GKE` deploys **no** application: its `deploy_application` variable is dead code and no Bookinfo install step exists, so the mesh comes up with an empty (but pre-labelled) `default` namespace. See the `gke-application-modules` skill.
 
 All modules share the same conventions for TF file organization, variables, provider authentication, and the UI metadata format. See the `module-conventions` skill for the binding rules.
 
@@ -86,6 +88,8 @@ python3 rad-launcher/radlab.py \
 | `cloudbuild_deployment_update.yaml` | Re-apply with new inputs | 3600s |
 | `cloudbuild_deployment_destroy.yaml` | `tofu destroy` | 3600s |
 | `cloudbuild_deployment_purge.yaml` | Administrative force-cleanup | 600s |
+
+Steps too large for Cloud Build's 10,000-character per-step-arg cap are extracted to `rad-ui/automation/scripts/` (`apply_infrastructure.sh`, `apply_infrastructure_update.sh`, `prepare_destroy.sh`, `handle_plan_cycle.sh`) and staged onto a shared `pipeline-scripts` volume. `check_step_arg_limits.py` enforces the cap and Cloud Build's rule that a named volume be used by two or more steps; `.github/workflows/cloudbuild-lint.yml` runs it in CI.
 
 The create, update, and destroy pipelines cache downloaded Terraform provider binaries in GCS at `gs://${_DEPLOYMENT_BUCKET_ID}/terraform-provider-cache/${_MODULE_NAME}/providers.tar.gz` using `TF_PLUGIN_CACHE_DIR`. The cache is restored before `tofu init` and saved back after a successful init; a missing cache is non-fatal.
 
