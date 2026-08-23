@@ -61,11 +61,34 @@ jobs:
         run: |
           # Prompt body lives in a separate file so this YAML never embeds a
           # column-0 heredoc.
+          # Stderr goes to the LOG and a separate file -- NOT into /tmp/audit.txt.
+          # The previous version redirected 2>&1 into /tmp/audit.txt and then
+          # truncated that same file in a `|| echo` fallback, so the real error was
+          # destroyed twice over: gone from the comment, and absent from the log
+          # (stderr never reached it). The fallback also returned 0, so the job went
+          # green having reviewed nothing. A check that cannot run must go RED.
+          set +e
           claude --dangerously-skip-permissions \
             --allowedTools "Read,Grep,Glob,Bash" \
             --output-format text \
-            -p "$(cat .github/claude-prompts/weekly-audit.md)" > /tmp/audit.txt 2>&1 \
-            || echo "## Issues Found — Claude audit encountered an error; check the workflow logs." > /tmp/audit.txt
+            -p "$(cat .github/claude-prompts/weekly-audit.md)" > /tmp/audit.txt 2> /tmp/audit.err
+          rc=$?
+          set -e
+
+          if [ -s /tmp/audit.err ]; then
+            echo "--- claude stderr ---"
+            cat /tmp/audit.err
+          fi
+
+          if [ "$rc" -ne 0 ]; then
+            echo "::error title=Claude audit failed::claude exited $rc -- no audit was produced."
+            exit "$rc"
+          fi
+
+          if [ ! -s /tmp/audit.txt ]; then
+            echo "::error title=Claude audit empty::claude exited 0 but wrote no output."
+            exit 1
+          fi
 
       - name: Create or update issue
         uses: actions/github-script@v7
