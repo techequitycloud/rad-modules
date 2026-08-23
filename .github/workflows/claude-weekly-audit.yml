@@ -81,6 +81,13 @@ jobs:
           fi
 
           if [ "$rc" -ne 0 ]; then
+            # claude can exit non-zero having written NOTHING to stderr -- its
+            # error goes to stdout, i.e. into /tmp/audit.txt. Dump it here or the
+            # check goes red saying only that it went red.
+            if [ -s /tmp/audit.txt ]; then
+              echo "--- claude stdout ---"
+              cat /tmp/audit.txt
+            fi
             echo "::error title=Claude audit failed::claude exited $rc -- no audit was produced."
             exit "$rc"
           fi
