@@ -81,7 +81,7 @@ export ZONE="us-west2-a"        # the zone you deploy into (must be within REGIO
    ```bash
    JUMP=$(gcloud compute instances list --filter="name~jump-host" --project="$PROJECT" \
      --format="value(name)")
-   gcloud compute instances list --filter="name~jump-host" --project="$PROJECT" \
+   gcloud compute instances list --filter="name~^altostrat-[0-9]+-jump-host$" --project="$PROJECT" \
      --format="table(name, status, networkInterfaces[0].accessConfigs[0].natIP)"
    gcloud compute reset-windows-password "$JUMP" --zone="$ZONE" --project="$PROJECT"
    ```
