@@ -4,7 +4,7 @@
 
 ## Overview
 
-**Estimated time:** 90–150 minutes (most of it waiting — private-cloud creation alone can take **~2 hours** for larger types; a single-node `TIME_LIMITED` cloud is usually ready in 30–90 minutes).
+**Estimated time:** 150–180 minutes (most of it waiting — private-cloud creation alone can take **~2 hours** for larger types; a single-node `TIME_LIMITED` cloud is usually ready in 30–90 minutes).
 
 Google Cloud VMware Engine (GCVE) runs a complete VMware Software-Defined Data Center — vSphere, vSAN, NSX-T, and HCX — on Google-managed bare-metal hardware, so your existing VMware tooling and skills carry over unchanged. This lab takes you through the full operational lifecycle of the **VMware Engine** module: deploy it, confirm the private cloud comes up and reach vCenter through the jump host, operate the environment day-to-day, observe it, diagnose common problems, and tear it down.
 
