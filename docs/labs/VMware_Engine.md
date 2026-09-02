@@ -79,7 +79,7 @@ export ZONE="us-west2-a"        # the zone you deploy into (must be within REGIO
 3. **Generate a Windows password and find the jump host's external IP:**
 
    ```bash
-   JUMP=$(gcloud compute instances list --filter="name~jump-host" --project="$PROJECT" \
+   JUMP=$(gcloud compute instances list --filter="name~^altostrat-[0-9]+-jump-host$" --project="$PROJECT" \
      --format="value(name)")
    gcloud compute instances list --filter="name~^altostrat-[0-9]+-jump-host$" --project="$PROJECT" \
      --format="table(name, status, networkInterfaces[0].accessConfigs[0].natIP)"
