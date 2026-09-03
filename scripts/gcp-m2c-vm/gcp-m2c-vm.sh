@@ -416,7 +416,7 @@ source $PROJDIR/.env
 if [ $MODE -eq 1 ]; then
     export STEP="${STEP},3i"        
     echo
-    echo "$ gcloud compute --project \$GCP_PROJECT --quiet ssh \$VM_NAME --zone \$VM_ZONE  --command=\"  --command="sudo apt-get update && sudo apt-get install -y rsync"\" # to install rsync in virtual machine" | pv -qL 100
+    echo "$ gcloud compute --project \$GCP_PROJECT --quiet ssh \$VM_NAME --zone \$VM_ZONE  --command=\"  --command=\"sudo sed -i '/bullseye-backports/d' /etc/apt/sources.list && sudo apt-get update && sudo apt-get install -y rsync\" # to install rsync in virtual machine" | pv -qL 100
     echo
     echo "$ curl -O \"https://m2c-cli-release.storage.googleapis.com/\$(curl -s https://m2c-cli-release.storage.googleapis.com/latest)/linux/amd64/m2c\" && chmod +x ./m2c # to download or upgrade the Migrate to Containers CLI" | pv -qL 100
     echo
@@ -447,7 +447,7 @@ if [ $MODE -eq 1 ]; then
     echo
     export VM_ZONE=$(gcloud compute instances list --project=$GCP_PROJECT --filter=name:$VM_NAME --format="table[csv,no-heading](zone)")
     echo
-    echo "$ gcloud compute --project $GCP_PROJECT --quiet ssh $VM_NAME --zone $VM_ZONE  --command=\"sudo apt-get update && sudo apt-get install -y rsync\" # to install rsync in virtual machine" | pv -qL 100
+    echo "$ gcloud compute --project $GCP_PROJECT --quiet ssh $VM_NAME --zone $VM_ZONE  --command=\"sudo sed -i '/bullseye-backports/d' /etc/apt/sources.list && sudo apt-get update && sudo apt-get install -y rsync\" # to install rsync in virtual machine" | pv -qL 100
     gcloud compute --project $GCP_PROJECT --quiet ssh $VM_NAME --zone $VM_ZONE  --command="sudo apt install rsync"
     echo
     echo "$ cd $PROJDIR # to change to working directory" | pv -qL 100
