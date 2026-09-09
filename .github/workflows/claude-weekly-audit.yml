@@ -30,11 +30,19 @@ on:
 permissions:
   contents: read
   issues: write
+  # Required by google-github-actions/auth for the WIF token exchange.
+  id-token: write
 
 jobs:
   doc-audit:
     name: Convention & Doc Audit
     runs-on: ubuntu-latest
+
+    # `secrets` is not reliably available in a step-level `if:`; `env` is.
+    # Gating keeps a repo whose WIF is not wired from showing a
+    # permanently-failing auth step.
+    env:
+      HAS_WIF: ${{ secrets.WIF_PROVIDER != '' && secrets.WIF_SERVICE_ACCOUNT != '' }}
 
     steps:
       - name: Checkout
@@ -52,12 +60,56 @@ jobs:
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
 
+      # Secret Manager is the ONE durable copy of this credential; the
+      # repository secret is the fallback that keeps this file working in a
+      # repo whose WIF is not wired. Which source was used is PRINTED, so a
+      # silent fall back to a drifting hand-copied secret is visible.
+      - name: Authenticate to Google Cloud
+        id: gcpauth
+        if: env.HAS_WIF == 'true'
+        continue-on-error: true
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        if: ${{ steps.gcpauth.outcome == 'success' }}
+        continue-on-error: true
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Resolve the Anthropic API key
+        id: key
+        env:
+          GCP_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+          FALLBACK_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          K=""
+          SOURCE="repository secret"
+          if [ "${{ steps.gcpauth.outcome }}" = "success" ] && [ -n "$GCP_PROJECT" ]; then
+            K=$(gcloud secrets versions access latest \
+                  --secret=anthropic-api-key --project="$GCP_PROJECT" 2>/dev/null || true)
+            [ -n "$K" ] && SOURCE="Secret Manager (${GCP_PROJECT}/anthropic-api-key)"
+          fi
+          [ -n "$K" ] || K="$FALLBACK_KEY"
+
+          if [ -z "$K" ]; then
+            echo "::error title=No Anthropic API key::Neither Secret Manager nor the ANTHROPIC_API_KEY repository secret yielded a key."
+            exit 1
+          fi
+
+          echo "::add-mask::$K"
+          echo "key=$K" >> "$GITHUB_OUTPUT"
+          echo "🔑 Using the key from: ${SOURCE}"
+
       - name: Run convention checker (input for the audit)
         run: python3 scripts/check_conventions.py --modules-dir modules/ > /tmp/conventions.txt 2>&1 || true
 
       - name: Run audit
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ steps.key.outputs.key }}
+          # Haiku, overridable per repo without editing this file.
+          REVIEW_MODEL: ${{ vars.CLAUDE_REVIEW_MODEL || 'claude-haiku-4-5' }}
         run: |
           # Prompt body lives in a separate file so this YAML never embeds a
           # column-0 heredoc.
@@ -70,10 +122,36 @@ jobs:
           set +e
           claude --dangerously-skip-permissions \
             --allowedTools "Read,Grep,Glob,Bash" \
-            --output-format text \
-            -p "$(cat .github/claude-prompts/weekly-audit.md)" > /tmp/audit.txt 2> /tmp/audit.err
+            --model "$REVIEW_MODEL" \
+            --output-format json \
+            -p "$(cat .github/claude-prompts/weekly-audit.md)" > /tmp/claude.json 2> /tmp/audit.err
           rc=$?
           set -e
+
+          # Extract BEFORE the rc check: a run that FAILED still reports usage,
+          # and a failed audit that cost money is the one worth measuring.
+          if [ -s /tmp/claude.json ]; then
+            jq -r '.result // ""' /tmp/claude.json > /tmp/audit.txt 2>/dev/null || : > /tmp/audit.txt
+
+            COST=$(jq -r '.total_cost_usd // 0' /tmp/claude.json)
+            IN=$(jq -r '.usage.input_tokens // 0' /tmp/claude.json)
+            OUT=$(jq -r '.usage.output_tokens // 0' /tmp/claude.json)
+            CR=$(jq -r '.usage.cache_read_input_tokens // 0' /tmp/claude.json)
+            CC=$(jq -r '.usage.cache_creation_input_tokens // 0' /tmp/claude.json)
+            TURNS=$(jq -r '.num_turns // 0' /tmp/claude.json)
+            SECS=$(jq -r '((.duration_ms // 0) / 1000 * 10 | round) / 10' /tmp/claude.json)
+
+            echo "💸 model=${REVIEW_MODEL} cost=\$${COST} turns=${TURNS} ${SECS}s | tokens in=${IN} out=${OUT} cache_read=${CR} cache_write=${CC}"
+            {
+              echo "### Audit cost"
+              echo ""
+              echo "| model | cost | turns | duration | in | out | cache read | cache write |"
+              echo "|---|---|---|---|---|---|---|---|"
+              echo "| \`${REVIEW_MODEL}\` | \$${COST} | ${TURNS} | ${SECS}s | ${IN} | ${OUT} | ${CR} | ${CC} |"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            : > /tmp/audit.txt
+          fi
 
           if [ -s /tmp/audit.err ]; then
             echo "--- claude stderr ---"
@@ -82,11 +160,14 @@ jobs:
 
           if [ "$rc" -ne 0 ]; then
             # claude can exit non-zero having written NOTHING to stderr -- its
-            # error goes to stdout, i.e. into /tmp/audit.txt. Dump it here or the
+            # error goes to stdout, i.e. into the raw capture. Dump it here or the
             # check goes red saying only that it went red.
-            if [ -s /tmp/audit.txt ]; then
+            # The RAW capture, not the extracted .result, which is empty on
+            # exactly this path. This workflow has already lost its
+            # diagnostic once by dumping the wrong file.
+            if [ -s /tmp/claude.json ]; then
               echo "--- claude stdout ---"
-              cat /tmp/audit.txt
+              cat /tmp/claude.json
             fi
             echo "::error title=Claude audit failed::claude exited $rc -- no audit was produced."
             exit "$rc"
