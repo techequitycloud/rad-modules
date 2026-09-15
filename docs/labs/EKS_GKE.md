@@ -43,7 +43,7 @@ gcloud config set project "$PROJECT"
 
 ## Task 1 — Deploy the module [Automated]
 
-1. Click **Deploy** in the RAD platform top navigation, open **AWS EKS on GKE Fleet (EKS_GKE)** from the **Platform Modules** list to start configuration, and set the required inputs:
+1. Open **Solutions → Solution Modules** in the RAD platform top navigation, open **AWS EKS on GKE Fleet (EKS_GKE)** from the **Platform Modules** list to start configuration, and set the required inputs:
    - `project_id` — your Google Cloud project
    - `aws_access_key` and `aws_secret_key` — your AWS credentials (stored sensitively)
    - optionally `trusted_users` — Google emails to grant cluster-admin

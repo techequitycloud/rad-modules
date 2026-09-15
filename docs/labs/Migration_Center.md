@@ -58,7 +58,7 @@ export ZONE="us-central1-a"
 
 ## Task 1 — Deploy the module [Automated]
 
-1. Click **Deploy** in the RAD platform top navigation, open **Migration Center** from the
+1. Open **Solutions → Solution Modules** in the RAD platform top navigation, open **Migration Center** from the
    **Platform Modules** list to start configuration, set `project_id`, and review the inputs.
    Configure only what you need — the
    [Configuration Guide](https://docs.radmodules.dev/docs/modules/Migration_Center) documents

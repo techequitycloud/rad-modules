@@ -63,7 +63,7 @@ export ARM_SUBSCRIPTION_ID="<azure-subscription-id>"
 
 ## Task 1 — Deploy the module [Automated]
 
-1. Click **Deploy** in the RAD platform top navigation, open **Azure AKS attached to a Google
+1. Open **Solutions → Solution Modules** in the RAD platform top navigation, open **Azure AKS attached to a Google
    Cloud Fleet** from the **Platform Modules** list to start configuration, and set
    `project_id`. Provide the four required Azure credentials (`client_id`, `client_secret`,
    `azure_tenant_id`, `subscription_id`) and fill in `trusted_users` — a required input with no default, so pass an empty list if you want no extra
