@@ -44,7 +44,7 @@ export ZONE="us-west2-a"        # the zone you deploy into (must be within REGIO
 
 ## Task 1 — Deploy the module [Automated]
 
-1. Click **Deploy** in the RAD platform top navigation, open **VMware Engine** from the **Platform Modules** list to start configuration, set `project_id`, and review the inputs. Configure only what you need — the [Configuration Guide](https://docs.radmodules.dev/docs/modules/VMware_Engine) documents every input by group, with defaults. For a lab, keep `private_cloud_type = TIME_LIMITED` and `node_count = 1`. Review the estimated cost (if credits are enabled) and click **Deploy**, which opens the deployment status page with real-time logs.
+1. Open **Solutions → Solution Modules** in the RAD platform top navigation, open **VMware Engine** from the **Platform Modules** list to start configuration, set `project_id`, and review the inputs. Configure only what you need — the [Configuration Guide](https://docs.radmodules.dev/docs/modules/VMware_Engine) documents every input by group, with defaults. For a lab, keep `private_cloud_type = TIME_LIMITED` and `node_count = 1`. Review the estimated cost (if credits are enabled) and click **Deploy**, which opens the deployment status page with real-time logs.
 
 2. The platform provisions the VMware Engine network, the private cloud (vCenter, vSAN, NSX-T, HCX), VPC peering into a Google Cloud peer VPC, the network policy, firewall rules, and a Windows Server 2022 jump host, then resets and prints the vCenter credentials. **Private-cloud creation dominates the time** — expect 30–90 minutes for a single-node `TIME_LIMITED` cloud, and up to **~2 hours** for larger types. The deployment will appear to sit still during this window; that is expected — do not interrupt it.
 

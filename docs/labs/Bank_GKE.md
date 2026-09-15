@@ -53,7 +53,7 @@ export NS="bank-of-anthos"           # the application namespace
 
 ## Task 1 — Deploy the module [Automated]
 
-1. Click **Deploy** in the RAD platform top navigation, open **Bank of Anthos (GKE)** from the
+1. Open **Solutions → Solution Modules** in the RAD platform top navigation, open **Bank of Anthos (GKE)** from the
    **Platform Modules** list to start configuration, set `project_id`, and review the inputs.
    Configure only what you need — the
    [Configuration Guide](https://docs.radmodules.dev/docs/modules/Bank_GKE) documents every
