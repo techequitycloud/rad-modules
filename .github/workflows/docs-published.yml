@@ -1,0 +1,88 @@
+name: Published Docs Check
+
+# Verifies that every module's documentation actually reaches the public docs
+# site, and that the published copy still matches this repo's.
+#
+# Each module under modules/ owns two pages — docs/modules/<M>.md and
+# docs/labs/<M>.md — which are published to https://docs.radmodules.dev out of
+# the separate techequitycloud/rad.github.io repository. Until this workflow
+# existed, nothing enforced that link in either direction.
+#
+# The gap was not theoretical. rad.github.io commit 846fdf8 (2026-07-29) deleted
+# all sixteen pages as "phantom published pages" on the test that none
+# "correspond to any module that exists in partner-modules/modules/" — the wrong
+# catalogue, since these eight modules are rad-modules' own and the docs site
+# draws from three source repos. The site kept building green afterwards: no doc
+# links to those pages by name, and the sidebar and certification cross-links are
+# generated from sidebars.ts and src/data/certMap.ts, which the same commit also
+# pruned. Nothing anywhere went red. The pages returned 404 for seven weeks and
+# were found only by someone asking whether they were published at all.
+#
+# The weekly schedule is the load-bearing trigger, not a nicety: that deletion
+# was a commit in the OTHER repository, so no push or pull_request event here
+# would ever have fired. A drift that originates downstream is only ever caught
+# on a timer.
+#
+# Severities come from scripts/check_docs_published.py:
+#   FAIL (blocks) — a page is missing locally, carries YAML front matter, or is
+#                   absent from the live site (404).
+#   WARN (passes) — the published body has drifted from this repo's copy, or the
+#                   site could not be reached to prove anything. Prose is edited
+#                   here and synced to the site as a second step, so a transient
+#                   difference is normal and must not block a merge; it is
+#                   reported as an annotation instead. Pass --strict to promote.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'modules/**'
+      - 'scripts/check_docs_published.py'
+      - '.github/workflows/docs-published.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'modules/**'
+      - 'scripts/check_docs_published.py'
+      - '.github/workflows/docs-published.yml'
+  schedule:
+    # Mondays 06:00 UTC — catches deletions and drift originating in rad.github.io.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  published:
+    name: Published docs check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Public repo, so the default token suffices. Only docs/ is needed, and it
+      # is advisory: if this fails the run continues with the live checks alone
+      # rather than going red over an unrelated checkout problem.
+      - name: Check out the docs site
+        id: site
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: techequitycloud/rad.github.io
+          path: .site
+          sparse-checkout: docs
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run published-docs checker
+        run: |
+          if [ -d .site/docs ]; then
+            python3 scripts/check_docs_published.py --site-dir .site
+          else
+            echo "::warning::rad.github.io checkout unavailable — running live-site checks only"
+            python3 scripts/check_docs_published.py
+          fi

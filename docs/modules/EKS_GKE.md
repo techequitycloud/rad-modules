@@ -1,8 +1,3 @@
----
-title: "EKS_GKE Module Documentation"
-sidebar_label: "EKS_GKE"
----
-
 # AWS EKS attached to a Google Cloud Fleet
 
 <img src="https://storage.googleapis.com/rad-public-2b65/modules/EKS_GKE.png" alt="AWS EKS attached to a Google Cloud Fleet" style={{maxWidth: "100%", borderRadius: "8px"}} />

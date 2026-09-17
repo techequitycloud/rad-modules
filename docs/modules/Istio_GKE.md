@@ -1,8 +1,3 @@
----
-title: "Istio_GKE Module Documentation"
-sidebar_label: "Istio_GKE"
----
-
 # Istio on GKE
 
 <img src="https://storage.googleapis.com/rad-public-2b65/modules/Istio_GKE.png" alt="Istio on GKE" style={{maxWidth: "100%", borderRadius: "8px"}} />
