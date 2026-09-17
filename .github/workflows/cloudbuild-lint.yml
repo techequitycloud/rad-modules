@@ -44,7 +44,7 @@ jobs:
     name: Cloud Build step arg limits
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
@@ -65,7 +65,7 @@ jobs:
     name: Pipeline shell scripts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # These run inside Cloud Build, where a syntax error fails the deploy at
       # runtime with a bare non-zero exit and no indication of which line.
