@@ -1,8 +1,3 @@
----
-title: "Migration Center Module Documentation"
-sidebar_label: "Migration Center"
----
-
 # Migration Center — Discovery & Assessment Environment
 
 <img src="https://storage.googleapis.com/rad-public-2b65/modules/Migration_Center.png" alt="Migration Center — Discovery & Assessment Environment" style={{maxWidth: "100%", borderRadius: "8px"}} />

@@ -1,8 +1,3 @@
----
-title: "VMware Engine Module Documentation"
-sidebar_label: "VMware Engine"
----
-
 # Google Cloud VMware Engine
 
 <img src="https://storage.googleapis.com/rad-public-2b65/modules/VMware_Engine.png" alt="Google Cloud VMware Engine" style={{maxWidth: "100%", borderRadius: "8px"}} />
