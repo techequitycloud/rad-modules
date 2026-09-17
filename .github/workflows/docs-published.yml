@@ -60,7 +60,7 @@ jobs:
     name: Published docs check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Public repo, so the default token suffices. Only docs/ is needed, and it
       # is advisory: if this fails the run continues with the live checks alone
@@ -68,13 +68,13 @@ jobs:
       - name: Check out the docs site
         id: site
         continue-on-error: true
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: techequitycloud/rad.github.io
           path: .site
           sparse-checkout: docs
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
