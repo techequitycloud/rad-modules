@@ -77,6 +77,17 @@ steps:
         echo "[$(date +'%H:%M:%S')] $$1"
     }
 
+    # Runs BEFORE the nothing-to-destroy exit: a create still applying may be
+    # writing the very state that marker was derived from. Refuse to share
+    # this deployment's Terraform state with another live build, FAILING
+    # CLOSED if Cloud Build cannot be asked; only then clear a lock a
+    # hard-killed build left behind (GCS locks never expire). All of it lives
+    # in the script -- see its header for the 2026-08-19 incident and why the
+    # older build wins (P-24).
+    PROJECT_ID="${PROJECT_ID}" DEPLOYMENT_ID="${_DEPLOYMENT_ID}" BUILD_ID="${BUILD_ID}" \
+    LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/state/default.tflock" \
+        bash /pipeline/guard_concurrent_build.sh
+
     if [ -f /workspace/NOTHING_TO_DESTROY ]; then
         echo "⏭️  Nothing was ever applied — skipping."
         exit 0
@@ -103,27 +114,6 @@ steps:
     CACHE_CHECKSUM_BEFORE=$$(find "$$CACHE_DIR" -type f | sort | xargs md5sum 2>/dev/null | md5sum || echo "empty")
 
     tofu init -reconfigure
-
-    # Clear a state lock left behind by a previous build for THIS deployment
-    # that was hard-killed (Cloud Build timeout, OOM, manual cancellation)
-    # before it could release it — GCS backend locking has no automatic
-    # staleness expiry, so an orphaned lock silently blocks every future
-    # build for this deployment (including a user's own retry) indefinitely.
-    # Safe unconditionally: the webapp's own idempotency claim
-    # (deleteDeployment's teardownInFlight check) only lets a new build
-    # start for this deployment once the previous one has already reached a
-    # terminal Firestore status, itself only set after Cloud Build reports
-    # that build as finished — so any process that could still legitimately
-    # hold this lock is already gone by the time this build starts.
-    # Confirmed live 2026-08-06: a Medusa_CloudRun build's Cloud Build
-    # timeout orphaned this exact lock and blocked every subsequent retry
-    # until manually cleared (found on the update pipeline; applied here too
-    # since destroy shares the identical GCS-backend-locking exposure).
-    LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/state/default.tflock"
-    if gsutil stat "$$LOCK_PATH" >/dev/null 2>&1; then
-        log "⚠️  Found a leftover state lock from a previous build — clearing it"
-        gsutil rm "$$LOCK_PATH" || log "⚠️  Failed to clear stale lock (may have already cleared itself)"
-    fi
 
     # Only re-upload the provider cache if it changed
     CACHE_CHECKSUM_AFTER=$$(find "$$CACHE_DIR" -type f | sort | xargs md5sum 2>/dev/null | md5sum || echo "empty")
@@ -169,6 +159,11 @@ steps:
     fi
 
     log "✅ State validation completed"
+  # Step 1 wipes /workspace, so the guard script is read from this shared
+  # volume, which step 0 copied the scripts directory into.
+  volumes:
+  - name: 'pipeline-scripts'
+    path: '/pipeline'
   dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Destroy Infrastructure'
