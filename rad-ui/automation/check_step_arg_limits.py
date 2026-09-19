@@ -18,11 +18,32 @@ without noticing. Run this after touching any cloudbuild_*.yaml.
 import collections
 import glob
 import os
+import re
 import sys
 
 import yaml
 
 LIMIT = 10_000
+
+# A step must never print the CONTENTS of terraform.tfvars.json: it holds the
+# real value of every sensitive variable (a GitHub PAT, an API key), and the
+# build log is served to the deployment's owner, scoped Support and a
+# provisioning trainer. Printing the key NAMES (`jq keys`) is fine. The update
+# pipeline did `cat terraform.tfvars.json | jq '.'` until audit Q-02.
+TFVARS_DUMP = re.compile(
+    r"(?:\bcat\b|\bjq\b\s+(?:-[a-zA-Z]+\s+)*['\"]?\.['\"]?)[^\n]*tfvars",
+)
+
+
+def find_tfvars_dumps(arg: str) -> list[str]:
+    return [
+        line.strip()
+        for line in arg.splitlines()
+        if not line.lstrip().startswith("#")
+        and TFVARS_DUMP.search(line)
+        and "gsutil" not in line
+        and "cp " not in line
+    ]
 # Flag anything this close, so a small future edit doesn't silently cross it.
 WARN_AT = 9_000
 
@@ -41,6 +62,12 @@ def main() -> int:
             doc = yaml.safe_load(fh)
         for index, step in enumerate(doc.get("steps", []) or []):
             for arg_index, arg in enumerate(step.get("args", []) or []):
+                for line in find_tfvars_dumps(arg):
+                    failed = True
+                    print(
+                        f"SECRET-DUMP {os.path.basename(path)} step {index} "
+                        f"({step.get('id')}): prints tfvars contents: {line}"
+                    )
                 size = len(arg)
                 if size > LIMIT:
                     failed = True
@@ -81,7 +108,8 @@ def main() -> int:
 
     if failed:
         print("\nBuilds with an over-limit step or a single-use volume are "
-              "rejected before they start.")
+              "rejected before they start; a step that prints tfvars leaks "
+              "sensitive variables into the build log.")
         return 1
     print("All Cloud Build step args are within the 10,000-character limit."
           + (" Some are close — see TIGHT above." if warned else ""))
