@@ -173,8 +173,12 @@ steps:
     # Download terraform.tfvars.json
     if gsutil cp "$$FILES_PATH/terraform.tfvars.json" ./terraform.tfvars.json; then
         log "✅ Downloaded terraform.tfvars.json"
-        log "🔍 Verifying configuration:"
-        cat terraform.tfvars.json | jq '.' || log "Unable to parse JSON"
+        # Print the variable NAMES only. The file holds the real value of every
+        # sensitive variable (a PAT, an API key), this log is readable by the
+        # deployment's owner, scoped Support and a provisioning trainer, and a
+        # dump of the whole file used to hand all of them the secret (audit Q-02).
+        log "🔍 Verifying configuration (variable names only):"
+        jq -c 'keys' terraform.tfvars.json || log "Unable to parse JSON"
     else
         log "⚠️  terraform.tfvars.json not found"
     fi
