@@ -231,63 +231,14 @@ steps:
         exit 1
     fi
 
-    # A concurrent build for THIS deployment is the one case the lock clear
-    # below must not paper over. Ask Cloud Build directly rather than trusting
-    # the caller-side claim: on 2026-08-19 a solution update published an
-    # UPDATE for four members whose CREATE (released moments earlier by
-    # resolveWaitingDependents when Services_GCP succeeded) was still applying.
-    # Both builds then ran against one state file, the second cleared the
-    # first's lock as "stale", and BOTH failed -- the update on "Saved plan is
-    # stale", the create on "Error releasing the state lock: object doesn't
-    # exist" -- after the create had already built 46 real resources.
-    #
-    # Refusing is better than queueing here: the deployment is left in a
-    # terminal state the operator can retry, rather than two applies silently
-    # interleaving on one state.
-    # `--ongoing` (WORKING + QUEUED) and match the deployment id CLIENT-side.
-    # Filtering server-side on substitutions._DEPLOYMENT_ID scans the whole
-    # build history and times out — measured >150s on this project, which
-    # inside a build step is a hang, not a check. `--ongoing` returns in ~1s
-    # because live builds are few.
-    OTHER_BUILDS=$$(gcloud builds list \
-        --project="${PROJECT_ID}" \
-        --ongoing \
-        --format="value(id,substitutions._DEPLOYMENT_ID)" \
-        --limit=100 2>/dev/null \
-        | awk -v d="${_DEPLOYMENT_ID}" -v self="${BUILD_ID}" '$$2 == d && $$1 != self { print $$1 }' \
-        || true)
-    if [ -n "$$OTHER_BUILDS" ]; then
-        log "❌ Another build for deployment ${_DEPLOYMENT_ID} is already running:"
-        for b in $$OTHER_BUILDS; do log "     $$b"; done
-        log "   Two builds share one Terraform state file, so running both corrupts"
-        log "   the lock and fails them BOTH. Wait for that build to finish, then"
-        log "   retry this deployment from the RAD dashboard."
-        exit 1
-    fi
-
-    # Clear a state lock left behind by a previous build for THIS deployment
-    # that was hard-killed (Cloud Build timeout, OOM, manual cancellation)
-    # before it could release it — GCS backend locking has no automatic
-    # staleness expiry, so an orphaned lock silently blocks every future
-    # build for this deployment (including a user's own retry) indefinitely.
-    # Safe unconditionally: the webapp's own idempotency claim
-    # (S6-style, updateDeployment) only lets a new build start for this
-    # deployment once the previous one has already reached a terminal
-    # Firestore status, itself only set after Cloud Build reports that build
-    # as finished — so any process that could still legitimately hold this
-    # lock is already gone by the time this build starts. That premise was
-    # FALSIFIED on 2026-08-19 (see the concurrency check above, which now
-    # verifies it instead of assuming it). Confirmed live
-    # 2026-08-06: a Medusa_CloudRun build's Cloud Build timeout orphaned
-    # this exact lock and blocked every subsequent retry until manually
-    # cleared (found on the update pipeline; applied here too since create
-    # shares the identical GCS-backend-locking exposure — e.g. a create
-    # retried after a Services_GCP/Project_GCP chain failure).
-    LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/state/default.tflock"
-    if gsutil stat "$$LOCK_PATH" >/dev/null 2>&1; then
-        log "⚠️  Found a leftover state lock from a previous build — clearing it"
-        gsutil rm "$$LOCK_PATH" || log "⚠️  Failed to clear stale lock (may have already cleared itself)"
-    fi
+    # Refuse to share this deployment's Terraform state with another live
+    # build, FAILING CLOSED if Cloud Build cannot be asked; only then clear a
+    # lock a hard-killed build left behind (GCS locks never expire). All of it
+    # lives in the script -- see its header for the 2026-08-19 incident and
+    # why the older build wins (P-24).
+    PROJECT_ID="${PROJECT_ID}" DEPLOYMENT_ID="${_DEPLOYMENT_ID}" BUILD_ID="${BUILD_ID}" \
+    LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/state/default.tflock" \
+        bash /pipeline/guard_concurrent_build.sh
 
     log "📋 Planning infrastructure changes..."
 
@@ -311,6 +262,11 @@ steps:
     esac
 
     log "✅ Initialization and planning completed"
+  # Step 0 wipes /workspace, so the guard script is read from this shared
+  # volume, which step 0 copied the scripts directory into.
+  volumes:
+  - name: 'pipeline-scripts'
+    path: '/pipeline'
   dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Apply Infrastructure Changes'

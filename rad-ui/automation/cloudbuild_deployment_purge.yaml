@@ -54,6 +54,18 @@ steps:
         fi
 
         # ============================================
+        # No other build may be live for this deployment (P-24)
+        # ============================================
+        # A purge marks the deployment purged on success. Run while its own
+        # destroy (or a create) is still applying, it would record a teardown
+        # that has not happened. Same guard as the other three pipelines,
+        # failing CLOSED when Cloud Build cannot be asked. No LOCK_PATH: a
+        # purge never touches Terraform state. Read from the source checkout,
+        # which this pipeline never wipes.
+        PROJECT_ID="${PROJECT_ID}" DEPLOYMENT_ID="${_DEPLOYMENT_ID}" BUILD_ID="${BUILD_ID}" \
+            bash /workspace/rad-ui/automation/scripts/guard_concurrent_build.sh
+
+        # ============================================
         # Report on the deployment folder — do NOT delete it
         # ============================================
         # This step used to run `gsutil -m rm -r` on the deployment path,
