@@ -21,6 +21,11 @@ log() {
     echo "[$(date +'%H:%M:%S')] $1"
 }
 
+# Which failed applies may still count as success (P-30). Sourced from beside
+# this script: /pipeline in the build, the repo checkout under test.
+# shellcheck source=rollout_timeout_policy.sh
+. "$(dirname "${BASH_SOURCE[0]}")/rollout_timeout_policy.sh"
+
 log "🚀 Applying infrastructure changes..."
 
 # ── Persist state on failure (option B) ──────────────────────────────
@@ -333,9 +338,12 @@ apply_with_retry() {
         # Kubernetes objects are already provisioned — the kubelet will keep
         # retrying the pods independently. Treat this as a partial success so
         # the build does not fail over a transient pod health-check window.
-        if grep -qiE "(timed out waiting for the condition|Deployment.*timed out|StatefulSet.*timed out|rollout.*timed out|timed out.*[Dd]eployment|timed out.*[Ss]tateful[Ss]et|timed out.*rollout)" /tmp/apply_output.txt 2>/dev/null; then
+        # ONLY when every Error block is a workload rollout timeout -- one other
+        # error fails the build (P-30, D-9); see rollout_timeout_policy.sh.
+        if only_rollout_timeouts /tmp/apply_output.txt; then
             log "⚠️  Kubernetes rollout timeout detected — infrastructure is provisioned"
             log "ℹ️  Pods will continue health checks independently; treating as partial success"
+            record_rollout_timeout_tolerated
             return 0
         fi
 
