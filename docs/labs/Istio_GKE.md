@@ -44,7 +44,7 @@ export CLUSTER="gke-cluster"          # matches the gke_cluster input
 
 ## Task 1 — Deploy the module [Automated]
 
-1. Open **Solutions → Solution Modules** in the RAD platform top navigation, open **Istio (GKE)** from the **Platform Modules** list to start configuration, set `project_id`, and review the inputs. The key choices are `install_ambient_mesh` (`false` for sidecar mode, `true` for ambient mode) and `istio_version`. Configure only what you need — the [Configuration Guide](https://docs.radmodules.dev/docs/modules/Istio_GKE) documents every input by group, with defaults. Review the estimated cost (if credits are enabled) and click **Deploy**, which opens the deployment status page with real-time logs.
+1. Open **Solutions → Solution Modules** in the RAD platform top navigation, open **Istio (GKE)** from the **Platform Modules** list to start configuration, set `project_id`, and review the inputs. The key choices are `install_ambient_mesh` (`false` for sidecar mode, `true` for ambient mode) and `istio_version`. Configure only what you need — the [Configuration Guide](https://docs.radmodules.dev/docs/modules/Istio_GKE) documents every input by group, with defaults. Click **Deploy Module**, review the estimated cost in the confirmation dialog (if credits are enabled) and click **Confirm**, which opens the deployment status page with real-time logs.
 
 2. The platform creates a VPC and Cloud NAT, provisions a GKE Standard cluster (a regional node pool of 2 preemptible `e2-standard-2` nodes **per zone** — 8 nodes in a 4-zone region such as `us-central1`), then runs the Istio installation step: it downloads `istioctl`, installs Istio with the selected profile, labels the `default` namespace for mesh enrolment, and installs the Prometheus, Grafana, Jaeger, and Kiali add-ons. First deploys take roughly **15–25 minutes** (cluster creation and the mesh install dominate).
 
@@ -180,7 +180,7 @@ See the Configuration Guide's *Configuration Pitfalls* section for setting-speci
 
 On the **Deployments** page, open the deployment and click the **Trash** icon (**Delete**). Delete runs `terraform destroy`: it gracefully uninstalls Istio and the observability add-ons, removes the `istio-system` namespace, then tears down the GKE cluster, node pool, service account, VPC, firewall rules, and Cloud NAT created by this module. Delete is irreversible (the deployment record is retained for history).
 
-If a deployment is stuck and the RAD platform can no longer manage it (for example after manual changes that conflict with the Terraform state), use **Purge** instead — it removes the deployment from RAD's records **without** destroying the cloud resources (it makes RAD forget the project). After a Purge, clean up any leftover resources manually.
+If a deployment is stuck and the RAD platform can no longer manage it (for example after manual changes that conflict with the Terraform state), use **Purge** instead (from the same **Delete** dialog) — it removes the deployment from RAD's records **without** destroying the cloud resources (it makes RAD forget the deployment). After a Purge, clean up any leftover resources manually.
 
 ---
 

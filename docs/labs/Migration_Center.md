@@ -64,7 +64,7 @@ export ZONE="us-central1-a"
    [Configuration Guide](https://docs.radmodules.dev/docs/modules/Migration_Center) documents
    every input by group, with defaults. To import live AWS EC2 inventory, supply
    `aws_access_key_id`, `aws_secret_access_key`, and `aws_region`; otherwise leave them blank.
-   Review the estimated cost (if credits are enabled) and click **Deploy**, which opens the
+   Click **Deploy Module**, review the estimated cost in the confirmation dialog (if credits are enabled) and click **Confirm**, which opens the
    deployment status page with real-time logs.
 
 2. The platform provisions a dedicated VPC and firewall rules, a Windows Server 2022 MCDCv6
@@ -226,9 +226,9 @@ VPC and firewall rules, the Cloud Storage bucket (and the SSH key in it), and �
 enabled — the scoped AWS IAM user, policy, and access key.
 
 If a deployment is stuck and the RAD platform can no longer manage it (for example after manual
-changes that conflict with the Terraform state), use **Purge** instead — it removes the
+changes that conflict with the Terraform state), use **Purge** instead (from the same **Delete** dialog) — it removes the
 deployment from RAD's records **without** destroying the cloud resources (it makes RAD forget
-the project).
+the deployment).
 
 > **Migration Center objects are not deleted by destroy.** The discovery source, import jobs,
 > and any asset groups, preference sets, and reports you created are not tracked in Terraform

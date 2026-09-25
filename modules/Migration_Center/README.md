@@ -33,7 +33,7 @@ asset data.
 
 ### RAD UI
 
-Select **Migration Center** from the module catalog and click **Deploy**.
+On [radmodules.dev](https://radmodules.dev), open **Solutions → Solution Modules**, find **Migration Center** in the module catalog and click **Deploy**.
 All defaults are production-ready for the lab.
 
 ### Advanced — Launcher CLI (automation/maintainers)
@@ -183,7 +183,7 @@ No modules.
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | GCP project ID where Migration Center resources will be deployed. Must already exist and the service account must hold roles/owner. {{UIMeta group=1 order=101 }} | `string` | `null` | no |
 | <a name="input_public_access"></a> [public\_access](#input\_public\_access) | Set to false to restrict this module to platform administrators only. Set to true (the default) to make it visible and deployable by all platform users. {{UIMeta group=0 order=106 }} | `bool` | `true` | no |
 | <a name="input_region"></a> [region](#input\_region) | GCP region where all resources will be deployed (e.g. 'us-central1'). Migration Center must be available in this region. {{UIMeta group=1 order=103 }} | `string` | `"us-central1"` | no |
-| <a name="input_require_credit_purchases"></a> [require\_credit\_purchases](#input\_require\_credit\_purchases) | Set to true to require users to hold a credit balance before deploying this module. {{UIMeta group=0 order=104 }} | `bool` | `false` | no |
+| <a name="input_require_credit_purchases"></a> [require\_credit\_purchases](#input\_require\_credit\_purchases) | When `true`, the module fee can be paid only from purchased credits (subscription or top-up), not from free awarded or event credits. {{UIMeta group=0 order=104 }} | `bool` | `false` | no |
 | <a name="input_resource_creator_identity"></a> [resource\_creator\_identity](#input\_resource\_creator\_identity) | Email of the Terraform service account used to provision resources (format: name@project-id.iam.gserviceaccount.com). Must hold roles/owner in the destination project. {{UIMeta group=0 order=107 updatesafe }} | `string` | `"rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"` | no |
 | <a name="input_shared_users"></a> [shared\_users](#input\_shared\_users) | List of users who can view and deploy this module regardless of the public\_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }} | `list(string)` | `[]` | no |
 | <a name="input_tenant_id"></a> [tenant\_id](#input\_tenant\_id) | Tenant identifier used in resource naming. Shared by every module deployed to the same tenant in this project — reuse it to share that tenant's cloud resources, or change it to create a separate namespace. Must be 1-20 lowercase alphanumeric characters and hyphens (e.g. prod, dev, tenant-1). {{UIMeta group=1 order=102 updatesafe }} | `string` | `"demo"` | no |

@@ -48,7 +48,7 @@ gcloud config set project "$PROJECT"
    - `aws_access_key` and `aws_secret_key` — your AWS credentials (stored sensitively)
    - optionally `trusted_users` — Google emails to grant cluster-admin
 
-   Configure only what you need — the [Configuration Guide](https://docs.radmodules.dev/docs/modules/EKS_GKE) documents every input by group, with defaults. Review the estimated cost (if credits are enabled) and click **Deploy**, which opens the deployment status page with real-time logs.
+   Configure only what you need — the [Configuration Guide](https://docs.radmodules.dev/docs/modules/EKS_GKE) documents every input by group, with defaults. Click **Deploy Module**, review the estimated cost in the confirmation dialog (if credits are enabled) and click **Confirm**, which opens the deployment status page with real-time logs.
 
 2. The platform enables the required Google Cloud APIs, creates the AWS VPC and subnets across three Availability Zones, the IAM roles, the EKS cluster and its managed node group, installs the Connect Agent into the cluster, and finally registers it as a GKE Attached Cluster in the Fleet. Deploys typically take **20–30 minutes** (EKS cluster creation dominates).
 
@@ -170,7 +170,7 @@ On the **Deployments** page, open the deployment and click the **Trash** icon (*
 
 > Teardown needs the same network path to the EKS API server that deployment had (to uninstall the Connect Agent). If the cluster is no longer reachable, destroy can stall.
 
-If a deployment is stuck and the RAD platform can no longer manage it (for example after manual changes that conflict with state), use **Purge** instead — it removes the deployment from RAD's records **without** destroying the cloud resources (it makes RAD forget the deployment). After a Purge you must clean up the AWS and Google Cloud resources yourself.
+If a deployment is stuck and the RAD platform can no longer manage it (for example after manual changes that conflict with state), use **Purge** instead (from the same **Delete** dialog) — it removes the deployment from RAD's records **without** destroying the cloud resources (it makes RAD forget the deployment). After a Purge you must clean up the AWS and Google Cloud resources yourself.
 
 ---
 

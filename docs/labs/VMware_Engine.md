@@ -44,7 +44,7 @@ export ZONE="us-west2-a"        # the zone you deploy into (must be within REGIO
 
 ## Task 1 — Deploy the module [Automated]
 
-1. Open **Solutions → Solution Modules** in the RAD platform top navigation, open **VMware Engine** from the **Platform Modules** list to start configuration, set `project_id`, and review the inputs. Configure only what you need — the [Configuration Guide](https://docs.radmodules.dev/docs/modules/VMware_Engine) documents every input by group, with defaults. For a lab, keep `private_cloud_type = TIME_LIMITED` and `node_count = 1`. Review the estimated cost (if credits are enabled) and click **Deploy**, which opens the deployment status page with real-time logs.
+1. Open **Solutions → Solution Modules** in the RAD platform top navigation, open **VMware Engine** from the **Platform Modules** list to start configuration, set `project_id`, and review the inputs. Configure only what you need — the [Configuration Guide](https://docs.radmodules.dev/docs/modules/VMware_Engine) documents every input by group, with defaults. For a lab, keep `private_cloud_type = TIME_LIMITED` and `node_count = 1`. Click **Deploy Module**, review the estimated cost in the confirmation dialog (if credits are enabled) and click **Confirm**, which opens the deployment status page with real-time logs.
 
 2. The platform provisions the VMware Engine network, the private cloud (vCenter, vSAN, NSX-T, HCX), VPC peering into a Google Cloud peer VPC, the network policy, firewall rules, and a Windows Server 2022 jump host, then resets and prints the vCenter credentials. **Private-cloud creation dominates the time** — expect 30–90 minutes for a single-node `TIME_LIMITED` cloud, and up to **~2 hours** for larger types. The deployment will appear to sit still during this window; that is expected — do not interrupt it.
 
@@ -159,7 +159,7 @@ See the Configuration Guide's *Configuration Pitfalls* section for setting-speci
 
 On the **Deployments** page, open the deployment and click the **Trash** icon (**Delete**). Delete runs `terraform destroy` and is irreversible — it removes the private cloud (and **every VM and all data inside it**), the VMware Engine network and peering, the network policy, the peer VPC and firewall rules, and the jump host. The deletion is ordered correctly (policy and peering before the network) and is **slow** — deprovisioning bare metal can take a long time, so let it run to completion.
 
-If a deployment is stuck and the RAD platform can no longer manage it (for example after manual console changes that conflict with the Terraform state), use **Purge** instead — it removes the deployment from RAD's records **without** destroying the cloud resources (RAD forgets the project, but the GCVE private cloud and everything else keep running and keep billing). After a Purge, clean up the resources manually.
+If a deployment is stuck and the RAD platform can no longer manage it (for example after manual console changes that conflict with the Terraform state), use **Purge** instead (from the same **Delete** dialog) — it removes the deployment from RAD's records **without** destroying the cloud resources (RAD forgets the deployment, but the GCVE private cloud and everything else keep running and keep billing). After a Purge, clean up the resources manually.
 
 > **Back up first.** Private-cloud deletion permanently destroys all VMs and data in the SDDC. Migrate or back up any workloads before tearing down.
 
