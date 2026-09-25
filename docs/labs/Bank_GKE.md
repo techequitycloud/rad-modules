@@ -38,6 +38,8 @@ By the end of this lab you will be able to:
 - **gcloud CLI** and **kubectl** installed; `gcloud auth login` and
   `gcloud auth application-default login` completed.
 - **Project Owner** (or equivalent) IAM on the project.
+- **Bringing your own project?** Before the first deploy into it, the deployment confirmation dialog asks you to prove you control it (**Get verification code**, run the commands it shows as a project Owner, then **Verify**) and to give the RAD deployment service account the **Owner** role. A project RAD creates for you needs neither.
+- **Advanced mode for later changes.** The create form asks only for the first page of inputs (and, in a project RAD creates for you, little more than the tenant name and region). Every other input in the Configuration Guide — including the scaling and version inputs in the Day-2 tasks — is changed afterwards with **Update** on the deployment's page after ticking **Enable advanced mode**, which needs a credit balance that covers the update's estimated build cost (updates never carry a module fee). On a lab environment only an administrator can use Advanced mode.
 - **RAD platform access** with permission to deploy modules into the project.
 
 Set these shell variables once; every task below reuses them:
@@ -57,8 +59,8 @@ export NS="bank-of-anthos"           # the application namespace
    **Platform Modules** list to start configuration, set `project_id`, and review the inputs.
    Configure only what you need — the
    [Configuration Guide](https://docs.radmodules.dev/docs/modules/Bank_GKE) documents every
-   input by group, with defaults. Review the estimated cost (if credits are enabled) and click
-   **Deploy**, which opens the deployment status page with real-time logs.
+   input by group, with defaults. Click **Deploy Module**, review the estimated cost in the confirmation
+   dialog (if credits are enabled) and click **Confirm**, which opens the deployment status page with real-time logs.
 
 2. The platform creates a dedicated VPC and subnet, a GKE Autopilot cluster, registers the
    cluster in the fleet, enables Cloud Service Mesh, then deploys the Bank of Anthos `v0.6.10`
@@ -209,9 +211,9 @@ membership and Cloud Service Mesh feature, the monitoring services and SLOs, the
 static IP, and the VPC with its subnet, Cloud NAT, router, and firewall rules.
 
 If a deployment is stuck and the RAD platform can no longer manage it (for example after manual
-changes that conflict with the Terraform state), use **Purge** instead — it removes the
+changes that conflict with the Terraform state), use **Purge** instead (from the same **Delete** dialog) — it removes the
 deployment from RAD's records **without** destroying the cloud resources (it makes RAD forget
-the project). After a purge, clean up any remaining resources manually.
+the deployment). After a purge, clean up any remaining resources manually.
 
 ---
 

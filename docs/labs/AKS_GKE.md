@@ -70,8 +70,8 @@ export ARM_SUBSCRIPTION_ID="<azure-subscription-id>"
    cluster-admin (the deploying identity is granted admin automatically). Configure only what
    you need — the
    [Configuration Guide](https://docs.radmodules.dev/docs/modules/AKS_GKE) documents every
-   input by group, with defaults. Review the estimated cost (if credits are enabled) and click
-   **Deploy**, which opens the deployment status page with real-time logs.
+   input by group, with defaults. Click **Deploy Module**, review the estimated cost in the confirmation
+   dialog (if credits are enabled) and click **Confirm**, which opens the deployment status page with real-time logs.
 
 2. The platform creates the Azure Resource Group and AKS cluster, installs the GKE Connect
    agent onto it, then registers the cluster as a GKE Attached Cluster and enrols it in the
@@ -225,7 +225,7 @@ the Azure Resource Group and AKS cluster across both clouds. The Google Cloud AP
 enabled are intentionally left enabled so other workloads in the project are not disrupted.
 
 If a deployment is stuck and the RAD platform can no longer manage it (for example after manual
-changes that conflict with the Terraform state), use **Purge** instead — it removes the
+changes that conflict with the Terraform state), use **Purge** instead (from the same **Delete** dialog) — it removes the
 deployment from RAD's records **without** destroying the cloud resources. After a purge, clean
 up the Azure Resource Group (`az group delete --name "$CLUSTER-rg"`) and the fleet membership
 manually so they do not linger.
