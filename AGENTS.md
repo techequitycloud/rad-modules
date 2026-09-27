@@ -26,7 +26,7 @@ The repository is organized around eight independent modules under `modules/`. T
 
 **Supporting directories:**
 - `rad-launcher/` — `radlab.py` Python CLI that wraps `tofu`/`terraform` for interactive deployment from a workstation or Cloud Shell.
-- `rad-ui/automation/` — Cloud Build YAML files (`cloudbuild_deployment_{create,destroy,purge,update}.yaml`) invoked by the RAD platform UI, plus `check_step_arg_limits.py` and `scripts/` (step logic extracted out of the YAML to stay under Cloud Build's 10,000-character step-arg cap: `apply_infrastructure.sh`, `apply_infrastructure_update.sh`, `prepare_destroy.sh`, `handle_plan_cycle.sh`, and two self-tests). See CLAUDE.md § Deployment Pipelines before editing any of them.
+- `rad-ui/automation/` — Cloud Build YAML files (`cloudbuild_deployment_{create,destroy,purge,update}.yaml`) invoked by the RAD platform UI, plus `check_step_arg_limits.py` and `scripts/` (step logic extracted out of the YAML to stay under Cloud Build's 10,000-character step-arg cap: `apply_infrastructure.sh`, `apply_infrastructure_update.sh`, `prepare_destroy.sh`, `handle_plan_cycle.sh`, plus `guard_concurrent_build.sh` (the concurrent-build guard every pipeline runs before touching state), `rollout_timeout_policy.sh` (sourced by both apply scripts), and their self-tests). See CLAUDE.md § Deployment Pipelines before editing any of them.
 - `scripts/` — standalone helper shell scripts (`gcp-istio-security/`, `gcp-istio-traffic/`, `gcp-cr-mesh/`, `gcp-m2c-vm/`, `gcp-ge-cymbal/`) for lab exercises; not called by any module.
 - `SKILLS.md` — detailed implementation guide; read this before making structural changes.
 
