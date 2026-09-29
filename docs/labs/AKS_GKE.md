@@ -43,7 +43,7 @@ By the end of this lab you will be able to:
 - **gcloud CLI** and **kubectl** installed; `gcloud auth login` and
   `gcloud auth application-default login` completed.
 - The **`az` (Azure) CLI** installed, for inspecting the AKS cluster directly in Azure.
-- **Bringing your own project?** Before the first deploy into it, the deployment confirmation dialog asks you to prove you control it (**Get verification code**, run the commands it shows as a project Owner, then **Verify**) and to give the RAD deployment service account the **Owner** role. A project RAD creates for you needs neither.
+- **Bringing your own project?** Before the first deploy into it, the deployment confirmation dialog asks you to prove you control it (**Get verification code**, run the commands it shows as a project Owner, then **Verify**) and to give the RAD deployment service account the **Owner** role.
 - **Advanced mode for later changes.** The create form asks only for the first page of inputs. Every other input in the Configuration Guide — including the scaling and version inputs in the Day-2 tasks — is changed afterwards with **Update** on the deployment's page after ticking **Enable advanced mode**, which needs a credit balance that covers the update's estimated build cost (updates never carry a module fee). On a lab environment only an administrator can use Advanced mode.
 - **RAD platform access** with permission to deploy modules into the project.
 
@@ -66,7 +66,7 @@ export ARM_SUBSCRIPTION_ID="<azure-subscription-id>"
 ## Task 1 — Deploy the module [Automated]
 
 1. Open **Solutions → Solution Catalog → RAD modules** in the RAD platform top navigation, open **Azure AKS attached to a Google
-   Cloud Fleet** from the **Platform Modules** list to start configuration, choose **Configuration Form** under *How would you like to configure this deployment?* (the form opens on the **Conversational Assistant** if you hold purchased credits), and set
+   Cloud Fleet** from the **Platform Modules** list to start configuration, choose **Configuration Form** under *How would you like to configure this deployment?* (the form opens on the **Conversational Assistant** if you hold purchased credits or are a partner or administrator), and set
    `project_id`. Provide the four required Azure credentials (`client_id`, `client_secret`,
    `azure_tenant_id`, `subscription_id`) and fill in `trusted_users` — a required input with no default, so pass an empty list if you want no extra
    cluster-admin (the deploying identity is granted admin automatically). Configure only what
