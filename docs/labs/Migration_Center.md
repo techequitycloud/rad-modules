@@ -40,6 +40,8 @@ By the end of this lab you will be able to:
 - An **RDP client** (Microsoft Remote Desktop on Windows/macOS, or Remmina/FreeRDP on Linux).
 - **Project Owner** (or equivalent) IAM on the project. The Google account you use for the
   MCDCv6 sign-in needs **Migration Center Admin** on the project.
+- **Bringing your own project?** Before the first deploy into it, the deployment confirmation dialog asks you to prove you control it (**Get verification code**, run the commands it shows as a project Owner, then **Verify**) and to give the RAD deployment service account the **Owner** role.
+- **Advanced mode for later changes.** The create form asks only for the first page of inputs. Every other input in the Configuration Guide is changed afterwards with **Update** on the deployment's page after ticking **Enable advanced mode**, which needs a credit balance that covers the update's estimated build cost (updates never carry a module fee). On a lab environment only an administrator can use Advanced mode.
 - **RAD platform access** with permission to deploy modules into the project.
 - **(Optional) AWS** — only if you want live EC2 inventory imported automatically: a set of
   **bootstrap AWS credentials with IAM write permissions** (the module creates a scoped,
@@ -58,13 +60,13 @@ export ZONE="us-central1-a"
 
 ## Task 1 — Deploy the module [Automated]
 
-1. Open **Solutions → Solution Modules** in the RAD platform top navigation, open **Migration Center** from the
-   **Platform Modules** list to start configuration, set `project_id`, and review the inputs.
+1. Open **Solutions → Solution Catalog → RAD modules** in the RAD platform top navigation, open **Migration Center** from the
+   **Platform Modules** list to start configuration, choose **Configuration Form** under *How would you like to configure this deployment?* (the form opens on the **Conversational Assistant** if you hold purchased credits or are a partner or administrator), set `project_id`, and review the inputs.
    Configure only what you need — the
    [Configuration Guide](https://docs.radmodules.dev/docs/modules/Migration_Center) documents
    every input by group, with defaults. To import live AWS EC2 inventory, supply
    `aws_access_key_id`, `aws_secret_access_key`, and `aws_region`; otherwise leave them blank.
-   Click **Deploy Module**, review the estimated cost in the confirmation dialog (if credits are enabled) and click **Confirm**, which opens the
+   Click **Deploy Module**, review the estimated cost in the **Deployment Confirmation** dialog when it appears and click **Submit** (if the dialog then adds a confirmation step, such as verifying a project you bring, complete it and click **Confirm**), which opens the
    deployment status page with real-time logs.
 
 2. The platform provisions a dedicated VPC and firewall rules, a Windows Server 2022 MCDCv6

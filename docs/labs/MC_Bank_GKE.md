@@ -58,13 +58,12 @@ gcloud config set project "$PROJECT"
 
 ## Task 1 — Deploy the module [Automated]
 
-1. Open **Solutions → Solution Modules** in the RAD platform top navigation, open **Multi-Cluster Bank of Anthos (GKE)**
-   from the **Platform Modules** list to start configuration, set `project_id`, and review the inputs.
+1. Open **Solutions → Solution Catalog → RAD modules** in the RAD platform top navigation, open **Multi-Cluster Bank of Anthos (GKE)**
+   from the **Platform Modules** list to start configuration, choose **Configuration Form** under *How would you like to configure this deployment?* (the form opens on the **Conversational Assistant** if you hold purchased credits or are a partner or administrator), set `project_id`, and review the inputs.
    Configure only what you need — the
    [Configuration Guide](https://docs.radmodules.dev/docs/modules/MC_Bank_GKE) documents every
    input by group, with defaults. Key choices are `available_regions`, `cluster_size`,
-   `create_autopilot_cluster`, and `enable_cloud_service_mesh`. Click **Deploy Module**, review the
-   estimated cost in the confirmation dialog (if credits are enabled) and click **Confirm**, which opens the deployment status page with
+   `create_autopilot_cluster`, and `enable_cloud_service_mesh`. Click **Deploy Module**, review the estimated cost in the **Deployment Confirmation** dialog when it appears and click **Submit** (if the dialog then adds a confirmation step, such as verifying a project you bring, complete it and click **Confirm**), which opens the deployment status page with
    real-time logs.
 
 2. The platform creates the shared VPC, `cluster_size` GKE clusters (default 2) assigned to

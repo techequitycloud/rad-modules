@@ -55,12 +55,11 @@ export NS="bank-of-anthos"           # the application namespace
 
 ## Task 1 — Deploy the module [Automated]
 
-1. Open **Solutions → Solution Modules** in the RAD platform top navigation, open **Bank of Anthos (GKE)** from the
-   **Platform Modules** list to start configuration, set `project_id`, and review the inputs.
+1. Open **Solutions → Solution Catalog → RAD modules** in the RAD platform top navigation, open **Bank of Anthos (GKE)** from the
+   **Platform Modules** list to start configuration, choose **Configuration Form** under *How would you like to configure this deployment?* (the form opens on the **Conversational Assistant** if you hold purchased credits or are a partner or administrator), set `project_id`, and review the inputs.
    Configure only what you need — the
    [Configuration Guide](https://docs.radmodules.dev/docs/modules/Bank_GKE) documents every
-   input by group, with defaults. Click **Deploy Module**, review the estimated cost in the confirmation
-   dialog (if credits are enabled) and click **Confirm**, which opens the deployment status page with real-time logs.
+   input by group, with defaults. Click **Deploy Module**, review the estimated cost in the **Deployment Confirmation** dialog when it appears and click **Submit** (if the dialog then adds a confirmation step, such as verifying a project you bring, complete it and click **Confirm**), which opens the deployment status page with real-time logs.
 
 2. The platform creates a dedicated VPC and subnet, a GKE Autopilot cluster, registers the
    cluster in the fleet, enables Cloud Service Mesh, then deploys the Bank of Anthos `v0.6.10`
