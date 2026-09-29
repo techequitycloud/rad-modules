@@ -17,7 +17,7 @@ RAD Lab modules can be deployed in two ways. Choose the approach that suits your
 | **Configuration** | Point-and-click form with sensible defaults | `--varfile` with `key = "value"` overrides |
 | **State management** | Managed by the platform | GCS bucket you own and manage |
 
-**RAD Modules UI** — Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in (with your Google account or an email and password), open **Solutions → Solution Modules**, and click **Deploy** on a module. The platform handles all infrastructure provisioning on your behalf with no local toolchain required. Choose this if you want a fast, guided path with minimal setup.
+**RAD Modules UI** — Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in with your Google account, open **Solutions → Solution Catalog**, choose **RAD modules**, and click **Deploy** on a module. The platform handles all infrastructure provisioning on your behalf with no local toolchain required. Choose this if you want a fast, guided path with minimal setup.
 
 **RAD Modules Launcher (this tool)** — Gives you full control: override any module variable via a `--varfile`, run deployments non-interactively in CI/CD pipelines, and manage Terraform state in your own GCS bucket. Choose this if you need scripting, custom variable overrides, or deeper integration with your GCP environment.
 

@@ -33,7 +33,7 @@ asset data.
 
 ### RAD UI
 
-On [radmodules.dev](https://radmodules.dev), open **Solutions → Solution Modules**, find **Migration Center** in the module catalog and click **Deploy**.
+On [radmodules.dev](https://radmodules.dev), sign in with your Google account, open **Solutions → Solution Catalog**, choose **RAD modules**, find **Migration Center** and click **Deploy**.
 All defaults are production-ready for the lab.
 
 ### Advanced — Launcher CLI (automation/maintainers)
