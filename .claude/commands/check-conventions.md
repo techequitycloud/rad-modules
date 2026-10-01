@@ -22,8 +22,8 @@ Collect every module's variables.tf. For the ten standard variables
 require_credit_purchases, enable_purge, public_access, deployment_id,
 resource_creator_identity, trusted_users) verify:
   a) The variable is present (note the legitimate exceptions: AKS_GKE, EKS_GKE and
-     Migration_Center omit enable_services; Container_Migration, Migration_Center and
-     VMware_Engine omit trusted_users).
+     Migration_Center omit enable_services; Container_Migration, Gemini_Enterprise,
+     Migration_Center and VMware_Engine omit trusted_users).
   b) Its TYPE matches across modules (e.g. trusted_users is always `list(string)`).
   c) `resource_creator_identity` default is the standard SA
      ("rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com").

@@ -29,6 +29,13 @@ updates:
     labels: ["dependencies", "terraform"]
 
   - package-ecosystem: terraform
+    directory: /modules/Gemini_Enterprise
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "terraform"]
+
+  - package-ecosystem: terraform
     directory: /modules/Istio_GKE
     schedule:
       interval: weekly

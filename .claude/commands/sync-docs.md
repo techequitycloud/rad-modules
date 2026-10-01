@@ -37,7 +37,7 @@ For each module:
   a) `module_documentation` default in variables.tf must point at that module's published
      documentation — `https://docs.radmodules.dev/docs/modules/<Module>` (the preferred form,
      used by AKS_GKE/Bank_GKE/EKS_GKE/Istio_GKE/MC_Bank_GKE) or the GitHub URL of
-     `docs/labs/<Module>.md` (still used by Container_Migration/Migration_Center/VMware_Engine).
+     `docs/labs/<Module>.md` (still used by Container_Migration/Gemini_Enterprise/Migration_Center/VMware_Engine).
      Fix only if it points at neither — especially a LAB_GUIDE.md.
   b) README.md links the lab guide as `../../docs/labs/<Module>.md`. Fix broken links.
   c) Confirm `docs/labs/<Module>.md` exists; if a module has none, report it.

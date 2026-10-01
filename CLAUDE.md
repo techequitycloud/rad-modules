@@ -62,7 +62,7 @@ python3 rad-launcher/radlab.py \
 
 ### Module Families
 
-Eight independent modules under `modules/`. No shared foundation module, no symlinks, no cross-module Terraform dependency — each owns every resource it provisions and its own state.
+Nine independent modules under `modules/`. No shared foundation module, no symlinks, no cross-module Terraform dependency — each owns every resource it provisions and its own state.
 
 | Module | What it deploys |
 |---|---|
@@ -74,6 +74,7 @@ Eight independent modules under `modules/`. No shared foundation module, no syml
 | `VMware_Engine` | GCVE private cloud + VPC peering + Windows jump host + vCenter credential reset |
 | `Container_Migration` | GKE cluster + Compute Engine VMs (PostgreSQL source, Tomcat source, M2C workstation) for a Migrate to Containers (M2C) lab |
 | `Migration_Center` | Windows Server VM (MCDCv6) + Debian Linux target VMs + Migration Center service registration + optional AWS asset import |
+| `Gemini_Enterprise` | Gemini Enterprise app + Google Identity + GCS-backed document data store + demo content bucket + BigQuery data + ADK BigQuery agent on Agent Runtime + Model Armor template, for an instructor-led Cymbal Pools demo |
 
 ### Standard Module File Layout
 
@@ -97,7 +98,7 @@ Lab guides live at `docs/labs/<Module_Name>.md`, **not** inside the module direc
 
 ### Two Provider Auth Patterns
 
-**Impersonation (`provider-auth.tf`)** — used by `Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE`, `VMware_Engine`, `Container_Migration`, `Migration_Center`. Fetches a short-lived access token for `var.resource_creator_identity` (a service account) when that variable is non-empty; otherwise falls back to ADC.
+**Impersonation (`provider-auth.tf`)** — used by `Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE`, `VMware_Engine`, `Container_Migration`, `Migration_Center`, `Gemini_Enterprise`. Fetches a short-lived access token for `var.resource_creator_identity` (a service account) when that variable is non-empty; otherwise falls back to ADC.
 
 **Direct (`provider.tf`)** — used by `AKS_GKE`, `EKS_GKE`. Configures `azurerm`/`aws`/`helm` providers directly. Azure credentials come from the `client_id`/`client_secret`/`azure_tenant_id`/`subscription_id` variables and AWS credentials from `aws_access_key`/`aws_secret_key` — `provider.tf` wires them straight into the provider blocks (`modules/AKS_GKE/provider.tf:43-49`, `modules/EKS_GKE/provider.tf:39-42`). They are `sensitive` and have no defaults; no `ARM_*`/`AWS_*` env var is read anywhere in either module — never give them defaults.
 
@@ -195,13 +196,13 @@ reflect a genuine sustained shortage. Two behaviors make it easy to misdiagnose:
 
 ### UIMeta Variable Annotations
 
-Every `variable` description ends with a `{{UIMeta group=N order=M }}` tag that drives the RAD platform UI. Groups are module-defined UI sections, not a fixed repo-wide numbering — group values 0 through 9 are in use across the 8 modules (e.g. 0=Provider/Metadata, 1=Main, 2=Network in most modules), but higher numbers (5, 7, 8, 9) are used by modules with extra sizing/jump-host/vCenter-credential sections (Bank_GKE, Container_Migration, Migration_Center, VMware_Engine) beyond the canonical Istio_GKE module's 0-4 range. `enable_services` always lives in group 0 order 109.
+Every `variable` description ends with a `{{UIMeta group=N order=M }}` tag that drives the RAD platform UI. Groups are module-defined UI sections, not a fixed repo-wide numbering — group values 0 through 9 are in use across the 9 modules (e.g. 0=Provider/Metadata, 1=Main, 2=Network in most modules), but higher numbers (5, 7, 8, 9) are used by modules with extra sizing/jump-host/vCenter-credential sections (Bank_GKE, Container_Migration, Gemini_Enterprise, Migration_Center, VMware_Engine) beyond the canonical Istio_GKE module's 0-4 range. `enable_services` always lives in group 0 order 109.
 
 **`updatesafe` and `notradmanaged` gate the deploy form as of 2026-08-19 — both were cosmetic before, and the absence of `updatesafe` is the meaningful state.** An UNflagged variable raises a *"this update will destroy project resources"* confirmation when edited on an existing deployment, and is read-only when the admin setting **Enforce Update Safe** is on. The webapp's matcher had been looking for a token no module writes, so the flag had never been read and wrong ones accumulated unchallenged — `region` carried it in 422 modules across both catalogues. An over-generous flag is a **silent data-loss path**; a missing one merely warns, so **when in doubt leave it off** and check with `../rad-automation/scripts/check_updatesafe_flags.py`. Beyond "forces replacement", two traps: a variable in a resource's `count`/`for_each` CONDITION gates that resource's existence, and a comparison against a LITERAL (`== "custom"`) is a mode switch destroying on any change, while a comparison against EMPTINESS (`!= ""`, `length(...) > 0`) only destroys when cleared.
 
 `notradmanaged` **removes** the variable from the form in a RAD-managed project and reverts it server-side — for settings reaching past the tenant's project into RAD's organisation (VPC Service Controls, Security Command Center, Workload Identity Federation). Its module default must be benign, since that is what the server reverts to. See `.agent/skills/module-conventions/SKILL.md`.
 
-**`enable_rad_gcpproject` (group 0, order 110, `bool`, default `false`) opts a module out of RAD-managed projects entirely.** Seven of the eight modules declare it — every one except `Istio_GKE` — and all default it to `false`, which hides the "GCP Project on RAD" option so the module can only be deployed into a customer's own GCP project. The reason is always the same shape: the module enables APIs the RAD-managed tier policies deny, and the variable's description names them (`containerregistry` for `Container_Migration`; `migrationcenter` for `Migration_Center`; `vmwareengine`/`vmmigration` for `VMware_Engine`; 7 Anthos/fleet APIs for `AKS_GKE` and `EKS_GKE`; 9 for `Bank_GKE`; 15 for `MC_Bank_GKE`). If you change a module's `default_apis`, re-check that description — it is the only place the denial reason is recorded.
+**`enable_rad_gcpproject` (group 0, order 110, `bool`, default `false`) opts a module out of RAD-managed projects entirely.** Eight of the nine modules declare it — every one except `Istio_GKE` — and all default it to `false`, which hides the "GCP Project on RAD" option so the module can only be deployed into a customer's own GCP project. The reason is always the same shape: the module enables APIs the RAD-managed tier policies deny, and the variable's description names them (`containerregistry` for `Container_Migration`; `migrationcenter` for `Migration_Center`; `modelarmor`/`aiplatform` for `Gemini_Enterprise`; `vmwareengine`/`vmmigration` for `VMware_Engine`; 7 Anthos/fleet APIs for `AKS_GKE` and `EKS_GKE`; 9 for `Bank_GKE`; 15 for `MC_Bank_GKE`). If you change a module's `default_apis`, re-check that description — it is the only place the denial reason is recorded.
 
 **A variable with no `{{UIMeta}}` tag at all has no group and renders VISIBLE** — group 0 is stripped, everything else shown, so missing metadata fails open.
 
@@ -236,6 +237,15 @@ description string, the module catalog's `module_description`, and this module's
 variable for real, update all of these together; if you remove it, check the RAD platform
 UI form definition and any existing deployments' saved tfvars for references first.
 
+### `Gemini_Enterprise` Live-Test Findings (2026-09-28)
+
+Confirmed against a Qwiklabs project; each one failed an apply before it was fixed:
+- **Model Armor has no `global` templates.** The API answers `UNSUPPORTED_REQUEST_LOCATION`, and the provider builds a non-existent `modelarmor.global.rep.googleapis.com` endpoint for it. A `global` Gemini Enterprise app's assistant accepts a `us` template, so `main.tf` maps `global` → `us`. `scripts/gcp-ge-cymbal` creates templates at `$GE_LOCATION` and hits the same wall when that is `global`.
+- **`discoveryengine`/`modelarmor` need a quota project under user ADC**, and the Go provider does not forward the ADC file's `quota_project_id` (`gcloud auth application-default set-quota-project` does not help). `provider-auth.tf` sets `billing_project` + `user_project_override`; without them a `resource_creator_identity = ""` run 403s on the data store.
+- **Agent Runtime rejects an env var with an empty value** (`400 ... deployment_spec.env[N].value: Required field is not set`), so never write `KEY=` into an ADK agent's `.env`. `adk deploy agent_engine --region X` also overrides `GOOGLE_CLOUD_LOCATION` with `X`, which silently discards the lab's `GOOGLE_CLOUD_LOCATION=global`.
+- **An output that `file()`s something a `null_resource` writes needs `depends_on`** on that resource, or it is evaluated early in the apply graph and records the fallback value. `Istio_GKE`'s `external_ip` output has the same latent shape.
+- **Lab projects may set `constraints/vertexai.allowedModels` to `denyAll`.** The agent still deploys, and every query fails `FAILED_PRECONDITION ... disallowed Gen AI model`. Check the effective policy before blaming the agent.
+
 ## Key Conventions
 
 - Every `.tf` file begins with the Apache 2.0 license header (Google LLC).
@@ -256,7 +266,7 @@ The GitHub Actions workflow (`.github/workflows/terraform-ci.yml`) runs on chang
 1. **format** — `terraform fmt -check -recursive modules/`
 2. **validate** — `terraform init -backend=false && terraform validate` per changed module
 3. **tflint** — Google ruleset via `.tflint.hcl`
-4. **test** — `terraform test` per module (mock providers, no GCP credentials). **Only 4 of 8 modules run here**: `AKS_GKE`, `Bank_GKE`, `EKS_GKE` and `MC_Bank_GKE` are excluded from the matrix (`.github/workflows/terraform-ci.yml:143-149`) because their plan-run configures the kubernetes/helm providers from computed nested blocks that `mock_provider` cannot override — `tofu test` fails locally on those four for the same reason.
+4. **test** — `terraform test` per module (mock providers, no GCP credentials). **Only 5 of 9 modules run here**: `AKS_GKE`, `Bank_GKE`, `EKS_GKE` and `MC_Bank_GKE` are excluded from the matrix (`.github/workflows/terraform-ci.yml:143-149`) because their plan-run configures the kubernetes/helm providers from computed nested blocks that `mock_provider` cannot override — `tofu test` fails locally on those four for the same reason.
 5. **security** — Trivy config scan (HIGH/CRITICAL, non-blocking)
 
 CI uses `terraform` (Terraform ~1.9) not `tofu`, but they are interchangeable for `init`/`validate`/`fmt`/`test`.
