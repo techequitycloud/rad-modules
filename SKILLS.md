@@ -1,6 +1,6 @@
 ---
 name: rad-modules-implementation
-description: Guide for implementing Terraform/OpenTofu modules in the rad-modules repository. The modules are standalone GKE-based Kubernetes and multi-cloud fleet deployments (Istio_GKE, Bank_GKE, MC_Bank_GKE, AKS_GKE, EKS_GKE), VMware infrastructure (VMware_Engine), and migration labs (Container_Migration, Migration_Center).
+description: Guide for implementing Terraform/OpenTofu modules in the rad-modules repository. The modules are standalone GKE-based Kubernetes and multi-cloud fleet deployments (Istio_GKE, Bank_GKE, MC_Bank_GKE, AKS_GKE, EKS_GKE), VMware infrastructure (VMware_Engine), migration labs (Container_Migration, Migration_Center), and a Gemini Enterprise demo environment (Gemini_Enterprise).
 ---
 
 # RAD Modules Implementation Skill
@@ -11,7 +11,7 @@ This skill explains how the Terraform/OpenTofu modules in this repository are st
 
 Each top-level entry under `modules/` is an **independent, self-contained module**. There is no shared foundation module, no symlink pattern, and no cross-module Terraform dependency. A module owns every resource it provisions and produces its own state.
 
-The eight modules in the repository today:
+The nine modules in the repository today:
 
 | Module | What it provisions | Target audience |
 |---|---|---|
@@ -23,6 +23,7 @@ The eight modules in the repository today:
 | `VMware_Engine` | Google Cloud VMware Engine (GCVE) private cloud + VMware Engine Network + VPC peering + network policy + firewall rules + Windows jump host + vCenter credential reset | Engineers exploring VMware workload migration to GCP |
 | `Container_Migration` | GKE cluster + Compute Engine VMs (PostgreSQL source, Tomcat source, M2C workstation) provisioned as a hands-on Migrate to Containers (M2C) lab environment | Engineers replatforming VM-based Linux workloads to containers |
 | `Migration_Center` | Windows Server VM (MCDCv6 pre-installed) + Debian Linux target VMs + Migration Center service registration + optional AWS asset import | Engineers running Migration Center discovery and TCO assessment labs |
+| `Gemini_Enterprise` | Gemini Enterprise app + Google Identity + GCS-backed document data store + demo content bucket + BigQuery `installation_requests` data + ADK BigQuery agent on Vertex AI Agent Runtime + Model Armor template, for the Cymbal Pools instructor demo | Trainers demonstrating Gemini Enterprise to partner classes |
 
 Supporting directories:
 
@@ -119,7 +120,7 @@ Modules that install workloads via `kubectl` also include a `null_resource.wait_
 
 Two patterns exist:
 
-**Impersonation pattern (`provider-auth.tf`)** — used by `Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE`, `VMware_Engine`, `Container_Migration`, `Migration_Center`:
+**Impersonation pattern (`provider-auth.tf`)** — used by `Istio_GKE`, `Bank_GKE`, `MC_Bank_GKE`, `VMware_Engine`, `Container_Migration`, `Migration_Center`, `Gemini_Enterprise`:
 
 ```hcl
 provider "google" { alias = "impersonated" ... }
@@ -151,10 +152,11 @@ Pins required providers and `required_version`. The set of pinned providers diff
 | `VMware_Engine` | `google` (>= 5.0, < 6.0), `random` (>= 3.0), `null` (>= 3.0), `external` (>= 2.0) | `>= 1.3` |
 | `Container_Migration` | `google` (>= 5.0, < 6.0), `random` (>= 3.0), `null` (>= 3.0) | `>= 1.3` |
 | `Migration_Center` | `google` (>= 5.0, < 6.0), `aws` (>= 5.0, < 6.0), `random` (>= 3.0), `null` (>= 3.0), `tls` (>= 4.0) | `>= 1.3` |
+| `Gemini_Enterprise` | `google` (>= 7.19, < 8.3), `google-beta` (>= 7.19, < 8.3), `random` (>= 3.0, < 4.0), `null` (>= 3.0, < 4.0) | `>= 1.3` |
 | `AKS_GKE` | No top-level `versions.tf` — pinned instead in `provider.tf`: `azurerm` (~> 4.0), `google` (>= 5.0.0), `helm` (~> 2.0), `random` (3.6.2) | `>= 0.13` |
 | `EKS_GKE` | No top-level `versions.tf` — pinned instead in `provider.tf`: `aws` (>= 4.5.0), `google` (>= 5.0.0), `helm` (~> 2.0), `time` (~> 0.9) | `>= 1.3` |
 
-Providers that are used but not explicitly pinned (e.g. `random`, `null`) are downloaded at the version OpenTofu/Terraform selects automatically. `Istio_GKE`, `MC_Bank_GKE`, `Bank_GKE`, `VMware_Engine`, `Container_Migration`, and `Migration_Center` configure a `google-beta` provider block in `provider-auth.tf`, but none currently assign resources to it explicitly. `Istio_GKE` and `MC_Bank_GKE` explicitly pin `google-beta` in `versions.tf` (alongside `google`) even though no resources use it.
+Providers that are used but not explicitly pinned (e.g. `random`, `null`) are downloaded at the version OpenTofu/Terraform selects automatically. `Istio_GKE`, `MC_Bank_GKE`, `Bank_GKE`, `VMware_Engine`, `Container_Migration`, and `Migration_Center` configure a `google-beta` provider block in `provider-auth.tf`, but none currently assign resources to it explicitly. `Gemini_Enterprise` is the exception: it pins `google-beta` and uses it for `google_project_service_identity.discoveryengine`. `Istio_GKE` and `MC_Bank_GKE` explicitly pin `google-beta` in `versions.tf` (alongside `google`) even though no resources use it.
 
 **An unbounded lower-bound constraint (`>= X.Y.Z` with no upper bound) is not equivalent to "pinned" — it's a live risk, not a hypothetical one.** `.terraform.lock.hcl` is gitignored repo-wide (`*.lock.hcl` in the root `.gitignore`), so every `tofu init` — CI, the Cloud Build pipelines, and any manual run — re-resolves providers fresh from the constraint string alone. `AKS_GKE`'s `azurerm` was `">=3.17.0"` until this was found to have resolved 5.0.1 on a routine re-init: azurerm 5.0 made `node_provisioning_profile` a required block on `azurerm_kubernetes_cluster`, so `tofu validate`/`plan` failed before ever reaching Azure. Fixed by pinning `"~> 4.0"` (now shown in the table above). The identical unbounded shape is still live in `EKS_GKE`'s `aws = ">=4.5.0"` and in `google = ">=5.0.0"` across every module in this table — currently resolving 7.43.0, two majors past when most of these modules were written. When adding or reviewing a `required_providers` block, use `~>` (or an explicit `< N.0.0`) rather than a bare `>=`, and match it to the major version the module's resource blocks were actually written against — not to "whatever's current" at pin time.
 
@@ -164,7 +166,7 @@ All input variables carry a `{{UIMeta group=N order=M }}` annotation at the end 
 
 | Group | Section | Variables |
 |---|---|---|
-| 0 | Provider / Metadata | `module_description`, `module_documentation`, `module_dependency`, `module_services`, `credit_cost`, `require_credit_purchases`, `enable_purge`, `public_access`, `shared_users`, `resource_creator_identity`, `trusted_users`, `deployment_id`, `enable_services`, and — in the seven modules that declare it — `enable_rad_gcpproject` (order 110) |
+| 0 | Provider / Metadata | `module_description`, `module_documentation`, `module_dependency`, `module_services`, `credit_cost`, `require_credit_purchases`, `enable_purge`, `public_access`, `shared_users`, `resource_creator_identity`, `trusted_users`, `deployment_id`, `enable_services`, and — in the eight modules that declare it — `enable_rad_gcpproject` (order 110) |
 | 1 | Main | `project_id`, `tenant_id`, `region` |
 | 2 | Network | `create_network`, `network_name`, `subnet_name`, `ip_cidr_ranges` |
 | 3 | GKE | `create_cluster`, `gke_cluster`, `release_channel`, `pod_cidr_block`, `service_cidr_block` |
@@ -204,18 +206,19 @@ variable "project_id" {
 }
 ```
 
-The `updatesafe` tag marks variables whose value can change on an in-place `terraform apply` without forcing resource replacement. `project_id` above deliberately does **not** carry it — changing the destination project moves every resource, and the flag was stripped from `project_id` in all eight modules once the webapp began reading it.
+The `updatesafe` tag marks variables whose value can change on an in-place `terraform apply` without forcing resource replacement. `project_id` above deliberately does **not** carry it — changing the destination project moves every resource, and the flag was stripped from `project_id` in every module once the webapp began reading it.
 
 As of 2026-08-19 only these variables carry `updatesafe`, and the list is the reference for what "safe" means in practice:
 
 | Variable | Modules |
 |---|---|
-| `resource_creator_identity` | all 8 |
+| `resource_creator_identity` | all 9 |
 | `trusted_users` | the 5 that declare it (`AKS_GKE`, `Bank_GKE`, `EKS_GKE`, `Istio_GKE`, `MC_Bank_GKE`) |
 | `tenant_id` | the 6 that declare it |
 | Azure credentials + sizing (`client_id`, `client_secret`, `azure_tenant_id`, `subscription_id`, `node_count`, `k8s_version`, `platform_version`, `vm_size`) | `AKS_GKE` |
 | AWS credentials, CIDRs, AZs and node-group sizing (`aws_access_key`, `aws_secret_key`, `vpc_cidr_block`, `public_subnet_cidr_blocks`, `private_subnet_cidr_blocks`, `subnet_availability_zones`, `platform_version`, `k8s_version`, `node_group_{desired,max,min}_size`) | `EKS_GKE` |
 | `aws_access_key_id`, `aws_secret_access_key` | `Migration_Center` |
+| `model_armor_confidence` | `Gemini_Enterprise` |
 
 **No `region`-family variable carries it any more** — `region`, `gcp_location`, `azure_region` and `aws_region` were all stripped, along with `cluster_name_prefix` and `enable_public_subnets`. A region change relocates every regional resource.
 
@@ -262,7 +265,7 @@ Anything that cannot be expressed as a Terraform resource — installing Istio v
 Each module ships one markdown file inside the module directory, plus two under `docs/`:
 
 - **`README.md`** (≈130–195 lines, inside the module directory): short prose intro, a copy-pastable `module "..." { source = ... }` usage block, and standard tables for Requirements, Providers, Modules (if any), Resources, Inputs, Outputs.
-- **`docs/modules/<Module_Name>.md`** (≈200–270 lines): technical walkthrough covering the architecture, the resources the module creates, the networking layout, security model, and operational guidance. `docs/modules/Istio_GKE.md` is the reference example. Most modules point `module_documentation` at the published form of this file (`https://docs.radmodules.dev/docs/modules/<Module_Name>`); `Container_Migration`, `Migration_Center` and `VMware_Engine` instead point at the GitHub URL of their `docs/labs/` guide.
+- **`docs/modules/<Module_Name>.md`** (≈200–270 lines): technical walkthrough covering the architecture, the resources the module creates, the networking layout, security model, and operational guidance. `docs/modules/Istio_GKE.md` is the reference example. Most modules point `module_documentation` at the published form of this file (`https://docs.radmodules.dev/docs/modules/<Module_Name>`); `Container_Migration`, `Gemini_Enterprise`, `Migration_Center` and `VMware_Engine` instead point at the GitHub URL of their `docs/labs/` guide.
 - **`docs/labs/<Module_Name>.md`**: step-by-step hands-on lab guide for engineers walking through the module's use cases. Covers prerequisites, deployment steps, lab exercises, and cleanup. This file is referenced from `README.md` and is the target of the `module_documentation` URL in `variables.tf`. **Do not create a `LAB_GUIDE.md` inside the module directory.**
 
 When writing these files for a new module, match the tone and depth of `modules/Istio_GKE/README.md`, `docs/modules/Istio_GKE.md`, and `docs/labs/Istio_GKE.md`. (The deep dive lives under `docs/modules/`, never inside the module directory.)
@@ -280,7 +283,7 @@ There is no scaffolding script. Create a new module by copying the layout from t
 3. Edit `variables.tf` — update `module_description`, `module_documentation`, `module_services`, `module_dependency`, any feature flags, and default values. Keep the UIMeta annotations; renumber `order` values if you add new variables in an existing group.
 4. Replace the provisioning logic in the domain-specific `.tf` files. If you need post-provisioning steps, follow the `null_resource` pattern in `istiosidecar.tf`.
 5. Update `outputs.tf` — always expose `deployment_id`, `project_id`, and (for GKE modules) `cluster_credentials_cmd`.
-6. Write `README.md` inside the module directory, the technical walkthrough as `docs/modules/<Module_Name>.md`, and the step-by-step lab guide as `docs/labs/<Module_Name>.md`. Set the `module_documentation` variable default in `variables.tf` to the published docs URL `https://docs.radmodules.dev/docs/modules/<Module_Name>` (the convention in 5 of 8 modules; `Container_Migration`, `Migration_Center` and `VMware_Engine` instead link the GitHub URL of their `docs/labs/` guide).
+6. Write `README.md` inside the module directory, the technical walkthrough as `docs/modules/<Module_Name>.md`, and the step-by-step lab guide as `docs/labs/<Module_Name>.md`. Set the `module_documentation` variable default in `variables.tf` to the published docs URL `https://docs.radmodules.dev/docs/modules/<Module_Name>` (the convention in 5 of 9 modules; `Container_Migration`, `Gemini_Enterprise`, `Migration_Center` and `VMware_Engine` instead link the GitHub URL of their `docs/labs/` guide).
 7. Validate:
 
    ```bash
@@ -491,7 +494,7 @@ Always derive this from `local.asm_revision`, never hardcode `asm-managed` — s
 
 ### Common providers
 
-The table shows which providers each module actively uses. GKE-based modules, `VMware_Engine`, `Container_Migration`, and `Migration_Center` also configure a `google-beta` provider block in `provider-auth.tf` as a convenience (for future use), but no resources are currently assigned to it.
+The table shows which providers each module actively uses. GKE-based modules, `VMware_Engine`, `Container_Migration`, and `Migration_Center` also configure a `google-beta` provider block in `provider-auth.tf` as a convenience (for future use), but no resources are currently assigned to it. `Gemini_Enterprise` also configures one and does use it (`google_project_service_identity.discoveryengine`).
 
 | Module | google | kubernetes | kubectl | helm | azurerm | aws | tls | random | null | external | time / http |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -503,6 +506,7 @@ The table shows which providers each module actively uses. GKE-based modules, `V
 | VMware_Engine | ✓ | | | | | | | ✓ | ✓ | ✓ | |
 | Container_Migration | ✓ | | | | | | | ✓ | ✓ | | |
 | Migration_Center | ✓ | | | | | ✓ | ✓ | ✓ | ✓ | | |
+| Gemini_Enterprise | ✓ | | | | | | | ✓ | ✓ | | |
 
 ## 10. Standalone Lab Scripts (`scripts/`)
 

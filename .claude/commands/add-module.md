@@ -17,6 +17,7 @@ Pick the closest existing module to copy (no symlinks — every file is a standa
   - Native GKE + add-ons (mesh, app deploy) → copy Istio_GKE or Bank_GKE (Pattern B, impersonated provider).
   - Multi-cluster → copy MC_Bank_GKE (static kubernetes provider aliases cluster1–cluster4).
   - Migration / non-cluster → copy Container_Migration or Migration_Center.
+  - Managed AI / SaaS-style app setup (Discovery Engine, Agent Runtime, BigQuery, no cluster or VMs) → copy Gemini_Enterprise.
 
 State which template you chose and why. Copy it to `modules/<New_Name>/` with a
 PascalCase_WithUnderscores name.

@@ -20,8 +20,8 @@ require_credit_purchases, enable_purge, public_access, deployment_id,
 resource_creator_identity, trusted_users. Also verify enable_services is declared.
 
 Note legitimate exceptions: AKS_GKE, EKS_GKE and Migration_Center omit enable_services (they
-enable `local.default_apis` unconditionally); Container_Migration, Migration_Center and
-VMware_Engine omit trusted_users. Report
+enable `local.default_apis` unconditionally); Container_Migration, Gemini_Enterprise,
+Migration_Center and VMware_Engine omit trusted_users. Report
 omissions, but classify these as informational for those module types.
 
 ---

@@ -11,7 +11,7 @@ This file contains workflow prompts for engineers to guide the agent. These work
 You are an expert Senior DevOps Engineer specializing in Google Cloud Platform, GKE, and OpenTofu/Terraform. You are assisting with the **rad-modules** repository, which implements a set of standalone, self-contained GKE-based Terraform/OpenTofu modules deployed via the RAD platform or the rad-launcher CLI.
 
 **Repository Structure:**
-The repository is organized around eight independent modules under `modules/`. There is no shared foundation module and no cross-module Terraform dependency. Each module owns every resource it provisions and manages its own state.
+The repository is organized around nine independent modules under `modules/`. There is no shared foundation module and no cross-module Terraform dependency. Each module owns every resource it provisions and manages its own state.
 
 | Module | What it provisions | Target audience |
 |---|---|---|
@@ -23,6 +23,7 @@ The repository is organized around eight independent modules under `modules/`. T
 | `VMware_Engine` | GCVE private cloud + VMware Engine Network + VPC peering + network policy + firewall rules + Windows jump host + vCenter credential reset | Engineers exploring VMware workload migration to GCP |
 | `Container_Migration` | GKE cluster + Compute Engine VMs (PostgreSQL source, Tomcat source, M2C workstation) for Migrate to Containers (M2C) lab | Engineers replatforming VM-based Linux workloads to containers |
 | `Migration_Center` | Windows Server VM (MCDCv6 pre-installed) + Debian Linux target VMs + Migration Center service registration + optional AWS asset import | Engineers running Migration Center discovery and TCO assessment labs |
+| `Gemini_Enterprise` | Gemini Enterprise app + Google Identity + GCS-backed document data store + demo content bucket + BigQuery data + ADK BigQuery agent on Vertex AI Agent Runtime + Model Armor template (Cymbal Pools demo) | Trainers demonstrating Gemini Enterprise to partner classes |
 
 **Supporting directories:**
 - `rad-launcher/` — `radlab.py` Python CLI that wraps `tofu`/`terraform` for interactive deployment from a workstation or Cloud Shell.
@@ -456,7 +457,7 @@ You are now in **Maintenance Mode**, performing updates or configuration changes
 - Order values are compared numerically within a group; gaps are allowed (e.g. order 101, 103, 105 is fine).
 - The `updatesafe` tag marks variables safe to change on an in-place apply. Do not add `updatesafe` to variables that force resource replacement — `project_id`, `cluster_name_prefix`, and every region variable (`region`, `gcp_location`, `azure_region`, `aws_region`) were all stripped of it on 2026-08-19 and must stay unflagged. Its **absence** is what the platform acts on, so an over-generous flag is a silent data-loss path while a missing one only costs a warning: when in doubt, leave it off.
 - The sibling `notradmanaged` tag removes a variable from the deploy form in a RAD-managed project and reverts it server-side, so its module default must be benign.
-- `enable_rad_gcpproject` (`{{UIMeta group=0 order=110 }}`, `bool`, default `false`) is declared by seven of the eight modules — every one except `Istio_GKE` — and hides the "GCP Project on RAD" option for modules that enable APIs the RAD-managed tier policies deny. Its description names the specific APIs; keep that list in step with the module's `default_apis` if you change either.
+- `enable_rad_gcpproject` (`{{UIMeta group=0 order=110 }}`, `bool`, default `false`) is declared by eight of the nine modules — every one except `Istio_GKE` — and hides the "GCP Project on RAD" option for modules that enable APIs the RAD-managed tier policies deny. Its description names the specific APIs; keep that list in step with the module's `default_apis` if you change either.
 
 ### 6. Updating the RAD platform service account default
 - The `resource_creator_identity` variable defaults to the platform SA email. If the platform SA changes, update the default in `variables.tf` for each affected module.

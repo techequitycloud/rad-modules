@@ -61,7 +61,7 @@ Not every module needs every section — `AKS_GKE` has no dedicated network sect
 
 ### Every Module Ships These Ten Standard Variables
 
-The variables below exist in nearly every module and must keep their exact names, types, and defaults. `rad-launcher` looks for them; the RAD UI renders them in a standard panel. Two carry documented exceptions: `trusted_users` is Kubernetes-specific and is deliberately omitted by `Container_Migration`, `Migration_Center` and `VMware_Engine`, and `enable_services` is omitted by `AKS_GKE`, `EKS_GKE` and `Migration_Center`. Three further variables belong in the same group-0 panel: `module_documentation` (docs URL) and `shared_users` (platform-only visibility list), declared by all eight modules, and `enable_rad_gcpproject` (`bool`, default `false`, `{{UIMeta group=0 order=110 }}`), declared by seven — every module except `Istio_GKE`. Setting it `false` hides the "GCP Project on RAD" option so the module can only be deployed into a customer's own GCP project; each module's description names the specific APIs the RAD-managed tier policies deny that make it necessary (e.g. `vmwareengine`/`vmmigration` for `VMware_Engine`, fifteen Anthos/mesh/multi-cluster APIs for `MC_Bank_GKE`). Keep that list in step with the module's `default_apis`. `scripts/check_conventions.py` enforces this list at WARN level; run it before opening a PR.
+The variables below exist in nearly every module and must keep their exact names, types, and defaults. `rad-launcher` looks for them; the RAD UI renders them in a standard panel. Two carry documented exceptions: `trusted_users` is Kubernetes-specific and is deliberately omitted by `Container_Migration`, `Gemini_Enterprise`, `Migration_Center` and `VMware_Engine`, and `enable_services` is omitted by `AKS_GKE`, `EKS_GKE` and `Migration_Center`. Three further variables belong in the same group-0 panel: `module_documentation` (docs URL) and `shared_users` (platform-only visibility list), declared by all nine modules, and `enable_rad_gcpproject` (`bool`, default `false`, `{{UIMeta group=0 order=110 }}`), declared by eight — every module except `Istio_GKE`. Setting it `false` hides the "GCP Project on RAD" option so the module can only be deployed into a customer's own GCP project; each module's description names the specific APIs the RAD-managed tier policies deny that make it necessary (e.g. `vmwareengine`/`vmmigration` for `VMware_Engine`, `modelarmor`/`aiplatform` for `Gemini_Enterprise`, fifteen Anthos/mesh/multi-cluster APIs for `MC_Bank_GKE`). Keep that list in step with the module's `default_apis`. `scripts/check_conventions.py` enforces this list at WARN level; run it before opening a PR.
 
 | Variable | Type | Default | Notes |
 |---|---|---|---|
@@ -145,7 +145,7 @@ provider "azurerm" {
 }
 ```
 
-### Pattern B — Impersonated provider (used by `Bank_GKE`, `MC_Bank_GKE`, `Istio_GKE`, `Container_Migration`, `Migration_Center`, `VMware_Engine`)
+### Pattern B — Impersonated provider (used by `Bank_GKE`, `MC_Bank_GKE`, `Istio_GKE`, `Container_Migration`, `Gemini_Enterprise`, `Migration_Center`, `VMware_Engine`)
 
 Split `versions.tf` (provider requirements only) + `provider-auth.tf` (runtime auth via service-account impersonation). This is required when the module provisions GCP resources that require a specific owner.
 
@@ -236,7 +236,7 @@ The README's Inputs table must reflect defaults and descriptions from `variables
 
 ### Lab guide — `docs/labs/<Module_Name>.md`
 
-Long-form hands-on lab guide shared across the repo. Lives at `docs/labs/<Module_Name>.md` (e.g. `docs/labs/Container_Migration.md`). Covers: Overview & Architecture → Lab Setup → numbered Exercises → Cleanup → Reference. The `module_documentation` variable default in `variables.tf` must point at published documentation for the module, **not** at a `LAB_GUIDE.md` inside the module. Two forms are in use today: the docs site (`https://docs.radmodules.dev/docs/modules/<Module_Name>` — `AKS_GKE`, `Bank_GKE`, `EKS_GKE`, `Istio_GKE`, `MC_Bank_GKE`) and the raw GitHub lab-guide URL (`https://github.com/techequitycloud/rad-modules/blob/main/docs/labs/<Module_Name>.md` — `Container_Migration`, `Migration_Center`, `VMware_Engine`). Match whichever form the module you copied from uses.
+Long-form hands-on lab guide shared across the repo. Lives at `docs/labs/<Module_Name>.md` (e.g. `docs/labs/Container_Migration.md`). Covers: Overview & Architecture → Lab Setup → numbered Exercises → Cleanup → Reference. The `module_documentation` variable default in `variables.tf` must point at published documentation for the module, **not** at a `LAB_GUIDE.md` inside the module. Two forms are in use today: the docs site (`https://docs.radmodules.dev/docs/modules/<Module_Name>` — `AKS_GKE`, `Bank_GKE`, `EKS_GKE`, `Istio_GKE`, `MC_Bank_GKE`) and the raw GitHub lab-guide URL (`https://github.com/techequitycloud/rad-modules/blob/main/docs/labs/<Module_Name>.md` — `Container_Migration`, `Gemini_Enterprise`, `Migration_Center`, `VMware_Engine`). Match whichever form the module you copied from uses.
 
 > **Do not create `LAB_GUIDE.md` inside a module directory.** The lab guide is always at `docs/labs/<Module_Name>.md`.
 

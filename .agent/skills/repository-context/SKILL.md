@@ -16,6 +16,7 @@ rad-modules/
 │   ├── Bank_GKE/       # Bank of Anthos on a single GKE cluster
 │   ├── EKS_GKE/        # AWS EKS registered as a GKE Attached Cluster
 │   ├── Container_Migration/ # Migrate-to-Containers: source VMs → GKE
+│   ├── Gemini_Enterprise/   # Gemini Enterprise app + ADK BigQuery agent (Cymbal Pools demo)
 │   ├── Istio_GKE/      # GKE + open-source Istio (sidecar or ambient)
 │   ├── MC_Bank_GKE/    # Bank of Anthos across multiple GKE clusters (MCI/MCS)
 │   ├── Migration_Center/   # Migration Center discovery over GCE + AWS source VMs
@@ -46,6 +47,7 @@ Each top-level `modules/<Name>/` directory is an independent OpenTofu root modul
 | `Istio_GKE` | GKE Standard + open-source Istio (sidecar or ambient); Bookinfo is deployed manually per the lab guide | `google`, `google-beta`, `kubernetes`, `null` |
 | `Container_Migration` | Source VMs + Migrate-to-Containers CLI VM + GKE target cluster | `google`, `random`, `null` |
 | `Migration_Center` | Migration Center discovery over Linux/Windows GCE VMs plus AWS source VMs | `google`, `aws`, `random`, `null`, `tls` |
+| `Gemini_Enterprise` | Gemini Enterprise app + document data store + BigQuery data + ADK agent on Agent Runtime + Model Armor, for an instructor demo | `google`, `google-beta`, `random`, `null` |
 | `VMware_Engine` | GCVE private cloud + network peering/policy + jump host | `google`, `random`, `null`, `external` |
 
 ### Shared Module Patterns
