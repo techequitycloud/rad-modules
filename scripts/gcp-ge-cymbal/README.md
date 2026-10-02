@@ -247,6 +247,16 @@ PATCH steps and step `9`'s validation checklist skip themselves accordingly
 rather than firing with a resource that doesn't exist. Also grants the
 Discovery Engine service agent DLP User and Service Usage Consumer roles.
 
+**Known limitation with the default `GE_LOCATION=global`:** Model Armor has
+no `global` templates (the API answers `UNSUPPORTED_REQUEST_LOCATION`), and
+this step creates both templates (and the DLP inspect template they
+reference) at `$GE_LOCATION`, so with the default the Model Armor creates fail
+and the PATCH steps skip themselves. Run the app at `us` or `eu` if you need
+step `12`, or create the inspect template and both Model Armor templates in
+`us` by hand.
+The `Gemini_Enterprise` module avoids this by mapping a `global` app to a
+`us` template.
+
 ### `(R)` / `(G)` / `(Q)`
 - `R` — show maintainer credits.
 - `G` — launch a bundled Cloud Shell tutorial, if `.tutorial.md` exists next to

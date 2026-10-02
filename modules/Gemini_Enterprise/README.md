@@ -44,7 +44,7 @@ Deploy this module from the **[RAD Modules platform UI](https://radmodules.dev)*
 
 ### Option 1: RAD Modules UI (no setup required)
 
-Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in with your Google account, and select this module from the catalog.
+Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in (with your Google account or an email and password), open **Solutions → Solution Catalog**, choose **RAD modules**, and click **Deploy** on this module. The module hides the **GCP Project on RAD** option (`enable_rad_gcpproject = false`), so it deploys into a Google Cloud project you bring.
 
 ### Advanced — RAD Modules Launcher (CLI, for automation/maintainers)
 
@@ -149,7 +149,7 @@ No modules.
 | <a name="input_public_access"></a> [public\_access](#input\_public\_access) | Set to false to restrict this module to platform administrators only. Set to true (the default) to make it visible and deployable by all platform users. {{UIMeta group=0 order=106 }} | `bool` | `true` | no |
 | <a name="input_public_announcement_image"></a> [public\_announcement\_image](#input\_public\_announcement\_image) | Set to true (default) to make only the 'pool party.png' announcement image publicly readable, so it renders on the Gemini Enterprise home page for every user. Set to false in projects that enforce constraints/storage.publicAccessPrevention, and use an image hosted elsewhere for the announcement. {{UIMeta group=3 order=302 }} | `bool` | `true` | no |
 | <a name="input_region"></a> [region](#input\_region) | GCP region the custom ADK agent is deployed to on Vertex AI Agent Runtime (e.g. 'us-central1'). Must be a region where Agent Runtime is available and permitted by any constraints/gcp.resourceLocations org policy. Defaults to 'us-central1'. {{UIMeta group=1 order=103 }} | `string` | `"us-central1"` | no |
-| <a name="input_require_credit_purchases"></a> [require\_credit\_purchases](#input\_require\_credit\_purchases) | Set to true to require users to hold a credit balance before deploying this module. {{UIMeta group=0 order=104 }} | `bool` | `false` | no |
+| <a name="input_require_credit_purchases"></a> [require\_credit\_purchases](#input\_require\_credit\_purchases) | When `true`, the module fee can be paid only from purchased credits (subscription or top-up), not from free awarded or event credits. {{UIMeta group=0 order=104 }} | `bool` | `false` | no |
 | <a name="input_resource_creator_identity"></a> [resource\_creator\_identity](#input\_resource\_creator\_identity) | Email of the Terraform service account used to provision resources (format: name@project-id.iam.gserviceaccount.com). Must hold roles/owner in the destination project. Leave empty to use Application Default Credentials. {{UIMeta group=0 order=107 updatesafe }} | `string` | `"rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"` | no |
 | <a name="input_shared_users"></a> [shared\_users](#input\_shared\_users) | List of users who can view and deploy this module regardless of the public_access setting. Enter one or more user email addresses. Metadata only — not referenced within the Terraform module execution; consumed by the deployment platform only. {{UIMeta group=0 order=107 }} | `list(string)` | `[]` | no |
 

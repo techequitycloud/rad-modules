@@ -27,7 +27,7 @@ Deploy this module from the **[RAD Modules platform UI](https://radmodules.dev)*
 
 ### Option 1: RAD Modules UI (no setup required)
 
-Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in with your Google account, open **Solutions → Solution Catalog**, choose **RAD modules**, and click **Deploy** on this module. The platform guides you through providing the required inputs and launches the deployment on your behalf — no local toolchain installation needed.
+Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in (with your Google account or an email and password), open **Solutions → Solution Catalog**, choose **RAD modules**, and click **Deploy** on this module. The platform guides you through providing the required inputs and launches the deployment on your behalf — no local toolchain installation needed.
 
 Choose this option if you want a fast, no-setup path to explore this module or run a guided demo.
 
@@ -83,7 +83,7 @@ limitations under the License.
 | <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | ~> 4.0 |
 | <a name="requirement_google"></a> [google](#requirement\_google) | >=5.0.0 |
 | <a name="requirement_helm"></a> [helm](#requirement\_helm) | ~> 2.0 |
-| <a name="requirement_random"></a> [random](#requirement\_random) | 3.6.2 |
+| <a name="requirement_random"></a> [random](#requirement\_random) | 3.9.1 |
 
 ## Providers
 
@@ -91,7 +91,7 @@ limitations under the License.
 |------|---------|
 | <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | 4.81.0 |
 | <a name="provider_google"></a> [google](#provider\_google) | 7.43.0 |
-| <a name="provider_random"></a> [random](#provider\_random) | 3.6.2 |
+| <a name="provider_random"></a> [random](#provider\_random) | 3.9.1 |
 
 ## Modules
 
@@ -108,7 +108,7 @@ limitations under the License.
 | [azurerm_role_assignment.aks_network_contributor](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [google_container_attached_cluster.primary](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/container_attached_cluster) | resource |
 | [google_project_service.enabled_services](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/project_service) | resource |
-| [random_id.default](https://registry.terraform.io/providers/hashicorp/random/3.6.2/docs/resources/id) | resource |
+| [random_id.default](https://registry.terraform.io/providers/hashicorp/random/3.9.1/docs/resources/id) | resource |
 | [google_client_openid_userinfo.me](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/client_openid_userinfo) | data source |
 | [google_project.existing_project](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/project) | data source |
 

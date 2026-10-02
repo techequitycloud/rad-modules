@@ -35,6 +35,8 @@ By the end of this lab you will be able to:
   ```
   A `denyAll` or an allowlist without `publishers/google/models/<agent_model>` means Demo 3 cannot run in that project; ask the lab administrator for the model, or set `agent_model` to one that is allowed.
 - **Project Owner** (or equivalent) IAM on the project.
+- **Your own project only.** This module hides the **GCP Project on RAD** option (`enable_rad_gcpproject = false`) because it enables `modelarmor`, which no RAD-managed tier permits (and `aiplatform`, which the sandbox and lab tiers do not), and Gemini Enterprise needs a per-project license or free trial, so it always deploys into a project you bring. Before the first deploy into it, the deployment confirmation dialog asks you to prove you control it (**Get verification code**, run the commands it shows as a project Owner, then **Verify**) and to give the RAD deployment service account the **Owner** role.
+- **Advanced mode for later changes.** The create form asks only for the first page of inputs. Every other input in the Configuration Guide is changed afterwards with **Update** on the deployment's page after ticking **Enable advanced mode**, which needs a credit balance that covers the update's estimated build cost (updates never carry a module fee). On a lab environment only an administrator can use Advanced mode.
 - **RAD platform access** with permission to deploy modules into the project.
 - A **dedicated browser profile** signed in only with that account, used for every Cloud Console, Drive, Calendar and Gemini Enterprise step. This avoids account collisions during OAuth pop-ups. For a smoother flow, do not use Incognito mode.
 
@@ -50,7 +52,7 @@ export GE_LOCATION="global"      # the module's ge_location
 
 ## Task 1 — Deploy the module [Automated]
 
-1. Open **Solutions → Solution Catalog → RAD modules** in the RAD platform top navigation, open **Gemini Enterprise** from the **Platform Modules** list, choose **Configuration Form** under *How would you like to configure this deployment?* (the form opens on the **Conversational Assistant** if you hold purchased credits or are a partner or administrator), set `project_id`, and review the inputs. The defaults match the original lab: app name "Cymbal Pools GE", company name "Cymbal Pools", location `global`. Click **Deploy**, which opens the deployment status page with real-time logs.
+1. Open **Solutions → Solution Catalog → RAD modules** in the RAD platform top navigation, open **Gemini Enterprise** from the **Platform Modules** list, choose **Configuration Form** under *How would you like to configure this deployment?* (the form opens on the **Conversational Assistant** if you hold purchased credits or are a partner or administrator), set `project_id`, and review the inputs. The defaults match the original lab: app name "Cymbal Pools GE", company name "Cymbal Pools", location `global`. Click **Deploy Module**, review the estimated cost in the **Deployment Confirmation** dialog when it appears and click **Submit** (if the dialog then adds a confirmation step, such as verifying the project you bring, complete it and click **Confirm**), which opens the deployment status page with real-time logs.
 
 2. The platform enables the APIs and creates the content bucket, the BigQuery dataset and seed data, the Google Identity setting, the Cymbal Pools Documents data store and the Gemini Enterprise app, and the Model Armor template. It then deploys the BigQuery ADK agent to Agent Runtime, which alone takes **5–10 minutes**, and grants its service agent BigQuery and Vertex AI access. Allow roughly **15–20 minutes** in total.
 
@@ -327,7 +329,7 @@ See the Configuration Guide's *Configuration Pitfalls* section for setting-speci
 
 On the **Deployments** page, open the deployment and click the **Trash** icon (**Delete**). Delete runs `terraform destroy` and is irreversible (the deployment record is retained for history). It removes everything the module created: the app (including the BigQuery Agent registration inside it), the Cymbal Pools Documents data store, the Google Identity setting, the bucket and its contents, the BigQuery dataset, the Model Armor template, the IAM bindings, and the Agent Runtime engine.
 
-If a deployment is stuck and the RAD platform can no longer manage it, use **Purge** instead. It removes the deployment from RAD's records **without** destroying the cloud resources.
+If a deployment is stuck and the RAD platform can no longer manage it, use **Purge** instead (from the same **Delete** dialog). It removes the deployment from RAD's records **without** destroying the cloud resources; after a Purge, clean up any leftover resources manually.
 
 The following were created by hand and are **not** removed automatically:
 

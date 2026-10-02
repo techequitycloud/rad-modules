@@ -28,7 +28,7 @@ rad-modules/
 ├── rad-launcher/       # Python CLI that drives `tofu` + GCS state for modules
 └── rad-ui/
     └── automation/     # Cloud Build YAMLs invoked by the RAD platform UI
-        ├── check_step_arg_limits.py  # lints the 10k step-arg cap + volume reuse rule
+        ├── check_step_arg_limits.py  # lints the 10k step-arg cap, volume reuse, tfvars dumps
         └── scripts/    # step logic extracted out of the YAML to stay under that cap
 ```
 
@@ -89,9 +89,9 @@ python3 rad-launcher/radlab.py \
 | `cloudbuild_deployment_create.yaml` | First deploy of a module | 3600s |
 | `cloudbuild_deployment_update.yaml` | Re-apply with new inputs | 3600s |
 | `cloudbuild_deployment_destroy.yaml` | `tofu destroy` | 3600s |
-| `cloudbuild_deployment_purge.yaml` | Administrative force-cleanup | 600s |
+| `cloudbuild_deployment_purge.yaml` | Purge: drop the deployment from RAD's records; no `tofu` run, state and files retained | 600s |
 
-Steps too large for Cloud Build's 10,000-character per-step-arg cap are extracted to `rad-ui/automation/scripts/` (`apply_infrastructure.sh`, `apply_infrastructure_update.sh`, `prepare_destroy.sh`, `handle_plan_cycle.sh`) and staged onto a shared `pipeline-scripts` volume. `check_step_arg_limits.py` enforces the cap and Cloud Build's rule that a named volume be used by two or more steps; `.github/workflows/cloudbuild-lint.yml` runs it in CI.
+Steps too large for Cloud Build's 10,000-character per-step-arg cap are extracted to `rad-ui/automation/scripts/` (`apply_infrastructure.sh`, `apply_infrastructure_update.sh`, `prepare_destroy.sh`, `handle_plan_cycle.sh`, plus `guard_concurrent_build.sh` — run by all four pipelines, it refuses to start while another build for the same deployment is running — and `rollout_timeout_policy.sh`, sourced by both apply scripts) and staged onto a shared `pipeline-scripts` volume. `check_step_arg_limits.py` enforces the cap, Cloud Build's rule that a named volume be used by two or more steps, and a ban on printing the contents of `terraform.tfvars.json` in a build log; `.github/workflows/cloudbuild-lint.yml` runs it in CI.
 
 The create, update, and destroy pipelines cache downloaded Terraform provider binaries in GCS at `gs://${_DEPLOYMENT_BUCKET_ID}/terraform-provider-cache/${_MODULE_NAME}/providers.tar.gz` using `TF_PLUGIN_CACHE_DIR`. The cache is restored before `tofu init` and saved back after a successful init; a missing cache is non-fatal.
 

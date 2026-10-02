@@ -39,7 +39,7 @@ Deploy this module from the **[RAD Modules platform UI](https://radmodules.dev)*
 
 ### Option 1: RAD Modules UI (no setup required)
 
-Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in with your Google account, open **Solutions → Solution Catalog**, choose **RAD modules**, and click **Deploy** on this module.
+Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in (with your Google account or an email and password), open **Solutions → Solution Catalog**, choose **RAD modules**, and click **Deploy** on this module.
 
 ### Advanced — RAD Modules Launcher (CLI, for automation/maintainers)
 
@@ -81,7 +81,7 @@ limitations under the License.
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3 |
-| <a name="requirement_google"></a> [google](#requirement\_google) | >= 5.0, < 6.0 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 5.0, < 8.3 |
 | <a name="requirement_null"></a> [null](#requirement\_null) | >= 3.0 |
 | <a name="requirement_random"></a> [random](#requirement\_random) | >= 3.0 |
 

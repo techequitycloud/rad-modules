@@ -30,7 +30,7 @@ Deploy this module from the **[RAD Modules platform UI](https://radmodules.dev)*
 
 ### Option 1: RAD Modules UI (no setup required)
 
-Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in with your Google account, open **Solutions → Solution Catalog**, choose **RAD modules**, and click **Deploy** on this module. The platform guides you through providing the required inputs and launches the deployment on your behalf — no local toolchain installation needed.
+Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in (with your Google account or an email and password), open **Solutions → Solution Catalog**, choose **RAD modules**, and click **Deploy** on this module. The platform guides you through providing the required inputs and launches the deployment on your behalf — no local toolchain installation needed.
 
 Choose this option if you want a fast, no-setup path to explore this module or run a guided demo.
 
@@ -77,7 +77,7 @@ limitations under the License.
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3 |
 | <a name="requirement_external"></a> [external](#requirement\_external) | >= 2.0 |
-| <a name="requirement_google"></a> [google](#requirement\_google) | >= 5.0, < 6.0 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 5.0, < 8.3 |
 | <a name="requirement_null"></a> [null](#requirement\_null) | >= 3.0 |
 | <a name="requirement_random"></a> [random](#requirement\_random) | >= 3.0 |
 
