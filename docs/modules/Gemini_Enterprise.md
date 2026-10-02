@@ -6,7 +6,7 @@ On apply the module creates the Gemini Enterprise app with Google Identity confi
 
 This guide covers the cloud services the module provisions and how to explore and operate them from the Google Cloud Console and the command line. The full pre-class checklist and in-class demo script are in the [Lab Guide](https://docs.radmodules.dev/docs/labs/Gemini_Enterprise).
 
-Resources carry the deployment suffix `<id>`: bucket `<project>-ge-<id>`, app `cymbal-pools-ge-<id>`, data store `cymbal-pools-docs-<id>`, Model Armor template `cymbal-pools-ma-<id>`, and Agent Runtime engine "BigQuery Pool Data Agent (<id>)".
+Resources carry the deployment suffix `<id>`: bucket `<project>-ge-<id>`, app `cymbal-pools-ge-<id>`, data store `cymbal-pools-docs-<id>`, Model Armor template `cymbal-pools-ma-<id>`, and Agent Runtime engine "BigQuery Pool Data Agent (\<id>)".
 
 ---
 
@@ -99,7 +99,7 @@ The app (`cymbal-pools-ge-<id>`) is an intranet-type engine with the Enterprise 
 
 The ADK agent (`adk_to_ge/bigquery_agent`) uses the ADK `BigQueryToolset` with write mode allowed and instructions that restrict it to `SELECT`/`INSERT` on `installation_requests`. By default it queries as the **AI Platform Reasoning Engine service agent** (`service-<number>@gcp-sa-aiplatform-re.iam.gserviceaccount.com`), which the module grants `roles/aiplatform.user`, `roles/bigquery.user` and `roles/bigquery.dataEditor`. Setting `agent_auth_id` makes it use the Gemini Enterprise user's OAuth token instead (see [Behaviour](#3-behaviour)).
 
-- **Console:** **Vertex AI** → Agent Runtime (select `region`) → "BigQuery Pool Data Agent (<id>)".
+- **Console:** **Vertex AI** → Agent Runtime (select `region`) → "BigQuery Pool Data Agent (\<id>)".
 - **CLI:**
   ```bash
   TOKEN=$(gcloud auth print-access-token)
