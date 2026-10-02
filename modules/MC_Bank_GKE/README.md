@@ -41,7 +41,7 @@ Deploy this module from the **[RAD Modules platform UI](https://radmodules.dev)*
 
 ### Option 1: RAD Modules UI (no setup required)
 
-Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in with your Google account, open **Solutions → Solution Catalog**, choose **RAD modules**, and click **Deploy** on this module. The platform guides you through providing the required inputs and launches the deployment on your behalf — no local toolchain installation needed.
+Visit **[https://radmodules.dev](https://radmodules.dev)**, sign in (with your Google account or an email and password), open **Solutions → Solution Catalog**, choose **RAD modules**, and click **Deploy** on this module. The platform guides you through providing the required inputs and launches the deployment on your behalf — no local toolchain installation needed.
 
 Choose this option if you want a fast, no-setup path to explore this module or run a guided demo.
 

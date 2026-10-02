@@ -40,7 +40,7 @@ By the end of this lab you will be able to:
 - An **RDP client** (Microsoft Remote Desktop on Windows/macOS, or Remmina/FreeRDP on Linux).
 - **Project Owner** (or equivalent) IAM on the project. The Google account you use for the
   MCDCv6 sign-in needs **Migration Center Admin** on the project.
-- **Bringing your own project?** Before the first deploy into it, the deployment confirmation dialog asks you to prove you control it (**Get verification code**, run the commands it shows as a project Owner, then **Verify**) and to give the RAD deployment service account the **Owner** role.
+- **Your own project only.** This module hides the **GCP Project on RAD** option (`enable_rad_gcpproject = false`) because it enables `migrationcenter`, which the RAD-managed tier policies do not permit, so it always deploys into a project you bring. Before the first deploy into it, the deployment confirmation dialog asks you to prove you control it (**Get verification code**, run the commands it shows as a project Owner, then **Verify**) and to give the RAD deployment service account the **Owner** role.
 - **Advanced mode for later changes.** The create form asks only for the first page of inputs. Every other input in the Configuration Guide is changed afterwards with **Update** on the deployment's page after ticking **Enable advanced mode**, which needs a credit balance that covers the update's estimated build cost (updates never carry a module fee). On a lab environment only an administrator can use Advanced mode.
 - **RAD platform access** with permission to deploy modules into the project.
 - **(Optional) AWS** — only if you want live EC2 inventory imported automatically: a set of
