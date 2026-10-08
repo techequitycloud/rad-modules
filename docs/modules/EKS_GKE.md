@@ -10,6 +10,108 @@ This guide focuses on the cloud services the module uses and how to explore and 
 
 ---
 
+## What EKS costs on RAD, and how that compares
+
+**On the Google Cloud side, attaching an EKS cluster to a Fleet costs about US$24 a month, and
+RAD charges no module fee for it at all.** This module's own GCP footprint is a small Connect
+Agent and the networking around it — the EKS cluster's own cost (the AWS control plane and its
+worker nodes) is billed to you by **AWS, separately**, and is not covered here or changed by
+anything below. Figures are as at 8 October 2026; sources are listed at the end of this section.
+
+### What you pay on RAD
+
+| | In a Google Cloud project you own | In a project RAD manages for you |
+|---|---|---|
+| Module fee, once per deployment | None | None |
+| Build time | A few credits per build | The same |
+| Google Cloud running cost (Connect Agent + Fleet) | Billed by Google to your own billing account, about **US$24.04 a month** (table below) | Metered hourly in credits; RAD publishes **43 credits a day**, about 1,290 a month (about US$129 at the top-up price) |
+| AWS running cost (the EKS cluster itself) | Billed by **Amazon**, to your AWS account, separately — not covered by this table | Same — RAD does not meter or resell AWS spend |
+| Who owns what | You own the GCP project and its billing; RAD deploys and updates the Fleet registration | RAD owns the GCP project, with guardrails, quotas and budget alerts; you get console access |
+
+10 credits cost US$1 on a one-off top-up, and less on a monthly plan.
+
+**Default running cost in your own project** (us-central1, Google list prices, GCP side only):
+
+| Resource (module default) | Per month |
+|---|---|
+| GKE Autopilot pod, 0.5x vCPU / 0.5 GiB (the Connect Agent) | US$18.04 |
+| Cloud NAT and networking | US$5 |
+| Cloud Storage (add-ons, backups) | US$1 |
+| GKE cluster management fee | shared across every GKE app in the project; $0 if this is your only cluster, else ~73 |
+| **Total (GCP side)** | **about US$24.04** |
+
+This does **not** include the AWS EKS cluster itself — its control plane and worker node costs
+are set by AWS's own pricing and billed to your AWS account directly.
+
+### How it compares
+
+- There is no commercial "attach EKS to GKE" product to compare against — this is a Google Cloud
+  console feature (GKE Attached Clusters / Fleet) for managing a cluster you already run on AWS,
+  not a hosted application with a competing SaaS price. The alternative is reaching the same EKS
+  cluster the way you would without this module: your own AWS credentials and `kubectl` config,
+  with no unified console view, no Cloud Logging/Monitoring integration, and no separate monthly
+  figure to cite — the cost there is engineering time, not a line item.
+- What roughly US$24 a month buys you is the Connect Agent, Fleet membership and the unified
+  console view (logs in Cloud Logging, metrics in Cloud Monitoring / Managed Service for
+  Prometheus, `kubectl` access via a Google identity with no AWS credentials needed day to day).
+
+### Pause it for free: delete a RAD-managed project, restore it when you need it
+
+If this module's GCP side runs in **a project RAD manages for you**, deleting the whole project
+unlinks its billing first, then asks Google to delete it — recoverable for 30 days, with nothing
+charged on the GCP side while it waits. Restoring (the project owner, within 30 days) undeletes
+the project, reattaches billing, and an **Update** on the deployment re-confirms the Fleet
+registration — a check, not a rebuild, for **a handful of credits (under US$1)**.
+
+- **This does not touch AWS.** Deleting the GCP project does **not** delete, stop, or pause the
+  EKS cluster itself, and does **not** stop AWS from billing you for it. The only thing paused is
+  the small GCP-side Connect Agent and Fleet registration. If you want to stop paying AWS too,
+  you need to delete or scale down the EKS cluster on the AWS side as well — this module does not
+  do that for you.
+- **What this needs.** You must own the GCP project, and restore it yourself within 30 days.
+  Your purchased credit balance must still clear the sandbox tier's floor (100 credits) on
+  restore, the same as any other RAD-managed project.
+- **No real backup gap here.** This module keeps no application data of its own on the GCP side
+  — the EKS cluster's workloads and their data live on AWS, untouched by anything described above.
+
+### Pay only while you use it, the other way: delete and redeploy
+
+Because there is no module fee, redeploying this module from scratch already costs almost
+nothing — about **4–5 credits** (under US$1) and about an hour, since there is no module fee to
+pay again, only the build. That makes the Pause-it-for-free option above mainly a convenience
+(nothing to reconfigure) rather than a large saving on the GCP side specifically — the real money
+at stake is almost always the AWS EKS cluster, which neither option changes.
+
+- **Delete what this module uses.** The GCP-side Connect Agent and Fleet registration stop
+  immediately; the AWS EKS cluster is untouched either way, and its own cost keeps running on AWS
+  until you act on that side separately.
+- **Note your settings.** RAD does not recreate a deleted deployment for you, and re-attaching a
+  cluster re-runs the AWS-side provisioning for the Connect Agent's IAM role; keep a note of your
+  EKS cluster's name and region.
+
+### Lab sessions and Managed Environments
+
+- **Lab sessions, for training.** A trainer runs a session for a class. Each participant gets
+  their own deployment of this module in a Google Cloud project for 15 minutes to 24 hours,
+  within an allowance the trainer sets. Either the trainer funds every place, or each participant
+  pays for their own. Everything is deleted when the session ends and unused credits go back to
+  the trainer. **AWS costs for the EKS cluster itself are not part of this allowance** and remain
+  the responsibility of whoever holds the AWS account the cluster runs in.
+- **Managed Environments, for consultancies.** A partner runs this module for a client from a
+  ring-fenced wallet it funds, and settles with the client directly, on the GCP side. If the
+  wallet runs low, billing pauses and the data is kept, so nobody receives an unexpected charge.
+  At the end the partner hands the project over and the deployment becomes the client's own.
+
+Credits can be bought in more than 20 currencies, including XAF, XOF, NGN, GHS, KES and ZAR,
+by card, bank transfer or mobile money.
+
+**Sources (8 October 2026):** Google Cloud list prices from the Cloud Billing Catalog API;
+RAD's own fees and daily-credit estimates from [radmodules.dev/pricing](https://radmodules.dev/pricing);
+[Delete and restore projects](https://cloud.google.com/resource-manager/docs/delete-restore-projects)
+for the pause/restore mechanics and window. AWS EKS and networking costs are set by Amazon's own
+pricing, not reproduced here.
+
+
 ## 1. Overview
 
 The module creates two sets of resources — one on Google Cloud, one on AWS — and then connects them. The EKS control plane keeps running entirely on AWS; Google Cloud gains a management channel into it through an outbound-only Connect Agent installed inside the cluster.
