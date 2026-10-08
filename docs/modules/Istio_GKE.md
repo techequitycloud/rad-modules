@@ -10,6 +10,106 @@ This module is intended for **educational and evaluation purposes**.
 
 ---
 
+## What Istio costs on RAD, and how that compares
+
+**Istio on RAD costs about US$24 a month in your own project, and RAD charges no module fee at all for it.** It is a service mesh you install onto a cluster, not an application with its own data, so most of what makes other modules worth pausing rather than deleting does not apply here — see "How it compares" below for what that means in practice. Istio ships only as a GKE module on RAD; there is no Cloud Run variant, because Istio is infrastructure for a Kubernetes cluster.
+
+### What you pay on RAD
+
+| | In a Google Cloud project you own | In a project RAD manages for you |
+|---|---|---|
+| Module fee, once per deployment | no charge | no charge |
+| Build time | A few credits per build | The same |
+| Google Cloud running cost | Billed by Google to your own billing account, about **US$24.04 a month** for the default configuration (table below) | Metered hourly in credits; RAD publishes **43 credits a day** |
+| Who owns what | You own the project and its billing; RAD deploys and updates it | RAD owns the project, with guardrails, quotas and budget alerts; you get console access, and a minimum purchased balance is held in reserve |
+
+10 credits cost US$1 on a one-off top-up, less on a plan. In a project RAD manages, the
+database, file server and network are shared by every application in the project, so a second
+application does not add a second database.
+
+**Default running cost in your own project** (us-central1, Google list prices):
+
+| Resource (module default) | Per month |
+|---|---|
+| GKE Autopilot pod, 0.5x vCPU / 0.5 GiB | US$18.04 |
+| Cloud NAT and networking | US$5.00 |
+| Cloud Storage (add-ons, backups) | US$1.00 |
+| GKE cluster management fee | shared across every GKE app in the project; $0 if this is your only cluster, else ~73 |
+| **Total** | **about US$24.04** |
+
+### How it compares
+
+- Istio has no SaaS plan of its own — it is the open-source project behind several vendors' managed
+  mesh products, not a hosted product itself. The nearest commercial comparison is a managed mesh
+  add-on on top of a cluster you already run, rather than a standalone subscription, and we could not
+  verify a current like-for-like price to quote here.
+- This module's own pod is small (0.5 vCPU, 0.5 GiB) — the mesh control plane itself is light; what
+  costs money is the cluster underneath it. A bare GKE Autopilot cluster of similar size, or a small
+  Kubernetes cluster on a Hetzner CPX22 / DigitalOcean 2 vCPU/4 GB droplet (about $24/month), runs
+  Istio with `istioctl` yourself — RAD's module automates exactly that installation and gives you
+  Prometheus, Jaeger, Grafana and Kiali already wired in.
+- Because this module is explicitly for **education and evaluation** rather than a production
+  workload, the case for RAD here is less about saving money against a bare cluster and more about
+  skipping the setup time of installing and wiring the observability stack by hand.
+
+### Pause it for free: delete a RAD-managed project, restore it when you need it
+
+If Istio runs in a project RAD manages for you and you expect to come back to it — a break
+between courses, a seasonal lull, or simply not knowing yet whether you'll need it next
+month — this is the better option, and it costs almost nothing.
+
+Deleting a RAD-managed project unlinks its billing first, then asks Google to delete the
+project outright: Google's own 30-day recoverable soft delete. Unlike deleting Istio as a
+single module, this does not tear down the GKE cluster, mesh control plane and networking one by one — the whole project
+simply stops, and nothing is charged while it waits, because billing is already unlinked.
+
+Restoring, within 30 days and only by the project's owner, asks Google to undelete the
+project and reattaches its billing account, then asks you to run Update on each deployment
+to confirm everything came back. Because nothing was individually destroyed, that Update
+finds the same resources already there — it is a check, not a rebuild, and an Update never
+charges the module fee again. This costs only a handful of credits (under US$1) in build time
+for a typical chain of deployments.
+
+What this needs: you must own the project (not one RAD only manages billing for), you must
+restore it yourself within 30 days — after that Google deletes it for good — and restoring is
+admitted like creating a new project, so your purchased credit balance must still clear the
+tier's floor (100 credits for the sandbox tier most use fits). Google says most services are
+fully working again within 36 hours of a restore.
+
+One real gap: nightly backups are written to a bucket inside the project, and that bucket has
+Cloud Storage's soft-delete explicitly turned off, so it is very likely gone as soon as you
+delete the project, even though the project itself is recoverable for 30 days. Istio holds no application data of its own — the mesh configuration is reapplied by Terraform on Update, not restored from a backup — so there is nothing of yours to lose by deleting the project either way.
+
+### Pay only while you use it, the other way: delete and redeploy
+
+In your own project, or once the 30-day window above has passed, the fallback is to delete
+Istio outright and redeploy it later.
+
+- **What a redeploy costs:** the module fee again, plus the builds — roughly the module fee
+  shown above plus 3–6 credits of build time.
+- **When it's worth it:** deleting saves money only once Istio would otherwise sit unused
+  — but since there is no module fee, redeploying costs only a few credits of build time, so there is no real threshold to wait for: delete it whenever a session is over. There is no database or persistent data here, so deleting Istio removes its whole running cost on its own.
+- **Keep data first.** Nightly backups are written to a bucket inside the deployment, and
+  that bucket is deleted with it — copy the latest backup out (to Google Drive, or a bucket
+  you keep) before deleting if you want to keep it.
+
+### Lab sessions and Managed Environments
+
+- **Lab sessions, for training.** A trainer runs a session for a class. Each participant gets
+  the app in their own Google Cloud project for 15 minutes to 24 hours, within an allowance
+  the trainer sets. Either the trainer funds every place, or each participant pays for their
+  own. Everything is deleted when the session ends and unused credits go back to the trainer.
+- **Managed Environments, for consultancies.** A partner runs the app for a client from a
+  ring-fenced wallet it funds, and settles with the client directly. If the wallet runs low,
+  billing pauses and the data is kept, so nobody receives an unexpected charge. At the end the
+  partner hands the project over and the deployments become the client's own.
+- Credits can be bought in more than 20 currencies, including XAF, XOF, NGN, GHS, KES and ZAR,
+  by card, bank transfer or mobile money.
+
+**Sources (8 October 2026):** Google Cloud list prices from the Cloud Billing Catalog API; RAD fees and the daily-credit estimate from [radmodules.dev/pricing](https://radmodules.dev/pricing); [Google Cloud: delete and restore projects](https://cloud.google.com/resource-manager/docs/delete-restore-projects) for the pause/restore mechanism. Prices change; check each source before relying on a figure.
+
+---
+
 ## 1. Overview
 
 | Capability | Google Cloud service | Notes |
