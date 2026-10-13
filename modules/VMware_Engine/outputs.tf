@@ -34,19 +34,22 @@ output "private_cloud_id" {
   value       = google_vmwareengine_private_cloud.private_cloud.id
 }
 
+# one() rather than [0]: these blocks are computed, and a plan or provider
+# response that leaves one empty must yield null instead of failing the whole
+# run on an invalid index.
 output "vcenter_fqdn" {
   description = "vCenter Server FQDN — use this URL from the jump host browser to access vSphere Client"
-  value       = google_vmwareengine_private_cloud.private_cloud.vcenter[0].fqdn
+  value       = one(google_vmwareengine_private_cloud.private_cloud.vcenter[*].fqdn)
 }
 
 output "nsx_fqdn" {
   description = "NSX-T Manager FQDN — use this URL from the jump host browser to access the NSX-T console"
-  value       = google_vmwareengine_private_cloud.private_cloud.nsx[0].fqdn
+  value       = one(google_vmwareengine_private_cloud.private_cloud.nsx[*].fqdn)
 }
 
 output "hcx_fqdn" {
   description = "HCX Manager FQDN"
-  value       = google_vmwareengine_private_cloud.private_cloud.hcx[0].fqdn
+  value       = one(google_vmwareengine_private_cloud.private_cloud.hcx[*].fqdn)
 }
 
 output "network_peering_state" {
