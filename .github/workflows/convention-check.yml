@@ -11,19 +11,9 @@ name: Convention Check
 # but non-blocking. Pass --strict in the run step to make warnings blocking once
 # the catalog is fully clean.
 
+# Manual-only by owner decision 2026-10-13 (Actions spending limit) - run locally
+# with scripts/ci-local.sh, or start here with "Run workflow" / `gh workflow run convention-check.yml`.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'modules/**'
-      - 'scripts/check_conventions.py'
-      - '.github/workflows/convention-check.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'modules/**'
-      - 'scripts/check_conventions.py'
-      - '.github/workflows/convention-check.yml'
   workflow_dispatch:
 
 permissions:

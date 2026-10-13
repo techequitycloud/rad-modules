@@ -19,21 +19,9 @@ name: Cloud Build Pipeline Lint
 # where a limit gets crossed without noticing. The checker is offline and
 # deterministic; it takes seconds.
 
+# Manual-only by owner decision 2026-10-13 (Actions spending limit) - run locally
+# with scripts/ci-local.sh, or start here with "Run workflow" / `gh workflow run cloudbuild-lint.yml`.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'rad-ui/automation/cloudbuild*.yaml'
-      - 'rad-ui/automation/check_step_arg_limits.py'
-      - 'rad-ui/automation/scripts/*.sh'
-      - '.github/workflows/cloudbuild-lint.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'rad-ui/automation/cloudbuild*.yaml'
-      - 'rad-ui/automation/check_step_arg_limits.py'
-      - 'rad-ui/automation/scripts/*.sh'
-      - '.github/workflows/cloudbuild-lint.yml'
   workflow_dispatch:
 
 permissions:

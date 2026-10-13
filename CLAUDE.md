@@ -261,19 +261,21 @@ Confirmed against a Qwiklabs project; each one failed an apply before it was fix
 
 ## CI Pipeline
 
-The GitHub Actions workflow (`.github/workflows/terraform-ci.yml`) runs on changes to `modules/**`:
+**All GitHub Actions workflows are manual-only** (owner decision 2026-10-13, after the org hit its Actions spending limit): none runs on push, PR or a schedule. Run the same checks locally with **`bash scripts/ci-local.sh`** (`--list` for sections, `--only <section>`, `--ai` for the two Claude prompts through your local Claude Code login), or start a workflow with "Run workflow" / `gh workflow run <file>`.
+
+The GitHub Actions workflow (`.github/workflows/terraform-ci.yml`), when run, validates every module:
 
 1. **format** — `terraform fmt -check -recursive modules/`
 2. **validate** — `terraform init -backend=false && terraform validate` per changed module
 3. **tflint** — Google ruleset via `.tflint.hcl`
-4. **test** — `terraform test` per module (mock providers, no GCP credentials). **Only 5 of 9 modules run here**: `AKS_GKE`, `Bank_GKE`, `EKS_GKE` and `MC_Bank_GKE` are excluded from the matrix (`.github/workflows/terraform-ci.yml:143-149`) because their plan-run configures the kubernetes/helm providers from computed nested blocks that `mock_provider` cannot override — `tofu test` fails locally on those four for the same reason.
+4. **test** — `terraform test` per module (mock providers, no GCP credentials). **Only 5 of 9 modules run here**: `AKS_GKE`, `Bank_GKE`, `EKS_GKE` and `MC_Bank_GKE` are excluded from the matrix (`.github/workflows/terraform-ci.yml:124-137`) because their plan-run configures the kubernetes/helm providers from computed nested blocks that `mock_provider` cannot override — `tofu test` fails locally on those four for the same reason.
 5. **security** — Trivy config scan (HIGH/CRITICAL, non-blocking)
 
 CI uses `terraform` (Terraform ~1.9) not `tofu`, but they are interchangeable for `init`/`validate`/`fmt`/`test`.
 
-**Four other workflows run here, and `terraform-ci.yml` is not the only gate.** `cloudbuild-lint.yml` (see the step-arg limit below), `convention-check.yml`, and the two Claude semantic reviewers:
+**Five other workflows exist, and `terraform-ci.yml` is not the only gate.** `cloudbuild-lint.yml` (see the step-arg limit below), `convention-check.yml`, `docs-published.yml`, and the two Claude semantic reviewers:
 
-- **`claude-pr-review.yml`** reviews each PR. **`claude-weekly-audit.yml`** runs a weekly audit and opens (or comments on) a `doc-audit` issue — **gated on TWO independent signals**, not just the model: the Claude narrative being anything other than exactly `CLEAN`, *or* `scripts/check_conventions.py` emitting a `FAIL`. Nothing is reported only when both are clean. That second signal is deterministic and deliberately survives the model being unavailable — a `FAIL` opens an issue on its own even with `ANTHROPIC_API_KEY` unset, and adds the `convention-drift` label. `WARN` findings are legitimate per-module variation and do not trigger it.
+- **`claude-pr-review.yml`** reviews a PR (manual: pass `pr_number`, optional `base_ref`, default `main`). **`claude-weekly-audit.yml`** runs the (formerly weekly) audit and opens (or comments on) a `doc-audit` issue — **gated on TWO independent signals**, not just the model: the Claude narrative being anything other than exactly `CLEAN`, *or* `scripts/check_conventions.py` emitting a `FAIL`. Nothing is reported only when both are clean. That second signal is deterministic and deliberately survives the model being unavailable — a `FAIL` opens an issue on its own even with `ANTHROPIC_API_KEY` unset, and adds the `convention-drift` label. `WARN` findings are legitimate per-module variation and do not trigger it.
 - Both **resolve the Anthropic key from Secret Manager first** (`anthropic-api-key` in `GCP_PROJECT_ID`, via the same WIF the other jobs use), falling back to the per-repo GitHub secret, and they **print which source they used** — four hand-copied per-repo duplicates of one credential is why all four RAD repos broke on the same day. Rotate in Secret Manager; the repo secret is a backstop.
 - Both are pinned to **Haiku** and print the turn's cost, so a review that silently becomes expensive is visible.
 - **They fail LOUDLY** (#995, #1013). The original swallowed a non-zero exit with `|| echo "…error…" > review.txt`, so the step exited 0 while reviewing nothing — for two months, reporting SUCCESS the whole time. `claude` writes auth failures to **stdout**, not stderr, so both streams are dumped on failure; an empty review also fails.
@@ -294,9 +296,9 @@ no step output to read and the message names nothing you were working on. Adding
 explanatory comment block to the destroy pipeline's first step took it to 10,164 and
 broke every destroy on the platform until trimmed. Run
 `python3 rad-ui/automation/check_step_arg_limits.py` after touching any
-`cloudbuild_*.yaml`; it fails over the limit and warns above 9,000. **This is now also
-enforced automatically** by `.github/workflows/cloudbuild-lint.yml` on any push/PR
-touching `cloudbuild*.yaml` or the checker itself — a red CI check on this workflow
+`cloudbuild_*.yaml`; it fails over the limit and warns above 9,000. **It is also
+checked** by `.github/workflows/cloudbuild-lint.yml` (manual-only now) and by
+`bash scripts/ci-local.sh --only cloudbuild-args` — a red result there
 means one of the limits below was crossed, not a real pipeline bug. The largest
 steps already sit at 8–9k, so the margin is thinner than it looks.
 
