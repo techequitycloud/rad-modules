@@ -51,6 +51,32 @@ jobs:
       HAS_WIF: ${{ secrets.WIF_PROVIDER != '' && secrets.WIF_SERVICE_ACCOUNT != '' }}
 
     steps:
+      # Dispatch inputs are free text, and this job holds the Anthropic key and a WIF token, so they are
+      # checked before anything uses them: pr_number must be digits, base_ref an existing BRANCH (a
+      # refs/pull/... value would put PR code where trusted code is expected), and the PR must come from
+      # THIS repository. Under the old pull_request trigger a fork never received secrets; checking a
+      # fork's head out here would run its scripts with them. Review a fork PR locally instead:
+      # scripts/ci-local.sh --ai.
+      - name: Validate dispatch inputs
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          BASE_REF: ${{ inputs.base_ref }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -n "$BASE_REF" ]; then
+            printf '%s' "$BASE_REF" | grep -Eq '^[A-Za-z0-9._/-]+$' || { echo "::error::base_ref is not a branch name"; exit 1; }
+            gh api "repos/$GITHUB_REPOSITORY/branches/$BASE_REF" --jq .name >/dev/null 2>&1 \
+              || { echo "::error::base_ref '$BASE_REF' is not a branch of this repository"; exit 1; }
+          fi
+          [ -n "$PR_NUMBER" ] || exit 0
+          printf '%s' "$PR_NUMBER" | grep -Eq '^[0-9]+$' || { echo "::error::pr_number must be digits"; exit 1; }
+          HEAD_REPO=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.head.repo.full_name // ""')
+          if [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]; then
+            echo "::error::PR #$PR_NUMBER comes from ${HEAD_REPO:-a deleted fork}, not this repository - refusing to run its code with this job's secrets. Review it locally with scripts/ci-local.sh --ai."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
