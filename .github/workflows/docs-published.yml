@@ -18,10 +18,10 @@ name: Published Docs Check
 # pruned. Nothing anywhere went red. The pages returned 404 for seven weeks and
 # were found only by someone asking whether they were published at all.
 #
-# The weekly schedule is the load-bearing trigger, not a nicety: that deletion
-# was a commit in the OTHER repository, so no push or pull_request event here
-# would ever have fired. A drift that originates downstream is only ever caught
-# on a timer.
+# This was on a weekly schedule because that deletion was a commit in the OTHER
+# repository, so no push or pull_request event here would ever have fired. It is
+# now manual-only: run it (or scripts/ci-local.sh --only docs-published)
+# periodically yourself, or downstream drift goes unnoticed.
 #
 # Severities come from scripts/check_docs_published.py:
 #   FAIL (blocks) — a page is missing locally, carries YAML front matter, or is
@@ -32,24 +32,9 @@ name: Published Docs Check
 #                   difference is normal and must not block a merge; it is
 #                   reported as an annotation instead. Pass --strict to promote.
 
+# Manual-only by owner decision 2026-10-13 (Actions spending limit) - run locally
+# with scripts/ci-local.sh, or start here with "Run workflow" / `gh workflow run docs-published.yml`.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'docs/**'
-      - 'modules/**'
-      - 'scripts/check_docs_published.py'
-      - '.github/workflows/docs-published.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'docs/**'
-      - 'modules/**'
-      - 'scripts/check_docs_published.py'
-      - '.github/workflows/docs-published.yml'
-  schedule:
-    # Mondays 06:00 UTC — catches deletions and drift originating in rad.github.io.
-    - cron: '0 6 * * 1'
   workflow_dispatch:
 
 permissions:

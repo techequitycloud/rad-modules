@@ -1,6 +1,6 @@
 name: Claude Semantic Review
 
-# Posts a review comment on every PR to main covering the checks the static CI
+# Reviews a PR (manual run: pass pr_number) and posts a comment covering the checks the static CI
 # (terraform-ci.yml) and the convention checker cannot perform on their own:
 #   - Convention drift (summarised from scripts/check_conventions.py + judgement)
 #   - License headers, UIMeta completeness, API-enablement invariant
@@ -13,12 +13,25 @@ name: Claude Semantic Review
 #   - The job already requests pull-requests: write
 #
 # Security: untrusted PR fields (title/body/branch) are never interpolated into a
-# run: step. Only github.base_ref (a branch name) is passed, via an env var.
+# run: step. Only the base_ref input (a branch name) is passed, via an env var;
+# pr_number is used only as a checkout ref and, after a digits check, as the
+# comment target.
 
+# Manual-only by owner decision 2026-10-13 (Actions spending limit) - run locally
+# with scripts/ci-local.sh, or start here with "Run workflow" / `gh workflow run claude-pr-review.yml`.
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review (checked out as refs/pull/<n>/head; the review is posted as a comment on it). Empty = review the selected branch and write the review to the run summary only.'
+        required: false
+        default: ''
+        type: string
+      base_ref:
+        description: 'Base branch the PR diff is taken against'
+        required: false
+        default: 'main'
+        type: string
 
 permissions:
   contents: read
@@ -42,6 +55,9 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          # A manual run reviews the PR's head when pr_number is given, else the
+          # branch the run was started on.
+          ref: ${{ inputs.pr_number != '' && format('refs/pull/{0}/head', inputs.pr_number) || '' }}
 
       - uses: actions/setup-python@v7
         with:
@@ -105,7 +121,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ steps.key.outputs.key }}
           # Haiku, overridable per repo without editing this file.
           REVIEW_MODEL: ${{ vars.CLAUDE_REVIEW_MODEL || 'claude-haiku-4-5' }}
-          BASE_REF: ${{ github.base_ref }}
+          BASE_REF: ${{ inputs.base_ref || 'main' }}
         run: |
           CHANGED=$(git diff --name-only "origin/${BASE_REF}...HEAD" 2>/dev/null \
             || echo "(unable to determine changed files)")
@@ -188,18 +204,30 @@ jobs:
 
       - name: Post review comment
         uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
         with:
           script: |
             const fs = require('fs');
             const findings = fs.readFileSync('/tmp/review.txt', 'utf8').trim();
-            const sha = context.payload.pull_request.head.sha.slice(0, 7);
+            const sha = require('child_process').execSync('git rev-parse HEAD').toString().trim().slice(0, 7);
             const body = `## Claude Semantic Review (${sha})\n\n${findings}\n\n` +
               `<sub>Checks: convention drift · standard vars/UIMeta · API invariant · credentials · doc drift</sub>`;
+
+            // Manual run: comment only when a PR number was given; otherwise the
+            // review goes to the run summary.
+            const pr = (process.env.PR_NUMBER || '').trim();
+            if (!/^[0-9]+$/.test(pr)) {
+              if (pr) core.setFailed(`pr_number must be digits, got: ${pr}`);
+              await core.summary.addRaw(body).write();
+              return;
+            }
+            const issue_number = Number(pr);
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number,
             });
 
             const existing = comments.find(c =>
@@ -218,7 +246,7 @@ jobs:
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.issue.number,
+                issue_number,
                 body,
               });
             }

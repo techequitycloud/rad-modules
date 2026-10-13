@@ -1,21 +1,8 @@
 name: Terraform CI
 
+# Manual-only by owner decision 2026-10-13 (Actions spending limit) - run locally
+# with scripts/ci-local.sh, or start here with "Run workflow" / `gh workflow run terraform-ci.yml`.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'modules/**'
-      - '.github/workflows/terraform-ci.yml'
-      - '.tflint.hcl'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'modules/**'
-      - '.github/workflows/terraform-ci.yml'
-      - '.tflint.hcl'
-  schedule:
-    # Weekly run every Monday at 06:00 UTC to catch upstream provider changes
-    - cron: '0 6 * * 1'
   workflow_dispatch:
 
 permissions:

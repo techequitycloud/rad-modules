@@ -1,6 +1,6 @@
 name: Weekly Convention & Doc Audit
 
-# Runs every Sunday at 02:00 UTC. Catches convention and documentation drift that
+# Manual run (was every Sunday 02:00 UTC). Catches convention and documentation drift that
 # accumulates between PRs:
 #   - Convention drift across all modules (scripts/check_conventions.py)
 #   - CLAUDE.md "Module Families" / README module list vs actual modules/
@@ -9,7 +9,7 @@ name: Weekly Convention & Doc Audit
 #   - Script/path references in CLAUDE.md, AGENTS.md, README.md, SKILLS.md
 #
 # Opens a GitHub issue labelled "doc-audit" when problems are found; appends a
-# comment if an open one already exists. Manually triggerable via workflow_dispatch.
+# comment if an open one already exists.
 #
 # When scripts/check_conventions.py reports a FAIL (a hard invariant violated on
 # main), the issue is ALSO tagged "convention-drift" — applied deterministically
@@ -22,9 +22,9 @@ name: Weekly Convention & Doc Audit
 #   - Add ANTHROPIC_API_KEY to the repository secrets
 #   - Create the "doc-audit" and "convention-drift" labels (Settings -> Labels)
 
+# Manual-only by owner decision 2026-10-13 (Actions spending limit) - run locally
+# with scripts/ci-local.sh, or start here with "Run workflow" / `gh workflow run claude-weekly-audit.yml`.
 on:
-  schedule:
-    - cron: '0 2 * * 0'
   workflow_dispatch:
 
 permissions:
