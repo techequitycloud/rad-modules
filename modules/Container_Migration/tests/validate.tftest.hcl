@@ -1,5 +1,19 @@
 mock_provider "google" {}
-mock_provider "random" {}
+
+# OpenTofu fills computed attributes with random mixed-case strings at
+# PLAN time, so an unconfigured mock gives random_id.hex a value like
+# "XI5VmJx9YoV" -- one the real resource can never produce (it is lowercase hex)
+# and which the google provider then rejects in every resource name built from
+# it. Pin it to a realistic value. Terraform leaves it unknown at plan, so this
+# is a no-op there.
+mock_provider "random" {
+  mock_resource "random_id" {
+    defaults = {
+      hex = "a1b2"
+    }
+  }
+}
+
 mock_provider "null" {}
 
 run "defaults_produce_valid_plan" {
