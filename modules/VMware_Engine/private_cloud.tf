@@ -46,11 +46,20 @@ resource "google_vmwareengine_private_cloud" "private_cloud" {
     }
   }
 
+  # Start deletion immediately instead of the API's 3-hour default. A deleted
+  # cloud still pins its VMware Engine network until Google purges it, so the
+  # delay only postpones the destroy. The flag is needed to send a 0 at all.
+  deletion_delay_hours              = 0
+  send_deletion_delay_hours_if_zero = true
+
   timeouts {
     create = "240m"
     update = "180m"
     delete = "180m"
   }
 
-  depends_on = [google_vmwareengine_network.vmware_engine_network]
+  depends_on = [
+    google_vmwareengine_network.vmware_engine_network,
+    google_vmwareengine_network_peering.vpc_peering,
+  ]
 }
