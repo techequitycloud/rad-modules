@@ -17,7 +17,9 @@
 # VPC Network Peering — connects the VMware Engine network to the peer VPC (vmaas network).
 # Enabling import/export of custom routes ensures NSX-T segments created inside GCVE
 # are automatically propagated to the peered VPC routing table, and vice versa.
-# Depends on the private cloud because peering activates fully only after the cloud is live.
+# The private cloud depends on this peering, not the reverse: GCP fails a peering
+# delete with "Error code 13, internal error" while the cloud still exists, so on
+# destroy the cloud must go first. Depends on the peer VPC so the VPC outlives it.
 resource "google_vmwareengine_network_peering" "vpc_peering" {
   project               = local.project.project_id
   name                  = local.network_peering_name
@@ -34,6 +36,6 @@ resource "google_vmwareengine_network_peering" "vpc_peering" {
 
   depends_on = [
     google_vmwareengine_network.vmware_engine_network,
-    google_vmwareengine_private_cloud.private_cloud,
+    google_compute_network.peer_vpc,
   ]
 }
