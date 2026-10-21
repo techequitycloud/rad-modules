@@ -16,7 +16,8 @@
 
 # Private Cloud — provisions vSphere, vSAN, NSX-T, and HCX management appliances.
 # management_cidr is immutable after creation; plan this CIDR carefully.
-# Provisioning typically takes 30–90 minutes; the 180m timeout reflects this.
+# Provisioning has taken 2h43m–2h56m for a 1-node TIME_LIMITED standard-72
+# cloud (live runs, 2026-10); the 240m create timeout leaves margin for that.
 
 # data "external" "private_cloud_exists" {
 #   program = [
@@ -46,7 +47,7 @@ resource "google_vmwareengine_private_cloud" "private_cloud" {
   }
 
   timeouts {
-    create = "180m"
+    create = "240m"
     update = "180m"
     delete = "180m"
   }
