@@ -58,6 +58,8 @@ well beyond scaling to zero: **delete the whole project, and restore it within 3
 close to nothing.** This suits Bank of Anthos you only need occasionally — evaluating it, a demo
 environment, a seasonal or intermittent workload — far better than running it continuously.
 
+> **A restore is not guaranteed — keep your own backups.** Google Cloud's terms do not guarantee that a restored project, or the resources in it, will be usable after it is restored, so restoring cannot be relied on as a way to recover a deleted project. Before you delete, make sure you have taken appropriate backups of the application's data and configuration and stored them outside the project. If a restore fails, or the restored project does not work, the fall-back is to redeploy the application (see the next section) and restore its configuration and data from those backups.
+
 - **How it works.** Deleting a RAD-managed project unlinks its billing first, then asks Google
   to delete the project. Google does not remove the project immediately: it keeps it,
   recoverable, for 30 days. Because billing is already unlinked, nothing is charged while it

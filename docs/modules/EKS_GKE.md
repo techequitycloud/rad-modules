@@ -63,6 +63,8 @@ charged on the GCP side while it waits. Restoring (the project owner, within 30 
 the project, reattaches billing, and an **Update** on the deployment re-confirms the Fleet
 registration — a check, not a rebuild, for **a handful of credits (under US$1)**.
 
+> **A restore is not guaranteed — keep your own backups.** Google Cloud's terms do not guarantee that a restored project, or the resources in it, will be usable after it is restored, so restoring cannot be relied on as a way to recover a deleted project. Before you delete, make sure you have taken appropriate backups of the application's data and configuration and stored them outside the project. If a restore fails, or the restored project does not work, the fall-back is to redeploy the application (see the next section) and restore its configuration and data from those backups.
+
 - **This does not touch AWS.** Deleting the GCP project does **not** delete, stop, or pause the
   EKS cluster itself, and does **not** stop AWS from billing you for it. The only thing paused is
   the small GCP-side Connect Agent and Fleet registration. If you want to stop paying AWS too,
