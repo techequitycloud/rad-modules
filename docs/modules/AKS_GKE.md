@@ -50,6 +50,8 @@ scaling to zero: **delete the whole project, and restore it within 30 days for c
 nothing.** This suits occasional use — studying for a certification, a demo, a seasonal
 need — far better than running AKS continuously.
 
+> **A restore is not guaranteed — keep your own backups.** Google Cloud's terms do not guarantee that a restored project, or the resources in it, will be usable after it is restored, so restoring cannot be relied on as a way to recover a deleted project. Before you delete, make sure you have taken appropriate backups of the application's data and configuration and stored them outside the project. If a restore fails, or the restored project does not work, the fall-back is to redeploy the application (see the next section) and restore its configuration and data from those backups.
+
 - **This pauses the Google Cloud side only — the fleet membership, monitoring and the small Autopilot pod shown above. The AKS cluster itself runs in, and is billed by, Microsoft Azure, and keeps running (and costing money on Azure) until you pause or delete it there separately.**
 
 - **How it works.** Deleting a RAD-managed project unlinks its billing first, then asks Google

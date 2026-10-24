@@ -58,6 +58,8 @@ If Istio runs in a project RAD manages for you and you expect to come back to it
 between courses, a seasonal lull, or simply not knowing yet whether you'll need it next
 month — this is the better option, and it costs almost nothing.
 
+> **A restore is not guaranteed — keep your own backups.** Google Cloud's terms do not guarantee that a restored project, or the resources in it, will be usable after it is restored, so restoring cannot be relied on as a way to recover a deleted project. Before you delete, make sure you have taken appropriate backups of the application's data and configuration and stored them outside the project. If a restore fails, or the restored project does not work, the fall-back is to redeploy the application (see the next section) and restore its configuration and data from those backups.
+
 Deleting a RAD-managed project unlinks its billing first, then asks Google to delete the
 project outright: Google's own 30-day recoverable soft delete. Unlike deleting Istio as a
 single module, this does not tear down the GKE cluster, mesh control plane and networking one by one — the whole project
