@@ -284,6 +284,11 @@ steps:
         log "ℹ️  Provider cache unchanged — skipping upload"
     fi
 
+    # Billing off, no access, project being deleted: refuse in seconds with
+    # one RAD_PREFLIGHT_FAILED line naming the fix, not after a long apply.
+    # Fails open on anything it cannot read -- see the script's header.
+    bash /pipeline/preflight_target_project.sh || exit 1
+
     log "📋 Generating execution plan..."
 
     # Generate plan with detailed exit code.

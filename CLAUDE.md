@@ -356,6 +356,8 @@ Two details of that self-heal are load-bearing and easy to undo:
   `<parent>/locations/global/quotaPreferences/<name>`. No match means a real failure,
   not an orphan, and it is left alone.
 
+**Create/update run a target-project preflight before `tofu plan`, and retry an apply ONCE only on an allowlisted transient failure.** `scripts/preflight_target_project.sh` checks, as the impersonated `resource_creator_identity`, that the project is visible and ACTIVE, billing is enabled, and the identity holds `serviceusage.services.enable`; a definitive problem prints one `RAD_PREFLIGHT_FAILED: <CODE>: <message + fix command>` line and fails the step (codes in the script header — the webapp matches on them). It skips when this build may create the project (`create_project`), and **fails open** on anything it cannot read — a false block is worse than the slow failure it replaces. Never run on destroy/purge. The apply budget is 2, but attempt 2 runs only when EVERY Error block matches `scripts/apply_retry_policy.sh` (Google 5xx/429, 409 concurrency, stale plan, SERVICE_DISABLED / IAM 403 only when THIS apply enabled the API / granted IAM). Provisioner errors (the Medusa Kaniko case), "already exists", quota and setIamPolicy-style denials are never retried. Add a signature there with a test case in `apply_retry_policy_test.sh`, never a broader regex.
+
 **A topology swap that cycles the plan graph is recovered by a two-phase apply.**
 `scripts/handle_plan_cycle.sh` runs only when the plan log contains `Error: Cycle`
 (grep with `-a`, and against an ANSI-stripped log — Terraform colourises `Error:`

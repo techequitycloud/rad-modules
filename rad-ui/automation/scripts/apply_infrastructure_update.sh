@@ -26,6 +26,9 @@ log() {
 # this script: /pipeline in the build, the repo checkout under test.
 # shellcheck source=rollout_timeout_policy.sh
 . "$(dirname "${BASH_SOURCE[0]}")/rollout_timeout_policy.sh"
+# Which failed applies are transient enough to earn ONE retry.
+# shellcheck source=apply_retry_policy.sh
+. "$(dirname "${BASH_SOURCE[0]}")/apply_retry_policy.sh"
 
 log "🚀 Applying infrastructure changes..."
 
@@ -71,9 +74,9 @@ trap persist_state_to_gcs EXIT
 # into state — it never creates, deletes, or otherwise mutates anything
 # — so it's safe to run unconditionally whenever this exact error
 # signature appears. It is NOT the blind "retry the same failing apply"
-# behavior removed below for the Medusa incident: it only retries once
-# actual orphaned state has been found and fixed, which changes what the
-# next apply will do.
+# behavior removed for the Medusa incident (the retry below fires only on an
+# allowlisted transient signature): it only retries once actual orphaned
+# state has been found and fixed, which changes what the next apply will do.
 # Cloud SQL exists long before it is USABLE. An instance reports back to
 # `tofu import` the moment it appears, but stays PENDING_CREATE for minutes
 # afterwards and rejects every mutation until it reaches RUNNABLE:
@@ -322,78 +325,109 @@ self_heal_orphaned_creates() {
     return 1
 }
 
-# Single-attempt apply — no automatic blind retry. A failed apply (e.g. a
-# transient external dependency like an npm/PyPI registry rate limit
-# during a container image build) used to trigger a second full attempt
-# here (sleep + state refresh + re-plan + re-apply), which only prolongs
-# a build that is often going to fail the same way again — confirmed live
-# 2026-08-06: a Medusa_CloudRun update spent ~13 minutes retrying a Kaniko
-# build inside attempt 1 (App_Common/scripts/build-container.sh's own
-# retry loop, separately also now single-attempt), failed, then spent
-# another ~13 minutes retrying the whole apply here for attempt 2 before
-# finally failing — over 25 minutes to report a failure the first attempt
-# already had. Matches cloudbuild_deployment_create.yaml's and
-# cloudbuild_deployment_destroy.yaml's already-adopted single-attempt
-# convention (both max_attempts=1). Retry from the RAD dashboard instead,
-# once whatever was transient has had a chance to clear. The one
-# exception is self_heal_orphaned_creates above, which only fires on a
-# specific, narrow failure signature and only retries once it has
-# concretely changed state.
-apply_once() {
-    log "🔄 Applying Terraform changes..."
+# Apply, with ONE retry reserved for failures on the transient allowlist.
+#
+# This was a single attempt with no retry at all after 2026-08-06: a
+# Medusa_CloudRun update spent ~13 minutes in a Kaniko build that failed on a
+# registry rate limit, then ~13 more re-running the whole apply for the same
+# failure. That case stays single-attempt -- a local-exec provisioner error is
+# never on the allowlist -- and so does every other failure not listed in
+# apply_retry_policy.sh. Kept identical to apply_infrastructure.sh's loop.
+#
+# max_attempts is 2, but the second attempt is reached ONLY when every Error
+# block of the first is transient (apply_failure_is_transient, in
+# apply_retry_policy.sh -- the list and the reasoning per entry live there).
+# Anything else goes straight to the self-heal / fail path below, exactly as
+# under the old single-attempt budget, so a deterministic failure costs no more
+# build time than it did. Before the retry:
+#   1. Sleep APPLY_RETRY_BACKOFF_SECONDS (75s) for IAM/API propagation.
+#   2. `tofu refresh` to pick up resources the failed apply created.
+#   3. Re-plan -- the saved tfplan is STALE after a partial apply and OpenTofu
+#      refuses it ("Saved plan is stale").
+apply_with_retry() {
+    local max_attempts=2
+    local attempt=1
 
-    set +e
-    tofu apply -auto-approve tfplan 2>&1 | tee /tmp/apply_output.txt
-    APPLY_EXIT_CODE=${PIPESTATUS[0]}
-    set -e
+    while [ $attempt -le $max_attempts ]; do
+        log "🔄 Apply attempt $attempt of up to $max_attempts (a second runs only on a transient failure)"
 
-    if [ $APPLY_EXIT_CODE -eq 0 ]; then
-        log "✅ Apply succeeded"
-        return 0
-    fi
-
-    log "❌ Apply failed (exit code: $APPLY_EXIT_CODE)"
-
-    # If the failure is a Kubernetes rollout timeout, infrastructure and
-    # Kubernetes objects are already provisioned — the kubelet will keep
-    # retrying the pods independently. Treat this as a partial success so
-    # the build does not fail over a transient pod health-check window.
-    # ONLY when every Error block is a workload rollout timeout -- one other
-    # error fails the build (P-30, D-9); see rollout_timeout_policy.sh.
-    # Not a retry — no second apply attempt happens either way.
-    if only_rollout_timeouts /tmp/apply_output.txt; then
-        log "⚠️  Kubernetes rollout timeout detected — infrastructure is provisioned"
-        log "ℹ️  Pods will continue health checks independently; treating as partial success"
-        record_rollout_timeout_tolerated
-        return 0
-    fi
-
-    if self_heal_orphaned_creates; then
-        log "🔄 Retrying apply once now that the orphaned resource is tracked in state..."
         set +e
-        tofu apply -auto-approve tfplan 2>&1 | tee /tmp/apply_output_retry.txt
-        RETRY_EXIT_CODE=${PIPESTATUS[0]}
+        tofu apply -auto-approve tfplan 2>&1 | tee /tmp/apply_output.txt
+        APPLY_EXIT_CODE=${PIPESTATUS[0]}
         set -e
-        if [ $RETRY_EXIT_CODE -eq 0 ]; then
-            log "✅ Apply succeeded after self-heal"
+
+        if [ $APPLY_EXIT_CODE -eq 0 ]; then
+            log "✅ Apply succeeded on attempt $attempt"
             return 0
         fi
-        log "❌ Apply still failed after self-heal (exit code: $RETRY_EXIT_CODE) — not retrying again"
-        APPLY_EXIT_CODE=$RETRY_EXIT_CODE
-    fi
 
-    log "💥 Apply failed — not retrying automatically. Retry the deployment from the RAD dashboard."
+        log "❌ Apply failed on attempt $attempt (exit code: $APPLY_EXIT_CODE)"
 
-    # Show current state for debugging
-    log "🔍 Current state summary:"
-    tofu show -json 2>/dev/null \
-        | jq -r '.values.root_module.resources[]?.address // empty' \
-        | head -10 \
-        || log "Unable to show state"
+        # If the failure is a Kubernetes rollout timeout, infrastructure and
+        # Kubernetes objects are already provisioned — the kubelet will keep
+        # retrying the pods independently. Treat this as a partial success so
+        # the build does not fail over a transient pod health-check window.
+        # ONLY when every Error block is a workload rollout timeout -- one other
+        # error fails the build (P-30, D-9); see rollout_timeout_policy.sh.
+        if only_rollout_timeouts /tmp/apply_output.txt; then
+            log "⚠️  Kubernetes rollout timeout detected — infrastructure is provisioned"
+            log "ℹ️  Pods will continue health checks independently; treating as partial success"
+            record_rollout_timeout_tolerated
+            return 0
+        fi
 
-    return $APPLY_EXIT_CODE
+        if [ $attempt -lt $max_attempts ] && apply_failure_is_transient /tmp/apply_output.txt; then
+            log "⏳ Transient failure — waiting ${APPLY_RETRY_BACKOFF_SECONDS}s before the one retry..."
+            sleep "$APPLY_RETRY_BACKOFF_SECONDS"
+
+            # Bring state in sync with resources created during the failed apply.
+            log "🔄 Refreshing state before retry..."
+            tofu refresh -input=false || log "⚠️  State refresh failed, continuing with retry"
+
+            # The saved tfplan is now stale — generate a fresh one.
+            log "🔄 Re-planning with refreshed state..."
+            set +e
+            tofu plan -input=false -out=tfplan -detailed-exitcode
+            REPLAN_EXIT_CODE=$?
+            set -e
+
+            if [ $REPLAN_EXIT_CODE -eq 1 ]; then
+                log "❌ Re-plan failed before retry attempt $((attempt + 1))"
+                return 1
+            fi
+            log "✅ Re-plan complete (exit code: $REPLAN_EXIT_CODE — 0=no-changes, 2=changes)"
+
+            attempt=$((attempt + 1))
+            continue
+        fi
+
+        if self_heal_orphaned_creates; then
+            log "🔄 Retrying apply once now that the orphaned resource is tracked in state..."
+            set +e
+            tofu apply -auto-approve tfplan 2>&1 | tee /tmp/apply_output_retry.txt
+            RETRY_EXIT_CODE=${PIPESTATUS[0]}
+            set -e
+            if [ $RETRY_EXIT_CODE -eq 0 ]; then
+                log "✅ Apply succeeded after self-heal"
+                return 0
+            fi
+            log "❌ Apply still failed after self-heal (exit code: $RETRY_EXIT_CODE) — not retrying again"
+            APPLY_EXIT_CODE=$RETRY_EXIT_CODE
+        fi
+
+        log "💥 Apply failed — not retrying automatically. Retry the deployment from the RAD dashboard."
+
+        # Show current state for debugging
+        log "🔍 Current state summary:"
+        tofu show -json 2>/dev/null \
+            | jq -r '.values.root_module.resources[]?.address // empty' \
+            | head -10 \
+            || log "Unable to show state"
+
+        return $APPLY_EXIT_CODE
+    done
 }
 
-apply_once
+apply_with_retry
 
 log "🎯 Infrastructure changes applied successfully"

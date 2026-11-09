@@ -240,6 +240,11 @@ steps:
     LOCK_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/deployments/${_MODULE_NAME}/${_DEPLOYMENT_ID}/state/default.tflock" \
         bash /pipeline/guard_concurrent_build.sh
 
+    # Billing off, no access, project being deleted: refuse in seconds with
+    # one RAD_PREFLIGHT_FAILED line naming the fix, not after a long apply.
+    # Fails open on anything it cannot read -- see the script's header.
+    bash /pipeline/preflight_target_project.sh || exit 1
+
     log "📋 Planning infrastructure changes..."
 
     # Generate and review plan
