@@ -25,6 +25,9 @@ log() {
 # this script: /pipeline in the build, the repo checkout under test.
 # shellcheck source=rollout_timeout_policy.sh
 . "$(dirname "${BASH_SOURCE[0]}")/rollout_timeout_policy.sh"
+# Which failed applies are transient enough to earn ONE retry.
+# shellcheck source=apply_retry_policy.sh
+. "$(dirname "${BASH_SOURCE[0]}")/apply_retry_policy.sh"
 
 log "🚀 Applying infrastructure changes..."
 
@@ -69,10 +72,10 @@ trap persist_state_to_gcs EXIT
 # This only ever imports an already-real, already-running live resource
 # into state — it never creates, deletes, or otherwise mutates anything
 # — so it's safe to run unconditionally whenever this exact error
-# signature appears. It is orthogonal to max_attempts below (pinned to 1
-# to avoid blindly re-running a doomed apply, per the Medusa incident):
-# this only retries once actual orphaned state has been found and
-# fixed, which changes what the next apply will do.
+# signature appears. It is orthogonal to the transient-failure retry below
+# (which fires only on an allowlisted signature, never blindly, per the
+# Medusa incident): this only retries once actual orphaned state has been
+# found and fixed, which changes what the next apply will do.
 # Cloud SQL exists long before it is USABLE. An instance reports back to
 # `tofu import` the moment it appears, but stays PENDING_CREATE for minutes
 # afterwards and rejects every mutation until it reaches RUNNABLE:
@@ -301,26 +304,24 @@ self_heal_orphaned_creates() {
     return 1
 }
 
-# Apply with retry logic for transient errors.
+# Apply, with ONE retry reserved for failures on the transient allowlist.
 #
-# After each failed attempt we:
-#   1. Sleep (with exponential back-off) to let transient GCP/K8s issues settle.
-#   2. Run `tofu refresh` to bring the state in sync with real-world resources
-#      that may have been partially created during the failed apply.
-#   3. Re-plan against the refreshed state — the old tfplan is now STALE after
-#      a refresh and cannot be re-applied (OpenTofu will error with
-#      "Saved plan is stale"). Generating a fresh plan avoids that error.
-#
-# max_attempts=2 and an initial sleep of 60 s (doubling to 120 s) give enough
-# headroom for GKE Autopilot LoadBalancer IP provisioning (which can take 10+
-# minutes on a brand-new cluster) to complete before the final retry.
+# max_attempts is 2, but the second attempt is reached ONLY when every Error
+# block of the first is transient (apply_failure_is_transient, in
+# apply_retry_policy.sh -- the list and the reasoning per entry live there).
+# Anything else goes straight to the self-heal / fail path below, exactly as
+# under the old single-attempt budget, so a deterministic failure costs no more
+# build time than it did. Before the retry:
+#   1. Sleep APPLY_RETRY_BACKOFF_SECONDS (75s) for IAM/API propagation.
+#   2. `tofu refresh` to pick up resources the failed apply created.
+#   3. Re-plan -- the saved tfplan is STALE after a partial apply and OpenTofu
+#      refuses it ("Saved plan is stale").
 apply_with_retry() {
-    local max_attempts=1
+    local max_attempts=2
     local attempt=1
-    local sleep_seconds=60
 
     while [ $attempt -le $max_attempts ]; do
-        log "🔄 Apply attempt $attempt of $max_attempts"
+        log "🔄 Apply attempt $attempt of up to $max_attempts (a second runs only on a transient failure)"
 
         set +e
         tofu apply -auto-approve tfplan 2>&1 | tee /tmp/apply_output.txt
@@ -347,56 +348,55 @@ apply_with_retry() {
             return 0
         fi
 
-        if [ $attempt -eq $max_attempts ]; then
-            if self_heal_orphaned_creates; then
-                log "🔄 Retrying apply once now that the orphaned resource is tracked in state..."
-                set +e
-                tofu apply -auto-approve tfplan 2>&1 | tee /tmp/apply_output_retry.txt
-                RETRY_EXIT_CODE=${PIPESTATUS[0]}
-                set -e
-                if [ $RETRY_EXIT_CODE -eq 0 ]; then
-                    log "✅ Apply succeeded after self-heal"
-                    return 0
-                fi
-                log "❌ Apply still failed after self-heal (exit code: $RETRY_EXIT_CODE) — not retrying again"
-                APPLY_EXIT_CODE=$RETRY_EXIT_CODE
+        if [ $attempt -lt $max_attempts ] && apply_failure_is_transient /tmp/apply_output.txt; then
+            log "⏳ Transient failure — waiting ${APPLY_RETRY_BACKOFF_SECONDS}s before the one retry..."
+            sleep "$APPLY_RETRY_BACKOFF_SECONDS"
+
+            # Bring state in sync with resources created during the failed apply.
+            log "🔄 Refreshing state before retry..."
+            tofu refresh -input=false || log "⚠️  State refresh failed, continuing with retry"
+
+            # The saved tfplan is now stale — generate a fresh one.
+            log "🔄 Re-planning with refreshed state..."
+            set +e
+            tofu plan -input=false -out=tfplan -detailed-exitcode
+            REPLAN_EXIT_CODE=$?
+            set -e
+
+            if [ $REPLAN_EXIT_CODE -eq 1 ]; then
+                log "❌ Re-plan failed before retry attempt $((attempt + 1))"
+                return 1
             fi
+            log "✅ Re-plan complete (exit code: $REPLAN_EXIT_CODE — 0=no-changes, 2=changes)"
 
-            log "💥 All apply attempts failed"
-
-            # Show current state for debugging
-            log "🔍 Current state summary:"
-            tofu show -json 2>/dev/null \
-                | jq -r '.values.root_module.resources[]?.address // empty' \
-                | head -10 \
-                || log "Unable to show state"
-
-            return $APPLY_EXIT_CODE
+            attempt=$((attempt + 1))
+            continue
         fi
 
-        log "⏳ Waiting ${sleep_seconds}s before retry..."
-        sleep $sleep_seconds
-        sleep_seconds=$((sleep_seconds * 2))
-
-        # Bring state in sync with resources created during the failed apply.
-        log "🔄 Refreshing state before retry..."
-        tofu refresh || log "⚠️  State refresh failed, continuing with retry"
-
-        # The saved tfplan is now stale — generate a fresh one.
-        log "🔄 Re-planning with refreshed state..."
-        set +e
-        tofu plan -out=tfplan -detailed-exitcode
-        REPLAN_EXIT_CODE=$?
-        set -e
-
-        if [ $REPLAN_EXIT_CODE -eq 1 ]; then
-            log "❌ Re-plan failed before retry attempt $((attempt + 1))"
-            return 1
+        if self_heal_orphaned_creates; then
+            log "🔄 Retrying apply once now that the orphaned resource is tracked in state..."
+            set +e
+            tofu apply -auto-approve tfplan 2>&1 | tee /tmp/apply_output_retry.txt
+            RETRY_EXIT_CODE=${PIPESTATUS[0]}
+            set -e
+            if [ $RETRY_EXIT_CODE -eq 0 ]; then
+                log "✅ Apply succeeded after self-heal"
+                return 0
+            fi
+            log "❌ Apply still failed after self-heal (exit code: $RETRY_EXIT_CODE) — not retrying again"
+            APPLY_EXIT_CODE=$RETRY_EXIT_CODE
         fi
 
-        log "✅ Re-plan complete (exit code: $REPLAN_EXIT_CODE — 0=no-changes, 2=changes)"
+        log "💥 All apply attempts failed"
 
-        attempt=$((attempt + 1))
+        # Show current state for debugging
+        log "🔍 Current state summary:"
+        tofu show -json 2>/dev/null \
+            | jq -r '.values.root_module.resources[]?.address // empty' \
+            | head -10 \
+            || log "Unable to show state"
+
+        return $APPLY_EXIT_CODE
     done
 }
 
