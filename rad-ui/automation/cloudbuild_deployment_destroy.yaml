@@ -137,11 +137,12 @@ steps:
         RESOURCE_COUNT=$$(jq -r '.values.root_module.resources // [] | length' /workspace/audit/pre_destroy_state.json 2>/dev/null || echo "unknown")
         log "📊 Found $$RESOURCE_COUNT resources in state"
 
-        log "📋 Planning destroy..."
-        tofu plan -destroy -input=false -out=destroy.tfplan
-
+        # Listed from STATE, not a destroy plan: the plan was never applied,
+        # only printed, and re-read every resource (~27-48s) that the next step
+        # re-reads again anyway. tofu destroy deletes exactly the managed
+        # resources in state, so this is the same list.
         log "⚠️  Resources to be destroyed:"
-        tofu show -json destroy.tfplan | jq -r '.resource_changes[]? | select(.change.actions[] == "delete") | .address' 2>/dev/null || log "Unable to parse destroy plan"
+        tofu state list 2>/dev/null | grep -vE '(^|\.)data\.' || log "Unable to list resources in state"
 
         log "📝 Creating pre-destroy audit record..."
         jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' /workspace/audit/pre_destroy_state.json 2>/dev/null > /workspace/audit/pre_destroy_resources.txt || echo "No resources found" > /workspace/audit/pre_destroy_resources.txt
@@ -250,7 +251,9 @@ steps:
         # be reached, and refusing to destroy because the refresh was incomplete
         # would block the very cleanup that resolves it.
         log "🔄 Reconciling state with live infrastructure before destroying..."
-        tofu apply -refresh-only -auto-approve \
+        # A clean reconcile lets attempt 1 skip destroy's own identical re-read.
+        REFRESH_ARG=""
+        tofu apply -refresh-only -auto-approve && REFRESH_ARG="-refresh=false" \
             || log "⚠️  State refresh incomplete — continuing; destroy will report anything genuinely stuck"
 
         while [ $$attempt -le $$max_attempts ]; do
@@ -258,8 +261,9 @@ steps:
 
             # tee keeps the live build log while still capturing output for the
             # signature match below; PIPESTATUS[0] is tofu's own exit code.
-            tofu destroy -auto-approve -input=false 2>&1 | tee "$$attempt_log"
+            tofu destroy -auto-approve -input=false $$REFRESH_ARG 2>&1 | tee "$$attempt_log"
             final_exit_code=$${PIPESTATUS[0]}
+            REFRESH_ARG=""
 
             if [ "$$final_exit_code" -eq 0 ]; then
                 log "✅ Destroy successful on attempt $$attempt"
