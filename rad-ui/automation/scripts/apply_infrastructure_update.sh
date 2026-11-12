@@ -30,6 +30,16 @@ log() {
 # shellcheck source=apply_retry_policy.sh
 . "$(dirname "${BASH_SOURCE[0]}")/apply_retry_policy.sh"
 
+# Modules key their "run on every apply" triggers on RAD_RUN_TOKEN (see
+# App_CloudRun/run_token.tf). Step 2 sets it to the build id; a RETRY is a new
+# apply, so it gets a new token here, and Step 4's confirming plan reuses the
+# last one from the file -- which is what lets that plan come back empty.
+next_run_token() {
+    RAD_RUN_TOKEN="$(cat /workspace/.rad_run_token 2>/dev/null || echo run)-$1"
+    export RAD_RUN_TOKEN
+    echo "$RAD_RUN_TOKEN" > /workspace/.rad_run_token
+}
+
 log "🚀 Applying infrastructure changes..."
 
 # ── Persist state on failure (option B) ──────────────────────────────
@@ -316,6 +326,7 @@ self_heal_orphaned_creates() {
 
         set +f
         log "🔄 Re-planning with the imported resource(s) before retrying apply..."
+        next_run_token heal
         set +e
         tofu plan -input=false -out=tfplan -detailed-exitcode
         set -e
@@ -386,6 +397,7 @@ apply_with_retry() {
 
             # The saved tfplan is now stale — generate a fresh one.
             log "🔄 Re-planning with refreshed state..."
+            next_run_token "retry$((attempt + 1))"
             set +e
             tofu plan -input=false -out=tfplan -detailed-exitcode
             REPLAN_EXIT_CODE=$?

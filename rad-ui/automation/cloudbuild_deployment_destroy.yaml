@@ -95,40 +95,14 @@ steps:
 
     log "🔧 Initializing Terraform/Tofu for destroy..."
 
-    # Restore Terraform provider cache from GCS to avoid re-downloading binaries
-    CACHE_DIR="/workspace/.terraform-plugin-cache"
-    CACHE_GCS_PATH="gs://${_DEPLOYMENT_BUCKET_ID}/terraform-provider-cache/${_MODULE_NAME}/providers.tar.gz"
-    mkdir -p "$$CACHE_DIR"
-    export TF_PLUGIN_CACHE_DIR="$$CACHE_DIR"
-
-    log "📥 Attempting to restore Terraform provider cache..."
-    if gsutil cp "$$CACHE_GCS_PATH" /tmp/providers.tar.gz 2>/dev/null; then
-        tar -xzf /tmp/providers.tar.gz -C "$$CACHE_DIR" 2>/dev/null || true
-        rm -f /tmp/providers.tar.gz
-        log "✅ Provider cache restored from GCS"
-    else
-        log "ℹ️  No provider cache found — providers will be downloaded fresh"
-    fi
-
-    # Checksum the cache before init so we can skip the upload if nothing changed
-    CACHE_CHECKSUM_BEFORE=$$(find "$$CACHE_DIR" -type f | sort | xargs md5sum 2>/dev/null | md5sum || echo "empty")
+    # No provider cache. One was restored from GCS here and never used: no
+    # module commits a .terraform.lock.hcl, and OpenTofu skips the plugin cache
+    # for any provider missing from the lock file, so init downloaded all of
+    # them again regardless. The restore cost 20-88s a build and its archive
+    # grew with every provider release, never pruned (237MB to 1.46GB,
+    # measured 2026-11-12). Downloading directly is what init already did.
 
     tofu init -reconfigure
-
-    # Only re-upload the provider cache if it changed
-    CACHE_CHECKSUM_AFTER=$$(find "$$CACHE_DIR" -type f | sort | xargs md5sum 2>/dev/null | md5sum || echo "empty")
-    if [ "$$CACHE_CHECKSUM_BEFORE" != "$$CACHE_CHECKSUM_AFTER" ]; then
-        log "📤 Provider cache changed — saving to GCS..."
-        if tar -czf /tmp/providers.tar.gz -C "$$CACHE_DIR" . 2>/dev/null && \
-           gsutil cp /tmp/providers.tar.gz "$$CACHE_GCS_PATH" 2>/dev/null; then
-            log "✅ Provider cache saved to GCS"
-        else
-            log "⚠️  Failed to save provider cache (non-critical)"
-        fi
-        rm -f /tmp/providers.tar.gz
-    else
-        log "ℹ️  Provider cache unchanged — skipping upload"
-    fi
 
     log "🔍 Validating current state..."
 
