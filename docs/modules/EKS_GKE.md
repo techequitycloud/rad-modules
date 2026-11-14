@@ -23,10 +23,12 @@ anything below. Figures are as at 8 October 2026; sources are listed at the end 
 | | In a Google Cloud project you own | In a project RAD manages for you |
 |---|---|---|
 | Module fee, once per deployment | None | None |
-| Builds | Included in the price: no build charge to create, 5 updates a month free and then 2 credits each, and nothing to delete or for a failed build | The same |
-| Google Cloud running cost (Connect Agent + Fleet) | Billed by Google to your own billing account, about **US$24.04 a month** (table below) | Metered hourly in credits; RAD publishes **43 credits a day**, about 1,290 a month (about US$129 at the top-up price) |
+| Builds | Included in the price: no build charge to create, 5 updates a month (UTC calendar month) free and then 2 credits each, and nothing to delete or for a failed build. Lab sessions and client projects are the exception: they are still charged for build time by the minute | The same |
+| Google Cloud running cost (Connect Agent + Fleet) | Billed by Google to your own billing account, about **US$24.04 a month** (table below) | Metered hourly in credits; RAD publishes **51 credits a day**, about 1,530 a month (about US$153 at the top-up price; estimated from Google list prices, and including the cluster fee) |
 | AWS running cost (the EKS cluster itself) | Billed by **Amazon**, to your AWS account, separately — not covered by this table | Same — RAD does not meter or resell AWS spend |
 | Who owns what | You own the GCP project and its billing; RAD deploys and updates the Fleet registration | RAD owns the GCP project, with guardrails, quotas and budget alerts; you get console access |
+
+**Why the two columns differ.** The RAD-managed figure includes the GKE cluster's management fee (about US$73 a month) and the project's shared foundation. In your own project, Google's free tier covers the management fee of one cluster per billing account, which the own-project figure assumes. It is estimated from Google's list prices, because there is not yet enough RAD-managed GKE history to measure it, so the deploy confirmation does not quote it.
 
 10 credits cost US$1 on a one-off top-up, and less on a monthly plan.
 

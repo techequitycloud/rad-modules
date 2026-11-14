@@ -12,7 +12,7 @@ Unlike the application modules in this catalogue, this is a **standalone module*
 
 **AKS on RAD's GKE Autopilot module costs about US$24 a month in a project you own, with no licence fee for the software itself.** There is no RAD module fee for AKS at all — you pay only for the Google Cloud resources it uses. Figures are as at 8 October 2026; sources are listed at the end of this section.
 
-If you only need it occasionally — studying for a certification, a demo, a seasonal need — a RAD-managed project can be deleted and restored within 30 days at no extra charge, so that about US$24 a month becomes close to nothing instead. See **Pause it for free**, below.
+If you only need it occasionally — studying for a certification, a demo, a seasonal need — a RAD-managed project can be deleted and restored within 30 days at no extra charge, so that the US$153 a month it costs to keep running there becomes close to nothing instead. See **Pause it for free**, below.
 
 ### What you pay on RAD
 
@@ -21,9 +21,11 @@ You pay for three things:
 | | In a Google Cloud project you own | In a project RAD manages for you |
 |---|---|---|
 | Module fee, once per deployment | 0 credits — free in both an owned and a RAD-managed project | 0 credits — free |
-| Builds | Included in the price: no build charge to create, 5 updates a month free and then 2 credits each, and nothing to delete or for a failed build | The same |
-| Google Cloud running cost | Billed by Google to your own billing account, about US$24 a month for the default configuration (table below) | Metered hourly in credits; RAD publishes **43 credits a day**, about 1,290 a month (about US$129 at the top-up price, US$103 at the Scale plan's rate) |
+| Builds | Included in the price: no build charge to create, 5 updates a month (UTC calendar month) free and then 2 credits each, and nothing to delete or for a failed build. Lab sessions and client projects are the exception: they are still charged for build time by the minute | The same |
+| Google Cloud running cost | Billed by Google to your own billing account, about US$24 a month for the default configuration (table below) | Metered hourly in credits; RAD publishes **51 credits a day**, about 1,530 a month (about US$153 at the top-up price; estimated from Google list prices, and including the cluster fee) |
 | Who owns what | You own the project and its billing; RAD deploys and updates it | RAD owns the project, with guardrails, quotas and budget alerts; you get console access, and a minimum purchased balance is held in reserve |
+
+**Why the two columns differ.** The RAD-managed figure includes the GKE cluster's management fee (about US$73 a month) and the project's shared foundation. In your own project, Google's free tier covers the management fee of one cluster per billing account, which the own-project figure assumes. It is estimated from Google's list prices, because there is not yet enough RAD-managed GKE history to measure it, so the deploy confirmation does not quote it.
 
 10 credits cost US$1 on a one-off top-up, and less on a monthly plan.
 
