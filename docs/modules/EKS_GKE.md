@@ -23,7 +23,7 @@ anything below. Figures are as at 8 October 2026; sources are listed at the end 
 | | In a Google Cloud project you own | In a project RAD manages for you |
 |---|---|---|
 | Module fee, once per deployment | None | None |
-| Builds | Included in the price: no build charge to create, 5 updates a month (UTC calendar month) free and then 2 credits each, and nothing to delete or for a failed build. Lab sessions and client projects are the exception: they are still charged for build time by the minute | The same |
+| Builds | Included in the price: no build charge to create, 5 updates a month (UTC calendar month) free and then 2 credits each, and nothing to delete or for a failed build, up to 10 failed builds a day (UTC). Lab sessions and client projects are the exception: they are still charged for build time by the minute | The same |
 | Google Cloud running cost (Connect Agent + Fleet) | Billed by Google to your own billing account, about **US$24.04 a month** (table below) | Metered hourly in credits; RAD publishes **51 credits a day**, about 1,530 a month (about US$153 at the top-up price; estimated from Google list prices, and including the cluster fee) |
 | AWS running cost (the EKS cluster itself) | Billed by **Amazon**, to your AWS account, separately — not covered by this table | Same — RAD does not meter or resell AWS spend |
 | Who owns what | You own the GCP project and its billing; RAD deploys and updates the Fleet registration | RAD owns the GCP project, with guardrails, quotas and budget alerts; you get console access |
