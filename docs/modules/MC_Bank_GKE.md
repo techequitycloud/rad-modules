@@ -93,9 +93,7 @@ The option above only applies to a RAD-managed project; **in your own project, o
 30-day window has passed, the way to stop paying is to delete the deployment and deploy it
 again when you need it.**
 
-- **What a redeploy costs.** The module fee again (builds are included) — 0 credits (US$0.00) in total. Deleting saves money
-  only once Bank of Anthos would otherwise sit unused long enough to clear that redeploy cost
-  against its own running cost — about **1 days or more**, both in your own project
+- **What a redeploy costs.** There is no module fee here and builds are included, so a redeploy costs nothing in RAD credits — deleting saves money as soon as Bank of Anthos would otherwise sit unused, both in your own project
   (about US$0.80 a day) and in a RAD-managed one (43 credits a day).
 - **Most of the running cost is usually shared.** For Bank of Anthos that is the database. They stop only when nothing else in the project uses them, so deleting this app while something else shares the project saves only this app's own compute part.
 - **Keep your data first.** Nightly backups go to a bucket inside the deployment and are
