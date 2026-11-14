@@ -12,7 +12,7 @@ This guide focuses on the Google Cloud services the module exercises and how to 
 
 ## What Bank of Anthos costs on RAD, and how that compares
 
-**Multi-Cluster Bank of Anthos on RAD's GKE module costs about US$24 a month in your own project, and RAD charges no module fee for it at all.** Bank of Anthos has no module fee — you pay only Google's infrastructure cost and a few credits of build time. If you only need it occasionally, a RAD-managed project can be deleted and restored within 30 days for a few credits, so that monthly figure becomes a few dollars instead — see **Pause it for free**, below.
+**Multi-Cluster Bank of Anthos on RAD's GKE module costs about US$24 a month in your own project, and RAD charges no module fee for it at all.* Updates are included in the price (5 a month for each deployment), so a restore normally costs no credits. If you only need it occasionally, a RAD-managed project can be deleted and restored within 30 days at no extra charge, so that monthly figure becomes a few dollars instead — see **Pause it for free**, below.
 
 
 ### What you pay on RAD
@@ -20,7 +20,7 @@ This guide focuses on the Google Cloud services the module exercises and how to 
 | | In a Google Cloud project you own | In a project RAD manages for you |
 |---|---|---|
 | Module fee, once per deployment | Free (0 credits) | Free (0 credits) |
-| Build time | A few credits per build | The same |
+| Builds | Included in the price: no build charge to create, 5 updates a month free and then 2 credits each, and nothing to delete or for a failed build | The same |
 | Google Cloud running cost | Billed by Google to your own billing account, about **US$24 a month** for the default configuration (table below) | Metered hourly in credits; RAD publishes **43 credits a day**, about 1,290 a month (about US$129.00 at the top-up price, less on a plan) |
 | Who owns what | You own the project and its billing; RAD deploys and updates it | RAD owns the project, with guardrails, quotas and budget alerts; you get console access, and a minimum purchased balance is held in reserve |
 
@@ -48,7 +48,7 @@ This guide focuses on the Google Cloud services the module exercises and how to 
   in for that architecture, which is the point of running it here rather than on one box.
 - RAD's cost is about US$24 a month in your own project **with no module fee at
   all** — this module exists to teach the pattern, not to sell a deployment, so RAD does not
-  charge for it beyond Google's own infrastructure cost and the builds.
+  charge for it beyond Google's own infrastructure cost.
 
 
 ### Pause it for free: delete a RAD-managed project, restore it when you need it
@@ -65,15 +65,14 @@ environment, a seasonal or intermittent workload — far better than running it 
   recoverable, for 30 days. Because billing is already unlinked, nothing is charged while it
   waits. Unlike deleting one module, this does not tear down the database, any VM or the
   compute resource one by one — the whole project, and everything in it, simply stops.
-- **Restoring costs a few credits, not a rebuild.** Within 30 days, the project's owner can
+- **Restoring is a check, not a rebuild.** Within 30 days, the project's owner can
   restore it. RAD asks Google to undelete the project and reattaches its billing account, then
   asks you to run **Update** on each deployment to confirm everything came back. Because
   nothing was individually destroyed, that Update finds the same resources already there — it
-  is a check, not a rebuild, and an Update never charges the module fee again. For Bank of Anthos that is roughly **5 credits (under US$1)**, the same as a full redeploy, because there is no module fee to begin with.
+  is a check, not a rebuild, and an Update never charges the module fee again. For Bank of Anthos that costs nothing: there is no module fee, and updates are included in the price (5 a month for each deployment).
 - **So a month of occasional use can cost a few dollars, not US$24.**
   Deploy Bank of Anthos, use it for a while, delete the project. Restore it next time you need it,
-  confirm with Update, and delete it again when you're done. You pay only for the module fee
-  once, the builds, and whatever time it was actually live.
+  confirm with Update, and delete it again when you're done. You pay only for the module fee once and whatever time it was actually live.
 - **What this needs.** You must own the project (not one RAD only manages billing for), and
   you restore it yourself within the 30 days — after that, Google deletes it for good.
   Restoring is admitted like creating a new project: your purchased credit balance must still
@@ -94,8 +93,7 @@ The option above only applies to a RAD-managed project; **in your own project, o
 30-day window has passed, the way to stop paying is to delete the deployment and deploy it
 again when you need it.**
 
-- **What a redeploy costs.** The module fee again, plus the builds — roughly
-  5 credits (US$0.50) in total. Deleting saves money
+- **What a redeploy costs.** The module fee again (builds are included) — 0 credits (US$0.00) in total. Deleting saves money
   only once Bank of Anthos would otherwise sit unused long enough to clear that redeploy cost
   against its own running cost — about **1 days or more**, both in your own project
   (about US$0.80 a day) and in a RAD-managed one (43 credits a day).
