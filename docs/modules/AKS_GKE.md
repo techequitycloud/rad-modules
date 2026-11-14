@@ -12,7 +12,7 @@ Unlike the application modules in this catalogue, this is a **standalone module*
 
 **AKS on RAD's GKE Autopilot module costs about US$24 a month in a project you own, with no licence fee for the software itself.** There is no RAD module fee for AKS at all — you pay only for the Google Cloud resources it uses. Figures are as at 8 October 2026; sources are listed at the end of this section.
 
-If you only need it occasionally — studying for a certification, a demo, a seasonal need — a RAD-managed project can be deleted and restored within 30 days for a handful of credits, so that about US$24 a month becomes close to nothing instead. See **Pause it for free**, below.
+If you only need it occasionally — studying for a certification, a demo, a seasonal need — a RAD-managed project can be deleted and restored within 30 days at no extra charge, so that about US$24 a month becomes close to nothing instead. See **Pause it for free**, below.
 
 ### What you pay on RAD
 
@@ -21,7 +21,7 @@ You pay for three things:
 | | In a Google Cloud project you own | In a project RAD manages for you |
 |---|---|---|
 | Module fee, once per deployment | 0 credits — free in both an owned and a RAD-managed project | 0 credits — free |
-| Build time | A few credits, metered per minute of build time | The same |
+| Builds | Included in the price: no build charge to create, 5 updates a month free and then 2 credits each, and nothing to delete or for a failed build | The same |
 | Google Cloud running cost | Billed by Google to your own billing account, about US$24 a month for the default configuration (table below) | Metered hourly in credits; RAD publishes **43 credits a day**, about 1,290 a month (about US$129 at the top-up price, US$103 at the Scale plan's rate) |
 | Who owns what | You own the project and its billing; RAD deploys and updates it | RAD owns the project, with guardrails, quotas and budget alerts; you get console access, and a minimum purchased balance is held in reserve |
 
@@ -40,7 +40,7 @@ You pay for three things:
 ### How it compares
 
 - **There is no SaaS alternative to name here — this module is a thin control-plane layer, not a hosted app.** The real alternative is doing the same work by hand: creating the Azure AKS cluster yourself and registering it with `gcloud container fleet memberships register`, from two separate consoles, with no incremental Google Cloud cost beyond the small Autopilot pod this module already runs (shown above).
-- **What you are paying for is the automation and the cross-cloud trust setup, not a cheaper way to run AKS.** OIDC federation between the two clouds, fleet registration and the managed logging/monitoring wiring are what the module fee (zero, here) and build time actually buy — the ongoing Google-side running cost is the same either way.
+- **What you are paying for is the automation and the cross-cloud trust setup, not a cheaper way to run AKS.** OIDC federation between the two clouds, fleet registration and the managed logging/monitoring wiring are what the deployment (no module fee here, and builds are included) actually buys — the ongoing Google-side running cost is the same either way.
 - **The AKS cluster itself is billed by Microsoft Azure, not Google Cloud, and this module's figures do not include it.** Azure's own AKS pricing (compute nodes, and its per-cluster management fee outside the Free tier) is a separate bill on your Azure account — check the Azure AKS pricing page for that side.
 
 ### Pause it for free: delete a RAD-managed project, restore it when you need it
@@ -60,13 +60,11 @@ need — far better than running AKS continuously.
   waits. Unlike deleting one module, this does not tear down the database, any VM or the
   compute resource one by one — the whole project simply stops, and nothing is billed in the
   meantime.
-- **Restoring costs a handful of credits, not a rebuild.** Within 30 days, only the project's
+- **Restoring is a check, not a rebuild.** Within 30 days, only the project's
   owner can restore it. RAD asks Google to undelete the project and reattaches its billing
   account, then asks you to run **Update** on each deployment to confirm everything came back.
   Because nothing was individually destroyed, that Update finds the same resources already
-  there — it is a check, not a rebuild, and an Update never charges the module fee again. This
-  costs only a handful of credits in total (under US$1), against paying the module fee and a
-  full build again.
+  there — it is a check, not a rebuild, and an Update never charges the module fee again. Updates are included in the price (5 a month for each deployment), so a restore normally costs no credits.
 - **What this needs.** You must own the project (not one RAD only manages billing for), you
   must restore it yourself within the 30 days — after that Google deletes it for good — and
   restoring is admitted like creating a new project, so your purchased credit balance must
@@ -84,10 +82,7 @@ need — far better than running AKS continuously.
 This is the fallback for a project you own, or once the 30-day restore window above has
 passed: **delete the deployment, and deploy it again when you next need it.**
 
-- **What a redeploy costs.** The module fee again, plus the builds: roughly
-  5 credits (about US$0.50) in your own project, or
-  5 credits in a RAD-managed one, because RAD rebuilds the resources
-  from scratch. There is no module fee here, so a redeploy costs only a few credits of build time — about 5 credits (under US$1). Deleting between uses almost always pays for itself; there is very little fee to recoup.
+- **What a redeploy costs.** There is no module fee here and builds are included, so a redeploy costs nothing. Deleting between uses almost always pays for itself; there is very little fee to recoup.
 - **The GKE cluster itself is shared infrastructure.** If another application uses the same Autopilot cluster, deleting AKS alone saves only its own pod; the cluster management fee only drops once nothing else in the project needs it.
 - **Keep your data first.** Anything AKS writes to a backup bucket inside the deployment is
   deleted with it — copy the latest backup out (to Google Drive, or a bucket you keep) before

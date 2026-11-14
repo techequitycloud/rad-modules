@@ -23,7 +23,7 @@ anything below. Figures are as at 8 October 2026; sources are listed at the end 
 | | In a Google Cloud project you own | In a project RAD manages for you |
 |---|---|---|
 | Module fee, once per deployment | None | None |
-| Build time | A few credits per build | The same |
+| Builds | Included in the price: no build charge to create, 5 updates a month free and then 2 credits each, and nothing to delete or for a failed build | The same |
 | Google Cloud running cost (Connect Agent + Fleet) | Billed by Google to your own billing account, about **US$24.04 a month** (table below) | Metered hourly in credits; RAD publishes **43 credits a day**, about 1,290 a month (about US$129 at the top-up price) |
 | AWS running cost (the EKS cluster itself) | Billed by **Amazon**, to your AWS account, separately — not covered by this table | Same — RAD does not meter or resell AWS spend |
 | Who owns what | You own the GCP project and its billing; RAD deploys and updates the Fleet registration | RAD owns the GCP project, with guardrails, quotas and budget alerts; you get console access |
@@ -59,9 +59,7 @@ are set by AWS's own pricing and billed to your AWS account directly.
 
 If this module's GCP side runs in **a project RAD manages for you**, deleting the whole project
 unlinks its billing first, then asks Google to delete it — recoverable for 30 days, with nothing
-charged on the GCP side while it waits. Restoring (the project owner, within 30 days) undeletes
-the project, reattaches billing, and an **Update** on the deployment re-confirms the Fleet
-registration — a check, not a rebuild, for **a handful of credits (under US$1)**.
+charged on the GCP side while it waits. Updates are included in the price (5 a month for each deployment), so a restore normally costs no credits.
 
 > **A restore is not guaranteed — keep your own backups.** Google Cloud's terms do not guarantee that a restored project, or the resources in it, will be usable after it is restored, so restoring cannot be relied on as a way to recover a deleted project. Before you delete, make sure you have taken appropriate backups of the application's data and configuration and stored them outside the project. If a restore fails, or the restored project does not work, the fall-back is to redeploy the application (see the next section) and restore its configuration and data from those backups.
 
@@ -78,9 +76,7 @@ registration — a check, not a rebuild, for **a handful of credits (under US$1)
 
 ### Pay only while you use it, the other way: delete and redeploy
 
-Because there is no module fee, redeploying this module from scratch already costs almost
-nothing — about **4–5 credits** (under US$1) and about an hour, since there is no module fee to
-pay again, only the build. That makes the Pause-it-for-free option above mainly a convenience
+Because there is no module fee, redeploying this module from scratch costs nothing but about an hour: there is no module fee to pay again, and builds are included in the price. That makes the Pause-it-for-free option above mainly a convenience
 (nothing to reconfigure) rather than a large saving on the GCP side specifically — the real money
 at stake is almost always the AWS EKS cluster, which neither option changes.
 

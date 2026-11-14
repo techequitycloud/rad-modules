@@ -19,7 +19,7 @@ This module is intended for **educational and evaluation purposes**.
 | | In a Google Cloud project you own | In a project RAD manages for you |
 |---|---|---|
 | Module fee, once per deployment | no charge | no charge |
-| Build time | A few credits per build | The same |
+| Builds | Included in the price: no build charge to create, 5 updates a month free and then 2 credits each, and nothing to delete or for a failed build | The same |
 | Google Cloud running cost | Billed by Google to your own billing account, about **US$24.04 a month** for the default configuration (table below) | Metered hourly in credits; RAD publishes **43 credits a day** |
 | Who owns what | You own the project and its billing; RAD deploys and updates it | RAD owns the project, with guardrails, quotas and budget alerts; you get console access, and a minimum purchased balance is held in reserve |
 
@@ -69,8 +69,7 @@ Restoring, within 30 days and only by the project's owner, asks Google to undele
 project and reattaches its billing account, then asks you to run Update on each deployment
 to confirm everything came back. Because nothing was individually destroyed, that Update
 finds the same resources already there — it is a check, not a rebuild, and an Update never
-charges the module fee again. This costs only a handful of credits (under US$1) in build time
-for a typical chain of deployments.
+charges the module fee again. Updates are included in the price (5 a month for each deployment), so a restore normally costs no credits.
 
 What this needs: you must own the project (not one RAD only manages billing for), you must
 restore it yourself within 30 days — after that Google deletes it for good — and restoring is
@@ -87,10 +86,8 @@ delete the project, even though the project itself is recoverable for 30 days. I
 In your own project, or once the 30-day window above has passed, the fallback is to delete
 Istio outright and redeploy it later.
 
-- **What a redeploy costs:** the module fee again, plus the builds — roughly the module fee
-  shown above plus 3–6 credits of build time.
-- **When it's worth it:** deleting saves money only once Istio would otherwise sit unused
-  — but since there is no module fee, redeploying costs only a few credits of build time, so there is no real threshold to wait for: delete it whenever a session is over. There is no database or persistent data here, so deleting Istio removes its whole running cost on its own.
+- **What a redeploy costs:** the module fee again (builds are included) — the module fee shown above.
+- **When it's worth it:* Updates are included in the price (5 a month for each deployment), so a restore normally costs no credits. There is no database or persistent data here, so deleting Istio removes its whole running cost on its own.
 - **Keep data first.** Nightly backups are written to a bucket inside the deployment, and
   that bucket is deleted with it — copy the latest backup out (to Google Drive, or a bucket
   you keep) before deleting if you want to keep it.
