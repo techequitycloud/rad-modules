@@ -20,9 +20,11 @@ This guide focuses on the Google Cloud services the module exercises and how to 
 | | In a Google Cloud project you own | In a project RAD manages for you |
 |---|---|---|
 | Module fee, once per deployment | Free (0 credits) | Free (0 credits) |
-| Builds | Included in the price: no build charge to create, 5 updates a month free and then 2 credits each, and nothing to delete or for a failed build | The same |
-| Google Cloud running cost | Billed by Google to your own billing account, about **US$24 a month** for the default configuration (table below) | Metered hourly in credits; RAD publishes **43 credits a day**, about 1,290 a month (about US$129.00 at the top-up price, less on a plan) |
+| Builds | Included in the price: no build charge to create, 5 updates a month (UTC calendar month) free and then 2 credits each, and nothing to delete or for a failed build. Lab sessions and client projects are the exception: they are still charged for build time by the minute | The same |
+| Google Cloud running cost | Billed by Google to your own billing account, about **US$24 a month** for the default configuration (table below) | Metered hourly in credits; RAD publishes **51 credits a day**, about 1,530 a month (about US$153 at the top-up price; estimated from Google list prices, and including the cluster fee) |
 | Who owns what | You own the project and its billing; RAD deploys and updates it | RAD owns the project, with guardrails, quotas and budget alerts; you get console access, and a minimum purchased balance is held in reserve |
+
+**Why the two columns differ.** The RAD-managed figure includes the GKE cluster's management fee (about US$73 a month) and the project's shared foundation. In your own project, Google's free tier covers the management fee of one cluster per billing account, which the own-project figure assumes. It is estimated from Google's list prices, because there is not yet enough RAD-managed GKE history to measure it, so the deploy confirmation does not quote it.
 
 10 credits cost US$1 on a one-off top-up, and less on a monthly plan. In a project RAD manages, the database, file server and network are shared by every application in the project, so a second application does not add a second database.
 
@@ -70,7 +72,7 @@ environment, a seasonal or intermittent workload — far better than running it 
   asks you to run **Update** on each deployment to confirm everything came back. Because
   nothing was individually destroyed, that Update finds the same resources already there — it
   is a check, not a rebuild, and an Update never charges the module fee again. For Bank of Anthos that costs nothing: there is no module fee, and updates are included in the price (5 a month for each deployment).
-- **So a month of occasional use can cost a few dollars, not US$24.**
+- **So a month of occasional use can cost a few dollars, not the US$153 a month of keeping it running.**
   Deploy Bank of Anthos, use it for a while, delete the project. Restore it next time you need it,
   confirm with Update, and delete it again when you're done. You pay only for the module fee once and whatever time it was actually live.
 - **What this needs.** You must own the project (not one RAD only manages billing for), and
@@ -94,7 +96,7 @@ The option above only applies to a RAD-managed project; **in your own project, o
 again when you need it.**
 
 - **What a redeploy costs.** There is no module fee here and builds are included, so a redeploy costs nothing in RAD credits — deleting saves money as soon as Bank of Anthos would otherwise sit unused, both in your own project
-  (about US$0.80 a day) and in a RAD-managed one (43 credits a day).
+  (about US$0.80 a day) and in a RAD-managed one (51 credits a day).
 - **Most of the running cost is usually shared.** For Bank of Anthos that is the database. They stop only when nothing else in the project uses them, so deleting this app while something else shares the project saves only this app's own compute part.
 - **Keep your data first.** Nightly backups go to a bucket inside the deployment and are
   deleted with it, so copy the latest backup out before deleting if you want to keep it.
