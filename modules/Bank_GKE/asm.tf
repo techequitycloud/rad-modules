@@ -26,7 +26,6 @@ resource "null_resource" "verify_gke_hub_api_activation" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<-EOT
       set -e
-      PROJECT_ID="${local.project.project_id}"
       
       echo "Verifying GKE Hub API activation..."
       end_time=$((SECONDS+300))
@@ -45,6 +44,11 @@ resource "null_resource" "verify_gke_hub_api_activation" {
       echo "Timed out waiting for GKE Hub API to be enabled."
       exit 1
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID = local.project.project_id
+    }
   }
 
   triggers = {
@@ -67,7 +71,6 @@ resource "null_resource" "verify_mesh_api_activation" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<-EOT
       set -e
-      PROJECT_ID="${local.project.project_id}"
       
       echo "Verifying Service Mesh API activation..."
       end_time=$((SECONDS+300))
@@ -97,6 +100,11 @@ resource "null_resource" "verify_mesh_api_activation" {
       echo "Timed out waiting for Service Mesh APIs to be enabled."
       exit 1
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID = local.project.project_id
+    }
   }
 
   triggers = {
@@ -139,7 +147,6 @@ resource "null_resource" "verify_mesh_feature_active" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<-EOT
       set -e
-      PROJECT_ID="${local.project.project_id}"
       
       echo "Verifying Service Mesh feature is active..."
       end_time=$((SECONDS+300))
@@ -167,6 +174,11 @@ resource "null_resource" "verify_mesh_feature_active" {
       echo "Final state: $FEATURE_STATE"
       exit 1
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID = local.project.project_id
+    }
   }
 
   triggers = {
@@ -210,8 +222,6 @@ resource "null_resource" "verify_hub_membership" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<-EOT
       set -e
-      PROJECT_ID="${local.project.project_id}"
-      CLUSTER_NAME="${var.gke_cluster}"
       
       echo "Verifying GKE Hub membership registration..."
       end_time=$((SECONDS+180))
@@ -243,6 +253,12 @@ resource "null_resource" "verify_hub_membership" {
       echo "Timed out waiting for hub membership to be ready."
       exit 1
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID   = local.project.project_id
+      CLUSTER_NAME = var.gke_cluster
+    }
   }
 
   triggers = {
@@ -267,9 +283,6 @@ resource "null_resource" "verify_mesh_status" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<-EOT
       set -e
-      PROJECT_ID="${local.project.project_id}"
-      PROJECT_NUMBER="${local.project_number}"
-      CLUSTER_NAME="${var.gke_cluster}"
       
       # Construct the full membership path
       MEMBERSHIP_PATH="projects/$PROJECT_NUMBER/locations/global/memberships/$CLUSTER_NAME"
@@ -323,6 +336,13 @@ resource "null_resource" "verify_mesh_status" {
       gcloud container hub features describe servicemesh --project="$PROJECT_ID"
       exit 1
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID     = local.project.project_id
+      PROJECT_NUMBER = local.project_number
+      CLUSTER_NAME   = var.gke_cluster
+    }
   }
 
   triggers = {
@@ -349,10 +369,6 @@ resource "null_resource" "wait_for_service_mesh" {
     command     = <<-EOT
       set -e
       
-      PROJECT_ID="${local.project.project_id}"
-      PROJECT_NUMBER="${local.project_number}"
-      REGION="${var.region}"
-      CLUSTER_NAME="${var.gke_cluster}"
       
       # Construct the full membership path
       MEMBERSHIP_PATH="projects/$PROJECT_NUMBER/locations/global/memberships/$CLUSTER_NAME"
@@ -419,6 +435,14 @@ resource "null_resource" "wait_for_service_mesh" {
       gcloud container hub features describe servicemesh --project="$PROJECT_ID"
       exit 1
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID     = local.project.project_id
+      PROJECT_NUMBER = local.project_number
+      REGION         = var.region
+      CLUSTER_NAME   = var.gke_cluster
+    }
   }
 
   triggers = {

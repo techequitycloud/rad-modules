@@ -29,41 +29,50 @@ resource "null_resource" "vcenter_credentials_reset" {
   provisioner "local-exec" {
     command = <<-EOT
       echo "Checking private cloud state before credentials reset..."
-      STATE=$(gcloud vmware private-clouds describe '${local.private_cloud_name}' \
-        --project='${local.project.project_id}' \
-        --location='${var.zone}' \
-        --impersonate-service-account='${var.resource_creator_identity}' \
+      STATE=$(gcloud vmware private-clouds describe "$PRIVATE_CLOUD_NAME" \
+        --project="$GCP_PROJECT_ID" \
+        --location="$VMWARE_ZONE" \
+        --impersonate-service-account="$RESOURCE_CREATOR_IDENTITY" \
         --format='value(state)' --quiet 2>/dev/null)
       if [ "$STATE" != "ACTIVE" ]; then
         echo "Private cloud state is '$STATE' (not ACTIVE) — skipping credentials reset."
         echo "Run manually once the cloud is ACTIVE:"
         echo "  gcloud vmware private-clouds vcenter credentials reset \\"
-        echo "    --private-cloud=${local.private_cloud_name} --username=${var.vcenter_solution_user} \\"
-        echo "    --location=${var.zone} --project=${local.project.project_id} \\"
-        echo "    --impersonate-service-account='${var.resource_creator_identity}' --no-async"
+        echo "    --private-cloud=$PRIVATE_CLOUD_NAME --username=$VCENTER_SOLUTION_USER \\"
+        echo "    --location=$VMWARE_ZONE --project=$GCP_PROJECT_ID \\"
+        echo "    --impersonate-service-account='$RESOURCE_CREATOR_IDENTITY' --no-async"
         exit 0
       fi
 
       echo "Resetting vCenter solution user credentials..."
       gcloud vmware private-clouds vcenter credentials reset \
-        --private-cloud=${local.private_cloud_name} \
-        --username=${var.vcenter_solution_user} \
-        --location=${var.zone} \
-        --project=${local.project.project_id} \
-        --impersonate-service-account='${var.resource_creator_identity}' \
+        --private-cloud="$PRIVATE_CLOUD_NAME" \
+        --username="$VCENTER_SOLUTION_USER" \
+        --location="$VMWARE_ZONE" \
+        --project="$GCP_PROJECT_ID" \
+        --impersonate-service-account="$RESOURCE_CREATOR_IDENTITY" \
         --no-async \
         || echo "WARNING: Reset returned an error — run manually when cloud is fully active."
 
       echo "Retrieving new vCenter solution user credentials..."
       gcloud vmware private-clouds vcenter credentials describe \
-        --private-cloud=${local.private_cloud_name} \
-        --username=${var.vcenter_solution_user} \
-        --location=${var.zone} \
-        --project=${local.project.project_id} \
-        --impersonate-service-account='${var.resource_creator_identity}' \
+        --private-cloud="$PRIVATE_CLOUD_NAME" \
+        --username="$VCENTER_SOLUTION_USER" \
+        --location="$VMWARE_ZONE" \
+        --project="$GCP_PROJECT_ID" \
+        --impersonate-service-account="$RESOURCE_CREATOR_IDENTITY" \
         --format=json \
         || echo "WARNING: Describe failed — run the reset command above first, then describe."
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PRIVATE_CLOUD_NAME        = local.private_cloud_name
+      GCP_PROJECT_ID            = local.project.project_id
+      VMWARE_ZONE               = var.zone
+      RESOURCE_CREATOR_IDENTITY = var.resource_creator_identity
+      VCENTER_SOLUTION_USER     = var.vcenter_solution_user
+    }
   }
 
   depends_on = [google_vmwareengine_private_cloud.private_cloud]

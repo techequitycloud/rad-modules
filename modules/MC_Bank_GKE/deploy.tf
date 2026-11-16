@@ -189,13 +189,6 @@ resource "null_resource" "deploy_bank_of_anthos" {
       set -e
       export KUBECONFIG="$(mktemp)"
 
-      NAMESPACE="${self.triggers.namespace}"
-      CLUSTER_NAME="${self.triggers.cluster_name}"
-      REGION="${self.triggers.region}"
-      PROJECT_ID="${self.triggers.project_id}"
-      JWT_SECRET_PATH="${self.triggers.jwt_secret_path}"
-      MANIFESTS_PATH="${self.triggers.manifests_path}"
-      IS_PRIMARY="${self.triggers.is_primary}"
 
       echo "=========================================="
       echo "Deploying Bank of Anthos Application to $CLUSTER_NAME"
@@ -383,6 +376,17 @@ for filepath in sys.argv[1:]:
       echo ""
       echo "✓ Bank of Anthos deployment complete!"
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      NAMESPACE       = self.triggers.namespace
+      CLUSTER_NAME    = self.triggers.cluster_name
+      REGION          = self.triggers.region
+      PROJECT_ID      = self.triggers.project_id
+      JWT_SECRET_PATH = self.triggers.jwt_secret_path
+      MANIFESTS_PATH  = self.triggers.manifests_path
+      IS_PRIMARY      = self.triggers.is_primary
+    }
   }
 
   depends_on = [
@@ -427,10 +431,6 @@ resource "null_resource" "app_multicluster_ingress" {
     command     = <<-EOT
       set -e
       export KUBECONFIG="$(mktemp)"
-      
-      CLUSTER_NAME="${local.cluster_configs["cluster1"].gke_cluster_name}"
-      REGION="${local.cluster_configs["cluster1"].region}"
-      PROJECT_ID="${google_container_cluster.gke_cluster["cluster1"].project}"
       
       echo "=========================================="
       echo "Applying Multi-Cluster Ingress Configuration"
@@ -491,6 +491,13 @@ resource "null_resource" "app_multicluster_ingress" {
       echo ""
       echo "✓ Multi-cluster ingress configuration applied"
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      CLUSTER_NAME = local.cluster_configs["cluster1"].gke_cluster_name
+      REGION       = local.cluster_configs["cluster1"].region
+      PROJECT_ID   = google_container_cluster.gke_cluster["cluster1"].project
+    }
   }
 
   depends_on = [
@@ -522,10 +529,6 @@ resource "null_resource" "cleanup_multicluster_ingress" {
       set -e
       export KUBECONFIG="$(mktemp)"
       
-      CLUSTER_NAME="${self.triggers.cluster_name}"
-      REGION="${self.triggers.region}"
-      PROJECT_ID="${self.triggers.project_id}"
-      NAMESPACE="${self.triggers.namespace}"
       
       echo "=========================================="
       echo "Cleaning up MultiCluster Ingress resources"
@@ -597,6 +600,14 @@ resource "null_resource" "cleanup_multicluster_ingress" {
       echo ""
       echo "✓ MultiCluster Ingress cleanup complete"
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      CLUSTER_NAME = self.triggers.cluster_name
+      REGION       = self.triggers.region
+      PROJECT_ID   = self.triggers.project_id
+      NAMESPACE    = self.triggers.namespace
+    }
   }
 
   depends_on = [

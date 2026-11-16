@@ -238,7 +238,9 @@ if [ -f "terraform.tfvars.json" ]; then
     cp terraform.tfvars.json "$TARGET_DIR/"
     log "   Restored terraform.tfvars.json"
 else
-    log "⚠️  terraform.tfvars.json not found in archive - attempting download from GCS..."
+    # Archives no longer carry tfvars (it holds sensitive values); the copy
+    # deployment_create writes to files/ is the source of truth.
+    log "ℹ️  terraform.tfvars.json is not archived - downloading from GCS..."
     if gsutil cp "$FILES_PATH/terraform.tfvars.json" "$TARGET_DIR/" 2>/dev/null; then
         log "✅ Downloaded terraform.tfvars.json fallback"
     else

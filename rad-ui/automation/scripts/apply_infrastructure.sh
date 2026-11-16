@@ -54,7 +54,7 @@ FILES_PATH="gs://${DEPLOYMENT_BUCKET_ID}/deployments/${MODULE_NAME}/${DEPLOYMENT
 persist_state_to_gcs() {
     if [ -f "/workspace/modules/${MODULE_NAME}/terraform.tfstate" ]; then
         log "💾 Persisting Terraform state to GCS..."
-        if tar -hczf "/tmp/${MODULE_NAME}-state.tar.gz" -C "/workspace/modules/${MODULE_NAME}" . 2>/dev/null \
+        if tar -hczf "/tmp/${MODULE_NAME}-state.tar.gz" --exclude=terraform.tfvars.json --exclude=.terraform --exclude='tfplan*' --exclude='*.tfplan' -C "/workspace/modules/${MODULE_NAME}" . 2>/dev/null \
            && gsutil -q cp "/tmp/${MODULE_NAME}-state.tar.gz" "$FILES_PATH/${MODULE_NAME}.tar.gz"; then
             log "✅ Terraform state persisted to GCS"
         else

@@ -94,3 +94,24 @@ run "minimal_linux_vms" {
     error_message = "Single Linux VM count should be accepted"
   }
 }
+
+# Values that reach a local-exec script must be rejected at plan time when they
+# carry shell metacharacters (they are passed as environment variables too).
+run "shell_metacharacters_rejected" {
+  command = plan
+
+  variables {
+    project_id               = "test-project-123"
+    mc_discovery_client_name = "x\"}' ; id; echo '"
+    aws_region               = "us-east-1$(id)"
+    region                   = "us-central1`id`"
+    zone                     = "us-central1-a;id"
+  }
+
+  expect_failures = [
+    var.mc_discovery_client_name,
+    var.aws_region,
+    var.region,
+    var.zone,
+  ]
+}

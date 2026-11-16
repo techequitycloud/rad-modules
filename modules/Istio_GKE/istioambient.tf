@@ -32,7 +32,7 @@ resource "null_resource" "install_ambient_mesh" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<-EOF
     set -eo pipefail
-    echo "=== Installing Istio ${var.istio_version} (Ambient Mode) ==="
+    echo "=== Installing Istio $ISTIO_VERSION (Ambient Mode) ==="
     
     # Create local bin directory if it doesn't exist
     mkdir -p $HOME/.local/bin
@@ -78,21 +78,21 @@ resource "null_resource" "install_ambient_mesh" {
     esac
 
     # Download and extract Istio
-    echo "Downloading Istio ${var.istio_version} for $OS_SUFFIX-$ARCH..."
+    echo "Downloading Istio $ISTIO_VERSION for $OS_SUFFIX-$ARCH..."
     cd $HOME
-    curl -fL https://github.com/istio/istio/releases/download/${var.istio_version}/istio-${var.istio_version}-$OS_SUFFIX-$ARCH.tar.gz \
+    curl -fL "https://github.com/istio/istio/releases/download/$ISTIO_VERSION/istio-$ISTIO_VERSION-$OS_SUFFIX-$ARCH.tar.gz" \
       | tar xz || { echo "Failed to download/extract Istio"; exit 1; }
         
     # Use actual extracted path, not trigger variable
-    export PATH=$HOME/istio-${var.istio_version}/bin:$PATH
-    cd $HOME/istio-${var.istio_version}
+    export PATH="$HOME/istio-$ISTIO_VERSION/bin:$PATH"
+    cd "$HOME/istio-$ISTIO_VERSION"
 
     # Configure GKE cluster access with conditional impersonation
     echo "Configuring cluster access..."
-    gcloud container clusters get-credentials ${var.gke_cluster} \
-      --region ${var.region} \
-      --project ${local.project.project_id} \
-      ${var.resource_creator_identity != "" ? "--impersonate-service-account=${var.resource_creator_identity}" : ""} || \
+    gcloud container clusters get-credentials "$GKE_CLUSTER" \
+      --region "$GKE_REGION" \
+      --project "$GCP_PROJECT_ID" \
+      $${RESOURCE_CREATOR_IDENTITY:+"--impersonate-service-account=$RESOURCE_CREATOR_IDENTITY"} || \
       { echo "Failed to get cluster credentials"; exit 1; }
 
     # Wait for cluster to be ready
@@ -157,7 +157,7 @@ EOS
 
     # Install observability addons with retries
     echo "Installing observability addons..."
-    ISTIO_RELEASE=$(echo "${var.istio_version}" | cut -d. -f1,2)
+    ISTIO_RELEASE=$(echo "$ISTIO_VERSION" | cut -d. -f1,2)
     for addon in prometheus jaeger grafana kiali; do
       echo "Installing $addon..."
       kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-$ISTIO_RELEASE/samples/addons/$addon.yaml || \
@@ -180,8 +180,14 @@ EOS
     exit 0
     EOF
 
+    # Values reach the script as environment variables, never as script text.
     environment = {
-      KUBECONFIG = "" # Use default kubeconfig location
+      KUBECONFIG                = "" # Use default kubeconfig location
+      ISTIO_VERSION             = var.istio_version
+      GKE_CLUSTER               = var.gke_cluster
+      GKE_REGION                = var.region
+      GCP_PROJECT_ID            = local.project.project_id
+      RESOURCE_CREATOR_IDENTITY = var.resource_creator_identity
     }
   }
 
@@ -194,14 +200,13 @@ EOS
       
       # Set up environment
       export PATH=$HOME/.local/bin:$PATH
-      ISTIO_PATH="${self.triggers.istio_path}"
-      ISTIO_RELEASE="${self.triggers.istio_release}"
+      ISTIO_PATH="$HOME/istio-$ISTIO_VERSION"
       
       # Configure cluster access for cleanup
-      gcloud container clusters get-credentials ${self.triggers.cluster_name} \
-        --region ${self.triggers.region} \
-        --project ${self.triggers.project_id} \
-        ${self.triggers.resource_creator_identity != "" ? "--impersonate-service-account=${self.triggers.resource_creator_identity}" : ""} 2>/dev/null || \
+      gcloud container clusters get-credentials "$GKE_CLUSTER" \
+        --region "$GKE_REGION" \
+        --project "$GCP_PROJECT_ID" \
+        $${RESOURCE_CREATOR_IDENTITY:+"--impersonate-service-account=$RESOURCE_CREATOR_IDENTITY"} 2>/dev/null || \
         echo "Warning: Failed to get cluster credentials for cleanup"
       
       # Remove waypoints first (ignore failures)
@@ -248,6 +253,18 @@ EOS
       echo "✓ Ambient mesh uninstallation completed (gracefully)"
       exit 0
     EOF
+
+    # Values reach the script as environment variables, never as script text.
+    # istio_path is stored as the literal "$HOME/istio-<version>" and was expanded
+    # by the shell when it was interpolated; rebuild it from the version instead.
+    environment = {
+      ISTIO_VERSION             = trimprefix(self.triggers.istio_path, "$HOME/istio-")
+      ISTIO_RELEASE             = self.triggers.istio_release
+      GKE_CLUSTER               = self.triggers.cluster_name
+      GKE_REGION                = self.triggers.region
+      GCP_PROJECT_ID            = self.triggers.project_id
+      RESOURCE_CREATOR_IDENTITY = self.triggers.resource_creator_identity
+    }
   }
 
   depends_on = [

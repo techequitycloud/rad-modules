@@ -106,6 +106,10 @@ variable "resource_creator_identity" {
   description = "Email of the Terraform service account used to provision resources in the destination GCP project (format: name@project-id.iam.gserviceaccount.com). This account must hold roles/owner in the destination project. Defaults to the platform's built-in provisioning service account; only override if using a custom service account. {{UIMeta group=0 order=102 updatesafe }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+  validation {
+    condition     = can(regex("^$|^[a-z0-9-]+@[a-z0-9.-]+\\.gserviceaccount\\.com$", var.resource_creator_identity))
+    error_message = "resource_creator_identity must be empty or a service account email ending in .gserviceaccount.com."
+  }
 }
 
 variable "trusted_users" {
@@ -131,6 +135,10 @@ variable "enable_services" {
 variable "project_id" {
   description = "GCP project ID of the destination project where the GKE clusters and banking application will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=101 }}"
   type        = string
+  validation {
+    condition     = var.project_id == null || can(regex("^([a-z0-9.-]+:)?[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.project_id))
+    error_message = "project_id must be a GCP project ID: 6-30 characters, lowercase letters, digits and hyphens, starting with a letter and not ending with a hyphen."
+  }
 }
 
 variable "tenant_id" {
@@ -147,6 +155,10 @@ variable "available_regions" {
   description = "List of GCP regions available for cluster deployment (e.g. ['us-west1', 'us-east1']). Clusters are assigned to regions in round-robin order based on their index; if fewer regions than clusters are specified, regions are cycled (e.g. 2 regions for 4 clusters: cluster1=us-west1, cluster2=us-east1, cluster3=us-west1, cluster4=us-east1). Must contain at least one entry. Defaults to ['us-west1', 'us-east1']. {{UIMeta group=1 order=103 }}"
   type        = list(string)
   default     = ["us-west1", "us-east1"]
+  validation {
+    condition     = alltrue([for r in var.available_regions : can(regex("^[a-z]+(-[a-z]+)+[0-9]+$", r))])
+    error_message = "Every entry in available_regions must be a GCP region name such as 'us-west1'."
+  }
 }
 
 // SECTION 2: Network

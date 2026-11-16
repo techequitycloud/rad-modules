@@ -118,7 +118,6 @@ resource "null_resource" "create_bank_of_anthos_gsa" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<-EOT
       set -e
-      PROJECT_ID="${local.project.project_id}"
       GSA="bank-of-anthos@$${PROJECT_ID}.iam.gserviceaccount.com"
 
       if gcloud iam service-accounts describe "$GSA" --project="$PROJECT_ID" &>/dev/null; then
@@ -131,6 +130,11 @@ resource "null_resource" "create_bank_of_anthos_gsa" {
         echo "✓ GSA created"
       fi
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID = local.project.project_id
+    }
   }
 }
 
@@ -232,13 +236,6 @@ resource "null_resource" "deploy_bank_of_anthos" {
     command     = <<-EOT
       set -e
       
-      NAMESPACE="${self.triggers.namespace}"
-      CLUSTER_NAME="${self.triggers.cluster_name}"
-      REGION="${self.triggers.region}"
-      PROJECT_ID="${self.triggers.project_id}"
-      JWT_SECRET_PATH="${self.triggers.jwt_secret_path}"
-      MANIFESTS_PATH="${self.triggers.manifests_path}"
-      GSA_EMAIL="${self.triggers.gsa_email}"
       
       echo "=========================================="
       echo "Deploying Bank of Anthos Application"
@@ -374,6 +371,17 @@ resource "null_resource" "deploy_bank_of_anthos" {
       echo ""
       echo "✓ Deployment complete!"
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      NAMESPACE       = self.triggers.namespace
+      CLUSTER_NAME    = self.triggers.cluster_name
+      REGION          = self.triggers.region
+      PROJECT_ID      = self.triggers.project_id
+      JWT_SECRET_PATH = self.triggers.jwt_secret_path
+      MANIFESTS_PATH  = self.triggers.manifests_path
+      GSA_EMAIL       = self.triggers.gsa_email
+    }
   }
 
   provisioner "local-exec" {
@@ -382,10 +390,6 @@ resource "null_resource" "deploy_bank_of_anthos" {
     command     = <<-EOT
       set -e
       
-      NAMESPACE="${self.triggers.namespace}"
-      CLUSTER_NAME="${self.triggers.cluster_name}"
-      REGION="${self.triggers.region}"
-      PROJECT_ID="${self.triggers.project_id}"
       
       echo "=========================================="
       echo "Cleaning up Bank of Anthos Application"
@@ -431,6 +435,14 @@ resource "null_resource" "deploy_bank_of_anthos" {
       echo "✓ Cleanup complete"
     EOT
     on_failure  = continue
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      NAMESPACE    = self.triggers.namespace
+      CLUSTER_NAME = self.triggers.cluster_name
+      REGION       = self.triggers.region
+      PROJECT_ID   = self.triggers.project_id
+    }
   }
 
   depends_on = [

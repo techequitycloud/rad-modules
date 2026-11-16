@@ -100,3 +100,20 @@ run "no_jump_host" {
     error_message = "Should be able to disable jump host creation"
   }
 }
+
+# Values that reach a local-exec script must be rejected at plan time when they
+# carry shell metacharacters (they are passed as environment variables too).
+run "shell_metacharacters_rejected" {
+  command = plan
+
+  variables {
+    project_id            = "test-project-123"
+    vcenter_solution_user = "solution-user-01@gve.local; id"
+    zone                  = "us-west2-a$(id)"
+  }
+
+  expect_failures = [
+    var.vcenter_solution_user,
+    var.zone,
+  ]
+}

@@ -30,9 +30,9 @@ resource "null_resource" "mc_init" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      echo "Initializing Migration Center in ${var.region}..."
+      echo "Initializing Migration Center in $MC_REGION..."
       TOKEN=$(gcloud auth print-access-token \
-        --impersonate-service-account='${var.resource_creator_identity}' \
+        --impersonate-service-account="$RESOURCE_CREATOR_IDENTITY" \
         --quiet 2>/dev/null)
 
       MAX_ATTEMPTS=6
@@ -48,7 +48,7 @@ resource "null_resource" "mc_init" {
           -H "Authorization: Bearer $TOKEN" \
           -H "Content-Type: application/json" \
           -d '{}' \
-          "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}:initializeConfig")
+          "https://migrationcenter.googleapis.com/v1/projects/$GCP_PROJECT_ID/locations/$MC_REGION:initializeConfig")
 
         if [ "$STATUS" = "200" ] || [ "$STATUS" = "409" ]; then
           echo "Migration Center initialized (HTTP $STATUS)."
@@ -65,7 +65,7 @@ resource "null_resource" "mc_init" {
         sleep $WAIT
         WAIT=$((WAIT * 2))
         TOKEN=$(gcloud auth print-access-token \
-          --impersonate-service-account='${var.resource_creator_identity}' \
+          --impersonate-service-account="$RESOURCE_CREATOR_IDENTITY" \
           --quiet 2>/dev/null)
       done
 
@@ -73,6 +73,13 @@ resource "null_resource" "mc_init" {
       echo "Check that migrationcenter.googleapis.com is enabled and the SA has the Owner role."
       exit 1
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      GCP_PROJECT_ID            = local.project.project_id
+      MC_REGION                 = var.region
+      RESOURCE_CREATOR_IDENTITY = var.resource_creator_identity
+    }
   }
 
   depends_on = [google_project_service.enabled_services]
@@ -93,20 +100,17 @@ resource "null_resource" "mc_source" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      echo "Creating Migration Center discovery source '${local.mc_source_name}'..."
+      echo "Creating Migration Center discovery source '$MC_SOURCE_NAME'..."
       TOKEN=$(gcloud auth print-access-token \
-        --impersonate-service-account='${var.resource_creator_identity}' \
+        --impersonate-service-account="$RESOURCE_CREATOR_IDENTITY" \
         --quiet 2>/dev/null)
 
       RESPONSE=$(curl -s -w "\n%%{http_code}" \
         -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
-        -d '{
-          "displayName": "${var.mc_discovery_client_name}",
-          "type": "SOURCE_TYPE_DISCOVERY_CLIENT"
-        }' \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/sources?sourceId=${local.mc_source_name}")
+        -d "{\"displayName\": \"$MC_DISCOVERY_CLIENT_NAME\", \"type\": \"SOURCE_TYPE_DISCOVERY_CLIENT\"}" \
+        "https://migrationcenter.googleapis.com/v1/projects/$GCP_PROJECT_ID/locations/$MC_REGION/sources?sourceId=$MC_SOURCE_NAME")
 
       HTTP_CODE=$(echo "$RESPONSE" | tail -1)
       BODY=$(echo "$RESPONSE" | head -n -1)
@@ -118,6 +122,15 @@ resource "null_resource" "mc_source" {
         exit 1
       fi
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      GCP_PROJECT_ID            = local.project.project_id
+      MC_REGION                 = var.region
+      RESOURCE_CREATOR_IDENTITY = var.resource_creator_identity
+      MC_SOURCE_NAME            = local.mc_source_name
+      MC_DISCOVERY_CLIENT_NAME  = var.mc_discovery_client_name
+    }
   }
 
   depends_on = [null_resource.mc_init]
@@ -147,11 +160,18 @@ resource "null_resource" "mc_aws_import" {
       AWS_ACCESS_KEY_ID     = aws_iam_access_key.mc_discovery_key[0].id
       AWS_SECRET_ACCESS_KEY = aws_iam_access_key.mc_discovery_key[0].secret
       AWS_DEFAULT_REGION    = var.aws_region
+
+      # Values reach the script as environment variables, never as script text.
+      GCP_PROJECT_ID            = local.project.project_id
+      MC_REGION                 = var.region
+      RESOURCE_CREATOR_IDENTITY = var.resource_creator_identity
+      MC_SOURCE_NAME            = local.mc_source_name
+      AWS_IMPORT_NAME           = local.aws_import_name
     }
 
     command = <<-EOT
       set -e
-      echo "Starting AWS EC2 discovery for region ${var.aws_region}..."
+      echo "Starting AWS EC2 discovery for region $AWS_DEFAULT_REGION..."
 
       WORKDIR=$(mktemp -d)
 
@@ -172,7 +192,7 @@ resource "null_resource" "mc_aws_import" {
       echo "Found $INSTANCE_COUNT EC2 instances."
 
       if [ "$INSTANCE_COUNT" = "0" ]; then
-        echo "No EC2 instances found in ${var.aws_region} — skipping import."
+        echo "No EC2 instances found in $AWS_DEFAULT_REGION — skipping import."
         rm -rf "$WORKDIR"
         exit 0
       fi
@@ -281,19 +301,16 @@ print(f'CSV files generated for {len(instances)} instances.')
 PYEOF
 
       TOKEN=$(gcloud auth print-access-token \
-        --impersonate-service-account='${var.resource_creator_identity}' \
+        --impersonate-service-account="$RESOURCE_CREATOR_IDENTITY" \
         --quiet 2>/dev/null)
 
-      echo "Creating AWS import job '${local.aws_import_name}'..."
+      echo "Creating AWS import job '$AWS_IMPORT_NAME'..."
       CREATE_RESP=$(curl -s -w "\n%%{http_code}" \
         -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
-        -d '{
-          "displayName": "aws-ec2-import",
-          "assetSource": "projects/${local.project.project_id}/locations/${var.region}/sources/${local.mc_source_name}"
-        }' \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs?importJobId=${local.aws_import_name}")
+        -d "{\"displayName\": \"aws-ec2-import\", \"assetSource\": \"projects/$GCP_PROJECT_ID/locations/$MC_REGION/sources/$MC_SOURCE_NAME\"}" \
+        "https://migrationcenter.googleapis.com/v1/projects/$GCP_PROJECT_ID/locations/$MC_REGION/importJobs?importJobId=$AWS_IMPORT_NAME")
 
       HTTP_CODE=$(echo "$CREATE_RESP" | tail -1)
       if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "409" ]; then
@@ -311,7 +328,7 @@ PYEOF
           -H "Authorization: Bearer $TOKEN" \
           -H "Content-Type: text/csv" \
           --data-binary "@$CSV_FILE" \
-          "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}/importDataFiles?importDataFileId=$(echo "$FILENAME" | tr '.' '-')")
+          "https://migrationcenter.googleapis.com/v1/projects/$GCP_PROJECT_ID/locations/$MC_REGION/importJobs/$AWS_IMPORT_NAME/importDataFiles?importDataFileId=$(echo "$FILENAME" | tr '.' '-')")
         CODE=$(echo "$RESP" | tail -1)
         if [ "$CODE" = "200" ] || [ "$CODE" = "409" ]; then
           echo "  Uploaded $FILENAME (HTTP $CODE)."
@@ -326,7 +343,7 @@ PYEOF
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
         -d '{}' \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}:validate")
+        "https://migrationcenter.googleapis.com/v1/projects/$GCP_PROJECT_ID/locations/$MC_REGION/importJobs/$AWS_IMPORT_NAME:validate")
       VAL_CODE=$(echo "$VAL_RESP" | tail -1)
       if [ "$VAL_CODE" = "200" ]; then
         echo "Validation started — waiting 30s for validation to complete..."
@@ -344,7 +361,7 @@ PYEOF
         -H "Authorization: Bearer $TOKEN" \
         -H "Content-Type: application/json" \
         -d '{}' \
-        "https://migrationcenter.googleapis.com/v1/projects/${local.project.project_id}/locations/${var.region}/importJobs/${local.aws_import_name}:run")
+        "https://migrationcenter.googleapis.com/v1/projects/$GCP_PROJECT_ID/locations/$MC_REGION/importJobs/$AWS_IMPORT_NAME:run")
       RUN_CODE=$(echo "$RUN_RESP" | tail -1)
       if [ "$RUN_CODE" = "200" ]; then
         echo "Import job running (HTTP $RUN_CODE). Check Migration Center console for status."
