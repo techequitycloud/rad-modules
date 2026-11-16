@@ -95,7 +95,7 @@ passed: **delete the deployment, and deploy it again when you next need it.**
 
 - **Lab sessions, for training.** A trainer runs a session for a class. Each participant gets
   Bank of Anthos in their own Google Cloud project for 15 minutes to 24 hours, within an allowance the
-  trainer sets. Either the trainer funds every place, or each participant pays for their own.
+  trainer sets. Alternatively, the trainer builds one shared environment for the whole class, and everyone uses the same application and its data. Either the trainer funds every place, or each participant pays for their own.
   Everything is deleted when the session ends and unused credits go back to the trainer.
 - **Managed Environments, for consultancies.** A partner runs Bank of Anthos for a client from a
   ring-fenced wallet it funds, and settles with the client directly. If the wallet runs low,
