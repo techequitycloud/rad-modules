@@ -80,6 +80,10 @@ variable "resource_creator_identity" {
   description = "Email of the Terraform service account used to provision resources (format: name@project-id.iam.gserviceaccount.com). Must hold roles/owner in the destination project. {{UIMeta group=0 order=107 updatesafe }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+  validation {
+    condition     = can(regex("^$|^[a-z0-9-]+@[a-z0-9.-]+\\.gserviceaccount\\.com$", var.resource_creator_identity))
+    error_message = "resource_creator_identity must be empty or a service account email ending in .gserviceaccount.com."
+  }
 }
 
 variable "deployment_id" {
@@ -94,6 +98,10 @@ variable "project_id" {
   description = "GCP project ID where Migration Center resources will be deployed. Must already exist and the service account must hold roles/owner. {{UIMeta group=1 order=101 }}"
   type        = string
   default     = null
+  validation {
+    condition     = var.project_id == null || can(regex("^([a-z0-9.-]+:)?[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.project_id))
+    error_message = "project_id must be a GCP project ID: 6-30 characters, lowercase letters, digits and hyphens, starting with a letter and not ending with a hyphen."
+  }
 }
 
 variable "tenant_id" {
@@ -110,12 +118,20 @@ variable "region" {
   description = "GCP region where all resources will be deployed (e.g. 'us-central1'). Migration Center must be available in this region. {{UIMeta group=1 order=103 }}"
   type        = string
   default     = "us-central1"
+  validation {
+    condition     = can(regex("^[a-z]+(-[a-z]+)+[0-9]+$", var.region))
+    error_message = "region must be a GCP region name such as 'us-central1' or 'europe-west1'."
+  }
 }
 
 variable "zone" {
   description = "GCP zone where Compute Engine instances will be deployed (e.g. 'us-central1-a'). {{UIMeta group=1 order=104 }}"
   type        = string
   default     = "us-central1-a"
+  validation {
+    condition     = can(regex("^[a-z]+(-[a-z]+)+[0-9]+-[a-z]$", var.zone))
+    error_message = "zone must be a GCP zone name such as 'us-central1-a'."
+  }
 }
 
 // SECTION 2: Networking
@@ -196,6 +212,10 @@ variable "mc_discovery_client_name" {
   description = "Name to register for the MC Discovery Client data source. This name appears in the Migration Center console and must match what you enter in the MCDCv6 UI during login. {{UIMeta group=8 order=802 }}"
   type        = string
   default     = "mc-discovery-client"
+  validation {
+    condition     = can(regex("^[A-Za-z0-9][A-Za-z0-9 ._-]{0,62}$", var.mc_discovery_client_name))
+    error_message = "mc_discovery_client_name must be 1-63 characters: letters, digits, spaces, dots, underscores and hyphens, starting with a letter or digit."
+  }
 }
 
 variable "aws_access_key_id" {
@@ -216,5 +236,9 @@ variable "aws_region" {
   description = "AWS region to discover EC2 instances from (e.g. 'us-east-1'). {{UIMeta group=8 order=805 }}"
   type        = string
   default     = "us-east-1"
+  validation {
+    condition     = can(regex("^[a-z]{2}(-gov|-iso[a-z]*)?-[a-z]+-[0-9]+$", var.aws_region))
+    error_message = "aws_region must be an AWS region code such as 'us-east-1' or 'eu-west-2'."
+  }
 }
 

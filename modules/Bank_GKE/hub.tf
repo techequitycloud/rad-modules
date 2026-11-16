@@ -43,7 +43,6 @@ resource "null_resource" "verify_gke_hub_api_activation_hub" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<-EOT
       set -e
-      PROJECT_ID="${local.project.project_id}"
       
       echo "Verifying GKE Hub API activation..."
       end_time=$((SECONDS+300))
@@ -62,6 +61,11 @@ resource "null_resource" "verify_gke_hub_api_activation_hub" {
       echo "Timed out waiting for GKE Hub API to be enabled."
       exit 1
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID = local.project.project_id
+    }
   }
 }
 
@@ -76,7 +80,6 @@ resource "null_resource" "wait_for_api_propagation" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<-EOT
       set -e
-      PROJECT_ID="${local.project.project_id}"
       
       echo "Waiting for GKE Hub API backend to be ready..."
       end_time=$((SECONDS+120))
@@ -97,6 +100,11 @@ resource "null_resource" "wait_for_api_propagation" {
       echo "Error: Timed out waiting for GKE Hub API propagation"
       exit 1
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID = local.project.project_id
+    }
   }
 }
 
@@ -136,7 +144,6 @@ resource "null_resource" "wait_for_iam_propagation" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<-EOT
       set -e
-      PROJECT_ID="${local.project.project_id}"
 
       echo "Waiting for IAM propagation..."
       end_time=$((SECONDS+120))
@@ -158,6 +165,11 @@ resource "null_resource" "wait_for_iam_propagation" {
       echo "✓ IAM propagation wait completed (proceeding after timeout)"
       exit 0
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID = local.project.project_id
+    }
   }
 }
 

@@ -74,6 +74,10 @@ variable "resource_creator_identity" {
   description = "Email of the Terraform service account used to provision resources in the destination GCP project (format: name@project-id.iam.gserviceaccount.com). This account must hold roles/owner in the destination project. Defaults to the platform's built-in provisioning service account; only override if using a custom service account. {{UIMeta group=0 order=102 updatesafe }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+  validation {
+    condition     = can(regex("^$|^[a-z0-9-]+@[a-z0-9.-]+\\.gserviceaccount\\.com$", var.resource_creator_identity))
+    error_message = "resource_creator_identity must be empty or a service account email ending in .gserviceaccount.com."
+  }
 }
 
 variable "trusted_users" {
@@ -99,6 +103,10 @@ variable "enable_services" {
 variable "project_id" {
   description = "GCP project ID of the destination project where the GKE cluster and Istio service mesh will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Required; no default. {{UIMeta group=1 order=101 }}"
   type        = string
+  validation {
+    condition     = var.project_id == null || can(regex("^([a-z0-9.-]+:)?[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.project_id))
+    error_message = "project_id must be a GCP project ID: 6-30 characters, lowercase letters, digits and hyphens, starting with a letter and not ending with a hyphen."
+  }
 }
 
 variable "tenant_id" {
@@ -115,6 +123,10 @@ variable "region" {
   description = "GCP region where the GKE cluster, VPC, and all supporting resources will be deployed (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Deployment may fail if sufficient resource quota is not available in the selected region. {{UIMeta group=1 order=103 }}"
   type        = string
   default     = "us-central1"
+  validation {
+    condition     = can(regex("^[a-z]+(-[a-z]+)+[0-9]+$", var.region))
+    error_message = "region must be a GCP region name such as 'us-central1' or 'europe-west1'."
+  }
 }
 
 // SECTION 3: Network
@@ -155,6 +167,10 @@ variable "gke_cluster" {
   description = "Name of the GKE cluster. When create_cluster is true, this is the name given to the newly created cluster. When create_cluster is false, this identifies the existing cluster onto which Istio will be installed. Defaults to 'gke-cluster'. {{UIMeta group=3 order=302 }}"
   type        = string
   default     = "gke-cluster"
+  validation {
+    condition     = can(regex("^[a-z]([-a-z0-9]{0,38}[a-z0-9])?$", var.gke_cluster))
+    error_message = "gke_cluster must be a valid GKE cluster name: 1-40 characters, lowercase letters, digits and hyphens, starting with a letter and not ending with a hyphen."
+  }
 }
 
 variable "release_channel" {
@@ -193,6 +209,10 @@ variable "istio_version" {
   description = "Version of open source Istio to install on the GKE cluster (format: major.minor.patch, e.g. '1.30.3'). Must be a supported Istio release whose Kubernetes compatibility range covers the version served by the selected GKE release channel. Defaults to '1.30.3', which supports Kubernetes 1.32-1.36 and therefore covers the STABLE, REGULAR and RAPID channels. Refer to https://istio.io/latest/docs/releases/supported-releases/ for available versions. {{UIMeta group=4 order=402 }}"
   type        = string
   default     = "1.30.3"
+  validation {
+    condition     = can(regex("^[0-9]+\\.[0-9]+\\.[0-9]+(-(alpha|beta|rc)\\.[0-9]+)?$", var.istio_version))
+    error_message = "istio_version must be an Istio release version such as '1.30.3' (major.minor.patch, optionally with an -alpha.N, -beta.N or -rc.N suffix)."
+  }
 }
 
 variable "install_ambient_mesh" {

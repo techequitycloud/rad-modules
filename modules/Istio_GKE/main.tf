@@ -80,7 +80,7 @@ resource "null_resource" "wait_for_container_api" {
 
       # Attempt to verify API activation, with retries
       for i in {1..20}; do
-        if gcloud services list --project "${local.project.project_id}" --format="value(name)" \
+        if gcloud services list --project "$GCP_PROJECT_ID" --format="value(name)" \
           --filter="name:${self.triggers.api_service}" | grep -q "${self.triggers.api_service}"; then
           echo "✓ Container API is enabled."
           exit 0
@@ -92,6 +92,11 @@ resource "null_resource" "wait_for_container_api" {
       echo "Error: Timeout waiting for Container API to be enabled."
       exit 1
     EOF
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      GCP_PROJECT_ID = local.project.project_id
+    }
   }
 
   depends_on = [

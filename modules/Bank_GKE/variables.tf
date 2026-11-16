@@ -80,6 +80,10 @@ variable "resource_creator_identity" {
   description = "Email of the Terraform service account used to provision resources in the destination GCP project (format: name@project-id.iam.gserviceaccount.com). This account must hold roles/owner in the destination project. Defaults to the platform's built-in provisioning service account; only override if using a custom service account. {{UIMeta group=0 order=102 updatesafe }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+  validation {
+    condition     = can(regex("^$|^[a-z0-9-]+@[a-z0-9.-]+\\.gserviceaccount\\.com$", var.resource_creator_identity))
+    error_message = "resource_creator_identity must be empty or a service account email ending in .gserviceaccount.com."
+  }
 }
 
 variable "trusted_users" {
@@ -106,6 +110,10 @@ variable "project_id" {
   description = "GCP project ID of the destination project where the GKE cluster and banking application will be deployed (format: lowercase letters, digits, and hyphens, e.g. 'my-project-123'). This project must already exist and the resource_creator_identity service account must hold roles/owner in it. Leave blank to use the default project. {{UIMeta group=1 order=101 }}"
   type        = string
   default     = null
+  validation {
+    condition     = var.project_id == null || can(regex("^([a-z0-9.-]+:)?[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.project_id))
+    error_message = "project_id must be a GCP project ID: 6-30 characters, lowercase letters, digits and hyphens, starting with a letter and not ending with a hyphen."
+  }
 }
 
 variable "tenant_id" {
@@ -122,6 +130,10 @@ variable "region" {
   description = "GCP region where the GKE cluster, VPC, and all supporting resources will be deployed (e.g. 'us-central1', 'europe-west1'). Defaults to 'us-central1'. Deployment may fail if sufficient resource quota is not available in the selected region. {{UIMeta group=1 order=103 }}"
   type        = string
   default     = "us-central1"
+  validation {
+    condition     = can(regex("^[a-z]+(-[a-z]+)+[0-9]+$", var.region))
+    error_message = "region must be a GCP region name such as 'us-central1' or 'europe-west1'."
+  }
 }
 
 // SECTION 3: Network
@@ -168,6 +180,10 @@ variable "gke_cluster" {
   description = "Name of the GKE cluster. When create_cluster is true, this is the name given to the newly created cluster. When create_cluster is false, this identifies the existing cluster to use. Defaults to 'gke-cluster'. {{UIMeta group=5 order=503 }}"
   type        = string
   default     = "gke-cluster"
+  validation {
+    condition     = can(regex("^[a-z]([-a-z0-9]{0,38}[a-z0-9])?$", var.gke_cluster))
+    error_message = "gke_cluster must be a valid GKE cluster name: 1-40 characters, lowercase letters, digits and hyphens, starting with a letter and not ending with a hyphen."
+  }
 }
 
 variable "release_channel" {

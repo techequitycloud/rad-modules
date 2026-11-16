@@ -80,6 +80,10 @@ variable "resource_creator_identity" {
   description = "Email of the Terraform service account used to provision resources (format: name@project-id.iam.gserviceaccount.com). Must hold roles/owner in the destination project. {{UIMeta group=0 order=107 updatesafe }}"
   type        = string
   default     = "rad-module-creator@tec-rad-ui-2b65.iam.gserviceaccount.com"
+  validation {
+    condition     = can(regex("^$|^[a-z0-9-]+@[a-z0-9.-]+\\.gserviceaccount\\.com$", var.resource_creator_identity))
+    error_message = "resource_creator_identity must be empty or a service account email ending in .gserviceaccount.com."
+  }
 }
 
 variable "deployment_id" {
@@ -100,6 +104,10 @@ variable "project_id" {
   description = "GCP project ID where VMware Engine resources will be deployed. Must already exist and the service account must hold roles/owner. {{UIMeta group=1 order=101 }}"
   type        = string
   default     = null
+  validation {
+    condition     = var.project_id == null || can(regex("^([a-z0-9.-]+:)?[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.project_id))
+    error_message = "project_id must be a GCP project ID: 6-30 characters, lowercase letters, digits and hyphens, starting with a letter and not ending with a hyphen."
+  }
 }
 
 variable "tenant_id" {
@@ -116,12 +124,20 @@ variable "region" {
   description = "GCP region where the private cloud and network policy will be deployed (e.g. 'us-west2'). {{UIMeta group=1 order=103 }}"
   type        = string
   default     = "us-west2"
+  validation {
+    condition     = can(regex("^[a-z]+(-[a-z]+)+[0-9]+$", var.region))
+    error_message = "region must be a GCP region name such as 'us-central1' or 'europe-west1'."
+  }
 }
 
 variable "zone" {
   description = "GCP zone where the private cloud will be deployed (e.g. 'us-west2-a'). {{UIMeta group=1 order=104 }}"
   type        = string
   default     = "us-west2-a"
+  validation {
+    condition     = can(regex("^[a-z]+(-[a-z]+)+[0-9]+-[a-z]$", var.zone))
+    error_message = "zone must be a GCP zone name such as 'us-central1-a'."
+  }
 }
 
 // SECTION 3: VMware Engine Network
@@ -238,4 +254,8 @@ variable "vcenter_solution_user" {
   description = "vCenter solution user account whose credentials will be reset (e.g. 'solution-user-01@gve.local'). Required for accessing vCenter management consoles and deploying workloads in the private cloud. {{UIMeta group=9 order=902 }}"
   type        = string
   default     = "solution-user-01@gve.local"
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$", var.vcenter_solution_user))
+    error_message = "vcenter_solution_user must be a vCenter user principal such as 'solution-user-01@gve.local'."
+  }
 }

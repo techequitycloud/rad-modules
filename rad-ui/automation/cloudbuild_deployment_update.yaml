@@ -372,7 +372,7 @@ steps:
     persist_state_to_gcs() {
         if [ -f "/workspace/modules/${_MODULE_NAME}/terraform.tfstate" ]; then
             log "💾 Persisting Terraform state to GCS..."
-            if tar -hczf "/tmp/${_MODULE_NAME}-state.tar.gz" -C "/workspace/modules/${_MODULE_NAME}" . 2>/dev/null \
+            if tar -hczf "/tmp/${_MODULE_NAME}-state.tar.gz" --exclude=terraform.tfvars.json --exclude=.terraform --exclude='tfplan*' --exclude='*.tfplan' -C "/workspace/modules/${_MODULE_NAME}" . 2>/dev/null \
                && gsutil -q cp "/tmp/${_MODULE_NAME}-state.tar.gz" "$$FILES_PATH/${_MODULE_NAME}.tar.gz"; then
                 log "✅ Terraform state persisted to GCS"
             else
@@ -536,7 +536,8 @@ steps:
 
     # Create archive from parent directory to avoid "file changed" error
     cd /workspace
-    tar -hczf "${_MODULE_NAME}.tar.gz" -C "modules/${_MODULE_NAME}" .
+    # Excluded: tfvars (secrets; kept in files/), plans (plaintext values), .terraform (providers)
+    tar -hczf "${_MODULE_NAME}.tar.gz" --exclude=terraform.tfvars.json --exclude=.terraform --exclude='tfplan*' --exclude='*.tfplan' -C "modules/${_MODULE_NAME}" .
 
     log "📤 Uploading deployment files..."
 

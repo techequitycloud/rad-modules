@@ -80,8 +80,6 @@ resource "google_gke_hub_membership" "hub_membership" {
     command     = <<-EOF
       set +e  # Don't exit on errors
       
-      PROJECT_ID="${self.project}"
-      MEMBERSHIP_NAME="${self.membership_id}"
       
       echo "=========================================="
       echo "Cleaning up GKE Hub Membership: $MEMBERSHIP_NAME"
@@ -158,6 +156,12 @@ resource "google_gke_hub_membership" "hub_membership" {
       # Always exit 0 to not block Terraform destroy
       exit 0
     EOF
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID      = self.project
+      MEMBERSHIP_NAME = self.membership_id
+    }
   }
 
   lifecycle {
@@ -183,8 +187,6 @@ resource "null_resource" "wait_for_fleet_registration" {
     command     = <<-EOT
       set -e
 
-      CLUSTER_NAME="${self.triggers.cluster_name}"
-      PROJECT_ID="${self.triggers.project_id}"
       MAX_ATTEMPTS=60
 
       echo "=========================================="
@@ -209,6 +211,12 @@ resource "null_resource" "wait_for_fleet_registration" {
       echo "❌ Fleet membership for '$CLUSTER_NAME' did not become READY in time"
       exit 1
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      CLUSTER_NAME = self.triggers.cluster_name
+      PROJECT_ID   = self.triggers.project_id
+    }
   }
 
   depends_on = [
@@ -234,8 +242,6 @@ resource "null_resource" "enable_asm" {
     command     = <<-EOT
       set -e
 
-      PROJECT_ID="${self.triggers.project_id}"
-      CLUSTER_NAME="${self.triggers.cluster_name}"
 
       echo "=========================================="
       echo "Enabling Cloud Service Mesh for cluster: $CLUSTER_NAME"
@@ -273,6 +279,12 @@ resource "null_resource" "enable_asm" {
       echo "ASM enabled for cluster: $CLUSTER_NAME"
       echo "=========================================="
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID   = self.triggers.project_id
+      CLUSTER_NAME = self.triggers.cluster_name
+    }
   }
 
   depends_on = [
@@ -309,9 +321,6 @@ resource "null_resource" "wait_for_service_mesh" {
     command     = <<-EOT
       set -e
 
-      PROJECT_ID="${self.triggers.project_id}"
-      PROJECT_NUMBER="${self.triggers.project_number}"
-      CLUSTER_NAME="${self.triggers.cluster_name}"
       MEMBERSHIP_PATH="projects/$PROJECT_NUMBER/locations/global/memberships/$CLUSTER_NAME"
       end_time=$((SECONDS + 1500))  # 25 minutes
 
@@ -342,6 +351,13 @@ resource "null_resource" "wait_for_service_mesh" {
       gcloud container fleet mesh describe --project="$PROJECT_ID" --format=json 2>/dev/null || true
       exit 1
     EOT
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID     = self.triggers.project_id
+      PROJECT_NUMBER = self.triggers.project_number
+      CLUSTER_NAME   = self.triggers.cluster_name
+    }
   }
 
   depends_on = [
@@ -367,7 +383,6 @@ resource "null_resource" "cleanup_fleet_asm" {
     command     = <<-EOF
       set +e  # Don't exit on errors
       
-      PROJECT_ID="${self.triggers.project_id}"
 
       echo "=========================================="
       echo "Checking Fleet-level ASM status"
@@ -406,6 +421,11 @@ resource "null_resource" "cleanup_fleet_asm" {
       # Always exit 0
       exit 0
     EOF
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      PROJECT_ID = self.triggers.project_id
+    }
   }
 
   depends_on = [

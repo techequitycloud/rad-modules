@@ -29,13 +29,13 @@ resource "null_resource" "cleanup_mci_resources" {
       set -x
       export KUBECONFIG="$(mktemp)"
       echo "======================================"
-      echo "Starting MCI resource cleanup for cluster ${self.triggers.cluster}"
+      echo "Starting MCI resource cleanup for cluster $CLUSTER_NAME"
       echo "======================================"
       
       # Get cluster credentials
-      if ! gcloud container clusters get-credentials ${self.triggers.cluster} \
-          --region ${self.triggers.region} \
-          --project ${self.triggers.project} 2>/dev/null; then
+      if ! gcloud container clusters get-credentials "$CLUSTER_NAME" \
+          --region "$REGION" \
+          --project "$PROJECT_ID" 2>/dev/null; then
         echo "Warning: Could not get cluster credentials. Cluster may already be deleted."
         exit 0
       fi
@@ -50,5 +50,12 @@ resource "null_resource" "cleanup_mci_resources" {
       
       exit 0
     EOF
+
+    # Values reach the script as environment variables, never as script text.
+    environment = {
+      CLUSTER_NAME = self.triggers.cluster
+      REGION       = self.triggers.region
+      PROJECT_ID   = self.triggers.project
+    }
   }
 }
