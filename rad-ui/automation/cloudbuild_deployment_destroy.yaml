@@ -121,7 +121,15 @@ steps:
         log "📝 Creating pre-destroy audit record..."
         jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' /workspace/audit/pre_destroy_state.json 2>/dev/null > /workspace/audit/pre_destroy_resources.txt || echo "No resources found" > /workspace/audit/pre_destroy_resources.txt
 
-        gsutil -m cp /workspace/audit/pre_destroy_state.json "gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/pre_destroy_state.json" || log "Failed to upload pre-destroy state"
+        # The full state stays in this build. What is uploaded is an inventory
+        # with no attribute or output values: `tofu show -json` holds secrets
+        # in plaintext and build-logs/ outlives the deployment by 400 days.
+        # See redact_state_json.sh. If it fails, nothing is uploaded instead.
+        if bash /pipeline/redact_state_json.sh /workspace/audit/pre_destroy_state.json /workspace/audit/pre_destroy_inventory.json; then
+            gsutil cp /workspace/audit/pre_destroy_inventory.json "gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/pre_destroy_state.json" || log "Failed to upload pre-destroy inventory"
+        else
+            log "⚠️  Could not build the pre-destroy inventory — not uploaded"
+        fi
         gsutil -m cp /workspace/audit/pre_destroy_resources.txt "gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}/pre_destroy_resources.txt" || log "Failed to upload resource list"
 
         log "✅ Pre-destroy audit completed"
@@ -386,9 +394,15 @@ steps:
 
             jq -r '.values.root_module.resources[]? | "\(.type).\(.name) (\(.address))"' /workspace/audit/post_destroy_state.json 2>/dev/null > /workspace/audit/remaining_resources.txt || echo "Unable to list" > /workspace/audit/remaining_resources.txt
         fi
+
+        # Uploaded as an inventory, never the state itself: after a partial
+        # destroy this still holds the surviving resources' secrets in
+        # plaintext. See redact_state_json.sh.
+        bash /pipeline/redact_state_json.sh /workspace/audit/post_destroy_state.json /workspace/audit/post_destroy_inventory.json \
+            || log "⚠️  Could not build the post-destroy inventory — not uploaded"
     else
         log "✅ State is clean - no resources found"
-        echo '{"message": "No state found after destroy", "timestamp": "'$$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /workspace/audit/post_destroy_state.json
+        echo '{"message": "No state found after destroy", "timestamp": "'$$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' > /workspace/audit/post_destroy_inventory.json
     fi
 
     AUDIT_BASE="gs://${_DEPLOYMENT_BUCKET_ID}/build-logs/destroy/${_MODULE_NAME}/${_DEPLOYMENT_ID}"
@@ -419,8 +433,11 @@ steps:
     gsutil -m cp \
         /workspace/audit/destroy_verification.json \
         /workspace/audit/destroy_complete.json \
-        /workspace/audit/post_destroy_state.json \
         "$$AUDIT_BASE/" || log "Failed to upload some audit files"
+
+    if [ -f /workspace/audit/post_destroy_inventory.json ]; then
+        gsutil cp /workspace/audit/post_destroy_inventory.json "$$AUDIT_BASE/post_destroy_state.json" || log "Failed to upload post-destroy inventory"
+    fi
 
     if [ -f /workspace/audit/remaining_resources.txt ]; then
         gsutil cp /workspace/audit/remaining_resources.txt "$$AUDIT_BASE/remaining_resources.txt" || log "Failed to upload remaining resources list"
@@ -453,6 +470,10 @@ steps:
     fi
 
     log "🎉 Complete cleanup finished!"
+  # For redact_state_json.sh, staged by step 0.
+  volumes:
+  - name: 'pipeline-scripts'
+    path: '/pipeline'
   dir: /workspace/modules/${_MODULE_NAME}
 
 - id: 'Destroy Summary'

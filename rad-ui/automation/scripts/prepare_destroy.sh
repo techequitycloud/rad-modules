@@ -130,7 +130,10 @@ try_clone() {
     if [ -z "$repo" ] || [ "$repo" = "none" ]; then return 1; fi
     log "📥 Trying to clone: $repo (HEAD)"
     find /workspace -mindepth 1 -delete 2>/dev/null || true
-    if ! git clone "https://$GIT_TOKEN@github.com/$repo.git" /workspace 2>&1; then
+    # Shallow, as create and update clone: destroy runs the default branch's
+    # HEAD and nothing afterwards reads history. commit_hash.txt is logged
+    # for audit only and is never checked out.
+    if ! git clone --depth 1 "https://$GIT_TOKEN@github.com/$repo.git" /workspace 2>&1; then
         log "⚠️  Clone failed for $repo (token may lack read access)"
         return 1
     fi
