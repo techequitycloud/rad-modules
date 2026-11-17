@@ -52,3 +52,4 @@ In an effort to comply with applicable sanctions, we block access from specific 
 ## License
 
 [Mozilla Public License v2.0](https://github.com/opentofu/opentofu/blob/main/LICENSE)
+
