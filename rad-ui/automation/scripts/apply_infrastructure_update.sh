@@ -443,3 +443,4 @@ apply_with_retry() {
 apply_with_retry
 
 log "🎯 Infrastructure changes applied successfully"
+if then fi
